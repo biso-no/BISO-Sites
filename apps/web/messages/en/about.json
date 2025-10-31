@@ -1,0 +1,156 @@
+{
+  "hub": {
+    "title": "About BISO",
+    "subtitle": "Everything you need to know about our student union",
+    "description": "Explore our purpose, policies, bylaws, history, and how we work to improve study quality. You’ll also find information about our national Operations Unit, Alumni initiative, our support for SAIH, and our Varsling (whistleblowing) channel.",
+    "browse": "Browse topics",
+    "cta": "Learn more"
+  },
+  "links": {
+    "whatIsBiso": {
+      "title": "What is BISO",
+      "description": "Who we are, what we do, and how we support students across all campuses."
+    },
+    "politics": {
+      "title": "Our politics",
+      "description": "We are politically independent, engaged in student politics to improve student life."
+    },
+    "bylaws": {
+      "title": "Bylaws and statutes",
+      "description": "National statutes and local bylaws for each campus."
+    },
+    "history": {
+      "title": "Our history",
+      "description": "A brief history of BISO and key milestones."
+    },
+    "studyQuality": {
+      "title": "Study quality",
+      "description": "How we work to improve teaching, learning, and student experience at BI."
+    },
+    "operations": {
+      "title": "Operations Unit",
+      "description": "Our national department responsible for organizational operations."
+    },
+    "alumni": {
+      "title": "Alumni",
+      "description": "About the BISO Alumni network and how to get involved."
+    },
+    "saih": {
+      "title": "Support SAIH",
+      "description": "Learn why we support SAIH and how you can contribute."
+    },
+    "varsling": {
+      "title": "Varsling (Whistleblowing)",
+      "description": "Report incidents safely. Read our code of conduct and how to submit."
+    }
+  },
+  "general": {
+    "strategy": {
+      "title": "Strategy",
+      "subtitle": "We actively work towards our strategic goals",
+      "items": {
+        "impact": {
+          "title": "Impact",
+          "desc": "Give students a voice at BI, in student politics and in society."
+        },
+        "connected": {
+          "title": "Connected",
+          "desc": "Unite students across campuses and connect them with industry."
+        },
+        "engaged": {
+          "title": "Engaged",
+          "desc": "An inclusive, social and rewarding environment enriching the BI experience."
+        }
+      }
+    },
+    "whatWeDo": {
+      "title": "What we do",
+      "subtitle": "What BISO does at every campus",
+      "lead": "All funds in BISO go back to student welfare. We create events, and committees have budgets to organize social and academic activities for students!",
+      "items": [
+        "Social integration through committees",
+        "Company presentations",
+        "Career-relevant courses",
+        "Negotiate student discounts",
+        "Low-barrier events"
+      ]
+    },
+    "academics": {
+      "title": "Academics",
+      "subtitle": "Your voice in academia",
+      "lead": "BISO represents students’ academic interests and works to increase the focus on sustainability. We do this through forums with BI and in dialogue with students.",
+      "items": [
+        "Listen to students",
+        "Improve study programs",
+        "Give BI a student perspective",
+        "Advocate for more focus on sustainability",
+        "Bring student cases forward"
+      ]
+    },
+    "politics": {
+      "title": "Our politics",
+      "lead": "Student politics is about creating student welfare. We fight for student issues.",
+      "cta": "Read our politics"
+    },
+    "orgChart": {
+      "title": "Organizational structure"
+    },
+    "partners": {
+      "title": "Our national partners"
+    },
+    "contact": {
+      "title": "Contact us",
+      "subtitle": "Find contact information at the bottom of the campus page",
+      "campusCta": "Choose campus",
+      "au": {
+        "title": "Contact the Executive Board (Arbeidsutvalget)",
+        "desc": "The Executive Board consists of full-time student officers. They work strategically and facilitate campus leaderships to deliver student activities and benefits for our BISO members.",
+        "emailLabel": "Send email"
+      }
+    }
+  },
+  "pages": {
+    "whatIsBiso": {
+      "title": "What is BISO",
+      "intro": "BISO is the student union at BI Norwegian Business School. We represent, include and empower students across all campuses.",
+      "content": "BISO brings students together through committees and projects that create academic and social activities on campus.\n\nWe work in three directions:\n• Impact – give students a clear voice in decisions that affect them\n• Connected – unite campuses and connect students with industry\n• Engaged – build an inclusive, social and rewarding environment\n\nAll surplus goes back to student welfare. That means more events, better services and benefits for members."
+    },
+    "politics": {
+      "title": "Our politics",
+      "intro": "BISO is politically independent. We work for our members’ academic, economic, social, psychosocial and health interests.",
+      "content": "We advance student welfare through constructive collaboration with BI and student democracy. Our priorities include study quality, inclusion and a safe student environment – alongside practical measures for student life (discounts, relevant roles and low‑barrier events)."
+    },
+    "bylaws": {
+      "title": "Bylaws and statutes",
+      "intro": "Our governance framework ensures clarity, transparency and accountability.",
+      "content": "BISO has national statutes that apply across all campuses, and local bylaws tailored to each campus organisation. Together they define roles, democratic processes, elections, finance and responsibilities.\n\nIf you need guidance on interpretation or access to the latest documents, contact the Operations Unit or your campus leadership."
+    },
+    "history": {
+      "title": "Our history",
+      "intro": "From local student initiatives to a national union.",
+      "content": "BISO’s story is driven by volunteers who wanted stronger student communities and better study life at BI. Over time, local organisations joined forces to form one national student union with shared values and goals.\n\nToday BISO supports thousands of students through activities, representation and services at every campus."
+    },
+    "studyQuality": {
+      "title": "Study quality",
+      "intro": "Continuous improvement of education and learning environment.",
+      "content": "We represent student voices in formal committees with BI and bring forward concrete feedback from courses and programmes. Our goals are better teaching quality, relevant learning experiences and a supportive environment on every campus.\n\nYou can get involved by sharing input with your campus leadership or joining a committee that works with study quality."
+    },
+    "operations": {
+      "title": "Operations Unit",
+      "intro": "Our national department that supports all campuses.",
+      "content": "The Operations Unit helps campus organisations deliver for students by supporting governance, finance, compliance, IT and shared services. It also facilitates national initiatives and ensures good routines across BISO.\n\nThe Executive Board (Arbeidsutvalget) works full‑time to set direction and enable local leaderships to succeed."
+    },
+    "alumni": {
+      "title": "BISO Alumni",
+      "intro": "A growing network for former BISO students and volunteers.",
+      "content": "BISO Alumni connects former students and volunteers who want to keep contributing or reconnect with the community. The network shares knowledge, opportunities and experience back to current students.",
+      "cta": "Go to Alumni site"
+    },
+    "saih": {
+      "title": "Support SAIH",
+      "intro": "SAIH promotes academic freedom and education rights globally.",
+      "content": "BISO supports SAIH because education creates freedom and opportunities. We collaborate on activities that raise awareness and invite students to contribute through donations and events.",
+      "cta": "Learn about SAIH"
+    }
+  }
+}

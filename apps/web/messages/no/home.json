@@ -1,0 +1,206 @@
+{
+  "hero": {
+    "badge": "Studentliv på sitt beste",
+    "imageAlt": "BISO-studenter",
+    "primaryCtaSecondary": "Utforsk din campus",
+    "promo": {
+      "headline": "Skap opplevelser, påvirk politikk og bygg nettverk for fremtiden.",
+      "tagline": "Mer enn studentliv"
+    },
+    "stats": {
+      "campuses": "Campuser",
+      "events": "Kommende events",
+      "jobs": "Ledige verv"
+    },
+    "subtitleActive": "Opplev alt som skjer ved {campusName}. Finn arrangementer, fordeler og verv som gjør studietiden uforglemmelig.",
+    "subtitleDefault": "BI Student Organisation samler studenter på tvers av campus. Utforsk mulighetene og finn din vei inn i fellesskapet.",
+    "titleActive": "Bli med i pulsen ved {campusName}",
+    "titleDefault": "En sterk studentstemme på alle BI-campuser",
+    "mission": "Vi hjelper studenter med å knytte bånd, utvikle seg og påvirke på alle BI-campusene.",
+    "contactCta": "Snakk med oss",
+    "highlights": {
+      "events": "Arrangementer",
+      "jobs": "Muligheter",
+      "news": "Nyheter"
+    }
+  },
+  "identity": {
+    "eyebrow": "Hvorfor BISO",
+    "title": "Bygget av studenter for studenter",
+    "description": "BISO er Norges største studentforening. Fra fester til politikk er vi ryggraden i studentlivet på BI.",
+    "values": {
+      "mission": {
+        "title": "Drevet av påvirkning",
+        "description": "Vi kjemper for studentenes rettigheter og sørger for at stemmen din blir hørt."
+      },
+      "members": {
+        "title": "12 000+ medlemmer",
+        "description": "Tusenvis av BI-studenter samarbeider gjennom komiteer, styrer og frivillige team."
+      },
+      "impact": {
+        "title": "Fellesskap over hele landet",
+        "description": "Fire campuser, én organisasjon. Vi deler kunnskap, ressurser og god stemning på tvers av Norge."
+      }
+    }
+  },
+  "spotlight": {
+    "eyebrow": "Akkurat nå",
+    "title": "Ukens høydepunkter",
+    "description": "Her er arrangementene og historiene du ikke bør gå glipp av nå.",
+    "cta": "Se alle hendelser",
+    "featuredEvent": "Utvalgt arrangement",
+    "eventCta": "Les mer om arrangementet",
+    "moreEvents": "Flere happenings",
+    "newsLabel": "Nyhet"
+  },
+  "explore": {
+    "eyebrow": "Kom i gang",
+    "title": "Hvor starter du?",
+    "description": "Velg veien som passer hvordan du vil engasjere deg i BISO.",
+    "cta": "Alle ressurser",
+    "cards": {
+      "units": {
+        "title": "Finn din enhet",
+        "description": "Møt teamene som driver BISO over hele Norge.",
+        "cta": "Utforsk enheter",
+        "href": "/units"
+      },
+      "highlights": {
+        "title": "Eventkalender",
+        "description": "Se festene, verkstedene og møtene som kommer.",
+        "cta": "Se arrangementer",
+        "href": "/events"
+      },
+      "roles": {
+        "title": "Ta et verv",
+        "description": "Frivillig, leder eller faglig – finn et verv som passer deg.",
+        "cta": "Se verv",
+        "href": "/jobs"
+      },
+      "benefits": {
+        "title": "Medlemsfordeler",
+        "description": "Lås opp rabatter, merch og ressurser kun for medlemmer.",
+        "cta": "Se fordeler",
+        "href": "/shop"
+      },
+      "support": {
+        "title": "Trenger du støtte?",
+        "description": "Tilgang til trivsel, sikkerhet og faglige støtteressurser.",
+        "cta": "Få støtte",
+        "href": "/safety"
+      },
+      "international": {
+        "title": "Internasjonale studenter",
+        "description": "Oppdag ressurser for utvekslings- og internasjonale studenter.",
+        "cta": "Studentguide",
+        "href": "/students"
+      }
+    }
+  },
+  "events": {
+    "cta": "Se hele kalenderen",
+    "descriptionActive": "Planlegg uka ved {campusName}.",
+    "descriptionDefault": "Se hva som skjer på dine campuser.",
+    "empty": "Ingen kommende arrangementer for denne campusen.",
+    "title": "Eventkalender",
+    "pendingDate": "Dato kommer snart"
+  },
+  "news": {
+    "cta": "Alle nyheter",
+    "description": "Nyheter, kunngjøringer og historier fra hele organisasjonen.",
+    "empty": "Ingen nyheter publisert ennå.",
+    "titleActive": "Aktuelt fra {campusName}",
+    "titleDefault": "Aktuelt i BISO"
+  },
+  "jobs": {
+    "cta": "Se alle stillinger",
+    "deadline": "Frist: {date}",
+    "description": "Bli med i organisasjonen og form fremtidens studentliv.",
+    "empty": "Ingen ledige verv akkurat nå.",
+    "rolling": "Løpende opptak",
+    "title": "Ledige verv og jobber"
+  },
+  "quickLinks": {
+    "benefits": {
+      "cta": "Til fordeler",
+      "description": "Shop, rabatter og ressurser eksklusivt for BISO-medlemmer.",
+      "title": "Studentfordeler"
+    },
+    "highlights": {
+      "cta": "Se kalender",
+      "description": "Få oversikt over fester, faglige møteplasser og karrieredager.",
+      "title": "Kommende høydepunkter"
+    },
+    "roles": {
+      "cta": "Åpne verv",
+      "description": "Utvikle deg i studentpolitikk, ledelse eller koordinering.",
+      "title": "Søk verv"
+    },
+    "units": {
+      "cta": "Utforsk enheter",
+      "description": "Markedsføring, HR, økonomi eller event – se hvor du kan bidra.",
+      "title": "Finn din enhet"
+    }
+  },
+  "opportunities": {
+    "eyebrow": "Bli med på laget",
+    "title": "Muligheter til å engasjere seg",
+    "description": "Verv og stillinger som gjør studietiden uforglemmelig.",
+    "cta": "Se alle muligheter",
+    "featured": "Utvalgt verv",
+    "more": "Flere muligheter",
+    "applyCta": "Søk på dette vervet",
+    "supportTitle": "Trenger du veiledning?",
+    "supportHeadline": "Vi hjelper deg å finne din plass",
+    "supportDescription": "Snakk med vårt team eller les guidene for å finne ut hvor du passer inn.",
+    "supportLinks": {
+      "volunteer": "Frivillighåndboken",
+      "contact": "Kontakt HR-teamet",
+      "safety": "Rapportering og støtte"
+    },
+    "empty": "Ingen ledige verv akkurat nå."
+  },
+  "benefits": {
+    "eyebrow": "Medlemsfordeler",
+    "title": "Fordeler og perks",
+    "description": "Medlemskap gir rabatter, merch og karriereressurser fra partnere over hele Norge.",
+    "cta": "Se alle fordeler",
+    "shopTag": "Medlemsbutikk",
+    "shopCta": "Handle merch",
+    "perks": {
+      "community": {
+        "title": "Fellesskap og tilhørighet",
+        "description": "Møt folk gjennom komiteer, styrer, idrett og interessegrupper."
+      },
+      "partners": {
+        "title": "Fordeler fra partnere",
+        "description": "Eksklusive avtaler med nasjonale og lokale partnere valgt for studenter."
+      },
+      "support": {
+        "title": "Støtte når du trenger det",
+        "description": "Tilgang til trivselstiltak, karriereveiledning og faglig støtte."
+      }
+    }
+  },
+  "shop": {
+    "cta": "Gå til butikk",
+    "description": "Profiler din campus med eksklusiv BISO-merch.",
+    "empty": "Ingen produkter tilgjengelig akkurat nå.",
+    "price": "{value} kr",
+    "title": "Shop: nye favoritter"
+  },
+  "finalCta": {
+    "eyebrow": "Neste steg",
+    "title": "Klar for å bygge fremtidens studentliv?",
+    "description": "Enten du vil bli med, samarbeide eller bare stille spørsmål, vil vi gjerne høre fra deg.",
+    "primary": "Bli medlem",
+    "secondary": "Kontakt oss",
+    "secondaryHref": "/contact",
+    "supportCopy": "Trenger du noe spesielt? Disse snarveiene hjelper deg til riktig team raskt.",
+    "links": {
+      "about": "Hva er BISO?",
+      "contact": "Ta kontakt",
+      "press": "Presse og media"
+    }
+  }
+}

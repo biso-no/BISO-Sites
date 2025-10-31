@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# Bunpack
 
-## Getting Started
+Bunpack is a Next.js application with TypeScript and Tailwind CSS.
 
-First, run the development server:
+## Table of Contents
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. [Project Structure](#project-structure)
+2. [Installation](#installation)
+3. [Usage](#usage)
+4. [Configuration](#configuration)
+5. [API Routes](#api-routes)
+6. [Components](#components)
+7. [Styling](#styling)
+8. [Deployment](#deployment)
+9. [Contributing](#contributing)
+10. [License](#license)
+
+## Project Structure
+
+```
+bunpack/
+├── .next/
+├── app/
+├── components/
+├── lib/
+├── public/
+├── .env
+├── .env.example
+├── .eslintrc.js
+├── .gitignore
+├── bun.lockb
+├── components.json
+├── database.json
+├── middleware.ts
+├── next-env.d.ts
+├── next.config.js
+├── package.json
+├── postcss.config.js
+├── tailwind.config.js
+├── tsconfig.json
+└── README.md
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+See [Installation Guide](docs/installation.md) for detailed instructions.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+## Usage
 
-## Learn More
+See [Usage Guide](docs/usage.md) for information on how to use Bunpack.
 
-To learn more about Next.js, take a look at the following resources:
+## Configuration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `next.config.js`: Next.js configuration
+- `tsconfig.json`: TypeScript configuration
+- `tailwind.config.js`: Tailwind CSS configuration
+- `postcss.config.js`: PostCSS configuration
+- `.eslintrc.js`: ESLint configuration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## API Routes
 
-## Deploy on Vercel
+API routes can be accessed on `/api/*`. This directory is mapped to `/app/api/*`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Components
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Reusable components are stored in the `components/` directory.
+
+## Styling
+
+This project uses Tailwind CSS for styling. The configuration can be found in `tailwind.config.js`.
+
+## Deployment
+
+Follow the [Next.js deployment documentation](https://nextjs.org/docs/deployment) for detailed instructions on how to deploy your app.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

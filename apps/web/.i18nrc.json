@@ -1,0 +1,10 @@
+{
+  "localesPaths": [
+    "messages"
+  ],
+  "keystyle": "nested",
+  "sourceLanguage": "en",
+  "displayLanguage": "en",
+  "enabledFrameworks": ["next-intl"],
+  "pathMatcher": "{locale}.json"
+}

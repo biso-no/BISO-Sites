@@ -1,0 +1,39 @@
+{
+  "hero": {
+    "badge": "Support scheme",
+    "apply": "Submit application",
+    "contact": "Get in touch"
+  },
+  "overview": {
+    "title": "Programme overview",
+    "status": "Status",
+    "active": "Open for applications",
+    "draft": "Not published",
+    "template": "Application template",
+    "download": "Download",
+    "documents": "Helpful documents",
+    "contact": "Contact",
+    "contactFallback": "BISO Executive Board",
+    "external": "More information"
+  },
+  "eligibility": {
+    "title": "Who can apply?",
+    "empty": "Guidelines will be published soon."
+  },
+  "steps": {
+    "title": "How to apply",
+    "empty": "The process will be shared soon."
+  },
+  "faq": {
+    "title": "Frequently asked questions"
+  },
+  "contact": {
+    "title": "Questions and guidance"
+  },
+  "fallback": {
+    "title": "Apply through the BI Fund",
+    "intro": "The BI Fund awards grants to student projects, events and initiatives that strengthen the learning environment at BI.",
+    "cta": "Learn more",
+    "contact": "Questions? Reach us at {email}."
+  }
+}

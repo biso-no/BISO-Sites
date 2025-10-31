@@ -1,0 +1,25 @@
+{
+  "drugsPolicy": {
+    "title": "Drugs and Alcohol Policy",
+    "intro": "BISO promotes a safe and inclusive student environment. We expect responsible conduct at all events and activities.",
+    "sections": {
+      "principles": {
+        "title": "Principles",
+        "items": {
+          "0": "Follow Norwegian law and BI’s regulations at all times",
+          "1": "No use or distribution of illegal substances",
+          "2": "Responsible alcohol service and consumption at BISO events"
+        }
+      },
+      "conduct": {
+        "title": "Conduct at events",
+        "body": "All participants must show respect and care for fellow students and staff. Harassment, discrimination and unsafe behavior will not be tolerated."
+      },
+      "support": {
+        "title": "Reporting and support",
+        "body": "If you experience or witness incidents, use our Varsling (whistleblowing) page or contact campus leadership."
+      }
+    }
+  }
+}
+

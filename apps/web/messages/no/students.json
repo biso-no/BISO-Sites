@@ -1,0 +1,68 @@
+{
+  "hero": {
+    "badge": "Studentopplevelsen ved {campus}",
+    "globalCampus": "alle campuser",
+    "title": "Alt du trenger for å lykkes ved {campus}",
+    "subtitle": "Utforsk medlemsfordeler, verv og støtteordninger. Alt er samlet slik at du kan bruke mindre tid på å lete og mer tid på å bli engasjert.",
+    "ctaPrimary": "Bli medlem",
+    "ctaSecondary": "Finn et utvalg",
+    "ctaTertiary": "Se ledige verv"
+  },
+  "benefits": {
+    "title": "Medlemsfordeler",
+    "subtitle": "Fordeler fra {campus} og nasjonalt nivå.",
+    "cta": "Se alle fordeler",
+    "badges": {
+      "studentBenefits": "Medlemskap",
+      "careerAdvantages": "Karriere",
+      "socialNetwork": "Fellesskap",
+      "safety": "Trygghet",
+      "businessBenefits": "Samarbeid"
+    },
+    "labels": {
+      "studentBenefits": "Medlemskap og tilbud",
+      "careerAdvantages": "Karriere og kompetanse",
+      "socialNetwork": "Studentliv og nettverk",
+      "safety": "Trygghet og støtte",
+      "businessBenefits": "For samarbeidspartnere"
+    }
+  },
+  "units": {
+    "title": "Utvalg og enheter ved {campus}",
+    "subtitle": "Bli kjent med studentstyrer, faglige foreninger og sosiale prosjekter.",
+    "cta": "Utforsk alle enheter",
+    "unknownType": "Utvalg",
+    "members": "{count, plural, one {# medlem} other {# medlemmer}}",
+    "empty": "Vi finner ingen enheter for denne campusen akkurat nå."
+  },
+  "funding": {
+    "title": "Søk støtte fra BI-fondet",
+    "subtitle": "Studentprosjekter kan få økonomisk støtte til tiltak som skaper verdi på campus.",
+    "body": "BI-fondet åpner for søknader fra studenter og BISO-enheter som ønsker å realisere nye initiativ innen fag, trivsel og inkludering.",
+    "cta": "Les mer og søk"
+  },
+  "events": {
+    "title": "Dette skjer ved {campus}",
+    "subtitle": "Hold deg oppdatert på arrangementer i regi av BISO og campus-ledelsen.",
+    "cta": "Gå til arrangementskalender",
+    "more": "Les mer",
+    "empty": "Ingen kommende arrangementer registrert for {campus} ennå."
+  },
+  "jobs": {
+    "title": "Verv og engasjement",
+    "subtitle": "Bygg CV, nettverk og ferdigheter gjennom studentdrevne roller.",
+    "cta": "Se alle verv",
+    "more": "Se detaljer",
+    "unknownDepartment": "Utvalg",
+    "rolling": "Løpende opptak",
+    "empty": "Ingen ledige verv publisert akkurat nå."
+  },
+  "resources": {
+    "title": "Nyttige snarveier",
+    "membership": "Medlemsfordeler",
+    "events": "Arrangementskalender",
+    "roles": "Ledige verv",
+    "safety": "Varsling og støtte",
+    "view": "Åpne"
+  }
+}

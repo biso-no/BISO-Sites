@@ -1,0 +1,192 @@
+{
+  "title": "Varsling",
+  "subtitle": "Alle skal være ivaretatt",
+  "description": "Har du en sak som kanskje er ubehagelig, eller noe du har opplevd som krever oppfølging fra andre i BISO? Ta gjerne kontakt med oss gjennom skjemaet, og send oss din sak. Kontaktinfo er valgfritt.",
+  "form": {
+    "title": "Send inn sak",
+    "description": "Kontaktskjema - Kontakt oss her! Påkrevde felter er merket med *",
+    "fields": {
+      "submissionType": {
+        "label": "Type sak",
+        "placeholder": "Velg type sak",
+        "required": true
+      },
+      "campus": {
+        "label": "Campus",
+        "placeholder": "Velg campus",
+        "required": true
+      },
+      "receiver": {
+        "label": "Hvem ønsker du å kontakte?",
+        "placeholder": "Velg kontaktperson",
+        "required": true
+      },
+      "email": {
+        "label": "Din e-postadresse (valgfritt)",
+        "placeholder": "din@epost.no",
+        "description": "La stå tom hvis du ønsker å være anonym. Med e-postadresse kan vi kontakte deg for oppfølging."
+      },
+      "caseDescription": {
+        "label": "Beskrivelse av saken",
+        "placeholder": "Beskriv situasjonen så detaljert som mulig...",
+        "required": true
+      }
+    },
+    "submissionTypes": {
+      "harassment": "Trakassering",
+      "witness": "Vitne", 
+      "other": "Annet"
+    },
+    "submit": {
+      "button": "Send inn sak",
+      "submitting": "Sender...",
+      "success": "Din sak er sendt. Du vil få svar så snart som mulig.",
+      "error": "Det oppstod en feil ved sending. Prøv igjen senere.",
+      "validation": {
+        "required": "Vennligst fyll ut alle obligatoriske felt.",
+        "noContact": "Kunne ikke finne kontaktinformasjon for valgt rolle."
+      }
+    }
+  },
+  "infoCards": {
+    "harassment": {
+      "title": "Trakassering",
+      "description": "Rapporter hvis du har opplevd trakassering, mobbing eller annen uønsket oppførsel."
+    },
+    "witness": {
+      "title": "Vitne", 
+      "description": "Rapporter hvis du har vært vitne til uønsket oppførsel eller trakassering."
+    },
+    "other": {
+      "title": "Annet",
+      "description": "Andre bekymringer eller situasjoner du ønsker å rapportere."
+    }
+  },
+  "whatIsWhistleblowing": {
+    "title": "Hva er varsling?",
+    "content": "Varsling er handlingen for å rapportere urett eller feil oppførsel i en organisasjon. Det gjøres ofte av ansatte, medlemmer eller andre som har kjennskap til handlingen, men det kan også gjøres av utenforstående som får kjennskap til problemstillingen.\n\nI BISO har vi en Code of Conduct som alle ansatte og medlemmer plikter til å følge. Brudd på Code of Conduct følges opp av kontrollkomiteen i BISO som rapporterer saker til styret.\n\nHvis du har opplevd brudd på vår Code of Conduct ber vi deg sende inn en sak via skjemaet over."
+  },
+  "codeOfConduct": {
+    "title": "Code of Conduct",
+    "purpose": "Formålet med denne Code of Conduct er å ha et retningslinjer som promoterer positiv adferd og kultiverer en god organisasjonskultur i BI Student Organisation.",
+    "rules": [
+      "Du må respektere dine medstudenter og deres grenser",
+      "Du må følge opp dine forpliktelser og ansvar som følger med din rolle", 
+      "Du må bidra til å skape et inkluderende, velkomment og åpent miljø for alle studenter og medlemmer",
+      "Du må alltid følge organisasjonens retningslinjer",
+      "Alle rekrutteringsprosesser må være etisk forsvarlige og basert på en objektiv vurdering av den enkelte som søker stillingen"
+    ]
+  },
+  "anonymousReport": {
+    "title": "Anonymt varsel",
+    "content": "Det kan være ulike konsekvenser ved å sende et anonymt varsel, avhengig av hvilken type sak det dreier seg om og hvordan saken blir behandlet. I noen tilfeller kan et anonymt varsel bidra til å avdekke alvorlige forhold og føre til positive endringer, mens i andre tilfeller kan det ikke føre til noen konkrete endringer eller konsekvenser.\n\nDet er viktig å huske at det å sende et anonymt varsel kan være risikabelt, ettersom man ikke har noen garanti for at saken vil bli behandlet på en tilfredsstillende måte.\n\nHvis du velger å sende oss et anonymt varsel har vi ingen muligheter for å ta kontakt med deg for å følge opp saken videre."
+  },
+  "sendingReport": {
+    "title": "Sende varsel",
+    "content": "Varselet sendes direkte til personen du har valgt skal motta varselet i BISO. Det er ikke alle personer i BISO som har mulighet til å motta et varsel.\n\nEtter du har sendt et varsel vil mottaker ta kontakt med deg for en samtale hvis nødvendig for å diskutere saken.\n\nHvis du sender et anonymt varsel vil ikke mottaker ha mulighet til å ta kontakt med deg. Saken vil undersøkes så langt det går ut i fra informasjonen som er sendt inn."
+  },
+  "contact": {
+    "title": "Kontakt angående varsling i BISO",
+    "description": "Ta kontakt med en av personene under hvis du har generelle spørsmål om varsling i BISO:",
+    "contacts": [
+      {
+        "role": "Styreleder",
+        "email": "board@biso.no"
+      },
+      {
+        "role": "HR-Manager", 
+        "email": "tanweer@biso.no"
+      },
+      {
+        "role": "Daglig leder",
+        "email": "manager@biso.no"
+      }
+    ]
+  },
+  "privacy": {
+    "title": "Personvern og konfidensialitet",
+    "points": [
+      "Alle henvendelser behandles konfidensielt og kun deles med relevante personer som trenger å kjenne til saken.",
+      "Hvis du oppgir e-postadresse, brukes den kun for å kontakte deg om oppfølging av saken.", 
+      "Anonyme henvendelser blir også tatt på alvor og undersøkt så langt det er mulig.",
+      "For mer informasjon om hvordan vi behandler personopplysninger, se vår personvernerklæring."
+    ],
+    "privacyLink": "/privacy"
+  },
+  "admin": {
+    "title": "Varsling - Administrasjon",
+    "subtitle": "Administrer kontaktpersoner og roller for varslingssystemet",
+    "addContact": "Legg til kontakt",
+    "table": {
+      "title": "Varslingskontakter",
+      "description": "Oversikt over alle konfigurerte kontaktpersoner for varslingssaker",
+      "headers": {
+        "campus": "Campus",
+        "role": "Rolle", 
+        "email": "E-post",
+        "sorting": "Sortering",
+        "status": "Status",
+        "actions": "Handlinger"
+      },
+      "status": {
+        "active": "Aktiv",
+        "inactive": "Inaktiv"
+      },
+      "empty": {
+        "title": "Ingen varslingskontakter konfigurert ennå.",
+        "button": "Legg til første kontakt"
+      }
+    },
+    "dialog": {
+      "create": {
+        "title": "Ny varslingskontakt",
+        "description": "Legg til en ny kontaktperson for varslingssaker."
+      },
+      "edit": {
+        "title": "Rediger varslingskontakt", 
+        "description": "Oppdater informasjonen for varslingskontakten."
+      },
+      "fields": {
+        "campus": {
+          "label": "Campus",
+          "placeholder": "Velg campus",
+          "required": true
+        },
+        "role": {
+          "label": "Rolle/Tittel",
+          "placeholder": "f.eks. Studentombudet, Leder, Tillitsvalgt",
+          "required": true
+        },
+        "email": {
+          "label": "E-postadresse",
+          "placeholder": "kontakt@example.com",
+          "required": true
+        },
+        "sortOrder": {
+          "label": "Sorteringsrekkefølge",
+          "placeholder": "0",
+          "description": "Lavere tall vises først i listen"
+        },
+        "active": {
+          "label": "Aktiv"
+        }
+      },
+      "buttons": {
+        "cancel": "Avbryt",
+        "create": "Opprett",
+        "update": "Oppdater",
+        "saving": "Lagrer..."
+      }
+    },
+    "messages": {
+      "created": "Innstillinger opprettet",
+      "updated": "Innstillinger oppdatert",
+      "deleted": "Innstilling slettet",
+      "error": "Det oppstod en feil",
+      "validation": "Vennligst fyll ut alle obligatoriske felt.",
+      "deleteConfirm": "Er du sikker på at du vil slette denne innstillingen?",
+      "deleteError": "Kunne ikke slette innstillingen",
+      "deleteUnexpected": "Det oppstod en feil ved sletting"
+    }
+  }
+}

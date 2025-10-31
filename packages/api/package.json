@@ -1,0 +1,29 @@
+{
+  "name": "@repo/api",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./index.ts",
+    "./server": "./server.ts",
+    "./client": "./client.ts"
+  },
+  "scripts": {
+    "dev": "echo 'Add dev script here'",
+    "build": "echo 'Add build script here'",
+    "test": "echo 'Add test script here'",
+    "lint": "echo 'Add lint script here'"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*"
+  },
+  "dependencies": {
+    "@types/node": "^24.9.2",
+    "appwrite": "^21.3.0",
+    "next": "^16.0.1",
+    "node-appwrite": "^20.2.1",
+    "react": "^19.2.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.1.12"
+  }
+}
