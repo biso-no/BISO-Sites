@@ -29,7 +29,7 @@ export default async function BIFundPage() {
     pickByLocale(metadata?.contact_nb, metadata?.contact_en, locale) ??
     t("fallback.contact", { email: program?.contact_email ?? "au.finance@biso.no" })
 
-  const documents = metadata?.rows ?? []
+  const documents = metadata?.documents ?? []
   const faqs = pickByLocale(metadata?.faqs_nb, metadata?.faqs_en, locale) ?? []
 
   const applicationUrl = program?.application_url || program?.contact_email
@@ -85,7 +85,7 @@ export default async function BIFundPage() {
               <div className="space-y-2">
                 <span className="font-medium text-primary-90">{t("overview.rows")}</span>
                 <ul className="space-y-1">
-                  {documents.map((doc) => (
+                  {documents.map((doc: { label_nb: string; label_en: string; url: string }) => (
                     <li key={doc.url}>
                       <a href={doc.url} target="_blank" rel="noreferrer" className="text-primary-40 underline-offset-2 hover:underline">
                         {pickByLocale(doc.label_nb, doc.label_en, locale)}

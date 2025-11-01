@@ -11,7 +11,7 @@ import { Button } from "@repo/ui/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card"
 import { Badge } from "@repo/ui/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area"
-import { cn, formatDateReadable, getInitials } from '@repo/ui/lib/utils'
+import { cn} from '@repo/ui/lib/utils'
 import type { Event } from "@/lib/types/event"
 import type { Job } from "@/lib/types/job"
 import type { NewsItem } from "@/lib/types/alumni"
@@ -20,6 +20,7 @@ import type { CampusData } from "@/lib/types/campus-data"
 import type { Locale } from "@/i18n/config"
 import type { CampusMetadata } from "@/app/actions/campus"
 import { NewsItemWithTranslations } from "@/lib/types/news"
+import { formatDateReadable, getInitials } from "@/lib/utils"
 
 type CampusLeader = {
   name: string
@@ -500,7 +501,7 @@ export const CampusPageClient = ({ events, jobs, news, departments, campusData, 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const filtered = activeCampusId ? events.filter((event) => event.campus.$id === activeCampusId) : events
+    const filtered = activeCampusId ? events.filter((event) => event.campus?.$id === activeCampusId) : events
 
     const safeTime = (value?: string) => {
       if (!value) return Number.MAX_SAFE_INTEGER
