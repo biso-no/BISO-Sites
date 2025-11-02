@@ -1,6 +1,7 @@
 import createNextIntlPlugin from "next-intl/plugin";
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import type { NextConfig } from "next";
+import path from "path";
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -33,6 +34,8 @@ const baseConfig: NextConfig = {
       },
     ],
   },
+  // Point file tracing to the monorepo root to avoid lockfile root warnings
+  outputFileTracingRoot: path.join(__dirname, "..", ".."),
 
   webpack: (config, { isServer, dev }) => {
     if (!dev) {

@@ -1,12 +1,12 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { getDepartments } from "../lib/admin/departments";
+import { getDepartments } from "../lib/actions/departments";
 import { getCampuses } from "./actions/campus";
 import { Campus
  } from "../lib/types/campus";
  import { Department } from "../lib/types/department";
 // Define the context
-const appContext = createContext(null);
+const appContext = createContext<{ departments: Department[], campuses: Campus[] } | null>(null);
 
 // Define the provider component
 export const AppContextProvider = ({ children }: { children: React.ReactNode }) => {
@@ -17,7 +17,7 @@ export const AppContextProvider = ({ children }: { children: React.ReactNode }) 
   const fetchDepartments = async () => {
     try {
       const response = await getDepartments()
-      setDepartments(response)
+      setDepartments(response as unknown as Department[] | [])
     } catch (error) {
       console.error("Failed to fetch departments:", error)
     }

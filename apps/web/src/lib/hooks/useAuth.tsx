@@ -1,9 +1,9 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { getLoggedInUser, listIdentities } from "../actions/user";
-import { Models } from "@repo/api/server";
+import { Models } from "@repo/api";
 import { createJWT } from "../actions/user";
-import { clientSideClient } from "../appwrite-client";
+import { clientSideClient } from "@repo/api/client";
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | undefined;
