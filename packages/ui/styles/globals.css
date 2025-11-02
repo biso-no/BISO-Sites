@@ -1,6 +1,7 @@
 @config "../tailwind.config.cjs";
 
 @plugin "tailwindcss-animate";
+@plugin "@tailwindcss/typography";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -31,7 +32,11 @@
     --chart-3: 44 86% 57%;
     --chart-4: 160 74% 36%;
     --chart-5: 338 78% 52%;
+    --radius-xs: 0.25rem;
+    --radius-sm: 0.5rem;
     --radius: 1.1rem;
+    --radius-lg: 1.5rem;
+    --radius-xl: 2rem;
     --surface: 210 42% 99%;
     --surface-strong: 210 36% 96%;
     --surface-card: 210 32% 94%;
@@ -55,6 +60,28 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Typography scale */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+    --leading-tight: 1.2;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    /* Motion tokens */
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+    --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+    --duration-100: 100ms;
+    --duration-200: 200ms;
+    --duration-300: 300ms;
   }
   .dark {
     --background: 215 33% 7%;
@@ -97,6 +124,11 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Typography scale (same sizes, darker environment may tweak line-height) */
+    --leading-tight: 1.25;
+    --leading-normal: 1.55;
+    --leading-relaxed: 1.75;
   }
 }
 
@@ -104,33 +136,38 @@
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-    background-image:
-      radial-gradient(115% 115% at 100% 0%, rgba(26, 119, 233, 0.12), transparent 52%),
-      radial-gradient(95% 95% at 0% 0%, rgba(247, 214, 74, 0.15), transparent 54%);
-  }
+  body { @apply bg-background text-foreground antialiased; }
   ::selection {
     background: rgba(var(--accent-rgb), 0.25);
     color: hsl(var(--primary));
   }
+
+  /* Editorial typography (prose) */
+  .prose {
+    @apply text-[length:var(--font-size-md)] leading-[var(--leading-normal)] text-foreground/90;
+  }
+  .prose :where(h1):not(:where(.not-prose, .not-prose *)) {
+    @apply text-[length:var(--font-size-4xl)] leading-[1.1] font-extrabold tracking-tight text-foreground;
+  }
+  .prose :where(h2):not(:where(.not-prose, .not-prose *)) {
+    @apply text-[length:var(--font-size-3xl)] leading-[1.15] font-bold tracking-tight text-foreground;
+  }
+  .prose :where(h3):not(:where(.not-prose, .not-prose *)) {
+    @apply text-[length:var(--font-size-2xl)] leading-[1.2] font-semibold text-foreground;
+  }
+  .prose :where(a):not(:where(.not-prose, .not-prose *)) {
+    @apply text-[length:var(--font-size-md)] font-medium text-primary underline-offset-4 hover:underline;
+  }
+  .prose :where(blockquote):not(:where(.not-prose, .not-prose *)) {
+    @apply border-l-4 border-primary/30 pl-4 italic text-foreground/80;
+  }
+  .prose :where(code):not(:where(.not-prose, .not-prose *)) {
+    @apply rounded-[calc(var(--radius-xs))] bg-muted/30 px-1.5 py-0.5 text-[85%] font-mono;
+  }
 }
 
 @layer utilities {
-  .bg-grid-surface {
-    background-image:
-      linear-gradient(90deg, hsl(var(--grid-line) / 0.4) 1px, transparent 0),
-      linear-gradient(180deg, hsl(var(--grid-line) / 0.4) 1px, transparent 0);
-    background-size: 32px 32px;
-  }
-
-  .bg-brand-hero {
-    background-image: linear-gradient(120deg, var(--hero-from), var(--hero-via), var(--hero-to));
-  }
-
-  .bg-brand-gold {
-    background-image: linear-gradient(115deg, var(--gold-from), var(--gold-to));
-  }
+  /* Removed grid and gradient backgrounds for a cleaner brand look */
 
   .glass-elevated {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.65));
