@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { createAdminClient } from '../src/lib/appwrite'
+import { createAdminClient } from '@repo/api/server'
 import { Query } from '@repo/api'
 
 async function fixTranslationLinks() {
@@ -22,7 +22,7 @@ async function fixTranslationLinks() {
       console.log(`Updating translation ${translation.$id} for job ${translation.content_id}`)
       
       try {
-        await db.updateDocument('app', 'content_translations', translation.$id, {
+        await db.updateRow('app', 'content_translations', translation.$id, {
           job_ref: translation.content_id
         })
         console.log(`✅ Updated translation ${translation.locale} for job ${translation.content_id}`)

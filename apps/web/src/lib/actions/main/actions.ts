@@ -2,15 +2,15 @@
 
 import { createSessionClient } from "@repo/api/server"
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from "@/i18n/config"
-import { Models, Query } from "@repo/api/server"
+import { Models, Query } from "@repo/api"
 
-type NavTranslationDocument = Models.Document & {
+type NavTranslationDocument = Models.Row & {
   nav_id: string
   locale: Locale
   title: string
 }
 
-type NavMenuDocument = Models.Document & {
+type NavMenuDocument = Models.Row & {
   slug: string
   parent_id?: string | null
   path?: string | null
@@ -90,7 +90,7 @@ export async function getNavItems(locale?: Locale): Promise<GetNavItemsResponse>
   const nodeMap = new Map<string, NavTreeItem>()
 
   navItems.forEach((doc) => {
-    const localized = translationMap.get(doc.$id) || {}
+    const localized = translationMap.get(doc.$id) || {} as Record<Locale, string>
     const title =
       localized[resolvedLocale] ??
       (fallbackLocale !== resolvedLocale ? localized[fallbackLocale] : undefined) ??

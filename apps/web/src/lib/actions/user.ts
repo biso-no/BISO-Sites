@@ -4,11 +4,11 @@ import { create } from "domain";
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
-import { ID, Models, OAuthProvider } from "@repo/api/server";
+import { ID, Models, OAuthProvider } from "@repo/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL
 //
-export async function getLoggedInUser() {
+export async function getLoggedInUser(): Promise<{ user: Models.User<Models.Preferences>, profile: Models.Row | null } | null> {
     try {
         const { account, db } = await createSessionClient();
        
@@ -31,9 +31,9 @@ export async function getLoggedInUser() {
             
             try {
                 // Try to get the user profile document
-                const profile = await db.getDocument('app', 'user', user.$id);
+                const profile = await db.getRow('app', 'user', user.$id);
                 console.log("Profile found:", profile?.$id);
-                return {user, profile};
+                return {user, profile}
             } catch (profileError) {
                 // If profile doesn't exist, return user but null profile
                 console.log("No profile found for user:", user.$id);
@@ -55,7 +55,7 @@ export async function getCurrentSession() {
     return session;
 }
 
-export async function getUserById(userId: string) {
+export async function getUserById(userId: string): Promise<Models.User<Models.Preferences> | null> {
     try {
         const { account } = await createSessionClient();
         const user = await account.get();
@@ -137,16 +137,16 @@ export async function updateProfile(profile: Partial<Profile>) {
         console.log("Profile data being sent:", JSON.stringify(profile));
         
         try {
-            const existingProfile = await db.getDocument('app', 'user', user.$id);
+            const existingProfile = await db.getRow('app', 'user', user.$id);
             console.log("Profile found, updating...", existingProfile.$id);
             if (profile.name) {
                 await account.updateName(profile.name);
             }
-            return await db.updateDocument('app', 'user', user.$id, profile);
+            return await db.updateRow('app', 'user', user.$id, profile);
         } catch (profileError) {
             console.log("Profile not found, creating new profile for user:", user.$id);
             console.error("Profile lookup error details:", profileError);
-            return await db.createDocument('app', 'user', user.$id, profile);
+            return await db.createRow('app', 'user', user.$id, profile);
         }   
     } catch (error) {
         console.error("Error in updateProfile:", error);
@@ -162,12 +162,12 @@ export async function createProfile(profile: Partial<Profile>, userId: string) {
     try {
         const { account, db } = await createSessionClient();
         
-        const existingProfile = await db.getDocument('app', 'user', userId);
+        const existingProfile = await db.getRow('app', 'user', userId);
 
         if (existingProfile) {
-            return await db.updateDocument('app', 'user', userId, profile);
+            return await db.updateRow('app', 'user', userId, profile);
         } else {
-            return await db.createDocument('app', 'user', userId, profile);
+            return await db.createRow('app', 'user', userId, profile);
         }        
     } catch (error) {
         console.error(error);
@@ -175,7 +175,7 @@ export async function createProfile(profile: Partial<Profile>, userId: string) {
     }
 }
 
-export async function getUserPreferences(userId: string) {
+export async function getUserPreferences(userId: string): Promise<Models.Preferences | null> {
     
     const { account, db } = await createSessionClient();
     const user = await account.get();
@@ -188,7 +188,7 @@ export async function getUserPreferences(userId: string) {
     return prefs;
 }
 
-export async function updateUserPreferences(userId: string, prefs: Record<string, any>) {
+export async function updateUserPreferences(userId: string, prefs: Record<string, any>): Promise<Models.Preferences | null> {
     const { account, db } = await createSessionClient();
     const user = await account.get();
 
@@ -206,7 +206,7 @@ export async function updateUserPreferences(userId: string, prefs: Record<string
     
     
 
-export async function createJWT() {
+export async function createJWT(): Promise<string | null> {
     try {
         const { account } = await createSessionClient();
         const jwt = await account.createJWT();
@@ -217,7 +217,7 @@ export async function createJWT() {
     }
 }
 
-export async function signOut() {
+export async function signOut(): Promise<void> {
   
     const { account } = await createSessionClient();
   
@@ -231,7 +231,7 @@ export async function deleteUserData() {
     const { account } = await createSessionClient();
     const { users, db } = await createAdminClient();
     const user = await account.get();
-    const deletedUserDoc = await db.deleteDocument('app', 'user', user.$id);
+    const deletedUserDoc = await db.deleteRow('app', 'user', user.$id);
     if (deletedUserDoc) {
         const deletedUser = await users.delete(user.$id);
         if (deletedUser) {
