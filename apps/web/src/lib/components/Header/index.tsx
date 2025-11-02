@@ -201,12 +201,8 @@ export const Header = ({ editMode }: { editMode: boolean }) => {
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-transparent px-4 py-4 sm:px-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/95 via-white/70 to-transparent dark:from-surface-strong/90 dark:via-surface-card/70"
-      />
-      <div className="relative mx-auto flex w-full max-w-6xl items-center gap-3 rounded-[28px] border border-white/60 bg-white/90 px-4 py-3 shadow-card-soft backdrop-blur-md dark:border-surface-hover/60 dark:bg-surface-card/90">
+    <header className="sticky top-0 z-50 w-full bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
+      <div className="container-page relative mx-auto flex w-full items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
         <Link href="/" className="flex items-center gap-3">
           <Image src="/images/logo-home.png" alt="BISO logo" width={148} height={38} priority />
         </Link>
@@ -229,9 +225,7 @@ export const Header = ({ editMode }: { editMode: boolean }) => {
                 <span
                   className={cn(
                     "group flex items-center gap-1 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary-40 shadow-card-soft"
-                      : "text-primary-80 hover:bg-primary/5 hover:text-primary-40"
+                    active ? "text-foreground" : "text-foreground/70 hover:text-foreground"
                   )}
                 >
                   {item.title}
@@ -253,10 +247,10 @@ export const Header = ({ editMode }: { editMode: boolean }) => {
                 <div key={item.id} className="group relative">
                   {linkNode}
                   {hasChildren && (
-                    <div className="noise-overlay invisible absolute left-1/2 top-full z-40 mt-4 w-72 -translate-x-1/2 overflow-hidden rounded-3xl border border-primary/10 bg-white/95 p-5 opacity-0 shadow-2xl ring-1 ring-black/5 transition-all duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 dark:bg-surface-strong/95">
+                    <div className="invisible absolute left-1/2 top-full z-40 mt-3 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-background p-4 opacity-0 shadow-sm transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                       <div className="relative flex flex-col gap-3">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="border-primary/20 text-xs uppercase tracking-[0.14em] text-primary-50">
+                          <Badge variant="outline" className="text-xs uppercase tracking-[0.14em]">
                             {item.title}
                           </Badge>
                           <ArrowUpRight className="h-4 w-4 text-primary-50" />

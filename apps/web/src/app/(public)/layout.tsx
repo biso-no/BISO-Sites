@@ -9,29 +9,19 @@ import { Header } from "@/lib/components/Header";
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <PublicProviders>
-      <div className="relative flex min-h-screen flex-col overflow-hidden bg-background">
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid-surface opacity-[0.35]" />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-[-20%] top-[-35%] h-[32rem] w-[32rem] rounded-full bg-brand-hero opacity-60 blur-[180px] sm:left-[5%] sm:h-[36rem] sm:w-[36rem]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-[-25%] right-[-10%] h-[28rem] w-[28rem] rounded-full bg-gold-muted/60 blur-[180px]"
-        />
+      <div className="relative flex min-h-screen flex-col bg-background">
 
         <Header editMode={false} />
 
-        <main className="relative z-10 flex-1 pb-20 pt-8 sm:pt-10 lg:pb-28">
-          <div className="container mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 sm:px-6 lg:px-8">
+        <main className="relative z-10 flex-1 pb-16 pt-8 sm:pt-10 lg:pb-20">
+          <div className="container-page flex flex-col gap-10">
             {children}
           </div>
-          <div className="pointer-events-none absolute inset-x-[10%] bottom-0 mx-auto h-48 max-w-5xl rounded-full bg-linear-to-t from-primary/10 via-transparent to-transparent" />
         </main>
 
         <AssistantModal />
 
-        <Footer className="relative z-10 border-t border-primary/10 bg-white/85 backdrop-blur">
+        <Footer className="relative z-10 border-t border-border bg-background">
           <Footer.List title="Explore">
             <Footer.Link href="/jobs">Jobs</Footer.Link>
             <Footer.Link href="/events">Events</Footer.Link>
