@@ -1,5 +1,4 @@
 import createNextIntlPlugin from "next-intl/plugin";
-import withBundleAnalyzer from "@next/bundle-analyzer";
 import type { NextConfig } from "next";
 import path from "path";
 
@@ -98,8 +97,5 @@ const baseConfig: NextConfig = {
   // No framework-level redirects at this time (user preference)
 };
 
-const withAnalyzer = withBundleAnalyzer({
-  enabled: process.env.ANALYZE === "true",
-});
 
-export default withNextIntl(withAnalyzer(baseConfig));
+export default withNextIntl(baseConfig);

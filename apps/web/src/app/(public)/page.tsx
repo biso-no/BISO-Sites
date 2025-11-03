@@ -8,6 +8,13 @@ import type { EventWithTranslations } from '../../lib/types/event'
 import type { JobWithTranslations } from '../../lib/types/job'
 import type { NewsItemWithTranslations } from '../../lib/types/news'
 import type { ProductWithTranslations } from '../../lib/types/product'
+import { Navigation } from '@/components/layout/nav'
+import { Hero } from '@/components/home/hero'
+import { About } from '@/components/home/about'
+import { Events } from '@/components/home/events'
+import { News } from '@/components/home/news'
+import { JoinUs } from '@/components/home/join-us'
+import { Footer } from '@/components/layout/footer'
 
 export default async function HomePage() {
   // Get user's preferred locale from their account preferences
@@ -26,11 +33,12 @@ export default async function HomePage() {
   const safeProducts = Array.isArray(products) ? (products as ProductWithTranslations[]) : []
 
   return (
-    <HomePageClient
-      events={safeEvents}
-      news={safeNews}
-      jobs={safeJobs}
-      products={safeProducts}
-    />
+    <div className="min-h-screen bg-white">
+      <Hero />
+      <About />
+      <Events />
+      <News />
+      <JoinUs />
+    </div>
   )
 }
