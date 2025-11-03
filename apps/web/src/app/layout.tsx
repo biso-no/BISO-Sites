@@ -22,18 +22,19 @@ export default async function RootLayout({
   const messages = await getMessages();
   return (
     <html lang={locale} className={`${museoSans.variable} ${inter.variable}`}>
-      <Providers>
-      <AppContextProvider>
+
       <body>
+        <Providers>
+          <AppContextProvider>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <main>
             {children}
             <Toaster />
           </main>
         </NextIntlClientProvider>
+        </AppContextProvider>
+        </Providers>
       </body>
-      </AppContextProvider>
-      </Providers>
     </html>
   );
 }

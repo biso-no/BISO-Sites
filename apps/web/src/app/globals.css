@@ -4,7 +4,7 @@
 @plugin "@tailwindcss/typography";
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "../../../../packages/ui/styles/tokens.css";
+@import "../../../../packages/ui/styles/globals.css";
 
 @custom-variant dark (&:is(.dark *));
 
