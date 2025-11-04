@@ -1,0 +1,20 @@
+{
+  "name": "@repo/payment",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./vipps": "./vipps.ts",
+    "./actions": "./actions.ts"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*"
+  },
+  "dependencies": {
+    "@repo/api": "workspace:*",
+    "@types/node": "^24.9.2",
+    "@vippsmobilepay/sdk": "^2.4.2",
+    "next": "^16.0.0",
+    "node-appwrite": "^14.1.0"
+  }
+}

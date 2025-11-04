@@ -5,6 +5,7 @@ import { AssistantRuntimeProvider, makeAssistantToolUI } from "@assistant-ui/rea
 import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { CampusProvider } from "../context/campus";
+import { CartProvider } from "@/lib/contexts/cart-context";
 import { CalendarDays, FileText, Globe, Loader2, Newspaper, Search, UserCircle2, BriefcaseBusiness } from "lucide-react";
 import React, { useState } from "react";
 import { summarizeSharePointResults, summarizeSiteResults } from "@/components/ai/tool-utils";
@@ -19,7 +20,9 @@ export const PublicProviders = ({ children }: { children: React.ReactNode }) => 
     <AssistantRuntimeProvider runtime={runtime}>
       <PublicAssistantContext />
       <CampusProvider>
-        {children}
+        <CartProvider>
+          {children}
+        </CartProvider>
       </CampusProvider>
     </AssistantRuntimeProvider>
   );

@@ -1,57 +1,85 @@
-import { getEvent, getEventImageViewUrl } from '@/app/actions/events'
-import { getLocale } from '@/app/actions/locale'
-import Image from 'next/image'
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import { PublicPageHeader } from '@/components/public/PublicPageHeader'
+import { getEvent, getCollectionEvents } from '@/app/actions/events'
+import { getLocale } from '@/app/actions/locale'
+import { EventDetailsClient } from '@/components/events/event-details-client'
+import { Skeleton } from '@repo/ui/components/ui/skeleton'
 
-export default async function PublicEventDetail({ params }: { 
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
-  
-  // Get user's preferred locale from their account preferences
+interface EventPageProps {
+  params: {
+    id: string
+  }
+}
+
+async function EventDetails({ id }: { id: string }) {
   const locale = await getLocale()
+  
+  // Fetch the event
   const event = await getEvent(id, locale)
   
-  if (!event) return notFound()
-  if ((event as any).status && (event as any).status !== 'published') {
-    return notFound()
+  if (!event) {
+    notFound()
   }
+  
+  // Fetch collection events if this event belongs to or is a collection
+  let collectionEvents = null
+  const eventData = event.event_ref
+  
+  if (eventData?.is_collection && eventData.collection_id) {
+    // This is a collection parent - fetch all its child events
+    collectionEvents = await getCollectionEvents(eventData.collection_id, locale)
+  } else if (eventData?.collection_id) {
+    // This is a child event - fetch all events in the same collection
+    collectionEvents = await getCollectionEvents(eventData.collection_id, locale)
+  }
+  
+  return <EventDetailsClient event={event} collectionEvents={collectionEvents || undefined} />
+}
 
-  const imageUrl = event.image ? await getEventImageViewUrl(event.image) : null
-
+function EventDetailsSkeleton() {
   return (
-    <div className="space-y-6">
-      <PublicPageHeader
-        title={event.title}
-        subtitle={[
-          new Date(event.start_date).toLocaleDateString(), 
-          event.end_date ? `– ${new Date(event.end_date).toLocaleDateString()}` : '', 
-          event.campus?.name || event.campus_id,
-          event.location
-        ].filter(Boolean).join(' • ')}
-        breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Events', href: '/events' }, { label: event.title }]}
-      />
-      {imageUrl && (
-        <div className="relative w-full h-64 rounded-lg overflow-hidden">
-          <Image src={imageUrl} alt={event.title} fill className="object-cover" />
+    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+      <div className="relative h-[50vh]">
+        <Skeleton className="w-full h-full" />
+      </div>
+      <div className="max-w-5xl mx-auto px-4 py-12">
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         </div>
-      )}
-      <article className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: event.description || '' }} />
-      
-      <div className="flex flex-wrap gap-4">
-        {event.ticket_url && (
-          <a href={event.ticket_url} target="_blank" rel="noreferrer" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
-            Get Tickets
-          </a>
-        )}
-        {event.price && (
-          <span className="inline-flex items-center px-4 py-2 bg-muted rounded-md">
-            Price: {event.price} NOK
-          </span>
-        )}
       </div>
     </div>
   )
 }
 
+export default async function EventPage({ params }: EventPageProps) {
+  return (
+    <Suspense fallback={<EventDetailsSkeleton />}>
+      <EventDetails id={params.id} />
+    </Suspense>
+  )
+}
+
+// Generate metadata for SEO
+export async function generateMetadata({ params }: EventPageProps) {
+  const locale = await getLocale()
+  const event = await getEvent(params.id, locale)
+  
+  if (!event) {
+    return {
+      title: 'Event Not Found | BISO',
+    }
+  }
+  
+  return {
+    title: `${event.title} | BISO Events`,
+    description: event.description,
+  }
+}

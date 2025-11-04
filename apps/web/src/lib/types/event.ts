@@ -1,27 +1,51 @@
-import { Models } from '@repo/api'
-import { ContentTranslation } from './content-translation'
+import type { ContentTranslations } from '@repo/api/types/appwrite'
 
-export interface Event extends Models.Row {
-  slug?: string
-  status: 'draft' | 'published' | 'cancelled'
-  campus_id: string
-  metadata?: string // JSON string for non-translatable data (dates, location, price, etc.)
-  // Relationship references (populated at runtime)
-  campus?: { $id: string; name: string }
-  translations?: ContentTranslation[]
+export interface EventMetadata {
+  category?: string
+  attendees?: number
+  member_price?: number
+  highlights?: string[]
+  agenda?: { time: string; activity: string }[]
+  [key: string]: unknown
 }
 
-// Helper interface for working with event data including translations
-export interface EventWithTranslations extends Event {
-  // Convenience properties for the current locale
-  title: string
-  description: string
-  start_date?: string
-  end_date?: string
-  location: string
-  price: number
-  ticket_url: string
-  image: string
+export interface EventWithTranslation extends ContentTranslations {
+  event_ref: NonNullable<ContentTranslations['event_ref']>
 }
 
+export const eventCategories = ['Social', 'Career', 'Academic', 'Sports', 'Culture'] as const
+export type EventCategory = typeof eventCategories[number]
 
+export type CollectionPricing = 'bundle' | 'individual'
+
+export function parseEventMetadata(metadataString: string | null | undefined): EventMetadata {
+  if (!metadataString) return {}
+  
+  try {
+    return JSON.parse(metadataString)
+  } catch {
+    return {}
+  }
+}
+
+export function formatEventPrice(price: number | null | undefined, memberPrice?: number | null): string {
+  if (!price || price === 0) return 'Free'
+  return `${price} NOK`
+}
+
+export function getEventCategory(metadata: EventMetadata): EventCategory {
+  const category = metadata.category as EventCategory
+  return eventCategories.includes(category) ? category : 'Social'
+}
+
+export function isCollectionEvent(event: ContentTranslations): boolean {
+  return event.event_ref?.is_collection ?? false
+}
+
+export function hasCollectionParent(event: ContentTranslations): boolean {
+  return !!event.event_ref?.collection_id
+}
+
+export function getCollectionPricing(event: ContentTranslations): CollectionPricing | null {
+  return event.event_ref?.collection_pricing ?? null
+}

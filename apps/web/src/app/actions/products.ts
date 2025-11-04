@@ -5,77 +5,34 @@ import { Query } from '@repo/api'
 import { createAdminClient } from '@repo/api/server'
 import type {
   Product,
-  ProductWithTranslations,
   CreateProductData,
   UpdateProductData,
   ListProductsParams,
   ProductTranslation
 } from '@/lib/types/product'
-import type { ContentTranslation } from '@/lib/types/content-translation'
 import { generateObject } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
+import { ContentTranslations, ContentType, Locale } from '@repo/api/types/appwrite'
 
-// Helper function to get translation for a specific locale
-function getProductTranslation(product: Product, locale: 'en' | 'no'): ProductTranslation | null {
-  if (!product.translation_refs) return null
-  
-  const translation = product.translation_refs.find((t: any) => t.locale === locale)
-  if (!translation) return null
-  
-  return {
-    title: translation.title,
-    description: translation.description
-  }
-}
-
-// Helper function to combine product with translations
-function combineProductWithTranslations(product: Product, locale: 'en' | 'no'): ProductWithTranslations {
-  const translation = getProductTranslation(product, locale)
-  const metadata = product.metadata ? JSON.parse(product.metadata) : {}
-  
-  return {
-    ...product,
-    title: translation?.title,
-    description: translation?.description,
-    price: metadata.price,
-    sku: metadata.sku,
-    stock_quantity: metadata.stock_quantity,
-    category: metadata.category,
-    image: metadata.image,
-    images: metadata.images,
-    weight: metadata.weight,
-    dimensions: metadata.dimensions,
-    is_digital: metadata.is_digital,
-    shipping_required: metadata.shipping_required,
-    member_discount_enabled: metadata.member_discount_enabled,
-    member_discount_percent: metadata.member_discount_percent,
-    max_per_user: metadata.max_per_user,
-    max_per_order: metadata.max_per_order,
-    custom_fields: metadata.custom_fields,
-    variations: metadata.variations
-  }
-}
-
-export async function listProducts(params: ListProductsParams = {}): Promise<ProductWithTranslations[]> {
+export async function listProducts(params: ListProductsParams = {}): Promise<ContentTranslations[]> {
   try {
     const { db } = await createAdminClient()
     
-    const queries = []
+    const queries = [
+      Query.equal('content_type', ContentType.PRODUCT),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'product_ref.*']),
+      Query.equal('locale', params.locale as Locale ?? Locale.EN),
+      Query.orderDesc('$createdAt')
+    ]
     
     if (params.status) {
-      queries.push(Query.equal('status', params.status))
+      queries.push(Query.equal('product_ref.status', params.status))
     }
     
     if (params.campus_id) {
-      queries.push(Query.equal('campus_id', params.campus_id))
+      queries.push(Query.equal('product_ref.campus_id', params.campus_id))
     }
-    
-    if (params.search) {
-      queries.push(Query.search('slug', params.search))
-    }
-    
-    queries.push(Query.orderDesc('$createdAt'))
     
     if (params.limit) {
       queries.push(Query.limit(params.limit))
@@ -85,46 +42,66 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Pro
       queries.push(Query.offset(params.offset))
     }
     
-    const response = await db.listRows('app', 'webshop_products', queries)
-    const products = response.rows as unknown as Product[]
+    const response = await db.listRows('app', 'content_translations', queries)
+    const products = response.rows as unknown as ContentTranslations[]
     
-    const locale = params.locale ?? 'en'
-    return products.map(product => combineProductWithTranslations(product, locale))
+    return products
   } catch (error) {
     console.error('Error listing products:', error)
     return []
   }
 }
 
-export async function getProduct(id: string, locale?: 'en' | 'no'): Promise<ProductWithTranslations | null> {
+export async function getProduct(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
-    const product = await db.getRow('app', 'webshop_products', id) as unknown as Product
+    // Query content_translations by content_id and locale
+    const translationsResponse = await db.listRows('app', 'content_translations', [
+      Query.equal('content_type', ContentType.PRODUCT),
+      Query.equal('content_id', id),
+      Query.equal('locale', locale),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'product_ref.*']),
+      Query.limit(1)
+    ])
     
-    const resolvedLocale = locale ?? 'en'
-    return combineProductWithTranslations(product, resolvedLocale)
+    if (translationsResponse.rows.length === 0) {
+      return null
+    }
+    
+    return translationsResponse.rows[0] as unknown as ContentTranslations
   } catch (error) {
     console.error('Error getting product:', error)
     return null
   }
 }
 
-export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<ProductWithTranslations | null> {
+export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
-    const response = await db.listRows('app', 'webshop_products', [
+    // Get product by slug
+    const productsResponse = await db.listRows('app', 'webshop_products', [
       Query.equal('slug', slug),
       Query.limit(1)
     ])
     
-    if (response.rows.length === 0) {
-      return null
-    }
+    if (productsResponse.rows.length === 0) return null
     
-    const product = response.rows[0] as unknown as Product
-    return combineProductWithTranslations(product, locale)
+    const product = productsResponse.rows[0] as unknown as Product
+    
+    // Get translation for the requested locale
+    const translationsResponse = await db.listRows('app', 'content_translations', [
+      Query.equal('content_type', ContentType.PRODUCT),
+      Query.equal('content_id', product.$id),
+      Query.equal('locale', locale),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'product_ref.*']),
+      Query.limit(1)
+    ])
+    
+    if (translationsResponse.rows.length === 0) return null
+    
+    return translationsResponse.rows[0] as unknown as ContentTranslations
   } catch (error) {
     console.error('Error getting product by slug:', error)
     return null
@@ -135,35 +112,36 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
   try {
     const { db } = await createAdminClient()
     
-    // Create main product record first
-    const productData = {
+    // Build translation_refs array from provided translations only
+    const translationRefs: ContentTranslations[] = []
+    
+    if (data.translations.en) {
+      translationRefs.push({
+        content_type: ContentType.PRODUCT,
+        content_id: 'unique()',
+        locale: Locale.EN,
+        title: data.translations.en.title,
+        description: data.translations.en.description,
+      } as ContentTranslations)
+    }
+    
+    if (data.translations.no) {
+      translationRefs.push({
+        content_type: ContentType.PRODUCT,
+        content_id: 'unique()',
+        locale: Locale.NO,
+        title: data.translations.no.title,
+        description: data.translations.no.description,
+      } as ContentTranslations)
+    }
+    
+    const product = await db.createRow('app', 'webshop_products', 'unique()', {
       slug: data.slug,
       status: data.status,
       campus_id: data.campus_id,
-      metadata: data.metadata ? JSON.stringify(data.metadata) : undefined
-    }
-    
-    const product = await db.createRow('app', 'webshop_products', 'unique()', productData) as unknown as Product
-    
-    // Now create translations with the product ID and relationship
-    const translationsArray = Object.entries(data.translations)
-      .filter(([locale, translation]) => translation) // Only include non-empty translations
-      .map(([locale, translation]) => ({
-        content_type: 'product',
-        content_id: product.$id, // Set the content_id to the created product's ID
-        locale,
-        title: translation!.title,
-        description: translation!.description,
-        product_ref: product.$id // Set the relationship
-      }))
-    
-    // Create all translations
-    if (translationsArray.length > 0) {
-      const translationPromises = translationsArray.map(translationData =>
-        db.createRow('app', 'content_translations', 'unique()', translationData)
-      )
-      await Promise.all(translationPromises)
-    }
+      metadata: data.metadata ? JSON.stringify(data.metadata) : undefined,
+      translation_refs: translationRefs
+    }) as unknown as Product
     
     if (!skipRevalidation) {
       revalidatePath('/shop')
@@ -181,49 +159,44 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
   try {
     const { db } = await createAdminClient()
     
-    // Update main product record
-    const updateData: any = {}
+    // Build update object
+    const updateData: Record<string, unknown> = {}
     
     if (data.slug !== undefined) updateData.slug = data.slug
     if (data.status !== undefined) updateData.status = data.status
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id
     if (data.metadata !== undefined) updateData.metadata = JSON.stringify(data.metadata)
     
-    const product = await db.updateRow('app', 'webshop_products', id, updateData) as unknown as Product
-    
-    // Handle translations if provided
+    // Build translation_refs array from provided translations only
     if (data.translations) {
-      // Get existing translations
-      const existingTranslations = await db.listRows('app', 'content_translations', [
-        Query.equal('content_id', id),
-        Query.equal('content_type', 'product')
-      ])
+      const translationRefs: ContentTranslations[] = []
       
-      for (const [locale, translation] of Object.entries(data.translations)) {
-        if (!translation) continue
-        
-        const existingTranslation = existingTranslations.rows.find(
-          (t: any) => t.locale === locale
-        )
-        
-        const translationData = {
-          content_type: 'product',
+      if (data.translations.en) {
+        translationRefs.push({
+          content_type: ContentType.PRODUCT,
           content_id: id,
-          locale,
-          title: translation.title,
-          description: translation.description,
-          product_ref: id
-        }
-        
-        if (existingTranslation) {
-          // Update existing translation
-          await db.updateRow('app', 'content_translations', existingTranslation.$id, translationData)
-        } else {
-          // Create new translation
-          await db.createRow('app', 'content_translations', 'unique()', translationData)
-        }
+          locale: Locale.EN,
+          title: data.translations.en.title,
+          description: data.translations.en.description,
+        } as ContentTranslations)
+      }
+      
+      if (data.translations.no) {
+        translationRefs.push({
+          content_type: ContentType.PRODUCT,
+          content_id: id,
+          locale: Locale.NO,
+          title: data.translations.no.title,
+          description: data.translations.no.description,
+        } as ContentTranslations)
+      }
+      
+      if (translationRefs.length > 0) {
+        updateData.translation_refs = translationRefs
       }
     }
+    
+    const product = await db.updateRow('app', 'webshop_products', id, updateData) as unknown as Product
     
     if (!skipRevalidation) {
       revalidatePath('/shop')
@@ -315,7 +288,7 @@ export async function translateProductContent(
 }
 
 // Get products for public pages (published only)
-export async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ProductWithTranslations[]> {
+export async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ContentTranslations[]> {
   return listProducts({
     status: 'published',
     locale,
@@ -333,7 +306,7 @@ export async function uploadProductImage(formData: FormData) {
 
   const { storage } = await createAdminClient()
   const uploaded = await storage.createFile(PRODUCT_IMAGE_BUCKET, 'unique()', file)
-  const view = (storage as any).getFileView(PRODUCT_IMAGE_BUCKET, uploaded.$id)
+  const view = (storage as unknown as { getFileView: (bucket: string, fileId: string) => string | { href: string } }).getFileView(PRODUCT_IMAGE_BUCKET, uploaded.$id)
   const url = typeof view === 'string' ? view : view.href
 
   return {

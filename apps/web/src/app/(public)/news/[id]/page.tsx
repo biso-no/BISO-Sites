@@ -14,7 +14,7 @@ export default async function PublicNewsDetail({ params }: {
   const item = await getNewsItem(id, locale)
   
   if (!item) return notFound()
-  if ((item as any).status && (item as any).status !== 'published') {
+  if (item.news_ref.status && item.news_ref.status !== 'published') {
     return notFound()
   }
   
@@ -23,18 +23,18 @@ export default async function PublicNewsDetail({ params }: {
       <PublicPageHeader
         title={item.title}
         subtitle={[
-          new Date(item.$createdAt).toLocaleDateString(),
-          item.campus?.name,
-          item.department?.Name
+          new Date(item.news_ref.$createdAt).toLocaleDateString(),
+          item.news_ref.campus?.name,
+          item.news_ref.department?.Name
         ].filter(Boolean).join(' · ')}
         breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'News', href: '/news' }, { label: item.title }]}
       />
-      {item.image && (
+      {item.news_ref.image && (
         <div className="relative w-full h-64 rounded-lg overflow-hidden">
-          <Image src={item.image} alt={item.title} fill className="object-cover" />
+          <Image src={item.news_ref.image} alt={item.title} fill className="object-cover" />
         </div>
       )}
-      <article className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: item.content || '' }} />
+      <article className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
     </div>
   )
 }

@@ -19,8 +19,8 @@ export function Hero() {
           className="w-full h-full object-cover"
         />
         {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#001731]/70 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
+        <div className="absolute inset-0 bg-linear-to-t from-[#001731]/70 via-transparent to-transparent" />
       </div>
 
       {/* Animated Background Elements */}
@@ -75,7 +75,7 @@ export function Hero() {
           >
             Your Student Life,
             <br />
-            <span className="bg-gradient-to-r from-[#3DA9E0] via-cyan-300 to-blue-300 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-[#3DA9E0] via-cyan-300 to-blue-300 bg-clip-text text-transparent">
               Elevated
             </span>
           </motion.h1>
@@ -86,7 +86,7 @@ export function Hero() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5, duration: 0.8 }}
           >
-            Join Norway's most vibrant student community at BI Norwegian Business School. 
+            Join Norway&apos;s most vibrant student community at BI Norwegian Business School. 
             Connect, create memories, and unlock opportunities that last a lifetime.
           </motion.p>
 
@@ -96,7 +96,7 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7, duration: 0.8 }}
           >
-            <Button size="lg" className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50">
+            <Button size="lg" className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50">
               <Users className="w-5 h-5 mr-2" />
               Become a Member
             </Button>

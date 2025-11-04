@@ -241,6 +241,3 @@ export async function deleteUserData() {
         }
     }
 }
-
-// Anonymous signin is now handled by middleware and route handlers
-// This function is deprecated - use the /api/auth/anonymous endpoint instead

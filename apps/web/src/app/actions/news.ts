@@ -2,9 +2,9 @@
 
 import { createAdminClient } from '@repo/api/server'
 import { Query } from '@repo/api'
-import { NewsItem, NewsItemWithTranslations } from '@/lib/types/news'
-import { ContentTranslation } from '@/lib/types/content-translation'
+import { NewsItem } from '@/lib/types/news'
 import { revalidatePath } from 'next/cache'
+import { Campus, ContentTranslations, ContentType, Departments, Locale, News, Status } from '@repo/api/types/appwrite'
 
 export interface ListNewsParams {
   limit?: number
@@ -34,28 +34,11 @@ export interface CreateNewsData {
   }
 }
 
-// Helper function to get translation for a specific locale
-function getNewsTranslation(translations: any[], locale: 'en' | 'no'): any | null {
-  return translations.find(t => t.locale === locale) || null
-}
-
-// Helper function to combine news with its translations
-function combineNewsWithTranslations(news: NewsItem, locale: 'en' | 'no'): NewsItemWithTranslations {
-  const translation = getNewsTranslation(news.translation_refs || [], locale)
-  
-  return {
-    ...news,
-    title: translation?.title,
-    content: translation?.description // Note: using description field from translations
-  }
-}
-
-export async function listNews(params: ListNewsParams = {}): Promise<NewsItemWithTranslations[]> {
+export async function listNews(params: ListNewsParams = {}): Promise<ContentTranslations[]> {
   const {
     limit = 25,
     status,
     campus,
-    search,
     locale
   } = params
 
@@ -63,100 +46,96 @@ export async function listNews(params: ListNewsParams = {}): Promise<NewsItemWit
     const { db } = await createAdminClient()
     
     const queries = [
+      Query.equal('content_type', ContentType.NEWS),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'news_ref.*']),
+      Query.equal('locale', locale as Locale),
       Query.limit(limit),
       Query.orderDesc('$createdAt')
     ]
 
     if (status && status !== 'all') {
-      queries.push(Query.equal('status', status))
+      queries.push(Query.equal('news_ref.status', status))
     }
 
     if (campus && campus !== 'all') {
-      queries.push(Query.equal('campus_id', campus))
+      queries.push(Query.equal('news_ref.campus_id', campus))
     }
 
     // Get news with their translations using Appwrite's nested relationships
-    const newsResponse = await db.listRows('app', 'news', queries)
-    const newsItems = newsResponse.rows as unknown as NewsItem[]
+    const newsResponse = await db.listRows('app', 'content_translations', queries)
+    const newsItems = newsResponse.rows as unknown as ContentTranslations[]
 
-    // Process news and apply locale filtering if needed
-    let processedNews = newsItems.map(news => {
-      if (locale) {
-        return combineNewsWithTranslations(news, locale)
-      }
-      return news as NewsItemWithTranslations
-    })
-
-    // Apply search filter on translated content if needed
-    if (search && locale) {
-      processedNews = processedNews.filter(news => 
-        news.title?.toLowerCase().includes(search.toLowerCase()) ||
-        news.content?.toLowerCase().includes(search.toLowerCase())
-      )
-    }
-
-    // Filter out news that don't have the requested locale translation
-    if (locale) {
-      processedNews = processedNews.filter(news => news.title) // Has translation for requested locale
-    }
-
-    return processedNews
+    return newsItems
   } catch (error) {
     console.error('Error fetching news:', error)
     return []
   }
 }
 
-export async function getNewsItem(id: string, locale?: 'en' | 'no'): Promise<NewsItemWithTranslations | null> {
+export async function getNewsItem(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
-    // Get the main news record - Appwrite will automatically include translation_refs
-    const newsItem = await db.getRow('app', 'news', id) as NewsItem
+    // Query content_translations by content_id and locale
+    const translationsResponse = await db.listRows('app', 'content_translations', [
+      Query.equal('content_type', ContentType.NEWS),
+      Query.equal('content_id', id),
+      Query.equal('locale', locale),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'news_ref.*']),
+      Query.limit(1)
+    ])
     
-    return locale ? combineNewsWithTranslations(newsItem, locale) : newsItem as NewsItemWithTranslations
+    if (translationsResponse.rows.length === 0) {
+      return null
+    }
+    
+    return translationsResponse.rows[0] as unknown as ContentTranslations
   } catch (error) {
     console.error('Error fetching news item:', error)
     return null
   }
 }
 
-export async function createNewsItem(data: CreateNewsData, skipRevalidation = false): Promise<NewsItem | null> {
+export async function createNewsItem(data: CreateNewsData, skipRevalidation = false): Promise<News | null> {
   try {
     const { db } = await createAdminClient()
     
-    // Create main news record first
-    const newsData = {
-      status: data.status,
+    // Build translation_refs array from provided translations only
+    const translationRefs: ContentTranslations[] = []
+    
+    if (data.translations.en) {
+      translationRefs.push({
+        content_type: ContentType.NEWS,
+        content_id: 'unique()',
+        locale: Locale.EN,
+        title: data.translations.en.title,
+        description: data.translations.en.content,
+      } as ContentTranslations)
+    }
+    
+    if (data.translations.no) {
+      translationRefs.push({
+        content_type: ContentType.NEWS,
+        content_id: 'unique()',
+        locale: Locale.NO,
+        title: data.translations.no.title,
+        description: data.translations.no.content,
+      } as ContentTranslations)
+    }
+    
+    const newsItem = await db.createRow('app', 'news', 'unique()', {
+      status: data.status as Status,
       campus_id: data.campus_id,
-      department_id: data.department_id,
-      slug: data.slug,
-      url: data.url,
-      image: data.image,
-      sticky: data.sticky || false
-    }
-    
-    const newsItem = await db.createRow('app', 'news', 'unique()', newsData) as NewsItem
-    
-    // Create translations with proper relationships
-    const translationsArray = Object.entries(data.translations)
-      .filter(([locale, translation]) => translation)
-      .map(([locale, translation]) => ({
-        content_type: 'news',
-        content_id: newsItem.$id,
-        locale,
-        title: translation!.title,
-        description: translation!.content, // Note: storing content in description field
-        news_ref: newsItem.$id
-      }))
-    
-    // Create all translations
-    if (translationsArray.length > 0) {
-      const translationPromises = translationsArray.map(translationData =>
-        db.createRow('app', 'content_translations', 'unique()', translationData)
-      )
-      await Promise.all(translationPromises)
-    }
+      campus: data.campus_id as unknown as Campus,
+      department_id: data.department_id ?? null,
+      department: data.department_id ? (data.department_id as unknown as Departments) : ({ $id: '' } as Departments),
+      slug: data.slug ?? null,
+      url: data.url ?? null,
+      image: data.image ?? null,
+      metadata: [],
+      sticky: data.sticky || false,
+      translation_refs: translationRefs
+    }) as News
     
     if (!skipRevalidation) {
       revalidatePath('/news')
@@ -170,10 +149,52 @@ export async function createNewsItem(data: CreateNewsData, skipRevalidation = fa
   }
 }
 
-export async function updateNewsItem(id: string, data: Partial<NewsItem>, skipRevalidation = false): Promise<NewsItem | null> {
+export async function updateNewsItem(id: string, data: Partial<CreateNewsData>, skipRevalidation = false): Promise<NewsItem | null> {
   try {
     const { db } = await createAdminClient()
-    const newsItem = await db.updateRow('app', 'news', id, data) as unknown as NewsItem
+    
+    // Build update object
+    const updateData: Record<string, unknown> = {}
+    
+    if (data.status !== undefined) updateData.status = data.status
+    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id
+    if (data.department_id !== undefined) updateData.department_id = data.department_id
+    if (data.slug !== undefined) updateData.slug = data.slug
+    if (data.url !== undefined) updateData.url = data.url
+    if (data.image !== undefined) updateData.image = data.image
+    if (data.sticky !== undefined) updateData.sticky = data.sticky
+    
+    // Build translation_refs array from provided translations only
+    if (data.translations) {
+      const translationRefs: ContentTranslations[] = []
+      
+      if (data.translations.en) {
+        translationRefs.push({
+          content_type: ContentType.NEWS,
+          content_id: id,
+          locale: Locale.EN,
+          title: data.translations.en.title,
+          description: data.translations.en.content,
+        } as ContentTranslations)
+      }
+      
+      if (data.translations.no) {
+        translationRefs.push({
+          content_type: ContentType.NEWS,
+          content_id: id,
+          locale: Locale.NO,
+          title: data.translations.no.title,
+          description: data.translations.no.content,
+        } as ContentTranslations)
+      }
+      
+      if (translationRefs.length > 0) {
+        updateData.translation_refs = translationRefs
+      }
+    }
+    
+    const newsItem = await db.updateRow('app', 'news', id, updateData) as unknown as NewsItem
+    
     if (!skipRevalidation) {
       revalidatePath('/news')
       revalidatePath('/admin/posts')
