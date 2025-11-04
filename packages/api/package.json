@@ -6,7 +6,7 @@
     ".": "./index.ts",
     "./server": "./server.ts",
     "./client": "./client.ts",
-    "./types/*": "./types/*.d.ts"
+    "./types/*": "./types/*.ts"
   },
   "scripts": {
     "dev": "echo 'Add dev script here'",

@@ -1,11 +1,12 @@
 'use server'
 
-import { createAdminClient } from '@repo/api/server'
-import { Query } from '@repo/api'
-import { Event, EventWithTranslations } from '@/lib/types/event'
+import { createSessionClient } from '@repo/api/server'
+import { ID, Query } from '@repo/api'
 import { ContentTranslation } from '@/lib/types/content-translation'
 import { revalidatePath } from 'next/cache'
 import { Campus } from '@/lib/types/campus'
+import { ContentTranslations, ContentType, Events, Status } from '@repo/api/types/appwrite'
+import { Locale } from '@repo/api/types/appwrite'
 
 export interface ListEventsParams {
   limit?: number
@@ -19,6 +20,10 @@ export interface CreateEventData {
   slug?: string
   status: 'draft' | 'published' | 'cancelled'
   campus_id: string
+  member_only?: boolean
+  collection_id?: string
+  is_collection?: boolean
+  collection_pricing?: 'bundle' | 'individual'
   metadata?: {
     start_date?: string
     end_date?: string
@@ -39,134 +44,120 @@ export interface CreateEventData {
   }
 }
 
-// Helper function to get translation for a specific locale
-function getEventTranslation(translations: any[], locale: 'en' | 'no'): any | null {
-  return translations.find(t => t.locale === locale) || null
-}
-
-// Helper function to combine event with its translations
-function combineEventWithTranslations(event: Event, locale: 'en' | 'no'): EventWithTranslations {
-  const translation = getEventTranslation(event.translations || [], locale)
-  const metadata = event.metadata ? JSON.parse(event.metadata) : {}
-  
-  return {
-    ...event,
-    title: translation?.title,
-    description: translation?.description,
-    ...metadata
-  }
-}
-
-export async function listEvents(params: ListEventsParams = {}): Promise<EventWithTranslations[]> {
+export async function listEvents(params: ListEventsParams = {}): Promise<ContentTranslations[]> {
   const {
     limit = 25,
     status = 'published',
     campus,
-    search,
     locale
   } = params
 
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const queries = [
+      Query.equal('content_type', 'event'),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'event_ref.*']),
+      Query.equal('locale', locale as Locale),
       Query.limit(limit),
       Query.orderDesc('$createdAt')
     ]
 
     if (status !== 'all') {
-      queries.push(Query.equal('status', status))
+      queries.push(Query.equal('event_ref.status', status))
     }
 
     if (campus && campus !== 'all') {
-      queries.push(Query.equal('campus_id', campus))
+      queries.push(Query.equal('event_ref.campus_id', campus))
     }
 
     // Get events with their translations using Appwrite's nested relationships
-    const eventsResponse = await db.listRows('app', 'events', queries)
-    const events = eventsResponse.rows as unknown as Event[]
+    const eventsResponse = await db.listRows('app', 'content_translations', queries)
+    const events = eventsResponse.rows as unknown as ContentTranslations[]
 
-    // Process events and apply locale filtering if needed
-    let processedEvents = events.map(event => {
-      if (locale) {
-        return combineEventWithTranslations(event, locale)
-      }
-      return event as EventWithTranslations
-    })
-
-    // Apply search filter on translated content if needed
-    if (search && locale) {
-      processedEvents = processedEvents.filter(event => 
-        event.title?.toLowerCase().includes(search.toLowerCase()) ||
-        event.description?.toLowerCase().includes(search.toLowerCase())
-      )
-    }
-
-    // Filter out events that don't have the requested locale translation
-    if (locale) {
-      processedEvents = processedEvents.filter(event => event.title) // Has translation for requested locale
-    }
-
-    return processedEvents
+    return events
   } catch (error) {
     console.error('Error fetching events:', error)
     return []
   }
 }
 
-export async function getEvent(id: string, locale?: 'en' | 'no'): Promise<EventWithTranslations | null> {
+export async function getEvent(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
-    // Get the main event record - Appwrite will automatically include translation_refs
-    const event = await db.getRow('app', 'events', id) as Event
+    // Query content_translations by content_id and locale
+    const translationsResponse = await db.listRows('app', 'content_translations', [
+      Query.equal('content_type', ContentType.EVENT),
+      Query.equal('content_id', id),
+      Query.equal('locale', locale),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'event_ref.*']),
+      Query.limit(1)
+    ])
     
-    return locale ? combineEventWithTranslations(event, locale) : event as EventWithTranslations
+    if (translationsResponse.rows.length === 0) {
+      return null
+    }
+    
+    return translationsResponse.rows[0] as unknown as ContentTranslations
   } catch (error) {
     console.error('Error fetching event:', error)
     return null
   }
 }
 
-export async function createEvent(data: CreateEventData, skipRevalidation = false): Promise<Event | null> {
+export async function createEvent(data: CreateEventData, skipRevalidation = false) {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
+
+    const eventId = ID.unique()
     
-    // Create main event record first
-    const eventData = {
-      slug: data.slug,
-      status: data.status,
+    // Build translation_refs array from provided translations only
+    const translationRefs: ContentTranslations[] = []
+    
+    if (data.translations.en) {
+      translationRefs.push({
+        content_type: ContentType.EVENT,
+        content_id: eventId,
+        locale: Locale.EN,
+        title: data.translations.en.title,
+        description: data.translations.en.description,
+      } as ContentTranslations)
+    }
+    
+    if (data.translations.no) {
+      translationRefs.push({
+        content_type: ContentType.EVENT,
+        content_id: eventId,
+        locale: Locale.NO,
+        title: data.translations.no.title,
+        description: data.translations.no.description,
+      } as ContentTranslations)
+    }
+    
+    const event = await db.createRow('app', 'events', eventId, {
       campus_id: data.campus_id,
-      metadata: data.metadata ? JSON.stringify(data.metadata) : undefined
-    }
-    
-    const event = await db.createRow('app', 'events', 'unique()', eventData) as Event
-    
-    // Create translations with proper relationships
-    const translationsArray = Object.entries(data.translations)
-      .filter(([locale, translation]) => translation)
-      .map(([locale, translation]) => ({
-        content_type: 'event',
-        content_id: event.$id,
-        locale,
-        title: translation!.title,
-        description: translation!.description,
-        event_ref: event.$id
-      }))
-    
-    // Create all translations
-    if (translationsArray.length > 0) {
-      const translationPromises = translationsArray.map(translationData =>
-        db.createRow('app', 'content_translations', 'unique()', translationData)
-      )
-      await Promise.all(translationPromises)
-    }
+      campus: data.campus_id as Campus,
+      start_date: data.metadata?.start_date as string | null,
+      end_date: data.metadata?.end_date as string | null,
+      location: data.metadata?.location as string | null,
+      price: data.metadata?.price as number | null,
+      ticket_url: data.metadata?.ticket_url as string | null,
+      image: data.metadata?.image as string | null,
+      status: data.status as Status,
+      slug: data.slug as string | null,
+      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      member_only: data.member_only ?? false,
+      collection_id: data.collection_id as string | null,
+      is_collection: data.is_collection ?? false,
+      collection_pricing: data.collection_pricing as 'bundle' | 'individual' | null,
+      translation_refs: translationRefs
+    }) as Events
     
     if (!skipRevalidation) {
-      revalidatePath('/events')
       revalidatePath('/admin/events')
+      revalidatePath('/events')
     }
-    
     return event
   } catch (error) {
     console.error('Error creating event:', error)
@@ -174,34 +165,52 @@ export async function createEvent(data: CreateEventData, skipRevalidation = fals
   }
 }
 
-export async function updateEvent(id: string, data: Partial<CreateEventData>): Promise<Event | null> {
+export async function updateEvent(id: string, data: Partial<CreateEventData>): Promise<Events | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
-    // Prepare update data
-    const eventData: any = {}
-    if (data.slug) eventData.slug = data.slug
-    if (data.status) eventData.status = data.status
-    if (data.campus_id) eventData.campus_id = data.campus_id
-    if (data.metadata) eventData.metadata = JSON.stringify(data.metadata)
+    // Build update object
+    const updateData: Record<string, unknown> = {}
     
-    // If translations are provided, prepare them for nested update
+    if (data.status !== undefined) updateData.status = data.status as Status
+    if (data.slug !== undefined) updateData.slug = data.slug as string | null
+    if (data.metadata !== undefined) updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null
+    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id
+    if (data.member_only !== undefined) updateData.member_only = data.member_only
+    if (data.collection_id !== undefined) updateData.collection_id = data.collection_id as string | null
+    if (data.is_collection !== undefined) updateData.is_collection = data.is_collection
+    if (data.collection_pricing !== undefined) updateData.collection_pricing = data.collection_pricing as 'bundle' | 'individual' | null
+    
+    // Build translation_refs array from provided translations only
     if (data.translations) {
-      const translationsArray = Object.entries(data.translations)
-        .filter(([locale, translation]) => translation)
-        .map(([locale, translation]) => ({
-          content_type: 'event',
-          locale,
-          title: translation!.title,
-          description: translation!.description
-        }))
+      const translationRefs: ContentTranslations[] = []
       
-      if (translationsArray.length > 0) {
-        eventData.translation_refs = translationsArray
+      if (data.translations.en) {
+        translationRefs.push({
+          content_type: ContentType.EVENT,
+          content_id: id,
+          locale: Locale.EN,
+          title: data.translations.en.title,
+          description: data.translations.en.description,
+        } as ContentTranslations)
+      }
+      
+      if (data.translations.no) {
+        translationRefs.push({
+          content_type: ContentType.EVENT,
+          content_id: id,
+          locale: Locale.NO,
+          title: data.translations.no.title,
+          description: data.translations.no.description,
+        } as ContentTranslations)
+      }
+      
+      if (translationRefs.length > 0) {
+        updateData.translation_refs = translationRefs
       }
     }
     
-    const event = await db.updateRow('app', 'events', id, eventData) as Event
+    const event = await db.updateRow('app', 'events', id, updateData) as Events
     
     revalidatePath('/events')
     revalidatePath('/admin/events')
@@ -215,31 +224,16 @@ export async function updateEvent(id: string, data: Partial<CreateEventData>): P
 
 export async function deleteEvent(id: string): Promise<boolean> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
-    // Delete translations first (though cascade should handle this)
-    const translationsResponse = await db.listRows('app', 'content_translations', [
-      Query.equal('content_type', 'event'),
-      Query.equal('content_id', id)
-    ])
-    
-    const deleteTranslationPromises = translationsResponse.rows.map(translation =>
-      db.deleteRow('app', 'content_translations', translation.$id)
-    )
-    
-    await Promise.all(deleteTranslationPromises)
-    
-    // Delete main event record
-    await db.deleteRow('app', 'events', id)
-    
-    revalidatePath('/events')
-    revalidatePath('/admin/events')
-    
-    return true
-  } catch (error) {
-    console.error('Error deleting event:', error)
-    return false
-  }
+      await db.deleteRow('app', 'events', id)
+      revalidatePath('/events')
+      revalidatePath('/admin/events')
+      return true
+} catch (error) {
+  console.error('Error deleting event:', error)
+  return false
+}
 }
 
 // AI Translation function for events
@@ -249,11 +243,11 @@ export async function translateEventContent(
   toLocale: 'en' | 'no'
 ): Promise<ContentTranslation | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Get existing translation
     const existingResponse = await db.listRows('app', 'content_translations', [
-      Query.equal('content_type', 'event'),
+      Query.equal('content_type', ContentType.EVENT),
       Query.equal('content_id', eventId),
       Query.equal('locale', fromLocale)
     ])
@@ -322,15 +316,15 @@ Please respond with a JSON object containing the translated title and descriptio
 }
 
 export async function uploadEventImage(formData: FormData) {
-  const { storage } = await createAdminClient()
+  const { storage } = await createSessionClient()
   const file = formData.get('file') as unknown as File
   const uploaded = await storage.createFile('events', 'unique()', file)
   return uploaded
 }
 
 export async function getEventImageViewUrl(fileId: string) {
-  const { storage } = await createAdminClient()
-  const url = (storage as any).getFileView('events', fileId)
+  const { storage } = await createSessionClient()
+  const url = (storage as unknown as { getFileView: (bucket: string, fileId: string) => string | { href: string } }).getFileView('events', fileId)
   return typeof url === 'string' ? url : url.href
 }
 
@@ -343,7 +337,7 @@ export async function listDepartments(campusId?: string) {
   }
 
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const response = await db.listRows('app', 'departments', queries)
     return response.rows
   } catch (error) {
@@ -355,11 +349,32 @@ export async function listDepartments(campusId?: string) {
 // Helper function to get campuses
 export async function listCampuses() {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const response = await db.listRows('app', 'campus')
     return response.rows as unknown as Campus[]
   } catch (error) {
     console.error('Error fetching campuses:', error)
+    return []
+  }
+}
+
+// Helper function to get collection events
+export async function getCollectionEvents(collectionId: string, locale: 'en' | 'no'): Promise<ContentTranslations[]> {
+  try {
+    const { db } = await createSessionClient()
+    
+    // Get all events with this collection_id
+    const response = await db.listRows('app', 'content_translations', [
+      Query.equal('content_type', ContentType.EVENT),
+      Query.equal('locale', locale),
+      Query.equal('event_ref.collection_id', collectionId),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'event_ref.*']),
+      Query.orderAsc('event_ref.start_date')
+    ])
+    
+    return response.rows as unknown as ContentTranslations[]
+  } catch (error) {
+    console.error('Error fetching collection events:', error)
     return []
   }
 }

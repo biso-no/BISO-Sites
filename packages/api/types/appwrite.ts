@@ -29,10 +29,6 @@ export enum Currency {
     NOK = "NOK"
 }
 
-export enum Locale {
-    NORWEGIAN = "norwegian",
-    ENGLISH = "english"
-}
 
 export enum Condition {
     NEW = "new",
@@ -204,7 +200,7 @@ export type Campus = Models.Row & {
 }
 
 export type Orders = Models.Row & {
-    status: Status | null;
+    status: OrderStatus | null;
     userId: string | null;
     buyer_name: string | null;
     buyer_email: string | null;
@@ -490,19 +486,20 @@ export type ContentTranslations = Models.Row & {
     locale: Locale;
     title: string;
     description: string;
+    short_description: string | null;
     additional_fields: string | null;
     job_ref: Jobs;
     event_ref: Events;
     news_ref: News;
     product_ref: WebshopProducts;
     content_type: ContentType;
-    site_page_ref: SitePages;
 }
 
 export type Jobs = Models.Row & {
     slug: string;
     status: Status;
     campus_id: string;
+    department: Departments;
     department_id: string | null;
     metadata: string | null;
     campus: Campus;
@@ -515,6 +512,16 @@ export type Events = Models.Row & {
     status: Status;
     campus_id: string;
     metadata: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    location: string | null;
+    price: number | null;
+    ticket_url: string | null;
+    image: string | null;
+    member_only: boolean;
+    collection_id: string | null;
+    is_collection: boolean;
+    collection_pricing: 'bundle' | 'individual' | null;
     campus: Campus;
     translation_refs: ContentTranslations[];
 }
@@ -537,6 +544,12 @@ export type WebshopProducts = Models.Row & {
     slug: string;
     status: Status;
     campus_id: string;
+    category: string;
+    regular_price: number;
+    member_price: number | null;
+    member_only: boolean;
+    image: string | null;
+    stock: number | null;
     metadata: string | null;
     campus: Campus;
     translation_refs: ContentTranslations[];

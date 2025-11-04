@@ -1,10 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Calendar, Users, Info, Newspaper, Mail } from 'lucide-react';
+import { Menu, X, Calendar, Users, Info, Newspaper, Mail, Briefcase, ShoppingBag } from 'lucide-react';
 import { Button } from '@repo/ui/components/ui/button';
+import { ImageWithFallback } from '@repo/ui/components/image';
 
-export function Navigation() {
+interface NavigationProps {
+  onEventsClick?: () => void;
+  onNewsClick?: () => void;
+  onApplyClick?: () => void;
+  onShopClick?: () => void;
+}
+
+export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopClick }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -17,11 +25,13 @@ export function Navigation() {
   }, []);
 
   const navItems = [
-    { icon: Info, label: 'About', href: '#about' },
-    { icon: Calendar, label: 'Events', href: '#events' },
-    { icon: Newspaper, label: 'News', href: '#news' },
-    { icon: Users, label: 'Join Us', href: '#join' },
-    { icon: Mail, label: 'Contact', href: '#contact' },
+    { icon: Info, label: 'About', href: '#about', onClick: undefined },
+    { icon: Calendar, label: 'Events', href: '/events', onClick: onEventsClick },
+    { icon: Newspaper, label: 'News', href: '/news', onClick: onNewsClick },
+    { icon: ShoppingBag, label: 'Shop', href: '/shop', onClick: onShopClick },
+    { icon: Briefcase, label: 'Apply Here', href: '/jobs', onClick: onApplyClick, highlight: true },
+    { icon: Users, label: 'Join Us', href: '#join', onClick: undefined },
+    { icon: Mail, label: 'Contact', href: '#contact', onClick: undefined },
   ];
 
   return (
@@ -41,23 +51,7 @@ export function Navigation() {
             whileHover={{ scale: 1.05 }}
             className="flex items-center gap-3"
           >
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center shadow-lg transition-all duration-300 ${
-              isScrolled ? 'shadow-[#3DA9E0]/30' : 'shadow-white/30'
-            }`}>
-              <span className="text-white">BI</span>
-            </div>
-            <div>
-              <div className={`transition-colors duration-300 ${
-                isScrolled ? 'text-white' : 'text-white'
-              }`}>
-                BISO
-              </div>
-              <div className={`text-sm transition-colors duration-300 ${
-                isScrolled ? 'text-[#3DA9E0]' : 'text-white/70'
-              }`}>
-                Student Organisation
-              </div>
-            </div>
+            <ImageWithFallback src="/images/logo-home.png" alt="BISO logo" />
           </motion.div>
 
           {/* Desktop Navigation */}
@@ -65,8 +59,18 @@ export function Navigation() {
             {navItems.map((item) => (
               <a
                 key={item.label}
-                href={item.href}
-                className={`flex items-center gap-2 transition-colors duration-300 hover:text-[#3DA9E0] ${
+                href={item.onClick ? undefined : item.href}
+                onClick={(e) => {
+                  if (item.onClick) {
+                    e.preventDefault();
+                    item.onClick();
+                  }
+                }}
+                className={`flex items-center gap-2 transition-colors duration-300 hover:text-[#3DA9E0] cursor-pointer ${
+                  item.highlight 
+                    ? 'px-4 py-2 rounded-lg bg-linear-to-r from-[#3DA9E0]/20 to-[#001731]/20 border border-[#3DA9E0]/30 hover:from-[#3DA9E0]/30 hover:to-[#001731]/30'
+                    : ''
+                } ${
                   isScrolled ? 'text-white' : 'text-white'
                 }`}
               >
@@ -76,7 +80,7 @@ export function Navigation() {
             ))}
             <Button
               size="sm"
-              className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 shadow-lg"
+              className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 shadow-lg"
             >
               Member Portal
             </Button>
@@ -107,15 +111,21 @@ export function Navigation() {
               {navItems.map((item) => (
                 <a
                   key={item.label}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#3DA9E0]/10 text-white transition-colors"
+                  href={item.onClick ? undefined : item.href}
+                  onClick={(e) => {
+                    if (item.onClick) {
+                      e.preventDefault();
+                      item.onClick();
+                    }
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#3DA9E0]/10 text-white transition-colors cursor-pointer"
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
                 </a>
               ))}
-              <Button className="w-full bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0">
+              <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0">
                 Member Portal
               </Button>
             </div>
