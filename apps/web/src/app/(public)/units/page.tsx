@@ -1,5 +1,6 @@
-import { getDepartments, getDepartmentTypes, type Department } from '@/lib/admin/departments'
+import { getDepartments } from "@/lib/actions/departments"
 import { UnitsPageClient } from './units-page-client'
+import { Departments } from "@repo/api/types/appwrite"
 
 export const revalidate = 0
 
@@ -15,9 +16,8 @@ type InitialFilters = {
 export default async function PublicUnitsPage({ searchParams }: { searchParams: PageSearchParams }) {
   const params = await searchParams
 
-  const [departments, types] = await Promise.all([
-    getDepartments({ limit: 500 }),
-    getDepartmentTypes()
+  const [departments] = await Promise.all([
+    getDepartments({ campusId: params.campus_id }),
   ])
 
   const initialFilters: InitialFilters = {
@@ -29,8 +29,7 @@ export default async function PublicUnitsPage({ searchParams }: { searchParams: 
 
   return (
     <UnitsPageClient
-      departments={Array.isArray(departments) ? (departments as Department[]) : []}
-      types={Array.isArray(types) ? (types as string[]) : []}
+      departments={Array.isArray(departments) ? (departments as unknown as Departments[]) : []}
       initialFilters={initialFilters}
     />
   )

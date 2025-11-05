@@ -6,7 +6,7 @@ import { removeIdentity } from "@/lib/actions/user";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import { Badge } from "@repo/ui/components/ui/badge";
-import { toast } from "@repo/ui/components/ui/use-toast";
+import { toast } from "sonner";
 import { Link2, Trash2 } from "lucide-react";
 import { OAuthProvider } from "@repo/api/client";
 
@@ -55,7 +55,7 @@ export function IdentityManagement({ initialIdentities }: { initialIdentities: I
         await clientAccount.createOAuth2Session(provider, successUrl, failureUrl, ["openid", "email", "profile"]);
         // Browser will redirect; no-op here
       } catch (err: any) {
-        toast({ title: "Linking failed", description: String(err?.message || err), variant: "destructive" });
+        toast.error("Linking failed: " + String(err?.message || err));
       }
     });
   };
@@ -68,12 +68,12 @@ export function IdentityManagement({ initialIdentities }: { initialIdentities: I
       const res = await removeIdentity(identity.$id);
       if (res?.success) {
         setIdentities((prev) => (prev || []).filter((i) => i.$id !== identity.$id));
-        toast({ title: "Identity removed" });
+        toast.success("Identity removed");
       } else {
-        toast({ title: "Failed to remove", description: String(res?.error || "Unknown error"), variant: "destructive" });
+        toast.error("Failed to remove", { description: String(res?.error || "Unknown error") });
       }
     } catch (err: any) {
-      toast({ title: "Failed to remove", description: String(err?.message || err), variant: "destructive" });
+      toast.error("Failed to remove", { description: String(err?.message || err) });
     } finally {
       setRemovingId(null);
     }

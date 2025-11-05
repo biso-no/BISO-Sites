@@ -6,7 +6,6 @@ import { Card } from '@repo/ui/components/ui/card'
 import { Button } from '@repo/ui/components/ui/button'
 import { Badge } from '@repo/ui/components/ui/badge'
 import type { ContentTranslations } from '@repo/api/types/appwrite'
-import { parseJobMetadata, getJobCategory, formatSalary, type JobCategory } from '@/lib/types/job'
 
 interface JobCardProps {
   job: ContentTranslations
@@ -14,7 +13,15 @@ interface JobCardProps {
   onViewDetails: (job: ContentTranslations) => void
 }
 
-const categoryColors: Record<JobCategory, string> = {
+const getJobCategory = (metadata: Record<string, any>) => {
+  return metadata.category || 'General'
+}
+
+const formatSalary = (salary: number) => {
+  return salary.toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })
+}
+
+const categoryColors: Record<string, string> = {
   'Academic Associations': 'bg-blue-100 text-blue-700 border-blue-200',
   'Societies': 'bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20',
   'Staff Functions': 'bg-slate-100 text-slate-700 border-slate-200',
@@ -23,7 +30,7 @@ const categoryColors: Record<JobCategory, string> = {
 
 export function JobCard({ job, index, onViewDetails }: JobCardProps) {
   const jobData = job.job_ref
-  const metadata = parseJobMetadata(jobData?.metadata)
+  const metadata = jobData?.metadata as Record<string, any>
   const category = getJobCategory(metadata)
   
   const paid = metadata.paid ?? false
@@ -32,7 +39,7 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
   const responsibilities = metadata.responsibilities || []
   const requirements = metadata.requirements || []
   const deadline = metadata.deadline || 'Rolling basis'
-  const department = jobData?.department?.name || 'General'
+  const department = jobData?.department?.Name || 'General'
   
   // Use short_description if available, otherwise truncate description
   const shortDescription = job.short_description || 

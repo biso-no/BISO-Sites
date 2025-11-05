@@ -4,7 +4,15 @@ import { getLocale } from '@/app/actions/locale'
 import { JobsListClient } from '@/components/jobs/jobs-list-client'
 import { JobsHero } from '@/components/jobs/jobs-hero'
 import { Skeleton } from '@repo/ui/components/ui/skeleton'
-import { parseJobMetadata, jobCategories } from '@/lib/types/job'
+import { BookOpen, PartyPopper, Cog, Rocket } from 'lucide-react'
+
+const jobCategories = [
+  { name: 'Academic Associations', icon: BookOpen, color: 'from-blue-500 to-indigo-600' },
+  { name: 'Societies', icon: PartyPopper, color: 'from-[#3DA9E0] to-cyan-500' },
+  { name: 'Staff Functions', icon: Cog, color: 'from-[#001731] to-slate-700' },
+  { name: 'Projects', icon: Rocket, color: 'from-purple-500 to-pink-500' },
+]
+
 
 // This is a server component
 export const metadata = {
@@ -22,7 +30,7 @@ async function JobsList({ locale }: { locale: 'en' | 'no' }) {
 
   // Calculate stats for hero
   const paidPositions = jobs.filter(job => {
-    const metadata = parseJobMetadata(job.job_ref?.metadata)
+    const metadata = job.job_ref?.metadata as Record<string, any>
     return metadata.paid === true
   }).length
 

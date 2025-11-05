@@ -80,15 +80,73 @@ export async function getCampusMetadataByName(campusName: string): Promise<Campu
   }
 }
 
-export async function getCampuses() {
+export async function getCampuses({ 
+  includeNational = true, 
+  includeDepartments = false 
+}: { 
+  includeNational?: boolean; 
+  includeDepartments?: boolean;
+} = {}) {
   const { db } = await createSessionClient();
+
+  const query: string[] = [];
+  
+  // Filter by National if specified
+  if (!includeNational) {
+    query.push(Query.notEqual('name', 'National'));
+  }
+
   const campuses = await db.listRows(
     'app',
     'campus',
-    [Query.select(['name', '$id'])]
+    query
   );
 
+  // If departments are not needed, return just basic campus info
+  if (!includeDepartments) {
+    return campuses.rows.map(campus => ({
+      $id: campus.$id,
+      name: campus.name,
+    })) as unknown as Campus[];
+  }
+
   return campuses.rows as unknown as Campus[];
+}
+
+/**
+ * Get a single campus with its departments
+ */
+export async function getCampusWithDepartments(campusId: string) {
+  try {
+    const { db } = await createSessionClient();
+
+    const campus = await db.getRow<Campus>(
+      'app',
+      'campus',
+      campusId,
+      [
+        Query.select([
+          '$id',
+          'name',
+          'departments.$id',
+          'departments.Name',
+          'departments.active',
+        ])
+      ]
+    );
+
+    return {
+      success: true,
+      campus,
+    };
+  } catch (error) {
+    console.error("Error fetching campus with departments:", error);
+    return {
+      success: false,
+      campus: null,
+      error: error instanceof Error ? error.message : "Failed to fetch campus",
+    };
+  }
 }
 
 export async function getCampusData() {

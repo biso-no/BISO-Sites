@@ -151,7 +151,7 @@ export type Expenses = Models.Row & {
     expenseAttachments: ExpenseAttachments[];
     total: number;
     prepayment_amount: number | null;
-    status: Status;
+    status: ExpenseStatus;
     invoice_id: number | null;
     user: Users;
     userId: string;
@@ -501,7 +501,7 @@ export type Jobs = Models.Row & {
     campus_id: string;
     department: Departments;
     department_id: string | null;
-    metadata: string | null;
+    metadata: Record<string, any> | null;
     campus: Campus;
     translations: ContentTranslations[];
     translation_refs: ContentTranslations[];

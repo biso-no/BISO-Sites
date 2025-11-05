@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@repo/ui/components/ui/alert-dialog';
-import { toast } from '@repo/ui/components/ui/use-toast';
+import { toast } from 'sonner';
 import { deleteUserData } from '@/lib/actions/user';
 import { useRouter } from 'next/navigation';
 
@@ -41,15 +41,12 @@ export function PrivacyControls({ userId }: { userId: string }) {
       // Simulate API request
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      toast({
-        title: "Data Request Submitted",
+      toast.success("Data Request Submitted", {
         description: "We'll prepare your data and send it to your email within 30 days.",
       });
     } catch (error) {
-      toast({
-        title: "Request Failed",
+      toast.error("Data Request Failed", {
         description: "There was a problem requesting your data. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setRequestingData(false);
@@ -63,23 +60,17 @@ export function PrivacyControls({ userId }: { userId: string }) {
       const deleted = await deleteUserData();
       
       if (deleted) {
-        toast({
-          title: "Account Deleted",
+        toast.success("Account Deleted", {
           description: "Your account has been successfully deleted.",
         });
-        
-        // Redirect to home page after successful deletion
-        router.push("/");
       } else {
         throw new Error("Failed to delete account");
       }
       
       setDeleteDialogOpen(false);
     } catch (error) {
-      toast({
-        title: "Deletion Failed",
+      toast.error("Deletion Failed", {
         description: "There was a problem deleting your account. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setDeletingData(false);

@@ -9,20 +9,31 @@ import { Badge } from '@repo/ui/components/ui/badge'
 import { Separator } from '@repo/ui/components/ui/separator'
 import { ImageWithFallback } from '@repo/ui/components/image'
 import type { ContentTranslations } from '@repo/api/types/appwrite'
-import { parseJobMetadata, getJobCategory, formatSalary, type JobCategory } from '@/lib/types/job'
 
 interface JobDetailsClientProps {
   job: ContentTranslations
 }
 
-const categoryColors: Record<JobCategory, string> = {
+const getJobCategory = (metadata: Record<string, any>) => {
+  return metadata.category || 'General'
+}
+
+const formatSalary = (salary: number) => {
+  return salary.toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })
+}
+
+const parseJobMetadata = (metadata: Record<string, any>) => {
+  return metadata || {}
+}
+
+const categoryColors: Record<string, string> = {
   'Academic Associations': 'bg-blue-100 text-blue-700 border-blue-200',
   'Societies': 'bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20',
   'Staff Functions': 'bg-slate-100 text-slate-700 border-slate-200',
   'Projects': 'bg-purple-100 text-purple-700 border-purple-200',
 }
 
-const categoryImages: Record<JobCategory, string> = {
+const categoryImages: Record<string, string> = {
   'Academic Associations': 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1080',
   'Societies': 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1080',
   'Staff Functions': 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1080',
@@ -32,7 +43,7 @@ const categoryImages: Record<JobCategory, string> = {
 export function JobDetailsClient({ job }: JobDetailsClientProps) {
   const router = useRouter()
   const jobData = job.job_ref
-  const metadata = parseJobMetadata(jobData?.metadata)
+  const metadata = jobData?.metadata as Record<string, any>
   const category = getJobCategory(metadata)
   
   // Extract data
@@ -42,7 +53,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
   const responsibilities = metadata.responsibilities || []
   const requirements = metadata.requirements || []
   const deadline = metadata.deadline || 'Rolling basis'
-  const department = jobData?.department?.name || 'General'
+  const department = jobData?.department?.Name || 'General'
   const categoryImage = metadata.image || categoryImages[category]
 
   // Extended information
@@ -159,7 +170,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <ul className="space-y-4">
                     {extendedResponsibilities.map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] flex-shrink-0 mt-1" />
+                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
                         <span className="text-gray-700">{item}</span>
                       </li>
                     ))}
@@ -180,7 +191,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <ul className="space-y-4">
                     {extendedRequirements.map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] flex-shrink-0 mt-1" />
+                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
                         <span className="text-gray-700">{item}</span>
                       </li>
                     ))}
@@ -200,7 +211,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 <ul className="space-y-4">
                   {benefits.map((item, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] flex-shrink-0 mt-1" />
+                      <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
                       <span className="text-gray-700">{item}</span>
                     </li>
                   ))}
@@ -218,7 +229,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 <h2 className="text-gray-900 mb-6 text-2xl font-bold">Application Process</h2>
                 <div className="space-y-6">
                   <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
                       1
                     </div>
                     <div>
@@ -230,7 +241,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <Separator />
 
                   <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
                       2
                     </div>
                     <div>
@@ -242,7 +253,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <Separator />
 
                   <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
                       3
                     </div>
                     <div>
@@ -254,7 +265,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <Separator />
 
                   <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
                       4
                     </div>
                     <div>
@@ -366,7 +377,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
             >
               <Card className="p-6 border-0 shadow-lg bg-blue-50">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="mb-2 text-gray-900 font-semibold">Questions?</h4>
                     <p className="text-sm text-gray-600">

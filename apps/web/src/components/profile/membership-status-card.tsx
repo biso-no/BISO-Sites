@@ -7,7 +7,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { CheckCircle2, CircleAlert, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { toast } from "@repo/ui/components/ui/use-toast";
+import { toast } from "sonner";
 import { clientFunctions } from "@repo/api/client";
 
 type MembershipCheckResult =
@@ -30,7 +30,7 @@ export function MembershipStatusCard({ initial, hasBIIdentity = false }: { initi
 
   const onRefresh = () => {
     if (!hasBIIdentity) {
-      toast({ title: "BI Student not linked", description: "Link your BI Student account under Linked Accounts to verify membership." });
+      toast.error("BI Student not linked", { description: "Link your BI Student account under Linked Accounts to verify membership." });
       return;
     }
     startTransition(async () => {
@@ -41,15 +41,15 @@ export function MembershipStatusCard({ initial, hasBIIdentity = false }: { initi
         })();
         if (payload?.error) {
           setState({ ok: false, error: String(payload.error) });
-          toast({ title: "Verification failed", description: String(payload.error), variant: "destructive" });
+          toast.error("Verification failed: " + String(payload.error));
           return;
         }
         const active = !!payload?.membership?.status || payload?.active === true;
         setState({ ok: true, active, membership: payload?.membership, studentId: payload?.studentId, categories: payload?.categories });
-        toast({ title: active ? "Membership verified" : "No active membership", description: active ? "Enjoy your benefits across BISO." : undefined });
+        toast.success(active ? "Membership verified" : "No active membership", { description: active ? "Enjoy your benefits across BISO." : undefined });
       } catch (err: any) {
         setState({ ok: false, error: String(err?.message || err) });
-        toast({ title: "Verification error", description: String(err?.message || err), variant: "destructive" });
+        toast.error("Verification error: " + String(err?.message || err));
       }
     });
   };

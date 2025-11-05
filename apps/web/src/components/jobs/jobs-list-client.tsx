@@ -8,10 +8,17 @@ import { Button } from '@repo/ui/components/ui/button'
 import { Input } from '@repo/ui/components/ui/input'
 import { JobCard } from './job-card'
 import type { ContentTranslations } from '@repo/api/types/appwrite'
-import { parseJobMetadata, getJobCategory } from '@/lib/types/job'
 
 interface JobsListClientProps {
   jobs: ContentTranslations[]
+}
+
+const getJobCategory = (metadata: Record<string, any>) => {
+  return metadata.category || 'General'
+}
+
+const parseJobMetadata = (metadata: Record<string, any>) => {
+  return metadata || {}
 }
 
 const categories = [
@@ -31,7 +38,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
   // Filter jobs based on search, category, and paid status
   const filteredJobs = jobs.filter((job) => {
     const jobData = job.job_ref
-    const metadata = parseJobMetadata(jobData?.metadata)
+    const metadata = jobData?.metadata as Record<string, any>
     const category = getJobCategory(metadata)
     const paid = metadata.paid ?? false
     const department = jobData?.department?.Name || ''
