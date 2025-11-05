@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardHeader,
@@ -8,35 +8,25 @@ import {
   CardFooter,
 } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
-import { Progress } from "@repo/ui/components/ui/progress";
 import { 
   Building, 
   CheckCircle, 
-  ChevronLeft, 
-  ChevronRight, 
   CreditCard, 
   FileText, 
-  Receipt, 
-  X,
   ArrowLeft,
   Save,
   AlertCircle
 } from "lucide-react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useForm } from "react-hook-form";
-import { Form } from "@repo/ui/components/ui/form";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
-import { useToast } from "@repo/ui/components/ui/use-toast";
 
 import { BankDetailsStep } from "./bank-details";
 import { DepartmentSelectionStep } from "./department-details";
 import { DocumentUploadStep } from "./document-details";
 import ExpenseOverview from "./overview-details";
-import { getExpense } from "@/app/actions/admin";
 import { useFormContext } from "./formContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 
 const stepVariants = {
   enter: (direction: number) => ({
@@ -81,7 +71,7 @@ const stepTitles = [
   }
 ];
 
-const StepIndicator = ({ currentStep, totalSteps, onStepClick }) => {
+const StepIndicator = ({ currentStep, totalSteps, onStepClick }: { currentStep: number, totalSteps: number, onStepClick: (step: number) => void }) => {
   return (
     <div className="relative mb-8">
       {/* Progress bar background */}
@@ -153,9 +143,8 @@ const StepIndicator = ({ currentStep, totalSteps, onStepClick }) => {
   );
 };
 
-export function ExpenseDetails({ expenseId }) {
+export function ExpenseDetails({ expenseId }: { expenseId: string }) {
   const router = useRouter();
-  const { toast } = useToast();
   const formContext = useFormContext();
   const { step, updateStep } = formContext;
   const [pageDirection, setPageDirection] = useState(0);
@@ -181,15 +170,12 @@ export function ExpenseDetails({ expenseId }) {
     try {
       // Implement save logic here
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulated delay
-      toast({
-        title: "Progress saved",
+      toast.success("Progress saved", {
         description: "Your expense form has been saved as a draft.",
       });
-    } catch (error) {
-      toast({
-        title: "Error saving progress",
+    } catch {
+      toast.error("Error saving progress", {
         description: "Please try again later.",
-        variant: "destructive",
       });
     } finally {
       setIsSaving(false);

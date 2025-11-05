@@ -11,7 +11,6 @@ export const metadata = {
 };
 
 import {AppContextProvider} from "./contexts"
-import { Toaster } from '@repo/ui/components/ui/toaster';
 
 export default async function RootLayout({
   children,
@@ -29,7 +28,6 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <main>
             {children}
-            <Toaster />
           </main>
         </NextIntlClientProvider>
         </AppContextProvider>

@@ -6,7 +6,7 @@ import {
   Panel as ResizablePanelPrimitive,
   PanelResizeHandle as ResizableHandlePrimitive,
 } from "react-resizable-panels";
-import { cn } from "@/lib/utils";
+import { cn } from "@repo/ui/lib/utils";;
 
 type PanelGroupProps = React.ComponentProps<typeof ResizablePanelGroupPrimitive>;
 type PanelProps = React.ComponentProps<typeof ResizablePanelPrimitive>;
