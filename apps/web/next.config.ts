@@ -34,7 +34,7 @@ const baseConfig: NextConfig = {
     ],
   },
   // Point file tracing to the monorepo root to avoid lockfile root warnings
-  outputFileTracingRoot: path.join(__dirname, "..", ".."),
+  //outputFileTracingRoot: path.join(__dirname, "..", ".."),
 
   webpack: (config, { isServer, dev }) => {
     if (!dev) {
