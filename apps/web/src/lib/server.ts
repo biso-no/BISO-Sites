@@ -1,9 +1,9 @@
 "use server";
 
-import { createAdminClient, createSessionClient } from "./appwrite";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { ID, OAuthProvider, Query } from "@repo/api/server";
+import { ID, OAuthProvider, Query, Models } from "@repo/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL
 
@@ -73,14 +73,15 @@ export async function createMagicLinkSession(userId: string, secret: string) {
 
     return session;
 }
-
-  export async function getTeams(query: string[]) {
+type Team = Models.Team
+type Teams = Models.TeamList<Models.Preferences>
+  export async function getTeams(query: string[]): Promise<Teams> {
     const { account, teams } = await createSessionClient();
   
     return teams.list(query);
   }
   
-  export async function getTeam(teamId: string) {
+  export async function getTeam(teamId: string): Promise<Team> {
     const { account, teams } = await createSessionClient();
   
     return teams.get(teamId);

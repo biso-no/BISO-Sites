@@ -1,5 +1,5 @@
 "use server";
-import { createSessionClient } from "../appwrite";
+import { createSessionClient } from "@repo/api/server";
 
 export type MembershipCheckResult =
   | { ok: true; active: boolean; membership?: any; studentId?: number; categories?: number[] }

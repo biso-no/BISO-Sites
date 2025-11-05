@@ -12,7 +12,7 @@ import { Input } from "@repo/ui/components/ui/input"
 import { Badge } from "@repo/ui/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area"
 import { Switch } from "@repo/ui/components/ui/switch"
-import type { Department } from "@/lib/admin/departments"
+import type { Departments } from "@repo/api/types/appwrite"
 import { cn } from '@repo/ui/lib/utils'
 
 const stripHtml = (value?: string) => (value ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "")
@@ -32,28 +32,19 @@ type InitialFilters = {
 }
 
 type UnitsPageClientProps = {
-  departments: Department[]
-  types: string[]
+  departments: Departments[]
   initialFilters: InitialFilters
 }
 
 const LOGO_PLACEHOLDER = "/images/placeholder.jpg"
 
-export const UnitsPageClient = ({ departments, types, initialFilters }: UnitsPageClientProps) => {
+export const UnitsPageClient = ({ departments, initialFilters }: UnitsPageClientProps) => {
   const { campuses, activeCampus, activeCampusId, selectCampus, loading } = useCampus()
 
   const [searchTerm, setSearchTerm] = useState(initialFilters.search)
   const [selectedType, setSelectedType] = useState<string | null>(initialFilters.type)
   const [selectedCampusId, setSelectedCampusId] = useState<string | null>(initialFilters.campusId)
 
-  const typeOptions = useMemo(() => [...types].sort((a, b) => a.localeCompare(b)), [types])
-
-  useEffect(() => {
-    if (!initialFilters.type) return
-    if (!typeOptions.includes(initialFilters.type)) {
-      setSelectedType(null)
-    }
-  }, [initialFilters.type, typeOptions])
   useEffect(() => {
     if (initialFilters.campusId) return
     setSelectedCampusId(activeCampusId ?? null)
@@ -79,10 +70,10 @@ export const UnitsPageClient = ({ departments, types, initialFilters }: UnitsPag
 
       if (normalizedSearch) {
         const haystack = [
-          dept.name,
+          dept.Name,
           dept.type,
-          dept.campusName,
-          stripHtml(dept.description)
+          dept.campus.name,
+          stripHtml(dept.description ?? "")
         ]
           .join(" ")
           .toLowerCase()
@@ -123,9 +114,9 @@ export const UnitsPageClient = ({ departments, types, initialFilters }: UnitsPag
 
   const sortedDepartments = useMemo(() => {
     return [...filteredDepartments].sort((a, b) => {
-      const campusCompare = (a.campusName || "").localeCompare(b.campusName || "")
+      const campusCompare = (a.campus.name || "").localeCompare(b.campus.name || "")
       if (campusCompare !== 0) return campusCompare
-      return a.name.localeCompare(b.name)
+      return a.Name.localeCompare(b.Name)
     })
   }, [filteredDepartments])
 
@@ -239,19 +230,19 @@ export const UnitsPageClient = ({ departments, types, initialFilters }: UnitsPag
               >
                 Alle fagområder
               </button>
-              {typeOptions.map((type) => (
+              {departments.map((dept) => (
                 <button
-                  key={type}
+                  key={dept.$id}
                   type="button"
-                  onClick={() => setSelectedType(type)}
+                  onClick={() => setSelectedType(dept.type)}
                   className={cn(
                     "rounded-full border px-4 py-2 text-sm font-medium transition",
-                    selectedType === type
+                    selectedType === dept.type
                       ? "border-primary-40 bg-primary-10 text-primary-80"
                       : "border-primary/15 bg-white/90 text-primary-70 hover:border-primary/30 hover:text-primary-40"
                   )}
                 >
-                  {type}
+                  {dept.type}
                 </button>
               ))}
             </div>
@@ -288,7 +279,7 @@ export const UnitsPageClient = ({ departments, types, initialFilters }: UnitsPag
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {sortedDepartments.map((dept) => {
               const isActive = dept.active !== false
-              const plainDescription = stripHtml(dept.description)
+              const plainDescription = stripHtml(dept.description ?? "")
               return (
                 <Card
                   key={dept.$id}
@@ -299,17 +290,17 @@ export const UnitsPageClient = ({ departments, types, initialFilters }: UnitsPag
                     <div className="flex items-start gap-3">
                       <div className="relative h-12 w-12 overflow-hidden rounded-full border border-primary/10 bg-primary-10">
                         {dept.logo ? (
-                          <Image src={dept.logo} alt={dept.name} fill className="object-cover" />
+                          <Image src={dept.logo} alt={dept.Name} fill className="object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-primary-70">
-                            {dept.name.slice(0, 2).toUpperCase()}
+                            {dept.Name.slice(0, 2).toUpperCase()}
                           </div>
                         )}
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-primary-100">{dept.name}</h3>
+                        <h3 className="text-lg font-semibold text-primary-100">{dept.Name}</h3>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span>{dept.campusName || "Ukjent campus"}</span>
+                          <span>{dept.campus.name || "Ukjent campus"}</span>
                           {dept.type ? <span>- {dept.type}</span> : null}
                         </div>
                       </div>
@@ -336,7 +327,7 @@ export const UnitsPageClient = ({ departments, types, initialFilters }: UnitsPag
                   </div>
 
                   <div className="mt-6 flex items-center justify-between border-t border-primary/10 pt-4 text-sm text-primary-60">
-                    <span>Medlemmer: {dept.userCount ?? "--"}</span>
+                    <span>Medlemmer: {dept.users.length ?? "--"}</span>
                     <Button asChild variant="link" className="px-0 text-primary-40">
                       <Link href="/contact">Kontakt</Link>
                     </Button>

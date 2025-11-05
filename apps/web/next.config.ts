@@ -93,6 +93,7 @@ const baseConfig: NextConfig = {
 
   experimental: {
     optimizePackageImports: [],
+    authInterrupts: true
   },
   // No framework-level redirects at this time (user preference)
 };

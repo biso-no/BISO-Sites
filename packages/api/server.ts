@@ -1,5 +1,5 @@
 "use server";
-import { Client, Account, Teams, Storage, Users, Functions, Messaging, TablesDB, Query, ID, OAuthProvider } from "node-appwrite";
+import { Client, Account, Teams, Storage, Users, Functions, Messaging, TablesDB } from "node-appwrite";
 import { cookies } from "next/headers";
 
 
@@ -14,11 +14,10 @@ export async function createSessionClient() {
 
   const session = (await cookies()).get("a_session_biso");
 
-  if (!session) {
-    throw new Error("No session found");
-  }
 
-  client.setSession(session.value);
+  if (session) {
+    client.setSession(session.value);
+  }
 
   return {
     get account() {
@@ -72,6 +71,3 @@ export async function createAdminClient() {
     }
   };
 }
-
-// Re-export server-side SDK classes and helpers for convenience
-

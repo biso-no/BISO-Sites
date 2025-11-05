@@ -11,6 +11,11 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL
 //
 export async function getLoggedInUser(): Promise<{ user: Models.User<Models.Preferences>, profile: Users | null } | null> {
     try {
+        const cookiesStore = await cookies();
+        const session = cookiesStore.get("a_session_biso");
+        if (!session) {
+            return null;
+        }
         const { account, db } = await createSessionClient();
        
         const user = await account.get();
@@ -127,9 +132,8 @@ interface ProfileDetails {
     swift?: string;
 }
 
-export type Profile = ProfileDetails & Models.Document;
 
-export async function updateProfile(profile: Partial<Profile>) { 
+export async function updateProfile(profile: Partial<Users>) { 
     try {
         const { account, db } = await createSessionClient();
         const user = await account.get();
@@ -159,7 +163,7 @@ export async function updateProfile(profile: Partial<Profile>) {
     }
 }
 
-export async function createProfile(profile: Partial<Profile>, userId: string) {
+export async function createProfile(profile: Partial<Users>, userId: string) {
     try {
         const { account, db } = await createSessionClient();
         

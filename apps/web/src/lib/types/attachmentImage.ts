@@ -1,5 +1,5 @@
 
-import { Models } from "@repo/api/server";
+import { Models } from "@repo/api";
 export interface attachmentImage extends Models.File {
     
 }
