@@ -5,10 +5,11 @@ import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { ID, Models, OAuthProvider } from "@repo/api";
+import { Users } from "@repo/api/types/appwrite";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL
 //
-export async function getLoggedInUser(): Promise<{ user: Models.User<Models.Preferences>, profile: Models.Row | null } | null> {
+export async function getLoggedInUser(): Promise<{ user: Models.User<Models.Preferences>, profile: Users | null } | null> {
     try {
         const { account, db } = await createSessionClient();
        
@@ -31,7 +32,7 @@ export async function getLoggedInUser(): Promise<{ user: Models.User<Models.Pref
             
             try {
                 // Try to get the user profile document
-                const profile = await db.getRow('app', 'user', user.$id);
+                const profile = await db.getRow<Users>('app', 'user', user.$id);
                 console.log("Profile found:", profile?.$id);
                 return {user, profile}
             } catch (profileError) {
