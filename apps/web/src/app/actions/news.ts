@@ -48,10 +48,14 @@ export async function listNews(params: ListNewsParams = {}): Promise<ContentTran
     const queries = [
       Query.equal('content_type', ContentType.NEWS),
       Query.select(['content_id', '$id', 'locale', 'title', 'description', 'news_ref.*']),
-      Query.equal('locale', locale as Locale),
       Query.limit(limit),
       Query.orderDesc('$createdAt')
     ]
+
+    // Only add locale filter if provided
+    if (locale) {
+      queries.push(Query.equal('locale', locale as Locale))
+    }
 
     if (status && status !== 'all') {
       queries.push(Query.equal('news_ref.status', status))

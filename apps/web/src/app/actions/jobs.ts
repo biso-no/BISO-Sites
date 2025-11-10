@@ -57,10 +57,14 @@ export async function listJobs(params: ListJobsParams = {}): Promise<ContentTran
     const queries = [
       Query.equal('content_type', ContentType.JOB),
       Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'job_ref.*', 'job_ref.department.*']),
-      Query.equal('locale', locale as Locale),
       Query.limit(limit),
       Query.orderDesc('$createdAt')
     ]
+
+    // Only add locale filter if provided
+    if (locale) {
+      queries.push(Query.equal('locale', locale as Locale))
+    }
 
     if (status !== 'all') {
       queries.push(Query.equal('job_ref.status', status))
