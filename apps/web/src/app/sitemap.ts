@@ -3,43 +3,48 @@ import { listNews } from '@/app/actions/news'
 import { listEvents } from '@/app/actions/events'
 import { listJobs } from '@/app/actions/jobs'
 import { listLargeEvents } from '@/app/actions/large-events'
+import { createAdminClient } from '@repo/api/server'
+import { ContentType, Locale } from '@repo/api/types/appwrite'
+import { Query } from '@repo/api'
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://biso.no'
+export async function generateSitemap() {
+  const base = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.biso.no'
 
-  const staticPaths: MetadataRoute.Sitemap = [
-    '',
-    '/about',
-    '/campus',
-    '/students',
-    '/membership',
-    '/partner',
-    '/projects',
-    '/news',
-    '/events',
-    '/jobs',
-    '/shop',
-    '/privacy',
-    '/cookies',
-    '/terms',
-    '/policies/drugs-policy',
-    '/contact',
-  ].map((p) => ({ url: `${base}${p || '/'}` }))
+  const { db } = await createAdminClient()
 
-  const [news, events, jobs, projects] = await Promise.all([
-    listNews({ limit: 200, status: 'published' }),
-    listEvents({ limit: 200, status: 'published' }),
-    listJobs({ limit: 200, status: 'published' }),
-    listLargeEvents({ activeOnly: false, limit: 100 }),
+  const news = await db.listRows('app', 'content_translations', [
+    Query.equal('content_type', ContentType.NEWS),
+    Query.equal('locale', Locale.NO),
   ])
 
+  const events = await db.listRows('app', 'content_translations', [
+    Query.equal('content_type', ContentType.EVENT),
+    Query.equal('locale', Locale.NO),
+  ])
+
+  const jobs = await db.listRows('app', 'content_translations', [
+    Query.equal('content_type', ContentType.JOB),
+    Query.equal('locale', Locale.NO),
+  ])
+
+  const staticPaths: MetadataRoute.Sitemap = [
+    { url: `${base}/`, lastModified: new Date() },
+    { url: `${base}/about`, lastModified: new Date() },
+    { url: `${base}/campus`, lastModified: new Date() },
+    { url: `${base}/students`, lastModified: new Date() },
+  ]
+
+
+  
   const dynamicPaths: MetadataRoute.Sitemap = [
-    ...news.map((n) => ({ url: `${base}/news/${(n as any).$id}`, lastModified: new Date(n.$updatedAt || n.$createdAt) })),
-    ...events.map((e) => ({ url: `${base}/events/${(e as any).$id}`, lastModified: new Date(e.$updatedAt || e.$createdAt) })),
-    ...jobs.map((j) => ({ url: `${base}/jobs/${(j as any).slug || (j as any).$id}`, lastModified: new Date(j.$updatedAt || j.$createdAt) })),
-    ...projects.map((p) => ({ url: `${base}/projects/${p.slug}`, lastModified: p.$updatedAt ? new Date(p.$updatedAt) : undefined })),
+    ...news.rows.map((n) => ({ url: `${base}/news/${(n as any).$id}`, lastModified: new Date(n.$updatedAt || n.$createdAt) })),
+    ...events.rows.map((e) => ({ url: `${base}/events/${(e as any).$id}`, lastModified: new Date(e.$updatedAt || e.$createdAt) })),
+    ...jobs.rows.map((j) => ({ url: `${base}/jobs/${(j as any).slug || (j as any).$id}`, lastModified: new Date(j.$updatedAt || j.$createdAt) })),
   ]
 
   return [...staticPaths, ...dynamicPaths]
 }
 
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  return await generateSitemap()
+}
