@@ -11,10 +11,8 @@ import { Button } from "@repo/ui/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card"
 import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area"
 import { formatDateReadable } from '@repo/ui/lib/utils'
-import type { EventWithTranslations } from "@/lib/types/event"
-import type { JobWithTranslations } from "@/lib/types/job"
+import type { ContentTranslations, Departments } from "@repo/api/types/appwrite"
 import type { CampusData } from "@/lib/types/campus-data"
-import type { Department } from "@/lib/admin/departments"
 import type { Locale } from "@/i18n/config"
 
 type BenefitKey =
@@ -25,9 +23,9 @@ type BenefitKey =
   | "businessBenefits"
 
 type StudentsPageClientProps = {
-  events: EventWithTranslations[]
-  jobs: JobWithTranslations[]
-  departments: Department[]
+  events: ContentTranslations[]
+  jobs: ContentTranslations[]
+  departments: Departments[]
   campusData: CampusData[]
   globalBenefits: CampusData | null
   locale: Locale
@@ -90,12 +88,12 @@ export const StudentsPageClient = ({
 
   const filteredEvents = useMemo(() => {
     if (!activeCampusId) return events.slice(0, 6)
-    return events.filter((event) => event.campus_id === activeCampusId).slice(0, 6)
+    return events.filter((event) => event.event_ref?.campus_id === activeCampusId).slice(0, 6)
   }, [events, activeCampusId])
 
   const filteredJobs = useMemo(() => {
     if (!activeCampusId) return jobs.slice(0, 6)
-    return jobs.filter((job) => job.campus_id === activeCampusId).slice(0, 6)
+    return jobs.filter((job) => job.job_ref?.campus_id === activeCampusId).slice(0, 6)
   }, [jobs, activeCampusId])
 
   const featuredDepartments = useMemo(() => {
@@ -199,11 +197,11 @@ export const StudentsPageClient = ({
             <div className="grid gap-4 sm:grid-cols-2">
               {featuredDepartments.map((dept) => (
                 <div key={dept.$id} className="rounded-lg border border-primary/10 bg-muted/40 p-4">
-                  <h3 className="text-base font-semibold text-primary-100">{dept.name}</h3>
+                  <h3 className="text-base font-semibold text-primary-100">{dept.Name}</h3>
                   <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{dept.description}</p>
                   <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{dept.type || t("units.unknownType")}</span>
-                    {dept.userCount ? <span>{t("units.members", { count: dept.userCount })}</span> : null}
+                    {dept.users?.length ? <span>{t("units.members", { count: dept.users?.length })}</span> : null}
                   </div>
                 </div>
               ))}
@@ -243,13 +241,13 @@ export const StudentsPageClient = ({
             <Card key={event.$id} className="border-primary/10 bg-white">
               <CardHeader>
                 <Badge variant="secondary" className="w-fit text-xs uppercase">
-                  {formatDateReadable(event.start_date)}
+                  {formatDateReadable(new Date(event.event_ref?.start_date || ""))}
                 </Badge>
                 <CardTitle className="text-lg text-primary-100">{event.title}</CardTitle>
                 <p className="text-sm text-muted-foreground line-clamp-3" dangerouslySetInnerHTML={{ __html: event.description || "" }} />
               </CardHeader>
               <CardContent className="flex justify-between text-xs text-muted-foreground">
-                <span>{event.location || event.campus?.name || event.campus_id}</span>
+                <span>{event.event_ref?.location || event.event_ref?.campus?.name || event.event_ref?.campus_id}</span>
                 <Link href={`/events/${event.$id}`} className="underline-offset-2 hover:underline">
                   {t("events.more")}
                 </Link>
@@ -281,19 +279,19 @@ export const StudentsPageClient = ({
             <Card key={job.$id} className="border-primary/10 bg-white">
               <CardHeader className="space-y-2">
                 <Badge variant="secondary" className="w-fit text-xs uppercase">
-                  {job.department?.Name || t("jobs.unknownDepartment")}
+                  {job.job_ref?.department?.Name || t("jobs.unknownDepartment")}
                 </Badge>
                 <CardTitle className="text-lg text-primary-100">{job.title}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
                 <p className="line-clamp-3" dangerouslySetInnerHTML={{ __html: job.description || "" }} />
                 <div className="flex items-center justify-between text-xs">
-                  <span>{job.campus?.name || job.campus_id}</span>
-                  <span>{job.application_deadline ? formatDateReadable(job.application_deadline) : t("jobs.rolling")}</span>
+                  <span>{job.job_ref?.campus?.name || job.job_ref?.campus_id}</span>
+                  <span>{job.job_ref?.metadata?.application_deadline ? formatDateReadable(new Date(job.job_ref?.metadata?.application_deadline || "")) : t("jobs.rolling")}</span>
                 </div>
                 <div className="flex justify-end">
                   <Button asChild variant="ghost" size="sm" className="px-0 text-primary-40">
-                    <Link href={`/jobs/${job.slug}`}>{t("jobs.more")}</Link>
+                    <Link href={`/jobs/${job.job_ref?.slug}`}>{t("jobs.more")}</Link>
                   </Button>
                 </div>
               </CardContent>
