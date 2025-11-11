@@ -6,14 +6,15 @@ import { Card } from '@repo/ui/components/ui/card';
 interface AboutClientProps {
   eventCount: number;
   jobCount: number;
+  departmentsCount: number;
 }
 
-export function AboutClient({ eventCount, jobCount }: AboutClientProps) {
+export function AboutClient({ eventCount, jobCount, departmentsCount }: AboutClientProps) {
   const stats = [
-    { number: `${eventCount}+`, label: 'Events Yearly', icon: Calendar },
+    { number: `${eventCount}+`, label: 'Upcoming Events', icon: Calendar },
     { number: `${jobCount}+`, label: 'Job Opportunities', icon: Briefcase },
-    { number: '50+', label: 'Student Groups', icon: Rocket },
-    { number: '15+', label: 'Years Strong', icon: Trophy },
+    { number: `${departmentsCount}+`, label: 'Student Groups', icon: Rocket },
+    //{ number: '15+', label: 'Years Strong', icon: Trophy },
   ];
 
   const values = [

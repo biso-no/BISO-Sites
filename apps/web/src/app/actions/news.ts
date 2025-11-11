@@ -34,6 +34,7 @@ export interface CreateNewsData {
   }
 }
 
+
 export async function listNews(params: ListNewsParams = {}): Promise<ContentTranslations[]> {
   const {
     limit = 25,
@@ -253,4 +254,8 @@ export async function listCampuses() {
     console.error('Error fetching campuses:', error)
     return []
   }
+}
+
+export async function filterArticles(articles: ContentTranslations[], category: string, searchQuery: string) {
+  return articles.filter(article => article.content_type === category && article.title.toLowerCase().includes(searchQuery.toLowerCase()));
 }

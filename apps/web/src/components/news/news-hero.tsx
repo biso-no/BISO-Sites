@@ -1,10 +1,8 @@
-'use client'
+import { ImageWithFallback } from '@repo/ui/components/image';
+import { BackButton } from './back-button';
+import { ScrollIndicator } from './scroll-indicator';
 
-import { motion } from 'motion/react'
-import { ChevronDown } from 'lucide-react'
-import { ImageWithFallback } from '@repo/ui/components/image'
-
-export function EventsHero() {
+export function NewsHero() {
   return (
     <div className="relative h-[50vh] overflow-hidden">
             <ImageWithFallback
@@ -20,33 +18,24 @@ export function EventsHero() {
       
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="mb-6 text-white text-5xl md:text-6xl font-bold">
-              Discover Amazing
+          <BackButton />
+
+          <div className="animate-fade-in-up">
+            <h1 className="mb-6 text-white text-4xl md:text-5xl lg:text-6xl font-bold">
+              Latest News &
               <br />
               <span className="bg-linear-to-r from-[#3DA9E0] via-cyan-300 to-blue-300 bg-clip-text text-transparent">
-                Events & Experiences
+                Student Stories
               </span>
             </h1>
-            <p className="text-white/90 text-lg max-w-2xl mx-auto">
-              From networking events to social gatherings, find the perfect opportunity to connect, learn, and create unforgettable memories.
+            <p className="text-white/90 max-w-2xl mx-auto text-lg">
+              Stay updated with the latest happenings, achievements, and stories from the BISO community.
             </p>
-          </motion.div>
+          </div>
         </div>
       </div>
 
-      <motion.div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
-      >
-        <ChevronDown className="w-8 h-8 text-white/70" />
-      </motion.div>
+      <ScrollIndicator />
     </div>
-  )
+  );
 }
-

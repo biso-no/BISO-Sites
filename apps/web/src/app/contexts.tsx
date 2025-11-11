@@ -16,7 +16,7 @@ export const AppContextProvider = ({ children }: { children: React.ReactNode }) 
   // Function to fetch departments from the database
   const fetchDepartments = async () => {
     try {
-      const response = await getDepartments()
+      const response = await getDepartments({ campusId: "all" })
       setDepartments(response as unknown as Department[] | [])
     } catch (error) {
       console.error("Failed to fetch departments:", error)

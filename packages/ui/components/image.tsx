@@ -1,29 +1,32 @@
 'use client';
-import React, { useState } from 'react'
-import Image, { ImageProps } from 'next/image'
+import { useState } from 'react';
+import Image, { ImageProps } from 'next/image';
 
 const ERROR_IMG_SRC =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg=='
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4=';
 
-export function ImageWithFallback(props: ImageProps & { fallbackSrc?: string }) {
-  const [didError, setDidError] = useState(false)
+type Props = ImageProps & {
+  fallbackSrc?: string;
+};
 
-  const handleError = () => {
-    setDidError(true)
-  }
+export function ImageWithFallback({
+  fallbackSrc = ERROR_IMG_SRC,
+  onError,
+  ...props
+}: Props) {
+  const [src, setSrc] = useState(props.src);
 
-  const { src, alt, style, className, ...rest } = props
-
-  return didError ? (
-    <div
-      className={`inline-block bg-gray-100 text-center align-middle ${className ?? ''}`}
-      style={style}
-    >
-      <div className="flex items-center justify-center w-full h-full">
-        <Image src={ERROR_IMG_SRC} alt="Error loading image" {...rest} data-original-url={src} />
-      </div>
-    </div>
-  ) : (
-    <Image src={src} alt={alt} className={className} style={style} {...rest} onError={handleError} width={100} height={100} />
-  )
+  return (
+    <Image
+      {...props}
+      // never force 100x100; use what caller provided
+      src={src}
+      onError={(e) => {
+        setSrc(fallbackSrc);
+        onError?.(e);
+      }}
+      // data: URIs and some CDNs don’t benefit from Next optimization
+      unoptimized={typeof src === 'string' && src.startsWith('data:')}
+    />
+  );
 }

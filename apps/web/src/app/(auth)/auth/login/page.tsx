@@ -3,14 +3,13 @@ import { getAuthStatus } from "@/lib/auth-utils";
 import { redirect } from "next/navigation";
 
 export default async function Page({ searchParams }: { 
-  searchParams: { redirectTo?: string } 
+  searchParams: Promise<{ redirectTo?: string, error?: string }> 
 }) {
   // Check if user is already authenticated (not anonymous)
   const authStatus = await getAuthStatus();
-  
+  const { error, redirectTo } = await searchParams;
   if (authStatus.isAuthenticated) {
     // User is already authenticated, redirect them
-    const redirectTo = searchParams.redirectTo;
     const target = redirectTo ? decodeURIComponent(redirectTo) : '/admin';
     return redirect(target);
   }
@@ -22,7 +21,11 @@ export default async function Page({ searchParams }: {
         <div className="absolute top-1/3 -left-20 w-120 h-120 rounded-full bg-gold-default/5 blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-140 h-140 rounded-full bg-secondary-100/5 blur-3xl" />
       </div>
-      
+      {error && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-500">
+          {error}
+        </div>
+      )}
       <Login />
       
       {/* Footer text */}

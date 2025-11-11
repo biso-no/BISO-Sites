@@ -1,6 +1,7 @@
 'use client';
 import { motion } from 'motion/react';
 import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from 'lucide-react';
+import Link from 'next/link';
 
 export function Footer() {
   const footerLinks = {
@@ -44,7 +45,7 @@ export function Footer() {
               className="mb-6"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-lg">
                   <span>BI</span>
                 </div>
                 <div>
@@ -53,23 +54,18 @@ export function Footer() {
                 </div>
               </div>
               <p className="text-gray-400 mb-6">
-                Creating unforgettable student experiences and building lasting connections at 
-                BI Norwegian Business School since 2010.
+              BI Student Organisation connects students and the business society, facilitates social integration, and works to better the student welfare and quality of studies.
               </p>
               
               {/* Contact Info */}
               <div className="space-y-3">
                 <div className="flex items-start gap-3 text-gray-400">
-                  <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <MapPin className="w-5 h-5 shrink-0 mt-0.5" />
                   <span>Nydalsveien 37, 0484 Oslo, Norway</span>
                 </div>
                 <div className="flex items-center gap-3 text-gray-400">
-                  <Mail className="w-5 h-5 flex-shrink-0" />
-                  <span>hello@biso.no</span>
-                </div>
-                <div className="flex items-center gap-3 text-gray-400">
-                  <Phone className="w-5 h-5 flex-shrink-0" />
-                  <span>+47 12 34 56 78</span>
+                  <Mail className="w-5 h-5 shrink-0" />
+                  <span>contact@biso.no</span>
                 </div>
               </div>
             </motion.div>
@@ -109,19 +105,19 @@ export function Footer() {
           className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-gray-800"
         >
           <p className="text-gray-400 mb-4 md:mb-0">
-            © 2024 BI Student Organisation. All rights reserved.
+            © {new Date().getFullYear()} BI Student Organisation. All rights reserved.
           </p>
           
           <div className="flex gap-4">
             {socialLinks.map((social) => (
-              <a
+              <Link
                 key={social.label}
                 href={social.href}
                 aria-label={social.label}
-                className="w-10 h-10 rounded-lg bg-gray-800 hover:bg-gradient-to-br hover:from-purple-600 hover:to-pink-600 flex items-center justify-center transition-all duration-300"
+                className="w-10 h-10 rounded-lg bg-gray-800 hover:bg-linear-to-br hover:from-purple-600 hover:to-pink-600 flex items-center justify-center transition-all duration-300"
               >
                 <social.icon className="w-5 h-5" />
-              </a>
+              </Link>
             ))}
           </div>
         </motion.div>

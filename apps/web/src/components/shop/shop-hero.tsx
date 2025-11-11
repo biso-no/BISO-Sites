@@ -12,11 +12,15 @@ interface ShopHeroProps {
 export function ShopHero({ isMember = false }: ShopHeroProps) {
   return (
     <div className="relative h-[50vh] overflow-hidden">
-      <ImageWithFallback
-        src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9wJTIwc3RvcmV8ZW58MXx8fHwxNzYyMTY1MTQ1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-        alt="BISO Shop"
-        className="w-full h-full object-cover"
-      />
+            <ImageWithFallback
+              src="/images/logo-home.png"
+              alt="BISO logo"
+              width={140}               // pick the intrinsic pixel width
+              height={40}               // and height that matches your asset ratio
+              sizes="(max-width: 768px) 120px, 140px"
+              priority                   // above-the-fold
+              className="h-10 w-auto"    // control display size via CSS
+            />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
       
       <div className="absolute inset-0 flex items-center justify-center">

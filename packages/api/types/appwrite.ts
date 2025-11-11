@@ -538,6 +538,7 @@ export type News = Models.Row & {
     image: string | null;
     department: Departments;
     metadata: string[] | null;
+    author?: string | null;
 }
 
 export type WebshopProducts = Models.Row & {
