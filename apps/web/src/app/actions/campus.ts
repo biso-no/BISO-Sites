@@ -1,7 +1,7 @@
 "use server"
 
 import { createAdminClient, createSessionClient } from "@repo/api/server"
-import { Campus } from "@/lib/types/campus"
+import { Campus } from "@repo/api/types/appwrite"
 import { CampusData } from "@/lib/types/campus-data"
 import { Query, Models } from "@repo/api"
 
@@ -82,9 +82,11 @@ export async function getCampusMetadataByName(campusName: string): Promise<Campu
 
 export async function getCampuses({ 
   includeNational = true, 
+  selectedCampusId = "all",
   includeDepartments = false 
 }: { 
   includeNational?: boolean; 
+  selectedCampusId?: string;
   includeDepartments?: boolean;
 } = {}) {
   const { db } = await createSessionClient();
@@ -96,19 +98,19 @@ export async function getCampuses({
     query.push(Query.notEqual('name', 'National'));
   }
 
+  if (selectedCampusId && selectedCampusId !== "all") {
+    query.push(Query.equal('$id', selectedCampusId));
+  }
+
+  if (includeDepartments) {
+    query.push(Query.select(['departments.$id', 'departments.Name', 'departments.active']));
+  }
+
   const campuses = await db.listRows(
     'app',
     'campus',
     query
   );
-
-  // If departments are not needed, return just basic campus info
-  if (!includeDepartments) {
-    return campuses.rows.map(campus => ({
-      $id: campus.$id,
-      name: campus.name,
-    })) as unknown as Campus[];
-  }
 
   return campuses.rows as unknown as Campus[];
 }

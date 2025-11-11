@@ -28,7 +28,7 @@ export function JoinUs() {
   const membershipDurations = [
     {
       name: '6 Months',
-      price: '399 NOK',
+      price: '350 NOK',
       period: '6 months',
       savings: null,
       popular: false,
@@ -36,17 +36,17 @@ export function JoinUs() {
     },
     {
       name: '1 Year',
-      price: '699 NOK',
+      price: '550 NOK',
       period: '12 months',
-      savings: 'Save 100 NOK',
+      savings: 'Save 150 NOK',
       popular: true,
       gradient: 'from-purple-600 to-pink-600',
     },
     {
       name: '3 Years',
-      price: '1799 NOK',
+      price: '1350 NOK',
       period: '36 months',
-      savings: 'Save 599 NOK',
+      savings: 'Save 750 NOK',
       popular: false,
       gradient: 'from-[#3DA9E0] to-[#001731]',
     },
@@ -197,7 +197,7 @@ export function JoinUs() {
           <Card className="p-12 border-0 shadow-2xl bg-linear-to-br from-purple-600 to-pink-600 text-white">
             <h3 className="mb-4 text-white">Not sure which to choose?</h3>
             <p className="mb-8 text-white/90 max-w-2xl mx-auto">
-              Contact our team and we&apos;ll help you find the perfect membership plan for your student journey.
+              First year student, and plan to stay for 3 years? Choose the 3 year membership and save 750 NOK, or contact us for more information.
             </p>
             <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 border-0">
               Talk to Us

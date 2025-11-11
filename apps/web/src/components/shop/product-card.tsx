@@ -35,7 +35,7 @@ export function ProductCard({ product, index, isMember = false, onViewDetails }:
   const shortDescription = product.short_description || 
     (product.description.length > 100 ? `${product.description.substring(0, 100)}...` : product.description)
   
-  const imageUrl = productData.image || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080'
+  const imageUrl = productData.image || '/images/logo-home.png'
 
   return (
     <motion.div
@@ -46,11 +46,15 @@ export function ProductCard({ product, index, isMember = false, onViewDetails }:
       <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group h-full flex flex-col">
         {/* Image */}
         <div className="relative h-64 overflow-hidden">
-          <ImageWithFallback
-            src={imageUrl}
-            alt={product.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
+        <ImageWithFallback
+              src={imageUrl}
+              alt="BISO logo"
+              width={100}               // pick the intrinsic pixel width
+              height={100}               // and height that matches your asset ratio
+              sizes="(max-width: 768px) 100px, 100px"
+              priority                   // above-the-fold
+              className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"    // control display size via CSS
+            />
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
           
           <div className="absolute top-4 left-4 flex flex-col gap-2">

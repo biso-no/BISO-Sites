@@ -327,7 +327,6 @@ export const UnitsPageClient = ({ departments, initialFilters }: UnitsPageClient
                   </div>
 
                   <div className="mt-6 flex items-center justify-between border-t border-primary/10 pt-4 text-sm text-primary-60">
-                    <span>Medlemmer: {dept.users.length ?? "--"}</span>
                     <Button asChild variant="link" className="px-0 text-primary-40">
                       <Link href="/contact">Kontakt</Link>
                     </Button>

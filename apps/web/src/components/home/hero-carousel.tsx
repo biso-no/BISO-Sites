@@ -1,11 +1,51 @@
-'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, ChevronLeft, ChevronRight, Calendar, Users, Sparkles } from 'lucide-react';
-import { Button } from '@repo/ui/components/ui/button';
-import { ImageWithFallback } from '@repo/ui/components/image';
-import Link from 'next/link';
-import type { ContentTranslations } from '@repo/api/types/appwrite';
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { ChevronDown, ChevronLeft, ChevronRight, Calendar, Users, Sparkles } from "lucide-react";
+import Link from "next/link";
+import Image, { ImageProps } from "next/image";
+import { Button } from "@repo/ui/components/ui/button";
+
+/**
+ * Drop-in robust ImageWithFallback that does NOT force 100x100.
+ * - Preserves caller-provided sizing props (fill | width/height | sizes)
+ * - Falls back to a tiny inline SVG error asset if the primary src fails
+ * - Sets unoptimized for data: URIs automatically
+ */
+const ERROR_IMG_SRC =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4=";
+
+export type ImageWithFallbackProps = ImageProps & {
+  fallbackSrc?: string;
+};
+
+export function ImageWithFallback({ fallbackSrc = ERROR_IMG_SRC, onError, ...props }: ImageWithFallbackProps) {
+  const [src, setSrc] = useState(props.src);
+  const isDataUri = typeof src === "string" && src.startsWith("data:");
+
+  return (
+    <Image
+      {...props}
+      src={src}
+      onError={(e) => {
+        setSrc(fallbackSrc);
+        onError?.(e);
+      }}
+      unoptimized={isDataUri}
+      // allow callers to control priority/loading; provide sensible defaults below where used
+    />
+  );
+}
+
+// ---- Types for your content model ----
+interface ContentRef { image?: string | null }
+interface ContentTranslations {
+  title?: string | null;
+  description?: string | null;
+  content_id?: string | number | null;
+  event_ref?: ContentRef | null;
+  news_ref?: ContentRef | null;
+}
 
 interface HeroCarouselProps {
   featuredContent: ContentTranslations[];
@@ -16,41 +56,41 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
   const [isPaused, setIsPaused] = useState(false);
 
   const scrollToContent = () => {
-    document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const nextSlide = useCallback(() => {
+    if (featuredContent.length === 0) return;
     setCurrentIndex((prev) => (prev + 1) % featuredContent.length);
   }, [featuredContent.length]);
 
   const prevSlide = () => {
+    if (featuredContent.length === 0) return;
     setCurrentIndex((prev) => (prev - 1 + featuredContent.length) % featuredContent.length);
   };
 
-  const goToSlide = (index: number) => {
-    setCurrentIndex(index);
-  };
+  const goToSlide = (index: number) => setCurrentIndex(index);
 
-  // Auto-rotate carousel
+  // Auto-rotate
   useEffect(() => {
     if (isPaused || featuredContent.length <= 1) return;
-
-    const interval = setInterval(() => {
-      nextSlide();
-    }, 6000); // 6 seconds per slide
-
+    const interval = setInterval(nextSlide, 6000);
     return () => clearInterval(interval);
   }, [isPaused, nextSlide, featuredContent.length]);
 
+  // ---- Static fallback hero when no content ----
   if (!featuredContent || featuredContent.length === 0) {
-    // Fallback to static hero
     return (
       <div className="relative h-screen w-full overflow-hidden">
         <div className="absolute inset-0">
           <ImageWithFallback
-            src="https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkaXZlcnNlJTIwc3R1ZGVudHMlMjBncm91cHxlbnwxfHx8fDE3NjIxNTMyMDN8MA&ixlib=rb-4.1.0&q=80&w=1080"
+            src="/images/hero-bg.png"
             alt="Students at BI"
-            className="w-full h-full object-cover"
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+            quality={85}
           />
           <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
           <div className="absolute inset-0 bg-linear-to-t from-[#001731]/70 via-transparent to-transparent" />
@@ -92,8 +132,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.8 }}
             >
-              Join Norway&apos;s most vibrant student community at BI Norwegian Business School. 
-              Connect, create memories, and unlock opportunities that last a lifetime.
+              Join Norway&apos;s most vibrant student community at BI Norwegian Business School. Connect, create memories, and unlock opportunities that last a lifetime.
             </motion.p>
 
             <motion.div
@@ -130,17 +169,14 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
     );
   }
 
+  // ---- Carousel rendering ----
   const currentItem = featuredContent[currentIndex];
-  const isEvent = !!currentItem.event_ref;
-  const imageUrl = isEvent 
-    ? currentItem.event_ref?.image 
-    : currentItem.news_ref?.image;
-  const contentLink = isEvent 
-    ? `/events/${currentItem.content_id}` 
-    : `/news/${currentItem.content_id}`;
+  const isEvent = !!currentItem?.event_ref;
+  const imageUrl = isEvent ? currentItem?.event_ref?.image : currentItem?.news_ref?.image;
+  const contentLink = isEvent ? `/events/${currentItem?.content_id}` : `/news/${currentItem?.content_id}`;
 
   return (
-    <div 
+    <div
       className="relative h-screen w-full overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -155,9 +191,16 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
           className="absolute inset-0"
         >
           <ImageWithFallback
-            src={imageUrl || 'https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=1080'}
-            alt={currentItem.title}
-            className="w-full h-full object-cover"
+            src={imageUrl || "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"}
+            alt={currentItem?.title || ""}
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority={currentIndex === 0}
+            loading={currentIndex === 0 ? "eager" : "lazy"}
+            decoding="async"
+            quality={85}
+            placeholder="empty"
           />
           <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
           <div className="absolute inset-0 bg-linear-to-t from-[#001731]/70 via-transparent to-transparent" />
@@ -175,15 +218,15 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
         >
           <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-8">
             <Sparkles className="w-5 h-5 text-[#3DA9E0]" />
-            <span className="text-white/90">Featured {isEvent ? 'Event' : 'News'}</span>
+            <span className="text-white/90">Featured {isEvent ? "Event" : "News"}</span>
           </div>
 
-          <h1 className="mb-6 text-white max-w-4xl mx-auto">
-            {currentItem.title}
-          </h1>
+          <h1 className="mb-6 text-white max-w-4xl mx-auto">{currentItem?.title || ""}</h1>
 
           <p className="mb-10 text-white/80 max-w-2xl mx-auto text-lg">
-            {currentItem.description?.replace(/<[^>]+>/g, '').slice(0, 180)}...
+            {(currentItem?.description || "")
+              .replace(/<[^>]+>/g, "")
+              .slice(0, 180) || "..."}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -192,9 +235,9 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
                 Learn More
               </Button>
             </Link>
-            <Link href={isEvent ? '/events' : '/news'}>
+            <Link href={isEvent ? "/events" : "/news"}>
               <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6">
-                View All {isEvent ? 'Events' : 'News'}
+                View All {isEvent ? "Events" : "News"}
               </Button>
             </Link>
           </div>
@@ -228,9 +271,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
                 key={index}
                 onClick={() => goToSlide(index)}
                 className={`w-2 h-2 rounded-full transition-all ${
-                  index === currentIndex 
-                    ? 'bg-white w-8' 
-                    : 'bg-white/40 hover:bg-white/60'
+                  index === currentIndex ? "bg-white w-8" : "bg-white/40 hover:bg-white/60"
                 }`}
                 aria-label={`Go to slide ${index + 1}`}
               />
@@ -251,4 +292,3 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
     </div>
   );
 }
-
