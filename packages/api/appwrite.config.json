@@ -4367,6 +4367,237 @@
             "indexes": []
         },
         {
+            "$id": "pages",
+            "$permissions": [
+                "read(\"any\")",
+                "create(\"team:admin\")",
+                "update(\"team:admin\")",
+                "delete(\"team:admin\")"
+            ],
+            "databaseId": "app",
+            "name": "Pages",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "slug",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 256,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "title",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 256,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "elements": [
+                        "draft",
+                        "published",
+                        "archived"
+                    ],
+                    "format": "enum",
+                    "default": "draft"
+                },
+                {
+                    "key": "visibility",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "elements": [
+                        "public",
+                        "authenticated"
+                    ],
+                    "format": "enum",
+                    "default": "public"
+                },
+                {
+                    "key": "template",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 128,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "campus",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "pages",
+                    "onDelete": "setNull",
+                    "side": "parent"
+                },
+                {
+                    "key": "translation_refs",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "page_translations",
+                    "relationType": "oneToMany",
+                    "twoWay": true,
+                    "twoWayKey": "page",
+                    "onDelete": "cascade",
+                    "side": "parent"
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "pages_slug_unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "slug"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "page_translations",
+            "$permissions": [
+                "read(\"any\")",
+                "create(\"team:admin\")",
+                "update(\"team:admin\")",
+                "delete(\"team:admin\")"
+            ],
+            "databaseId": "app",
+            "name": "Page Translations",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "page_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "locale",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "elements": [
+                        "en",
+                        "no"
+                    ],
+                    "format": "enum",
+                    "default": null
+                },
+                {
+                    "key": "title",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 256,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "slug",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 256,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "description",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 2000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "puck_document",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32767,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "draft_document",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32767,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "is_published",
+                    "type": "boolean",
+                    "required": true,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "published_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "page",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "pages",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "translation_refs",
+                    "onDelete": "cascade",
+                    "side": "child"
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "page_locale_unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "page_id",
+                        "locale"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
             "$id": "site_pages",
             "$permissions": [],
             "databaseId": "app",

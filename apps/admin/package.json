@@ -27,6 +27,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@react-pdf/renderer": "^4.2.1",
     "@repo/api": "*",
+    "@repo/editor": "*",
     "@repo/payment": "*",
     "@repo/ui": "*",
     "@tailwindcss/postcss": "^4.1.14",
