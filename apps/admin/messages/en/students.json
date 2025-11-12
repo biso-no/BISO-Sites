@@ -1,0 +1,68 @@
+{
+  "hero": {
+    "badge": "Student life at {campus}",
+    "globalCampus": "all campuses",
+    "title": "Everything you need to thrive at {campus}",
+    "subtitle": "Discover member benefits, positions and support resources in one place so you can focus on getting involved.",
+    "ctaPrimary": "Become a member",
+    "ctaSecondary": "Explore units",
+    "ctaTertiary": "See open positions"
+  },
+  "benefits": {
+    "title": "Member benefits",
+    "subtitle": "Highlights from {campus} and national initiatives.",
+    "cta": "View all benefits",
+    "badges": {
+      "studentBenefits": "Membership",
+      "careerAdvantages": "Career",
+      "socialNetwork": "Community",
+      "safety": "Support",
+      "businessBenefits": "Partnerships"
+    },
+    "labels": {
+      "studentBenefits": "Membership & offers",
+      "careerAdvantages": "Career and development",
+      "socialNetwork": "Student life and community",
+      "safety": "Safety and support",
+      "businessBenefits": "For partners"
+    }
+  },
+  "units": {
+    "title": "Units and societies at {campus}",
+    "subtitle": "Meet the student boards, academic associations and social projects you can join.",
+    "cta": "Explore all units",
+    "unknownType": "Unit",
+    "members": "{count, plural, one {# member} other {# members}}",
+    "empty": "We could not find units for this campus right now."
+  },
+  "funding": {
+    "title": "Apply to the BI Fund",
+    "subtitle": "Student projects can receive financial support for initiatives that create value on campus.",
+    "body": "The BI Fund welcomes applications from students and BISO units who want to launch new academic, social or inclusion-focused initiatives.",
+    "cta": "Read more & apply"
+  },
+  "events": {
+    "title": "What is happening at {campus}",
+    "subtitle": "Stay up to date on events hosted by BISO and your campus leadership.",
+    "cta": "Open the full calendar",
+    "more": "Read more",
+    "empty": "No upcoming events registered for {campus} yet."
+  },
+  "jobs": {
+    "title": "Roles and engagement",
+    "subtitle": "Build your CV, network and skills through student-led roles.",
+    "cta": "See all positions",
+    "more": "View details",
+    "unknownDepartment": "Unit",
+    "rolling": "Rolling application",
+    "empty": "No open positions published right now."
+  },
+  "resources": {
+    "title": "Quick links",
+    "membership": "Member benefits",
+    "events": "Events calendar",
+    "roles": "Open positions",
+    "safety": "Safety & reporting",
+    "view": "Open"
+  }
+}

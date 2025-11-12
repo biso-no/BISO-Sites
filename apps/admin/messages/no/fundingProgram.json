@@ -1,0 +1,39 @@
+{
+  "hero": {
+    "badge": "Støtteordning",
+    "apply": "Send søknad",
+    "contact": "Ta kontakt"
+  },
+  "overview": {
+    "title": "Kort om ordningen",
+    "status": "Status",
+    "active": "Åpen for søknader",
+    "draft": "Ikke publisert",
+    "template": "Søknadsmal",
+    "download": "Last ned",
+    "documents": "Nyttige dokumenter",
+    "contact": "Kontakt",
+    "contactFallback": "BISO Arbeidsutvalget",
+    "external": "Mer informasjon"
+  },
+  "eligibility": {
+    "title": "Hvem kan søke?",
+    "empty": "Retningslinjene publiseres snart."
+  },
+  "steps": {
+    "title": "Slik søker du",
+    "empty": "Prosessen blir tilgjengelig snart."
+  },
+  "faq": {
+    "title": "Ofte stilte spørsmål"
+  },
+  "contact": {
+    "title": "Spørsmål og veiledning"
+  },
+  "fallback": {
+    "title": "Søk støtte gjennom BI-fondet",
+    "intro": "BI-fondet deler ut midler til studentprosjekter, arrangementer og tiltak som styrker læringsmiljøet på BI.",
+    "cta": "Les mer",
+    "contact": "Har du spørsmål? Kontakt oss på {email}."
+  }
+}

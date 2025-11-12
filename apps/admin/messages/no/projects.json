@@ -1,0 +1,60 @@
+{
+  "hero": {
+    "badge": "Flaggskip",
+    "title": "Prosjekter som samler BI-studentene",
+    "subtitle": "Fadderullan, Winter Games, Karrieredagene og Inspire er plattformer som skaper fellesskap, nettverk og nye opplevelser på tvers av campus.",
+    "ctaPrimary": "Utforsk flaggskipene",
+    "ctaSecondary": "Se oversikten"
+  },
+  "insight": {
+    "title": "Hvorfor flaggskipene betyr noe",
+    "item1": "Frivillige fra alle campuser planlegger og leverer prosjektene.",
+    "item2": "Gir partnere mulighet til å møte studenter gjennom året.",
+    "item3": "Skaper tradisjoner som bygger stolthet, fellesskap og CV-verdifull erfaring."
+  },
+  "featuredTitle": "Fire høydepunkter du ikke vil gå glipp av",
+  "featuredSubtitle": "Start med prosjektene som definerer BISO-kulturen.",
+  "featuredLabels": {
+    "fadderullan": "Velkomst",
+    "winterGames": "Nasjonal tur",
+    "karrieredagene": "Karriere",
+    "inspire": "Inspirasjon"
+  },
+  "featured": {
+    "fadderullan": {
+      "slug": "fadderullan",
+      "title": "Fadderullan",
+      "description": "Norges største studentfestival fylt med konserter, aktiviteter og inkluderende møteplasser for nye og gamle studenter.",
+      "cta": "Les om Fadderullan",
+      "highlight": "Festival"
+    },
+    "winterGames": {
+      "slug": "winter-games",
+      "title": "Winter Games",
+      "description": "BISOs vintertur samler studenter fra hele landet til ski, afterski og nettverksbygging.",
+      "cta": "Opplev Winter Games",
+      "highlight": "Vintertur"
+    },
+    "karrieredagene": {
+      "slug": "karrieredagene",
+      "title": "Karrieredagene",
+      "description": "Møt næringslivet, delta på workshops og sikr intervjuer med toppbedrifter i regionen.",
+      "cta": "Utforsk Karrieredagene",
+      "highlight": "Karriere"
+    },
+    "inspire": {
+      "slug": "inspire",
+      "title": "Inspire",
+      "description": "Et forum for inspirerende foredrag, innsikt og historiedeling fra studenter og ledere.",
+      "cta": "Bli inspirert",
+      "highlight": "Scener"
+    }
+  },
+  "schedule": {
+    "title": "Andre kommende prosjekter",
+    "subtitle": "Oversikt over aktive og planlagte satsninger fra BISO.",
+    "empty": "Vi har ikke publisert flere prosjekter ennå – følg med!",
+    "defaultTag": "Prosjekt",
+    "more": "Detaljer"
+  }
+}

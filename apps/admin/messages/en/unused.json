@@ -1,0 +1,17 @@
+{
+  "__comment": "Unused keys retained for review.",
+  "app": {
+    "description": "BISO is a company that delivers services to customers in Norway.",
+    "title": "BISO"
+  },
+  "global": {
+    "description": "BISO is a company that delivers services to customers in Norway.",
+    "title": "BISO"
+  },
+  "HomePage": {
+    "become-member": "Become a member",
+    "explore-events": "Explore events",
+    "explore-jobs": "Explore jobs",
+    "explore-shop": "Explore shop"
+  }
+}

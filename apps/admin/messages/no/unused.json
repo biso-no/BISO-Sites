@@ -1,0 +1,17 @@
+{
+  "__comment": "Ubrukte nøkler beholdt for gjennomgang.",
+  "app": {
+    "description": "BISO er en bedrift som leverer tjenester til kunder i Norge.",
+    "title": "BISO"
+  },
+  "global": {
+    "description": "BISO er en bedrift som leverer tjenester til kunder i Norge.",
+    "title": "BISO"
+  },
+  "HomePage": {
+    "become-member": "Bli medlem",
+    "explore-events": "Utforsk arrangementer",
+    "explore-jobs": "Utforsk verv",
+    "explore-shop": "Utforsk fordeler"
+  }
+}

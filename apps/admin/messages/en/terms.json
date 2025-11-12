@@ -1,0 +1,12 @@
+{
+  "title": "Purchase Terms",
+  "intro": "These terms cover payment, delivery/pickup, withdrawal rights and returns for purchases with BISO.",
+  "sections": {
+    "payment": { "title": "Payment", "body": "We accept Vipps and card via secure checkout. Amounts are shown in NOK and include applicable taxes." },
+    "delivery": { "title": "Delivery / Pickup", "body": "Physical items are picked up at campus or delivered as specified in the product. Digital items are delivered by email or within your account." },
+    "returns": { "title": "Returns & Refunds", "body": "Contact us before returning any item. Refunds are processed to the original payment method when eligible." },
+    "withdrawal": { "title": "Right of Withdrawal", "body": "Consumers may have a statutory right to withdraw within 14 days for certain purchases, with exceptions for time-specific services and used goods." },
+    "contact": { "title": "Contact", "body": "Questions about orders? Contact post@biso.no with your order reference." }
+  }
+}
+

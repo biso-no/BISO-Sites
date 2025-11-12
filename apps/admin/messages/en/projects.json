@@ -1,0 +1,60 @@
+{
+  "hero": {
+    "badge": "Flagships",
+    "title": "Projects that unite BI students",
+    "subtitle": "Fadderullan, Winter Games, Karrieredagene and Inspire create community, networking and unforgettable experiences across every campus.",
+    "ctaPrimary": "Explore the flagships",
+    "ctaSecondary": "View the overview"
+  },
+  "insight": {
+    "title": "Why these projects matter",
+    "item1": "Volunteers from every campus plan and deliver the experiences together.",
+    "item2": "Partners meet students throughout the year on meaningful arenas.",
+    "item3": "They build traditions, pride and CV-worthy experience for everyone involved."
+  },
+  "featuredTitle": "Four highlights you should not miss",
+  "featuredSubtitle": "Start with the projects that define BISO’s culture.",
+  "featuredLabels": {
+    "fadderullan": "Welcome week",
+    "winterGames": "National trip",
+    "karrieredagene": "Career",
+    "inspire": "Inspiration"
+  },
+  "featured": {
+    "fadderullan": {
+      "slug": "fadderullan",
+      "title": "Fadderullan",
+      "description": "Norway’s largest student festival packed with concerts, activities and welcoming meetups for new and returning students.",
+      "cta": "Learn about Fadderullan",
+      "highlight": "Festival"
+    },
+    "winterGames": {
+      "slug": "winter-games",
+      "title": "Winter Games",
+      "description": "BISO’s winter trip gathers students from across the country for skiing, afterski and networking.",
+      "cta": "Experience Winter Games",
+      "highlight": "Winter trip"
+    },
+    "karrieredagene": {
+      "slug": "karrieredagene",
+      "title": "Karrieredagene",
+      "description": "Meet leading companies, join workshops and secure interviews with top employers in your region.",
+      "cta": "Explore Karrieredagene",
+      "highlight": "Career"
+    },
+    "inspire": {
+      "slug": "inspire",
+      "title": "Inspire",
+      "description": "A stage for inspirational talks, insights and stories from students, alumni and leaders.",
+      "cta": "Get inspired",
+      "highlight": "Talks"
+    }
+  },
+  "schedule": {
+    "title": "More upcoming projects",
+    "subtitle": "Keep track of current and planned initiatives from BISO.",
+    "empty": "Additional flagship projects have not been published yet – stay tuned!",
+    "defaultTag": "Project",
+    "more": "Details"
+  }
+}

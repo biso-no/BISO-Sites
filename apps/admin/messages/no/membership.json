@@ -1,0 +1,138 @@
+{
+  "hero": {
+    "badge": "BISO medlemskap",
+    "title": "Fordeler for deg og {campus}",
+    "titleNational": "Fordeler for deg og alle campuser",
+    "titleFallback": "Fordeler for deg og BISO",
+    "subtitleFallback": "Bli med i Norges største studentdrevne fellesskap og få tilgang til fordeler i hele studietiden.",
+    "campusFallback": "din campus",
+    "ctas": {
+      "join": "Bli medlem nå",
+      "roles": "Finn et verv",
+      "partners": "For samarbeidspartnere"
+    },
+    "stats": {
+      "card": "Gratis medlemskort i appen",
+      "members": "Over 9 000 medlemmer",
+      "partners": "150+ samarbeidspartnere"
+    }
+  },
+  "benefits": {
+    "categories": {
+      "student": {
+        "title": "Medlemskap og tilbud",
+        "global": "Fordeler som følger alle medlemmer – fra rabatter til eksklusive kampanjer.",
+        "local": "Tilpassede medlemsfordeler fra ditt campus og lokale samarbeidspartnere."
+      },
+      "career": {
+        "title": "Karriere og kompetanse",
+        "global": "Nasjonale programmer som kobler deg med arbeidslivet og utvikler ferdighetene dine.",
+        "local": "Karrieretiltak og relasjoner som er unike for ditt nærmiljø."
+      },
+      "social": {
+        "title": "Fellesskap og arrangement",
+        "global": "Fadderullan, Winter Games og møteplasser som samler studenter fra hele landet.",
+        "local": "Festivaler, kultur og sosiale arenaer skapt av studenter på ditt campus."
+      },
+      "safety": {
+        "title": "Trygghet og støtte",
+        "global": "Varsling, omsorg og påvirkningsarbeid som sikrer en trygg studietid for alle.",
+        "local": "Ressurser og støttepersoner du kan kontakte lokalt på ditt campus."
+      },
+      "business": {
+        "title": "For samarbeidspartnere",
+        "global": "Nasjonale arenaer for bedrifter som vil møte BI-studenter.",
+        "local": "Muligheter for lokale virksomheter og samarbeid i ditt nærområde."
+      }
+    }
+  },
+  "onboarding": {
+    "title": "Slik kommer du i gang",
+    "subtitle": "Få medlemsfordeler på under to minutter.",
+    "steps": {
+      "1": {
+        "title": "Last ned BI Student-appen",
+        "description": "Logg inn med din BI-konto for å få tilgang til medlemskap og digitale kort."
+      },
+      "2": {
+        "title": "Velg BISO i menyen",
+        "description": "Finn BISO i sidepanelet og utforsk fordelene før du registrerer deg."
+      },
+      "3": {
+        "title": "Velg betalingsalternativ",
+        "description": "År eller semester – du velger det som passer best. Vipps og kort støttes."
+      },
+      "4": {
+        "title": "Aktiver medlemsfordeler",
+        "description": "Digitalt medlemskort og rabatter blir tilgjengelige med en gang."
+      }
+    }
+  },
+  "global": {
+    "title": "Nasjonale medlemsfordeler",
+    "subtitle": "Disse fordelene får du uansett hvilken campus du velger. Alt samlet i BI Student-appen.",
+    "cta": "Aktiver medlemskapet ditt",
+    "empty": "Vi jobber med å oppdatere de nasjonale medlemsfordelene. Kom tilbake snart!"
+  },
+  "local": {
+    "title": "Lokale fordeler ved {campus}",
+    "subtitle": "Velg campus for å se rabatter, arrangementer og støtteordninger der du studerer.",
+    "empty": "Velg en campus for å se lokale fordeler og medlemstilbud.",
+    "switcherLabel": "Campusvelger for medlemsfordeler"
+  },
+  "highlights": {
+    "title": "Flaggskip for alle medlemmer",
+    "subtitle": "Tre høydepunkter vi vet alle studenter setter pris på – uansett hvor du studerer.",
+    "ctaAll": "Se alle arrangementene",
+    "items": {
+      "fadderullan": {
+        "title": "Fadderullan",
+        "description": "Norges største studentfestival med konserter, happenings og inkluderende møteplasser.",
+        "cta": "Utforsk Fadderullan"
+      },
+      "careerDays": {
+        "title": "Karrieredagene",
+        "description": "Møt toppbedrifter, delta på workshops og sikre deg intervjuer og internship.",
+        "cta": "Les om Karrieredagene"
+      },
+      "winterGames": {
+        "title": "Winter Games",
+        "description": "Årlig vintertur med ski, afterski og nettverk på tvers av alle campuser.",
+        "cta": "Opplev Winter Games"
+      }
+    }
+  },
+  "faq": {
+    "title": "Ofte stilte spørsmål",
+    "subtitle": "Finner du ikke svar? Ta kontakt med campusledelsen eller send oss en e-post på contact@biso.no.",
+    "items": {
+      "cost": {
+        "question": "Hva koster medlemskapet?",
+        "answer": "Medlemskapet koster 450 kroner for ett helt år. Du kan også velge semesterbetaling om du ønsker en fleksibel løsning."
+      },
+      "discounts": {
+        "question": "Hvordan får jeg tilgang til rabattene?",
+        "answer": "Alle medlemsfordeler ligger i BI Student-appen. Aktiver medlemskapet ditt, så finner du digitale rabattkoder og billetter direkte i appen."
+      },
+      "switchCampus": {
+        "question": "Kan jeg bytte campus etter at jeg har blitt medlem?",
+        "answer": "Ja. Fordelene følger medlemskapet ditt nasjonalt. Bytt campus i toppmenyen eller i appen for å se lokale tilbud."
+      },
+      "engagement": {
+        "question": "Må jeg være aktiv i en undergruppe?",
+        "answer": "Nei. Medlemskapet gir deg tilgang til fordeler uavhengig av om du har verv. Men vi anbefaler å utforske mulighetene!"
+      }
+    }
+  },
+  "ctaCard": {
+    "title": "Klar for å bli med?",
+    "subtitle": "Medlemskapet aktiveres umiddelbart. Du kan når som helst endre campus og hente ut nye fordeler.",
+    "badges": {
+      "annual": "Årsmedlemskap 450,-",
+      "semester": "Semester 275,-",
+      "digitalCard": "Digitalt medlemskort"
+    },
+    "primary": "Bli medlem i dag",
+    "secondary": "Snakk med oss om medlemskapet"
+  }
+}

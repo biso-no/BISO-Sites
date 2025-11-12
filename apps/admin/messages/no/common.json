@@ -1,0 +1,21 @@
+{
+  "buttons": {
+    "becomeMember": "Bli medlem",
+    "readMore": "Les mer",
+    "viewDetails": "Se detaljer"
+  },
+  "labels": {
+    "organisation": "BISO"
+  },
+  "locale": {
+    "switcher": {
+      "label": "Bytt språk",
+      "current": "Nåværende språk: {locale}",
+      "loading": "Bytter språk..."
+    },
+    "languages": {
+      "en": "Engelsk",
+      "no": "Norsk"
+    }
+  }
+}

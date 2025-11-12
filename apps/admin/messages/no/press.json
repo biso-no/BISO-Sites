@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Presse og media | BISO",
+    "description": "Profilmateriell, pressekontakt og bruk." 
+  },
+  "title": "Presse og media",
+  "contact": {
+    "title": "Pressekontakt",
+    "body": "For mediehenvendelser, intervjuer og profilbruk, kontakt oss:"
+  },
+  "assets": {
+    "title": "Profilmateriell",
+    "logoLight": "BISO‑logo (lys)",
+    "logoDark": "BISO‑logo (mørk)",
+    "orgChart": "Organisasjonskart"
+  },
+  "usage": {
+    "title": "Bruk av profil",
+    "body": "Bruk logo med luft rundt, ikke endre farger eller proporsjoner."
+  }
+}
+

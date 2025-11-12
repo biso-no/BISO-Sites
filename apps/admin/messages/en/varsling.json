@@ -1,0 +1,192 @@
+{
+  "title": "Report a concern",
+  "subtitle": "Everyone should be protected",
+  "description": "Do you have a case that might be uncomfortable, or something you have experienced that requires follow-up from others in BISO? Please contact us through the form and send us your case. Contact information is optional.",
+  "form": {
+    "title": "Submit case",
+    "description": "Contact form - Contact us here! Required fields are marked with *",
+    "fields": {
+      "submissionType": {
+        "label": "Case type",
+        "placeholder": "Select case type",
+        "required": true
+      },
+      "campus": {
+        "label": "Campus",
+        "placeholder": "Select campus",
+        "required": true
+      },
+      "receiver": {
+        "label": "Who do you want to contact?",
+        "placeholder": "Select contact person",
+        "required": true
+      },
+      "email": {
+        "label": "Your email address (optional)",
+        "placeholder": "your@email.com",
+        "description": "Leave empty if you want to remain anonymous. With an email address, we can contact you for follow-up."
+      },
+      "caseDescription": {
+        "label": "Case description",
+        "placeholder": "Describe the situation in as much detail as possible...",
+        "required": true
+      }
+    },
+    "submissionTypes": {
+      "harassment": "Harassment",
+      "witness": "Witness",
+      "other": "Other"
+    },
+    "submit": {
+      "button": "Submit case",
+      "submitting": "Submitting...",
+      "success": "Your case has been submitted. You will receive a response as soon as possible.",
+      "error": "An error occurred during submission. Please try again later.",
+      "validation": {
+        "required": "Please fill out all required fields.",
+        "noContact": "Could not find contact information for the selected role."
+      }
+    }
+  },
+  "infoCards": {
+    "harassment": {
+      "title": "Harassment",
+      "description": "Report if you have experienced harassment, bullying, or other unwanted behavior."
+    },
+    "witness": {
+      "title": "Witness",
+      "description": "Report if you have witnessed unwanted behavior or harassment."
+    },
+    "other": {
+      "title": "Other",
+      "description": "Other concerns or situations you want to report."
+    }
+  },
+  "whatIsWhistleblowing": {
+    "title": "What is whistleblowing?",
+    "content": "Whistleblowing is the act of reporting wrongdoing or misconduct in an organization. It is often done by employees, members, or others who have knowledge of the action, but it can also be done by outsiders who become aware of the issue.\n\nIn BISO, we have a Code of Conduct that all employees and members are obliged to follow. Violations of the Code of Conduct are followed up by BISO's control committee, which reports cases to the board.\n\nIf you have experienced violations of our Code of Conduct, we ask you to submit a case via the form above."
+  },
+  "codeOfConduct": {
+    "title": "Code of Conduct",
+    "purpose": "The purpose of this Code of Conduct is to have guidelines that promote positive behavior and cultivate a good organizational culture in BI Student Organisation.",
+    "rules": [
+      "You must respect your fellow students and their boundaries",
+      "You must follow up on your obligations and responsibilities that come with your role",
+      "You must contribute to creating an inclusive, welcoming, and open environment for all students and members",
+      "You must always follow the organization's guidelines",
+      "All recruitment processes must be ethically sound and based on an objective assessment of each applicant"
+    ]
+  },
+  "anonymousReport": {
+    "title": "Anonymous report",
+    "content": "There can be various consequences of sending an anonymous report, depending on the type of case and how the case is handled. In some cases, an anonymous report can help uncover serious conditions and lead to positive changes, while in other cases it may not lead to any concrete changes or consequences.\n\nIt is important to remember that sending an anonymous report can be risky, as there is no guarantee that the case will be handled satisfactorily.\n\nIf you choose to send us an anonymous report, we have no opportunity to contact you to follow up on the case further."
+  },
+  "sendingReport": {
+    "title": "Sending report",
+    "content": "The report is sent directly to the person you have chosen to receive the report in BISO. Not all people in BISO have the opportunity to receive a report.\n\nAfter you have sent a report, the recipient will contact you for a conversation if necessary to discuss the case.\n\nIf you send an anonymous report, the recipient will not be able to contact you. The case will be investigated as far as possible based on the information submitted."
+  },
+  "contact": {
+    "title": "Contact regarding whistleblowing in BISO",
+    "description": "Contact one of the people below if you have general questions about whistleblowing in BISO:",
+    "contacts": [
+      {
+        "role": "Board Chair",
+        "email": "board@biso.no"
+      },
+      {
+        "role": "HR Manager",
+        "email": "tanweer@biso.no"
+      },
+      {
+        "role": "General Manager",
+        "email": "manager@biso.no"
+      }
+    ]
+  },
+  "privacy": {
+    "title": "Privacy and confidentiality",
+    "points": [
+      "All inquiries are handled confidentially and only shared with relevant people who need to know about the case.",
+      "If you provide an email address, it is only used to contact you about follow-up on the case.",
+      "Anonymous inquiries are also taken seriously and investigated as far as possible.",
+      "For more information about how we handle personal data, see our privacy policy."
+    ],
+    "privacyLink": "/privacy"
+  },
+  "admin": {
+    "title": "Whistleblowing - Administration",
+    "subtitle": "Manage contact persons and roles for the whistleblowing system",
+    "addContact": "Add contact",
+    "table": {
+      "title": "Whistleblowing contacts",
+      "description": "Overview of all configured contact persons for whistleblowing cases",
+      "headers": {
+        "campus": "Campus",
+        "role": "Role", 
+        "email": "Email",
+        "sorting": "Sorting",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "empty": {
+        "title": "No whistleblowing contacts configured yet.",
+        "button": "Add first contact"
+      }
+    },
+    "dialog": {
+      "create": {
+        "title": "New whistleblowing contact",
+        "description": "Add a new contact person for whistleblowing cases."
+      },
+      "edit": {
+        "title": "Edit whistleblowing contact", 
+        "description": "Update the information for the whistleblowing contact."
+      },
+      "fields": {
+        "campus": {
+          "label": "Campus",
+          "placeholder": "Select campus",
+          "required": true
+        },
+        "role": {
+          "label": "Role/Title",
+          "placeholder": "e.g. Student Ombudsman, Manager, Representative",
+          "required": true
+        },
+        "email": {
+          "label": "Email address",
+          "placeholder": "contact@example.com",
+          "required": true
+        },
+        "sortOrder": {
+          "label": "Sort order",
+          "placeholder": "0",
+          "description": "Lower numbers appear first in the list"
+        },
+        "active": {
+          "label": "Active"
+        }
+      },
+      "buttons": {
+        "cancel": "Cancel",
+        "create": "Create",
+        "update": "Update",
+        "saving": "Saving..."
+      }
+    },
+    "messages": {
+      "created": "Settings created",
+      "updated": "Settings updated",
+      "deleted": "Setting deleted",
+      "error": "An error occurred",
+      "validation": "Please fill out all required fields.",
+      "deleteConfirm": "Are you sure you want to delete this setting?",
+      "deleteError": "Could not delete the setting",
+      "deleteUnexpected": "An error occurred during deletion"
+    }
+  }
+}

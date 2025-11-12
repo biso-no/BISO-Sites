@@ -1,0 +1,36 @@
+{
+  "title": "Privacy Policy",
+  "intro": "This policy explains how BI Student Organisation (BISO) processes personal data in accordance with GDPR and Norwegian privacy law.",
+  "sections": {
+    "data": {
+      "title": "What we collect",
+      "items": {
+        "0": "Account and contact details (name, email)",
+        "1": "Operational data for services you use (e.g. memberships, event sign‑ups, shop orders)",
+        "2": "Technical data for security and performance (limited analytics/cookies as described on the Cookies page)"
+      }
+    },
+    "legal": {
+      "title": "Legal bases",
+      "body": "We process data based on consent, performance of a contract (e.g. fulfilment of membership or orders), and legitimate interests such as service security and student representation."
+    },
+    "retention": {
+      "title": "Storage and retention",
+      "body": "Data is stored securely and retained only as long as necessary for the stated purpose or as required by law (e.g. accounting rules)."
+    },
+    "rights": {
+      "title": "Your rights",
+      "items": {
+        "0": "Access your data",
+        "1": "Rectify inaccuracies",
+        "2": "Request deletion where applicable",
+        "3": "Withdraw consent for optional processing"
+      }
+    },
+    "contact": {
+      "title": "Contact",
+      "body": "Questions about privacy? Contact our DPO at privacy@biso.no or reach the organisation at post@biso.no."
+    }
+  }
+}
+

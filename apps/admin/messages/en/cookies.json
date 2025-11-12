@@ -1,0 +1,20 @@
+{
+  "title": "Cookies",
+  "intro": "We use cookies to ensure essential functionality, remember preferences and improve the experience.",
+  "sections": {
+    "categories": {
+      "title": "Categories",
+      "items": {
+        "0": "Essential – required for core functionality",
+        "1": "Functional – remembers your settings",
+        "2": "Analytics – helps us understand usage",
+        "3": "Marketing – used to tailor content"
+      }
+    },
+    "manage": {
+      "title": "Manage cookies",
+      "body": "Use the cookie banner to adjust preferences at any time. Essential cookies cannot be disabled."
+    }
+  }
+}
+

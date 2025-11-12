@@ -1,0 +1,138 @@
+{
+  "hero": {
+    "badge": "BISO membership",
+    "title": "Benefits for you and {campus}",
+    "titleNational": "Benefits for you and every campus",
+    "titleFallback": "Benefits for you and BISO",
+    "subtitleFallback": "Join Norway’s largest student-run community and unlock benefits for your entire study journey.",
+    "campusFallback": "your campus",
+    "ctas": {
+      "join": "Join now",
+      "roles": "Explore roles",
+      "partners": "Partner opportunities"
+    },
+    "stats": {
+      "card": "Digital membership card in the app",
+      "members": "Over 9,000 members",
+      "partners": "150+ partners"
+    }
+  },
+  "benefits": {
+    "categories": {
+      "student": {
+        "title": "Membership & perks",
+        "global": "Benefits that follow every member – from discounts to exclusive campaigns.",
+        "local": "Tailored member perks from your campus and local partners."
+      },
+      "career": {
+        "title": "Career & skills",
+        "global": "National programs that connect you with employers and build your skills.",
+        "local": "Career initiatives and relationships unique to your local ecosystem."
+      },
+      "social": {
+        "title": "Community & events",
+        "global": "Fadderullan, Winter Games and nationwide meetups that unite BI students.",
+        "local": "Festivals, culture and social arenas created by students on your campus."
+      },
+      "safety": {
+        "title": "Support & wellbeing",
+        "global": "Reporting, care and advocacy to keep every student supported.",
+        "local": "Local resources and contact points you can reach on your campus."
+      },
+      "business": {
+        "title": "For partners",
+        "global": "National arenas for companies that want to meet BI students.",
+        "local": "Opportunities for local businesses and collaborations in your area."
+      }
+    }
+  },
+  "onboarding": {
+    "title": "Getting started",
+    "subtitle": "Unlock your member benefits in under two minutes.",
+    "steps": {
+      "1": {
+        "title": "Download the BI Student app",
+        "description": "Log in with your BI account to access memberships and digital cards."
+      },
+      "2": {
+        "title": "Choose BISO in the menu",
+        "description": "Open the side menu, select BISO and preview the benefits before you sign up."
+      },
+      "3": {
+        "title": "Pick your payment option",
+        "description": "Year or semester – choose what suits you. Vipps and cards are accepted."
+      },
+      "4": {
+        "title": "Activate your benefits",
+        "description": "Your digital membership card and discounts are available instantly."
+      }
+    }
+  },
+  "global": {
+    "title": "National member benefits",
+    "subtitle": "These perks follow you regardless of campus. Everything lives in the BI Student app.",
+    "cta": "Activate your membership",
+    "empty": "We’re updating the national benefits right now. Check back very soon!"
+  },
+  "local": {
+    "title": "Local benefits at {campus}",
+    "subtitle": "Choose your campus to see discounts, events and support where you study.",
+    "empty": "Pick a campus to reveal local benefits and member offers.",
+    "switcherLabel": "Campus selector for membership benefits"
+  },
+  "highlights": {
+    "title": "Flagship experiences for every member",
+    "subtitle": "Three highlights students love – no matter where you study.",
+    "ctaAll": "Browse all events",
+    "items": {
+      "fadderullan": {
+        "title": "Fadderullan",
+        "description": "Norway’s biggest student festival packed with concerts, happenings and inclusive moments.",
+        "cta": "Discover Fadderullan"
+      },
+      "careerDays": {
+        "title": "Career Days",
+        "description": "Meet top employers, join workshops and secure interviews and internships.",
+        "cta": "Learn about Career Days"
+      },
+      "winterGames": {
+        "title": "Winter Games",
+        "description": "Annual mountain trip with skiing, after-ski and networking across every campus.",
+        "cta": "Experience Winter Games"
+      }
+    }
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "subtitle": "Need something else? Reach out to your campus leadership or email contact@biso.no.",
+    "items": {
+      "cost": {
+        "question": "What does membership cost?",
+        "answer": "Membership is NOK 450 for a full year. You can also choose a semester payment if you prefer flexibility."
+      },
+      "discounts": {
+        "question": "How do I access the discounts?",
+        "answer": "Everything lives inside the BI Student app. Activate your membership and you’ll find digital codes and tickets right away."
+      },
+      "switchCampus": {
+        "question": "Can I switch campus after joining?",
+        "answer": "Yes. Your benefits are national. Change campus in the top menu or in the app to view local offers."
+      },
+      "engagement": {
+        "question": "Do I need a position to get the benefits?",
+        "answer": "No. The benefits are available whether or not you hold a role—but we encourage you to explore the opportunities!"
+      }
+    }
+  },
+  "ctaCard": {
+    "title": "Ready to join?",
+    "subtitle": "Membership activates instantly. You can switch campus and unlock new benefits whenever you like.",
+    "badges": {
+      "annual": "Annual membership NOK 450",
+      "semester": "Semester NOK 275",
+      "digitalCard": "Digital membership card"
+    },
+    "primary": "Join today",
+    "secondary": "Talk to us about membership"
+  }
+}

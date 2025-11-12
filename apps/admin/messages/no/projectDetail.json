@@ -1,0 +1,102 @@
+{
+  "fadderullan": {
+    "title": "Fadderullan",
+    "tagline": "Festival og inkludering",
+    "description": "Fadderullan er BISOs velkomstfestival – planlagt av frivillige fra alle campuser, fylt med opplevelser som gjør det enkelt å bli kjent.",
+    "ctaLabel": "Se program",
+    "ctaUrl": "https://fadderullan.no",
+    "highlights": [
+      "Konserter og dagshappenings på alle campuser",
+      "Eget crew for sikkerhet og omsorg",
+      "Støtte til lavterskelaktivitet og inkludering"
+    ],
+    "sections": [
+      {
+        "title": "Lag gode førsteinntrykk",
+        "body": "Fadderullan er første møtet mellom nye studenter og BISO. Gjennom velkomstseremonier, temafester og dagsarrangement viser vi bredden i studentmiljøet."
+      },
+      {
+        "title": "Et felles nasjonalt prosjekt",
+        "body": "Festivalen koordineres nasjonalt, men gjennomføres lokalt av frivillige. Det gir et profesjonelt oppsett, gode rutiner og et solid støtteapparat for alle som deltar."
+      }
+    ]
+  },
+  "winter-games": {
+    "title": "Winter Games",
+    "tagline": "Nasjonal vintertur",
+    "description": "Winter Games samler BI-studenter til ski, afterski og fellesskap. Turen roterer mellom destinasjoner og bygges av frivillige med erfaring fra tidligere år.",
+    "ctaLabel": "Sikre deg billett",
+    "highlights": [
+      "Felles hyttetun og aktiviteter på tvers av campus",
+      "Ski, afterski og egne progra mpunkter for nybegynnere",
+      "Sikkerhetscrew og helseberedskap fra BISO"
+    ],
+    "sections": [
+      {
+        "title": "Skiopplevelser for alle nivå",
+        "body": "Programmet tilpasser både nybegynnere og viderekommende med instruktører, felles nedfarter og sosiale arenaer."
+      },
+      {
+        "title": "Bygg nettverk over fjellet",
+        "body": "Det settes opp transport og felles innkvartering slik at du blir kjent med studenter fra hele landet."
+      }
+    ]
+  },
+  "karrieredagene": {
+    "title": "Karrieredagene",
+    "tagline": "Møt næringslivet",
+    "description": "Karrieredagene kobler studenter og arbeidsgivere gjennom stands, workshops og intervjuprogrammer.",
+    "ctaLabel": "Les om årets program",
+    "highlights": [
+      "Bedriftspresentasjoner, stands og speed-intervjuer",
+      "Workshops i CV, søknad og case-trening",
+      "Eget opplegg for internasjonale og engelskspråklige studenter"
+    ],
+    "sections": [
+      {
+        "title": "Skreddersydd for hvert campus",
+        "body": "Karrieredagene i Oslo, Bergen, Trondheim og Stavanger speiler det lokale næringslivet, samtidig som nasjonale partnere deltar."
+      },
+      {
+        "title": "Fra førsteårsstudent til alumn",
+        "body": "Vi tilbyr kurs og samtaler for alle nivå – enten du søker ditt første verv eller vil sikre deg fast jobb."
+      }
+    ]
+  },
+  "inspire": {
+    "title": "Inspire",
+    "tagline": "Scenen for nye perspektiver",
+    "description": "Inspire er BISOs egen foredrags- og talkscene hvor studenter, næringsliv og samfunnsaktører deler erfaringer.",
+    "ctaLabel": "Meld deg som deltaker",
+    "highlights": [
+      "Panelsamtaler og keynotes fra næringsliv og alumni",
+      "Historier fra studentledere og entreprenører",
+      "Mulighet til å pitche egne prosjekter"
+    ],
+    "sections": [
+      {
+        "title": "Gode historier fra studentmiljøet",
+        "body": "Inspire løfter frem initiativer, intraprenørskap og lærdom fra BISO sine egne prosjekter."
+      },
+      {
+        "title": "Møt mentorer og partnere",
+        "body": "Scenen gir deg direkte kontakt med samarbeidspartnere, mentorer og mulige sponsorer."
+      }
+    ]
+  },
+  "schedule": {
+    "title": "Campusprogram",
+    "subtitle": "Detaljer oppdateres fortløpende. Endringer kan forekomme.",
+    "ticket": "Billetter"
+  },
+  "overview": {
+    "title": "Nøkkelinfo",
+    "dates": "Dato",
+    "type": "Kategori",
+    "external": "Nettsted"
+  },
+  "fallback": {
+    "description": "Mer informasjon publiseres snart. Følg med for oppdaterte detaljer.",
+    "cta": "Les mer"
+  }
+}

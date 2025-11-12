@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "title": "Business Hotspot | BISO",
+    "description": "Møt studenter på Campus Oslo gjennom BISO sin Business Hotspot."
+  },
+  "title": "Business Hotspot",
+  "intro": "En arena på Campus Oslo for bedrifter til å møte studenter gjennom stands, foredrag og aktiviteter.",
+  "features": {
+    "0": "Tilstedeværelse og aktivitetsområde",
+    "1": "Foredrag og presentasjoner",
+    "2": "Profilbygging og relasjonsmuligheter"
+  },
+  "cta": "Se samarbeid"
+}
+

@@ -1,0 +1,13 @@
+{
+  "title": "Contact",
+  "intro": "Contact BISO nationally or directly at your campus.",
+  "national": {
+    "title": "National contact",
+    "body": "For general enquiries and press, email post@biso.no."
+  },
+  "campuses": {
+    "title": "Campuses",
+    "empty": "No campuses available right now."
+  }
+}
+

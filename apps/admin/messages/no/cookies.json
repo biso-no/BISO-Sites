@@ -1,0 +1,20 @@
+{
+  "title": "Informasjonskapsler (cookies)",
+  "intro": "Vi bruker informasjonskapsler for grunnleggende funksjoner, huske preferanser og forbedre opplevelsen.",
+  "sections": {
+    "categories": {
+      "title": "Kategorier",
+      "items": {
+        "0": "Nødvendige – kreves for kjernefunksjonalitet",
+        "1": "Funksjonelle – husker innstillingene dine",
+        "2": "Analyse – hjelper oss å forstå bruk",
+        "3": "Markedsføring – brukes til å tilpasse innhold"
+      }
+    },
+    "manage": {
+      "title": "Administrer cookies",
+      "body": "Bruk samtykkebanneret for å endre preferanser når som helst. Nødvendige cookies kan ikke deaktiveres."
+    }
+  }
+}
+
