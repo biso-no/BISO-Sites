@@ -10,8 +10,6 @@ export const metadata = {
   description: 'BISO Apps',
 };
 
-import {AppContextProvider} from "./contexts"
-
 export default async function RootLayout({
   children,
 }: {
@@ -24,13 +22,11 @@ export default async function RootLayout({
 
       <body>
         <Providers>
-          <AppContextProvider>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <main>
             {children}
           </main>
         </NextIntlClientProvider>
-        </AppContextProvider>
         </Providers>
       </body>
     </html>

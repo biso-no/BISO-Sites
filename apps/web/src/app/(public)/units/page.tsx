@@ -29,7 +29,7 @@ export default async function PublicUnitsPage({ searchParams }: { searchParams: 
 
   return (
     <UnitsPageClient
-      departments={Array.isArray(departments) ? (departments as unknown as Departments[]) : []}
+      departments={departments}
       initialFilters={initialFilters}
     />
   )

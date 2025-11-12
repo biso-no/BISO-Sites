@@ -24,10 +24,10 @@ export default async function StudentsPage() {
 
   return (
     <StudentsPageClient
-      events={Array.isArray(events) ? (events as ContentTranslations[]) : []}
-      jobs={Array.isArray(jobs) ? (jobs as ContentTranslations[]) : []}
-      departments={Array.isArray(departments) ? (departments as unknown as Departments[]) : []}
-      campusData={Array.isArray(campusData) ? (campusData as CampusData[]) : []}
+      events={events}
+      jobs={jobs}
+      departments={departments}
+      campusData={campusData}
       globalBenefits={globalBenefits}
       locale={locale}
     />

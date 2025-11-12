@@ -84,8 +84,8 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Con
       queries.push(Query.equal('product_ref.member_only', memberOnly))
     }
 
-    const productsResponse = await db.listRows('app', 'content_translations', queries)
-    const products = productsResponse.rows as unknown as ContentTranslations[]
+    const productsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
+    const products = productsResponse.rows
 
     return products
   } catch (error) {
@@ -98,7 +98,7 @@ export async function getProduct(id: string, locale: 'en' | 'no'): Promise<Conte
   try {
     const { db } = await createAdminClient()
     
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.PRODUCT),
       Query.equal('content_id', id),
       Query.equal('locale', locale),
@@ -110,7 +110,7 @@ export async function getProduct(id: string, locale: 'en' | 'no'): Promise<Conte
       return null
     }
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error fetching product:', error)
     return null
@@ -128,11 +128,11 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
     
     if (productsResponse.rows.length === 0) return null
     
-    const product = productsResponse.rows[0] as unknown as WebshopProducts
+    const product = productsResponse.rows[0] ?? null
     
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.PRODUCT),
-      Query.equal('content_id', product.$id),
+      Query.equal('content_id', product?.$id ?? ''),
       Query.equal('locale', locale),
       Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'product_ref.*']),
       Query.limit(1)
@@ -140,7 +140,7 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
     
     if (translationsResponse.rows.length === 0) return null
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error fetching product by slug:', error)
     return null
@@ -175,11 +175,11 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
       } as ContentTranslations)
     }
     
-    const product = await db.createRow('app', 'webshop_products', 'unique()', {
+    const product = await db.createRow<WebshopProducts>('app', 'webshop_products', 'unique()', {
       slug: data.slug,
       status: data.status === 'draft' ? Status.DRAFT : data.status === 'published' ? Status.PUBLISHED : Status.CLOSED,
       campus_id: data.campus_id,
-      campus: data.campus_id as unknown as Campus,
+      campus: data.campus_id,
       category: data.category,
       regular_price: data.regular_price,
       member_price: data.member_price ?? null,
@@ -189,7 +189,7 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       departmentId: null,
       translation_refs: translationRefs
-    }) as WebshopProducts
+    }) ?? null
     
     if (!skipRevalidation) {
       revalidatePath('/shop')

@@ -5,8 +5,7 @@ import { createVippsCheckout } from "@/lib/vipps";
 import { getProduct } from "@/app/actions/products";
 import { getLocale } from "@/app/actions/locale";
 import { Order, OrderItem } from "@/lib/types/order";
-import { User } from "@/lib/types/user";
-import { Profile } from "@/lib/actions/user";
+import { Orders, Users } from "@repo/api/types/appwrite";
 
 
 export async function getOrders({
@@ -47,7 +46,7 @@ export async function getOrders({
 export async function getOrder(id: string) {
     const { db } = await createSessionClient();
     try {
-        const order = await db.getRow('app', 'orders', id) as unknown as Order
+        const order = await db.getRow<Orders>('app', 'orders', id)
         return order
     } catch (error) {
         console.error('Error fetching order:', error);
@@ -61,8 +60,8 @@ async function getMemberDiscountIfAny(product: any) {
         const { account, db, functions } = await createSessionClient()
         const user = await account.get().catch(() => null)
         if (!user?.$id) return { applied: false, percent: 0 }
-        const profile = await db.getRow('app', 'user', user.$id) as unknown as Profile
-        const studentId = profile?.studentId.$id
+        const profile = await db.getRow<Users>('app', 'user', user.$id)
+        const studentId = profile?.studentId?.student_id
         if (!studentId) return { applied: false, percent: 0 }
         const exec = await functions.createExecution('verify_biso_membership', String(studentId), false)
         const res = JSON.parse((exec as any).responseBody || '{}')
@@ -288,7 +287,7 @@ export async function startCartCheckout(data: CartCheckoutData) {
 export async function getCheckoutStatus(orderId: string) {
     try {
         const { db } = await createAdminClient()
-        const order = await db.getRow('app', 'orders', orderId) as unknown as Order
+        const order = await db.getRow<Orders>('app', 'orders', orderId)
         
         if (!order.vipps_session_id) {
             return { success: false, error: 'No Vipps session found' }

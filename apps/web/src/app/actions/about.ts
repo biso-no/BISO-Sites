@@ -3,7 +3,7 @@ import { createSessionClient } from "@repo/api/server";
 import { Models, Query } from "@repo/api";
 import { Buffer } from "node:buffer";
 
-export type Partner = Models.Document & {
+export type Partner = Models.Row & {
   name: string;
   url?: string;
   level: string;
@@ -13,10 +13,10 @@ export type Partner = Models.Document & {
 
 export async function getPartners() {
   const { db } = await createSessionClient();
-  const partners = await db.listRows('app', 'partners', [Query.equal('level', 'national')]);
+  const partners = await db.listRows<Partner>('app', 'partners', [Query.equal('level', 'national')]);
 
   console.log("Partners:", partners);
-  return partners.rows as unknown as Partner[];
+  return partners.rows;
 }
 
 export async function getOrgChartUrl() {

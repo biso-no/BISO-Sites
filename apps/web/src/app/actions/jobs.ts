@@ -75,8 +75,8 @@ export async function listJobs(params: ListJobsParams = {}): Promise<ContentTran
     }
 
     // Get jobs with their translations using Appwrite's nested relationships
-    const jobsResponse = await db.listRows('app', 'content_translations', queries)
-    const jobs = jobsResponse.rows as unknown as ContentTranslations[]
+    const jobsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
+    const jobs = jobsResponse.rows
 
     return jobs
   } catch (error) {
@@ -90,7 +90,7 @@ export async function getJob(id: string, locale: 'en' | 'no'): Promise<ContentTr
     const { db } = await createAdminClient()
     
     // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.JOB),
       Query.equal('content_id', id),
       Query.equal('locale', locale),
@@ -102,7 +102,7 @@ export async function getJob(id: string, locale: 'en' | 'no'): Promise<ContentTr
       return null
     }
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error fetching job:', error)
     return null
@@ -114,19 +114,19 @@ export async function getJobBySlug(slug: string, locale: 'en' | 'no'): Promise<C
     const { db } = await createAdminClient()
     
     // Get job by slug
-    const jobsResponse = await db.listRows('app', 'jobs', [
+    const jobsResponse = await db.listRows<Jobs>('app', 'jobs', [
       Query.equal('slug', slug),
       Query.limit(1)
     ])
     
     if (jobsResponse.rows.length === 0) return null
     
-    const job = jobsResponse.rows[0] as unknown as Jobs
+    const job = jobsResponse.rows[0] ?? null
     
     // Get translation for the requested locale
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.JOB),
-      Query.equal('content_id', job.$id),
+      Query.equal('content_id', job?.$id ?? ''),
       Query.equal('locale', locale),
       Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'job_ref.*', 'job_ref.department.*']),
       Query.limit(1)
@@ -134,7 +134,7 @@ export async function getJobBySlug(slug: string, locale: 'en' | 'no'): Promise<C
     
     if (translationsResponse.rows.length === 0) return null
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error fetching job by slug:', error)
     return null
@@ -174,9 +174,9 @@ export async function createJob(data: CreateJobData, skipRevalidation = false): 
       slug: data.slug,
       status: data.status === 'draft' ? Status.DRAFT : data.status === 'published' ? Status.PUBLISHED : Status.CLOSED,
       campus_id: data.campus_id,
-      campus: data.campus_id as unknown as Campus,
+      campus: data.campus_id,
       department_id: data.department_id ?? null,
-      department: data.department_id ? (data.department_id as unknown as Departments) : ({ $id: '' } as Departments),
+      department: data.department_id ? data.department_id : null,
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       translations: [] as ContentTranslations[],
       translation_refs: translationRefs
@@ -291,7 +291,7 @@ export async function translateJobContent(
     const { db } = await createAdminClient()
     
     // Get existing translation
-    const existingResponse = await db.listRows('app', 'content_translations', [
+    const existingResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', 'job'),
       Query.equal('content_id', jobId),
       Query.equal('locale', fromLocale)
@@ -301,7 +301,7 @@ export async function translateJobContent(
       throw new Error('Source translation not found')
     }
     
-    const sourceTranslation = existingResponse.rows[0] as unknown as ContentTranslation
+    const sourceTranslation = existingResponse.rows[0] ?? null
     
     // Use your existing AI implementation to translate
     const { generateText } = await import('ai')
@@ -422,7 +422,7 @@ export async function createJobApplication(data: JobApplicationFormData & { job_
       resume_file_id: resumeFileId
     }
     
-    const application = await db.createRow('app', 'job_applications', 'unique()', applicationData) as unknown as JobApplication
+    const application = await db.createRow<JobApplication>('app', 'job_applications', 'unique()', applicationData)
     revalidatePath('/admin/jobs')
     
     return application
@@ -441,8 +441,8 @@ export async function listJobApplications(jobId?: string): Promise<JobApplicatio
       queries.push(Query.equal('job_id', jobId))
     }
     
-    const response = await db.listRows('app', 'job_applications', queries)
-    return response.rows as unknown as JobApplication[]
+    const response = await db.listRows<JobApplication>('app', 'job_applications', queries)
+    return response.rows
   } catch (error) {
     console.error('Error fetching job applications:', error)
     return []
@@ -452,7 +452,7 @@ export async function listJobApplications(jobId?: string): Promise<JobApplicatio
 export async function updateJobApplicationStatus(applicationId: string, status: JobApplication['status']): Promise<JobApplication | null> {
   try {
     const { db } = await createAdminClient()
-    const application = await db.updateRow('app', 'job_applications', applicationId, { status }) as unknown as JobApplication
+    const application = await db.updateRow<JobApplication>('app', 'job_applications', applicationId, { status })
     revalidatePath('/admin/jobs')
     return application
   } catch (error) {
@@ -464,8 +464,8 @@ export async function updateJobApplicationStatus(applicationId: string, status: 
 export async function exportJobApplicationData(applicationId: string): Promise<JobApplication | null> {
   try {
     const { db } = await createAdminClient()
-    const application = await db.getRow('app', 'job_applications', applicationId) as unknown as JobApplication
-    return application as JobApplication
+    const application = await db.getRow<JobApplication>('app', 'job_applications', applicationId)
+    return application
   } catch (error) {
     console.error('Error exporting application data:', error)
     return null
@@ -476,7 +476,7 @@ export async function deleteJobApplicationData(applicationId: string): Promise<b
   try {
     const { db, storage } = await createAdminClient()
     
-    const application = await db.getRow('app', 'job_applications', applicationId) as unknown as JobApplication
+    const application = await db.getRow<JobApplication>('app', 'job_applications', applicationId)
     
     if (application.resume_file_id) {
       try {

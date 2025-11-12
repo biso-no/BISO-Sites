@@ -4,8 +4,7 @@ import { createSessionClient } from '@repo/api/server'
 import { ID, Query } from '@repo/api'
 import { ContentTranslation } from '@/lib/types/content-translation'
 import { revalidatePath } from 'next/cache'
-import { Campus } from '@/lib/types/campus'
-import { ContentTranslations, ContentType, Events, Status } from '@repo/api/types/appwrite'
+import { ContentTranslations, ContentType, Departments, Events, Status, Campus } from '@repo/api/types/appwrite'
 import { Locale } from '@repo/api/types/appwrite'
 
 export interface ListEventsParams {
@@ -72,8 +71,8 @@ export async function listEvents(params: ListEventsParams = {}): Promise<Content
     }
 
     // Get events with their translations using Appwrite's nested relationships
-    const eventsResponse = await db.listRows('app', 'content_translations', queries)
-    const events = eventsResponse.rows as unknown as ContentTranslations[]
+    const eventsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
+    const events = eventsResponse.rows
 
     return events
   } catch (error) {
@@ -82,12 +81,12 @@ export async function listEvents(params: ListEventsParams = {}): Promise<Content
   }
 }
 
-export async function getEvent(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+export async function getEvent(id: string, locale: 'en' | 'no'): Promise<ContentTranslations[] | null> {
   try {
     const { db } = await createSessionClient()
     
     // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.EVENT),
       Query.equal('content_id', id),
       Query.equal('locale', locale),
@@ -99,7 +98,7 @@ export async function getEvent(id: string, locale: 'en' | 'no'): Promise<Content
       return null
     }
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows
   } catch (error) {
     console.error('Error fetching event:', error)
     return null
@@ -137,7 +136,7 @@ export async function createEvent(data: CreateEventData, skipRevalidation = fals
     
     const event = await db.createRow('app', 'events', eventId, {
       campus_id: data.campus_id,
-      campus: data.campus_id as Campus,
+      campus: data.campus_id,
       start_date: data.metadata?.start_date as string | null,
       end_date: data.metadata?.end_date as string | null,
       location: data.metadata?.location as string | null,
@@ -256,7 +255,7 @@ export async function translateEventContent(
       throw new Error('Source translation not found')
     }
     
-    const sourceTranslation = existingResponse.rows[0] as unknown as ContentTranslation
+    const sourceTranslation = existingResponse.rows[0]
     
     // Use your existing AI implementation to translate
     const { generateText } = await import('ai')
@@ -264,9 +263,9 @@ export async function translateEventContent(
     
     const prompt = `Translate the following event content from ${fromLocale === 'en' ? 'English' : 'Norwegian'} to ${toLocale === 'en' ? 'English' : 'Norwegian'}. Maintain the HTML formatting and professional tone suitable for a student organization event.
 
-Title: ${sourceTranslation.title}
+Title: ${sourceTranslation?.title}
 
-Description: ${sourceTranslation.description}
+Description: ${sourceTranslation?.description}
 
 Please respond with a JSON object containing the translated title and description:
 {
@@ -317,15 +316,15 @@ Please respond with a JSON object containing the translated title and descriptio
 
 export async function uploadEventImage(formData: FormData) {
   const { storage } = await createSessionClient()
-  const file = formData.get('file') as unknown as File
+  const file = formData.get('file') as File
   const uploaded = await storage.createFile('events', 'unique()', file)
   return uploaded
 }
 
 export async function getEventImageViewUrl(fileId: string) {
   const { storage } = await createSessionClient()
-  const url = (storage as unknown as { getFileView: (bucket: string, fileId: string) => string | { href: string } }).getFileView('events', fileId)
-  return typeof url === 'string' ? url : url.href
+  const url = await storage.getFileView('events', fileId)
+  return url
 }
 
 // Helper function to get departments for a specific campus
@@ -338,7 +337,7 @@ export async function listDepartments(campusId?: string) {
 
   try {
     const { db } = await createSessionClient()
-    const response = await db.listRows('app', 'departments', queries)
+    const response = await db.listRows<Departments>('app', 'departments', queries)
     return response.rows
   } catch (error) {
     console.error('Error fetching departments:', error)
@@ -350,8 +349,8 @@ export async function listDepartments(campusId?: string) {
 export async function listCampuses() {
   try {
     const { db } = await createSessionClient()
-    const response = await db.listRows('app', 'campus')
-    return response.rows as unknown as Campus[]
+    const response = await db.listRows<Campus>('app', 'campus')
+    return response.rows
   } catch (error) {
     console.error('Error fetching campuses:', error)
     return []
@@ -364,7 +363,7 @@ export async function getCollectionEvents(collectionId: string, locale: 'en' | '
     const { db } = await createSessionClient()
     
     // Get all events with this collection_id
-    const response = await db.listRows('app', 'content_translations', [
+    const response = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.EVENT),
       Query.equal('locale', locale),
       Query.equal('event_ref.collection_id', collectionId),
@@ -372,7 +371,7 @@ export async function getCollectionEvents(collectionId: string, locale: 'en' | '
       Query.orderAsc('event_ref.start_date')
     ])
     
-    return response.rows as unknown as ContentTranslations[]
+    return response.rows
   } catch (error) {
     console.error('Error fetching collection events:', error)
     return []
