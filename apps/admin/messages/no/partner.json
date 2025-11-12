@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "title": "Samarbeid med oss - BISO",
+    "description": "Samarbeid med BISO og møt fremtidige kollegaer. Oppdag muligheter for å vise frem din bedrift og verdier til BI-studenter på alle campus."
+  },
+  "hero": {
+    "title": "Partnerskap",
+    "subtitle": "For bedrifter",
+    "description": "Vis frem deres bedrift eller produkt til BI-studentene. Møt deres fremtidige kollegaer ved å kontakte BISO i din by."
+  },
+  "benefits": {
+    "title": "Fordeler som BISO partner",
+    "subtitle": "Hvorfor bli partner med BISO?",
+    "items": {
+      "colleagues": {
+        "title": "Møt fremtidige kollegaer",
+        "description": "BI-studenter er dine fremtidige kollegaer, møt dem nå!"
+      },
+      "values": {
+        "title": "Vis frem deres verdier",
+        "description": "Hva gjør dere stolt av å jobbe i deres bedrift? finn studenter som verdsetter de samme verdiene."
+      },
+      "match": {
+        "title": "Finn en faglig match",
+        "description": "Vi har over 100 utvalg og enheter i BISO, finn en faglig match og sett opp kule workshops for å bygge tettere relasjon."
+      }
+    }
+  },
+  "careerDays": {
+    "title": "Karrieredager",
+    "description": "BISO har karrieredager på alle fire campus.",
+    "cities": {
+      "oslo": {
+        "title": "Karrieredagene Oslo",
+        "action": "BLI MED"
+      },
+      "bergen": {
+        "title": "Karrieredagene Bergen",
+        "action": "BLI MED"
+      },
+      "trondheim": {
+        "title": "Karrieredagen Trondheim",
+        "action": "BLI MED"
+      },
+      "stavanger": {
+        "title": "Karrieredagene Stavanger",
+        "action": "BLI MED"
+      }
+    }
+  },
+  "opportunities": {
+    "title": "Andre muligheter",
+    "businessHotspot": {
+      "title": "BISO Oslo har et helt nytt rekrutteringskonsept!",
+      "description": "Business Hotspot er en vedvarende stand hvor dere ikke trenger å bemanne den. Det er enkelt å lage eventer og å treffe studentene på nye måter.",
+      "features": {
+        "present": "Presenter dere",
+        "presentations": "Bedrift-presentasjoner",
+        "talk": "Snakk med studentene",
+        "stand": "Stand på campus",
+        "relationship": "Bygg relasjon",
+        "agreements": "Gjør avtaler med undergrupper"
+      },
+      "concept": {
+        "title": "Et nytt rekrutteringskonsept",
+        "subtitle": "Business Hotspot"
+      }
+    }
+  },
+  "contact": {
+    "title": "Kontaktinformasjon",
+    "description": "Kontakt ditt nærmeste campus her.",
+    "campuses": {
+      "oslo": {
+        "title": "Campus Oslo",
+        "phone": "Telefon kommer",
+        "email": "business.oslo@biso.no",
+        "address": "Nydalsveien 37"
+      },
+      "bergen": {
+        "title": "Campus Bergen",
+        "phone": "Telefon kommer",
+        "email": "business.bergen@biso.no",
+        "address": "Kong, Chr. Frederiks gate 5"
+      },
+      "trondheim": {
+        "title": "Campus Trondheim",
+        "phone": "Telefon kommer",
+        "email": "business.trondheim@biso.no",
+        "address": "Brattørkaia 16"
+      },
+      "stavanger": {
+        "title": "Campus Stavanger",
+        "phone": "Telefon kommer",
+        "email": "business.stavanger@biso.no",
+        "address": "Byfjordparken 17"
+      }
+    }
+  },
+  "buttons": {
+    "readMore": "Les mer",
+    "joinUs": "Bli med",
+    "contact": "Kontakt"
+  }
+}

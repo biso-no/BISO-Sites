@@ -1,0 +1,102 @@
+{
+  "fadderullan": {
+    "title": "Fadderullan",
+    "tagline": "Festival & inclusion",
+    "description": "Fadderullan is BISO’s welcome festival – created by volunteers from every campus to make it easy to meet new people and feel at home.",
+    "ctaLabel": "See the programme",
+    "ctaUrl": "https://fadderullan.no",
+    "highlights": [
+      "Concerts and daytime happenings on every campus",
+      "Dedicated crew for safety, welfare and accessibility",
+      "Support for low-threshold and inclusive activities"
+    ],
+    "sections": [
+      {
+        "title": "Create memorable first impressions",
+        "body": "Fadderullan is the first meeting between new students and BISO. Welcome ceremonies, themed events and daytime activities showcase the breadth of our student community."
+      },
+      {
+        "title": "A national effort, delivered locally",
+        "body": "The festival is coordinated nationally but executed by local volunteers. That ensures a professional setup, solid routines and extensive support."
+      }
+    ]
+  },
+  "winter-games": {
+    "title": "Winter Games",
+    "tagline": "National winter trip",
+    "description": "Winter Games brings BI students together for skiing, after-ski and community building. The destination rotates and is delivered by an experienced volunteer crew.",
+    "ctaLabel": "Secure your ticket",
+    "highlights": [
+      "Shared lodging and activities across campuses",
+      "Programmes for both beginners and experienced skiers",
+      "Safety team and health preparations from BISO"
+    ],
+    "sections": [
+      {
+        "title": "Experiences for every skill level",
+        "body": "Instruction, guided runs and social arenas make the trip accessible whether it is your first time on skis or your fiftieth."
+      },
+      {
+        "title": "Build a national network",
+        "body": "Transport and housing are coordinated to help you connect with students from every campus."
+      }
+    ]
+  },
+  "karrieredagene": {
+    "title": "Karrieredagene",
+    "tagline": "Meet the industry",
+    "description": "Karrieredagene connects students and employers through stands, workshops and interview programmes.",
+    "ctaLabel": "Explore this year’s programme",
+    "highlights": [
+      "Company presentations, stands and speed interviews",
+      "Workshops on CV, applications and case training",
+      "Dedicated tracks for international and English-speaking students"
+    ],
+    "sections": [
+      {
+        "title": "Tailored to each campus",
+        "body": "Every campus showcases its local business community while national partners join across the country."
+      },
+      {
+        "title": "For every stage of your journey",
+        "body": "From your first volunteer role to your first full-time position, you will find coaching and opportunities that match your goals."
+      }
+    ]
+  },
+  "inspire": {
+    "title": "Inspire",
+    "tagline": "A stage for new perspectives",
+    "description": "Inspire is BISO’s talk and storytelling platform where students, alumni and partners share experiences and insight.",
+    "ctaLabel": "Register your interest",
+    "highlights": [
+      "Panels and keynotes from industry leaders and alumni",
+      "Stories from student leaders and entrepreneurs",
+      "Opportunities to pitch your own projects"
+    ],
+    "sections": [
+      {
+        "title": "Stories from our community",
+        "body": "Inspire highlights initiatives, intrapreneurship and lessons learned from BISO’s own projects."
+      },
+      {
+        "title": "Meet mentors and partners",
+        "body": "The stage creates a direct link to partners, mentors and potential sponsors."
+      }
+    ]
+  },
+  "schedule": {
+    "title": "Campus schedule",
+    "subtitle": "Details are updated continuously and may change.",
+    "ticket": "Tickets"
+  },
+  "overview": {
+    "title": "At a glance",
+    "dates": "Dates",
+    "type": "Category",
+    "external": "Website"
+  },
+  "fallback": {
+    "description": "More information will be published soon. Check back for the latest updates.",
+    "cta": "Learn more"
+  }
+}

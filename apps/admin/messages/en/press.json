@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "Press & Media | BISO",
+    "description": "Brand assets, press contact and usage guidance."
+  },
+  "title": "Press & Media",
+  "contact": {
+    "title": "Press Contact",
+    "body": "For media inquiries, interviews and brand use, contact us at:"
+  },
+  "assets": {
+    "title": "Brand Assets",
+    "logoLight": "BISO logo (light)",
+    "logoDark": "BISO logo (dark)",
+    "orgChart": "Organization chart"
+  },
+  "usage": {
+    "title": "Brand Usage",
+    "body": "Use the logo with clear space and do not alter colors or proportions."
+  }
+}
+

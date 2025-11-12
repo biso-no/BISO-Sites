@@ -1,0 +1,25 @@
+{
+  "drugsPolicy": {
+    "title": "Rusmiddelpolitikk",
+    "intro": "BISO arbeider for et trygt og inkluderende studentmiljø. Vi forventer ansvarlig opptreden på alle arrangementer og aktiviteter.",
+    "sections": {
+      "principles": {
+        "title": "Prinsipper",
+        "items": {
+          "0": "Følg norsk lov og BIs regler til enhver tid",
+          "1": "Ingen bruk eller distribusjon av ulovlige rusmidler",
+          "2": "Ansvarlig skjenking og konsum på BISO‑arrangementer"
+        }
+      },
+      "conduct": {
+        "title": "Oppførsel på arrangementer",
+        "body": "Alle deltakere skal vise respekt og omtanke for medstudenter og ansatte. Trakassering, diskriminering og utrygg oppførsel tolereres ikke."
+      },
+      "support": {
+        "title": "Varsling og støtte",
+        "body": "Opplever eller ser du hendelser, bruk vår Varsling‑side eller kontakt campusledelsen."
+      }
+    }
+  }
+}
+
