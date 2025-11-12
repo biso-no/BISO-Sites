@@ -94,6 +94,18 @@ export enum Status {
 }
 
 
+export enum PageStatus {
+    DRAFT = "draft",
+    PUBLISHED = "published",
+    ARCHIVED = "archived"
+}
+
+export enum PageVisibility {
+    PUBLIC = "public",
+    AUTHENTICATED = "authenticated"
+}
+
+
 export enum Level {
     NATIONAL = "national",
     CAMPUS = "campus"
@@ -588,6 +600,30 @@ export type FundingPrograms = Models.Row & {
     contact_email: string | null;
     contact_phone: string | null;
     metadata: string | null;
+}
+
+export type Pages = Models.Row & {
+    slug: string;
+    title: string;
+    status: PageStatus;
+    visibility: PageVisibility;
+    template: string | null;
+    campus_id: string | null;
+    campus: Campus;
+    translation_refs: PageTranslations[];
+}
+
+export type PageTranslations = Models.Row & {
+    page_id: string;
+    page: Pages;
+    locale: Locale;
+    title: string;
+    slug: string | null;
+    description: string | null;
+    puck_document: string | null;
+    draft_document: string | null;
+    is_published: boolean;
+    published_at: string | null;
 }
 
 export type SitePages = Models.Row & {
