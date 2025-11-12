@@ -3,15 +3,9 @@
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { ID, Query } from "@repo/api";
 import { revalidatePath } from "next/cache";
+import { VarslingSettings } from "@repo/api/types/appwrite";
 
-export interface VarslingSettings {
-  $id?: string;
-  campus_id: string;
-  role_name: string;
-  email: string;
-  is_active: boolean;
-  sort_order: number;
-}
+
 
 export interface VarslingSubmission {
   campus_id: string;
@@ -37,8 +31,8 @@ export async function getVarslingSettings(campusId?: string): Promise<VarslingSe
       queries.unshift(Query.equal("campus_id", campusId));
     }
     
-    const response = await db.listRows("app", "varsling_settings", queries);
-    return response.rows as unknown as VarslingSettings[];
+    const response = await db.listRows<VarslingSettings>("app", "varsling_settings", queries);
+    return response.rows;
   } catch (error) {
     console.error("Failed to fetch varsling settings:", error);
     return [];
@@ -50,13 +44,13 @@ export async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
   try {
     const { db } = await createAdminClient();
     
-    const response = await db.listRows("app", "varsling_settings", [
+    const response = await db.listRows<VarslingSettings>("app", "varsling_settings", [
       Query.orderAsc("campus_id"),
       Query.orderAsc("sort_order"),
       Query.orderAsc("role_name")
     ]);
     
-    return response.rows as unknown as VarslingSettings[];
+    return response.rows;
   } catch (error) {
     console.error("Failed to fetch all varsling settings:", error);
     return [];
@@ -68,7 +62,7 @@ export async function createVarslingSettings(data: Omit<VarslingSettings, '$id'>
   try {
     const { db } = await createAdminClient();
     
-    await db.createRow("app", "varsling_settings", ID.unique(), data);
+    await db.createRow<VarslingSettings>("app", "varsling_settings", ID.unique(), data);
     
     revalidatePath("/admin/varsling");
     return { success: true };
@@ -83,7 +77,7 @@ export async function updateVarslingSettings(id: string, data: Partial<VarslingS
   try {
     const { db } = await createAdminClient();
     
-    await db.updateRow("app", "varsling_settings", id, data);
+    await db.updateRow<VarslingSettings>("app", "varsling_settings", id, data);
     
     revalidatePath("/admin/varsling");
     return { success: true };

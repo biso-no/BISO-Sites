@@ -18,14 +18,15 @@ export default async function HomePage() {
         <HeroSection />
       </Suspense>
       
+
       <Suspense fallback={<AboutSkeleton />}>
         <AboutSection />
       </Suspense>
-      
+
       <Suspense fallback={<EventsSkeleton />}>
         <EventsSection />
       </Suspense>
-      
+
       <Suspense fallback={<NewsSkeleton />}>
         <NewsSection />
       </Suspense>

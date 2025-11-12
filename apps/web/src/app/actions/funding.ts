@@ -26,8 +26,8 @@ export async function listFundingPrograms(status: string = "active"): Promise<Pa
     if (status) {
       queries.push(Query.equal("status", status))
     }
-    const response = await db.listRows("app", "funding_programs", queries)
-    return response.rows.map((doc) => toParsedProgram(doc as unknown as FundingProgram))
+    const response = await db.listRows<FundingProgram>("app", "funding_programs", queries)
+    return response.rows.map((doc) => toParsedProgram(doc))
   } catch (error) {
     console.error("Failed to fetch funding programs", error)
     return []
@@ -38,16 +38,16 @@ export async function getFundingProgramBySlug(slug: string): Promise<ParsedFundi
   if (!slug) return null
   try {
     const { db } = await createAdminClient()
-    const response = await db.listRows("app", "funding_programs", [
+    const response = await db.listRows<FundingProgram>("app", "funding_programs", [
       Query.equal("slug", slug),
       Query.limit(1)
     ])
 
-    if (response.total === 0) {
+    if (response.total === 0 || !response.rows[0]) {
       return null
     }
 
-    return toParsedProgram(response.rows[0] as unknown as FundingProgram)
+    return toParsedProgram(response.rows[0])
   } catch (error) {
     console.error("Failed to fetch funding program", error)
     return null

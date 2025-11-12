@@ -1,7 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@repo/api/server"
-import type { CampusData } from "@/lib/types/campus-data"
+import { CampusData } from "@repo/api/types/appwrite"
 
 const NATIONAL_CAMPUS_ID = "5"
 const NATIONAL_CAMPUS_NAME = "national"
@@ -15,11 +15,11 @@ export async function getGlobalMembershipBenefits(): Promise<CampusData | null> 
     const { db } = await createAdminClient()
 
     try {
-      const document = await db.getRow("app", "campus_data", NATIONAL_CAMPUS_ID) as unknown as CampusData
-      return document as CampusData
+      const document = await db.getRow<CampusData>("app", "campus_data", NATIONAL_CAMPUS_ID)
+      return document
     } catch (error) {
-      const response = await db.listRows("app", "campus_data")
-      const document = response.rows.find((item: any) => {
+      const response = await db.listRows<CampusData>("app", "campus_data")
+      const document = response.rows.find((item: CampusData) => {
         return (
           item &&
           (item.$id === NATIONAL_CAMPUS_ID ||
@@ -28,7 +28,7 @@ export async function getGlobalMembershipBenefits(): Promise<CampusData | null> 
         )
       })
 
-      return document ? (document as CampusData) : null
+      return document ? document : null
     }
   } catch (error) {
     console.error("Failed to fetch global membership benefits:", error)

@@ -24,11 +24,11 @@ export default async function CampusPage() {
 
   return (
     <CampusPageClient
-      events={Array.isArray(events) ? (events as ContentTranslations[]) : []}
-      jobs={Array.isArray(jobs) ? (jobs as ContentTranslations[]) : []}
-      news={Array.isArray(news) ? (news as ContentTranslations[]) : []}
-      departments={Array.isArray(departments) ? (departments as unknown as Departments[]) : []}
-      campusData={Array.isArray(campusData) ? (campusData as CampusData[]) : []}
+      events={events}
+      jobs={jobs}
+      news={news}
+      departments={departments}
+      campusData={campusData}
       campusMetadata={campusMetadata}
       locale={locale as Locale}
     />

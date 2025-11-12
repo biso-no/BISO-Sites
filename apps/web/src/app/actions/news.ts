@@ -67,8 +67,8 @@ export async function listNews(params: ListNewsParams = {}): Promise<ContentTran
     }
 
     // Get news with their translations using Appwrite's nested relationships
-    const newsResponse = await db.listRows('app', 'content_translations', queries)
-    const newsItems = newsResponse.rows as unknown as ContentTranslations[]
+    const newsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
+    const newsItems = newsResponse.rows
 
     return newsItems
   } catch (error) {
@@ -82,7 +82,7 @@ export async function getNewsItem(id: string, locale: 'en' | 'no'): Promise<Cont
     const { db } = await createAdminClient()
     
     // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.NEWS),
       Query.equal('content_id', id),
       Query.equal('locale', locale),
@@ -94,7 +94,7 @@ export async function getNewsItem(id: string, locale: 'en' | 'no'): Promise<Cont
       return null
     }
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error fetching news item:', error)
     return null
@@ -128,19 +128,19 @@ export async function createNewsItem(data: CreateNewsData, skipRevalidation = fa
       } as ContentTranslations)
     }
     
-    const newsItem = await db.createRow('app', 'news', 'unique()', {
+    const newsItem = await db.createRow<News>('app', 'news', 'unique()', {
       status: data.status as Status,
       campus_id: data.campus_id,
-      campus: data.campus_id as unknown as Campus,
+      campus: data.campus_id,
       department_id: data.department_id ?? null,
-      department: data.department_id ? (data.department_id as unknown as Departments) : ({ $id: '' } as Departments),
+      department: data.department_id ? data.department_id : null,
       slug: data.slug ?? null,
       url: data.url ?? null,
       image: data.image ?? null,
       metadata: [],
       sticky: data.sticky || false,
       translation_refs: translationRefs
-    }) as News
+    })
     
     if (!skipRevalidation) {
       revalidatePath('/news')
@@ -198,61 +198,11 @@ export async function updateNewsItem(id: string, data: Partial<CreateNewsData>, 
       }
     }
     
-    const newsItem = await db.updateRow('app', 'news', id, updateData) as unknown as NewsItem
-    
-    if (!skipRevalidation) {
-      revalidatePath('/news')
-      revalidatePath('/admin/posts')
-    }
-    return newsItem
+    const newsItem = await db.updateRow<News>('app', 'news', id, updateData)
+    return newsItem ?? null
   } catch (error) {
     console.error('Error updating news item:', error)
     return null
-  }
-}
-
-export async function deleteNewsItem(id: string, skipRevalidation = false): Promise<boolean> {
-  try {
-    const { db } = await createAdminClient()
-    await db.deleteRow('app', 'news', id)
-    if (!skipRevalidation) {
-      revalidatePath('/news')
-      revalidatePath('/admin/posts')
-    }
-    return true
-  } catch (error) {
-    console.error('Error deleting news item:', error)
-    return false
-  }
-}
-
-// Helper function to get departments for a specific campus
-export async function listDepartments(campusId?: string) {
-  const queries = [Query.equal('active', true)]
-  
-  if (campusId) {
-    queries.push(Query.equal('campus_id', campusId))
-  }
-
-  try {
-    const { db } = await createAdminClient()
-    const response = await db.listRows('app', 'departments', queries)
-    return response.rows
-  } catch (error) {
-    console.error('Error fetching departments:', error)
-    return []
-  }
-}
-
-// Helper function to get campuses
-export async function listCampuses() {
-  try {
-    const { db } = await createAdminClient()
-    const response = await db.listRows('app', 'campus')
-    return response.rows
-  } catch (error) {
-    console.error('Error fetching campuses:', error)
-    return []
   }
 }
 

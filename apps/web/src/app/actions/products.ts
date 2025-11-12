@@ -13,7 +13,7 @@ import type {
 import { generateObject } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
-import { ContentTranslations, ContentType, Locale } from '@repo/api/types/appwrite'
+import { ContentTranslations, ContentType, Locale, WebshopProducts } from '@repo/api/types/appwrite'
 
 export async function listProducts(params: ListProductsParams = {}): Promise<ContentTranslations[]> {
   try {
@@ -42,8 +42,8 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Con
       queries.push(Query.offset(params.offset))
     }
     
-    const response = await db.listRows('app', 'content_translations', queries)
-    const products = response.rows as unknown as ContentTranslations[]
+    const response = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
+    const products = response.rows
     
     return products
   } catch (error) {
@@ -57,7 +57,7 @@ export async function getProduct(id: string, locale: 'en' | 'no'): Promise<Conte
     const { db } = await createAdminClient()
     
     // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.PRODUCT),
       Query.equal('content_id', id),
       Query.equal('locale', locale),
@@ -69,7 +69,7 @@ export async function getProduct(id: string, locale: 'en' | 'no'): Promise<Conte
       return null
     }
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error getting product:', error)
     return null
@@ -81,17 +81,17 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
     const { db } = await createAdminClient()
     
     // Get product by slug
-    const productsResponse = await db.listRows('app', 'webshop_products', [
+    const productsResponse = await db.listRows<WebshopProducts>('app', 'webshop_products', [
       Query.equal('slug', slug),
       Query.limit(1)
     ])
     
     if (productsResponse.rows.length === 0) return null
     
-    const product = productsResponse.rows[0] as unknown as Product
+    const product = productsResponse.rows[0]
     
     // Get translation for the requested locale
-    const translationsResponse = await db.listRows('app', 'content_translations', [
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.PRODUCT),
       Query.equal('content_id', product.$id),
       Query.equal('locale', locale),
@@ -101,7 +101,7 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
     
     if (translationsResponse.rows.length === 0) return null
     
-    return translationsResponse.rows[0] as unknown as ContentTranslations
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error getting product by slug:', error)
     return null
@@ -135,18 +135,19 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
       } as ContentTranslations)
     }
     
-    const product = await db.createRow('app', 'webshop_products', 'unique()', {
+    const product = await db.createRow<WebshopProducts>('app', 'webshop_products', 'unique()', {
       slug: data.slug,
       status: data.status,
       campus_id: data.campus_id,
       metadata: data.metadata ? JSON.stringify(data.metadata) : undefined,
       translation_refs: translationRefs
-    }) as unknown as Product
+    })
     
     if (!skipRevalidation) {
       revalidatePath('/shop')
       revalidatePath('/admin/products')
     }
+    
     
     return product
   } catch (error) {
@@ -196,14 +197,14 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
       }
     }
     
-    const product = await db.updateRow('app', 'webshop_products', id, updateData) as unknown as Product
+    const product = await db.updateRow<WebshopProducts>('app', 'webshop_products', id, updateData)
     
     if (!skipRevalidation) {
       revalidatePath('/shop')
       revalidatePath('/admin/products')
     }
     
-    return product
+    return product ?? null
   } catch (error) {
     console.error('Error updating product:', error)
     return null
@@ -237,14 +238,14 @@ export async function updateProductStatus(
   try {
     const { db } = await createAdminClient()
 
-    const product = await db.updateRow('app', 'webshop_products', id, { status }) as unknown as Product
+    const product = await db.updateRow<WebshopProducts>('app', 'webshop_products', id, { status })
 
     if (!skipRevalidation) {
       revalidatePath('/shop')
       revalidatePath('/admin/products')
     }
 
-    return product
+    return product ?? null
   } catch (error) {
     console.error('Error updating product status:', error)
     return null
@@ -306,11 +307,6 @@ export async function uploadProductImage(formData: FormData) {
 
   const { storage } = await createAdminClient()
   const uploaded = await storage.createFile(PRODUCT_IMAGE_BUCKET, 'unique()', file)
-  const view = (storage as unknown as { getFileView: (bucket: string, fileId: string) => string | { href: string } }).getFileView(PRODUCT_IMAGE_BUCKET, uploaded.$id)
-  const url = typeof view === 'string' ? view : view.href
-
-  return {
-    fileId: uploaded.$id,
-    url
-  }
+  const view = storage.getFile(PRODUCT_IMAGE_BUCKET, uploaded.$id)
+  const url = view.href
 }

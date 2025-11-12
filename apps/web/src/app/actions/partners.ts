@@ -2,22 +2,14 @@
 
 import { createAdminClient } from "@repo/api/server";
 import { Query, Models } from "@repo/api";
-
-export type PartnerRecord = Models.Document & {
-  name: string;
-  url?: string;
-  level: "national" | "campus";
-  image_bucket: string;
-  image_file_id: string;
-  campus?: { $id: string; name?: string } | null;
-};
+import { Partners } from "@repo/api/types/appwrite";
 
 export async function listPartners(level?: "national" | "campus") {
   const { db } = await createAdminClient();
   const queries = [Query.limit(200), Query.orderAsc("name")];
   if (level) queries.push(Query.equal("level", level));
-  const res = await db.listRows("app", "partners", queries);
-  return res.rows as unknown as PartnerRecord[];
+  const res = await db.listRows<Partners>("app", "partners", queries);
+  return res.rows;
 }
 
 export async function createPartner(formData: FormData) {
@@ -41,7 +33,7 @@ export async function createPartner(formData: FormData) {
     throw new Error("Missing required fields");
   }
 
-  await db.createRow("app", "partners", "unique()", data as any);
+  await db.createRow<Partners>("app", "partners", "unique()", data);
 }
 
 export async function deletePartner(formData: FormData) {
