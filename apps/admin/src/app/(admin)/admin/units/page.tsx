@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
-import { getDepartments, getDepartmentTypes } from '@/lib/admin/departments';
-import { getCampuses } from '@/lib/admin/db';
+import { getDepartments, getDepartmentTypes } from '@/lib/actions/departments';
+import { getCampuses } from '@/app/actions/campus';
 import { DepartmentStats } from '@/components/units/department-stats';
 import { DepartmentFiltersWrapper } from '@/components/units/department-filters-wrapper';
 import { DepartmentList } from '@/components/units/department-list';
@@ -36,39 +36,59 @@ export default async function UnitsPage({ searchParams }: PageProps) {
     searchTerm: params.search
   };
 
-  // Fetch data concurrently
-  const [departments, campuses, types] = await Promise.all([
-    getDepartments(filters),
-    getCampuses(),
-    getDepartmentTypes()
-  ]);
+  // Fetch departments directly with filters applied server-side
+  const departmentsData = await getDepartments({
+    active: filters.active,
+    campusId: filters.campus_id,
+    type: filters.type,
+    search: filters.searchTerm,
+  });
   
-  // Sort departments if needed
-  let sortedDepartments = [...departments];
+  // Transform departments to include computed fields
+  let departments = departmentsData.map(dept => ({
+    ...dept,
+    name: dept.Name,
+    campusName: dept.campus?.name || 'Unknown',
+    userCount: 0 // TODO: Add user count when needed
+  }));
+
+  // Client-side sorting (done after filtering from server)
   const sortOrder = params.sort || 'name-asc';
   const [sortField, sortDirection] = sortOrder.split('-');
   
-  if (sortField && sortDirection) {
-    sortedDepartments.sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'campus':
-          comparison = (a.campusName || '').localeCompare(b.campusName || '');
-          break;
-        case 'users':
-          comparison = (a.userCount || 0) - (b.userCount || 0);
-          break;
-        default:
-          comparison = a.name.localeCompare(b.name);
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }
+  departments.sort((a, b) => {
+    let compareA: any;
+    let compareB: any;
+    
+    switch (sortField) {
+      case 'name':
+        compareA = a.name?.toLowerCase() || '';
+        compareB = b.name?.toLowerCase() || '';
+        break;
+      case 'campus':
+        compareA = a.campusName?.toLowerCase() || '';
+        compareB = b.campusName?.toLowerCase() || '';
+        break;
+      case 'users':
+        compareA = a.userCount || 0;
+        compareB = b.userCount || 0;
+        break;
+      default:
+        compareA = a.name?.toLowerCase() || '';
+        compareB = b.name?.toLowerCase() || '';
+    }
+    
+    if (compareA < compareB) return sortDirection === 'asc' ? -1 : 1;
+    if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+  
+  // Fetch campuses for filter dropdown (separate query)
+  const campusesData = await getCampuses();
+  const campusOptions = campusesData.map(c => ({ id: c.$id, name: c.name }));
+  
+  // Get all department types for filter dropdown
+  const types = await getDepartmentTypes();
   
   return (
     <div className="space-y-8">
@@ -90,12 +110,12 @@ export default async function UnitsPage({ searchParams }: PageProps) {
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <DepartmentFiltersWrapper
             filters={filters}
-            campuses={campuses}
+            campuses={campusOptions}
             types={types}
           />
           <DepartmentActionsHeader 
             sortOrder={sortOrder}
-            campuses={campuses}
+            campuses={campusOptions}
             types={types}
           />
         </div>
@@ -103,8 +123,8 @@ export default async function UnitsPage({ searchParams }: PageProps) {
         {/* Department List */}
         <Suspense fallback={<DepartmentSkeleton />}>
           <DepartmentList
-            departments={sortedDepartments}
-            campuses={campuses}
+            departments={departments}
+            campuses={campusOptions}
             types={types}
           />
         </Suspense>
