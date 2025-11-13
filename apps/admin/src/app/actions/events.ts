@@ -1,11 +1,12 @@
 'use server'
 
-import { createSessionClient } from '@repo/api/server'
+import { createAdminClient, createSessionClient } from '@repo/api/server'
 import { ID, Query } from '@repo/api'
-import { ContentTranslation } from '@/lib/types/content-translation'
 import { revalidatePath } from 'next/cache'
-import { ContentTranslations, ContentType, Departments, Events, Status, Campus } from '@repo/api/types/appwrite'
-import { Locale } from '@repo/api/types/appwrite'
+import { ContentTranslation } from '@/lib/types/content-translation'
+import type { AdminEvent } from '@/lib/types/event'
+import { ContentType, Departments, Events, Status, Campus, Locale, ContentTranslations } from '@repo/api/types/appwrite'
+import { EVENT_SELECT_FIELDS, normalizeEventRow } from './_utils/translatable'
 
 export interface ListEventsParams {
   limit?: number
@@ -26,10 +27,14 @@ export interface CreateEventData {
   metadata?: {
     start_date?: string
     end_date?: string
+    start_time?: string
+    end_time?: string
     location?: string
     price?: number
     ticket_url?: string
     image?: string
+    units?: string[]
+    department_id?: string
   }
   translations: {
     en?: {
@@ -43,62 +48,59 @@ export interface CreateEventData {
   }
 }
 
-export async function listEvents(params: ListEventsParams = {}): Promise<ContentTranslations[]> {
+export async function listEvents(params: ListEventsParams = {}): Promise<AdminEvent[]> {
   const {
     limit = 25,
     status = 'published',
     campus,
-    locale
+    search
   } = params
 
   try {
-    const { db } = await createSessionClient()
-    
+    const { db } = await createAdminClient()
+
     const queries = [
-      Query.equal('content_type', 'event'),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'event_ref.*']),
-      Query.equal('locale', locale as Locale),
+      Query.select([...EVENT_SELECT_FIELDS]),
       Query.limit(limit),
       Query.orderDesc('$createdAt')
     ]
 
     if (status !== 'all') {
-      queries.push(Query.equal('event_ref.status', status))
+      queries.push(Query.equal('status', status))
     }
 
     if (campus && campus !== 'all') {
-      queries.push(Query.equal('event_ref.campus_id', campus))
+      queries.push(Query.equal('campus_id', campus))
     }
 
-    // Get events with their translations using Appwrite's nested relationships
-    const eventsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
-    const events = eventsResponse.rows
+    if (search) {
+      queries.push(Query.search('slug', search))
+    }
 
-    return events
+    const eventsResponse = await db.listRows<Events>('app', 'events', queries)
+    return eventsResponse.rows.map(normalizeEventRow)
   } catch (error) {
     console.error('Error fetching events:', error)
     return []
   }
 }
 
-export async function getEvent(id: string, locale: 'en' | 'no'): Promise<ContentTranslations[] | null> {
+export async function getEvent(id: string): Promise<AdminEvent | null> {
   try {
-    const { db } = await createSessionClient()
-    
-    // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
-      Query.equal('content_type', ContentType.EVENT),
-      Query.equal('content_id', id),
-      Query.equal('locale', locale),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'event_ref.*']),
-      Query.limit(1)
+    const { db } = await createAdminClient()
+
+    const response = await db.listRows<Events>('app', 'events', [
+      Query.equal('$id', id),
+      Query.limit(1),
+      Query.select([...EVENT_SELECT_FIELDS])
     ])
-    
-    if (translationsResponse.rows.length === 0) {
+
+    const event = response.rows[0]
+    if (!event) {
       return null
     }
-    
-    return translationsResponse.rows
+
+    return normalizeEventRow(event)
   } catch (error) {
     console.error('Error fetching event:', error)
     return null
@@ -173,7 +175,27 @@ export async function updateEvent(id: string, data: Partial<CreateEventData>): P
     
     if (data.status !== undefined) updateData.status = data.status as Status
     if (data.slug !== undefined) updateData.slug = data.slug as string | null
-    if (data.metadata !== undefined) updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null
+    if (data.metadata !== undefined) {
+      updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null
+      if (data.metadata?.start_date !== undefined) {
+        updateData.start_date = data.metadata.start_date ?? null
+      }
+      if (data.metadata?.end_date !== undefined) {
+        updateData.end_date = data.metadata.end_date ?? null
+      }
+      if (data.metadata?.location !== undefined) {
+        updateData.location = data.metadata.location ?? null
+      }
+      if (data.metadata?.price !== undefined) {
+        updateData.price = data.metadata.price ?? null
+      }
+      if (data.metadata?.ticket_url !== undefined) {
+        updateData.ticket_url = data.metadata.ticket_url ?? null
+      }
+      if (data.metadata?.image !== undefined) {
+        updateData.image = data.metadata.image ?? null
+      }
+    }
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id
     if (data.member_only !== undefined) updateData.member_only = data.member_only
     if (data.collection_id !== undefined) updateData.collection_id = data.collection_id as string | null

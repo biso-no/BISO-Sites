@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PlusCircle, RotateCcw } from "lucide-react";
 import { createManagedPage } from "@/app/actions/pages";
-import type { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
@@ -21,8 +21,8 @@ import { Textarea } from "@repo/ui/components/ui/textarea";
 import { cn } from "@repo/ui/lib/utils";
 
 const ALL_LOCALES: Array<{ value: Locale; label: string }> = [
-  { value: "no", label: "Norwegian" },
-  { value: "en", label: "English" },
+  { value: Locale.NO, label: "Norwegian" },
+  { value: Locale.EN, label: "English" },
 ];
 
 function slugify(value: string): string {
@@ -40,11 +40,11 @@ export function PageCreateForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [status, setStatus] = useState<PageStatus>("draft");
-  const [visibility, setVisibility] = useState<PageVisibility>("public");
+  const [status, setStatus] = useState<PageStatus>(PageStatus.DRAFT);
+  const [visibility, setVisibility] = useState<PageVisibility>(PageVisibility.PUBLIC);
   const [template, setTemplate] = useState<string>("");
   const [campusId, setCampusId] = useState<string>("");
-  const [locales, setLocales] = useState<Locale[]>(["no"]);
+  const [locales, setLocales] = useState<Locale[]>([Locale.NO]);
   const [description, setDescription] = useState<string>("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -101,11 +101,11 @@ export function PageCreateForm() {
   const resetForm = () => {
     setTitle("");
     setSlug("");
-    setStatus("draft");
-    setVisibility("public");
+    setStatus(PageStatus.DRAFT);
+    setVisibility(PageVisibility.PUBLIC);
     setTemplate("");
     setCampusId("");
-    setLocales(["no"]);
+    setLocales([Locale.NO]);
     setDescription("");
     setError(null);
   };
@@ -119,17 +119,18 @@ export function PageCreateForm() {
       </CardHeader>
       <CardContent className="grid gap-6">
         <div className="grid gap-2">
-          <Label htmlFor="title">Title</Label>
+          <Label className="text-primary-100" htmlFor="title">Title</Label>
           <Input
             id="title"
             value={title}
+            className="text-primary-100"
             placeholder="About student life"
             onChange={(event) => setTitle(event.target.value)}
           />
         </div>
         <div className="grid gap-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="slug">Slug</Label>
+            <Label className="text-primary-100" htmlFor="slug">Slug</Label>
             <Button
               type="button"
               variant="ghost"
@@ -143,6 +144,7 @@ export function PageCreateForm() {
           <Input
             id="slug"
             value={slug}
+            className="text-primary-100"
             placeholder="about/student-life"
             onChange={(event) => setSlug(slugify(event.target.value))}
           />
@@ -150,56 +152,58 @@ export function PageCreateForm() {
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label>Status</Label>
+            <Label className="text-primary-100">Status</Label>
             <Select value={status} onValueChange={(value: PageStatus) => setStatus(value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Draft" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
+                <SelectItem value={PageStatus.DRAFT}>Draft</SelectItem>
+                <SelectItem value={PageStatus.PUBLISHED}>Published</SelectItem>
+                <SelectItem value={PageStatus.ARCHIVED}>Archived</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Visibility</Label>
+            <Label className="text-primary-100">Visibility</Label>
             <Select
               value={visibility}
               onValueChange={(value: PageVisibility) => setVisibility(value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="text-primary-100">
                 <SelectValue placeholder="Public" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="public">Public</SelectItem>
-                <SelectItem value="authenticated">Members only</SelectItem>
+                <SelectItem value={PageVisibility.PUBLIC}>Public</SelectItem>
+                <SelectItem value={PageVisibility.AUTHENTICATED}>Members only</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="template">Template key</Label>
+            <Label className="text-primary-100" htmlFor="template">Template key</Label>
             <Input
               id="template"
               value={template}
+              className="text-primary-100"
               placeholder="optional"
               onChange={(event) => setTemplate(event.target.value)}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="campus">Campus scope</Label>
+            <Label className="text-primary-100" htmlFor="campus">Campus scope</Label>
             <Input
               id="campus"
               value={campusId}
+              className="text-primary-100"
               placeholder="optional campus id"
               onChange={(event) => setCampusId(event.target.value)}
             />
           </div>
         </div>
         <div className="grid gap-2">
-          <Label>Locales</Label>
+          <Label className="text-primary-100">Locales</Label>
           <div className="flex flex-wrap gap-4">
             {ALL_LOCALES.map((option) => (
               <label
@@ -221,10 +225,11 @@ export function PageCreateForm() {
           </div>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="description">Internal description</Label>
+          <Label className="text-primary-100" htmlFor="description">Internal description</Label>
           <Textarea
             id="description"
             placeholder="Share context with editors"
+            className="text-primary-100"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
@@ -234,12 +239,13 @@ export function PageCreateForm() {
         ) : null}
         <div className="flex items-center justify-between gap-4">
           <Button type="button" variant="ghost" size="sm" onClick={resetForm}>
-            <RotateCcw className="mr-2 h-4 w-4" /> Reset
+            <RotateCcw className="mr-2 h-4 w-4 text-primary-100" /> Reset
           </Button>
           <Button
             type="button"
             disabled={!canSubmit || pending}
-            className="inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 
+            text-primary-100"
             onClick={handleSubmit}
           >
             <PlusCircle className="h-4 w-4" />

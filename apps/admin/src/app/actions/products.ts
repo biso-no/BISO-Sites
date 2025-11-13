@@ -4,34 +4,33 @@ import { revalidatePath } from 'next/cache'
 import { Query } from '@repo/api'
 import { createAdminClient } from '@repo/api/server'
 import type {
-  Product,
   CreateProductData,
   UpdateProductData,
   ListProductsParams,
-  ProductTranslation
+  ProductTranslation,
+  ProductWithTranslations
 } from '@/lib/types/product'
 import { generateObject } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
-import { ContentTranslations, ContentType, Locale, WebshopProducts } from '@repo/api/types/appwrite'
+import { ContentTranslations, ContentType, Locale, WebshopProducts, Status } from '@repo/api/types/appwrite'
+import { PRODUCT_SELECT_FIELDS, normalizeProductRow } from './_utils/translatable'
 
-export async function listProducts(params: ListProductsParams = {}): Promise<ContentTranslations[]> {
+export async function listProducts(params: ListProductsParams = {}): Promise<ProductWithTranslations[]> {
   try {
     const { db } = await createAdminClient()
     
     const queries = [
-      Query.equal('content_type', ContentType.PRODUCT),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'product_ref.*']),
-      Query.equal('locale', params.locale as Locale ?? Locale.EN),
+      Query.select([...PRODUCT_SELECT_FIELDS]),
       Query.orderDesc('$createdAt')
     ]
     
     if (params.status) {
-      queries.push(Query.equal('product_ref.status', params.status))
+      queries.push(Query.equal('status', params.status))
     }
     
     if (params.campus_id) {
-      queries.push(Query.equal('product_ref.campus_id', params.campus_id))
+      queries.push(Query.equal('campus_id', params.campus_id))
     }
     
     if (params.limit) {
@@ -41,76 +40,72 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Con
     if (params.offset) {
       queries.push(Query.offset(params.offset))
     }
+
+    if (params.search?.trim()) {
+      queries.push(Query.search('slug', params.search.trim()))
+    }
     
-    const response = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
-    const products = response.rows
-    
-    return products
+    const response = await db.listRows<WebshopProducts>('app', 'webshop_products', queries)
+    return response.rows.map(normalizeProductRow)
   } catch (error) {
     console.error('Error listing products:', error)
     return []
   }
 }
 
-export async function getProduct(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+export async function getProduct(id: string): Promise<ProductWithTranslations | null> {
   try {
     const { db } = await createAdminClient()
-    
-    // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
-      Query.equal('content_type', ContentType.PRODUCT),
-      Query.equal('content_id', id),
-      Query.equal('locale', locale),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'product_ref.*']),
-      Query.limit(1)
+
+    const response = await db.listRows<WebshopProducts>('app', 'webshop_products', [
+      Query.equal('$id', id),
+      Query.limit(1),
+      Query.select([...PRODUCT_SELECT_FIELDS])
     ])
-    
-    if (translationsResponse.rows.length === 0) {
+
+    const product = response.rows[0]
+
+    if (!product) {
       return null
     }
-    
-    return translationsResponse.rows[0] ?? null
+
+    return normalizeProductRow(product)
   } catch (error) {
     console.error('Error getting product:', error)
     return null
   }
 }
 
-export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+export async function getProductBySlug(slug: string): Promise<ProductWithTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
-    // Get product by slug
     const productsResponse = await db.listRows<WebshopProducts>('app', 'webshop_products', [
       Query.equal('slug', slug),
-      Query.limit(1)
+      Query.limit(1),
+      Query.select([...PRODUCT_SELECT_FIELDS])
     ])
-    
-    if (productsResponse.rows.length === 0) return null
     
     const product = productsResponse.rows[0]
-    
-    // Get translation for the requested locale
-    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
-      Query.equal('content_type', ContentType.PRODUCT),
-      Query.equal('content_id', product.$id),
-      Query.equal('locale', locale),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'product_ref.*']),
-      Query.limit(1)
-    ])
-    
-    if (translationsResponse.rows.length === 0) return null
-    
-    return translationsResponse.rows[0] ?? null
+
+    if (!product) return null
+
+    return normalizeProductRow(product)
   } catch (error) {
     console.error('Error getting product by slug:', error)
     return null
   }
 }
 
-export async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<Product | null> {
+export async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
   try {
     const { db } = await createAdminClient()
+    const statusValue =
+      data.status === 'draft'
+        ? Status.DRAFT
+        : data.status === 'published'
+          ? Status.PUBLISHED
+          : Status.ARCHIVED
     
     // Build translation_refs array from provided translations only
     const translationRefs: ContentTranslations[] = []
@@ -137,9 +132,9 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
     
     const product = await db.createRow<WebshopProducts>('app', 'webshop_products', 'unique()', {
       slug: data.slug,
-      status: data.status,
+      status: statusValue,
       campus_id: data.campus_id,
-      metadata: data.metadata ? JSON.stringify(data.metadata) : undefined,
+      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       translation_refs: translationRefs
     })
     
@@ -156,7 +151,7 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
   }
 }
 
-export async function updateProduct(id: string, data: UpdateProductData, skipRevalidation = false): Promise<Product | null> {
+export async function updateProduct(id: string, data: UpdateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -164,9 +159,16 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
     const updateData: Record<string, unknown> = {}
     
     if (data.slug !== undefined) updateData.slug = data.slug
-    if (data.status !== undefined) updateData.status = data.status
+    if (data.status !== undefined) {
+      updateData.status =
+        data.status === 'draft'
+          ? Status.DRAFT
+          : data.status === 'published'
+            ? Status.PUBLISHED
+            : Status.ARCHIVED
+    }
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id
-    if (data.metadata !== undefined) updateData.metadata = JSON.stringify(data.metadata)
+    if (data.metadata !== undefined) updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null
     
     // Build translation_refs array from provided translations only
     if (data.translations) {
@@ -232,13 +234,19 @@ export async function deleteProduct(id: string, skipRevalidation = false): Promi
 
 export async function updateProductStatus(
   id: string,
-  status: Product['status'],
+  status: 'draft' | 'published' | 'archived',
   skipRevalidation = false
-): Promise<Product | null> {
+): Promise<WebshopProducts | null> {
   try {
     const { db } = await createAdminClient()
+    const statusValue =
+      status === 'draft'
+        ? Status.DRAFT
+        : status === 'published'
+          ? Status.PUBLISHED
+          : Status.ARCHIVED
 
-    const product = await db.updateRow<WebshopProducts>('app', 'webshop_products', id, { status })
+    const product = await db.updateRow<WebshopProducts>('app', 'webshop_products', id, { status: statusValue })
 
     if (!skipRevalidation) {
       revalidatePath('/shop')
@@ -289,7 +297,7 @@ export async function translateProductContent(
 }
 
 // Get products for public pages (published only)
-export async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ContentTranslations[]> {
+export async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ProductWithTranslations[]> {
   return listProducts({
     status: 'published',
     locale,
@@ -307,6 +315,7 @@ export async function uploadProductImage(formData: FormData) {
 
   const { storage } = await createAdminClient()
   const uploaded = await storage.createFile(PRODUCT_IMAGE_BUCKET, 'unique()', file)
-  const view = storage.getFile(PRODUCT_IMAGE_BUCKET, uploaded.$id)
-  const url = view.href
+  const view = await storage.getFileView(PRODUCT_IMAGE_BUCKET, uploaded.$id)
+  const url = typeof view === 'string' ? view : view.href ?? view.toString()
+  return { id: uploaded.$id, url }
 }

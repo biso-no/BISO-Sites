@@ -1,5 +1,5 @@
-import { Models } from '@repo/api'
-import { ContentTranslation } from './content-translation'
+import type { ContentTranslations, WebshopProducts } from '@repo/api/types/appwrite'
+import type { TranslationMap } from '@/lib/utils/content-translations'
 
 export type ProductCustomFieldType = 'text' | 'textarea' | 'number' | 'select'
 
@@ -22,22 +22,15 @@ export interface ProductVariation {
   is_default?: boolean
 }
 
-export interface Product extends Models.Row {
-  slug: string
-  status: 'draft' | 'published' | 'archived'
-  campus_id: string
-  metadata?: string // JSON string for non-translatable data (price, sku, stock, etc.)
-  
-  // Relationship references (populated at runtime)
-  campus?: { $id: string; name: string }
-  translation_refs?: ContentTranslation[]
-}
+export type Product = WebshopProducts
 
 // Helper interface for working with product data including translations
-export interface ProductWithTranslations extends Product {
+export interface ProductWithTranslations extends WebshopProducts {
+  translations?: TranslationMap<ContentTranslations>
   // Convenience properties for the current locale
   title?: string
   description?: string
+  metadata_parsed?: ProductMetadata
   price?: number
   sku?: string
   stock_quantity?: number
@@ -56,7 +49,7 @@ export interface ProductWithTranslations extends Product {
   variations?: ProductVariation[]
 }
 
-export interface ProductMetadata {
+export interface ProductMetadata extends Record<string, unknown> {
   price?: number
   sku?: string
   stock_quantity?: number

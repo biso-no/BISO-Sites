@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Button } from '@repo/ui/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@repo/ui/components/ui/dropdown-menu'
 import { MoreHorizontal, Download, Trash2, Mail } from 'lucide-react'
 import { JobApplication } from '@/lib/types/job-application'
 import { updateJobApplicationStatus, exportJobApplicationData, deleteJobApplicationData } from '@/app/actions/jobs'

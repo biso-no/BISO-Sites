@@ -1,5 +1,6 @@
 import { createSessionClient } from "@repo/api/server";
 import { ID } from '@repo/api'
+import { Departments } from "@repo/api/types/appwrite";
 
 export async function uploadUnitLogo(file: File) {
   try {
@@ -15,3 +16,16 @@ export async function uploadUnitLogo(file: File) {
     throw error;
   }
 }
+
+export async function updateDepartment(department: Departments) {
+  const { db } = await createSessionClient();
+  const response = await db.updateRow('app', 'departments', department.$id, department);
+  return response;
+}
+
+export async function createDepartment(department: Departments) {
+  const { db } = await createSessionClient();
+  const response = await db.createRow('app', 'departments', department.Id, department);
+  return response;
+}
+

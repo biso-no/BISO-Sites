@@ -7,7 +7,7 @@ import { DepartmentCard } from '@/components/units/department-card';
 import { DepartmentFilters } from '@/components/units/department-filters';
 import { DepartmentEditDialog } from '@/components/units/department-edit-dialog';
 import useDepartmentsFilter, { FilterState } from '@/lib/hooks/use-departments-filter';
-import { Button } from '@/components/ui/button';
+import { Button } from '@repo/ui/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@repo/ui/components/ui/dropdown-menu';
 import { ArrowUpDown, Plus, Check } from 'lucide-react';
 
 interface DepartmentClientWrapperProps {

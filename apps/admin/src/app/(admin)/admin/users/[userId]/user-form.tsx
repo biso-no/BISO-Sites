@@ -4,32 +4,32 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { updateUser } from '@/lib/admin/db'
 import { User } from '@/lib/admin/db'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@repo/ui/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@repo/ui/components/ui/card"
+import { Checkbox } from "@repo/ui/components/ui/checkbox"
+import { Input } from "@repo/ui/components/ui/input"
+import { Label } from "@repo/ui/components/ui/label"
+import { Switch } from "@repo/ui/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select"
+import { Badge } from "@repo/ui/components/ui/badge"
 import { toast } from "@/lib/hooks/use-toast"
 import { 
   Avatar, 
   AvatarFallback, 
   AvatarImage 
-} from "@/components/ui/avatar"
+} from "@repo/ui/components/ui/avatar"
 import { 
   Tabs, 
   TabsContent, 
   TabsList, 
   TabsTrigger 
-} from "@/components/ui/tabs"
+} from "@repo/ui/components/ui/tabs"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@repo/ui/components/ui/tooltip"
 import { ArrowLeft, Save, RefreshCw, UserCog, Shield, Building, Mail, AlertTriangle } from "lucide-react"
 
 export interface UserFormProps {

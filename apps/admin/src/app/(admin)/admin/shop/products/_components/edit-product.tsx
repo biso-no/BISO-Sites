@@ -2,28 +2,28 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ChevronLeft, Languages, Sparkles } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
-import { Switch } from '@/components/ui/switch'
+import { Badge } from '@repo/ui/components/ui/badge'
+import { Button } from '@repo/ui/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
+import { Label } from '@repo/ui/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/ui/components/ui/tabs'
+import { Textarea } from '@repo/ui/components/ui/textarea'
+import { Switch } from '@repo/ui/components/ui/switch'
 import { toast } from 'sonner'
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion'
+} from '@repo/ui/components/ui/accordion'
 
 import { updateProduct, createProduct, translateProductContent } from '@/app/actions/products'
 import { listCampuses } from '@/app/actions/events' // Using from events actions
@@ -34,7 +34,7 @@ import type {
   CreateProductData, 
   UpdateProductData 
 } from '@/lib/types/product'
-import type { Campus } from '@/lib/types/campus'
+import type { Campus } from '@/lib/types/post'
 import ImageUploadCard from './image-upload-card'
 import { VariationsEditor } from './variations-editor'
 import { CustomFieldsEditor } from './custom-fields-editor'
@@ -108,8 +108,7 @@ export function EditProduct({ product }: EditProductProps) {
 
   // Extract translations from product
   const getTranslation = (locale: 'en' | 'no'): ProductTranslation | undefined => {
-    if (!product?.translation_refs) return undefined
-    const translation = product.translation_refs.find((t: any) => t.locale === locale)
+    const translation = product?.translations?.[locale]
     if (!translation) return undefined
     return {
       title: translation.title,
@@ -117,29 +116,33 @@ export function EditProduct({ product }: EditProductProps) {
     }
   }
 
+  const metadataDefaults = product?.metadata_parsed ?? {}
+
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       slug: product?.slug || '',
-      status: product?.status || 'draft',
+      status: (product?.status === 'draft' || product?.status === 'published' || product?.status === 'archived') 
+        ? product.status 
+        : 'draft',
       campus_id: product?.campus_id || '',
       metadata: {
-        price: product?.price || 0,
-        sku: product?.sku || '',
-        stock_quantity: product?.stock_quantity || 0,
-        category: product?.category || '',
-        image: product?.image || '',
-        images: product?.images || [],
-        weight: product?.weight || 0,
-        dimensions: product?.dimensions || '',
-        is_digital: product?.is_digital || false,
-        shipping_required: product?.shipping_required !== false,
-        member_discount_enabled: product?.member_discount_enabled || false,
-        member_discount_percent: product?.member_discount_percent || 0,
-        max_per_user: product?.max_per_user,
-        max_per_order: product?.max_per_order,
-        custom_fields: product?.custom_fields || [],
-        variations: product?.variations || [],
+        price: (metadataDefaults as ProductMetadata).price ?? product?.regular_price ?? 0,
+        sku: (metadataDefaults as ProductMetadata).sku || '',
+        stock_quantity: (metadataDefaults as ProductMetadata).stock_quantity ?? product?.stock ?? 0,
+        category: (metadataDefaults as ProductMetadata).category || product?.category || '',
+        image: ((metadataDefaults as ProductMetadata).image as string | undefined) || product?.image || '',
+        images: (metadataDefaults as ProductMetadata).images || [],
+        weight: (metadataDefaults as ProductMetadata).weight ?? 0,
+        dimensions: (metadataDefaults as ProductMetadata).dimensions || '',
+        is_digital: (metadataDefaults as ProductMetadata).is_digital || false,
+        shipping_required: (metadataDefaults as ProductMetadata).shipping_required ?? true,
+        member_discount_enabled: (metadataDefaults as ProductMetadata).member_discount_enabled || false,
+        member_discount_percent: (metadataDefaults as ProductMetadata).member_discount_percent ?? 0,
+        max_per_user: (metadataDefaults as ProductMetadata).max_per_user,
+        max_per_order: (metadataDefaults as ProductMetadata).max_per_order,
+        custom_fields: (metadataDefaults as ProductMetadata).custom_fields || [],
+        variations: (metadataDefaults as ProductMetadata).variations || [],
       },
       translations: {
         en: getTranslation('en'),
@@ -193,7 +196,7 @@ export function EditProduct({ product }: EditProductProps) {
     }
   }
 
-  const onSubmit = async (data: ProductFormData) => {
+  const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
     setIsSubmitting(true)
 
     try {
@@ -321,10 +324,10 @@ export function EditProduct({ product }: EditProductProps) {
   const selectedCampus = campuses.find(c => c.$id === form.watch('campus_id'))
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4">
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-          <div className="flex items-center gap-4">
+    <div className="flex min-h-screen w-full flex-col">
+      <div className="flex flex-col sm:gap-4">
+        <main className="grid flex-1 items-start gap-4">
+          <div className="flex items-center gap-4 mb-4">
             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Back</span>
@@ -349,7 +352,7 @@ export function EditProduct({ product }: EditProductProps) {
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-[1fr_300px] lg:gap-8">
               <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
                 {/* Product Details with Translations */}
-                <Card>
+                <Card className="glass-panel">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Languages className="h-5 w-5" />
@@ -472,8 +475,8 @@ export function EditProduct({ product }: EditProductProps) {
                   defaultValue={['product-details']}
                   className="space-y-4"
                 >
-                  <AccordionItem value="product-details" className="overflow-hidden rounded-lg border bg-card">
-                    <AccordionTrigger className="px-4 py-3 text-left text-base font-semibold">
+                  <AccordionItem value="product-details" className="overflow-hidden rounded-lg border bg-card glass-panel">
+                    <AccordionTrigger className="px-4 py-3 text-left text-base font-semibold hover:no-underline">
                       Product Details
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
@@ -658,8 +661,8 @@ export function EditProduct({ product }: EditProductProps) {
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                  <AccordionItem value="options-fields" className="overflow-hidden rounded-lg border bg-card">
-                    <AccordionTrigger className="px-4 py-3 text-left text-base font-semibold">
+                  <AccordionItem value="options-fields" className="overflow-hidden rounded-lg border bg-card glass-panel">
+                    <AccordionTrigger className="px-4 py-3 text-left text-base font-semibold hover:no-underline">
                       Options & Fields
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
@@ -702,7 +705,7 @@ export function EditProduct({ product }: EditProductProps) {
               {/* Sidebar */}
               <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
                 {/* Status & Campus */}
-                <Card>
+                <Card className="glass-panel">
                   <CardHeader>
                     <CardTitle>Product Status</CardTitle>
                   </CardHeader>
@@ -794,7 +797,7 @@ export function EditProduct({ product }: EditProductProps) {
           </Form>
 
           {/* Mobile Actions */}
-          <div className="flex items-center justify-center gap-2 md:hidden">
+          <div className="flex items-center justify-center gap-2 md:hidden mt-4">
             <Button variant="outline" size="sm" onClick={() => router.back()}>
               Cancel
             </Button>
