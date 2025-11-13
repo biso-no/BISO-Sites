@@ -89,6 +89,8 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
     if (productsResponse.rows.length === 0) return null
     
     const product = productsResponse.rows[0]
+
+    if (!product) return null
     
     // Get translation for the requested locale
     const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
@@ -139,7 +141,7 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
       slug: data.slug,
       status: data.status,
       campus_id: data.campus_id,
-      metadata: data.metadata ? JSON.stringify(data.metadata) : undefined,
+      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       translation_refs: translationRefs
     })
     
