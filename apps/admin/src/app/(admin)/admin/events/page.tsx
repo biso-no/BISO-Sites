@@ -1,23 +1,23 @@
 import Link from "next/link"
 
 import { listEvents } from "@/app/actions/events"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@repo/ui/components/ui/badge"
+import { Button } from "@repo/ui/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+} from "@repo/ui/components/ui/card"
+import { Input } from "@repo/ui/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@repo/ui/components/ui/select"
 import { AdminSummary } from "@/components/admin/admin-summary"
 import {
   formatPercentage,
@@ -148,7 +148,9 @@ export default async function AdminEventsPage({
             <tbody className="divide-y divide-primary/10 bg-white/78">
               {events.map((evt) => {
                 const refs = evt.translation_refs ?? []
-                const metadata = parseJSONSafe<Record<string, unknown>>(evt.metadata)
+                const metadata =
+                  (evt.metadata_parsed as Record<string, unknown> | undefined) ??
+                  parseJSONSafe<Record<string, unknown>>(evt.metadata)
                 const translationLocales = getUniqueLocales(refs)
                 const primaryTitle = refs[0]?.title || evt.slug || "Untitled"
                 const statusToken = getStatusToken(evt.status)

@@ -2,23 +2,23 @@ import Link from "next/link"
 import { Calendar } from "lucide-react"
 
 import { listJobs } from "@/app/actions/jobs"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@repo/ui/components/ui/badge"
+import { Button } from "@repo/ui/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+} from "@repo/ui/components/ui/card"
+import { Input } from "@repo/ui/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@repo/ui/components/ui/select"
 import {
   formatPercentage,
   getLocaleLabel,
@@ -144,7 +144,7 @@ export default async function AdminJobsPage({
               {jobs.map((job) => {
                 const translationLocales = getUniqueLocales(job.translation_refs)
                 const primaryTitle = job.translation_refs?.[0]?.title || job.slug
-                const metadata = parseJSONSafe<Record<string, unknown>>(job.metadata)
+                const metadata = (job.metadata_parsed as Record<string, unknown> | undefined) ?? parseJSONSafe<Record<string, unknown>>(job.metadata as string | null | undefined)
                 const statusToken = getStatusToken(job.status)
                 const deadline = metadata.application_deadline
                   ? new Date(metadata.application_deadline)

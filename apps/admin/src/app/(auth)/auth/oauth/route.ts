@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   
 
   const { account } = await createAdminClient();
-  const session = await account.createSession(userId, secret);
+  const session = await account.createSession(userId!, secret!);
 
   // Session logging for debugging
   console.debug && console.debug("Session:", session);
@@ -20,9 +20,8 @@ export async function GET(request: NextRequest) {
   (await cookies()).set("a_session_biso", session.secret, {
     path: "/",
     httpOnly: true,
-    sameSite: "none",
+    sameSite: "lax",
     secure: true,
-    domain: ".biso.no"
   });
 
   // Redirect to the original destination if available

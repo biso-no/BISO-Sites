@@ -8,9 +8,9 @@ import {
   BanknoteIcon as Bank, FileText, User,
   CheckCircle2, Clock, AlertCircle
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 // Loading skeleton component for the expense details

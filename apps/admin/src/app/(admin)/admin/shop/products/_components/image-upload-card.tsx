@@ -11,8 +11,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+} from "@repo/ui/components/ui/card"
+import { Button } from "@repo/ui/components/ui/button"
 import { uploadProductImage } from "@/app/actions/products"
 import { cn } from "@/lib/utils"
 

@@ -6,6 +6,8 @@ import { JobApplication, JobApplicationFormData } from '@/lib/types/job-applicat
 import { ContentTranslation } from '@/lib/types/content-translation'
 import { revalidatePath } from 'next/cache'
 import { ContentTranslations, ContentType, Locale, Jobs, Status, Campus, Departments } from '@repo/api/types/appwrite'
+import type { AdminJob } from '@/lib/types/job'
+import { JOB_SELECT_FIELDS, normalizeJobRow } from './_utils/translatable'
 
 export interface ListJobsParams {
   limit?: number
@@ -43,98 +45,80 @@ export interface CreateJobData {
   }
 }
 
-export async function listJobs(params: ListJobsParams = {}): Promise<ContentTranslations[]> {
+export async function listJobs(params: ListJobsParams = {}): Promise<AdminJob[]> {
   const {
     limit = 25,
     status = 'published',
     campus,
-    locale
+    search
   } = params
 
   try {
     const { db } = await createAdminClient()
     
     const queries = [
-      Query.equal('content_type', ContentType.JOB),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'job_ref.*', 'job_ref.department.*']),
+      Query.select([...JOB_SELECT_FIELDS]),
       Query.limit(limit),
       Query.orderDesc('$createdAt')
     ]
 
-    // Only add locale filter if provided
-    if (locale) {
-      queries.push(Query.equal('locale', locale as Locale))
-    }
-
     if (status !== 'all') {
-      queries.push(Query.equal('job_ref.status', status))
+      queries.push(Query.equal('status', status))
     }
 
     if (campus && campus !== 'all') {
-      queries.push(Query.equal('job_ref.campus_id', campus))
+      queries.push(Query.equal('campus_id', campus))
     }
 
-    // Get jobs with their translations using Appwrite's nested relationships
-    const jobsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
-    const jobs = jobsResponse.rows
+    if (search?.trim()) {
+      queries.push(Query.search('slug', search.trim()))
+    }
 
-    return jobs
+    const jobsResponse = await db.listRows<Jobs>('app', 'jobs', queries)
+    return jobsResponse.rows.map(normalizeJobRow)
   } catch (error) {
     console.error('Error fetching jobs:', error)
     return []
   }
 }
 
-export async function getJob(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+export async function getJob(id: string): Promise<AdminJob | null> {
   try {
     const { db } = await createAdminClient()
-    
-    // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
-      Query.equal('content_type', ContentType.JOB),
-      Query.equal('content_id', id),
-      Query.equal('locale', locale),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'job_ref.*', 'job_ref.department.*']),
-      Query.limit(1)
+
+    const response = await db.listRows<Jobs>('app', 'jobs', [
+      Query.equal('$id', id),
+      Query.limit(1),
+      Query.select([...JOB_SELECT_FIELDS])
     ])
-    
-    if (translationsResponse.rows.length === 0) {
+
+    const job = response.rows[0]
+    if (!job) {
       return null
     }
-    
-    return translationsResponse.rows[0] ?? null
+
+    return normalizeJobRow(job)
   } catch (error) {
     console.error('Error fetching job:', error)
     return null
   }
 }
 
-export async function getJobBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+export async function getJobBySlug(slug: string): Promise<AdminJob | null> {
   try {
     const { db } = await createAdminClient()
     
-    // Get job by slug
     const jobsResponse = await db.listRows<Jobs>('app', 'jobs', [
       Query.equal('slug', slug),
-      Query.limit(1)
+      Query.limit(1),
+      Query.select([...JOB_SELECT_FIELDS])
     ])
     
-    if (jobsResponse.rows.length === 0) return null
-    
-    const job = jobsResponse.rows[0] ?? null
-    
-    // Get translation for the requested locale
-    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
-      Query.equal('content_type', ContentType.JOB),
-      Query.equal('content_id', job?.$id ?? ''),
-      Query.equal('locale', locale),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'job_ref.*', 'job_ref.department.*']),
-      Query.limit(1)
-    ])
-    
-    if (translationsResponse.rows.length === 0) return null
-    
-    return translationsResponse.rows[0] ?? null
+    const job = jobsResponse.rows[0]
+
+    if (!job) return null
+
+    return normalizeJobRow(job)
   } catch (error) {
     console.error('Error fetching job by slug:', error)
     return null
@@ -144,6 +128,12 @@ export async function getJobBySlug(slug: string, locale: 'en' | 'no'): Promise<C
 export async function createJob(data: CreateJobData, skipRevalidation = false): Promise<Jobs | null> {
   try {
     const { db } = await createAdminClient()
+    const statusValue =
+      data.status === 'draft'
+        ? Status.DRAFT
+        : data.status === 'published'
+          ? Status.PUBLISHED
+          : Status.CLOSED
     
     // Build translation_refs array from provided translations only
     const translationRefs: ContentTranslations[] = []
@@ -172,12 +162,12 @@ export async function createJob(data: CreateJobData, skipRevalidation = false): 
     
     const job = await db.createRow('app', 'jobs', 'unique()', {
       slug: data.slug,
-      status: data.status === 'draft' ? Status.DRAFT : data.status === 'published' ? Status.PUBLISHED : Status.CLOSED,
+      status: statusValue,
       campus_id: data.campus_id,
-      campus: data.campus_id,
+      campus: data.campus_id as Campus["$id"],
       department_id: data.department_id ?? null,
-      department: data.department_id ? data.department_id : null,
-      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      department: data.department_id ? data.department_id as Departments["$id"] : null,
+      metadata: data.metadata ?? null,
       translations: [] as ContentTranslations[],
       translation_refs: translationRefs
     }) as Jobs
@@ -203,11 +193,16 @@ export async function updateJob(id: string, data: Partial<CreateJobData>): Promi
     
     if (data.slug !== undefined) updateData.slug = data.slug
     if (data.status !== undefined) {
-      updateData.status = data.status === 'draft' ? Status.DRAFT : data.status === 'published' ? Status.PUBLISHED : Status.CLOSED
+      updateData.status =
+        data.status === 'draft'
+          ? Status.DRAFT
+          : data.status === 'published'
+            ? Status.PUBLISHED
+            : Status.CLOSED
     }
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id
     if (data.department_id !== undefined) updateData.department_id = data.department_id
-    if (data.metadata !== undefined) updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null
+    if (data.metadata !== undefined) updateData.metadata = data.metadata ?? null
     
     // Build translation_refs array from provided translations only
     if (data.translations) {
@@ -301,7 +296,7 @@ export async function translateJobContent(
       throw new Error('Source translation not found')
     }
     
-    const sourceTranslation = existingResponse.rows[0] ?? null
+    const sourceTranslation = existingResponse.rows[0]!
     
     // Use your existing AI implementation to translate
     const { generateText } = await import('ai')

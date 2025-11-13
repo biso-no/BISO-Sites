@@ -8,9 +8,9 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Users, MapPin, Calendar, Lock, Edit, Save, ArrowLeft, X, Upload } from 'lucide-react';
 import { Department } from '@/lib/admin/departments';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardFooter, CardHeader } from '@repo/ui/components/ui/card';
+import { Button } from '@repo/ui/components/ui/button';
+import { Badge } from '@repo/ui/components/ui/badge';
 import {
   Form,
   FormControl,
@@ -19,17 +19,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
+} from "@repo/ui/components/ui/form";
+import { Input } from '@repo/ui/components/ui/input';
+import { Switch } from '@repo/ui/components/ui/switch';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Separator } from '@/components/ui/separator';
+} from "@repo/ui/components/ui/select";
+import { Separator } from '@repo/ui/components/ui/separator';
 import { updateDepartment } from '@/lib/admin/departments';
 import { toast } from '@/lib/hooks/use-toast';
 import { RichTextEditor } from '@/components/rich-text-editor';

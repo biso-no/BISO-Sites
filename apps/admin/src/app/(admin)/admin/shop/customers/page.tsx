@@ -1,6 +1,6 @@
 import { getOrders } from '@/app/actions/orders'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@repo/ui/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@repo/ui/components/ui/table'
 
 export default async function CustomersPage() {
   const orders = await getOrders({ limit: 500 })
@@ -17,8 +17,8 @@ export default async function CustomersPage() {
   const customers = Array.from(customersMap.values()).sort((a, b) => b.total - a.total)
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40 p-4">
-      <Card>
+    <div className="flex w-full flex-col">
+      <Card className="glass-panel">
         <CardHeader>
           <CardTitle>Customers</CardTitle>
           <CardDescription>Unique buyers aggregated from orders</CardDescription>
