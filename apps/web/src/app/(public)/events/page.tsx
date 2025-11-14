@@ -18,6 +18,7 @@ async function EventsList({ locale }: { locale: 'en' | 'no' }) {
     status: 'published',
     limit: 50,
   })
+  console.log("Events: ", events);
 
   return <EventsListClient events={events} />
 }
