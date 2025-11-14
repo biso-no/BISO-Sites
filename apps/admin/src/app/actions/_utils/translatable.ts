@@ -81,7 +81,7 @@ export const PRODUCT_SELECT_FIELDS = [
 
 // DEPRECATED: normalizeEventRow has been replaced with transformEventData in events.ts
 // This function is kept for backward compatibility but is no longer used in the codebase
-export const normalizeEventRow = (row: WithTranslations<Events>): AdminEvent => {
+const normalizeEventRow = (row: WithTranslations<Events>): AdminEvent => {
   const translationRefs = ensureTranslationArray(row.translation_refs)
   const metadata = parseMetadata<EventMetadata>(row.metadata)
 
@@ -124,7 +124,7 @@ export const normalizeProductRow = (row: WithTranslations<WebshopProducts>): Pro
   } as ProductWithTranslations
 }
 
-export const normalizeNewsRow = (row: WithTranslations<News>): NewsItemWithTranslations => {
+const normalizeNewsRow = (row: WithTranslations<News>): NewsItemWithTranslations => {
   const translationRefs = ensureTranslationArray(row.translation_refs)
 
   return {

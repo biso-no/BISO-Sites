@@ -250,7 +250,7 @@ export async function createExpenseAttachment(data: {
 /**
  * Update an existing expense
  */
-export async function updateExpense(
+async function updateExpense(
   expenseId: string,
   data: Partial<CreateExpenseInput>
 ) {
@@ -294,7 +294,7 @@ export async function updateExpense(
 /**
  * Delete an expense
  */
-export async function deleteExpense(expenseId: string) {
+async function deleteExpense(expenseId: string) {
   try {
     const { db, account } = await createSessionClient();
     const user = await account.get();

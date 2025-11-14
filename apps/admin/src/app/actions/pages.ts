@@ -155,7 +155,7 @@ export async function publishPage(input: PublishPageInput) {
   return translation;
 }
 
-export async function deleteManagedPage(pageId: string) {
+async function deleteManagedPage(pageId: string) {
   const page = await getPageById(pageId);
   await deletePage(pageId);
 
@@ -166,7 +166,7 @@ export async function deleteManagedPage(pageId: string) {
   revalidatePath(ADMIN_LIST_PATH);
 }
 
-export async function deleteManagedTranslation(translationId: string) {
+async function deleteManagedTranslation(translationId: string) {
   await deletePageTranslation(translationId);
   revalidatePath(ADMIN_LIST_PATH);
 }

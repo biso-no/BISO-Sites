@@ -17,7 +17,7 @@ export interface VarslingSubmission {
 }
 
 // Get varsling settings for a specific campus
-export async function getVarslingSettings(campusId?: string): Promise<VarslingSettings[]> {
+async function getVarslingSettings(campusId?: string): Promise<VarslingSettings[]> {
   try {
     const { db } = await createAdminClient();
     
@@ -103,7 +103,7 @@ export async function deleteVarslingSettings(id: string): Promise<{ success: boo
 }
 
 // Submit varsling case (public)
-export async function submitVarslingCase(data: VarslingSubmission): Promise<{ success: boolean; error?: string }> {
+async function submitVarslingCase(data: VarslingSubmission): Promise<{ success: boolean; error?: string }> {
   try {
     const { messaging } = await createAdminClient();
     

@@ -120,7 +120,7 @@ Generate only the description text, no additional formatting or explanations.`;
 /**
  * Process multiple receipts in parallel
  */
-export async function processMultipleReceipts(
+async function processMultipleReceipts(
   files: Array<{ id: string; url: string }>
 ): Promise<{
   success: boolean;
@@ -167,7 +167,7 @@ export async function processMultipleReceipts(
 /**
  * Validate and enhance receipt data using AI
  */
-export async function validateReceiptData(data: {
+async function validateReceiptData(data: {
   description: string;
   amount: number;
   date: string;

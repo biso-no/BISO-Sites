@@ -364,7 +364,7 @@ export const deleteNavMenuItem = async (navId: string): Promise<MutationResponse
   }
 }
 
-export const moveNavMenuItem = async (
+const moveNavMenuItem = async (
   navId: string,
   direction: "up" | "down"
 ): Promise<MutationResponse> => {

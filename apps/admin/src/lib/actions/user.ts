@@ -54,7 +54,7 @@ export async function getLoggedInUser(): Promise<{ user: Models.User<Models.Pref
     }
 }
 
-export async function getCurrentSession() {
+async function getCurrentSession() {
     const { account } = await createSessionClient();
     const session = await account.getSession('current');
     return session;
@@ -71,7 +71,7 @@ export async function getUserById(userId: string): Promise<Users | null> {
     }
 }
 
-export async function signIn(email: string) {
+async function signIn(email: string) {
     try {
         const { account } = await createAdminClient();
         const user = await account.createMagicURLToken(ID.unique(), email, `${BASE_URL}/auth/callback`);
@@ -82,7 +82,7 @@ export async function signIn(email: string) {
     }
 }
 
-export async function signInWithOauth() {
+async function signInWithOauth() {
 	const { account } = await createAdminClient();
 
   const origin = (await headers()).get("origin");
@@ -162,7 +162,7 @@ export async function updateProfile(profile: Partial<Users>) {
     }
 }
 
-export async function createProfile(profile: Partial<Users>, userId: string) {
+async function createProfile(profile: Partial<Users>, userId: string) {
     try {
         const { account, db } = await createSessionClient();
         
@@ -179,7 +179,7 @@ export async function createProfile(profile: Partial<Users>, userId: string) {
     }
 }
 
-export async function getUserPreferences(userId: string): Promise<Models.Preferences | null> {
+async function getUserPreferences(userId: string): Promise<Models.Preferences | null> {
     
     const { account, db } = await createSessionClient();
     const user = await account.get();
@@ -192,7 +192,7 @@ export async function getUserPreferences(userId: string): Promise<Models.Prefere
     return prefs;
 }
 
-export async function updateUserPreferences(userId: string, prefs: Record<string, any>): Promise<Models.Preferences | null> {
+async function updateUserPreferences(userId: string, prefs: Record<string, any>): Promise<Models.Preferences | null> {
     const { account, db } = await createSessionClient();
     const user = await account.get();
 
@@ -210,7 +210,7 @@ export async function updateUserPreferences(userId: string, prefs: Record<string
     
     
 
-export async function createJWT(): Promise<string | null> {
+async function createJWT(): Promise<string | null> {
     try {
         const { account } = await createSessionClient();
         const jwt = await account.createJWT();

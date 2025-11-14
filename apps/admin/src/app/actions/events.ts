@@ -319,7 +319,7 @@ export async function updateEvent(eventId: string, data: UpdateEventData): Promi
   }
 }
 
-export async function deleteEvent(id: string): Promise<boolean> {
+async function deleteEvent(id: string): Promise<boolean> {
   try {
     const { db } = await createSessionClient()
     
@@ -380,7 +380,7 @@ export async function uploadEventImage(formData: FormData) {
   return { id: uploaded.$id, url }
 }
 
-export async function getEventImageViewUrl(fileId: string) {
+async function getEventImageViewUrl(fileId: string) {
   return getStorageFileUrl('content', fileId)
 }
 
@@ -415,7 +415,7 @@ export async function listCampuses() {
 }
 
 // Helper function to get collection events
-export async function getCollectionEvents(collectionId: string, locale: 'en' | 'no'): Promise<ContentTranslations[]> {
+async function getCollectionEvents(collectionId: string, locale: 'en' | 'no'): Promise<ContentTranslations[]> {
   try {
     const { db } = await createSessionClient()
     

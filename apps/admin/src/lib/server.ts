@@ -66,7 +66,7 @@ export async function signInWithMagicLink(email: string) {
     return redirectUrl ? true : false;
 }
 
-export async function createMagicLinkSession(userId: string, secret: string) {
+async function createMagicLinkSession(userId: string, secret: string) {
     const { account } = await createSessionClient();
 
     const session = await account.updateMagicURLSession(userId, secret);
@@ -75,13 +75,13 @@ export async function createMagicLinkSession(userId: string, secret: string) {
 }
 type Team = Models.Team
 type Teams = Models.TeamList<Models.Preferences>
-  export async function getTeams(query: string[]): Promise<Teams> {
+  async function getTeams(query: string[]): Promise<Teams> {
     const { account, teams } = await createSessionClient();
   
     return teams.list(query);
   }
   
-  export async function getTeam(teamId: string): Promise<Team> {
+  async function getTeam(teamId: string): Promise<Team> {
     const { account, teams } = await createSessionClient();
   
     return teams.get(teamId);

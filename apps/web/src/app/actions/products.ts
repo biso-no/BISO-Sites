@@ -76,7 +76,7 @@ export async function getProduct(id: string, locale: 'en' | 'no'): Promise<Conte
   }
 }
 
-export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -110,7 +110,7 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
   }
 }
 
-export async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<Product | null> {
+async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<Product | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -158,7 +158,7 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
   }
 }
 
-export async function updateProduct(id: string, data: UpdateProductData, skipRevalidation = false): Promise<Product | null> {
+async function updateProduct(id: string, data: UpdateProductData, skipRevalidation = false): Promise<Product | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -213,7 +213,7 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
   }
 }
 
-export async function deleteProduct(id: string, skipRevalidation = false): Promise<boolean> {
+async function deleteProduct(id: string, skipRevalidation = false): Promise<boolean> {
   try {
     const { db } = await createAdminClient()
     
@@ -232,7 +232,7 @@ export async function deleteProduct(id: string, skipRevalidation = false): Promi
   }
 }
 
-export async function updateProductStatus(
+async function updateProductStatus(
   id: string,
   status: Product['status'],
   skipRevalidation = false
@@ -255,7 +255,7 @@ export async function updateProductStatus(
 }
 
 // AI Translation function
-export async function translateProductContent(
+async function translateProductContent(
   content: ProductTranslation,
   fromLocale: 'en' | 'no',
   toLocale: 'en' | 'no'
@@ -291,7 +291,7 @@ export async function translateProductContent(
 }
 
 // Get products for public pages (published only)
-export async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ContentTranslations[]> {
+async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ContentTranslations[]> {
   return listProducts({
     status: 'published',
     locale,
@@ -301,7 +301,7 @@ export async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'e
 
 const PRODUCT_IMAGE_BUCKET = process.env.APPWRITE_PRODUCT_BUCKET_ID || 'product-images'
 
-export async function uploadProductImage(formData: FormData) {
+async function uploadProductImage(formData: FormData) {
   const file = formData.get('file')
   if (!file || !(file instanceof File)) {
     throw new Error('No file provided')

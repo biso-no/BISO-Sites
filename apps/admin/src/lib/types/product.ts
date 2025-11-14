@@ -21,7 +21,7 @@ export interface ProductVariation {
   is_default?: boolean
 }
 
-export type Product = WebshopProducts
+type Product = WebshopProducts
 
 // Helper type for products with parsed metadata
 export type ProductWithTranslations = WebshopProducts & {

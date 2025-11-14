@@ -19,7 +19,7 @@ const toParsedProgram = (program: FundingProgram): ParsedFundingProgram => ({
   parsedMetadata: parseFundingMetadata(program.metadata)
 })
 
-export async function listFundingPrograms(status: string = "active"): Promise<ParsedFundingProgram[]> {
+async function listFundingPrograms(status: string = "active"): Promise<ParsedFundingProgram[]> {
   try {
     const { db } = await createAdminClient()
     const queries = [Query.orderAsc("slug"), Query.limit(50)]

@@ -280,11 +280,11 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
   }
 }
 
-export async function startCartCheckout(data: CartCheckoutData) {
+async function startCartCheckout(data: CartCheckoutData) {
   return createCartCheckoutSession(data)
 }
 
-export async function getCheckoutStatus(orderId: string): Promise<
+async function getCheckoutStatus(orderId: string): Promise<
   | { success: false; error: string }
   | { success: true; order: Orders; vippsStatus: unknown }
 > {

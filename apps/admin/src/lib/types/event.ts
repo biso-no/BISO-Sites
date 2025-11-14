@@ -20,7 +20,7 @@ export interface EventMetadata {
   [key: string]: unknown
 }
 
-export interface EventWithTranslation extends ContentTranslations {
+interface EventWithTranslation extends ContentTranslations {
   event_ref: NonNullable<ContentTranslations['event_ref']>
 }
 
@@ -35,7 +35,7 @@ export interface AdminEvent extends Events {
   metadata_parsed: EventMetadata
 }
 
-export function parseEventMetadata(metadataString: string | null | undefined): EventMetadata {
+function parseEventMetadata(metadataString: string | null | undefined): EventMetadata {
   if (!metadataString) return {}
   
   try {
@@ -45,24 +45,24 @@ export function parseEventMetadata(metadataString: string | null | undefined): E
   }
 }
 
-export function formatEventPrice(price: number | null | undefined, memberPrice?: number | null): string {
+function formatEventPrice(price: number | null | undefined, memberPrice?: number | null): string {
   if (!price || price === 0) return 'Free'
   return `${price} NOK`
 }
 
-export function getEventCategory(metadata: EventMetadata): EventCategory {
+function getEventCategory(metadata: EventMetadata): EventCategory {
   const category = metadata.category as EventCategory
   return eventCategories.includes(category) ? category : 'Social'
 }
 
-export function isCollectionEvent(event: ContentTranslations): boolean {
+function isCollectionEvent(event: ContentTranslations): boolean {
   return event.event_ref?.is_collection ?? false
 }
 
-export function hasCollectionParent(event: ContentTranslations): boolean {
+function hasCollectionParent(event: ContentTranslations): boolean {
   return !!event.event_ref?.collection_id
 }
 
-export function getCollectionPricing(event: ContentTranslations): CollectionPricing | null {
+function getCollectionPricing(event: ContentTranslations): CollectionPricing | null {
   return event.event_ref?.collection_pricing ?? null
 }
