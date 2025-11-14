@@ -131,10 +131,16 @@ export function DepartmentFilters({
           {/* Campus Filter */}
           <Select 
             value={filters.campus_id || "all"} 
-            onValueChange={(value) => updateFilter('campus_id', value === "all" ? undefined : value)}
+            onValueChange={(value) => {
+              updateFilter('campus_id', value === "all" ? undefined : value);
+            }}
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Campuses" />
+              <SelectValue placeholder="All Campuses">
+                {filters.campus_id 
+                  ? campuses.find(c => c.id === filters.campus_id)?.name || "All Campuses"
+                  : "All Campuses"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Campuses</SelectItem>
@@ -149,16 +155,22 @@ export function DepartmentFilters({
           {/* Type Filter */}
           <Select 
             value={filters.type || "all"} 
-            onValueChange={(value) => updateFilter('type', value === "all" ? undefined : value)}
+            onValueChange={(value) => {
+              updateFilter('type', value === "all" ? undefined : value);
+            }}
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Types" />
+              <SelectValue placeholder="All Types">
+                {filters.type 
+                  ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1)
+                  : "All Types"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {types.map((type) => (
                 <SelectItem key={type} value={type}>
-                  {type}
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -260,10 +272,17 @@ export function DepartmentFilters({
                   <Label>Campus</Label>
                   <Select 
                     value={filters.campus_id || "all"} 
-                    onValueChange={(value) => updateFilter('campus_id', value === "all" ? undefined : value)}
+                    onValueChange={(value) => {
+                      updateFilter('campus_id', value === "all" ? undefined : value);
+                      setShowMobileFilters(false);
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="All Campuses" />
+                      <SelectValue placeholder="All Campuses">
+                        {filters.campus_id 
+                          ? campuses.find(c => c.id === filters.campus_id)?.name || "All Campuses"
+                          : "All Campuses"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Campuses</SelectItem>
@@ -281,16 +300,23 @@ export function DepartmentFilters({
                   <Label>Department Type</Label>
                   <Select 
                     value={filters.type || "all"} 
-                    onValueChange={(value) => updateFilter('type', value === "all" ? undefined : value)}
+                    onValueChange={(value) => {
+                      updateFilter('type', value === "all" ? undefined : value);
+                      setShowMobileFilters(false);
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="All Types" />
+                      <SelectValue placeholder="All Types">
+                        {filters.type 
+                          ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1)
+                          : "All Types"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
                       {types.map((type) => (
                         <SelectItem key={type} value={type}>
-                          {type}
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
                         </SelectItem>
                       ))}
                     </SelectContent>
