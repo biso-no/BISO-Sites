@@ -1,7 +1,7 @@
 "use server";
 
-import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { Query, getStorageFileUrl } from "@repo/api";
+import { createSessionClient, createAdminClient } from "@repo/api/server";
 import { Departments, ContentTranslations, ContentType, Locale } from "@repo/api/types/appwrite";
 
 interface GetDepartmentsParams {
@@ -229,4 +229,40 @@ export async function updateDepartmentWithTranslations(
       } as any);
     }
   }
+}
+
+// Storage bucket IDs
+const DEPARTMENT_LOGO_BUCKET = 'units'
+const DEPARTMENT_HERO_BUCKET = 'content'
+
+/**
+ * Upload a department logo image
+ */
+export async function uploadDepartmentLogo(formData: FormData) {
+  const file = formData.get('file')
+  if (!file || !(file instanceof File)) {
+    throw new Error('No file provided')
+  }
+
+  const { storage } = await createAdminClient()
+  const uploaded = await storage.createFile(DEPARTMENT_LOGO_BUCKET, 'unique()', file)
+  const url = getStorageFileUrl(DEPARTMENT_LOGO_BUCKET, uploaded.$id)
+  
+  return { id: uploaded.$id, url }
+}
+
+/**
+ * Upload a department hero image
+ */
+export async function uploadDepartmentHero(formData: FormData) {
+  const file = formData.get('file')
+  if (!file || !(file instanceof File)) {
+    throw new Error('No file provided')
+  }
+
+  const { storage } = await createAdminClient()
+  const uploaded = await storage.createFile(DEPARTMENT_HERO_BUCKET, 'unique()', file)
+  const url = getStorageFileUrl(DEPARTMENT_HERO_BUCKET, uploaded.$id)
+  
+  return { id: uploaded.$id, url }
 }

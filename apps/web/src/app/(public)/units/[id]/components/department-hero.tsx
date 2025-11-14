@@ -12,10 +12,14 @@ interface DepartmentHeroProps {
 export function DepartmentHero({ department }: DepartmentHeroProps) {
   const dept = department.department_ref;
   
+  // Use custom hero image if available, otherwise use default
+  const DEFAULT_HERO_URL = 'https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso';
+  const heroImageUrl = (dept as any)?.hero || DEFAULT_HERO_URL;
+  
   return (
     <div className="relative h-[60vh] overflow-hidden">
       <ImageWithFallback
-        src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxldmVudCUyMHRlYW18ZW58MXx8fHwxNzYyMTY1MTQ1fDA&ixlib=rb-4.1.0&q=80&w=1080"
+        src={heroImageUrl}
         alt={department.title}
         fill
         className="w-full h-full object-cover"

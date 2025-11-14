@@ -84,6 +84,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
     if (index === 0) return
     const next = [...validImages]
     const [selected] = next.splice(index, 1)
+    if (!selected) return
     next.unshift(selected)
     onChange(next)
   }
@@ -108,7 +109,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
           className="hidden"
           onChange={onFileChange}
         />
-        <div className="relative aspect-[4/5] w-full max-h-60 overflow-hidden rounded-md border bg-muted">
+        <div className="relative aspect-4/5 w-full max-h-60 overflow-hidden rounded-md border bg-muted">
           {mainImage ? (
             <Image
               alt="Main product image"

@@ -107,26 +107,26 @@ export function DepartmentFilters({
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Search Bar */}
-        <div className="relative grow">
+        {/* Premium Glass Search Bar */}
+        <div className="relative grow group">
           <Input
             value={searchInputValue}
             onChange={handleSearchInput}
             placeholder="Search departments..."
-            className="pl-10 pr-10"
+            className="pl-11 pr-10 h-11 bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300 focus:shadow-lg focus:shadow-primary/10"
           />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors duration-300" />
           {searchInputValue && (
             <button 
               onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-muted flex items-center justify-center hover:bg-muted-foreground/20"
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-muted/80 backdrop-blur-sm flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-all duration-300 hover:scale-110"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
         
-        {/* Desktop Filters */}
+        {/* Desktop Filters - Premium Style */}
         <div className="hidden md:flex gap-3">
           {/* Campus Filter */}
           <Select 
@@ -135,7 +135,7 @@ export function DepartmentFilters({
               updateFilter('campus_id', value === "all" ? undefined : value);
             }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] h-11 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all duration-300">
               <SelectValue placeholder="All Campuses">
                 {filters.campus_id 
                   ? campuses.find(c => c.id === filters.campus_id)?.name || "All Campuses"
@@ -159,7 +159,7 @@ export function DepartmentFilters({
               updateFilter('type', value === "all" ? undefined : value);
             }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] h-11 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all duration-300">
               <SelectValue placeholder="All Types">
                 {filters.type 
                   ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1)
@@ -179,33 +179,36 @@ export function DepartmentFilters({
           {/* Status Filter Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex gap-2 h-11 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 hover:bg-card/80 transition-all duration-300"
+              >
                 <Filter size={16} />
                 Status
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="bg-card/95 backdrop-blur-md border-border/50">
               <DropdownMenuLabel>Status</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="flex gap-2 cursor-pointer"
                 onClick={() => updateFilter('active', undefined)}
               >
-                {filters.active === undefined && <Check size={16} />}
+                {filters.active === undefined && <Check size={16} className="text-primary" />}
                 <span className={filters.active === undefined ? "font-medium" : ""}>All</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="flex gap-2 cursor-pointer"
                 onClick={() => updateFilter('active', true)}
               >
-                {filters.active === true && <Check size={16} />}
+                {filters.active === true && <Check size={16} className="text-primary" />}
                 <span className={filters.active === true ? "font-medium" : ""}>Active</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="flex gap-2 cursor-pointer"
                 onClick={() => updateFilter('active', false)}
               >
-                {filters.active === false && <Check size={16} />}
+                {filters.active === false && <Check size={16} className="text-primary" />}
                 <span className={filters.active === false ? "font-medium" : ""}>Inactive</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -216,7 +219,7 @@ export function DepartmentFilters({
             <Button 
               variant="ghost" 
               onClick={resetFilters}
-              className="gap-2"
+              className="gap-2 h-11 hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
             >
               <X size={16} />
               Reset Filters
@@ -341,24 +344,27 @@ export function DepartmentFilters({
         </div>
       </div>
       
-      {/* Active Filters Display */}
+      {/* Active Filters Display - Premium Pills */}
       {(activeFilterCount > 0 || filters.searchTerm) && (
-        <div className="flex flex-wrap gap-2 animate-in fade-in">
+        <div className="flex flex-wrap gap-2 animate-in fade-in-50 slide-in-from-top-2">
           {filters.searchTerm && (
-            <div className="bg-muted rounded-full px-3 py-1 text-sm flex items-center gap-2">
-              <span>Search: {filters.searchTerm}</span>
-              <button onClick={clearSearch} className="text-muted-foreground hover:text-foreground">
+            <div className="bg-linear-to-r from-primary/10 to-accent/10 backdrop-blur-sm border border-primary/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <span className="font-medium">Search: <span className="text-primary">{filters.searchTerm}</span></span>
+              <button 
+                onClick={clearSearch} 
+                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
+              >
                 <X size={14} />
               </button>
             </div>
           )}
           
           {filters.campus_id && (
-            <div className="bg-muted rounded-full px-3 py-1 text-sm flex items-center gap-2">
-              <span>Campus: {campuses.find(c => c.id === filters.campus_id)?.name}</span>
+            <div className="bg-linear-to-r from-blue-500/10 to-blue-600/10 backdrop-blur-sm border border-blue-500/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <span className="font-medium">Campus: <span className="text-blue-600">{campuses.find(c => c.id === filters.campus_id)?.name}</span></span>
               <button 
                 onClick={() => updateFilter('campus_id', undefined)} 
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
               >
                 <X size={14} />
               </button>
@@ -366,11 +372,11 @@ export function DepartmentFilters({
           )}
           
           {filters.type && (
-            <div className="bg-muted rounded-full px-3 py-1 text-sm flex items-center gap-2">
-              <span>Type: {filters.type}</span>
+            <div className="bg-linear-to-r from-purple-500/10 to-purple-600/10 backdrop-blur-sm border border-purple-500/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <span className="font-medium">Type: <span className="text-purple-600">{filters.type}</span></span>
               <button 
                 onClick={() => updateFilter('type', undefined)} 
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
               >
                 <X size={14} />
               </button>
@@ -378,11 +384,11 @@ export function DepartmentFilters({
           )}
           
           {filters.active !== undefined && filters.active !== true && (
-            <div className="bg-muted rounded-full px-3 py-1 text-sm flex items-center gap-2">
-              <span>Status: {filters.active ? 'Active' : 'Inactive'}</span>
+            <div className="bg-linear-to-r from-amber-500/10 to-amber-600/10 backdrop-blur-sm border border-amber-500/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <span className="font-medium">Status: <span className="text-amber-600">{filters.active ? 'Active' : 'Inactive'}</span></span>
               <button 
                 onClick={() => updateFilter('active', true)} 
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
               >
                 <X size={14} />
               </button>
