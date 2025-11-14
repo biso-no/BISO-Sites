@@ -8,8 +8,9 @@ import { Input } from '@repo/ui/components/ui/input'
 import { Textarea } from '@repo/ui/components/ui/textarea'
 import { toast } from '@/lib/hooks/use-toast'
 import { upsertSitePage, translateSitePageContent, getSitePageTranslation } from '@/app/actions/site-pages'
+import { Locale } from '@repo/api/types/appwrite'
 
-type Locale = 'en' | 'no'
+type LocaleString = 'en' | 'no'
 type PageSlug = 'privacy' | 'cookies' | 'terms'
 
 const PAGES: Array<{ slug: PageSlug; label: string }> = [
@@ -20,14 +21,15 @@ const PAGES: Array<{ slug: PageSlug; label: string }> = [
 
 export function PolicyPagesManager() {
   const [activePage, setActivePage] = useState<PageSlug>('privacy')
-  const [activeLocale, setActiveLocale] = useState<Locale>('no')
+  const [activeLocale, setActiveLocale] = useState<LocaleString>('no')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [pending, startTransition] = useTransition()
 
-  const load = async (slug: PageSlug, locale: Locale) => {
+  const load = async (slug: PageSlug, locale: LocaleString) => {
     try {
-      const res = await getSitePageTranslation(slug, locale)
+      const localeEnum = locale === 'en' ? Locale.EN : Locale.NO
+      const res = await getSitePageTranslation(slug, localeEnum)
       setTitle(res?.title || '')
       setBody(res?.body || '')
     } catch {
@@ -45,26 +47,29 @@ export function PolicyPagesManager() {
     setActivePage(slug)
     startTransition(() => void load(slug, activeLocale))
   }
-  const handleChangeLocale = (locale: Locale) => {
+  const handleChangeLocale = (locale: LocaleString) => {
     setActiveLocale(locale)
     startTransition(() => void load(activePage, locale))
   }
 
   const handleSave = () => {
     startTransition(async () => {
+      const localeEnum = activeLocale === 'en' ? Locale.EN : Locale.NO
       const updated = await upsertSitePage({
         slug: activePage,
         status: 'published',
-        translations: { [activeLocale]: { title, body } }
+        translations: { [localeEnum]: { title, body } }
       })
       if (updated) toast({ title: 'Saved', description: 'Page updated' })
       else toast({ title: 'Save failed', description: 'Please try again', variant: 'destructive' })
     })
   }
 
-  const handleTranslate = (to: Locale) => {
+  const handleTranslate = (to: LocaleString) => {
     startTransition(async () => {
-      const res = await translateSitePageContent(activePage, activeLocale, to)
+      const fromLocaleEnum = activeLocale === 'en' ? Locale.EN : Locale.NO
+      const toLocaleEnum = to === 'en' ? Locale.EN : Locale.NO
+      const res = await translateSitePageContent(activePage, fromLocaleEnum, toLocaleEnum)
       if (!res) {
         toast({ title: 'Translation failed', variant: 'destructive' })
         return
@@ -90,7 +95,7 @@ export function PolicyPagesManager() {
           ))}
         </div>
 
-        <Tabs value={activeLocale} onValueChange={(v) => handleChangeLocale(v as Locale)}>
+        <Tabs value={activeLocale} onValueChange={(v) => handleChangeLocale(v as LocaleString)}>
           <TabsList>
             <TabsTrigger value="no">NO</TabsTrigger>
             <TabsTrigger value="en">EN</TabsTrigger>

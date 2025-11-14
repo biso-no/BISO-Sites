@@ -74,8 +74,9 @@ export const description =
   "An orders dashboard with a sidebar navigation. The sidebar has icon navigation. The content area has a breadcrumb and search in the header. The main area has a list of recent orders with a filter and export button. The main area also has a detailed view of a single order with order details, shipping information, billing information, customer information, and payment information."
 
 import { getOrders } from '@/app/actions/orders'
-import type { Models } from 'node-appwrite'
+import type { Models } from '@repo/api'
 import NextLink from 'next/link'
+import { Orders } from "@repo/api/types/appwrite"
 
 type OrderDoc = Models.Document & {
   buyer_name?: string
@@ -85,7 +86,7 @@ type OrderDoc = Models.Document & {
 }
 
 export default async function Dashboard() {
-  const orders = (await getOrders({ limit: 100 })) as OrderDoc[]
+  const orders = (await getOrders({ limit: 100 })) as Orders[]
   return (
     <div className="flex w-full flex-col">
         <main className="grid flex-1 items-start gap-4 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
