@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
-import { getCampuses } from "@/app/actions/campus";
-import { Campus } from "@/lib/types/campus";
+import { getCampuses, setActiveCampus } from "@/app/actions/campus";
+import { Campus } from "@repo/api/types/appwrite";
 import { useHydration } from "@/lib/hooks/use-hydration";
 
 type CampusContextValue = {
@@ -50,7 +50,7 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
             if (current && response.some((campus) => campus.$id === current)) {
               return current;
             }
-            return response[0].$id;
+            return response[0]?.$id ?? null;
           });
         }
       } catch (error) {
@@ -77,12 +77,16 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [activeCampusId, isHydrated]);
 
-  const selectCampus = useCallback((campusId: string | null) => {
+  const selectCampus = useCallback(async (campusId: string | null) => {
     // Handle "all" selection by setting to null
-    if (campusId === "all") {
-      setActiveCampusId(null);
-    } else {
-      setActiveCampusId(campusId);
+    const normalizedCampusId = campusId === "all" ? null : campusId;
+    setActiveCampusId(normalizedCampusId);
+    
+    // Persist to server (user preferences) - fails silently if not logged in
+    try {
+      await setActiveCampus(normalizedCampusId);
+    } catch (error) {
+      console.error("Failed to persist campus selection to server:", error);
     }
   }, []);
 

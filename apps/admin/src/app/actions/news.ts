@@ -2,9 +2,10 @@
 
 import { createAdminClient } from '@repo/api/server'
 import { Query } from '@repo/api'
-import { NewsItem } from '@/lib/types/news'
+import { NewsItem, NewsItemWithTranslations } from '@/lib/types/news'
 import { revalidatePath } from 'next/cache'
-import { Campus, ContentTranslations, ContentType, Departments, Locale, News, Status } from '@repo/api/types/appwrite'
+import { Campus, ContentTranslations, ContentType, Departments, News, Status } from '@repo/api/types/appwrite'
+import { NEWS_SELECT_FIELDS, normalizeNewsRow } from './_utils/translatable'
 
 export interface ListNewsParams {
   limit?: number
@@ -35,66 +36,71 @@ export interface CreateNewsData {
 }
 
 
-export async function listNews(params: ListNewsParams = {}): Promise<ContentTranslations[]> {
+export async function listNews(params: ListNewsParams = {}): Promise<NewsItemWithTranslations[]> {
   const {
     limit = 25,
     status,
     campus,
-    locale
+    search,
   } = params
 
   try {
     const { db } = await createAdminClient()
     
     const queries = [
-      Query.equal('content_type', ContentType.NEWS),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'news_ref.*']),
+      Query.select([...NEWS_SELECT_FIELDS]),
       Query.limit(limit),
       Query.orderDesc('$createdAt')
     ]
 
-    // Only add locale filter if provided
-    if (locale) {
-      queries.push(Query.equal('locale', locale as Locale))
-    }
-
     if (status && status !== 'all') {
-      queries.push(Query.equal('news_ref.status', status))
+      queries.push(Query.equal('status', status))
     }
 
     if (campus && campus !== 'all') {
-      queries.push(Query.equal('news_ref.campus_id', campus))
+      queries.push(Query.equal('campus_id', campus))
     }
 
-    // Get news with their translations using Appwrite's nested relationships
-    const newsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', queries)
-    const newsItems = newsResponse.rows
+    if (search?.trim()) {
+      queries.push(Query.search('slug', search.trim()))
+    }
 
-    return newsItems
+    const newsResponse = await db.listRows<News>('app', 'news', queries)
+    return newsResponse.rows.map(normalizeNewsRow)
   } catch (error) {
     console.error('Error fetching news:', error)
     return []
   }
 }
 
-export async function getNewsItem(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+export async function getNewsItem(id: string, locale?: 'en' | 'no'): Promise<NewsItemWithTranslations | null> {
   try {
     const { db } = await createAdminClient()
-    
-    // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
-      Query.equal('content_type', ContentType.NEWS),
-      Query.equal('content_id', id),
-      Query.equal('locale', locale),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'news_ref.*']),
-      Query.limit(1)
+
+    const response = await db.listRows<News>('app', 'news', [
+      Query.equal('$id', id),
+      Query.limit(1),
+      Query.select([...NEWS_SELECT_FIELDS])
     ])
-    
-    if (translationsResponse.rows.length === 0) {
+
+    if (response.rows.length === 0) {
       return null
     }
-    
-    return translationsResponse.rows[0] ?? null
+
+    const record = normalizeNewsRow(response.rows[0])
+
+    if (locale) {
+      const selected = record.translations?.[locale]
+      if (selected) {
+        return {
+          ...record,
+          title: selected.title,
+          content: selected.description,
+        }
+      }
+    }
+
+    return record
   } catch (error) {
     console.error('Error fetching news item:', error)
     return null
@@ -206,6 +212,21 @@ export async function updateNewsItem(id: string, data: Partial<CreateNewsData>, 
   }
 }
 
-export async function filterArticles(articles: ContentTranslations[], category: string, searchQuery: string) {
-  return articles.filter(article => article.content_type === category && article.title.toLowerCase().includes(searchQuery.toLowerCase()));
+export async function filterArticles(
+  articles: ContentTranslations[],
+  category: string,
+  searchQuery: string
+) {
+  const normalizedCategory = category?.toLowerCase()
+  const normalizedSearch = searchQuery?.toLowerCase?.() ?? ''
+
+  return articles.filter((article) => {
+    const matchesCategory =
+      !normalizedCategory ||
+      normalizedCategory === 'all' ||
+      article.content_type?.toLowerCase() === normalizedCategory
+    const title = article.title?.toLowerCase() ?? ''
+    const matchesSearch = !normalizedSearch || title.includes(normalizedSearch)
+    return matchesCategory && matchesSearch
+  })
 }

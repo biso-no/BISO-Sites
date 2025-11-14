@@ -15,16 +15,16 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@repo/ui/components/ui/avatar"
+import { Badge } from "@repo/ui/components/ui/badge"
+import { Button } from "@repo/ui/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@repo/ui/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,9 +32,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+} from "@repo/ui/components/ui/dropdown-menu"
+import { Input } from "@repo/ui/components/ui/input"
+import { Sheet, SheetContent, SheetTrigger } from "@repo/ui/components/ui/sheet"
 import {
   Table,
   TableBody,
@@ -42,8 +42,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Models } from "node-appwrite"
+} from "@repo/ui/components/ui/table"
 import { getOrders } from "@/app/actions/orders"
 
 export const description =
@@ -51,10 +50,10 @@ export const description =
 
 export default function Dashboard() {
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+    <div className="flex w-full flex-col">
+      <main className="flex flex-1 flex-col gap-4">
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-          <Card x-chunk="dashboard-01-chunk-0">
+          <Card className="glass-panel" x-chunk="dashboard-01-chunk-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Total Revenue
@@ -68,7 +67,7 @@ export default function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card x-chunk="dashboard-01-chunk-1">
+          <Card className="glass-panel" x-chunk="dashboard-01-chunk-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Subscriptions
@@ -82,7 +81,7 @@ export default function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card x-chunk="dashboard-01-chunk-2">
+          <Card className="glass-panel" x-chunk="dashboard-01-chunk-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Sales</CardTitle>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -94,7 +93,7 @@ export default function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card x-chunk="dashboard-01-chunk-3">
+          <Card className="glass-panel" x-chunk="dashboard-01-chunk-3">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Now</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
@@ -109,7 +108,7 @@ export default function Dashboard() {
         </div>
         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
           <Card
-            className="xl:col-span-2" x-chunk="dashboard-01-chunk-4"
+            className="glass-panel xl:col-span-2" x-chunk="dashboard-01-chunk-4"
           >
             <CardHeader className="flex flex-row items-center">
               <div className="grid gap-2">
@@ -257,7 +256,7 @@ export default function Dashboard() {
 async function RecentSales() {
 const orders = await getOrders({ limit: 5, path: '/admin/shop/orders' })
   return (
-    <Card x-chunk="dashboard-01-chunk-5">
+    <Card className="glass-panel" x-chunk="dashboard-01-chunk-5">
     <CardHeader>
       <CardTitle>Recent Sales</CardTitle>
     </CardHeader>

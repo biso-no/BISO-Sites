@@ -1,8 +1,7 @@
 "use server"
 
 import { createAdminClient, createSessionClient } from "@repo/api/server"
-import { Campus } from "@repo/api/types/appwrite"
-import { CampusData } from "@/lib/types/campus-data"
+import { Campus, CampusData } from "@repo/api/types/appwrite"
 import { Query, Models } from "@repo/api"
 import type { CampusMetadata } from "@repo/api/types/appwrite"
 
@@ -145,4 +144,43 @@ export async function getCampusData() {
   );
 
   return campuses.rows;
+}
+
+/**
+ * Get the active campus from user preferences
+ * Returns campus ID or null for "all campuses"
+ */
+export async function getActiveCampus(): Promise<string | null> {
+  try {
+    const { account } = await createSessionClient();
+    const user = await account.get();
+    const campusId = user.prefs?.campusId;
+    // Return null for "all" or if not set
+    return campusId === "all" || !campusId ? null : campusId;
+  } catch (error) {
+    // Not logged in or error - return null (all campuses)
+    return null;
+  }
+}
+
+/**
+ * Set the active campus in user preferences
+ * Pass null or "all" for all campuses
+ */
+export async function setActiveCampus(campusId: string | null): Promise<void> {
+  try {
+    const { account } = await createSessionClient();
+    const user = await account.get();
+    if (!user) {
+      return;
+    }
+    const prefs = user.prefs;
+    // Store "all" string or the actual campus ID
+    await account.updatePrefs({ 
+      ...prefs, 
+      campusId: campusId === null ? "all" : campusId 
+    });
+  } catch (error) {
+    console.error("Failed to set active campus:", error);
+  }
 }

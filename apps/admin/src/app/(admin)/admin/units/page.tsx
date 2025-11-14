@@ -1,12 +1,13 @@
 import { Suspense } from 'react';
-import { getDepartments, getDepartmentTypes } from '@/lib/admin/departments';
-import { getCampuses } from '@/lib/admin/db';
+import { getDepartmentsClient, getDepartmentTypes } from '@/lib/actions/departments';
+import { getCampuses } from '@/app/actions/campus';
 import { DepartmentStats } from '@/components/units/department-stats';
 import { DepartmentFiltersWrapper } from '@/components/units/department-filters-wrapper';
-import { DepartmentList } from '@/components/units/department-list';
+import { DepartmentsInfiniteList } from '@/components/units/departments-infinite-list';
 import { DepartmentActionsHeader } from '@/components/units/department-actions-header';
 import { DepartmentSkeleton } from '@/components/units/department-skeleton';
 import { FilterState } from '@/lib/hooks/use-departments-filter';
+import { UnitsHeroSection } from '@/components/units/units-hero-section';
 
 export const revalidate = 0;
 
@@ -16,9 +17,10 @@ interface PageProps {
     campus_id?: string;
     type?: string;
     search?: string;
-    sort?: string;
   }>;
 }
+
+const PAGE_SIZE = 20;
 
 export default async function UnitsPage({ searchParams }: PageProps) {
   // Await searchParams before using its properties
@@ -36,49 +38,30 @@ export default async function UnitsPage({ searchParams }: PageProps) {
     searchTerm: params.search
   };
 
-  // Fetch data concurrently
-  const [departments, campuses, types] = await Promise.all([
-    getDepartments(filters),
-    getCampuses(),
-    getDepartmentTypes()
-  ]);
+  // Fetch initial departments with pagination
+  const { departments, hasMore } = await getDepartmentsClient({
+    active: filters.active,
+    campusId: filters.campus_id,
+    type: filters.type,
+    search: filters.searchTerm,
+    limit: PAGE_SIZE,
+    offset: 0
+  });
   
-  // Sort departments if needed
-  let sortedDepartments = [...departments];
-  const sortOrder = params.sort || 'name-asc';
-  const [sortField, sortDirection] = sortOrder.split('-');
+  // Fetch campuses for filter dropdown (separate query)
+  const campusesData = await getCampuses();
+  const campusOptions = campusesData.map(c => ({ id: c.$id, name: c.name }));
   
-  if (sortField && sortDirection) {
-    sortedDepartments.sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'campus':
-          comparison = (a.campusName || '').localeCompare(b.campusName || '');
-          break;
-        case 'users':
-          comparison = (a.userCount || 0) - (b.userCount || 0);
-          break;
-        default:
-          comparison = a.name.localeCompare(b.name);
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }
+  // Get all department types for filter dropdown
+  const types = await getDepartmentTypes();
   
   return (
     <div className="space-y-8">
-      {/* Header section with title */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Units Overview</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage all departments across all campuses
-        </p>
-      </div>
+      {/* Premium Hero Section */}
+      <UnitsHeroSection 
+        totalDepartments={departments.length}
+        campusOptions={campusOptions}
+      />
       
       {/* Stats cards */}
       <Suspense fallback={<div>Loading stats...</div>}>
@@ -90,22 +73,33 @@ export default async function UnitsPage({ searchParams }: PageProps) {
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <DepartmentFiltersWrapper
             filters={filters}
-            campuses={campuses}
+            campuses={campusOptions}
             types={types}
           />
           <DepartmentActionsHeader 
-            sortOrder={sortOrder}
-            campuses={campuses}
+            campuses={campusOptions}
             types={types}
           />
         </div>
 
-        {/* Department List */}
+        {/* Results count */}
+        <div className="text-sm text-muted-foreground">
+          Showing {departments.length} department{departments.length !== 1 ? 's' : ''}
+          {hasMore && ' (scroll for more)'}
+        </div>
+
+        {/* Department List with Infinite Scroll */}
         <Suspense fallback={<DepartmentSkeleton />}>
-          <DepartmentList
-            departments={sortedDepartments}
-            campuses={campuses}
-            types={types}
+          <DepartmentsInfiniteList
+            initialDepartments={departments}
+            hasMore={hasMore}
+            pageSize={PAGE_SIZE}
+            filters={{
+              active: filters.active,
+              campus_id: filters.campus_id,
+              type: filters.type,
+              search: filters.searchTerm
+            }}
           />
         </Suspense>
       </div>

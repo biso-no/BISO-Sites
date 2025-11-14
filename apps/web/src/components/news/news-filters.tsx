@@ -57,7 +57,7 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
   };
 
   return (
-    <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-100">
+    <div className="sticky top-20 z-40 bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           {/* Search */}
@@ -68,14 +68,14 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
               placeholder="Search articles..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="pl-10 pr-10 w-full border-[#3DA9E0]/20 focus:border-[#3DA9E0] text-[#001731]"
+              className="pl-10 pr-10 w-full border-[#3DA9E0]/20 focus:border-[#3DA9E0]"
               disabled={isPending}
             />
             {localSearch && (
               <button
                 type="button"
                 onClick={clearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 disabled={isPending}
               >
                 <X className="w-4 h-4" />
@@ -92,9 +92,10 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
                 onClick={() => handleCategoryChange(category)}
                 variant={selectedCategory === category ? 'default' : 'outline'}
                 disabled={isPending}
+                size="sm"
                 className={
                   selectedCategory === category
-                    ? 'bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white border-0'
+                    ? 'bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90 border-0'
                     : 'border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10'
                 }
               >
@@ -108,7 +109,7 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
           <div className="mt-4 text-center">
             <div className="inline-flex items-center gap-2 text-gray-600">
               <div className="w-4 h-4 border-2 border-[#3DA9E0] border-t-transparent rounded-full animate-spin" />
-              Loading articles...
+              <span className="text-sm">Loading articles...</span>
             </div>
           </div>
         )}

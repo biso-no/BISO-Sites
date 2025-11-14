@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { unauthorized, usePathname } from 'next/navigation';
 import { Button } from '@repo/ui/components/ui/button';
 import { Input } from '@repo/ui/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
@@ -32,6 +32,7 @@ import { AssistantModal } from './ai/admin';
 import { AssistantSidebar } from './ai/admin-sidebar';
 import { useAssistantUIStore } from './ai/assistant-ui-store';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@repo/ui/components/ui/resizable';
+import { ModeToggle } from '@repo/ui/components/mode-toggle';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -159,7 +160,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const pathname = usePathname();
-  const [selectedRole, setSelectedRole] = useState(roles.includes('Admin') ? 'Admin' : roles[0]);
+  const [selectedRole, setSelectedRole] = useState(roles.includes('Admin') ? 'Admin' : roles[0] || '');
   const [isLoading, setIsLoading] = useState(true);
   const { mode: assistantMode, isSidebarOpen: assistantSidebarOpen, setSidebarOpen } = useAssistantUIStore();
 
@@ -246,8 +247,10 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       ],
     },
   ];
+  
 
-  const hasAccess = (itemRoles: string[]) => itemRoles.includes(selectedRole);
+  const hasAccess = (itemRoles: string[]) => selectedRole ? itemRoles.includes(selectedRole) : false;
+
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -259,10 +262,10 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   };
 
   return (
-    <div className="relative isolate flex min-h-screen overflow-hidden bg-linear-to-br from-primary-10/25 via-slate-50 to-secondary-10/40">
-      <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-40" />
-      <div className="pointer-events-none absolute -left-20 top-[-18%] h-72 w-72 rounded-full bg-secondary-20/60 blur-[140px]" />
-      <div className="pointer-events-none absolute bottom-[-25%] right-[-10%] h-80 w-80 rounded-full bg-gold-muted/45 blur-[160px]" />
+    <div className="relative isolate flex min-h-screen overflow-hidden bg-linear-to-br from-primary-10/25 via-slate-50 to-secondary-10/40 dark:from-background dark:via-card dark:to-background">
+      <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-40 dark:opacity-20" />
+      <div className="pointer-events-none absolute -left-20 top-[-18%] h-72 w-72 rounded-full bg-secondary-20/60 dark:bg-primary/30 blur-[140px]" />
+      <div className="pointer-events-none absolute bottom-[-25%] right-[-10%] h-80 w-80 rounded-full bg-gold-muted/45 dark:bg-secondary-100/20 blur-[160px]" />
 
       <div className="relative z-10 flex w-full gap-4 p-4">
         <motion.nav
@@ -335,8 +338,8 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           </div>
         </motion.nav>
 
-        <div className="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-white/85 shadow-[0_45px_80px_-60px_rgba(0,23,49,0.35)] backdrop-blur-xl">
-          <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-primary/10 bg-white/85 px-6 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-6 lg:px-10">
+        <div className="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-white/85 dark:bg-card/85 shadow-[0_45px_80px_-60px_rgba(0,23,49,0.35)] dark:shadow-[0_45px_80px_-60px_rgba(61,169,224,0.15)] backdrop-blur-xl">
+          <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-primary/10 dark:border-primary/20 bg-white/85 dark:bg-card/85 px-6 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-6 lg:px-10">
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-[0.22em] text-primary-60">
               {isLoading ? "Laster..." : `Velkommen tilbake`}
@@ -349,7 +352,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                 <RoleSwitcher roles={roles} selectedRole={selectedRole} setSelectedRole={setSelectedRole} />
               )}
             </div>
-            <div className="rounded-full border border-primary/10 bg-primary/5 px-4 py-1 text-xs font-medium text-primary-70">
+            <div className="rounded-full border border-primary/10 dark:border-primary/20 bg-primary/5 dark:bg-primary/10 px-4 py-1 text-xs font-medium text-primary-70 dark:text-primary">
               <Breadcrumb />
             </div>
           </div>
@@ -360,24 +363,25 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
               <Input
                 type="search"
                 placeholder="Hurtigsøk i admin..."
-                className="w-full rounded-2xl border-primary/10 bg-white/60 pl-9 text-sm shadow-inner focus-visible:ring-primary-30"
+                className="w-full rounded-2xl border-primary/10 dark:border-primary/20 bg-white/60 dark:bg-card/60 pl-9 text-sm shadow-inner focus-visible:ring-primary-30"
                 onFocus={() => setIsSearchOpen(true)}
                 onBlur={() => setIsSearchOpen(false)}
               />
               {isSearchOpen && <span className="pointer-events-none absolute right-3 top-2 text-[11px] uppercase tracking-[0.18em] text-primary-40">⌘K</span>}
             </div>
-            <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-xl border border-primary/10 bg-white/70 text-primary-80 hover:bg-primary/5">
+            <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-xl border border-primary/10 dark:border-primary/20 bg-white/70 dark:bg-card/70 text-primary-80 dark:text-primary hover:bg-primary/5 dark:hover:bg-primary/10">
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-secondary-100" />
             </Button>
-            <Avatar className="h-10 w-10 border border-primary/10 shadow-sm">
+            <ModeToggle />
+            <Avatar className="h-10 w-10 border border-primary/10 dark:border-primary/20 shadow-sm">
               <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${firstName}`} />
               <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
             </Avatar>
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 rounded-xl border border-primary/10 bg-primary-10/60 text-primary-80 hover:bg-primary/10"
+              className="h-10 w-10 rounded-xl border border-primary/10 dark:border-primary/20 bg-primary-10/60 dark:bg-card/70 text-primary-80 dark:text-primary hover:bg-primary/10 dark:hover:bg-primary/15"
               onClick={handleSignOut}
               disabled={isLoading}
             >

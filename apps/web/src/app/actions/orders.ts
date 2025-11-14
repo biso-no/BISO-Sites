@@ -6,6 +6,8 @@ import { getProduct } from "@/app/actions/products";
 import { getLocale } from "@/app/actions/locale";
 import { Order, OrderItem } from "@/lib/types/order";
 import { Orders, Users } from "@repo/api/types/appwrite";
+import { getAvailableStock } from "@/app/actions/cart-reservations";
+import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 
 
 export async function getOrders({
@@ -96,6 +98,13 @@ export interface CheckoutResult {
   error?: string
 }
 
+export interface CheckoutStatusResult {
+  success: boolean
+  order?: Orders
+  vippsStatus?: any
+  error?: string
+}
+
 function normalizeCustomFields(inputs?: Record<string, string>) {
   if (!inputs) return {}
   return Object.entries(inputs).reduce<Record<string, string>>((acc, [key, value]) => {
@@ -160,12 +169,32 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
       }
 
       const totalForProduct = quantityByProduct.get(productId) || 0
-      if (product.max_per_order && totalForProduct > product.max_per_order) {
-        throw new Error(`Only ${product.max_per_order} of ${product.title || product.slug} can be purchased per order.`)
+      
+      // Check available stock (considering reservations)
+      if (product.stock !== null && product.stock !== undefined) {
+        const availableStock = await getAvailableStock(productId)
+        if (availableStock < totalForProduct) {
+          throw new Error(
+            availableStock === 0
+              ? `${product.title || product.slug} is out of stock.`
+              : `Only ${availableStock} of ${product.title || product.slug} available (${totalForProduct} requested).`
+          )
+        }
       }
-
-      if (product.max_per_user === 1 && totalForProduct > 1) {
-        throw new Error(`${product.title || product.slug} is limited to one per customer.`)
+      
+      // Validate purchase limits
+      // Try to get userId from session, fallback to 'guest' for now
+      // Note: For proper per-user limit enforcement, pass userId through CartCheckoutData
+      const userId = 'guest' // TODO: Get from session when user auth is implemented
+      const limitCheck = await validatePurchaseLimits(
+        productId,
+        userId,
+        totalForProduct,
+        product.metadata_parsed
+      )
+      
+      if (!limitCheck.allowed) {
+        throw new Error(limitCheck.reason || `Purchase limit exceeded for ${product.title || product.slug}`)
       }
 
       const variation = product.variations?.find((variant: any) => variant.id === input.variationId)
@@ -284,7 +313,7 @@ export async function startCartCheckout(data: CartCheckoutData) {
   return createCartCheckoutSession(data)
 }
 
-export async function getCheckoutStatus(orderId: string) {
+export async function getCheckoutStatus(orderId: string): Promise<CheckoutStatusResult> {
     try {
         const { db } = await createAdminClient()
         const order = await db.getRow<Orders>('app', 'orders', orderId)

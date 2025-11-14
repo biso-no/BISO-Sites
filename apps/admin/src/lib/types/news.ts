@@ -1,5 +1,6 @@
 import { Models } from '@repo/api'
-import { ContentTranslation } from './content-translation'
+import type { ContentTranslations } from '@repo/api/types/appwrite'
+import type { TranslationMap } from '@/lib/utils/content-translations'
 
 export interface NewsItem extends Models.Row {
   status: string
@@ -13,7 +14,8 @@ export interface NewsItem extends Models.Row {
   // Relationship references (populated at runtime)
   campus?: { $id: string; name: string }
   department?: { $id: string; Name: string; campus_id: string }
-  translation_refs?: ContentTranslation[]
+  translation_refs?: ContentTranslations[]
+  translations?: TranslationMap<ContentTranslations>
 }
 
 // Helper interface for working with news data including translations

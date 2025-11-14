@@ -1,6 +1,6 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@repo/ui/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 type RoleColors = {

@@ -4,6 +4,7 @@ import { NewsHero } from '@/components/news/news-hero';
 import { NewsFilters } from '@/components/news/news-filters';
 import { NewsGrid } from '@/components/news/news-grid';
 import { NewsGridSkeleton } from '@/components/news/news-grid-skeleton';
+import { NewsInfoSection } from '@/components/news/news-info-section';
 import { listNews } from '@/app/actions/news';
 
 export const metadata: Metadata = {
@@ -17,25 +18,27 @@ export const metadata: Metadata = {
 };
 
 interface NewsPageProps {
-  searchParams: {
+  searchParams: Promise<{
     category?: string;
     search?: string;
-  };
+  }>;
 }
 
 export default async function NewsPage({ searchParams }: NewsPageProps) {
-  const selectedCategory = searchParams.category || 'All';
-  const searchQuery = searchParams.search || '';
+  const { category, search } = await searchParams;
+  const selectedCategory = category || 'All';
+  const searchQuery = search || '';
 
   // Fetch data on the server
   const articles = await listNews();
 
-  const categories = Array.from(new Set(articles.map(article => article.content_type)));
-  const filteredArticles = articles.filter(article => article.content_type === selectedCategory);
+  // Get unique categories and add "All" option
+  const uniqueCategories = Array.from(new Set(articles.map(article => article.content_type)));
+  const categories = ['All', ...uniqueCategories];
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
-      {/* Hero Section - Static, renders immediately */}
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
       <NewsHero />
 
       {/* Filters - Client component for interactivity */}
@@ -47,15 +50,20 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
         />
       </Suspense>
 
-      {/* News Grid - Suspense boundary for data fetching */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <Suspense fallback={<NewsGridSkeleton />}>
-          <NewsGrid 
-            selectedCategory={selectedCategory}
-            searchQuery={searchQuery}
-          />
-        </Suspense>
+      {/* News Grid */}
+      <div className="bg-linear-to-b from-gray-50 to-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Suspense fallback={<NewsGridSkeleton />}>
+            <NewsGrid 
+              selectedCategory={selectedCategory}
+              searchQuery={searchQuery}
+            />
+          </Suspense>
+        </div>
       </div>
+
+      {/* Info Section */}
+      <NewsInfoSection />
     </div>
   );
 }

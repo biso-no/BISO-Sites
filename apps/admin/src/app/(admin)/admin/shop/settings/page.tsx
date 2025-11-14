@@ -1,13 +1,13 @@
-import { createAdminClient } from '@/lib/appwrite'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
+import { createAdminClient } from '@repo/api/server'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
+import { Input } from '@repo/ui/components/ui/input'
+import { Label } from '@repo/ui/components/ui/label'
+import { Button } from '@repo/ui/components/ui/button'
 
 async function getSettings() {
   const { db } = await createAdminClient()
   try {
-    const doc = await db.getDocument('app', 'shop_settings', 'singleton')
+    const doc = await db.getRow('app', 'shop_settings', 'singleton')
     const parsed = {
       ...doc,
       general: typeof (doc as any).general === 'string' ? JSON.parse((doc as any).general) : (doc as any).general,
@@ -25,13 +25,13 @@ export default async function ShopSettingsPage() {
   const general = settings?.general || {}
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40 p-4">
+    <div className="flex w-full flex-col">
       <div className="mb-4">
         <h1 className="text-xl font-semibold">Shop Settings</h1>
         <p className="text-sm text-muted-foreground">Configure your webshop preferences and Vipps Checkout</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="glass-panel">
           <CardHeader>
             <CardTitle>General</CardTitle>
             <CardDescription>Configure core shop options</CardDescription>
@@ -58,7 +58,7 @@ export default async function ShopSettingsPage() {
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="glass-panel">
           <CardHeader>
             <CardTitle>Vipps Checkout</CardTitle>
             <CardDescription>Enter your Vipps API credentials and options</CardDescription>
@@ -127,12 +127,12 @@ export async function saveSettings(formData: FormData) {
 
   try {
     if (existing) {
-      await db.updateDocument('app', 'shop_settings', 'singleton', {
+      await db.updateRow('app', 'shop_settings', 'singleton', {
         general: JSON.stringify(next.general || {}),
         vipps: JSON.stringify(next.vipps || {}),
       })
     } else {
-      await db.createDocument('app', 'shop_settings', 'singleton', {
+      await db.createRow('app', 'shop_settings', 'singleton', {
         general: JSON.stringify(next.general || {}),
         vipps: JSON.stringify(next.vipps || {}),
       })

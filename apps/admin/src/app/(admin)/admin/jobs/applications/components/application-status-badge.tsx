@@ -1,6 +1,6 @@
 "use client"
 
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@repo/ui/components/ui/badge'
 import { JobApplication } from '@/lib/types/job-application'
 
 interface ApplicationStatusBadgeProps {

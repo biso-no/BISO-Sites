@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { SelectCampus } from '@/components/select-campus';
 import { useCampus } from '@/components/context/campus';
 import { usePathname } from 'next/navigation';
+import { LocaleSwitcher } from '../locale-switcher';
 
 interface NavigationProps {
   onEventsClick?: () => void;
@@ -57,12 +58,11 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
           <motion.div whileHover={{ scale: 1.05 }} className="flex items-center gap-3">
             <Link href="/">
             <ImageWithFallback
-              src="/images/logo-home.png"
+              src="/images/home-logo.png"
               alt="BISO logo"
               width={140}               // pick the intrinsic pixel width
               height={40}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 120px, 140px"
-              preload                   // above-the-fold
+              sizes="(max-width: 768px) 120px, 140px"                 // above-the-fold
               className="h-10 w-auto"    // control display size via CSS
             />
             </Link>
@@ -94,6 +94,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
               </Link>
             ))}
             <SelectCampus campuses={campuses}/>
+            <LocaleSwitcher variant="ghost" size="sm" />
             <Link href="/partner">Partner</Link>
             <Button
               size="sm"

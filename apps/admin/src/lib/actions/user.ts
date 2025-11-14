@@ -38,7 +38,6 @@ export async function getLoggedInUser(): Promise<{ user: Models.User<Models.Pref
             try {
                 // Try to get the user profile document
                 const profile = await db.getRow<Users>('app', 'user', user.$id);
-                console.log("Profile found:", profile?.$id);
                 return {user, profile}
             } catch (profileError) {
                 // If profile doesn't exist, return user but null profile
