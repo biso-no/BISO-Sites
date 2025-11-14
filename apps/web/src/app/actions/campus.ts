@@ -27,7 +27,7 @@ export async function getCampusMetadata(): Promise<Record<string, CampusMetadata
   }
 }
 
-export async function getCampusMetadataById(campusId: string): Promise<CampusMetadata | null> {
+async function getCampusMetadataById(campusId: string): Promise<CampusMetadata | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -46,7 +46,7 @@ export async function getCampusMetadataById(campusId: string): Promise<CampusMet
   }
 }
 
-export async function getCampusMetadataByName(campusName: string): Promise<CampusMetadata | null> {
+async function getCampusMetadataByName(campusName: string): Promise<CampusMetadata | null> {
   try {
     const { db } = await createAdminClient()
     

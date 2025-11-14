@@ -19,9 +19,8 @@ import {
   createVarslingSettings, 
   updateVarslingSettings, 
   deleteVarslingSettings,
-  type VarslingSettings 
 } from "@/app/actions/varsling";
-import { Campus } from "@/lib/types/campus";
+import { Campus, VarslingSettings } from "@repo/api/types/appwrite";
 
 interface VarslingFormData {
   campus_id: string;

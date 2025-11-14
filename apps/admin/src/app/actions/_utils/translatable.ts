@@ -78,33 +78,10 @@ export const PRODUCT_SELECT_FIELDS = [
   'campus.name',
 ] as const
 
-export const NEWS_SELECT_FIELDS = [
-  '$id',
-  '$createdAt',
-  '$updatedAt',
-  'status',
-  'campus_id',
-  'department_id',
-  'slug',
-  'url',
-  'image',
-  'sticky',
-  'translation_refs.$id',
-  'translation_refs.content_id',
-  'translation_refs.content_type',
-  'translation_refs.locale',
-  'translation_refs.title',
-  'translation_refs.description',
-  'campus.$id',
-  'campus.name',
-  'department.$id',
-  'department.Name',
-  'department.campus_id',
-] as const
 
 // DEPRECATED: normalizeEventRow has been replaced with transformEventData in events.ts
 // This function is kept for backward compatibility but is no longer used in the codebase
-export const normalizeEventRow = (row: WithTranslations<Events>): AdminEvent => {
+const normalizeEventRow = (row: WithTranslations<Events>): AdminEvent => {
   const translationRefs = ensureTranslationArray(row.translation_refs)
   const metadata = parseMetadata<EventMetadata>(row.metadata)
 
@@ -147,7 +124,7 @@ export const normalizeProductRow = (row: WithTranslations<WebshopProducts>): Pro
   } as ProductWithTranslations
 }
 
-export const normalizeNewsRow = (row: WithTranslations<News>): NewsItemWithTranslations => {
+const normalizeNewsRow = (row: WithTranslations<News>): NewsItemWithTranslations => {
   const translationRefs = ensureTranslationArray(row.translation_refs)
 
   return {

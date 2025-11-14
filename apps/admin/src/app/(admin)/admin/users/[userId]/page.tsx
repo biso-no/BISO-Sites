@@ -1,5 +1,7 @@
 import { Suspense } from "react"
-import { getUser, convertDocumentToUser, getCampuses } from "@/lib/admin/db"
+import { createSessionClient } from "@repo/api/server"
+import { getUserById } from "@/lib/actions/user"
+import { getCampuses } from "@/app/actions/campus"
 import { UserForm } from "./user-form"
 import { notFound } from "next/navigation"
 
@@ -10,11 +12,15 @@ async function UserDetails({ userId }: { userId: string }) {
   try {
     // Fetch user and campuses data in parallel
     const [userData, campusesData] = await Promise.all([
-      getUser(userId),
+      getUserById(userId),
       getCampuses()
     ])
     
-    const user = await convertDocumentToUser(userData)
+    const user = userData
+    
+    if (!user) {
+      notFound()
+    }
     
     return (
       <UserForm user={user} campuses={campusesData} />

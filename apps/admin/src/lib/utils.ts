@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const campusMap = {
+const campusMap = {
   1: 'Oslo',
   2: 'Bergen',
   3: 'Trondheim',
@@ -13,7 +13,7 @@ export const campusMap = {
   5: 'National'
 }
 
-export function getInitials(name: string): string {
+function getInitials(name: string): string {
   return name
     .split(' ')
     .map(word => word[0])
@@ -22,7 +22,7 @@ export function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-export function formatDateReadable(value?: string | null) {
+function formatDateReadable(value?: string | null) {
   if (!value) return ''
   const date = new Date(value)
   if (isNaN(date.getTime())) return value

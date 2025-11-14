@@ -7,7 +7,6 @@ import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import { ProfileHead } from "@/components/profile/profile-head";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
-import MembershipStatusCard from "@/components/profile/membership-status-card";
 
 export const metadata: Metadata = {
   title: "Your Profile | BISO",
@@ -64,7 +63,7 @@ export default async function PublicProfilePage() {
       })()}
       {/* Membership status up-front */}
       <div className="mb-6">
-        <MembershipStatusCard initial={membership} hasBIIdentity={hasBIIdentity} />
+
       </div>
 
       <ProfileTabs userData={userData} identities={identitiesResp?.identities} />

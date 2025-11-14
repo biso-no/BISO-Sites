@@ -10,7 +10,7 @@ import { getAvailableStock } from "@/app/actions/cart-reservations";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 
 
-export async function getOrders({
+async function getOrders({
     limit = 100,
     userId = '',
     status = '',
@@ -45,7 +45,7 @@ export async function getOrders({
     }
 }
 
-export async function getOrder(id: string) {
+async function getOrder(id: string) {
     const { db } = await createSessionClient();
     try {
         const order = await db.getRow<Orders>('app', 'orders', id)
@@ -313,7 +313,7 @@ export async function startCartCheckout(data: CartCheckoutData) {
   return createCartCheckoutSession(data)
 }
 
-export async function getCheckoutStatus(orderId: string): Promise<CheckoutStatusResult> {
+async function getCheckoutStatus(orderId: string): Promise<CheckoutStatusResult> {
     try {
         const { db } = await createAdminClient()
         const order = await db.getRow<Orders>('app', 'orders', orderId)

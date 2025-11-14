@@ -1,9 +1,9 @@
 import { Models } from "@repo/api";
 import { ExpenseAttachment } from "./expenseAttachment";
-export interface Campus extends Models.Row {
+interface Campus extends Models.Row {
     name: string
 }
-export interface Department extends Models.Row {
+interface Department extends Models.Row {
     name: string
 }
 export interface User extends Models.Row {

@@ -104,7 +104,7 @@ export async function getJob(id: string): Promise<AdminJob | null> {
   }
 }
 
-export async function getJobBySlug(slug: string): Promise<AdminJob | null> {
+async function getJobBySlug(slug: string): Promise<AdminJob | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -247,7 +247,7 @@ export async function updateJob(id: string, data: Partial<CreateJobData>): Promi
   }
 }
 
-export async function deleteJob(id: string): Promise<boolean> {
+async function deleteJob(id: string): Promise<boolean> {
   try {
     const { db } = await createAdminClient()
     
@@ -356,7 +356,7 @@ Please respond with a JSON object containing the translated title and descriptio
 }
 
 // Helper functions remain the same
-export async function listDepartments(campusId?: string) {
+async function listDepartments(campusId?: string) {
   const queries = [Query.equal('active', true)]
   
   if (campusId) {
@@ -373,7 +373,7 @@ export async function listDepartments(campusId?: string) {
   }
 }
 
-export async function listCampuses() {
+async function listCampuses() {
   try {
     const { db } = await createAdminClient()
     const response = await db.listRows('app', 'campus')
@@ -385,7 +385,7 @@ export async function listCampuses() {
 }
 
 // Job application functions remain the same but reference the new job structure
-export async function createJobApplication(data: JobApplicationFormData & { job_id: string }): Promise<JobApplication | null> {
+async function createJobApplication(data: JobApplicationFormData & { job_id: string }): Promise<JobApplication | null> {
   try {
     const { db, storage } = await createSessionClient()
     

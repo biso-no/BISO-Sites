@@ -28,7 +28,7 @@ export function ensureTranslationArray<T extends ContentTranslations = ContentTr
   return references.filter((reference): reference is T => Boolean(reference))
 }
 
-export function pickTranslation<T extends ContentTranslations = ContentTranslations>(
+function pickTranslation<T extends ContentTranslations = ContentTranslations>(
   record: { translations?: TranslationMap<T>; translation_refs?: T[] },
   locale?: Locale
 ): T | undefined {

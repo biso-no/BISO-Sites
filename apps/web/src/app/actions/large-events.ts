@@ -92,7 +92,7 @@ export async function getLargeEventBySlug(slug: string): Promise<ParsedLargeEven
   }
 }
 
-export async function getLargeEventItems(eventId: string): Promise<LargeEventItem[]> {
+async function getLargeEventItems(eventId: string): Promise<LargeEventItem[]> {
   if (!eventId) return []
   try {
     const { db } = await createAdminClient()

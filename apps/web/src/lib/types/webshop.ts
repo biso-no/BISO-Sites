@@ -13,7 +13,7 @@ export interface ProductMetadata {
   [key: string]: unknown
 }
 
-export interface ProductWithTranslation extends ContentTranslations {
+interface ProductWithTranslation extends ContentTranslations {
   product_ref: NonNullable<ContentTranslations['product_ref']>
 }
 
@@ -35,7 +35,7 @@ export function formatPrice(price: number | null | undefined): string {
   return `${price} NOK`
 }
 
-export function getProductCategory(category: string | null | undefined): ProductCategory {
+function getProductCategory(category: string | null | undefined): ProductCategory {
   const cat = category as ProductCategory
   return productCategories.includes(cat) ? cat : 'Merch'
 }

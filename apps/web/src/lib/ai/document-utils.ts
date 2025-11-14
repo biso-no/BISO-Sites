@@ -40,7 +40,7 @@ export interface DocumentViewerUrlOptions {
    * @param url - The URL to parse
    * @returns The document ID or null if not found
    */
-  export function extractDocumentId(url: string): string | null {
+  function extractDocumentId(url: string): string | null {
     // Check if it's already a document viewer URL
     const viewerMatch = url.match(/\/document\/([^\/\?]+)/);
     if (viewerMatch) {
@@ -68,7 +68,7 @@ export interface DocumentViewerUrlOptions {
    * @param contentType - The MIME type of the document
    * @returns True if the document can be rendered inline
    */
-  export function canRenderInline(contentType: string): boolean {
+  function canRenderInline(contentType: string): boolean {
     const lowerType = contentType.toLowerCase();
     
     // PDFs can be rendered inline
@@ -92,7 +92,7 @@ export interface DocumentViewerUrlOptions {
    * @param contentType - The MIME type
    * @returns A user-friendly type name
    */
-  export function getDocumentTypeName(contentType: string): string {
+  function getDocumentTypeName(contentType: string): string {
     const lowerType = contentType.toLowerCase();
     
     if (lowerType.includes('pdf')) return 'PDF Document';
@@ -123,7 +123,7 @@ export interface DocumentViewerUrlOptions {
    * @param bytes - File size in bytes
    * @returns Formatted file size string
    */
-  export function formatFileSize(bytes: number): string {
+  function formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
     
     const k = 1024;
@@ -138,7 +138,7 @@ export interface DocumentViewerUrlOptions {
    * @param metadata - Raw metadata from vector store
    * @returns Formatted metadata for document viewer
    */
-  export function formatDocumentMetadata(metadata: Record<string, any>) {
+  function formatDocumentMetadata(metadata: Record<string, any>) {
     return {
       id: metadata.documentId,
       name: metadata.documentName || 'Unknown Document',
