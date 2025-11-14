@@ -192,6 +192,8 @@ export type Departments = Models.Row & {
     translations: ContentTranslations[];
     translation_refs: ContentTranslations[];
     hero: string | null;
+    department_id: string | null;
+    department: Departments;
 }
 
 export type DepartmentSocials = Models.Row & {
@@ -550,8 +552,10 @@ export type Events = Models.Row & {
     collection_id: string | null;
     is_collection: boolean;
     collection_pricing: 'bundle' | 'individual' | null;
-    campus: Campus;
-    translation_refs: ContentTranslations[];
+    department_id: string | null;
+    campus: Campus | string;
+    department: Departments | string | null;
+    translation_refs: ContentTranslations[] | string[];
 }
 
 export type News = Models.Row & {

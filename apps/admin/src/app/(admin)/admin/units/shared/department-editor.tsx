@@ -215,7 +215,7 @@ export default function DepartmentEditor({
               <Button 
                 onClick={form.handleSubmit(onSubmit)} 
                 disabled={isSubmitting}
-                className="gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
+                className="gap-2 bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Save className="w-4 h-4" />
                 {isSubmitting ? 'Saving...' : isEditing ? 'Update Department' : 'Create Department'}

@@ -26,6 +26,7 @@ import {
   getUniqueLocales,
   parseJSONSafe,
 } from "@/lib/utils/admin"
+import { Status } from "@repo/api/types/appwrite"
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
   month: "short",
@@ -45,9 +46,9 @@ export default async function AdminEventsPage({
 
   const events = await listEvents({ campus, status, search, limit: 200 })
   const totalEvents = events.length
-  const publishedEvents = events.filter((evt) => evt.status === "published").length
-  const draftEvents = events.filter((evt) => evt.status === "draft").length
-  const cancelledEvents = events.filter((evt) => evt.status === "cancelled").length
+  const publishedEvents = events.filter((evt) => evt.status === Status.PUBLISHED).length
+  const draftEvents = events.filter((evt) => evt.status === Status.DRAFT).length
+  const cancelledEvents = events.filter((evt) => evt.status === Status.CLOSED).length
   const translationCoverage = formatPercentage(
     events.filter((evt) => {
       const refs = evt.translation_refs ?? []
@@ -126,7 +127,7 @@ export default async function AdminEventsPage({
           <div className="space-y-1">
             <h2 className="text-lg font-semibold text-primary-100">Eventliste</h2>
             <p className="text-sm text-primary-60">
-              {totalEvents} arrangementer over {new Set(events.map((evt) => evt.campus?.name || evt.campus_id || "Ukjent")).size} campuser
+              {totalEvents} arrangementer over {new Set(events.map((evt) => (typeof evt.campus === 'object' ? evt.campus?.name : evt.campus) || evt.campus_id || "Ukjent")).size} campuser
             </p>
           </div>
           <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-80">
@@ -154,7 +155,8 @@ export default async function AdminEventsPage({
                 const translationLocales = getUniqueLocales(refs)
                 const primaryTitle = refs[0]?.title || evt.slug || "Untitled"
                 const statusToken = getStatusToken(evt.status)
-                const startDate = metadata.start_date ? new Date(metadata.start_date) : null
+                const startDate = evt.start_date ? new Date(evt.start_date) : null
+                const startTime = typeof metadata.start_time === 'string' ? metadata.start_time : null
 
                 return (
                   <tr key={evt.$id} className="transition hover:bg-primary/5">
@@ -185,17 +187,17 @@ export default async function AdminEventsPage({
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-primary-80">{evt.campus?.name || evt.campus_id || "—"}</td>
+                    <td className="px-4 py-3 text-primary-80">{typeof evt.campus === 'object' ? evt.campus?.name : evt.campus || evt.campus_id || "—"}</td>
                     <td className="px-4 py-3 text-primary-80">
                       {startDate ? (
-                        <>
+                        <div>
                           {DATE_FORMATTER.format(startDate)}
-                          {metadata.start_time && (
+                          {startTime && (
                             <span className="block text-[11px] uppercase tracking-wide text-primary-50">
-                              {metadata.start_time}
+                              {startTime}
                             </span>
                           )}
-                        </>
+                        </div>
                       ) : (
                         "—"
                       )}

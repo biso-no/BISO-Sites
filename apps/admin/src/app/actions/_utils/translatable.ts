@@ -24,34 +24,8 @@ const parseMetadata = <T extends Record<string, unknown> = Record<string, unknow
   return fallback
 }
 
-export const EVENT_SELECT_FIELDS = [
-  '$id',
-  '$createdAt',
-  '$updatedAt',
-  'slug',
-  'status',
-  'campus_id',
-  'metadata',
-  'start_date',
-  'end_date',
-  'location',
-  'price',
-  'ticket_url',
-  'image',
-  'member_only',
-  'collection_id',
-  'is_collection',
-  'collection_pricing',
-  'campus.$id',
-  'campus.name',
-  'translation_refs.$id',
-  'translation_refs.content_id',
-  'translation_refs.content_type',
-  'translation_refs.locale',
-  'translation_refs.title',
-  'translation_refs.description',
-  'translation_refs.additional_fields',
-] as const
+// Note: EVENT_SELECT_FIELDS removed - no longer needed with simplified approach
+// Events are now queried without explicit select fields, letting Appwrite return all fields including translation_refs
 
 export const JOB_SELECT_FIELDS = [
   '$id',
@@ -128,6 +102,8 @@ export const NEWS_SELECT_FIELDS = [
   'department.campus_id',
 ] as const
 
+// DEPRECATED: normalizeEventRow has been replaced with transformEventData in events.ts
+// This function is kept for backward compatibility but is no longer used in the codebase
 export const normalizeEventRow = (row: WithTranslations<Events>): AdminEvent => {
   const translationRefs = ensureTranslationArray(row.translation_refs)
   const metadata = parseMetadata<EventMetadata>(row.metadata)
