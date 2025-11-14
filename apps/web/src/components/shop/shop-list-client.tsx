@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { motion, AnimatePresence } from 'motion/react'
-import { Search, Filter, X, ShoppingBag } from 'lucide-react'
+import { Search, Filter, X, ShoppingBag, Loader2 } from 'lucide-react'
 import { Button } from '@repo/ui/components/ui/button'
 import { Input } from '@repo/ui/components/ui/input'
 import { ProductCard } from './product-card'
+import { useCampus } from '@/components/context/campus'
+import { listProducts } from '@/app/actions/webshop'
 import type { ContentTranslations } from '@repo/api/types/appwrite'
 
 interface ShopListClientProps {
@@ -16,10 +19,37 @@ interface ShopListClientProps {
 
 const categories = ['All', 'Merch', 'Trips', 'Lockers', 'Membership']
 
-export function ShopListClient({ products, isMember = false }: ShopListClientProps) {
+export function ShopListClient({ products: initialProducts, isMember = false }: ShopListClientProps) {
   const router = useRouter()
+  const locale = useLocale() as 'en' | 'no'
+  const { activeCampusId } = useCampus()
+  
+  const [products, setProducts] = useState<ContentTranslations[]>(initialProducts)
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Re-fetch products when campus or locale changes
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true)
+      try {
+        const newProducts = await listProducts({
+          locale,
+          status: 'published',
+          limit: 100,
+          campus: activeCampusId || 'all',
+        })
+        setProducts(newProducts)
+      } catch (error) {
+        console.error('Failed to fetch products:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [activeCampusId, locale])
 
   // Filter products based on search and category
   const filteredProducts = products.filter((product) => {
@@ -97,28 +127,35 @@ export function ShopListClient({ products, isMember = false }: ShopListClientPro
 
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={selectedCategory + searchQuery}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {filteredProducts.map((product, index) => (
-              <ProductCard
-                key={product.$id}
-                product={product}
-                index={index}
-                isMember={isMember}
-                onViewDetails={handleViewDetails}
-              />
-            ))}
-          </motion.div>
-        </AnimatePresence>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin text-[#3DA9E0]" />
+            <span className="ml-3 text-gray-600">Loading products...</span>
+          </div>
+        ) : (
+          <>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedCategory + searchQuery}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+              >
+                {filteredProducts.map((product, index) => (
+                  <ProductCard
+                    key={product.$id}
+                    product={product}
+                    index={index}
+                    isMember={isMember}
+                    onViewDetails={handleViewDetails}
+                  />
+                ))}
+              </motion.div>
+            </AnimatePresence>
 
-        {/* No Results */}
-        {filteredProducts.length === 0 && (
+            {/* No Results */}
+            {filteredProducts.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -138,6 +175,8 @@ export function ShopListClient({ products, isMember = false }: ShopListClientPro
               Clear Filters
             </Button>
           </motion.div>
+        )}
+          </>
         )}
       </div>
 

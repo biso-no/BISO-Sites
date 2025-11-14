@@ -1,7 +1,7 @@
 "use client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select";
 import { useCampus } from "./context/campus";
-import { Campus } from "../lib/types/campus";
+import { Campus } from "@repo/api/types/appwrite";
 
 type SelectCampusProps = {
   campuses: Campus[];
@@ -12,8 +12,8 @@ type SelectCampusProps = {
 export const SelectCampus = ({ placeholder = "Velg campus", className }: SelectCampusProps) => {
   const { campuses, activeCampusId, selectCampus, loading } = useCampus();
 
-  const handleValueChange = (value: string) => {
-    selectCampus(value);
+  const handleValueChange = async (value: string) => {
+    await selectCampus(value);
   };
 
   // During SSR and initial hydration, don't set a value to avoid mismatch

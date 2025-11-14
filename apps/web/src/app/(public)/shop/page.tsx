@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { listProducts } from '@/app/actions/webshop'
 import { getLocale } from '@/app/actions/locale'
+import { getActiveCampus } from '@/app/actions/campus'
 import { ShopListClient } from '@/components/shop/shop-list-client'
 import { ShopHero } from '@/components/shop/shop-hero'
 import { Skeleton } from '@repo/ui/components/ui/skeleton'
@@ -10,11 +11,12 @@ export const metadata = {
   description: 'Browse our selection of merch, trip deductibles, campus lockers, and memberships',
 }
 
-async function ShopList({ locale }: { locale: 'en' | 'no' }) {
+async function ShopList({ locale, campus }: { locale: 'en' | 'no', campus: string | null }) {
   const products = await listProducts({
     locale,
     status: 'published',
     limit: 100,
+    campus: campus || 'all',
   })
   
   // TODO: Get actual member status from auth
@@ -43,6 +45,7 @@ function ShopListSkeleton() {
 
 export default async function ShopPage() {
   const locale = await getLocale()
+  const campus = await getActiveCampus()
   
   // TODO: Get actual member status from auth
   const isMember = false
@@ -51,7 +54,7 @@ export default async function ShopPage() {
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       <ShopHero isMember={isMember} />
       <Suspense fallback={<ShopListSkeleton />}>
-        <ShopList locale={locale} />
+        <ShopList locale={locale} campus={campus} />
       </Suspense>
     </div>
   )
