@@ -7,6 +7,7 @@ import { DepartmentsInfiniteList } from '@/components/units/departments-infinite
 import { DepartmentActionsHeader } from '@/components/units/department-actions-header';
 import { DepartmentSkeleton } from '@/components/units/department-skeleton';
 import { FilterState } from '@/lib/hooks/use-departments-filter';
+import { UnitsHeroSection } from '@/components/units/units-hero-section';
 
 export const revalidate = 0;
 
@@ -56,13 +57,11 @@ export default async function UnitsPage({ searchParams }: PageProps) {
   
   return (
     <div className="space-y-8">
-      {/* Header section with title */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Units Overview</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage all departments across all campuses
-        </p>
-      </div>
+      {/* Premium Hero Section */}
+      <UnitsHeroSection 
+        totalDepartments={departments.length}
+        campusOptions={campusOptions}
+      />
       
       {/* Stats cards */}
       <Suspense fallback={<div>Loading stats...</div>}>

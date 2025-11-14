@@ -6,11 +6,10 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import dynamic from 'next/dynamic'
-import { ChevronLeft, Languages, Building2, Save } from 'lucide-react'
+import { ChevronLeft, Languages, Building2, Save, X, Sparkles } from 'lucide-react'
 
 import { Badge } from '@repo/ui/components/ui/badge'
 import { Button } from '@repo/ui/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@repo/ui/components/ui/form'
 import { Input } from '@repo/ui/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select'
@@ -21,6 +20,10 @@ import { Textarea } from '@repo/ui/components/ui/textarea'
 
 import { createDepartment, updateDepartmentWithTranslations } from '@/lib/actions/departments'
 import type { Departments, ContentTranslations } from '@repo/api/types/appwrite'
+import { GlassCard } from '@/components/shared/glass-card'
+import { DepartmentEditorSidebar } from '@/components/units/department-editor-sidebar'
+import { HeroUploadPreview } from '@/components/units/hero-upload-preview'
+import { cn } from '@repo/ui/lib/utils'
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false })
 
@@ -30,6 +33,7 @@ const departmentSchema = z.object({
   campus_id: z.string().min(1, 'Campus is required'),
   type: z.string().min(1, 'Type is required'),
   logo: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  hero: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   active: z.boolean(),
   translations: z.object({
     en: z.object({
@@ -98,6 +102,7 @@ export default function DepartmentEditor({
       campus_id: department?.campus_id || '',
       type: department?.type || '',
       logo: department?.logo || '',
+      hero: (department as any)?.hero || '',
       active: department?.active ?? true,
       translations: translationsMap
     },
@@ -128,8 +133,9 @@ export default function DepartmentEditor({
             campus_id: data.campus_id,
             type: data.type,
             logo: data.logo || null,
+            hero: data.hero || null,
             active: data.active
-          },
+          } as any,
           translations
         )
 
@@ -142,12 +148,13 @@ export default function DepartmentEditor({
           campus_id: data.campus_id,
           type: data.type,
           logo: data.logo || undefined,
+          hero: data.hero || undefined,
           active: data.active,
           translations: [
             { locale: 'en', ...data.translations.en },
             { locale: 'no', ...data.translations.no }
           ]
-        })
+        } as any)
 
         toast.success('Department created successfully!')
       }
@@ -162,46 +169,74 @@ export default function DepartmentEditor({
     }
   }
 
+  const isEditing = !!department
+  const departmentName = form.watch('translations.en.title') || form.watch('Name') || 'New Department'
+
   return (
-    <div className="container max-w-5xl py-8 space-y-8">
-      {/* Header */}
+    <div className="min-h-screen w-full">
+      {/* Premium Header */}
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+        <div className="container max-w-7xl mx-auto px-4 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push('/admin/units')}
-            className="gap-2"
+                className="gap-2 hover:bg-primary/10"
           >
             <ChevronLeft className="w-4 h-4" />
-            Back to Units
+                Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {department ? 'Edit Department' : 'Create Department'}
+                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+                  {isEditing ? 'Edit Department' : 'Create Department'}
+                  <Badge variant={isEditing ? 'secondary' : 'default'} className="text-xs">
+                    <Building2 className="w-3 h-3 mr-1" />
+                    {isEditing ? 'Editing' : 'New'}
+                  </Badge>
             </h1>
-            <p className="text-muted-foreground">
-              {department ? 'Update department information and translations' : 'Add a new department with multi-language support'}
-            </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isEditing ? 'Update department information and content' : 'Add a new department to your organization'}
+                </p>
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/admin/units')}
+                disabled={isSubmitting}
+                className="gap-2"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </Button>
+              <Button 
+                onClick={form.handleSubmit(onSubmit)} 
+                disabled={isSubmitting}
+                className="gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <Save className="w-4 h-4" />
+                {isSubmitting ? 'Saving...' : isEditing ? 'Update Department' : 'Create Department'}
+              </Button>
+            </div>
           </div>
         </div>
-        <Badge variant={department ? 'secondary' : 'default'}>
-          <Building2 className="w-3 h-3 mr-1" />
-          {department ? 'Editing' : 'New'}
-        </Badge>
       </div>
 
+      <div className="container max-w-7xl mx-auto px-4 py-8">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Basic Information Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>
-                Core department details and settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-[1fr_380px]">
+            {/* LEFT COLUMN - Main Content */}
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <GlassCard
+                title="Basic Information"
+                description="Core department details and identifiers"
+                variant="premium"
+              >
+                <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -215,10 +250,11 @@ export default function DepartmentEditor({
                           maxLength={10}
                           disabled={!!department}
                           {...field} 
+                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
                         />
                       </FormControl>
-                      <FormDescription>
-                        Unique identifier (max 10 chars, cannot be changed after creation)
+                          <FormDescription className="text-xs">
+                            Unique identifier (max 10 chars{department ? ', cannot be changed' : ''})
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -236,9 +272,10 @@ export default function DepartmentEditor({
                           placeholder="e.g., Business Intelligence" 
                           maxLength={50}
                           {...field} 
+                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
                         />
                       </FormControl>
-                      <FormDescription>
+                          <FormDescription className="text-xs">
                         Internal name (max 50 chars)
                       </FormDescription>
                       <FormMessage />
@@ -246,131 +283,25 @@ export default function DepartmentEditor({
                   )}
                 />
               </div>
+                </div>
+              </GlassCard>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="campus_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Campus</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select campus" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {campuses.map((campus) => (
-                            <SelectItem key={campus.$id} value={campus.$id}>
-                              {campus.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Type</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {types.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="committee">Committee</SelectItem>
-                          <SelectItem value="team">Team</SelectItem>
-                          <SelectItem value="service">Service</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="logo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Logo URL</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="url"
-                        placeholder="https://example.com/logo.png" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Direct URL to department logo image
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="active"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active Status</FormLabel>
-                      <FormDescription>
-                        Inactive departments won't be visible to users
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Translations Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Languages className="w-5 h-5" />
-                Translations
-              </CardTitle>
-              <CardDescription>
-                Provide content in both English and Norwegian
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={activeLocale} onValueChange={(v) => setActiveLocale(v as 'en' | 'no')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="en">English</TabsTrigger>
-                  <TabsTrigger value="no">Norwegian</TabsTrigger>
+              {/* Translations */}
+              <GlassCard
+                title="Content & Translations"
+                description="Multi-language content for public display"
+                variant="premium"
+              >
+                <Tabs value={activeLocale} onValueChange={(v) => setActiveLocale(v as 'en' | 'no')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 bg-muted/50 backdrop-blur-sm">
+                    <TabsTrigger value="en" className="flex items-center gap-2 data-[state=active]:bg-card/80">
+                      🇬🇧 English
+                    </TabsTrigger>
+                    <TabsTrigger value="no" className="flex items-center gap-2 data-[state=active]:bg-card/80">
+                      🇳🇴 Norwegian
+                    </TabsTrigger>
                 </TabsList>
 
-                {/* English Translation */}
                 <TabsContent value="en" className="space-y-4 mt-6">
                   <FormField
                     control={form.control}
@@ -379,7 +310,11 @@ export default function DepartmentEditor({
                       <FormItem>
                         <FormLabel>Title (English)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Department title in English" {...field} />
+                            <Input 
+                              placeholder="Department title in English" 
+                              {...field}
+                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
+                            />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -394,13 +329,14 @@ export default function DepartmentEditor({
                         <FormLabel>Short Description (English)</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Brief description for hero sections and cards"
+                              placeholder="Brief description for cards and previews"
                             rows={3}
                             {...field} 
+                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300 resize-none"
                           />
                         </FormControl>
-                        <FormDescription>
-                          Used in hero sections and card previews
+                          <FormDescription className="text-xs">
+                            Used in cards and hero sections
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -414,6 +350,7 @@ export default function DepartmentEditor({
                       <FormItem>
                         <FormLabel>Full Description (English)</FormLabel>
                         <FormControl>
+                            <div className="border border-border/50 rounded-lg overflow-hidden bg-card/40 backdrop-blur-sm">
                           <JoditEditor
                             ref={editorRefEn}
                             value={field.value}
@@ -421,9 +358,11 @@ export default function DepartmentEditor({
                             config={{
                               readonly: false,
                               height: 400,
-                              placeholder: 'Detailed department description in English'
+                                  placeholder: 'Detailed department description in English',
+                                  toolbar: true
                             }}
                           />
+                            </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -431,7 +370,6 @@ export default function DepartmentEditor({
                   />
                 </TabsContent>
 
-                {/* Norwegian Translation */}
                 <TabsContent value="no" className="space-y-4 mt-6">
                   <FormField
                     control={form.control}
@@ -440,7 +378,11 @@ export default function DepartmentEditor({
                       <FormItem>
                         <FormLabel>Tittel (Norsk)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Avdelingstittel på norsk" {...field} />
+                            <Input 
+                              placeholder="Avdelingstittel på norsk" 
+                              {...field}
+                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
+                            />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -455,13 +397,14 @@ export default function DepartmentEditor({
                         <FormLabel>Kort beskrivelse (Norsk)</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Kort beskrivelse for hero-seksjoner og kort"
+                              placeholder="Kort beskrivelse for kort og forhåndsvisninger"
                             rows={3}
                             {...field} 
+                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300 resize-none"
                           />
                         </FormControl>
-                        <FormDescription>
-                          Brukes i hero-seksjoner og kortforhåndsvisninger
+                          <FormDescription className="text-xs">
+                            Brukes i kort og hero-seksjoner
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -475,6 +418,7 @@ export default function DepartmentEditor({
                       <FormItem>
                         <FormLabel>Full beskrivelse (Norsk)</FormLabel>
                         <FormControl>
+                            <div className="border border-border/50 rounded-lg overflow-hidden bg-card/40 backdrop-blur-sm">
                           <JoditEditor
                             ref={editorRefNo}
                             value={field.value}
@@ -482,37 +426,154 @@ export default function DepartmentEditor({
                             config={{
                               readonly: false,
                               height: 400,
-                              placeholder: 'Detaljert avdelingsbeskrivelse på norsk'
+                                  placeholder: 'Detaljert avdelingsbeskrivelse på norsk',
+                                  toolbar: true
                             }}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </GlassCard>
+
+              {/* Hero Image Upload */}
+              <GlassCard
+                title="Hero Background"
+                description="Upload a custom hero background for the department page"
+                variant="premium"
+              >
+                <HeroUploadPreview
+                  heroUrl={form.watch('hero')}
+                  onChange={(url) => form.setValue('hero', url)}
+                  departmentName={departmentName}
+                />
+              </GlassCard>
+            </div>
+
+            {/* RIGHT COLUMN - Sticky Sidebar */}
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <DepartmentEditorSidebar
+                departmentName={departmentName}
+                logoUrl={form.watch('logo')}
+                onLogoChange={(url) => form.setValue('logo', url)}
+                isNew={!isEditing}
+                stats={department ? {
+                  userCount: (department as any).userCount,
+                  boardMemberCount: (department as any).boardMemberCount,
+                  socialsCount: (department as any).socialsCount
+                } : undefined}
+                statusControl={
+                  <FormField
+                    control={form.control}
+                    name="active"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-sm">Active Status</FormLabel>
+                          <FormDescription className="text-xs">
+                            Visible to users when active
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
                           />
                         </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                }
+                campusControl={
+                  <FormField
+                    control={form.control}
+                    name="campus_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm">Campus</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-card/60 backdrop-blur-sm border-border/50">
+                              <SelectValue placeholder="Select campus" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {campuses.map((campus) => (
+                              <SelectItem key={campus.$id} value={campus.$id}>
+                                {campus.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                }
+                typeControl={
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm">Type</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-card/60 backdrop-blur-sm border-border/50">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {types.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="committee">Committee</SelectItem>
+                            <SelectItem value="team">Team</SelectItem>
+                            <SelectItem value="service">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                }
+              />
+            </div>
+          </form>
+        </Form>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-4">
+        {/* Mobile Actions */}
+        <div className="flex md:hidden items-center justify-center gap-2 mt-6 p-4 bg-card/60 backdrop-blur-sm rounded-xl border border-border/50 sticky bottom-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push('/admin/units')}
               disabled={isSubmitting}
+            className="flex-1"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              <Save className="w-4 h-4 mr-2" />
-              {isSubmitting ? 'Saving...' : department ? 'Update Department' : 'Create Department'}
+          <Button 
+            onClick={form.handleSubmit(onSubmit)} 
+            disabled={isSubmitting}
+            className="flex-1"
+          >
+            {isSubmitting ? 'Saving...' : 'Save'}
             </Button>
           </div>
-        </form>
-      </Form>
+      </div>
     </div>
   )
 }
-

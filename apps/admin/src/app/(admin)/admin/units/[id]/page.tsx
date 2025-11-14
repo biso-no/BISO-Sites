@@ -7,9 +7,10 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
-export default async function DepartmentEditPage({ params }: { params: { id: string } }) {
+export default async function DepartmentEditPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const [department, campuses, types] = await Promise.all([
-    getDepartmentById(params.id),
+    getDepartmentById(id),
     getCampuses(),
     getDepartmentTypes()
   ]);

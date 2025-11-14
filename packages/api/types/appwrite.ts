@@ -191,6 +191,7 @@ export type Departments = Models.Row & {
     products: WebshopProducts[];
     translations: ContentTranslations[];
     translation_refs: ContentTranslations[];
+    hero: string | null;
 }
 
 export type DepartmentSocials = Models.Row & {
