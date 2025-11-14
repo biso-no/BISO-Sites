@@ -1,8 +1,7 @@
 "use server"
-import { createSessionClient } from "@/lib/appwrite";
-import { ID, Models, Query } from "node-appwrite";
-import { revalidatePath } from "next/cache";
-import { Campus } from "@/lib/types/post";
+import { createSessionClient } from "@repo/api/server";
+import { Query } from "@repo/api";
+import { Campus } from "@repo/api/types/appwrite";
 
 
 const databaseId = 'app';
@@ -10,11 +9,10 @@ const collectionId = 'campuses';
 
 export async function getCampuses() {
     const { db } = await createSessionClient();
-    const campuses = await db.listDocuments(
+    const campuses = await db.listRows<Campus>(
         'app',
-        'campus',
+        'campuses',
         [Query.select(['name', '$id'])]
     );
-
-    return campuses.documents as Campus[];
+    return campuses.rows;
 }

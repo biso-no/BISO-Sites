@@ -31,7 +31,7 @@ export async function getOrders({
             query.push(Query.equal('status', status));
         }
         query.push(Query.orderDesc('$createdAt'));
-        const orders = await db.listRows(
+        const orders = await db.listRows<Orders>(
             'app',
             'orders',
             query
@@ -148,7 +148,7 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
 
       let product = productCache.get(productId)
       if (!product) {
-        product = await getProduct(productId, locale)
+        product = await getProduct(productId)
         if (!product) {
           throw new Error(`Product ${input.slug || productId} is not available anymore.`)
         }
@@ -280,11 +280,14 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
   }
 }
 
-export async function startCartCheckout(data: CartCheckoutData) {
+async function startCartCheckout(data: CartCheckoutData) {
   return createCartCheckoutSession(data)
 }
 
-export async function getCheckoutStatus(orderId: string) {
+async function getCheckoutStatus(orderId: string): Promise<
+  | { success: false; error: string }
+  | { success: true; order: Orders; vippsStatus: unknown }
+> {
     try {
         const { db } = await createAdminClient()
         const order = await db.getRow<Orders>('app', 'orders', orderId)

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import type { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import type { PageRecord, PageTranslationRecord } from "@repo/api/page-builder";
 import {
   ensureTranslation,
@@ -11,7 +11,7 @@ import {
   updateManagedPage,
 } from "@/app/actions/pages";
 import { PageBuilderEditor } from "@repo/editor/editor";
-import { DEFAULT_PAGE_DOCUMENT } from "@repo/editor/page-builder-config";
+import { DEFAULT_PAGE_DOCUMENT } from "@repo/editor";
 import type { PageBuilderDocument } from "@repo/editor/types";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
@@ -32,8 +32,8 @@ const LOCALE_LABELS: Record<Locale, string> = {
   en: "English",
 };
 
-const STATUS_OPTIONS: PageStatus[] = ["draft", "published", "archived"];
-const VISIBILITY_OPTIONS: PageVisibility[] = ["public", "authenticated"];
+const STATUS_OPTIONS: PageStatus[] = [PageStatus.DRAFT, PageStatus.PUBLISHED, PageStatus.ARCHIVED];
+const VISIBILITY_OPTIONS: PageVisibility[] = [PageVisibility.PUBLIC, PageVisibility.AUTHENTICATED];
 
 interface PageEditorProps {
   page: PageRecord;
@@ -117,12 +117,12 @@ export function PageEditor({ page, initialLocale }: PageEditorProps) {
           title: draftTitle,
           slug: draftSlug ?? null,
           description: draftDescription ?? null,
-          pageStatus: pageState.status === "archived" ? pageState.status : "published",
+          pageStatus: pageState.status === PageStatus.ARCHIVED ? pageState.status : PageStatus.PUBLISHED,
         });
 
         setPageState((prev) => ({
           ...prev,
-          status: "published",
+          status: PageStatus.PUBLISHED,
           translations: prev.translations.map((item) =>
             item.id === updated.id ? { ...item, ...updated } : item
           ),
@@ -351,7 +351,7 @@ export function PageEditor({ page, initialLocale }: PageEditorProps) {
             <div className="rounded-lg border border-dashed border-primary/20 bg-muted/40 p-4">
               <PageBuilderEditor
                 data={editorState}
-                onChange={(data) => {
+                onChange={(data: PageBuilderDocument) => {
                   setEditorState(data);
                   setDirty(true);
                 }}

@@ -95,7 +95,7 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Con
   }
 }
 
-export async function getProduct(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+async function getProduct(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -140,7 +140,7 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
     return null
   }}
 
-export async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
+async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -195,7 +195,7 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
   }
 }
 
-export async function updateProduct(id: string, data: Partial<CreateProductData>): Promise<WebshopProducts | null> {
+async function updateProduct(id: string, data: Partial<CreateProductData>): Promise<WebshopProducts | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -256,7 +256,7 @@ export async function updateProduct(id: string, data: Partial<CreateProductData>
   }
 }
 
-export async function deleteProduct(id: string): Promise<boolean> {
+async function deleteProduct(id: string): Promise<boolean> {
   try {
     const { db } = await createAdminClient()
     

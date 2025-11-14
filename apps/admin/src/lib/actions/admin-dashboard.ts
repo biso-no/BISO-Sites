@@ -161,6 +161,6 @@ export async function getEmployeeDistribution() {
 }
 
 // Utility function for data updates that need to trigger revalidation
-export async function revalidateDashboard() {
+async function revalidateDashboard() {
   revalidatePath('/admin/dashboard')
 }

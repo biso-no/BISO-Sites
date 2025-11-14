@@ -6,7 +6,7 @@ import { CampusData } from "@/lib/types/campus-data"
 import { Query, Models } from "@repo/api"
 import type { CampusMetadata } from "@repo/api/types/appwrite"
 
-export async function getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
+async function getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
   try {
     const { db } = await createAdminClient()
     
@@ -28,7 +28,7 @@ export async function getCampusMetadata(): Promise<Record<string, CampusMetadata
   }
 }
 
-export async function getCampusMetadataById(campusId: string): Promise<CampusMetadata | null> {
+async function getCampusMetadataById(campusId: string): Promise<CampusMetadata | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -47,7 +47,7 @@ export async function getCampusMetadataById(campusId: string): Promise<CampusMet
   }
 }
 
-export async function getCampusMetadataByName(campusName: string): Promise<CampusMetadata | null> {
+async function getCampusMetadataByName(campusName: string): Promise<CampusMetadata | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -137,7 +137,7 @@ export async function getCampusWithDepartments(campusId: string) {
   }
 }
 
-export async function getCampusData() {
+async function getCampusData() {
   const { db } = await createSessionClient();
   const campuses = await db.listRows<CampusData>(
     'app',

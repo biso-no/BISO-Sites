@@ -40,7 +40,7 @@ export async function getVarslingSettings(campusId?: string): Promise<VarslingSe
 }
 
 // Get all varsling settings (admin only)
-export async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
+async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
   try {
     const { db } = await createAdminClient();
     
@@ -58,7 +58,7 @@ export async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
 }
 
 // Create new varsling settings (admin only)
-export async function createVarslingSettings(data: Omit<VarslingSettings, '$id'>): Promise<{ success: boolean; error?: string }> {
+async function createVarslingSettings(data: Omit<VarslingSettings, '$id'>): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createAdminClient();
     
@@ -73,7 +73,7 @@ export async function createVarslingSettings(data: Omit<VarslingSettings, '$id'>
 }
 
 // Update varsling settings (admin only)
-export async function updateVarslingSettings(id: string, data: Partial<VarslingSettings>): Promise<{ success: boolean; error?: string }> {
+async function updateVarslingSettings(id: string, data: Partial<VarslingSettings>): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createAdminClient();
     
@@ -88,7 +88,7 @@ export async function updateVarslingSettings(id: string, data: Partial<VarslingS
 }
 
 // Delete varsling settings (admin only)
-export async function deleteVarslingSettings(id: string): Promise<{ success: boolean; error?: string }> {
+async function deleteVarslingSettings(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createAdminClient();
     

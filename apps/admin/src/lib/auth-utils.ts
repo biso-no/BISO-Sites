@@ -3,7 +3,7 @@ import { createSessionClient } from "@repo/api/server";
 /**
  * Check if the current session belongs to an authenticated user (not anonymous)
  */
-export async function isAuthenticatedUser(): Promise<boolean> {
+async function isAuthenticatedUser(): Promise<boolean> {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
@@ -26,7 +26,7 @@ export async function isAuthenticatedUser(): Promise<boolean> {
 /**
  * Check if there's any session (anonymous or authenticated)
  */
-export async function hasAnySession(): Promise<boolean> {
+async function hasAnySession(): Promise<boolean> {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();

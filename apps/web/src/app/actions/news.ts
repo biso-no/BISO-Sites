@@ -101,7 +101,7 @@ export async function getNewsItem(id: string, locale: 'en' | 'no'): Promise<Cont
   }
 }
 
-export async function createNewsItem(data: CreateNewsData, skipRevalidation = false): Promise<News | null> {
+async function createNewsItem(data: CreateNewsData, skipRevalidation = false): Promise<News | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -154,7 +154,7 @@ export async function createNewsItem(data: CreateNewsData, skipRevalidation = fa
   }
 }
 
-export async function updateNewsItem(id: string, data: Partial<CreateNewsData>, skipRevalidation = false): Promise<NewsItem | null> {
+async function updateNewsItem(id: string, data: Partial<CreateNewsData>, skipRevalidation = false): Promise<NewsItem | null> {
   try {
     const { db } = await createAdminClient()
     

@@ -17,7 +17,7 @@ const vipps = Client({
     retryRequests: false,
 });
 
-export async function getVippsAccessToken() {
+async function getVippsAccessToken() {
     
     if (!clientId || !clientSecret) {
         throw new Error("VIPPS_CLIENT_ID and VIPPS_CLIENT_SECRET are not set")

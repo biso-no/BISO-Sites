@@ -129,7 +129,7 @@ export async function getDepartmentTypes(): Promise<string[]> {
   return Array.from(types).sort();
 }
 
-export async function updateDepartment(
+async function updateDepartment(
   id: string,
   data: {
     Name?: string;

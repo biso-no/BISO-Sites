@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { RootProvider } from 'fumadocs-ui/provider/next';
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -23,8 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} flex flex-col min-h-screen`}>
+        <RootProvider>
+          {children}
+        </RootProvider>
       </body>
     </html>
   );

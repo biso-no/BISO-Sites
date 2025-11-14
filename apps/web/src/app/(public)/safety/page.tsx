@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Shield, AlertTriangle, Eye, HelpCircle, CheckCircle, Mail, User } from "lucide-react";
 import { getCampuses } from "@/app/actions/campus";
-import { getVarslingSettings, submitVarslingCase, type VarslingSettings } from "@/app/actions/varsling";
-import { Campus } from "@/lib/types/campus";
+import { getVarslingSettings, submitVarslingCase } from "@/app/actions/varsling";
+import { Campus, VarslingSettings } from "@repo/api/types/appwrite";
 import Link from "next/link";
 
 export default function SafetyPage() {

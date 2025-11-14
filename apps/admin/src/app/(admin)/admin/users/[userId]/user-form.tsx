@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { updateUser } from '@/lib/admin/db'
-import { User } from '@/lib/admin/db'
+import { updateProfile } from '@/lib/actions/user'
+import { Users } from "@repo/api/types/appwrite"
 import { Button } from "@repo/ui/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@repo/ui/components/ui/card"
 import { Checkbox } from "@repo/ui/components/ui/checkbox"
@@ -31,23 +31,25 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/ui/tooltip"
 import { ArrowLeft, Save, RefreshCw, UserCog, Shield, Building, Mail, AlertTriangle } from "lucide-react"
+import { Campus } from "@repo/api/types/appwrite"
 
 export interface UserFormProps {
-  user: User
-  campuses: { id: string; name: string }[]
+  user: Users
+  campuses: Campus[]
 }
 
 export function UserForm({ user: initialUser, campuses }: UserFormProps) {
-  const [user, setUser] = useState<User>(initialUser)
+  const [user, setUser] = useState<Users>(initialUser)
   const [isSaving, setIsSaving] = useState(false)
   const router = useRouter()
 
   const handleRoleChange = (role: string) => {
     if (!user) return
 
-    const newRoles = user.roles.includes(role)
-      ? user.roles.filter((r) => r !== role)
-      : [...user.roles, role]
+    const currentRoles = user.roles || []
+    const newRoles = currentRoles.includes(role)
+      ? currentRoles.filter((r) => r !== role)
+      : [...currentRoles, role]
 
     setUser({ ...user, roles: newRoles })
   }
@@ -55,7 +57,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      await updateUser(user.id, user)
+      await updateProfile(user)
       toast({
         title: "Success",
         description: "User details have been updated",
@@ -79,7 +81,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
   }
   
   // Generate user's initials for avatar
-  const initials = user.name
+  const initials = (user.name || "")
     .split(" ")
     .map(part => part[0])
     .slice(0, 2)
@@ -87,7 +89,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
     .toUpperCase()
   
   // Generate color for avatar based on user name
-  const nameHash = user.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const nameHash = (user.name || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
   const colors = [
     "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500", 
     "bg-lime-500", "bg-green-500", "bg-emerald-500", "bg-teal-500", 
@@ -143,7 +145,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-background/50">
             <Avatar className="h-24 w-24">
-              <AvatarImage src="" alt={user.name} />
+              <AvatarImage src="" alt={user.name || ""} />
               <AvatarFallback className={`text-xl font-semibold text-white ${bgColor}`}>
                 {initials}
               </AvatarFallback>
@@ -186,7 +188,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      value={user.name}
+                      value={user.name || ""}
                       onChange={(e) => setUser({ ...user, name: e.target.value })}
                       className="mt-1"
                     />
@@ -198,7 +200,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="email"
-                        value={user.email}
+                        value={user.email || ""}
                         disabled
                         className="pl-10"
                       />
@@ -208,15 +210,15 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   <div>
                     <Label htmlFor="campus">Campus</Label>
                     <Select
-                      value={user.campus}
-                      onValueChange={(value) => setUser({ ...user, campus: value })}
+                      value={user.campus_id || undefined}
+                      onValueChange={(value) => setUser({ ...user, campus_id: value })}
                     >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Select campus" />
                       </SelectTrigger>
                       <SelectContent>
                         {campuses.map((campus) => (
-                          <SelectItem key={campus.id} value={campus.id}>
+                          <SelectItem key={campus.$id} value={campus.$id}>
                             {campus.name}
                           </SelectItem>
                         ))}
@@ -248,31 +250,34 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   </p>
                   
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                    {["User", "HR", "PR", "KK", "Finance", "Admin"].map((role) => (
-                      <div 
-                        key={role} 
-                        className={`
-                          flex items-center gap-2 p-2 rounded-md transition-colors
-                          ${user.roles.includes(role) 
-                            ? "bg-primary/10 border border-primary/30" 
-                            : "bg-muted border border-transparent"}
-                        `}
-                        onClick={() => handleRoleChange(role)}
-                      >
-                        <Checkbox
-                          id={`role-${role}`}
-                          checked={user.roles.includes(role)}
-                          onCheckedChange={() => handleRoleChange(role)}
-                          className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                        />
-                        <label
-                          htmlFor={`role-${role}`}
-                          className="text-sm font-medium leading-none cursor-pointer flex-1"
+                    {["User", "HR", "PR", "KK", "Finance", "Admin"].map((role) => {
+                      const currentRoles = user.roles || []
+                      return (
+                        <div 
+                          key={role} 
+                          className={`
+                            flex items-center gap-2 p-2 rounded-md transition-colors
+                            ${currentRoles.includes(role) 
+                              ? "bg-primary/10 border border-primary/30" 
+                              : "bg-muted border border-transparent"}
+                          `}
+                          onClick={() => handleRoleChange(role)}
                         >
-                          {role}
-                        </label>
-                      </div>
-                    ))}
+                          <Checkbox
+                            id={`role-${role}`}
+                            checked={currentRoles.includes(role)}
+                            onCheckedChange={() => handleRoleChange(role)}
+                            className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                          />
+                          <label
+                            htmlFor={`role-${role}`}
+                            className="text-sm font-medium leading-none cursor-pointer flex-1"
+                          >
+                            {role}
+                          </label>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </TabsContent>

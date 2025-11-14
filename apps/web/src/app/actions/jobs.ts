@@ -85,7 +85,7 @@ export async function listJobs(params: ListJobsParams = {}): Promise<ContentTran
   }
 }
 
-export async function getJob(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+async function getJob(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -141,7 +141,7 @@ export async function getJobBySlug(slug: string, locale: 'en' | 'no'): Promise<C
   }
 }
 
-export async function createJob(data: CreateJobData, skipRevalidation = false): Promise<Jobs | null> {
+async function createJob(data: CreateJobData, skipRevalidation = false): Promise<Jobs | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -194,7 +194,7 @@ export async function createJob(data: CreateJobData, skipRevalidation = false): 
   }
 }
 
-export async function updateJob(id: string, data: Partial<CreateJobData>): Promise<Jobs | null> {
+async function updateJob(id: string, data: Partial<CreateJobData>): Promise<Jobs | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -252,7 +252,7 @@ export async function updateJob(id: string, data: Partial<CreateJobData>): Promi
   }
 }
 
-export async function deleteJob(id: string): Promise<boolean> {
+async function deleteJob(id: string): Promise<boolean> {
   try {
     const { db } = await createAdminClient()
     
@@ -282,7 +282,7 @@ export async function deleteJob(id: string): Promise<boolean> {
 }
 
 // AI Translation function using your existing AI setup
-export async function translateJobContent(
+async function translateJobContent(
   jobId: string, 
   fromLocale: 'en' | 'no', 
   toLocale: 'en' | 'no'
@@ -361,7 +361,7 @@ Please respond with a JSON object containing the translated title and descriptio
 }
 
 // Helper functions remain the same
-export async function listDepartments(campusId?: string) {
+async function listDepartments(campusId?: string) {
   const queries = [Query.equal('active', true)]
   
   if (campusId) {
@@ -378,7 +378,7 @@ export async function listDepartments(campusId?: string) {
   }
 }
 
-export async function listCampuses() {
+async function listCampuses() {
   try {
     const { db } = await createAdminClient()
     const response = await db.listRows('app', 'campus')
@@ -390,7 +390,7 @@ export async function listCampuses() {
 }
 
 // Job application functions remain the same but reference the new job structure
-export async function createJobApplication(data: JobApplicationFormData & { job_id: string }): Promise<JobApplication | null> {
+async function createJobApplication(data: JobApplicationFormData & { job_id: string }): Promise<JobApplication | null> {
   try {
     const { db, storage } = await createSessionClient()
     
@@ -432,7 +432,7 @@ export async function createJobApplication(data: JobApplicationFormData & { job_
   }
 }
 
-export async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
+async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
   try {
     const { db } = await createAdminClient()
     const queries = [Query.orderDesc('$createdAt')]
@@ -449,7 +449,7 @@ export async function listJobApplications(jobId?: string): Promise<JobApplicatio
   }
 }
 
-export async function updateJobApplicationStatus(applicationId: string, status: JobApplication['status']): Promise<JobApplication | null> {
+async function updateJobApplicationStatus(applicationId: string, status: JobApplication['status']): Promise<JobApplication | null> {
   try {
     const { db } = await createAdminClient()
     const application = await db.updateRow<JobApplication>('app', 'job_applications', applicationId, { status })
@@ -461,7 +461,7 @@ export async function updateJobApplicationStatus(applicationId: string, status: 
   }
 }
 
-export async function exportJobApplicationData(applicationId: string): Promise<JobApplication | null> {
+async function exportJobApplicationData(applicationId: string): Promise<JobApplication | null> {
   try {
     const { db } = await createAdminClient()
     const application = await db.getRow<JobApplication>('app', 'job_applications', applicationId)
@@ -472,7 +472,7 @@ export async function exportJobApplicationData(applicationId: string): Promise<J
   }
 }
 
-export async function deleteJobApplicationData(applicationId: string): Promise<boolean> {
+async function deleteJobApplicationData(applicationId: string): Promise<boolean> {
   try {
     const { db, storage } = await createAdminClient()
     

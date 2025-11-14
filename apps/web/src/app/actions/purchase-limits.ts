@@ -164,7 +164,7 @@ export async function validatePurchaseLimits(
 /**
  * Get purchase history summary for a user and product
  */
-export async function getPurchaseHistory(
+async function getPurchaseHistory(
   productId: string,
   userId: string
 ): Promise<{
