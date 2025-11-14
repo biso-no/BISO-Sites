@@ -248,7 +248,7 @@ export async function getUserCartReservations(): Promise<any[]> {
  * Get cart items with full product details
  * Returns enriched cart data ready for display
  */
-export async function getCartItemsWithDetails(): Promise<any[]> {
+export async function getCartItemsWithDetails(locale: 'en' | 'no' = 'en'): Promise<any[]> {
   try {
     const reservations = await getUserCartReservations()
     const { db } = await createSessionClient()
@@ -260,13 +260,13 @@ export async function getCartItemsWithDetails(): Promise<any[]> {
         // Fetch product details
         const product = await db.getRow('app', 'webshop_products', reservation.product_id)
         
-        // Get translation (assume first one for now, or fetch based on locale)
+        // Get translation for the specified locale
         const translations = await db.listRows(
           'app',
           'content_translations',
           [
             Query.equal('content_id', product.$id),
-            Query.equal('locale', 'en'), // TODO: Use actual locale
+            Query.equal('locale', locale),
           ]
         )
         

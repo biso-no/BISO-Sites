@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useLocale } from 'next-intl'
 import { getCartItemsWithDetails, createOrUpdateReservation, deleteReservation } from '@/app/actions/cart-reservations'
 
 export interface CartItem {
@@ -64,12 +65,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const locale = useLocale() as 'en' | 'no'
 
   // Load cart from database on mount
   const refreshCart = async () => {
     try {
       setIsLoading(true)
-      const cartData = await getCartItemsWithDetails()
+      const cartData = await getCartItemsWithDetails(locale)
       
       const cartItems: CartItem[] = cartData.map((item) => ({
         id: generateCartItemId(item.productId, undefined), // TODO: Handle options
@@ -99,7 +101,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setMounted(true)
     refreshCart()
-  }, [])
+  }, [locale])
 
   const addItem = async (item: Omit<CartItem, 'id' | 'quantity'> & { quantity?: number }) => {
     const id = generateCartItemId(item.contentId, item.selectedOptions)

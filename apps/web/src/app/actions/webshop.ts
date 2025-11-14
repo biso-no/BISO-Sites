@@ -118,29 +118,26 @@ export async function getProduct(id: string, locale: 'en' | 'no'): Promise<Conte
   }
 }
 
-export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<WebshopProducts | null> {
+export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient()
-    console.log("Slug:", slug);
-    const productsResponse = await db.listRows<WebshopProducts>('app', 'webshop_products', [
-      Query.equal('slug', slug),
-      Query.limit(1),
-      Query.select(['$id', 'slug', 'status', 'campus_id', 'campus.*', 'category', 'regular_price', 'member_price', 'member_only', 'image', 'stock', 'metadata', 'departmentId', 'translation_refs.*'])
+    
+    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
+      Query.equal('content_type', ContentType.PRODUCT),
+      Query.equal('locale', locale as Locale),
+      Query.equal('product_ref.slug', slug),
+      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'product_ref.*']),
+      Query.limit(1)
     ])
-    console.log("Response:", productsResponse);
-    if (productsResponse.rows.length === 0) return null
-
-    const product = productsResponse.rows[0]
-    if (!product) notFound()
-
-    //Check if the translation for the locale exists
-    const translationExists = product.translation_refs.find(translation => translation.locale === locale)
-    if (!translationExists) notFound()
-
-    return product
+    
+    if (translationsResponse.rows.length === 0) {
+      return null
+    }
+    
+    return translationsResponse.rows[0] ?? null
   } catch (error) {
     console.error('Error fetching product by slug:', error)
-    notFound()
+    return null
   }}
 
 export async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
@@ -175,7 +172,6 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
       slug: data.slug,
       status: data.status === 'draft' ? Status.DRAFT : data.status === 'published' ? Status.PUBLISHED : Status.CLOSED,
       campus_id: data.campus_id,
-      campus: data.campus_id,
       category: data.category,
       regular_price: data.regular_price,
       member_price: data.member_price ?? null,
@@ -185,7 +181,7 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       departmentId: null,
       translation_refs: translationRefs
-    }) ?? null
+    } as any) ?? null
     
     if (!skipRevalidation) {
       revalidatePath('/shop')

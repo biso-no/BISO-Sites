@@ -21,7 +21,7 @@ import { validatePurchaseLimits } from '@/app/actions/purchase-limits'
 import { toast } from 'sonner'
 
 interface ProductDetailsClientProps {
-  product: WebshopProducts
+  product: ContentTranslations
   isMember?: boolean
   userId?: string | null
 }
@@ -42,31 +42,32 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
   const [availableStock, setAvailableStock] = useState<number | null>(null)
   const [isLoadingStock, setIsLoadingStock] = useState(false)
 
-  const metadata = parseProductMetadata(product.metadata)
+  const productRef = product.product_ref
+  const metadata = parseProductMetadata(productRef?.metadata)
   const productOptions = (metadata.product_options as ProductOption[]) || []
   
-  const displayPrice = getDisplayPrice(product.regular_price, product.member_price, isMember)
-  const hasDiscount = isMember && product.member_price && product.member_price < product.regular_price
-  const savings = calculateSavings(product.regular_price, product.member_price)
+  const displayPrice = getDisplayPrice(productRef?.regular_price ?? 0, productRef?.member_price, isMember)
+  const hasDiscount = isMember && productRef?.member_price && productRef?.member_price < (productRef?.regular_price ?? 0)
+  const savings = calculateSavings(productRef?.regular_price ?? 0, productRef?.member_price)
   
-  const imageUrl = product.image || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080'
+  const imageUrl = productRef?.image || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080'
 
   // Load available stock on mount
   useEffect(() => {
     async function loadAvailableStock() {
-      if (product.stock === null || product.stock === undefined) {
+      if (productRef?.stock === null || productRef?.stock === undefined) {
         setAvailableStock(null) // Infinite stock
         return
       }
       
       setIsLoadingStock(true)
-      const available = await getAvailableStock(product.$id)
+      const available = await getAvailableStock(productRef?.$id ?? '')
       setAvailableStock(available)
       setIsLoadingStock(false)
     }
     
     loadAvailableStock()
-  }, [product.$id, product.stock])
+  }, [productRef?.$id, productRef?.stock])
 
   const handleAddToCart = async () => {
     // Validate required options
@@ -86,8 +87,8 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
     const quantity = 1 // Adding 1 item at a time
 
     // Check available stock (considering reservations)
-    if (product.stock !== null && product.stock !== undefined) {
-      const currentAvailable = await getAvailableStock(product.$id)
+    if (productRef?.stock !== null && productRef?.stock !== undefined) {
+      const currentAvailable = await getAvailableStock(productRef?.$id ?? '')
       
       if (currentAvailable < quantity) {
         toast.error(
@@ -102,7 +103,7 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
 
     // Validate purchase limits (userId handled by session)
     const limitCheck = await validatePurchaseLimits(
-      product.$id,
+      productRef?.$id ?? '',
       userId || 'guest', // TODO: Get from session when available
       quantity,
       metadata
@@ -123,9 +124,9 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
     })
 
     // Create reservation for this stock
-    if (product.stock !== null && product.stock !== undefined) {
+    if (productRef?.stock !== null && productRef?.stock !== undefined) {
       const reservationResult = await createOrUpdateReservation(
-        product.$id,
+        productRef?.$id ?? '',
         quantity
       )
 
@@ -135,22 +136,22 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
       }
 
       // Update available stock display
-      const newAvailable = await getAvailableStock(product.$id)
+      const newAvailable = await getAvailableStock(productRef?.$id ?? '')
       setAvailableStock(newAvailable)
     }
 
     // Add to cart
     addItem({
-      contentId: product.$id,
-      productId: product.$id,
-      slug: product.slug,
-      name: product.translation_refs[0]?.title ?? '',
-      image: product.image,
-      category: product.category,
-      regularPrice: product.regular_price,
-      memberPrice: product.member_price,
-      memberOnly: product.member_only,
-      stock: product.stock,
+      contentId: product.content_id,
+      productId: productRef?.$id ?? '',
+      slug: productRef?.slug ?? '',
+      name: product.title,
+      image: productRef?.image,
+      category: productRef?.category ?? '',
+      regularPrice: productRef?.regular_price ?? 0,
+      memberPrice: productRef?.member_price,
+      memberOnly: productRef?.member_only ?? false,
+      stock: productRef?.stock,
       selectedOptions: Object.keys(namedOptions).length > 0 ? namedOptions : undefined,
       metadata: {
         max_per_user: typeof metadata.max_per_user === 'number' ? metadata.max_per_user : undefined,
@@ -184,7 +185,7 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
       <div className="relative h-[60vh] overflow-hidden">
         <ImageWithFallback
           src={imageUrl}
-          alt={product.translation_refs[0]?.title ?? ''}
+          alt={product.title}
           fill
           className="object-cover"
         />
@@ -208,10 +209,10 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
               className="mt-12"
             >
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                <Badge className={categoryColors[product.category]}>
-                  {product.category}
+                <Badge className={categoryColors[productRef?.category ?? '']}>
+                  {productRef?.category}
                 </Badge>
-                {product.member_only && (
+                {productRef?.member_only && (
                   <Badge className="bg-orange-500 text-white border-0">
                     <Users className="w-3 h-3 mr-1" />
                     Members Only
@@ -225,13 +226,13 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
                 )}
               </div>
               
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{product.translation_refs[0]?.title ?? ''}</h1>
+              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{product.title}</h1>
               
               <div className="flex items-baseline gap-3">
                 {hasDiscount ? (
                   <>
                     <span className="text-3xl text-white font-bold">{formatPrice(displayPrice)}</span>
-                    <span className="text-xl text-white/60 line-through">{formatPrice(product.regular_price)}</span>
+                    <span className="text-xl text-white/60 line-through">{formatPrice(productRef?.regular_price ?? 0)}</span>
                     <Badge className="bg-green-500 text-white border-0">
                       Member Discount
                     </Badge>
@@ -241,9 +242,9 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
                 )}
               </div>
               
-              {!isMember && product.member_price && product.member_price < product.regular_price && (
+              {!isMember && productRef?.member_price && productRef?.member_price < (productRef?.regular_price ?? 0) && (
                 <p className="text-white/80 mt-3 text-lg">
-                  🎉 Members pay only {formatPrice(product.member_price)} - Save {product.regular_price - product.member_price} NOK!
+                  🎉 Members pay only {formatPrice(productRef.member_price)} - Save {(productRef.regular_price ?? 0) - productRef.member_price} NOK!
                 </p>
               )}
             </motion.div>
@@ -264,7 +265,7 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
               <Card className="p-8 border-0 shadow-lg">
                 <h2 className="text-gray-900 mb-4 text-2xl font-bold">Product Description</h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                  {product.translation_refs[0]?.description ?? ''}
+                  {product.description}
                 </p>
               </Card>
             </motion.div>
@@ -352,7 +353,7 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Stock Status */}
-            {product.stock !== null && (
+            {productRef?.stock !== null && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -381,9 +382,9 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
                       {!isLoadingStock && availableStock !== null && availableStock > 10 && (
                         <div className="text-sm text-gray-600">{availableStock} available</div>
                       )}
-                      {!isLoadingStock && availableStock !== null && availableStock < product.stock && (
+                      {!isLoadingStock && availableStock !== null && (productRef?.stock ?? 0) > 0 && availableStock < (productRef?.stock ?? 0) && (
                         <div className="text-xs text-gray-500 mt-1">
-                          {product.stock - availableStock} reserved in carts
+                          {(productRef?.stock ?? 0) - availableStock} reserved in carts
                         </div>
                       )}
                     </div>
@@ -403,7 +404,7 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
                   {hasDiscount ? (
                     <>
                       <div className="text-sm text-white/80 line-through mb-1">
-                        {formatPrice(product.regular_price)}
+                        {formatPrice(productRef?.regular_price ?? 0)}
                       </div>
                       <div className="text-4xl text-white font-bold mb-2">
                         {formatPrice(displayPrice)}
@@ -419,22 +420,22 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
                   )}
                 </div>
 
-                {!isMember && product.member_price && product.member_price < product.regular_price && (
+                {!isMember && productRef?.member_price && productRef?.member_price < (productRef?.regular_price ?? 0) && (
                   <Alert className="mb-4 bg-white/10 border-white/20">
                     <AlertCircle className="h-4 w-4 text-white" />
                     <AlertDescription className="text-white text-sm">
-                      Become a BISO member to save {product.regular_price - product.member_price} NOK on this item!
+                      Become a BISO member to save {(productRef?.regular_price ?? 0) - productRef.member_price} NOK on this item!
                     </AlertDescription>
                   </Alert>
                 )}
 
                 <Button 
                   onClick={handleAddToCart}
-                  disabled={product.stock === 0}
+                  disabled={productRef?.stock === 0}
                   className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ShoppingCart className="w-4 h-4 mr-2" />
-                  {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                  {productRef?.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
                 </Button>
 
                 {addedToCart && (
@@ -459,28 +460,28 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
               <Card className="p-6 border-0 shadow-lg">
                 <h3 className="mb-4 text-gray-900 font-bold">Price Details</h3>
                 <div className="space-y-3">
-                  {!isMember && product.member_price && product.member_price < product.regular_price ? (
+                  {!isMember && productRef?.member_price && productRef?.member_price < (productRef?.regular_price ?? 0) ? (
                     <>
                       <div className="flex justify-between text-gray-600">
                         <span>Regular Price</span>
-                          <span>{formatPrice(product.regular_price)}</span>
+                          <span>{formatPrice(productRef?.regular_price ?? 0)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between text-[#3DA9E0]">
                         <span>Member Price</span>
-                        <span>{formatPrice(product.member_price)}</span>
+                        <span>{formatPrice(productRef.member_price)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between text-green-600">
                         <span>Member Savings</span>
-                        <span>-{product.regular_price - product.member_price} NOK</span>
+                        <span>-{(productRef?.regular_price ?? 0) - productRef.member_price} NOK</span>
                       </div>
                     </>
                   ) : hasDiscount ? (
                     <>
                       <div className="flex justify-between text-gray-400 line-through">
                         <span>Regular Price</span>
-                        <span>{formatPrice(product.regular_price)}</span>
+                        <span>{formatPrice(productRef?.regular_price ?? 0)}</span>
                       </div>
                       <div className="flex justify-between text-green-600">
                         <span>Member Discount</span>
@@ -512,7 +513,7 @@ export function ProductDetailsClient({ product, isMember = false, userId = null 
             </motion.div>
 
             {/* Member Benefits */}
-            {!isMember && product.category !== 'Membership' && (
+            {!isMember && productRef?.category !== 'Membership' && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
