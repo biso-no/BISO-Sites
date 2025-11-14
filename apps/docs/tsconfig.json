@@ -4,17 +4,21 @@
     "plugins": [
       {
         "name": "next"
-      }
-    ]
+      },
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/.source": [".source"]
+    }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     "next-env.d.ts",
-    "next.config.js",
+    "next.config.mjs",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
-  ]
+  ],
 }
