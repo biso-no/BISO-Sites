@@ -5,8 +5,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { MoreHorizontal, Plus, TrendingUp } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@repo/ui/components/ui/badge"
+import { Button } from "@repo/ui/components/ui/button"
 import {
   Card,
   CardContent,
@@ -14,7 +14,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@repo/ui/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@repo/ui/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -30,8 +30,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { TabsContent } from "@/components/ui/tabs"
+} from "@repo/ui/components/ui/table"
+import { TabsContent } from "@repo/ui/components/ui/tabs"
 
 import { updateProduct, deleteProduct } from "@/app/actions/products"
 import { ProductWithTranslations } from "@/lib/types/product"
@@ -77,9 +77,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     }
   }, [products])
 
-  const formatPrice = (metadata: Record<string, any>) => {
-    if (typeof metadata.price === "number") return NOK_FORMATTER.format(metadata.price)
-    const parsed = Number(metadata.price)
+  const formatPrice = (price: number | null | undefined) => {
+    if (typeof price === "number") return NOK_FORMATTER.format(price)
+    const parsed = Number(price)
     if (!Number.isFinite(parsed)) return "—"
     return NOK_FORMATTER.format(parsed)
   }
@@ -154,8 +154,8 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
               </TableHeader>
               <TableBody className="divide-y divide-primary/10 bg-white/70">
                 {products.map((product) => {
-                  const refs = product.translation_refs ?? []
-                  const metadata = parseJSONSafe<Record<string, unknown>>(product.metadata)
+                const refs = product.translation_refs ?? []
+                const metadata = (product.metadata_parsed as Record<string, unknown> | undefined) ?? parseJSONSafe<Record<string, unknown>>(product.metadata)
                   const title = refs[0]?.title || product.slug
                   const statusToken = getStatusToken(product.status)
                   const uniqueLocales = getUniqueLocales(refs)
@@ -204,7 +204,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {formatPrice(metadata)}
+                        {formatPrice(product.regular_price)}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {product.campus?.name || product.campus_id || "—"}

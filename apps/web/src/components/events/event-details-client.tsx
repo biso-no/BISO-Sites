@@ -91,7 +91,8 @@ export function EventDetailsClient({ event, collectionEvents, isMember = false }
         <ImageWithFallback
           src={imageUrl}
           alt={event.title}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
         
@@ -274,11 +275,14 @@ export function EventDetailsClient({ event, collectionEvents, isMember = false }
                             onClick={() => router.push(`/events/${collectionEvent.content_id}`)}
                           >
                             <div className="flex items-start gap-4">
-                              <ImageWithFallback
-                                src={colImage}
-                                alt={collectionEvent.title}
-                                className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
-                              />
+                              <div className="relative w-20 h-20 flex-shrink-0">
+                                <ImageWithFallback
+                                  src={colImage}
+                                  alt={collectionEvent.title}
+                                  fill
+                                  className="object-cover rounded-lg"
+                                />
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2 mb-2">
                                   <h3 className="text-gray-900 font-semibold">{collectionEvent.title}</h3>

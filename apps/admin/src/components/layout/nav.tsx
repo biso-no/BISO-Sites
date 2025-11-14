@@ -61,8 +61,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
               alt="BISO logo"
               width={140}               // pick the intrinsic pixel width
               height={40}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 120px, 140px"
-              preload                   // above-the-fold
+              sizes="(max-width: 768px) 120px, 140px"              // above-the-fold
               className="h-10 w-auto"    // control display size via CSS
             />
             </Link>

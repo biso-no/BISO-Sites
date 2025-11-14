@@ -83,7 +83,8 @@ export enum ContentType {
     JOB = "job",
     EVENT = "event",
     NEWS = "news",
-    PRODUCT = "product"
+    PRODUCT = "product",
+    DEPARTMENT = "department"
 }
 
 export enum Status {
@@ -91,6 +92,18 @@ export enum Status {
     PUBLISHED = "published",
     CLOSED = "closed",
     ARCHIVED = "archived"
+}
+
+
+export enum PageStatus {
+    DRAFT = "draft",
+    PUBLISHED = "published",
+    ARCHIVED = "archived"
+}
+
+export enum PageVisibility {
+    PUBLIC = "public",
+    AUTHENTICATED = "authenticated"
 }
 
 
@@ -172,10 +185,23 @@ export type Departments = Models.Row & {
     logo: string | null;
     active: boolean | null;
     type: string | null;
-    description: string | null;
     socials: DepartmentSocials[];
     news: News[];
+    boardMembers: DepartmentBoard[];
+    products: WebshopProducts[];
+    translations: ContentTranslations[];
+    translation_refs: ContentTranslations[];
+    hero: string | null;
+    department_id: string | null;
+    department: Departments;
 }
+
+export type DepartmentSocials = Models.Row & {
+    platform: string | null;
+    url: string | null;
+    department_id: string;
+}
+
 
 export type StudentIds = Models.Row & {
     student_id: string;
@@ -217,6 +243,13 @@ export type Orders = Models.Row & {
     vipps_payment_link: string | null;
     vipps_receipt_url: string | null;
     campus_id: string | null;
+}
+
+export type CartReservations = Models.Row & {
+    product_id: string;
+    user_id: string;
+    quantity: number;
+    expires_at: string;
 }
 
 export type Memberships = Models.Row & {
@@ -300,13 +333,9 @@ export type DepartmentBoard = Models.Row & {
     name: string | null;
     imageUrl: string | null;
     role: string | null;
+    department: Departments;
 }
 
-export type DepartmentSocials = Models.Row & {
-    platform: string | null;
-    url: string | null;
-    department_id: string;
-}
 
 export type FeatureFlags = Models.Row & {
     key: string;
@@ -492,6 +521,7 @@ export type ContentTranslations = Models.Row & {
     event_ref: Events;
     news_ref: News;
     product_ref: WebshopProducts;
+    department_ref: Departments;
     content_type: ContentType;
 }
 
@@ -522,8 +552,10 @@ export type Events = Models.Row & {
     collection_id: string | null;
     is_collection: boolean;
     collection_pricing: 'bundle' | 'individual' | null;
-    campus: Campus;
-    translation_refs: ContentTranslations[];
+    department_id: string | null;
+    campus: Campus | string;
+    department: Departments | string | null;
+    translation_refs: ContentTranslations[] | string[];
 }
 
 export type News = Models.Row & {
@@ -555,6 +587,7 @@ export type WebshopProducts = Models.Row & {
     campus: Campus;
     translation_refs: ContentTranslations[];
     departmentId: string | null;
+    department: Departments;
 }
 
 export type VarslingSettings = Models.Row & {
@@ -588,6 +621,30 @@ export type FundingPrograms = Models.Row & {
     contact_email: string | null;
     contact_phone: string | null;
     metadata: string | null;
+}
+
+export type Pages = Models.Row & {
+    slug: string;
+    title: string;
+    status: PageStatus;
+    visibility: PageVisibility;
+    template: string | null;
+    campus_id: string | null;
+    campus: Campus;
+    translation_refs: PageTranslations[];
+}
+
+export type PageTranslations = Models.Row & {
+    page_id: string;
+    page: Pages;
+    locale: Locale;
+    title: string;
+    slug: string | null;
+    description: string | null;
+    puck_document: string | null;
+    draft_document: string | null;
+    is_published: boolean;
+    published_at: string | null;
 }
 
 export type SitePages = Models.Row & {

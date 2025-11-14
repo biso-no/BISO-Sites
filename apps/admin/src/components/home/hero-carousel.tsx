@@ -38,17 +38,25 @@ export function ImageWithFallback({ fallbackSrc = ERROR_IMG_SRC, onError, ...pro
 }
 
 // ---- Types for your content model ----
-interface ContentRef { image?: string | null }
-interface ContentTranslations {
-  title?: string | null;
-  description?: string | null;
-  content_id?: string | number | null;
-  event_ref?: ContentRef | null;
-  news_ref?: ContentRef | null;
+interface ContentRef {
+  image?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  location?: string | null
+  metadata?: Record<string, unknown>
+}
+
+interface HeroContentItem {
+  $id: string
+  title?: string | null
+  description?: string | null
+  content_id: string
+  event_ref?: ContentRef | null
+  news_ref?: ContentRef | null
 }
 
 interface HeroCarouselProps {
-  featuredContent: ContentTranslations[];
+  featuredContent: HeroContentItem[];
 }
 
 export function HeroCarousel({ featuredContent }: HeroCarouselProps) {

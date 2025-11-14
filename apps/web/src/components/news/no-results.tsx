@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { Newspaper } from 'lucide-react';
 import { Button } from '@repo/ui/components/ui/button';
@@ -12,7 +13,11 @@ export function NoResults() {
   };
 
   return (
-    <div className="text-center py-20">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="text-center py-20"
+    >
       <Newspaper className="w-16 h-16 text-gray-300 mx-auto mb-4" />
       <h3 className="text-2xl font-bold mb-2 text-gray-900">No articles found</h3>
       <p className="text-gray-600 mb-6">
@@ -25,6 +30,6 @@ export function NoResults() {
       >
         Clear Filters
       </Button>
-    </div>
+    </motion.div>
   );
 }

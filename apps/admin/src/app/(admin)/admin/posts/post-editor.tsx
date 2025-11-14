@@ -7,7 +7,7 @@ import { z } from "zod"
 import { Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@repo/ui/components/ui/button"
 import {
   Form,
   FormControl,
@@ -15,21 +15,21 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+} from "@repo/ui/components/ui/form"
+import { Input } from "@repo/ui/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@repo/ui/components/ui/select"
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarProvider,
-} from "@/components/ui/sidebar"
+} from "@repo/ui/components/ui/sidebar"
 import { toast } from "@/lib/hooks/use-toast"
 import { createPost, updatePost } from "@/app/actions/admin"
 import { Campus, Department } from "@/lib/types/post"

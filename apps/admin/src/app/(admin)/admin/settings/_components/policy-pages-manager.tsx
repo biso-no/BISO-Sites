@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState, useTransition } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@repo/ui/components/ui/tabs'
+import { Card, CardHeader, CardTitle, CardContent } from '@repo/ui/components/ui/card'
+import { Button } from '@repo/ui/components/ui/button'
+import { Input } from '@repo/ui/components/ui/input'
+import { Textarea } from '@repo/ui/components/ui/textarea'
 import { toast } from '@/lib/hooks/use-toast'
 import { upsertSitePage, translateSitePageContent, getSitePageTranslation } from '@/app/actions/site-pages'
 

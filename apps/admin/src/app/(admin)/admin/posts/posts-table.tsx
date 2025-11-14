@@ -7,20 +7,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@repo/ui/components/ui/table";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@repo/ui/components/ui/select";
 
 import {
   ChevronLeft,
@@ -38,7 +38,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@repo/ui/components/ui/card";
 import { deletePost } from "@/app/actions/admin";
 import { useRouter } from "next/navigation";
 

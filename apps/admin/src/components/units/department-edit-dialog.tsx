@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Department, updateDepartment, createDepartment } from "@/lib/admin/departments";
+import { updateDepartment, createDepartment } from "@/app/actions/units";
+import { Campus, Departments } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Textarea } from "@repo/ui/components/ui/textarea";
@@ -34,7 +35,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@repo/ui/components/ui/form";
-import { toast } from "@repo/ui/components/ui/use-toast";
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const departmentSchema = z.object({
@@ -49,11 +50,11 @@ const departmentSchema = z.object({
 type DepartmentFormValues = z.infer<typeof departmentSchema>;
 
 interface DepartmentEditDialogProps {
-  department?: Department;
+  department?: Departments;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  campuses: Array<{ id: string; name: string }>;
+  campuses: Array<Campus>;
   types: string[];
 }
 
@@ -71,7 +72,7 @@ export function DepartmentEditDialog({
   const form = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
     defaultValues: {
-      name: department?.name || "",
+      name: department?.Name || "",
       campus_id: department?.campus_id || "",
       type: department?.type || "none",
       description: department?.description || "",
@@ -118,10 +119,8 @@ export function DepartmentEditDialog({
       onSuccess();
     } catch (error) {
       console.error("Error saving department:", error);
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Failed to save department. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -133,7 +132,7 @@ export function DepartmentEditDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isCreating ? "Create New Department" : `Edit ${department?.name}`}
+            {isCreating ? "Create New Department" : `Edit ${department?.Name}`}
           </DialogTitle>
           <DialogDescription>
             {isCreating

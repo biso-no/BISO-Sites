@@ -9,14 +9,14 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Input } from "@/components/ui/input"
+} from "@repo/ui/components/ui/breadcrumb"
+import { Input } from "@repo/ui/components/ui/input"
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs"
+} from "@repo/ui/components/ui/tabs"
 
 import { listProducts } from '@/app/actions/products'
 import { ProductsTable } from './_components/products-table'
@@ -27,9 +27,9 @@ export default async function DashboardPage() {
   const products = await listProducts({})
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4">
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+    <div className="flex w-full flex-col">
+      <div className="flex flex-col sm:gap-4">
+        <main className="grid flex-1 items-start gap-4 md:gap-8">
           <Tabs defaultValue="all">
             <div className="flex items-center">
               <TabsList>

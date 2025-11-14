@@ -143,6 +143,7 @@ async function updateOrderWithSession(
 
 /**
  * Updates order status based on Vipps payment state
+ * Also handles stock decrements and restoration
  */
 async function updateOrderStatus(
     orderId: string,
@@ -152,6 +153,15 @@ async function updateOrderStatus(
 ): Promise<void> {
     const updateData: Partial<Orders> = {}
     let newStatus: OrderStatus
+    
+    // Get current order to check old status
+    const currentOrder = await databases.getRow(
+        process.env.APPWRITE_DATABASE_ID!,
+        process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+        orderId
+    ) as Orders
+    
+    const oldStatus = currentOrder.status
     
     switch (paymentState.state) {
         case "CREATED":
@@ -185,7 +195,104 @@ async function updateOrderStatus(
         updateData.vipps_receipt_url = sessionData.payment?.aggregate?.receipt?.url || null
     }
     
+    // Parse order items
+    let orderItems: any[] = []
+    if (currentOrder.items_json) {
+        try {
+            orderItems = JSON.parse(currentOrder.items_json)
+        } catch (e) {
+            console.error("Error parsing order items:", e)
+        }
+    }
+    
     try {
+        // Handle stock decrements when payment is authorized or paid
+        if ((newStatus === OrderStatus.AUTHORIZED || newStatus === OrderStatus.PAID) && 
+            oldStatus !== OrderStatus.AUTHORIZED && oldStatus !== OrderStatus.PAID) {
+            
+            console.log(`[Stock] Decrementing stock for order ${orderId}`)
+            
+            for (const item of orderItems) {
+                try {
+                    const product = await databases.getRow(
+                        process.env.APPWRITE_DATABASE_ID!,
+                        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+                        item.product_id
+                    )
+                    
+                    // Only decrement if stock is tracked (not null)
+                    if (product.stock !== null && product.stock !== undefined) {
+                        const newStock = Math.max(0, product.stock - item.quantity)
+                        await databases.updateRow(
+                            process.env.APPWRITE_DATABASE_ID!,
+                            process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+                            item.product_id,
+                            { stock: newStock }
+                        )
+                        console.log(`[Stock] Product ${item.product_id}: ${product.stock} -> ${newStock}`)
+                    }
+                } catch (error) {
+                    console.error(`Error decrementing stock for product ${item.product_id}:`, error)
+                    // Continue with other items even if one fails
+                }
+            }
+            
+            // Delete cart reservations for this user
+            if (currentOrder.userId) {
+                try {
+                    const reservations = await databases.listRows(
+                        process.env.APPWRITE_DATABASE_ID!,
+                        'cart_reservations',
+                        [`equal("user_id", "${currentOrder.userId}")`]
+                    )
+                    
+                    for (const reservation of reservations.rows) {
+                        await databases.deleteRow(
+                            process.env.APPWRITE_DATABASE_ID!,
+                            'cart_reservations',
+                            reservation.$id
+                        )
+                    }
+                    console.log(`[Stock] Deleted cart reservations for user ${currentOrder.userId}`)
+                } catch (error) {
+                    console.error("Error deleting cart reservations:", error)
+                }
+            }
+        }
+        
+        // Handle stock restoration when order is cancelled (and was previously authorized/paid)
+        if (newStatus === OrderStatus.CANCELLED && 
+            (oldStatus === OrderStatus.AUTHORIZED || oldStatus === OrderStatus.PAID)) {
+            
+            console.log(`[Stock] Restoring stock for cancelled order ${orderId}`)
+            
+            for (const item of orderItems) {
+                try {
+                    const product = await databases.getRow(
+                        process.env.APPWRITE_DATABASE_ID!,
+                        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+                        item.product_id
+                    )
+                    
+                    // Only restore if stock is tracked (not null)
+                    if (product.stock !== null && product.stock !== undefined) {
+                        const newStock = product.stock + item.quantity
+                        await databases.updateRow(
+                            process.env.APPWRITE_DATABASE_ID!,
+                            process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+                            item.product_id,
+                            { stock: newStock }
+                        )
+                        console.log(`[Stock] Restored product ${item.product_id}: ${product.stock} -> ${newStock}`)
+                    }
+                } catch (error) {
+                    console.error(`Error restoring stock for product ${item.product_id}:`, error)
+                    // Continue with other items even if one fails
+                }
+            }
+        }
+        
+        // Update order status
         await databases.updateRow(
             process.env.APPWRITE_DATABASE_ID!,
             process.env.APPWRITE_ORDERS_COLLECTION_ID!,
@@ -195,6 +302,9 @@ async function updateOrderStatus(
                 ...updateData,
             }
         )
+        
+        console.log(`[Order] Status updated: ${oldStatus} -> ${newStatus}`)
+        
     } catch (error) {
         console.error("Error updating order status:", error)
         throw new Error("Failed to update order status")

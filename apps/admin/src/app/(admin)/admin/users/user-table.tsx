@@ -11,16 +11,16 @@ import { RoleBadgeList } from "./role-badge"
 import { UserStatus } from "./user-status"
 import { UserTableSkeleton } from "./user-table-skeleton"
 
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@repo/ui/components/ui/input"
+import { Button } from "@repo/ui/components/ui/button"
+import { Checkbox } from "@repo/ui/components/ui/checkbox"
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu"
+} from "@repo/ui/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -28,7 +28,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@repo/ui/components/ui/table"
 import {
   Pagination,
   PaginationContent,
@@ -36,7 +36,7 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from "@/components/ui/pagination"
+} from "@repo/ui/components/ui/pagination"
 import {
   Select,
   SelectContent,
@@ -45,7 +45,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@repo/ui/components/ui/select"
 import {
   Card,
   CardContent,
@@ -53,14 +53,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@repo/ui/components/ui/card"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Badge } from "@/components/ui/badge"
+} from "@repo/ui/components/ui/tooltip"
+import { Badge } from "@repo/ui/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { AdminSummary } from "@/components/admin/admin-summary"
 import { formatPercentage } from "@/lib/utils/admin"

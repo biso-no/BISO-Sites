@@ -95,7 +95,8 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
         <ImageWithFallback
           src={categoryImage}
           alt={category}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
         

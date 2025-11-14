@@ -1,6 +1,16 @@
 import type { ContentTranslations } from '@repo/api/types/appwrite'
 
 export interface EventMetadata {
+  start_date?: string
+  end_date?: string
+  start_time?: string
+  end_time?: string
+  location?: string
+  price?: number
+  ticket_url?: string
+  image?: string
+  units?: string[]
+  department_id?: string
   category?: string
   attendees?: number
   member_price?: number

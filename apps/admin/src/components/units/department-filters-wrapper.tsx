@@ -1,10 +1,9 @@
 "use client";
 
 import { useTransition } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { DepartmentFilters } from './department-filters';
 import { FilterState } from '@/lib/hooks/use-departments-filter';
-import { useUrlUpdate } from '@/lib/hooks/use-url-update';
 
 interface DepartmentFiltersWrapperProps {
   filters: FilterState;
@@ -19,26 +18,37 @@ export function DepartmentFiltersWrapper({
 }: DepartmentFiltersWrapperProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const updateUrl = useUrlUpdate();
 
   const updateFilter = (key: keyof FilterState, value: any) => {
-    startTransition(() => {
-      const updates: Record<string, string> = {};
-      
-      if (key === 'searchTerm') {
-        updates.search = value;
-      } else {
-        updates[key] = String(value);
-      }
-      
-      updateUrl(updates);
-    });
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Map filter keys to URL param names
+    const paramName = key === 'searchTerm' ? 'search' : key;
+    
+    // Remove param if value is undefined/null, otherwise set it
+    if (value === undefined || value === null || value === '') {
+      params.delete(paramName);
+    } else {
+      params.set(paramName, String(value));
+    }
+    
+    // Only update if URL actually changed
+    const newQueryString = params.toString();
+    const currentQueryString = searchParams.toString();
+    
+    if (newQueryString !== currentQueryString) {
+      startTransition(() => {
+        const newUrl = newQueryString ? `${pathname}?${newQueryString}` : pathname;
+        router.replace(newUrl, { scroll: false });
+      });
+    }
   };
 
   const resetFilters = () => {
     startTransition(() => {
-      router.push(pathname);
+      router.replace(pathname, { scroll: false });
     });
   };
 

@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@repo/ui/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@repo/ui/components/ui/dialog";
+import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Switch } from "@repo/ui/components/ui/switch";
 import { Plus, Edit, Trash2, Shield, AlertCircle, CheckCircle } from "lucide-react";
 import { getCampuses } from "@/app/actions/campus";
 import { 
@@ -210,7 +210,7 @@ export default function VarslingAdminPage() {
       </div>
 
       {/* Settings Table */}
-      <Card>
+      <Card className="glass-panel">
         <CardHeader>
           <CardTitle>{t('table.title')}</CardTitle>
           <CardDescription>

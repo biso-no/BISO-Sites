@@ -1,6 +1,8 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useLocale } from 'next-intl'
+import { getCartItemsWithDetails, createOrUpdateReservation, deleteReservation } from '@/app/actions/cart-reservations'
 
 export interface CartItem {
   id: string // unique cart item id (contentId + options hash)
@@ -15,19 +17,28 @@ export interface CartItem {
   memberOnly: boolean
   quantity: number
   stock: number | null
+  expiresAt?: string // reservation expiration time
   selectedOptions?: Record<string, string>
+  metadata?: {
+    max_per_user?: number
+    max_per_order?: number
+    sku?: string
+  }
 }
 
 interface CartContextType {
   items: CartItem[]
-  addItem: (item: Omit<CartItem, 'id' | 'quantity'> & { quantity?: number }) => void
-  removeItem: (itemId: string) => void
-  updateQuantity: (itemId: string, quantity: number) => void
+  isLoading: boolean
+  addItem: (item: Omit<CartItem, 'id' | 'quantity'> & { quantity?: number }) => Promise<void>
+  removeItem: (itemId: string) => Promise<void>
+  updateQuantity: (itemId: string, quantity: number) => Promise<void>
   clearCart: () => void
   getItemCount: () => number
   getSubtotal: (isMember: boolean) => number
   getRegularSubtotal: () => number
   getTotalSavings: (isMember: boolean) => number
+  refreshCart: () => Promise<void>
+  getEarliestExpiration: () => string | null
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -52,75 +63,148 @@ function generateCartItemId(contentId: string, selectedOptions?: Record<string, 
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const locale = useLocale() as 'en' | 'no'
 
-  // Load cart from localStorage on mount
+  // Load cart from database on mount
+  const refreshCart = async () => {
+    try {
+      setIsLoading(true)
+      const cartData = await getCartItemsWithDetails(locale)
+      
+      const cartItems: CartItem[] = cartData.map((item) => ({
+        id: generateCartItemId(item.productId, undefined), // TODO: Handle options
+        contentId: item.productId,
+        productId: item.productId,
+        slug: item.slug,
+        name: item.name,
+        image: item.image,
+        category: item.category,
+        regularPrice: item.regularPrice,
+        memberPrice: item.memberPrice,
+        memberOnly: item.memberOnly,
+        quantity: item.quantity,
+        stock: item.stock,
+        expiresAt: item.expiresAt,
+        metadata: item.metadata,
+      }))
+      
+      setItems(cartItems)
+    } catch (error) {
+      console.error('Error loading cart:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     setMounted(true)
-    const storedCart = localStorage.getItem('biso-cart')
-    if (storedCart) {
-      try {
-        setItems(JSON.parse(storedCart))
-      } catch (error) {
-        console.error('Failed to parse cart from localStorage:', error)
-      }
-    }
-  }, [])
+    refreshCart()
+  }, [locale])
 
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('biso-cart', JSON.stringify(items))
-    }
-  }, [items, mounted])
-
-  const addItem = (item: Omit<CartItem, 'id' | 'quantity'> & { quantity?: number }) => {
+  const addItem = async (item: Omit<CartItem, 'id' | 'quantity'> & { quantity?: number }) => {
     const id = generateCartItemId(item.contentId, item.selectedOptions)
     const quantity = item.quantity || 1
 
-    setItems((prevItems) => {
-      const existingItem = prevItems.find((i) => i.id === id)
+    // Check if item exists
+    const existingItem = items.find((i) => i.id === id)
+    
+    if (existingItem) {
+      // Update quantity
+      let newQuantity = existingItem.quantity + quantity
       
-      if (existingItem) {
-        // Update quantity if item already exists
-        const newQuantity = existingItem.quantity + quantity
-        // Check stock limit
-        const maxQuantity = item.stock !== null ? Math.min(newQuantity, item.stock) : newQuantity
-        
-        return prevItems.map((i) =>
-          i.id === id ? { ...i, quantity: maxQuantity } : i
-        )
+      // Check max_per_order limit
+      if (item.metadata?.max_per_order && newQuantity > item.metadata.max_per_order) {
+        newQuantity = item.metadata.max_per_order
       }
       
+      // Check stock limit
+      if (item.stock !== null) {
+        newQuantity = Math.min(newQuantity, item.stock)
+      }
+      
+      // Update in database
+      await createOrUpdateReservation(item.productId, newQuantity)
+      
+      // Update local state
+      setItems((prevItems) =>
+        prevItems.map((i) =>
+          i.id === id ? { ...i, quantity: newQuantity } : i
+        )
+      )
+    } else {
       // Add new item
+      let initialQuantity = quantity
+      
+      // Check max_per_order limit for new item
+      if (item.metadata?.max_per_order && initialQuantity > item.metadata.max_per_order) {
+        initialQuantity = item.metadata.max_per_order
+      }
+      
+      // Check stock limit for new item
+      if (item.stock !== null && initialQuantity > item.stock) {
+        initialQuantity = item.stock
+      }
+      
+      // Create in database
+      await createOrUpdateReservation(item.productId, initialQuantity)
+      
+      // Add to local state
       const newItem: CartItem = {
         ...item,
         id,
-        quantity,
+        quantity: initialQuantity,
       }
-      return [...prevItems, newItem]
-    })
+      setItems((prevItems) => [...prevItems, newItem])
+    }
   }
 
-  const removeItem = (itemId: string) => {
-    setItems((prevItems) => prevItems.filter((item) => item.id !== itemId))
+  const removeItem = async (itemId: string) => {
+    const item = items.find((i) => i.id === itemId)
+    
+    if (item) {
+      // Delete from database
+      await deleteReservation(item.productId)
+      
+      // Remove from local state
+      setItems((prevItems) => prevItems.filter((item) => item.id !== itemId))
+    }
   }
 
-  const updateQuantity = (itemId: string, quantity: number) => {
-    setItems((prevItems) =>
-      prevItems.map((item) => {
-        if (item.id === itemId) {
-          const newQuantity = Math.max(1, quantity)
-          // Check stock limit
-          const maxQuantity = item.stock !== null ? Math.min(newQuantity, item.stock) : newQuantity
-          return { ...item, quantity: maxQuantity }
-        }
-        return item
-      })
-    )
+  const updateQuantity = async (itemId: string, quantity: number) => {
+    const item = items.find((i) => i.id === itemId)
+    
+    if (item) {
+      let newQuantity = Math.max(1, quantity)
+      
+      // Check max_per_order limit
+      if (item.metadata?.max_per_order && newQuantity > item.metadata.max_per_order) {
+        newQuantity = item.metadata.max_per_order
+      }
+      
+      // Check stock limit
+      if (item.stock !== null) {
+        newQuantity = Math.min(newQuantity, item.stock)
+      }
+      
+      // Update in database
+      await createOrUpdateReservation(item.productId, newQuantity)
+      
+      // Update local state
+      setItems((prevItems) =>
+        prevItems.map((i) => {
+          if (i.id === itemId) {
+            return { ...i, quantity: newQuantity }
+          }
+          return i
+        })
+      )
+    }
   }
 
   const clearCart = () => {
+    // TODO: Delete all reservations from database
     setItems([])
   }
 
@@ -144,10 +228,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return getRegularSubtotal() - getSubtotal(isMember)
   }
 
+  const getEarliestExpiration = (): string | null => {
+    if (items.length === 0) return null
+    
+    const expirationsWithTime = items
+      .filter(item => item.expiresAt)
+      .map(item => item.expiresAt!)
+    
+    if (expirationsWithTime.length === 0) return null
+    
+    // Return the earliest expiration time
+    return expirationsWithTime.sort()[0] || null
+  }
+
   return (
     <CartContext.Provider
       value={{
         items,
+        isLoading,
         addItem,
         removeItem,
         updateQuantity,
@@ -156,10 +254,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
         getSubtotal,
         getRegularSubtotal,
         getTotalSavings,
+        refreshCart,
+        getEarliestExpiration,
       }}
     >
       {children}
     </CartContext.Provider>
   )
 }
-

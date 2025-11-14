@@ -79,7 +79,8 @@ export function NewsClient({ news }: NewsClientProps) {
                   <ImageWithFallback
                     src={featuredNews.news_ref?.image || 'https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080'}
                     alt={featuredNews.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                 </div>
@@ -120,7 +121,8 @@ export function NewsClient({ news }: NewsClientProps) {
                     <ImageWithFallback
                       src={item.news_ref?.image || 'https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080'}
                       alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      fill
+                      className="object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                   </div>

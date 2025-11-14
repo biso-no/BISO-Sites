@@ -14,7 +14,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@repo/ui/components/ui/sheet";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Campus } from "@/lib/types/campus";
+import { Campus } from "@repo/api/types/appwrite";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@repo/ui/components/ui/accordion";
 import { SUPPORTED_LOCALES, type Locale } from "@/i18n/config";
 import { cn } from '@repo/ui/lib/utils';
@@ -201,7 +201,7 @@ export const Header = ({ editMode }: { editMode: boolean }) => {
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
+    <header className="sticky top-0 z-50 w-full bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:px-6">
       <div className="container-page relative mx-auto flex w-full items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
         <Link href="/" className="flex items-center gap-3">
           <Image src="/images/logo-home.png" alt="BISO logo" width={148} height={38} priority />

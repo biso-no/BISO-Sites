@@ -93,10 +93,11 @@ const baseConfig: NextConfig = {
 
   experimental: {
     optimizePackageImports: [],
-    authInterrupts: true
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+    authInterrupts: true,
   },
-  // No framework-level redirects at this time (user preference)
 };
-
 
 export default withNextIntl(baseConfig);

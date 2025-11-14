@@ -6,7 +6,8 @@ export interface ContentTranslation extends Models.Row {
   locale: 'en' | 'no'
   title: string
   description: string
-  additional_fields?: string // JSON string for flexible content
+  short_description?: string | null
+  additional_fields?: string | null // JSON string for flexible content
 }
 
 export interface TranslatableContent {

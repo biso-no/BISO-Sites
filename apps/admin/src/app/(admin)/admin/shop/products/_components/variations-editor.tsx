@@ -3,11 +3,11 @@
 import { useMemo } from "react"
 import { Plus, Trash2 } from "lucide-react"
 
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
+import { Input } from "@repo/ui/components/ui/input"
+import { Textarea } from "@repo/ui/components/ui/textarea"
+import { Switch } from "@repo/ui/components/ui/switch"
+import { Label } from "@repo/ui/components/ui/label"
+import { Button } from "@repo/ui/components/ui/button"
 import type { ProductVariation } from "@/lib/types/product"
 import { cn } from "@/lib/utils"
 

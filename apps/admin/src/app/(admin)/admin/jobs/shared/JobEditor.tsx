@@ -6,15 +6,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
+import { Button } from '@repo/ui/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@repo/ui/components/ui/form'
+import { Input } from '@repo/ui/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/ui/components/ui/tabs'
+import { Badge } from '@repo/ui/components/ui/badge'
 import { toast } from '@/lib/hooks/use-toast'
 import { createJob, updateJob, translateJobContent } from '@/app/actions/jobs'
+import type { AdminJob } from '@/lib/types/job'
 import { Languages, Wand2 } from 'lucide-react'
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false })
@@ -45,7 +46,7 @@ export default function JobEditor({
   campuses, 
   departments 
 }: { 
-  job?: any, 
+  job?: AdminJob | null, 
   campuses?: { $id: string; name: string }[], 
   departments?: { $id: string; Name: string; campus_id?: string }[] 
 }) {
@@ -62,10 +63,10 @@ export default function JobEditor({
 
   // Extract translations from job data using Appwrite's nested relationships
   const getTranslation = (locale: 'en' | 'no') => {
-    return job?.translation_refs?.find((t: any) => t.locale === locale)
+    return job?.translations?.[locale]
   }
 
-  const metadata = job?.metadata ? JSON.parse(job.metadata) : {}
+  const metadata = job?.metadata_parsed ?? {}
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -179,7 +180,7 @@ export default function JobEditor({
   return (
     <div className="grid gap-6 md:grid-cols-3">
       <div className="md:col-span-2">
-        <Card>
+        <Card className="glass-panel">
           <CardHeader>
             <CardTitle>Job Details</CardTitle>
           </CardHeader>
@@ -417,7 +418,7 @@ export default function JobEditor({
       
       {/* Preview Panel */}
       <div className="space-y-4">
-        <Card>
+        <Card className="glass-panel">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Languages className="h-4 w-4" />
@@ -453,7 +454,7 @@ export default function JobEditor({
         </Card>
         
         {/* Quick Preview */}
-        <Card>
+        <Card className="glass-panel">
           <CardHeader>
             <CardTitle>Preview</CardTitle>
           </CardHeader>
