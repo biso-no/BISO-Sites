@@ -138,8 +138,12 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
       image: data.image ?? null,
       // Additional metadata
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      // Relationship fields
+      campus: data.campus_id,
+      departmentId: null,
+      department: null,
       translation_refs: translationRefs
-    })
+    } as any)
     
     if (!skipRevalidation) {
       revalidatePath('/shop')
@@ -184,9 +188,26 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
     if (data.metadata !== undefined) updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null
     
     // Build translation_refs array with both translations if provided
+    // For updates, we need to fetch existing translation IDs to properly update them
     if (data.translations) {
+      // Fetch existing translations to get their IDs
+      const existingProduct = await db.listRows<WebshopProducts>('app', 'webshop_products', [
+        Query.equal('$id', id),
+        Query.select(['translation_refs.$id', 'translation_refs.locale']),
+        Query.limit(1),
+      ])
+      
+      const existingTranslations = existingProduct.rows[0]?.translation_refs || []
+      const existingTranslationsArray = Array.isArray(existingTranslations) 
+        ? existingTranslations.filter((t): t is ContentTranslations => typeof t !== 'string')
+        : []
+      
+      const enTranslation = existingTranslationsArray.find(t => t.locale === Locale.EN)
+      const noTranslation = existingTranslationsArray.find(t => t.locale === Locale.NO)
+      
       updateData.translation_refs = [
         {
+          ...(enTranslation?.$id ? { $id: enTranslation.$id } : {}),
           content_type: ContentType.PRODUCT,
           content_id: id,
           locale: Locale.EN,
@@ -194,6 +215,7 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
           description: data.translations.en.description,
         } as ContentTranslations,
         {
+          ...(noTranslation?.$id ? { $id: noTranslation.$id } : {}),
           content_type: ContentType.PRODUCT,
           content_id: id,
           locale: Locale.NO,
