@@ -77,9 +77,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     }
   }, [products])
 
-  const formatPrice = (metadata: Record<string, any>) => {
-    if (typeof metadata.price === "number") return NOK_FORMATTER.format(metadata.price)
-    const parsed = Number(metadata.price)
+  const formatPrice = (price: number | null | undefined) => {
+    if (typeof price === "number") return NOK_FORMATTER.format(price)
+    const parsed = Number(price)
     if (!Number.isFinite(parsed)) return "—"
     return NOK_FORMATTER.format(parsed)
   }
@@ -204,7 +204,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {formatPrice(metadata)}
+                        {formatPrice(product.regular_price)}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {product.campus?.name || product.campus_id || "—"}

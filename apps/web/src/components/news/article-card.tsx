@@ -25,7 +25,8 @@ export function ArticleCard({ article, variant }: ArticleCardProps) {
           <ImageWithFallback
             src={article.news_ref?.image || ''}
             alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            fill
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent" />
           <Badge className={`absolute top-4 left-4 ${categoryColors[article.content_type]}`}>
@@ -69,7 +70,8 @@ export function ArticleCard({ article, variant }: ArticleCardProps) {
         <ImageWithFallback
           src={article.news_ref?.image || ''}
           alt={article.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          fill
+          className="object-cover group-hover:scale-110 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
         <Badge className={`absolute top-4 left-4 ${categoryColors[article.content_type]}`}>

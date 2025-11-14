@@ -71,7 +71,8 @@ export function EventCard({ event, index, isMember = false, onViewDetails }: Eve
           <ImageWithFallback
             src={imageUrl}
             alt={event.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            fill
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
           

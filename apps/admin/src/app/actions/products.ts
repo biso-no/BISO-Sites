@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { Query } from '@repo/api'
+import { Query, getStorageFileUrl } from '@repo/api'
 import { createAdminClient } from '@repo/api/server'
 import type {
   CreateProductData,
@@ -107,33 +107,36 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
           ? Status.PUBLISHED
           : Status.ARCHIVED
     
-    // Build translation_refs array from provided translations only
-    const translationRefs: ContentTranslations[] = []
-    
-    if (data.translations.en) {
-      translationRefs.push({
+    // Build translation_refs array with both required translations
+    const translationRefs: ContentTranslations[] = [
+      {
         content_type: ContentType.PRODUCT,
         content_id: 'unique()',
         locale: Locale.EN,
         title: data.translations.en.title,
         description: data.translations.en.description,
-      } as ContentTranslations)
-    }
-    
-    if (data.translations.no) {
-      translationRefs.push({
+      } as ContentTranslations,
+      {
         content_type: ContentType.PRODUCT,
         content_id: 'unique()',
         locale: Locale.NO,
         title: data.translations.no.title,
         description: data.translations.no.description,
-      } as ContentTranslations)
-    }
+      } as ContentTranslations,
+    ]
     
     const product = await db.createRow<WebshopProducts>('app', 'webshop_products', 'unique()', {
       slug: data.slug,
       status: statusValue,
       campus_id: data.campus_id,
+      // Top-level database fields (required by schema)
+      category: data.category,
+      regular_price: data.regular_price,
+      member_price: data.member_price ?? null,
+      member_only: data.member_only ?? false,
+      stock: data.stock ?? null,
+      image: data.image ?? null,
+      // Additional metadata
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       translation_refs: translationRefs
     })
@@ -168,35 +171,36 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
             : Status.ARCHIVED
     }
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id
+    
+    // Top-level database fields
+    if (data.category !== undefined) updateData.category = data.category
+    if (data.regular_price !== undefined) updateData.regular_price = data.regular_price
+    if (data.member_price !== undefined) updateData.member_price = data.member_price
+    if (data.member_only !== undefined) updateData.member_only = data.member_only
+    if (data.stock !== undefined) updateData.stock = data.stock
+    if (data.image !== undefined) updateData.image = data.image
+    
+    // Metadata JSON
     if (data.metadata !== undefined) updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null
     
-    // Build translation_refs array from provided translations only
+    // Build translation_refs array with both translations if provided
     if (data.translations) {
-      const translationRefs: ContentTranslations[] = []
-      
-      if (data.translations.en) {
-        translationRefs.push({
+      updateData.translation_refs = [
+        {
           content_type: ContentType.PRODUCT,
           content_id: id,
           locale: Locale.EN,
           title: data.translations.en.title,
           description: data.translations.en.description,
-        } as ContentTranslations)
-      }
-      
-      if (data.translations.no) {
-        translationRefs.push({
+        } as ContentTranslations,
+        {
           content_type: ContentType.PRODUCT,
           content_id: id,
           locale: Locale.NO,
           title: data.translations.no.title,
           description: data.translations.no.description,
-        } as ContentTranslations)
-      }
-      
-      if (translationRefs.length > 0) {
-        updateData.translation_refs = translationRefs
-      }
+        } as ContentTranslations,
+      ]
     }
     
     const product = await db.updateRow<WebshopProducts>('app', 'webshop_products', id, updateData)
@@ -315,7 +319,6 @@ export async function uploadProductImage(formData: FormData) {
 
   const { storage } = await createAdminClient()
   const uploaded = await storage.createFile(PRODUCT_IMAGE_BUCKET, 'unique()', file)
-  const view = await storage.getFileView(PRODUCT_IMAGE_BUCKET, uploaded.$id)
-  const url = typeof view === 'string' ? view : view.href ?? view.toString()
+  const url = getStorageFileUrl(PRODUCT_IMAGE_BUCKET, uploaded.$id)
   return { id: uploaded.$id, url }
 }

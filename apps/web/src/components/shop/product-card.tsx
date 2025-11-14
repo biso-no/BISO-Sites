@@ -48,12 +48,10 @@ export function ProductCard({ product, index, isMember = false, onViewDetails }:
         <div className="relative h-64 overflow-hidden">
         <ImageWithFallback
               src={imageUrl}
-              alt="BISO logo"
-              width={100}               // pick the intrinsic pixel width
-              height={100}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 100px, 100px"
-              priority                   // above-the-fold
-              className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"    // control display size via CSS
+              alt={product.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 400px"
+              className="object-cover group-hover:scale-110 transition-transform duration-500"
             />
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
           

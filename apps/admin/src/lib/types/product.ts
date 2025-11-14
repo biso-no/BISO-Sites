@@ -1,5 +1,4 @@
 import type { ContentTranslations, WebshopProducts } from '@repo/api/types/appwrite'
-import type { TranslationMap } from '@/lib/utils/content-translations'
 
 export type ProductCustomFieldType = 'text' | 'textarea' | 'number' | 'select'
 
@@ -24,44 +23,15 @@ export interface ProductVariation {
 
 export type Product = WebshopProducts
 
-// Helper interface for working with product data including translations
-export interface ProductWithTranslations extends WebshopProducts {
-  translations?: TranslationMap<ContentTranslations>
-  // Convenience properties for the current locale
-  title?: string
-  description?: string
+// Helper type for products with parsed metadata
+export type ProductWithTranslations = WebshopProducts & {
   metadata_parsed?: ProductMetadata
-  price?: number
-  sku?: string
-  stock_quantity?: number
-  category?: string
-  image?: string
-  images?: string[]
-  weight?: number
-  dimensions?: string
-  is_digital?: boolean
-  shipping_required?: boolean
-  member_discount_enabled?: boolean
-  member_discount_percent?: number
-  max_per_user?: number
-  max_per_order?: number
-  custom_fields?: ProductCustomField[]
-  variations?: ProductVariation[]
 }
 
+// Fields stored in metadata JSON (not top-level database fields)
 export interface ProductMetadata extends Record<string, unknown> {
-  price?: number
   sku?: string
-  stock_quantity?: number
-  category?: string
-  image?: string
   images?: string[]
-  weight?: number
-  dimensions?: string
-  is_digital?: boolean
-  shipping_required?: boolean
-  member_discount_enabled?: boolean
-  member_discount_percent?: number
   max_per_user?: number
   max_per_order?: number
   custom_fields?: ProductCustomField[]
@@ -77,10 +47,18 @@ export interface CreateProductData {
   slug: string
   status: 'draft' | 'published' | 'archived'
   campus_id: string
+  // Top-level database fields
+  category: string
+  regular_price: number
+  member_price?: number
+  member_only?: boolean
+  stock?: number
+  image?: string
+  // Additional fields in metadata JSON
   metadata?: ProductMetadata
   translations: {
-    en?: ProductTranslation
-    no?: ProductTranslation
+    en: ProductTranslation
+    no: ProductTranslation
   }
 }
 
@@ -88,10 +66,18 @@ export interface UpdateProductData {
   slug?: string
   status?: 'draft' | 'published' | 'archived'
   campus_id?: string
+  // Top-level database fields
+  category?: string
+  regular_price?: number
+  member_price?: number
+  member_only?: boolean
+  stock?: number
+  image?: string
+  // Additional fields in metadata JSON
   metadata?: ProductMetadata
   translations?: {
-    en?: ProductTranslation
-    no?: ProductTranslation
+    en: ProductTranslation
+    no: ProductTranslation
   }
 }
 

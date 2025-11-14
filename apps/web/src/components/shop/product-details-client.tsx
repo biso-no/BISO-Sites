@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
 import { ArrowLeft, ShoppingCart, Tag, Users, Package, AlertCircle, CheckCircle2, MapPin } from 'lucide-react'
@@ -13,13 +13,17 @@ import { Input } from '@repo/ui/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select'
 import { ImageWithFallback } from '@repo/ui/components/image'
 import { Alert, AlertDescription } from '@repo/ui/components/ui/alert'
-import type { ContentTranslations } from '@repo/api/types/appwrite'
+import type { ContentTranslations, WebshopProducts } from '@repo/api/types/appwrite'
 import { parseProductMetadata, formatPrice, getDisplayPrice, calculateSavings, type ProductOption } from '@/lib/types/webshop'
 import { useCart } from '@/lib/contexts/cart-context'
+import { getAvailableStock, createOrUpdateReservation } from '@/app/actions/cart-reservations'
+import { validatePurchaseLimits } from '@/app/actions/purchase-limits'
+import { toast } from 'sonner'
 
 interface ProductDetailsClientProps {
-  product: ContentTranslations
+  product: WebshopProducts
   isMember?: boolean
+  userId?: string | null
 }
 
 const categoryColors: Record<string, string> = {
@@ -29,27 +33,42 @@ const categoryColors: Record<string, string> = {
   Membership: 'bg-orange-100 text-orange-700 border-orange-200',
 }
 
-export function ProductDetailsClient({ product, isMember = false }: ProductDetailsClientProps) {
+export function ProductDetailsClient({ product, isMember = false, userId = null }: ProductDetailsClientProps) {
   const router = useRouter()
   const { addItem } = useCart()
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [addedToCart, setAddedToCart] = useState(false)
+  const [availableStock, setAvailableStock] = useState<number | null>(null)
+  const [isLoadingStock, setIsLoadingStock] = useState(false)
 
-  const productData = product.product_ref
-  
-  if (!productData) return null
-
-  const metadata = parseProductMetadata(productData.metadata)
+  const metadata = parseProductMetadata(product.metadata)
   const productOptions = (metadata.product_options as ProductOption[]) || []
   
-  const displayPrice = getDisplayPrice(productData.regular_price, productData.member_price, isMember)
-  const hasDiscount = isMember && productData.member_price && productData.member_price < productData.regular_price
-  const savings = calculateSavings(productData.regular_price, productData.member_price)
+  const displayPrice = getDisplayPrice(product.regular_price, product.member_price, isMember)
+  const hasDiscount = isMember && product.member_price && product.member_price < product.regular_price
+  const savings = calculateSavings(product.regular_price, product.member_price)
   
-  const imageUrl = productData.image || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080'
+  const imageUrl = product.image || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080'
 
-  const handleAddToCart = () => {
+  // Load available stock on mount
+  useEffect(() => {
+    async function loadAvailableStock() {
+      if (product.stock === null || product.stock === undefined) {
+        setAvailableStock(null) // Infinite stock
+        return
+      }
+      
+      setIsLoadingStock(true)
+      const available = await getAvailableStock(product.$id)
+      setAvailableStock(available)
+      setIsLoadingStock(false)
+    }
+    
+    loadAvailableStock()
+  }, [product.$id, product.stock])
+
+  const handleAddToCart = async () => {
     // Validate required options
     const newErrors: Record<string, boolean> = {}
     
@@ -64,6 +83,36 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
       return
     }
 
+    const quantity = 1 // Adding 1 item at a time
+
+    // Check available stock (considering reservations)
+    if (product.stock !== null && product.stock !== undefined) {
+      const currentAvailable = await getAvailableStock(product.$id)
+      
+      if (currentAvailable < quantity) {
+        toast.error(
+          currentAvailable === 0 
+            ? 'This item is out of stock' 
+            : `Only ${currentAvailable} available (others reserved in carts)`
+        )
+        setAvailableStock(currentAvailable)
+        return
+      }
+    }
+
+    // Validate purchase limits (userId handled by session)
+    const limitCheck = await validatePurchaseLimits(
+      product.$id,
+      userId || 'guest', // TODO: Get from session when available
+      quantity,
+      metadata
+    )
+
+    if (!limitCheck.allowed) {
+      toast.error(limitCheck.reason || 'Purchase limit exceeded')
+      return
+    }
+
     // Convert indexed options to named options
     const namedOptions: Record<string, string> = {}
     productOptions.forEach((option, index) => {
@@ -73,22 +122,45 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
       }
     })
 
+    // Create reservation for this stock
+    if (product.stock !== null && product.stock !== undefined) {
+      const reservationResult = await createOrUpdateReservation(
+        product.$id,
+        quantity
+      )
+
+      if (!reservationResult.success) {
+        toast.error('Failed to reserve stock. Please try again.')
+        return
+      }
+
+      // Update available stock display
+      const newAvailable = await getAvailableStock(product.$id)
+      setAvailableStock(newAvailable)
+    }
+
     // Add to cart
     addItem({
-      contentId: product.content_id,
-      productId: productData.$id,
-      slug: productData.slug,
-      name: product.title,
-      image: productData.image,
-      category: productData.category,
-      regularPrice: productData.regular_price,
-      memberPrice: productData.member_price,
-      memberOnly: productData.member_only,
-      stock: productData.stock,
+      contentId: product.$id,
+      productId: product.$id,
+      slug: product.slug,
+      name: product.translation_refs[0]?.title ?? '',
+      image: product.image,
+      category: product.category,
+      regularPrice: product.regular_price,
+      memberPrice: product.member_price,
+      memberOnly: product.member_only,
+      stock: product.stock,
       selectedOptions: Object.keys(namedOptions).length > 0 ? namedOptions : undefined,
+      metadata: {
+        max_per_user: typeof metadata.max_per_user === 'number' ? metadata.max_per_user : undefined,
+        max_per_order: typeof metadata.max_per_order === 'number' ? metadata.max_per_order : undefined,
+        sku: typeof metadata.sku === 'string' ? metadata.sku : undefined,
+      },
     })
 
     setAddedToCart(true)
+    toast.success('Added to cart')
     setTimeout(() => setAddedToCart(false), 3000)
   }
 
@@ -112,8 +184,9 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
       <div className="relative h-[60vh] overflow-hidden">
         <ImageWithFallback
           src={imageUrl}
-          alt={product.title}
-          className="w-full h-full object-cover"
+          alt={product.translation_refs[0]?.title ?? ''}
+          fill
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/90 via-[#3DA9E0]/60 to-[#001731]/85" />
         
@@ -135,10 +208,10 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
               className="mt-12"
             >
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                <Badge className={categoryColors[productData.category]}>
-                  {productData.category}
+                <Badge className={categoryColors[product.category]}>
+                  {product.category}
                 </Badge>
-                {productData.member_only && (
+                {product.member_only && (
                   <Badge className="bg-orange-500 text-white border-0">
                     <Users className="w-3 h-3 mr-1" />
                     Members Only
@@ -152,13 +225,13 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
                 )}
               </div>
               
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{product.title}</h1>
+              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{product.translation_refs[0]?.title ?? ''}</h1>
               
               <div className="flex items-baseline gap-3">
                 {hasDiscount ? (
                   <>
                     <span className="text-3xl text-white font-bold">{formatPrice(displayPrice)}</span>
-                    <span className="text-xl text-white/60 line-through">{formatPrice(productData.regular_price)}</span>
+                    <span className="text-xl text-white/60 line-through">{formatPrice(product.regular_price)}</span>
                     <Badge className="bg-green-500 text-white border-0">
                       Member Discount
                     </Badge>
@@ -168,9 +241,9 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
                 )}
               </div>
               
-              {!isMember && productData.member_price && productData.member_price < productData.regular_price && (
+              {!isMember && product.member_price && product.member_price < product.regular_price && (
                 <p className="text-white/80 mt-3 text-lg">
-                  🎉 Members pay only {formatPrice(productData.member_price)} - Save {productData.regular_price - productData.member_price} NOK!
+                  🎉 Members pay only {formatPrice(product.member_price)} - Save {product.regular_price - product.member_price} NOK!
                 </p>
               )}
             </motion.div>
@@ -191,7 +264,7 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
               <Card className="p-8 border-0 shadow-lg">
                 <h2 className="text-gray-900 mb-4 text-2xl font-bold">Product Description</h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                  {product.description}
+                  {product.translation_refs[0]?.description ?? ''}
                 </p>
               </Card>
             </motion.div>
@@ -279,31 +352,39 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Stock Status */}
-            {productData.stock !== null && (
+            {product.stock !== null && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
               >
                 <Card className={`p-6 border-0 shadow-lg ${
-                  productData.stock === 0 ? 'bg-red-50' : 
-                  productData.stock <= 10 ? 'bg-orange-50' : 
+                  isLoadingStock ? 'bg-gray-50' :
+                  availableStock === 0 ? 'bg-red-50' : 
+                  (availableStock !== null && availableStock <= 10) ? 'bg-orange-50' : 
                   'bg-green-50'
                 }`}>
                   <div className="flex items-center gap-3">
                     <Package className={`w-5 h-5 ${
-                      productData.stock === 0 ? 'text-red-600' : 
-                      productData.stock <= 10 ? 'text-orange-600' : 
+                      isLoadingStock ? 'text-gray-600' :
+                      availableStock === 0 ? 'text-red-600' : 
+                      (availableStock !== null && availableStock <= 10) ? 'text-orange-600' : 
                       'text-green-600'
                     }`} />
-                    <div>
+                    <div className="flex-1">
                       <div className="text-gray-900 font-semibold">
-                        {productData.stock === 0 ? 'Out of Stock' :
-                         productData.stock <= 10 ? `Only ${productData.stock} left!` :
+                        {isLoadingStock ? 'Checking availability...' :
+                         availableStock === 0 ? 'Out of Stock' :
+                         (availableStock !== null && availableStock <= 10) ? `Only ${availableStock} available!` :
                          'In Stock'}
                       </div>
-                      {productData.stock > 10 && (
-                        <div className="text-sm text-gray-600">{productData.stock} available</div>
+                      {!isLoadingStock && availableStock !== null && availableStock > 10 && (
+                        <div className="text-sm text-gray-600">{availableStock} available</div>
+                      )}
+                      {!isLoadingStock && availableStock !== null && availableStock < product.stock && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {product.stock - availableStock} reserved in carts
+                        </div>
                       )}
                     </div>
                   </div>
@@ -322,7 +403,7 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
                   {hasDiscount ? (
                     <>
                       <div className="text-sm text-white/80 line-through mb-1">
-                        {formatPrice(productData.regular_price)}
+                        {formatPrice(product.regular_price)}
                       </div>
                       <div className="text-4xl text-white font-bold mb-2">
                         {formatPrice(displayPrice)}
@@ -338,22 +419,22 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
                   )}
                 </div>
 
-                {!isMember && productData.member_price && productData.member_price < productData.regular_price && (
+                {!isMember && product.member_price && product.member_price < product.regular_price && (
                   <Alert className="mb-4 bg-white/10 border-white/20">
                     <AlertCircle className="h-4 w-4 text-white" />
                     <AlertDescription className="text-white text-sm">
-                      Become a BISO member to save {productData.regular_price - productData.member_price} NOK on this item!
+                      Become a BISO member to save {product.regular_price - product.member_price} NOK on this item!
                     </AlertDescription>
                   </Alert>
                 )}
 
                 <Button 
                   onClick={handleAddToCart}
-                  disabled={productData.stock === 0}
+                  disabled={product.stock === 0}
                   className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ShoppingCart className="w-4 h-4 mr-2" />
-                  {productData.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                  {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
                 </Button>
 
                 {addedToCart && (
@@ -378,28 +459,28 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
               <Card className="p-6 border-0 shadow-lg">
                 <h3 className="mb-4 text-gray-900 font-bold">Price Details</h3>
                 <div className="space-y-3">
-                  {!isMember && productData.member_price && productData.member_price < productData.regular_price ? (
+                  {!isMember && product.member_price && product.member_price < product.regular_price ? (
                     <>
                       <div className="flex justify-between text-gray-600">
                         <span>Regular Price</span>
-                        <span>{formatPrice(productData.regular_price)}</span>
+                          <span>{formatPrice(product.regular_price)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between text-[#3DA9E0]">
                         <span>Member Price</span>
-                        <span>{formatPrice(productData.member_price)}</span>
+                        <span>{formatPrice(product.member_price)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between text-green-600">
                         <span>Member Savings</span>
-                        <span>-{productData.regular_price - productData.member_price} NOK</span>
+                        <span>-{product.regular_price - product.member_price} NOK</span>
                       </div>
                     </>
                   ) : hasDiscount ? (
                     <>
                       <div className="flex justify-between text-gray-400 line-through">
                         <span>Regular Price</span>
-                        <span>{formatPrice(productData.regular_price)}</span>
+                        <span>{formatPrice(product.regular_price)}</span>
                       </div>
                       <div className="flex justify-between text-green-600">
                         <span>Member Discount</span>
@@ -431,7 +512,7 @@ export function ProductDetailsClient({ product, isMember = false }: ProductDetai
             </motion.div>
 
             {/* Member Benefits */}
-            {!isMember && productData.category !== 'Membership' && (
+            {!isMember && product.category !== 'Membership' && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
