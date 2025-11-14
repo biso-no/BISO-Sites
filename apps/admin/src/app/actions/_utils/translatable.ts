@@ -167,27 +167,7 @@ export const normalizeProductRow = (row: WithTranslations<WebshopProducts>): Pro
     ...row,
     metadata: metadataString,
     translation_refs: translationRefs,
-    translations: buildTranslationMap(translationRefs),
     metadata_parsed: metadata,
-    price: typeof metadata.price === 'number' ? metadata.price : undefined,
-    sku: typeof metadata.sku === 'string' ? metadata.sku : undefined,
-    stock_quantity: typeof metadata.stock_quantity === 'number' ? metadata.stock_quantity : undefined,
-    category: metadata.category ?? row.category,
-    image: (metadata.image as string | undefined) ?? row.image ?? undefined,
-    images: Array.isArray(metadata.images) ? metadata.images : undefined,
-    weight: typeof metadata.weight === 'number' ? metadata.weight : undefined,
-    dimensions: typeof metadata.dimensions === 'string' ? metadata.dimensions : undefined,
-    is_digital: metadata.is_digital,
-    shipping_required: metadata.shipping_required,
-    member_discount_enabled: metadata.member_discount_enabled,
-    member_discount_percent:
-      typeof metadata.member_discount_percent === 'number'
-        ? metadata.member_discount_percent
-        : undefined,
-    max_per_user: typeof metadata.max_per_user === 'number' ? metadata.max_per_user : undefined,
-    max_per_order: typeof metadata.max_per_order === 'number' ? metadata.max_per_order : undefined,
-    custom_fields: Array.isArray(metadata.custom_fields) ? metadata.custom_fields : undefined,
-    variations: Array.isArray(metadata.variations) ? metadata.variations : undefined,
   } as ProductWithTranslations
 }
 

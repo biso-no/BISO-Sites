@@ -231,6 +231,13 @@ export type Orders = Models.Row & {
     campus_id: string | null;
 }
 
+export type CartReservations = Models.Row & {
+    product_id: string;
+    user_id: string;
+    quantity: number;
+    expires_at: string;
+}
+
 export type Memberships = Models.Row & {
     membership_id: string;
     studentId: StudentIds[];

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useTransition } from "react"
+import { useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import { Upload, Trash2, Loader2, Star } from "lucide-react"
 import { toast } from "sonner"
@@ -23,7 +23,7 @@ interface ProductImagesProps {
 
 export default function ImageUploadCard({ images = [], onChange }: ProductImagesProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set())
 
   const validImages = useMemo(
     () =>
@@ -36,32 +36,41 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
   const mainImage = validImages[0] || ""
   const thumbnails = validImages.slice(1)
 
-  const handleUpload = (file: File) => {
+  const handleUpload = async (file: File) => {
     if (!file) return
+    
+    const fileId = `${file.name}-${Date.now()}`
+    setUploadingFiles(prev => new Set([...prev, fileId]))
+
     const formData = new FormData()
     formData.append("file", file)
 
-    startTransition(async () => {
-      try {
-        const result = await uploadProductImage(formData)
-        onChange([...validImages, result.url])
-        toast.success("Image uploaded")
-      } catch (error) {
-        console.error("Failed to upload image", error)
-        toast.error("Failed to upload image")
-      } finally {
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ""
-        }
+    try {
+      const result = await uploadProductImage(formData)
+      onChange([...validImages, result.url])
+      toast.success("Image uploaded")
+    } catch (error) {
+      console.error("Failed to upload image", error)
+      toast.error("Failed to upload image")
+    } finally {
+      setUploadingFiles(prev => {
+        const next = new Set(prev)
+        next.delete(fileId)
+        return next
+      })
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
       }
-    })
+    }
   }
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      handleUpload(file)
-    }
+    const files = Array.from(event.target.files || [])
+    files.forEach(file => {
+      if (file) {
+        handleUpload(file)
+      }
+    })
   }
 
   const removeImage = (index: number) => {
@@ -79,6 +88,9 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
     onChange(next)
   }
 
+  const isUploading = uploadingFiles.size > 0
+  const uploadingArray = Array.from(uploadingFiles)
+
   return (
     <Card className="overflow-hidden">
       <CardHeader>
@@ -92,6 +104,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={onFileChange}
         />
@@ -123,7 +136,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
               className="absolute right-2 top-2 bg-background/80"
               type="button"
               onClick={() => removeImage(0)}
-              disabled={isPending}
+              disabled={isUploading}
             >
               <Trash2 className="h-4 w-4" />
               <span className="sr-only">Remove cover image</span>
@@ -156,37 +169,40 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
                 className="absolute right-1 top-1 h-6 w-6 bg-background/80"
                 type="button"
                 onClick={() => removeImage(index + 1)}
-                disabled={isPending}
+                disabled={isUploading}
               >
                 <Trash2 className="h-3 w-3" />
                 <span className="sr-only">Remove image</span>
               </Button>
             </div>
           ))}
-          {[...Array(Math.max(0, 3 - thumbnails.length))].map((_, index) => (
-            <button
-              key={`empty-${index}`}
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-xs text-muted-foreground"
-              disabled={isPending}
-            >
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              Add
-            </button>
-          ))}
+          {[...Array(Math.max(0, 3 - thumbnails.length))].map((_, index) => {
+            const isThisTileLoading = index < uploadingArray.length
+            return (
+              <button
+                key={`empty-${index}`}
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
+                disabled={isUploading}
+              >
+                {isThisTileLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Add
+              </button>
+            )
+          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <Button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isPending}
+            disabled={isUploading}
           >
-            {isPending ? (
+            {isUploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading...
+                Uploading {uploadingFiles.size} image{uploadingFiles.size > 1 ? 's' : ''}...
               </>
             ) : (
               <>
@@ -199,7 +215,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
             type="button"
             variant="outline"
             onClick={() => onChange([])}
-            disabled={isPending || validImages.length === 0}
+            disabled={isUploading || validImages.length === 0}
           >
             Clear all
           </Button>

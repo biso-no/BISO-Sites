@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 import type { Locale } from "@repo/api/types/appwrite";
 import { getLocale } from "@/app/actions/locale";
 import { getPublicPage, getPublicPagePreview } from "@/app/actions/pages";
-import { DEFAULT_PAGE_DOCUMENT } from "@repo/editor/page-builder-config";
+import { DEFAULT_PAGE_DOCUMENT } from "@repo/editor";
 import { PageBuilderRenderer } from "@repo/editor/renderer";
 import type { PageBuilderDocument } from "@repo/editor/types";
 import { isLocale } from "@/i18n/config";
 
 interface PageBuilderRouteProps {
   params: { slug?: string[] };
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function toDocument(document: PageBuilderDocument | null | undefined): PageBuilderDocument {
@@ -65,13 +65,13 @@ export default async function PageBuilderRoute({
   searchParams,
 }: PageBuilderRouteProps) {
   const slug = joinSlug(params.slug);
-
+const search = await searchParams;
   if (!slug) {
     notFound();
   }
 
-  const locale = await resolveLocale(searchParams);
-  const preview = searchParams?.preview === "true" || searchParams?.draft === "true";
+  const locale = await resolveLocale(search);
+  const preview = search?.preview === "true" || search?.draft === "true";
   const page = preview
     ? await getPublicPagePreview(slug, locale)
     : await getPublicPage(slug, locale);
@@ -80,7 +80,7 @@ export default async function PageBuilderRoute({
     notFound();
   }
 
-  const document = toDocument(page.document);
+  const document = toDocument(page.document as PageBuilderDocument);
 
   return (
     <div className="bg-white">

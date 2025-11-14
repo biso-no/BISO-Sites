@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/appwrite'
+import { createAdminClient } from '@repo/api/server'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
 import { Input } from '@repo/ui/components/ui/input'
 import { Label } from '@repo/ui/components/ui/label'
@@ -7,7 +7,7 @@ import { Button } from '@repo/ui/components/ui/button'
 async function getSettings() {
   const { db } = await createAdminClient()
   try {
-    const doc = await db.getDocument('app', 'shop_settings', 'singleton')
+    const doc = await db.getRow('app', 'shop_settings', 'singleton')
     const parsed = {
       ...doc,
       general: typeof (doc as any).general === 'string' ? JSON.parse((doc as any).general) : (doc as any).general,
@@ -127,12 +127,12 @@ export async function saveSettings(formData: FormData) {
 
   try {
     if (existing) {
-      await db.updateDocument('app', 'shop_settings', 'singleton', {
+      await db.updateRow('app', 'shop_settings', 'singleton', {
         general: JSON.stringify(next.general || {}),
         vipps: JSON.stringify(next.vipps || {}),
       })
     } else {
-      await db.createDocument('app', 'shop_settings', 'singleton', {
+      await db.createRow('app', 'shop_settings', 'singleton', {
         general: JSON.stringify(next.general || {}),
         vipps: JSON.stringify(next.vipps || {}),
       })

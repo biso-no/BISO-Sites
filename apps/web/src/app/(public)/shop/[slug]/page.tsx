@@ -5,11 +5,6 @@ import { getLocale } from '@/app/actions/locale'
 import { ProductDetailsClient } from '@/components/shop/product-details-client'
 import { Skeleton } from '@repo/ui/components/ui/skeleton'
 
-interface ProductPageProps {
-  params: {
-    slug: string
-  }
-}
 
 async function ProductDetails({ slug }: { slug: string }) {
   const locale = await getLocale()
@@ -51,19 +46,26 @@ function ProductDetailsSkeleton() {
   )
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function ProductPage({ params }: { params: Promise<{ slug?: string }> }) {
+  const { slug } = await params
+  if (!slug) {
+    notFound()
+  }
   return (
     <Suspense fallback={<ProductDetailsSkeleton />}>
-      <ProductDetails slug={params.slug} />
+      <ProductDetails slug={slug} />
     </Suspense>
   )
 }
 
 // Generate metadata for SEO
-export async function generateMetadata({ params }: ProductPageProps) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = await params
   const locale = await getLocale()
-  const product = await getProductBySlug(params.slug, locale)
-  
+  const product = await getProductBySlug(slug?.[0] ?? '', locale)
+  if (!slug?.[0]) {
+    notFound()
+  }
   if (!product) {
     return {
       title: 'Product Not Found | BISO Shop',
@@ -71,7 +73,7 @@ export async function generateMetadata({ params }: ProductPageProps) {
   }
   
   return {
-    title: `${product.title} | BISO Shop`,
-    description: product.short_description || product.description,
+    title: `${product.translation_refs[0]?.title} | BISO Shop`,
+    description: product.translation_refs[0]?.short_description || product.translation_refs[0]?.description,
   }
 }

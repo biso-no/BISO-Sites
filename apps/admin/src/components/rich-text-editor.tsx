@@ -72,6 +72,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
   const lowlight = createLowlight(common);
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {
@@ -257,9 +258,9 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-sm" onClick={stopPropagation}>
+    <div className="glass-card overflow-hidden" onClick={stopPropagation}>
       {editable && (
-        <div className="flex justify-between items-center px-2 py-1 border-b">
+        <div className="flex justify-between items-center px-3 py-2 border-b border-primary/10 bg-white/50 dark:bg-card/50">
           <div className="flex gap-1">
             <Button 
               variant={isHtmlMode ? "ghost" : "secondary"} 
@@ -324,7 +325,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
       {!isHtmlMode ? (
         <div>
           {editable && (
-            <div className="flex flex-wrap gap-0.5 p-1 bg-muted/20 border-b">
+            <div className="flex flex-wrap gap-0.5 p-2 bg-primary/5 dark:bg-primary/10 border-b border-primary/10">
               <div className="flex items-center border-r pr-1 mr-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={stopPropagation}>

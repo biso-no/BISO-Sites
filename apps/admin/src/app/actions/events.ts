@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient, createSessionClient } from '@repo/api/server'
-import { ID, Query } from '@repo/api'
+import { ID, Query, getStorageFileUrl } from '@repo/api'
 import { revalidatePath } from 'next/cache'
 import { ContentTranslation } from '@/lib/types/content-translation'
 import type { AdminEvent } from '@/lib/types/event'
@@ -344,9 +344,7 @@ export async function uploadEventImage(formData: FormData) {
 }
 
 export async function getEventImageViewUrl(fileId: string) {
-  const { storage } = await createSessionClient()
-  const url = await storage.getFileView('events', fileId)
-  return url
+  return getStorageFileUrl('events', fileId)
 }
 
 // Helper function to get departments for a specific campus

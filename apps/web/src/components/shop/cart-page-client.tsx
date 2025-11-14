@@ -1,18 +1,20 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTransition } from 'react'
+import { useTransition, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { ShoppingCart, ArrowLeft, Trash2, Plus, Minus, Tag, Users, MapPin, CreditCard, Package, Sparkles, AlertCircle } from 'lucide-react'
+import { ShoppingCart, ArrowLeft, Trash2, Plus, Minus, Tag, Users, MapPin, CreditCard, Package, Sparkles, AlertCircle, Clock } from 'lucide-react'
 import { Card } from '@repo/ui/components/ui/card'
 import { Button } from '@repo/ui/components/ui/button'
 import { Badge } from '@repo/ui/components/ui/badge'
 import { Separator } from '@repo/ui/components/ui/separator'
 import { ImageWithFallback } from '@repo/ui/components/image'
 import { Alert, AlertDescription } from '@repo/ui/components/ui/alert'
+import { Skeleton } from '@repo/ui/components/ui/skeleton'
 import { useCart } from '@/lib/contexts/cart-context'
 import { initiateVippsCheckout } from '@repo/payment/actions'
 import { Currency } from '@repo/api/types/appwrite'
+import { cleanupExpiredReservations } from '@/app/actions/cart-reservations'
 
 interface CartPageClientProps {
   isMember?: boolean
@@ -30,7 +32,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
-  const { items, updateQuantity, removeItem, getSubtotal, getRegularSubtotal, getTotalSavings } = useCart()
+  const { items, isLoading, updateQuantity, removeItem, getSubtotal, getRegularSubtotal, getTotalSavings, getEarliestExpiration, refreshCart } = useCart()
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null)
 
   const subtotal = getSubtotal(isMember)
   const regularSubtotal = getRegularSubtotal()
@@ -46,6 +49,48 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
   // Get error from URL
   const error = searchParams.get('error')
   const cancelled = searchParams.get('cancelled')
+
+  // Cleanup expired reservations on cart page load
+  useEffect(() => {
+    cleanupExpiredReservations().catch(err => {
+      console.error('Failed to cleanup expired reservations:', err)
+    })
+  }, [])
+
+  // Countdown timer for cart expiration
+  useEffect(() => {
+    const updateCountdown = () => {
+      const earliestExpiration = getEarliestExpiration()
+      
+      if (!earliestExpiration) {
+        setTimeRemaining(null)
+        return
+      }
+      
+      const now = new Date().getTime()
+      const expirationTime = new Date(earliestExpiration).getTime()
+      const diff = expirationTime - now
+      
+      if (diff <= 0) {
+        setTimeRemaining('Expired')
+        // Refresh cart to remove expired items
+        refreshCart()
+        return
+      }
+      
+      const minutes = Math.floor(diff / 60000)
+      const seconds = Math.floor((diff % 60000) / 1000)
+      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, '0')}`)
+    }
+    
+    // Update immediately
+    updateCountdown()
+    
+    // Update every second
+    const interval = setInterval(updateCountdown, 1000)
+    
+    return () => clearInterval(interval)
+  }, [items, getEarliestExpiration, refreshCart])
 
   const handleQuantityChange = (itemId: string, change: number) => {
     const item = items.find(i => i.id === itemId)
@@ -82,6 +127,7 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
         <ImageWithFallback
           src="https://images.unsplash.com/photo-1472851294608-062f824d29cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9wcGluZyUyMGNhcnR8ZW58MXx8fHwxNzYyMTY1MTQ1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
           alt="Shopping Cart"
+          fill
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
@@ -146,7 +192,19 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
           </Alert>
         )}
 
-        {items.length === 0 ? (
+        {isLoading ? (
+          // Loading State
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-4">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+            <div className="space-y-6">
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          </div>
+        ) : items.length === 0 ? (
           // Empty Cart
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -169,6 +227,17 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
+              {/* Countdown Timer */}
+              {timeRemaining && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800 flex items-center gap-2">
+                    <span className="font-medium">Items reserved for:</span>
+                    <span className="font-mono font-bold">{timeRemaining}</span>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <AnimatePresence mode="popLayout">
                 {items.map((item, index) => {
                   const itemPrice = isMember && item.memberPrice ? item.memberPrice : item.regularPrice
@@ -192,7 +261,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                             <ImageWithFallback
                               src={item.image || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080'}
                               alt={item.name}
-                              className="w-full h-full object-cover"
+                              fill
+                              className="object-cover"
                             />
                             <Badge className={`absolute top-2 left-2 ${categoryColors[item.category]}`}>
                               {item.category}
@@ -246,22 +316,30 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                                     disabled={item.quantity <= 1}
                                     className="h-8 w-8 p-0 disabled:opacity-50"
                                   >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-4 h-4 text-gray-900 hover:text-blue-800" />
                                   </Button>
-                                  <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                  <span className="w-8 text-center font-medium text-gray-900">{item.quantity}</span>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleQuantityChange(item.id, 1)}
-                                    disabled={item.stock !== null && item.quantity >= item.stock}
+                                    disabled={
+                                      (item.stock !== null && item.quantity >= item.stock) ||
+                                      (item.metadata?.max_per_order !== undefined && item.quantity >= item.metadata.max_per_order)
+                                    }
                                     className="h-8 w-8 p-0 disabled:opacity-50"
                                   >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-4 h-4 text-gray-900 hover:text-blue-800" />
                                   </Button>
                                 </div>
                                 {item.stock !== null && item.stock <= 10 && (
                                   <span className="text-xs text-orange-600">
                                     Only {item.stock} available
+                                  </span>
+                                )}
+                                {item.metadata?.max_per_order && item.quantity >= item.metadata.max_per_order && (
+                                  <span className="text-xs text-red-600">
+                                    Max {item.metadata.max_per_order} per order
                                   </span>
                                 )}
                               </div>
@@ -355,15 +433,6 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                       </div>
                     )}
 
-                    <div className="flex justify-between text-gray-600">
-                      <span>Shipping</span>
-                      <span className="text-green-600 font-medium">Free (Campus Pickup)</span>
-                    </div>
-
-                    <div className="flex justify-between text-gray-600 text-sm">
-                      <span>Tax</span>
-                      <span>Included</span>
-                    </div>
                   </div>
 
                   <Separator className="my-4" />
@@ -414,16 +483,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                     <div>
                       <h4 className="mb-2 text-gray-900 font-semibold">Campus Pickup</h4>
                       <p className="text-sm text-gray-700 mb-2">
-                        All items will be available for pickup at the BISO office.
+                        All items will be available for pickup at the BISO office at your campus.
                       </p>
-                      <div className="text-sm text-gray-600">
-                        <div className="flex items-center gap-2 mb-1">
-                          <MapPin className="w-4 h-4 text-blue-600" />
-                          <span>Main Building, Ground Floor</span>
-                        </div>
-                        <strong>Hours:</strong> Monday-Friday, 10:00-16:00<br />
-                        <strong>Pickup:</strong> Within 5 working days of purchase
-                      </div>
                     </div>
                   </div>
                 </Card>

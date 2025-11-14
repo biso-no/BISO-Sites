@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { unauthorized, usePathname } from 'next/navigation';
 import { Button } from '@repo/ui/components/ui/button';
 import { Input } from '@repo/ui/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
@@ -160,7 +160,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const pathname = usePathname();
-  const [selectedRole, setSelectedRole] = useState(roles.includes('Admin') ? 'Admin' : roles[0]);
+  const [selectedRole, setSelectedRole] = useState(roles.includes('Admin') ? 'Admin' : roles[0] || '');
   const [isLoading, setIsLoading] = useState(true);
   const { mode: assistantMode, isSidebarOpen: assistantSidebarOpen, setSidebarOpen } = useAssistantUIStore();
 
@@ -247,8 +247,10 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       ],
     },
   ];
+  
 
-  const hasAccess = (itemRoles: string[]) => itemRoles.includes(selectedRole);
+  const hasAccess = (itemRoles: string[]) => selectedRole ? itemRoles.includes(selectedRole) : false;
+
 
   const handleSignOut = async () => {
     setIsLoading(true);

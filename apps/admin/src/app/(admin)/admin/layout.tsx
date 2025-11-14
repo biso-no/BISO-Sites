@@ -24,14 +24,13 @@ export default async function AdminLayout({
   }
 
   const roles = await getUserRoles()
-  console.log("User object:", user)
   
   // Add fallback for when name is undefined
   const firstName = user && user.user.name ? user.user.name.split(' ')[0] : 'User'
 
   return (
     <AdminProviders>
-    <Component roles={roles} firstName={firstName}>
+    <Component roles={roles} firstName={firstName || 'User'}>
     {children}
     </Component>
     </AdminProviders>

@@ -1,9 +1,10 @@
 'use server'
 
-import { createAdminClient } from '@repo/api/server'
+import { createAdminClient, createSessionClient } from '@repo/api/server'
 import { Query } from '@repo/api'
 import { ContentTranslations, ContentType, Locale, WebshopProducts, Status, Campus } from '@repo/api/types/appwrite'
 import { revalidatePath } from 'next/cache'
+import { notFound } from 'next/navigation'
 
 export interface ListProductsParams {
   limit?: number
@@ -58,7 +59,7 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Con
   } = params
 
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const queries = [
       Query.equal('content_type', ContentType.PRODUCT),
@@ -117,35 +118,30 @@ export async function getProduct(id: string, locale: 'en' | 'no'): Promise<Conte
   }
 }
 
-export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
+export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promise<WebshopProducts | null> {
   try {
-    const { db } = await createAdminClient()
-    
-    const productsResponse = await db.listRows('app', 'webshop_products', [
+    const { db } = await createSessionClient()
+    console.log("Slug:", slug);
+    const productsResponse = await db.listRows<WebshopProducts>('app', 'webshop_products', [
       Query.equal('slug', slug),
-      Query.limit(1)
+      Query.limit(1),
+      Query.select(['$id', 'slug', 'status', 'campus_id', 'campus.*', 'category', 'regular_price', 'member_price', 'member_only', 'image', 'stock', 'metadata', 'departmentId', 'translation_refs.*'])
     ])
-    
+    console.log("Response:", productsResponse);
     if (productsResponse.rows.length === 0) return null
-    
-    const product = productsResponse.rows[0] ?? null
-    
-    const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
-      Query.equal('content_type', ContentType.PRODUCT),
-      Query.equal('content_id', product?.$id ?? ''),
-      Query.equal('locale', locale),
-      Query.select(['content_id', '$id', 'locale', 'title', 'description', 'short_description', 'product_ref.*']),
-      Query.limit(1)
-    ])
-    
-    if (translationsResponse.rows.length === 0) return null
-    
-    return translationsResponse.rows[0] ?? null
+
+    const product = productsResponse.rows[0]
+    if (!product) notFound()
+
+    //Check if the translation for the locale exists
+    const translationExists = product.translation_refs.find(translation => translation.locale === locale)
+    if (!translationExists) notFound()
+
+    return product
   } catch (error) {
     console.error('Error fetching product by slug:', error)
-    return null
-  }
-}
+    notFound()
+  }}
 
 export async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
   try {
