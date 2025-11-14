@@ -4,11 +4,11 @@ import Link from "next/link";
 import { Card } from "@repo/ui/components/ui/card";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import type { Departments } from "@repo/api/types/appwrite";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import type { Locale } from "@/i18n/config";
 
 interface DepartmentsGridProps {
-  departments: Departments[];
+  departments: ContentTranslations[];
   locale: Locale;
   activeCampusId?: string | null;
 }
@@ -26,10 +26,10 @@ export function DepartmentsGrid({
     <section>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-gray-900 mb-2">
+          <h2 className="text-foreground mb-2 text-2xl font-bold">
             {locale === "en" ? "Our Departments" : "Våre enheter"}
           </h2>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             {locale === "en"
               ? "Active student organizations and committees"
               : "Aktive studentorganisasjoner og komiteer"}
@@ -52,30 +52,30 @@ export function DepartmentsGrid({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all text-center group cursor-pointer">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Building2 className="w-8 h-8 text-white" />
-              </div>
-              <h4 className="text-gray-900 mb-2">{dept.Name}</h4>
-              {dept.description && (
-                <p
-                  className="text-sm text-gray-600 line-clamp-2"
-                  dangerouslySetInnerHTML={{ __html: dept.description }}
-                />
-              )}
-              {dept.type && (
-                <Badge
-                  variant="outline"
-                  className="mt-3 text-xs text-gray-500 border-gray-200"
-                >
-                  {dept.type}
-                </Badge>
-              )}
-            </Card>
+            <Link href={`/units/${dept.department_ref?.$id || dept.content_id}`}>
+              <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all text-center group cursor-pointer">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Building2 className="w-8 h-8 text-white" />
+                </div>
+                <h4 className="text-foreground mb-2 font-semibold">{dept.title}</h4>
+                {dept.short_description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {dept.short_description}
+                  </p>
+                )}
+                {dept.department_ref?.type && (
+                  <Badge
+                    variant="outline"
+                    className="mt-3 text-xs border-border"
+                  >
+                    {dept.department_ref.type}
+                  </Badge>
+                )}
+              </Card>
+            </Link>
           </motion.div>
         ))}
       </div>
     </section>
   );
 }
-

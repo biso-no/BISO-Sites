@@ -83,7 +83,8 @@ export enum ContentType {
     JOB = "job",
     EVENT = "event",
     NEWS = "news",
-    PRODUCT = "product"
+    PRODUCT = "product",
+    DEPARTMENT = "department"
 }
 
 export enum Status {
@@ -184,10 +185,19 @@ export type Departments = Models.Row & {
     logo: string | null;
     active: boolean | null;
     type: string | null;
-    description: string | null;
     socials: DepartmentSocials[];
     news: News[];
+    boardMembers: DepartmentBoard[];
+    products: WebshopProducts[];
+    translations: ContentTranslations[];
 }
+
+export type DepartmentSocials = Models.Row & {
+    platform: string | null;
+    url: string | null;
+    department_id: string;
+}
+
 
 export type StudentIds = Models.Row & {
     student_id: string;
@@ -319,13 +329,9 @@ export type DepartmentBoard = Models.Row & {
     name: string | null;
     imageUrl: string | null;
     role: string | null;
+    department: Departments;
 }
 
-export type DepartmentSocials = Models.Row & {
-    platform: string | null;
-    url: string | null;
-    department_id: string;
-}
 
 export type FeatureFlags = Models.Row & {
     key: string;
@@ -511,6 +517,7 @@ export type ContentTranslations = Models.Row & {
     event_ref: Events;
     news_ref: News;
     product_ref: WebshopProducts;
+    department_ref: Departments;
     content_type: ContentType;
 }
 
@@ -574,6 +581,7 @@ export type WebshopProducts = Models.Row & {
     campus: Campus;
     translation_refs: ContentTranslations[];
     departmentId: string | null;
+    department: Departments;
 }
 
 export type VarslingSettings = Models.Row & {
