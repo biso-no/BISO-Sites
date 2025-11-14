@@ -17,7 +17,7 @@ export default async function CampusPage() {
       listEvents({ status: "published", limit: 10, locale }),
       listJobs({ status: "published", limit: 10, locale }),
       listNews({ limit: 6, locale }),
-      getDepartments({ isActive: true }),
+      getDepartments({ isActive: true, locale }),
       getCampusData(),
       getCampusMetadata(),
     ]);

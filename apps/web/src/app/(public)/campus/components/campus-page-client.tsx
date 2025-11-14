@@ -25,7 +25,7 @@ interface CampusPageClientProps {
   events: ContentTranslations[];
   jobs: ContentTranslations[];
   news: ContentTranslations[];
-  departments: Departments[];
+  departments: ContentTranslations[];
   campusData: CampusData[];
   campusMetadata: Record<string, CampusMetadata>;
   locale: Locale;
@@ -86,7 +86,7 @@ export function CampusPageClient({
 
   const campusSpecificDepartments = useMemo(() => {
     if (!activeCampusId) return departments;
-    return departments.filter((dept) => dept.campus_id === activeCampusId);
+    return departments.filter((dept) => dept.department_ref?.campus_id === activeCampusId);
   }, [departments, activeCampusId]);
 
   // Calculate stats
