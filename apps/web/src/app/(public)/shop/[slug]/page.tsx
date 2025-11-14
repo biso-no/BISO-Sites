@@ -73,7 +73,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
   
   return {
-    title: `${product.translation_refs[0]?.title} | BISO Shop`,
-    description: product.translation_refs[0]?.short_description || product.translation_refs[0]?.description,
+    title: `${product.title} | BISO Shop`,
+    description: product.short_description || product.description,
   }
 }

@@ -58,7 +58,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
           <motion.div whileHover={{ scale: 1.05 }} className="flex items-center gap-3">
             <Link href="/">
             <ImageWithFallback
-              src="/images/logo-home.png"
+              src="/images/home-logo.png"
               alt="BISO logo"
               width={140}               // pick the intrinsic pixel width
               height={40}               // and height that matches your asset ratio
