@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from 'react';
-import { Department } from '@/lib/admin/departments';
+import type { Departments } from '@repo/api/types/appwrite';
 import { Badge } from '@repo/ui/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader } from '@repo/ui/components/ui/card';
 import { Button } from '@repo/ui/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@repo/ui/components/ui/dialog';
 import { ScrollArea } from '@repo/ui/components/ui/scroll-area';
 import Image from 'next/image';
-import { Users, MapPin, Tag, Calendar, Edit } from 'lucide-react';
+import { Users, MapPin, Tag, Calendar, Edit, MessageSquare, Users2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // Client-side only component for HTML content
 function HTMLContent({ html, className }: { html: string, className?: string }) {
+  if (!html) return null;
   return (
     <div 
       className={className}
@@ -22,15 +23,27 @@ function HTMLContent({ html, className }: { html: string, className?: string }) 
 }
 
 interface DepartmentCardProps {
-  department: Department;
-  onEdit?: (department: Department) => void;
+  department: Departments & {
+    campusName?: string;
+    displayTitle?: string;
+    userCount?: number;
+    boardMemberCount?: number;
+    socialsCount?: number;
+  };
+  onEdit?: (department: any) => void;
 }
 
 export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const router = useRouter();
+  
+  // Get English translation as default for display
+  const enTranslation = department.translations?.find(t => t.locale === 'en');
+  const displayName = department.displayTitle || enTranslation?.title || department.Name;
+  const shortDescription = enTranslation?.short_description || '';
+  
   const placeholderLogo = "https://via.placeholder.com/80?text=" + 
-    encodeURIComponent(department.name.substring(0, 2));
+    encodeURIComponent(displayName.substring(0, 2));
   
   const logoUrl = department.logo || placeholderLogo;
   
@@ -70,12 +83,12 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
                 />
               ) : (
                 <span className="text-xl font-bold text-white">
-                  {department.name.substring(0, 2).toUpperCase()}
+                  {displayName.substring(0, 2).toUpperCase()}
                 </span>
               )}
             </div>
             <h3 className="font-bold text-white text-xl drop-shadow-md line-clamp-2">
-              {department.name}
+              {displayName}
             </h3>
           </div>
         </div>
@@ -92,12 +105,23 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
             <Users size={16} />
             <span>{department.userCount || 0} members</span>
           </div>
+
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Users2 size={16} />
+            <span>{department.boardMemberCount || 0} board members</span>
+          </div>
+
+          {department.socialsCount && department.socialsCount > 0 && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <MessageSquare size={16} />
+              <span>{department.socialsCount} social links</span>
+            </div>
+          )}
           
-          {department.description && (
-            <HTMLContent 
-              html={department.description}
-              className="mt-2 text-sm line-clamp-2 text-muted-foreground"
-            />
+          {shortDescription && (
+            <p className="mt-2 text-sm line-clamp-2 text-muted-foreground">
+              {shortDescription}
+            </p>
           )}
         </div>
       </CardContent>

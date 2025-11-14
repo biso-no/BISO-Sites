@@ -190,6 +190,7 @@ export type Departments = Models.Row & {
     boardMembers: DepartmentBoard[];
     products: WebshopProducts[];
     translations: ContentTranslations[];
+    translation_refs: ContentTranslations[];
 }
 
 export type DepartmentSocials = Models.Row & {

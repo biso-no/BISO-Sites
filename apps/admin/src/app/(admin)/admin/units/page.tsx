@@ -1,9 +1,9 @@
 import { Suspense } from 'react';
-import { getDepartments, getDepartmentTypes } from '@/lib/actions/departments';
+import { getDepartmentsClient, getDepartmentTypes } from '@/lib/actions/departments';
 import { getCampuses } from '@/app/actions/campus';
 import { DepartmentStats } from '@/components/units/department-stats';
 import { DepartmentFiltersWrapper } from '@/components/units/department-filters-wrapper';
-import { DepartmentList } from '@/components/units/department-list';
+import { DepartmentsInfiniteList } from '@/components/units/departments-infinite-list';
 import { DepartmentActionsHeader } from '@/components/units/department-actions-header';
 import { DepartmentSkeleton } from '@/components/units/department-skeleton';
 import { FilterState } from '@/lib/hooks/use-departments-filter';
@@ -16,9 +16,10 @@ interface PageProps {
     campus_id?: string;
     type?: string;
     search?: string;
-    sort?: string;
   }>;
 }
+
+const PAGE_SIZE = 20;
 
 export default async function UnitsPage({ searchParams }: PageProps) {
   // Await searchParams before using its properties
@@ -36,51 +37,14 @@ export default async function UnitsPage({ searchParams }: PageProps) {
     searchTerm: params.search
   };
 
-  // Fetch departments directly with filters applied server-side
-  const departmentsData = await getDepartments({
+  // Fetch initial departments with pagination
+  const { departments, hasMore } = await getDepartmentsClient({
     active: filters.active,
     campusId: filters.campus_id,
     type: filters.type,
     search: filters.searchTerm,
-  });
-  
-  // Transform departments to include computed fields
-  let departments = departmentsData.map(dept => ({
-    ...dept,
-    name: dept.Name,
-    campusName: dept.campus?.name || 'Unknown',
-    userCount: 0 // TODO: Add user count when needed
-  }));
-
-  // Client-side sorting (done after filtering from server)
-  const sortOrder = params.sort || 'name-asc';
-  const [sortField, sortDirection] = sortOrder.split('-');
-  
-  departments.sort((a, b) => {
-    let compareA: any;
-    let compareB: any;
-    
-    switch (sortField) {
-      case 'name':
-        compareA = a.name?.toLowerCase() || '';
-        compareB = b.name?.toLowerCase() || '';
-        break;
-      case 'campus':
-        compareA = a.campusName?.toLowerCase() || '';
-        compareB = b.campusName?.toLowerCase() || '';
-        break;
-      case 'users':
-        compareA = a.userCount || 0;
-        compareB = b.userCount || 0;
-        break;
-      default:
-        compareA = a.name?.toLowerCase() || '';
-        compareB = b.name?.toLowerCase() || '';
-    }
-    
-    if (compareA < compareB) return sortDirection === 'asc' ? -1 : 1;
-    if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
+    limit: PAGE_SIZE,
+    offset: 0
   });
   
   // Fetch campuses for filter dropdown (separate query)
@@ -114,18 +78,29 @@ export default async function UnitsPage({ searchParams }: PageProps) {
             types={types}
           />
           <DepartmentActionsHeader 
-            sortOrder={sortOrder}
             campuses={campusOptions}
             types={types}
           />
         </div>
 
-        {/* Department List */}
+        {/* Results count */}
+        <div className="text-sm text-muted-foreground">
+          Showing {departments.length} department{departments.length !== 1 ? 's' : ''}
+          {hasMore && ' (scroll for more)'}
+        </div>
+
+        {/* Department List with Infinite Scroll */}
         <Suspense fallback={<DepartmentSkeleton />}>
-          <DepartmentList
-            departments={departments}
-            campuses={campusOptions}
-            types={types}
+          <DepartmentsInfiniteList
+            initialDepartments={departments}
+            hasMore={hasMore}
+            pageSize={PAGE_SIZE}
+            filters={{
+              active: filters.active,
+              campus_id: filters.campus_id,
+              type: filters.type,
+              search: filters.searchTerm
+            }}
           />
         </Suspense>
       </div>
