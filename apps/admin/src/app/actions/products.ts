@@ -76,7 +76,7 @@ export async function getProduct(id: string): Promise<ProductWithTranslations | 
   }
 }
 
-export async function getProductBySlug(slug: string): Promise<ProductWithTranslations | null> {
+async function getProductBySlug(slug: string): Promise<ProductWithTranslations | null> {
   try {
     const { db } = await createAdminClient()
     
@@ -258,7 +258,7 @@ export async function deleteProduct(id: string, skipRevalidation = false): Promi
   }
 }
 
-export async function updateProductStatus(
+async function updateProductStatus(
   id: string,
   status: 'draft' | 'published' | 'archived',
   skipRevalidation = false
@@ -323,7 +323,7 @@ export async function translateProductContent(
 }
 
 // Get products for public pages (published only)
-export async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ProductWithTranslations[]> {
+async function getProducts(status: 'in-stock' | 'all' = 'all', locale: 'en' | 'no' = 'en'): Promise<ProductWithTranslations[]> {
   return listProducts({
     status: 'published',
     locale,

@@ -83,14 +83,14 @@ export async function getEvent(id: string, locale: 'en' | 'no'): Promise<Content
 }
 
 
-export async function getEventImageViewUrl(fileId: string) {
+async function getEventImageViewUrl(fileId: string) {
   const { storage } = await createSessionClient()
   const url = await storage.getFileView('events', fileId)
   return url
 }
 
 // Helper function to get departments for a specific campus
-export async function listDepartments(campusId?: string) {
+async function listDepartments(campusId?: string) {
   const queries = [Query.equal('active', true)]
   
   if (campusId) {
@@ -108,7 +108,7 @@ export async function listDepartments(campusId?: string) {
 }
 
 // Helper function to get campuses
-export async function listCampuses() {
+async function listCampuses() {
   try {
     const { db } = await createSessionClient()
     const response = await db.listRows<Campus>('app', 'campus')

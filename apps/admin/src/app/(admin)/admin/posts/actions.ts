@@ -1,8 +1,7 @@
 "use server"
 import { createSessionClient } from "@repo/api/server";
-import { ID, Models, Query } from "node-appwrite";
-import { revalidatePath } from "next/cache";
-import { Campus } from "@/lib/types/post";
+import { Query } from "@repo/api";
+import { Campus } from "@repo/api/types/appwrite";
 
 
 const databaseId = 'app';

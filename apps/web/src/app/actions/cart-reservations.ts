@@ -132,7 +132,7 @@ export async function deleteReservation(
  * Delete all reservations for current session user
  * RLS automatically filters to current user
  */
-export async function deleteUserReservations(): Promise<void> {
+async function deleteUserReservations(): Promise<void> {
   try {
     const { db } = await createSessionClient()
     
@@ -184,7 +184,7 @@ export async function cleanupExpiredReservations(): Promise<number> {
  * Get current session user's reservation for a product
  * RLS automatically filters to current user
  */
-export async function getUserReservation(
+async function getUserReservation(
   productId: string
 ): Promise<{ quantity: number; expiresAt: string } | null> {
   try {

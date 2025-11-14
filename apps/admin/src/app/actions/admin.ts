@@ -126,7 +126,7 @@ export async function getExpenses() {
   return response.rows
 }
 
-export async function getExpensesByLoggedInUser() {
+async function getExpensesByLoggedInUser() {
        
   
    
@@ -154,7 +154,7 @@ export async function getExpense(id: string) {
 
 
 
-export async function addExpense(formData: FormData) {
+async function addExpense(formData: FormData) {
   const { db, account} = await createSessionClient();
   const user = await account.get();
   const response = await db.createRow<Expense>(
@@ -177,7 +177,7 @@ export async function addExpense(formData: FormData) {
   return response
 }
 
-export async function updateExpense(expenseId: string, expense: Expense) {
+async function updateExpense(expenseId: string, expense: Expense) {
   console.log(expenseId)
   const { db, account } = await createSessionClient();
   const user = await account.get();
@@ -200,7 +200,7 @@ export async function updateExpense(expenseId: string, expense: Expense) {
 }
 
 
-  export async function updateExpenseStatus(expenseId: string,  status: string) {
+  async function updateExpenseStatus(expenseId: string,  status: string) {
     console.log(expenseId)
     const { db } = await createSessionClient();
     const response = await db.updateRow<Expense>(
@@ -216,7 +216,7 @@ export async function updateExpense(expenseId: string, expense: Expense) {
   }
 
 
-  export async function addExpenseAttachment(data: ExpenseAttachment) {
+  async function addExpenseAttachment(data: ExpenseAttachment) {
     const { db } = await createSessionClient();
     const response = await db.createRow<ExpenseAttachment>(
       'app', // databaseId
@@ -234,7 +234,7 @@ export async function updateExpense(expenseId: string, expense: Expense) {
     return response
   }
 
-  export async function addAttachmentImage(formFileData: FormData) {
+  async function addAttachmentImage(formFileData: FormData) {
 
     const { storage } = await createSessionClient();
 
