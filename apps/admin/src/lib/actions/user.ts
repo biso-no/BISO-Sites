@@ -60,10 +60,10 @@ export async function getCurrentSession() {
     return session;
 }
 
-export async function getUserById(userId: string): Promise<Models.User<Models.Preferences> | null> {
+export async function getUserById(userId: string): Promise<Users | null> {
     try {
-        const { account } = await createSessionClient();
-        const user = await account.get();
+        const { db } = await createAdminClient();
+        const user = await db.getRow<Users>('app', 'user', userId);
         return user;
     } catch (error) {
         console.error(error);

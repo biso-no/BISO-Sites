@@ -1,5 +1,4 @@
 import type { ContentTranslations, WebshopProducts } from '@repo/api/types/appwrite'
-import type { TranslationMap } from '@/lib/utils/content-translations'
 
 export type ProductCustomFieldType = 'text' | 'textarea' | 'number' | 'select'
 
@@ -25,8 +24,8 @@ export interface ProductVariation {
 export type Product = WebshopProducts
 
 // Helper interface for working with product data including translations
-export interface ProductWithTranslations extends WebshopProducts {
-  translations?: TranslationMap<ContentTranslations>
+export interface ProductWithTranslations extends Partial<WebshopProducts> {
+  translations?: ContentTranslations[]
   // Convenience properties for the current locale
   title?: string
   description?: string

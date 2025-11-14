@@ -17,7 +17,7 @@ const vipps = Client({
     retryRequests: false,
 });
 
-export async function getVippsAccessToken() {
+export async function getVippsAccessToken(): Promise<any> {
     
     if (!clientId || !clientSecret) {
         throw new Error("VIPPS_CLIENT_ID and VIPPS_CLIENT_SECRET are not set")
@@ -45,7 +45,7 @@ export async function createVippsCheckout({
     amount: number,
     reference: string,
     paymentDescription: string,
-}) {
+}): Promise<any> {
     const checkout = await vipps.checkout.create(clientId, clientSecret, {
         merchantInfo: {
             callbackUrl: `${baseUrl}/api/checkout/webhook`,
@@ -76,7 +76,7 @@ export async function createVippsCheckout({
     return checkout
 }
 
-export async function getVippsCheckout(reference: string) {
+export async function getVippsCheckout(reference: string): Promise<any> {
     const checkout = await vipps.checkout.info(clientId, clientSecret, reference)
     return checkout
 }

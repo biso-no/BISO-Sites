@@ -58,7 +58,7 @@ export async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
 }
 
 // Create new varsling settings (admin only)
-export async function createVarslingSettings(data: Omit<VarslingSettings, '$id'>): Promise<{ success: boolean; error?: string }> {
+export async function createVarslingSettings(data: Omit<VarslingSettings, keyof import("@repo/api").Models.Row>): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createAdminClient();
     
@@ -73,7 +73,7 @@ export async function createVarslingSettings(data: Omit<VarslingSettings, '$id'>
 }
 
 // Update varsling settings (admin only)
-export async function updateVarslingSettings(id: string, data: Partial<VarslingSettings>): Promise<{ success: boolean; error?: string }> {
+export async function updateVarslingSettings(id: string, data: Partial<Omit<VarslingSettings, keyof import("@repo/api").Models.Row>>): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createAdminClient();
     

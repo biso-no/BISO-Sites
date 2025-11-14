@@ -1,4 +1,3 @@
-import 'server-only';
 import { NextRequest } from 'next/server';
 import { processDocument } from '@/lib/services/document-processing';
 export const runtime = 'nodejs';
