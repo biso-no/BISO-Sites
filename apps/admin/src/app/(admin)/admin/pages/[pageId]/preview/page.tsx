@@ -5,8 +5,9 @@ import {
   getManagedPage,
   getPublishedPagePreview,
 } from "@/app/actions/pages";
+import type { PageDocument } from "@repo/api/page-builder";
 import { PageBuilderRenderer } from "@repo/editor/renderer";
-import { DEFAULT_PAGE_DOCUMENT } from "@repo/editor/page-builder-config";
+import { DEFAULT_PAGE_DOCUMENT } from "@repo/editor";
 import type { PageBuilderDocument } from "@repo/editor/types";
 import { Button } from "@repo/ui/components/ui/button";
 
@@ -15,7 +16,7 @@ const LOCALE_LABELS: Record<Locale, string> = {
   en: "English",
 };
 
-function toDocument(document: PageBuilderDocument | null | undefined): PageBuilderDocument {
+function toDocument(document: PageDocument | null | undefined): PageBuilderDocument {
   if (!document) {
     return DEFAULT_PAGE_DOCUMENT;
   }
