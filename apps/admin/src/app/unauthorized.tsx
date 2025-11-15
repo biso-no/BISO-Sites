@@ -14,7 +14,7 @@ export default function Unauthorized() {
     <main
       className={cn(
         "relative flex min-h-screen flex-col items-center justify-center overflow-hidden",
-        "bg-gradient-to-br from-primary-100 via-blue-strong to-blue-accent text-white"
+        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white"
       )}
     >
       {/* Animated background decorations */}
@@ -22,7 +22,7 @@ export default function Unauthorized() {
       
       {/* Subtle animated grid */}
       <div className="absolute inset-0 opacity-[0.03]">
-        <div className="h-full w-full bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
+        <div className="h-full w-full bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-8 px-6 text-center">
