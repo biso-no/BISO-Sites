@@ -1,0 +1,465 @@
+---
+title: Storage Utilities
+description: Helper functions for working with Appwrite Storage in BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+
+# Storage Utilities
+
+The `@repo/api` package provides helper functions for generating Appwrite Storage URLs. These utilities make it easy to display images, download files, and create thumbnails.
+
+## Overview
+
+Appwrite Storage provides secure file storage with built-in image transformation. The helper functions generate properly formatted URLs for accessing files.
+
+## Functions
+
+### getStorageFileUrl()
+
+Generates a direct URL for viewing a file.
+
+**Signature:**
+```typescript
+function getStorageFileUrl(bucketId: string, fileId: string): string
+```
+
+**Parameters:**
+- `bucketId` - The storage bucket ID
+- `fileId` - The file ID
+
+**Returns:** URL string for viewing the file
+
+**Example:**
+```typescript
+import { getStorageFileUrl } from '@repo/api';
+
+const imageUrl = getStorageFileUrl('images', 'file_123');
+// https://appwrite.biso.no/v1/storage/buckets/images/files/file_123/view?project=biso
+
+<img src={imageUrl} alt="Image" />
+```
+
+---
+
+### getStorageFileDownloadUrl()
+
+Generates a direct download URL for a file.
+
+**Signature:**
+```typescript
+function getStorageFileDownloadUrl(bucketId: string, fileId: string): string
+```
+
+**Parameters:**
+- `bucketId` - The storage bucket ID
+- `fileId` - The file ID
+
+**Returns:** URL string that triggers a download
+
+**Example:**
+```typescript
+import { getStorageFileDownloadUrl } from '@repo/api';
+
+const downloadUrl = getStorageFileDownloadUrl('documents', 'doc_123');
+// https://appwrite.biso.no/v1/storage/buckets/documents/files/doc_123/download?project=biso
+
+<a href={downloadUrl} download>Download Document</a>
+```
+
+---
+
+### getStorageFileThumbnailUrl()
+
+Generates a thumbnail URL for an image with optional transformations.
+
+**Signature:**
+```typescript
+function getStorageFileThumbnailUrl(
+  bucketId: string,
+  fileId: string,
+  options?: {
+    width?: number;
+    height?: number;
+    quality?: number;
+  }
+): string
+```
+
+**Parameters:**
+- `bucketId` - The storage bucket ID
+- `fileId` - The file ID
+- `options` (optional):
+  - `width` - Width in pixels
+  - `height` - Height in pixels
+  - `quality` - Quality (0-100)
+
+**Returns:** URL string for the thumbnail
+
+**Example:**
+```typescript
+import { getStorageFileThumbnailUrl } from '@repo/api';
+
+// Basic thumbnail
+const thumb = getStorageFileThumbnailUrl('images', 'img_123');
+
+// With dimensions
+const thumb400 = getStorageFileThumbnailUrl('images', 'img_123', {
+  width: 400,
+  height: 300
+});
+
+// With quality
+const thumbHQ = getStorageFileThumbnailUrl('images', 'img_123', {
+  width: 800,
+  height: 600,
+  quality: 95
+});
+
+<img src={thumb400} alt="Thumbnail" />
+```
+
+## Usage Examples
+
+### Display Image
+
+```tsx
+import { getStorageFileUrl } from '@repo/api';
+import Image from 'next/image';
+
+export function ProductImage({ fileId }: { fileId: string }) {
+  const imageUrl = getStorageFileUrl('products', fileId);
+  
+  return (
+    <Image
+      src={imageUrl}
+      alt="Product"
+      width={800}
+      height={600}
+    />
+  );
+}
+```
+
+### Image Gallery with Thumbnails
+
+```tsx
+import { getStorageFileThumbnailUrl, getStorageFileUrl } from '@repo/api';
+import { useState } from 'react';
+
+export function ImageGallery({ fileIds }: { fileIds: string[] }) {
+  const [selected, setSelected] = useState(fileIds[0]);
+  
+  return (
+    <div>
+      {/* Main image */}
+      <img
+        src={getStorageFileUrl('gallery', selected)}
+        alt="Gallery main"
+        className="w-full h-96 object-cover"
+      />
+      
+      {/* Thumbnails */}
+      <div className="flex gap-2 mt-4">
+        {fileIds.map(fileId => (
+          <button
+            key={fileId}
+            onClick={() => setSelected(fileId)}
+            className={selected === fileId ? 'ring-2 ring-blue-500' : ''}
+          >
+            <img
+              src={getStorageFileThumbnailUrl('gallery', fileId, {
+                width: 100,
+                height: 100
+              })}
+              alt="Thumbnail"
+              className="w-20 h-20 object-cover"
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### Download Button
+
+```tsx
+import { getStorageFileDownloadUrl } from '@repo/api';
+import { Button } from '@repo/ui/components/ui/button';
+
+export function DownloadButton({ 
+  bucketId, 
+  fileId, 
+  fileName 
+}: { 
+  bucketId: string;
+  fileId: string;
+  fileName: string;
+}) {
+  const downloadUrl = getStorageFileDownloadUrl(bucketId, fileId);
+  
+  return (
+    <Button asChild>
+      <a href={downloadUrl} download={fileName}>
+        Download {fileName}
+      </a>
+    </Button>
+  );
+}
+```
+
+### Responsive Images
+
+```tsx
+import { getStorageFileThumbnailUrl } from '@repo/api';
+
+export function ResponsiveImage({ fileId }: { fileId: string }) {
+  return (
+    <picture>
+      <source
+        media="(min-width: 1024px)"
+        srcSet={getStorageFileThumbnailUrl('images', fileId, {
+          width: 1200,
+          quality: 90
+        })}
+      />
+      <source
+        media="(min-width: 768px)"
+        srcSet={getStorageFileThumbnailUrl('images', fileId, {
+          width: 800,
+          quality: 85
+        })}
+      />
+      <img
+        src={getStorageFileThumbnailUrl('images', fileId, {
+          width: 400,
+          quality: 80
+        })}
+        alt="Responsive"
+      />
+    </picture>
+  );
+}
+```
+
+### Avatar with Fallback
+
+```tsx
+import { getStorageFileThumbnailUrl } from '@repo/api';
+
+export function UserAvatar({ 
+  fileId, 
+  userName 
+}: { 
+  fileId: string | null;
+  userName: string;
+}) {
+  if (!fileId) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+        {userName.charAt(0).toUpperCase()}
+      </div>
+    );
+  }
+  
+  return (
+    <img
+      src={getStorageFileThumbnailUrl('avatars', fileId, {
+        width: 100,
+        height: 100,
+        quality: 90
+      })}
+      alt={userName}
+      className="w-10 h-10 rounded-full object-cover"
+    />
+  );
+}
+```
+
+## File Upload Pattern
+
+Complete example of uploading and displaying a file:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { ID } from '@repo/api/client';
+import { getStorageFileUrl } from '@repo/api';
+import { uploadFile } from './actions';
+
+export function ImageUploader() {
+  const [uploading, setUploading] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucketId', 'images');
+      
+      const result = await uploadFile(formData);
+      
+      if (result.success) {
+        const url = getStorageFileUrl('images', result.fileId);
+        setImageUrl(url);
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  return (
+    <div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleUpload}
+        disabled={uploading}
+      />
+      
+      {uploading && <p>Uploading...</p>}
+      
+      {imageUrl && (
+        <img src={imageUrl} alt="Uploaded" className="mt-4 max-w-md" />
+      )}
+    </div>
+  );
+}
+```
+
+```typescript
+// actions.ts
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { ID } from 'node-appwrite';
+
+export async function uploadFile(formData: FormData) {
+  try {
+    const file = formData.get('file') as File;
+    const bucketId = formData.get('bucketId') as string;
+    
+    const { storage } = await createSessionClient();
+    
+    const uploaded = await storage.createFile(
+      bucketId,
+      ID.unique(),
+      file
+    );
+    
+    return { success: true, fileId: uploaded.$id };
+  } catch (error) {
+    console.error('Upload failed:', error);
+    return { success: false, error: 'Upload failed' };
+  }
+}
+```
+
+## Image Optimization Tips
+
+### 1. Use Appropriate Sizes
+
+```typescript
+// ✅ Good: Different sizes for different contexts
+const thumbnail = getStorageFileThumbnailUrl('images', fileId, {
+  width: 200,
+  height: 200,
+  quality: 80
+});
+
+const fullSize = getStorageFileThumbnailUrl('images', fileId, {
+  width: 1200,
+  height: 800,
+  quality: 90
+});
+
+// ❌ Avoid: Always using full resolution
+const url = getStorageFileUrl('images', fileId); // Could be huge!
+```
+
+### 2. Optimize Quality
+
+```typescript
+// ✅ Good: Appropriate quality levels
+const thumb = getStorageFileThumbnailUrl('images', fileId, {
+  width: 150,
+  quality: 75  // Lower quality for small images
+});
+
+const hero = getStorageFileThumbnailUrl('images', fileId, {
+  width: 1920,
+  quality: 95  // Higher quality for large displays
+});
+```
+
+### 3. Lazy Loading
+
+```tsx
+<img
+  src={getStorageFileThumbnailUrl('images', fileId, { width: 800 })}
+  alt="Image"
+  loading="lazy"  // Browser-native lazy loading
+/>
+```
+
+## Security Considerations
+
+<Callout type="warning" title="File Permissions">
+  Ensure your Appwrite bucket permissions are correctly configured:
+  - Public buckets: Anyone can view files
+  - Private buckets: Only authenticated users with proper permissions can access
+</Callout>
+
+### Private Files Example
+
+```typescript
+// Server-side: Use session client for private files
+const { storage } = await createSessionClient();
+const file = await storage.getFile('private_bucket', fileId);
+
+// Client-side: User must be authenticated
+const client = new Client().setEndpoint(...).setProject(...);
+const storage = new Storage(client);
+const file = await storage.getFile('private_bucket', fileId);
+```
+
+## Bucket Configuration
+
+Typical bucket setup in Appwrite:
+
+```typescript
+// Example bucket configuration
+{
+  bucketId: 'images',
+  name: 'Public Images',
+  permissions: [
+    'read("any")',           // Anyone can read
+    'create("users")',       // Authenticated users can upload
+    'update("users")',       // Users can update their files
+    'delete("users")'        // Users can delete their files
+  ],
+  fileSecurity: true,        // Enable per-file permissions
+  enabled: true,
+  maximumFileSize: 10485760, // 10MB
+  allowedFileExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp']
+}
+```
+
+## Next Steps
+
+<Callout type="info">
+  - [Server API Reference](/docs/packages/api/server) - Upload files server-side
+  - [Client API Reference](/docs/packages/api/client) - Upload from browser
+  - [Forms Guide](/docs/guides/forms) - Handle file uploads in forms
+</Callout>
+

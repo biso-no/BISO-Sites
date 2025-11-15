@@ -1,0 +1,115 @@
+---
+title: Styling Guide
+description: Tailwind CSS patterns, design system tokens, and styling conventions.
+---
+
+import { Callout } from 'components/callout';
+
+# Styling Guide
+
+BISO Sites uses Tailwind CSS for styling with a custom design system.
+
+## Tailwind Configuration
+
+```javascript
+// tailwind.config.js
+export default {
+  content: ['./src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        primary: 'hsl(var(--primary))',
+        secondary: 'hsl(var(--secondary))',
+        muted: 'hsl(var(--muted))',
+        accent: 'hsl(var(--accent))',
+      },
+    },
+  },
+};
+```
+
+## Common Patterns
+
+### Layout
+
+```tsx
+<div className="container mx-auto px-4 py-8">
+  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {/* Content */}
+  </div>
+</div>
+```
+
+### Cards
+
+```tsx
+<div className="rounded-lg border p-6 hover:shadow-lg transition">
+  <h3 className="font-bold text-lg mb-2">Title</h3>
+  <p className="text-muted-foreground">Description</p>
+</div>
+```
+
+### Buttons
+
+```tsx
+// Primary
+<button className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
+  Click me
+</button>
+
+// Secondary
+<button className="bg-secondary text-secondary-foreground px-4 py-2 rounded-md">
+  Click me
+</button>
+```
+
+## Responsive Design
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+  {/* Mobile: 1 col, Tablet: 2 cols, Desktop: 3 cols, Large: 4 cols */}
+</div>
+```
+
+## Dark Mode
+
+The app supports dark mode through CSS variables:
+
+```css
+:root {
+  --primary: 222.2 47.4% 11.2%;
+}
+
+.dark {
+  --primary: 210 40% 98%;
+}
+```
+
+## Using @repo/ui Components
+
+```tsx
+import { Button } from '@repo/ui/components/ui/button';
+import { Card } from '@repo/ui/components/ui/card';
+
+<Card>
+  <CardHeader>
+    <CardTitle>Title</CardTitle>
+  </CardHeader>
+  <CardContent>
+    Content
+  </CardContent>
+</Card>
+```
+
+<Callout type="success" title="Best Practices">
+1. Use design system tokens (colors, spacing)
+2. Prefer utility classes over custom CSS
+3. Use responsive modifiers (md:, lg:)
+4. Leverage @repo/ui components
+5. Test in both light and dark mode
+</Callout>
+
+## Related Documentation
+- [@repo/ui Package](/docs/packages/ui/overview)
+- [Components](/docs/web-app/components)
+

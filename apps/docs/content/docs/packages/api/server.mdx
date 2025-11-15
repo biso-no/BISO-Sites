@@ -1,0 +1,496 @@
+---
+title: Server API Reference
+description: Complete reference for server-side Appwrite clients in the BISO Sites monorepo.
+---
+
+import { Callout } from 'components/callout';
+
+# Server API Reference
+
+Server-side API clients for use in Server Components, Server Actions, and API Routes.
+
+## createSessionClient()
+
+Creates a client using the user's session cookie.
+
+**Signature:**
+```typescript
+async function createSessionClient(): Promise<SessionClient>
+```
+
+**Returns:**
+```typescript
+{
+  account: Account;
+  db: TablesDB;
+  teams: Teams;
+  storage: Storage;
+  functions: Functions;
+  messaging: Messaging;
+}
+```
+
+**Usage:**
+```typescript
+import { createSessionClient } from '@repo/api/server';
+
+const { account, db } = await createSessionClient();
+const user = await account.get();
+```
+
+<Callout type="info">
+  Session client uses the user's permissions. Operations are limited to what the user can access.
+</Callout>
+
+---
+
+## createAdminClient()
+
+Creates a client with administrative privileges using API key.
+
+**Signature:**
+```typescript
+async function createAdminClient(): Promise<AdminClient>
+```
+
+**Returns:**
+```typescript
+{
+  account: Account;
+  db: TablesDB;
+  teams: Teams;
+  storage: Storage;
+  users: Users;     // Admin only!
+  functions: Functions;
+  messaging: Messaging;
+}
+```
+
+**Usage:**
+```typescript
+import { createAdminClient } from '@repo/api/server';
+
+// In webhooks or system tasks
+const { db, users } = await createAdminClient();
+await users.updateLabels(userId, ['verified']);
+```
+
+<Callout type="warning" title="Security">
+  Admin client bypasses all permissions. Use only for system operations, webhooks, or when explicit admin access is required.
+</Callout>
+
+---
+
+## Services
+
+### Account
+
+User authentication and account management.
+
+**Common Methods:**
+
+```typescript
+const { account } = await createSessionClient();
+
+// Get current user
+const user = await account.get();
+
+// Delete session (logout)
+await account.deleteSession('current');
+
+// Update name
+await account.updateName(newName);
+
+// Update password (if using password auth)
+await account.updatePassword(newPassword, oldPassword);
+
+// Get sessions
+const sessions = await account.listSessions();
+```
+
+<Callout type="info" title="Authentication Methods">
+  BISO Sites uses Magic Link and OAuth for authentication. For implementation examples, see the [Authentication Guide](/docs/development/guides/authentication).
+</Callout>
+
+**Magic Link Authentication:**
+
+```typescript
+// Send magic link (use admin client)
+const { account } = await createAdminClient();
+await account.createMagicURLToken(
+  ID.unique(), 
+  email, 
+  `${origin}/auth/callback`
+);
+
+// Handle callback - create session
+const session = await account.createSession(userId, secret);
+```
+
+**OAuth Authentication:**
+
+```typescript
+// Initiate OAuth (use admin client)
+const { account } = await createAdminClient();
+const redirectUrl = await account.createOAuth2Token(
+  OAuthProvider.Microsoft,
+  successUrl,
+  failureUrl
+);
+
+// Handle OAuth callback - create session
+const session = await account.createSession(userId, secret);
+```
+
+### TablesDB (Database)
+
+Database operations (CRUD).
+
+**Common Methods:**
+
+```typescript
+const { db } = await createSessionClient();
+
+// Create document
+const doc = await db.createDocument(
+  'database_id',
+  'collection_id',
+  ID.unique(),
+  { title: 'Hello', content: '...' }
+);
+
+// Get document
+const doc = await db.getDocument(
+  'database_id',
+  'collection_id',
+  'document_id'
+);
+
+// List documents with queries
+const docs = await db.listDocuments(
+  'database_id',
+  'collection_id',
+  [
+    Query.equal('status', 'published'),
+    Query.limit(10)
+  ]
+);
+
+// Update document
+await db.updateDocument(
+  'database_id',
+  'collection_id',
+  'document_id',
+  { title: 'Updated' }
+);
+
+// Delete document
+await db.deleteDocument(
+  'database_id',
+  'collection_id',
+  'document_id'
+);
+```
+
+### Storage
+
+File upload, download, and management.
+
+**Common Methods:**
+
+```typescript
+const { storage } = await createSessionClient();
+
+// Upload file
+const file = await storage.createFile(
+  'bucket_id',
+  ID.unique(),
+  fileBlob
+);
+
+// Get file
+const file = await storage.getFile('bucket_id', 'file_id');
+
+// List files
+const files = await storage.listFiles('bucket_id');
+
+// Download file
+const buffer = await storage.getFileDownload('bucket_id', 'file_id');
+
+// Delete file
+await storage.deleteFile('bucket_id', 'file_id');
+
+// Get file preview (images)
+const preview = await storage.getFilePreview(
+  'bucket_id',
+  'file_id',
+  400, // width
+  300, // height
+  'center', // gravity
+  90 // quality
+);
+```
+
+### Teams
+
+Team management operations.
+
+**Common Methods:**
+
+```typescript
+const { teams } = await createSessionClient();
+
+// List teams
+const userTeams = await teams.list();
+
+// Create team
+const team = await teams.create(ID.unique(), 'Team Name');
+
+// Get team
+const team = await teams.get('team_id');
+
+// Update team name
+await teams.updateName('team_id', 'New Name');
+
+// Delete team
+await teams.delete('team_id');
+
+// List team members
+const members = await teams.listMemberships('team_id');
+
+// Create membership (invite)
+await teams.createMembership(
+  'team_id',
+  ['admin'],
+  'user@example.com'
+);
+```
+
+### Users (Admin Only)
+
+User management - only available with `createAdminClient()`.
+
+**Common Methods:**
+
+```typescript
+const { users } = await createAdminClient();
+
+// List users
+const userList = await users.list();
+
+// Get user
+const user = await users.get('user_id');
+
+// Create user
+await users.create(
+  ID.unique(),
+  'user@example.com',
+  undefined,
+  'password123',
+  'User Name'
+);
+
+// Update email
+await users.updateEmail('user_id', 'new@example.com');
+
+// Update labels
+await users.updateLabels('user_id', ['verified', 'premium']);
+
+// Update status
+await users.updateStatus('user_id', true);
+
+// Delete user
+await users.delete('user_id');
+```
+
+### Functions
+
+Execute Appwrite Functions.
+
+**Common Methods:**
+
+```typescript
+const { functions } = await createSessionClient();
+
+// Execute function
+const execution = await functions.createExecution(
+  'function_id',
+  JSON.stringify({ data: 'payload' }),
+  false, // async
+  '/path',
+  'POST',
+  { 'X-Custom-Header': 'value' }
+);
+
+// Get execution result
+console.log(execution.response);
+```
+
+### Messaging
+
+Send messages and notifications.
+
+**Common Methods:**
+
+```typescript
+const { messaging } = await createSessionClient();
+
+// Send email
+await messaging.createEmail(
+  ID.unique(),
+  'Subject',
+  'Email content',
+  ['user@example.com']
+);
+
+// Send SMS
+await messaging.createSms(
+  ID.unique(),
+  'SMS message',
+  ['+1234567890']
+);
+
+// Send push notification
+await messaging.createPush(
+  ID.unique(),
+  'Push title',
+  'Push body',
+  ['topic']
+);
+```
+
+---
+
+## Complete Example
+
+Full CRUD example with error handling:
+
+```typescript
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { ID, Query } from 'node-appwrite';
+import { revalidatePath } from 'next/cache';
+
+const DATABASE_ID = 'your_database_id';
+const COLLECTION_ID = 'posts';
+
+export async function createPost(title: string, content: string) {
+  try {
+    const { db, account } = await createSessionClient();
+    
+    // Verify user is authenticated
+    const user = await account.get();
+    
+    // Create post
+    const post = await db.createDocument(
+      DATABASE_ID,
+      COLLECTION_ID,
+      ID.unique(),
+      {
+        title,
+        content,
+        authorId: user.$id,
+        authorName: user.name,
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+      }
+    );
+    
+    revalidatePath('/posts');
+    
+    return { success: true, postId: post.$id };
+  } catch (error) {
+    console.error('Failed to create post:', error);
+    return { success: false, error: 'Failed to create post' };
+  }
+}
+
+export async function getPosts(limit = 10, offset = 0) {
+  try {
+    const { db } = await createSessionClient();
+    
+    const posts = await db.listDocuments(
+      DATABASE_ID,
+      COLLECTION_ID,
+      [
+        Query.equal('status', 'published'),
+        Query.orderDesc('createdAt'),
+        Query.limit(limit),
+        Query.offset(offset),
+      ]
+    );
+    
+    return { success: true, posts: posts.documents, total: posts.total };
+  } catch (error) {
+    console.error('Failed to fetch posts:', error);
+    return { success: false, error: 'Failed to fetch posts' };
+  }
+}
+
+export async function updatePost(postId: string, data: Partial<Post>) {
+  try {
+    const { db, account } = await createSessionClient();
+    
+    // Verify ownership
+    const user = await account.get();
+    const post = await db.getDocument(DATABASE_ID, COLLECTION_ID, postId);
+    
+    if (post.authorId !== user.$id) {
+      return { success: false, error: 'Not authorized' };
+    }
+    
+    // Update
+    await db.updateDocument(
+      DATABASE_ID,
+      COLLECTION_ID,
+      postId,
+      {
+        ...data,
+        updatedAt: new Date().toISOString(),
+      }
+    );
+    
+    revalidatePath('/posts');
+    revalidatePath(`/posts/${postId}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to update post:', error);
+    return { success: false, error: 'Failed to update post' };
+  }
+}
+
+export async function deletePost(postId: string) {
+  try {
+    const { db, account } = await createSessionClient();
+    
+    // Verify ownership
+    const user = await account.get();
+    const post = await db.getDocument(DATABASE_ID, COLLECTION_ID, postId);
+    
+    if (post.authorId !== user.$id) {
+      return { success: false, error: 'Not authorized' };
+    }
+    
+    // Delete
+    await db.deleteDocument(DATABASE_ID, COLLECTION_ID, postId);
+    
+    revalidatePath('/posts');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to delete post:', error);
+    return { success: false, error: 'Failed to delete post' };
+  }
+}
+```
+
+## Next Steps
+
+<Callout type="info">
+  - [Client API Reference](/docs/packages/api/client) - Browser usage
+  - [Storage Utilities](/docs/packages/api/storage) - File handling
+  - [Database Guide](/docs/guides/database) - Advanced patterns
+</Callout>
+

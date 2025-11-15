@@ -1,0 +1,238 @@
+---
+title: 5-Minute Quickstart
+description: Get the BISO Sites monorepo up and running on your local machine in 5 minutes.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+
+# 5-Minute Quickstart
+
+This guide will get you up and running with the BISO Sites monorepo in about 5 minutes. We'll skip the theory and focus on getting the applications running on your machine.
+
+<Callout type="info" title="Prerequisites">
+  Before starting, make sure you have:
+  - **Node.js 18+** installed
+  - **Bun 1.3+** installed ([install here](https://bun.sh/docs/installation))
+  - **Git** for version control
+</Callout>
+
+## Quick Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd mon
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Bun makes this super fast:
+    
+    ```bash
+    bun install
+    ```
+    
+    This installs all dependencies for all apps and packages in the monorepo.
+  </Step>
+
+  <Step title="Configure environment variables (optional)">
+    For basic development, you can skip this. The apps will work with mock data.
+    
+    For full functionality with Appwrite:
+    
+    ```bash
+    # In apps/web/
+    cp .env.example .env.local
+    
+    # In apps/admin/
+    cp .env.example .env.local
+    ```
+    
+    <Callout type="note">
+      See [Installation Guide](/docs/installation#environment-setup) for detailed environment configuration.
+    </Callout>
+  </Step>
+
+  <Step title="Start all development servers">
+    ```bash
+    bun run dev
+    ```
+    
+    This starts all three applications simultaneously:
+    - **Web** (port 3000)
+    - **Admin** (port 3001)
+    - **Docs** (port 3002)
+    
+    <Callout type="warning" title="First build may take a moment">
+      The first time you run this, Next.js needs to compile everything. Subsequent runs will be much faster thanks to caching.
+    </Callout>
+  </Step>
+
+  <Step title="Open the applications">
+    Once the servers are running, open these URLs:
+    
+    - **Web**: [http://localhost:3000](http://localhost:3000) - Public website
+    - **Admin**: [http://localhost:3001](http://localhost:3001) - Admin dashboard
+    - **Docs**: [http://localhost:3002](http://localhost:3002) - Documentation
+    
+    <Callout type="success" title="You're running!">
+      All three applications should now be running. Try navigating around and exploring the interfaces.
+    </Callout>
+  </Step>
+</Steps>
+
+## Running Individual Apps
+
+Don't need all apps running? You can start them individually:
+
+```bash
+# Just the web app
+bun run dev --filter=web
+
+# Just the admin app
+bun run dev --filter=admin
+
+# Just the docs
+bun run dev --filter=docs
+```
+
+## Making Your First Change
+
+Let's verify hot reload works by making a small change:
+
+<Steps>
+  <Step title="Open a component file">
+    Open `apps/web/src/app/page.tsx` in your editor.
+  </Step>
+
+  <Step title="Make a change">
+    Change any text on the page and save the file.
+  </Step>
+
+  <Step title="See it update">
+    Switch to your browser - the change should appear automatically without refreshing! This is Next.js Fast Refresh in action.
+  </Step>
+</Steps>
+
+## Common Commands
+
+Here are the most common commands you'll use:
+
+```bash
+# Development
+bun run dev                    # Start all apps
+bun run dev --filter=web       # Start specific app
+
+# Build
+bun run build                  # Build all apps
+bun run build --filter=web     # Build specific app
+
+# Type checking
+bun run check-types            # Check TypeScript across all packages
+
+# Linting
+bun run lint                   # Lint all packages
+bun run format                 # Format code with Prettier
+```
+
+## Project Structure at a Glance
+
+```
+mon/
+├── apps/
+│   ├── web/          # Public website (port 3000)
+│   ├── admin/        # Admin CMS (port 3001)
+│   └── docs/         # Documentation (port 3002)
+├── packages/
+│   ├── api/          # Appwrite client wrappers
+│   ├── ui/           # Shared UI components
+│   ├── editor/       # Puck page builder
+│   ├── payment/      # Payment integrations
+│   └── *-config/     # Shared configurations
+├── package.json      # Root package scripts
+└── turbo.json        # Turborepo configuration
+```
+
+## Troubleshooting
+
+### Port already in use?
+
+If you see errors about ports being taken:
+
+```bash
+# Find and kill processes on specific ports
+lsof -ti:3000 | xargs kill -9  # Web
+lsof -ti:3001 | xargs kill -9  # Admin
+lsof -ti:3002 | xargs kill -9  # Docs
+```
+
+Or change the port in each app's `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "next dev -p 3050"  // Use different port
+  }
+}
+```
+
+### Module not found errors?
+
+Try reinstalling dependencies:
+
+```bash
+# Clear node_modules and reinstall
+rm -rf node_modules apps/*/node_modules packages/*/node_modules
+bun install
+```
+
+### Type errors?
+
+Generate Next.js types:
+
+```bash
+bun run check-types
+```
+
+## Next Steps
+
+Now that you have everything running:
+
+1. **Understand the Architecture** - Read the [Architecture Overview](/docs/architecture/overview) to understand how everything fits together
+
+2. **Explore the Packages** - Check out the [API Package](/docs/packages/api/overview) documentation to see how to use shared code
+
+3. **Development Workflow** - Learn the [Development Workflow](/docs/guides/development-workflow) for day-to-day development
+
+4. **Create Your First Feature** - Follow the [Creating Features](/docs/guides/creating-features) guide to build something new
+
+<Callout type="info" title="Need More Details?">
+  This was the quick version. For comprehensive setup including Appwrite configuration, Docker, and production deployment, see the [Installation Guide](/docs/installation).
+</Callout>
+
+## Quick Reference
+
+### Essential Files
+
+- `turbo.json` - Turborepo configuration and task pipeline
+- `package.json` - Root workspace configuration
+- `bun.lock` - Lockfile for dependencies
+- `AGENTS.md` - Repository guidelines and conventions
+
+### Important Directories
+
+- `apps/*/src/` - Application source code
+- `packages/*/` - Shared package source
+- `apps/*/public/` - Static assets per app
+- `apps/*/messages/` - i18n translation files
+
+### Configuration Files
+
+- `*.config.js/ts` - Various tool configurations (ESLint, Tailwind, Next.js)
+- `.env.local` - Environment variables (not committed)
+- `tsconfig.json` - TypeScript configuration per app/package
+
+Happy coding! 🎉
+

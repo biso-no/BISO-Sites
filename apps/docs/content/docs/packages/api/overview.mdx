@@ -1,0 +1,508 @@
+---
+title: API Package Overview
+description: Complete guide to the @repo/api package for Appwrite integration in the BISO Sites monorepo.
+---
+
+import { Callout } from 'components/callout';
+
+# API Package Overview
+
+The `@repo/api` package provides type-safe Appwrite client wrappers for both server-side and client-side usage. It's the central package for all database, authentication, storage, and function interactions.
+
+## What's Included
+
+The API package exports:
+
+1. **Server clients** - For Server Components, Server Actions, and API Routes
+2. **Client exports** - For browser/client component usage
+3. **Storage helpers** - URL generation utilities
+4. **Type definitions** - Full TypeScript types for your database schema
+
+## Package Structure
+
+```
+packages/api/
+├── server.ts          # Server-side clients (Next.js)
+├── client.ts          # Client-side exports (browser)
+├── storage.ts         # Storage URL helpers
+├── types/
+│   └── appwrite.ts    # Generated TypeScript types
+├── index.ts           # Main exports
+├── package.json
+└── tsconfig.json
+```
+
+## Quick Start
+
+### Server-Side (Server Components & Actions)
+
+```typescript
+import { createSessionClient } from '@repo/api/server';
+
+// In a Server Component or Server Action
+export default async function Page() {
+  const { account, db } = await createSessionClient();
+  
+  // Get current user
+  const user = await account.get();
+  
+  // Query database
+  const posts = await db.listDocuments('database_id', 'posts');
+  
+  return <div>{/* ... */}</div>;
+}
+```
+
+### Client-Side (Client Components)
+
+```tsx
+'use client';
+
+import { Client, Account, Databases } from '@repo/api/client';
+
+export function MyComponent() {
+  const client = new Client()
+    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT!);
+    
+  const account = new Account(client);
+  const databases = new Databases(client);
+  
+  // Use account and databases...
+}
+```
+
+## Core Concepts
+
+### Session Client vs Admin Client
+
+The package provides two types of server clients:
+
+#### Session Client
+
+- **Use for:** User-authenticated requests
+- **Reads:** User's session cookie
+- **Permissions:** Limited to user's permissions
+- **Common in:** Web and admin apps
+
+```typescript
+const { account, db, storage } = await createSessionClient();
+```
+
+#### Admin Client
+
+- **Use for:** Administrative operations, webhooks
+- **Authentication:** API key (server-side only!)
+- **Permissions:** Full database access
+- **Common in:** API routes, webhooks, system tasks
+
+```typescript
+const { account, db, storage, users } = await createAdminClient();
+```
+
+<Callout type="warning" title="Security">
+  Never expose the admin client or API key to the browser! Only use it in Server Components, Server Actions, or API Routes.
+</Callout>
+
+## Available Services
+
+Both `createSessionClient()` and `createAdminClient()` return:
+
+| Service | Type | Purpose |
+|---------|------|---------|
+| `account` | Account | User authentication and account management |
+| `db` | TablesDB | Database operations (CRUD) |
+| `teams` | Teams | Team management |
+| `storage` | Storage | File upload/download |
+| `functions` | Functions | Execute Appwrite Functions |
+| `messaging` | Messaging | Send messages/notifications |
+
+Additionally, `createAdminClient()` provides:
+
+| Service | Type | Purpose |
+|---------|------|---------|
+| `users` | Users | User management (create, update, delete users) |
+
+## TypeScript Types
+
+The package includes auto-generated types for your database schema:
+
+```typescript
+import type { Users, Posts, Orders } from '@repo/api/types/appwrite';
+
+// Fully typed database documents
+const user: Users = await db.getDocument('users', userId);
+const posts: Posts[] = await db.listDocuments('posts');
+```
+
+### Available Types
+
+The package exports types for all database collections including:
+
+- `Users` - User profiles
+- `Orders` - E-commerce orders
+- `Payments` - Payment records
+- `Memberships` - Membership data
+- `Events`, `News`, `Jobs` - Content types
+- `WebshopProducts` - Product catalog
+- `Pages`, `PageTranslations` - CMS pages
+- And many more...
+
+See the [Types Documentation](/docs/packages/api/types) for complete type reference.
+
+## Storage Utilities
+
+Helper functions for generating Appwrite storage URLs:
+
+```typescript
+import { 
+  getStorageFileUrl, 
+  getStorageFileDownloadUrl, 
+  getStorageFileThumbnailUrl 
+} from '@repo/api';
+
+// View file
+const viewUrl = getStorageFileUrl('bucket_id', 'file_id');
+
+// Download file
+const downloadUrl = getStorageFileDownloadUrl('bucket_id', 'file_id');
+
+// Image thumbnail
+const thumbnailUrl = getStorageFileThumbnailUrl('bucket_id', 'file_id', {
+  width: 400,
+  height: 300,
+  quality: 90
+});
+```
+
+## Usage Patterns
+
+### 1. Query Data in Server Component
+
+```typescript
+// app/posts/page.tsx
+import { createSessionClient } from '@repo/api/server';
+
+export default async function PostsPage() {
+  const { db } = await createSessionClient();
+  
+  const posts = await db.listDocuments(
+    'database_id',
+    'posts_collection',
+    [
+      Query.equal('status', 'published'),
+      Query.orderDesc('$createdAt'),
+      Query.limit(10)
+    ]
+  );
+  
+  return (
+    <div>
+      {posts.documents.map(post => (
+        <PostCard key={post.$id} post={post} />
+      ))}
+    </div>
+  );
+}
+```
+
+### 2. Mutate Data with Server Action
+
+```typescript
+// app/actions/posts.ts
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { ID } from 'node-appwrite';
+import { revalidatePath } from 'next/cache';
+
+export async function createPost(formData: FormData) {
+  const { db, account } = await createSessionClient();
+  
+  // Verify authentication
+  const user = await account.get();
+  
+  // Create document
+  const post = await db.createDocument(
+    'database_id',
+    'posts_collection',
+    ID.unique(),
+    {
+      title: formData.get('title'),
+      content: formData.get('content'),
+      authorId: user.$id,
+      status: 'draft',
+    }
+  );
+  
+  revalidatePath('/posts');
+  
+  return { success: true, postId: post.$id };
+}
+```
+
+### 3. Handle Webhook with Admin Client
+
+```typescript
+// app/api/webhook/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@repo/api/server';
+
+export async function POST(request: NextRequest) {
+  // Verify webhook signature
+  const signature = request.headers.get('x-webhook-signature');
+  if (!verifySignature(signature)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // Use admin client (no user session)
+  const { db } = await createAdminClient();
+  
+  const data = await request.json();
+  await db.createDocument('webhooks', ID.unique(), data);
+  
+  return NextResponse.json({ success: true });
+}
+```
+
+### 4. Client-Side Real-time Updates
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Client, Databases } from '@repo/api/client';
+
+export function LivePosts() {
+  const [posts, setPosts] = useState([]);
+  
+  useEffect(() => {
+    const client = new Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT!);
+      
+    const databases = new Databases(client);
+    
+    // Subscribe to changes
+    const unsubscribe = databases.subscribe(
+      'database_id.posts_collection',
+      (response) => {
+        console.log('Update received:', response.payload);
+        // Update posts list
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
+  
+  return <div>{/* Render posts */}</div>;
+}
+```
+
+### 5. File Upload
+
+```typescript
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { ID } from 'node-appwrite';
+import { getStorageFileUrl } from '@repo/api';
+
+export async function uploadImage(formData: FormData) {
+  const file = formData.get('file') as File;
+  
+  const { storage } = await createSessionClient();
+  
+  // Upload file
+  const uploaded = await storage.createFile(
+    'images_bucket',
+    ID.unique(),
+    file
+  );
+  
+  // Get URL
+  const url = getStorageFileUrl('images_bucket', uploaded.$id);
+  
+  return { fileId: uploaded.$id, url };
+}
+```
+
+## Query Helpers
+
+The package re-exports Appwrite's `Query` helper for building queries:
+
+```typescript
+import { Query } from '@repo/api';
+
+// Equal
+Query.equal('status', 'published')
+
+// Not equal
+Query.notEqual('status', 'draft')
+
+// Greater than / Less than
+Query.greaterThan('price', 100)
+Query.lessThan('stock', 10)
+
+// Search
+Query.search('title', 'hello')
+
+// Order
+Query.orderAsc('createdAt')
+Query.orderDesc('price')
+
+// Limit & Offset
+Query.limit(20)
+Query.offset(40)
+
+// Combine queries
+await db.listDocuments('database', 'posts', [
+  Query.equal('status', 'published'),
+  Query.greaterThan('views', 100),
+  Query.orderDesc('createdAt'),
+  Query.limit(10)
+]);
+```
+
+## Environment Variables
+
+Required environment variables:
+
+```bash
+# Public (client-side accessible)
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://your-appwrite.com/v1
+NEXT_PUBLIC_APPWRITE_PROJECT=your-project-id
+
+# Server-only (never expose to client)
+APPWRITE_API_KEY=your-api-key
+```
+
+<Callout type="warning" title="Environment Variables">
+  - `NEXT_PUBLIC_*` vars are exposed to the browser
+  - `APPWRITE_API_KEY` must NEVER be exposed (server-only)
+  - Admin client requires `APPWRITE_API_KEY`
+</Callout>
+
+## Error Handling
+
+Always handle Appwrite errors:
+
+```typescript
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { AppwriteException } from 'node-appwrite';
+
+export async function getUser() {
+  try {
+    const { account } = await createSessionClient();
+    const user = await account.get();
+    return { success: true, user };
+  } catch (error) {
+    if (error instanceof AppwriteException) {
+      console.error('Appwrite error:', error.code, error.message);
+      
+      if (error.code === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+    }
+    
+    return { success: false, error: 'Unknown error' };
+  }
+}
+```
+
+## Best Practices
+
+### 1. Prefer Server Components for Data Fetching
+
+```typescript
+// ✅ Good: Server Component
+async function PostsList() {
+  const { db } = await createSessionClient();
+  const posts = await db.listDocuments(...);
+  return <div>{posts.map(...)}</div>;
+}
+
+// ❌ Avoid: Client Component with useEffect
+'use client';
+function PostsList() {
+  const [posts, setPosts] = useState([]);
+  useEffect(() => { fetch(...) }, []);
+  return <div>{posts.map(...)}</div>;
+}
+```
+
+### 2. Use Session Client for User Actions
+
+```typescript
+// ✅ Good: Respects user permissions
+const { db } = await createSessionClient();
+await db.createDocument(...); // Uses user's permissions
+
+// ❌ Wrong: Admin client for user actions
+const { db } = await createAdminClient();
+await db.createDocument(...); // Bypasses permissions!
+```
+
+### 3. Use Admin Client Only When Necessary
+
+```typescript
+// ✅ Good: Webhook with admin client
+export async function POST(request: NextRequest) {
+  const { db } = await createAdminClient(); // No user session
+  await db.createDocument(...);
+}
+
+// ✅ Good: Session client for user request
+export default async function Page() {
+  const { db } = await createSessionClient(); // User session
+  const data = await db.listDocuments(...);
+}
+```
+
+### 4. Always Check Authentication
+
+```typescript
+'use server';
+
+export async function protectedAction() {
+  const { account } = await createSessionClient();
+  
+  try {
+    const user = await account.get();
+    // User is authenticated, proceed
+  } catch {
+    // Not authenticated
+    return { error: 'Please log in' };
+  }
+}
+```
+
+### 5. Revalidate After Mutations
+
+```typescript
+'use server';
+
+import { revalidatePath } from 'next/cache';
+
+export async function updatePost(postId: string, data: any) {
+  const { db } = await createSessionClient();
+  await db.updateDocument('posts', postId, data);
+  
+  // ✅ Revalidate to show updated data
+  revalidatePath('/posts');
+  revalidatePath(`/posts/${postId}`);
+}
+```
+
+## Next Steps
+
+<Callout type="info" title="Deep Dives">
+  - [Server API Reference](/docs/packages/api/server) - Complete server client guide
+  - [Client API Reference](/docs/packages/api/client) - Browser usage guide
+  - [Storage Utilities](/docs/packages/api/storage) - File handling
+  - [Database Guide](/docs/guides/database) - Working with Appwrite database
+  - [Authentication Guide](/docs/guides/authentication) - Auth patterns
+</Callout>
+

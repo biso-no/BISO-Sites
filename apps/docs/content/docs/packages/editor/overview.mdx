@@ -1,0 +1,399 @@
+---
+title: Editor Package Overview
+description: Puck-based visual page builder for BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+
+# Editor Package Overview
+
+The `@repo/editor` package provides a visual page builder for BISO Sites, powered by [Puck](https://puckeditor.com/). It enables non-technical users to create and edit pages visually in the admin app, which are then rendered in the web app.
+
+<Callout type="note" title="Work in Progress">
+  The editor package is actively being developed. More components and features are coming soon!
+</Callout>
+
+## What's Included
+
+- 🎨 **Visual Editor** - Drag-and-drop page building
+- 📦 **Pre-built Components** - Button, Heading, Section, Text
+- 🔧 **Extensible** - Easy to add custom components
+- 💾 **JSON-based Storage** - Pages stored as JSON in Appwrite
+- 🎯 **Type-safe** - Full TypeScript support
+- 🚀 **Fast Rendering** - Optimized for performance
+
+## Package Structure
+
+```
+packages/editor/
+├── components/          # Available editor components
+│   ├── button.tsx
+│   ├── heading.tsx
+│   ├── section.tsx
+│   └── text.tsx
+├── editor.tsx           # Editor component (for admin)
+├── renderer.tsx         # Renderer component (for web)
+├── page-builder-config.tsx  # Puck configuration
+├── types.ts             # TypeScript types
+└── package.json
+```
+
+## Quick Start
+
+### In Admin App (Editing)
+
+```tsx
+// app/admin/pages/[id]/edit/page.tsx
+import { Editor } from '@repo/editor';
+
+export default function PageEditor({ initialData }) {
+  const handlePublish = async (data) => {
+    // Save to Appwrite
+    await updatePageDocument(pageId, {
+      puck_document: JSON.stringify(data)
+    });
+  };
+  
+  return (
+    <Editor
+      data={initialData}
+      onPublish={handlePublish}
+    />
+  );
+}
+```
+
+### In Web App (Rendering)
+
+```tsx
+// app/[locale]/[slug]/page.tsx
+import { Renderer } from '@repo/editor';
+
+export default async function DynamicPage({ params }) {
+  // Fetch page data from Appwrite
+  const page = await getPageBySlug(params.slug);
+  const puckData = JSON.parse(page.puck_document);
+  
+  return <Renderer data={puckData} />;
+}
+```
+
+## Available Components
+
+### Button
+
+Call-to-action button with link.
+
+**Props:**
+- `text` - Button text
+- `href` - Link URL
+- `variant` - Style variant (default, primary, secondary)
+- `size` - Button size (sm, md, lg)
+
+**Example:**
+```json
+{
+  "type": "Button",
+  "props": {
+    "text": "Learn More",
+    "href": "/about",
+    "variant": "primary",
+    "size": "lg"
+  }
+}
+```
+
+### Heading
+
+Headings from H1 to H6.
+
+**Props:**
+- `text` - Heading text
+- `level` - Heading level (1-6)
+- `align` - Text alignment (left, center, right)
+
+**Example:**
+```json
+{
+  "type": "Heading",
+  "props": {
+    "text": "Welcome to BISO Sites",
+    "level": 1,
+    "align": "center"
+  }
+}
+```
+
+### Section
+
+Container with customizable background and spacing.
+
+**Props:**
+- `children` - Nested components
+- `background` - Background color/style
+- `padding` - Section padding
+- `maxWidth` - Maximum content width
+
+**Example:**
+```json
+{
+  "type": "Section",
+  "props": {
+    "background": "gray",
+    "padding": "large",
+    "maxWidth": "1200px"
+  }
+}
+```
+
+### Text
+
+Rich text content.
+
+**Props:**
+- `text` - Text content (supports markdown)
+- `size` - Text size (sm, md, lg)
+- `align` - Text alignment
+
+**Example:**
+```json
+{
+  "type": "Text",
+  "props": {
+    "text": "This is a paragraph with **bold** and *italic* text.",
+    "size": "md",
+    "align": "left"
+  }
+}
+```
+
+## Data Structure
+
+Pages are stored as JSON with this structure:
+
+```typescript
+interface PuckData {
+  content: Array<{
+    type: string;
+    props: Record<string, any>;
+    children?: PuckData['content'];
+  }>;
+  root: {
+    props: Record<string, any>;
+  };
+}
+```
+
+**Example:**
+
+```json
+{
+  "content": [
+    {
+      "type": "Section",
+      "props": { "background": "white", "padding": "large" },
+      "children": [
+        {
+          "type": "Heading",
+          "props": { "text": "Welcome", "level": 1, "align": "center" }
+        },
+        {
+          "type": "Text",
+          "props": { "text": "This is the homepage.", "size": "md" }
+        },
+        {
+          "type": "Button",
+          "props": { "text": "Get Started", "href": "/signup", "variant": "primary" }
+        }
+      ]
+    }
+  ],
+  "root": {
+    "props": {}
+  }
+}
+```
+
+## Configuration
+
+The Puck configuration defines available components:
+
+```typescript
+// packages/editor/page-builder-config.tsx
+import { Config } from '@measured/puck';
+import { Button } from './components/button';
+import { Heading } from './components/heading';
+// ... other components
+
+export const puckConfig: Config = {
+  components: {
+    Button,
+    Heading,
+    Section,
+    Text,
+  },
+};
+```
+
+## Creating Custom Components
+
+Add new components to the editor:
+
+```tsx
+// packages/editor/components/hero.tsx
+import { ComponentConfig } from '@measured/puck';
+
+export interface HeroProps {
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  ctaText?: string;
+  ctaHref?: string;
+}
+
+export const Hero: ComponentConfig<HeroProps> = {
+  fields: {
+    title: { type: 'text', label: 'Title' },
+    subtitle: { type: 'textarea', label: 'Subtitle' },
+    imageUrl: { type: 'text', label: 'Image URL' },
+    ctaText: { type: 'text', label: 'CTA Text' },
+    ctaHref: { type: 'text', label: 'CTA Link' },
+  },
+  render: ({ title, subtitle, imageUrl, ctaText, ctaHref }) => {
+    return (
+      <div className="hero">
+        <img src={imageUrl} alt={title} />
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+        {ctaText && ctaHref && (
+          <a href={ctaHref}>{ctaText}</a>
+        )}
+      </div>
+    );
+  },
+};
+```
+
+Then add to config:
+
+```typescript
+import { Hero } from './components/hero';
+
+export const puckConfig: Config = {
+  components: {
+    Button,
+    Heading,
+    Hero, // New component
+    Section,
+    Text,
+  },
+};
+```
+
+## Editor Features
+
+- **Drag & Drop** - Rearrange components visually
+- **Live Preview** - See changes in real-time
+- **Component Library** - Browse available components
+- **Props Editor** - Edit component properties
+- **Nested Components** - Components within sections
+- **Undo/Redo** - Full edit history
+- **Responsive Preview** - Mobile/tablet/desktop views
+
+## Workflow
+
+### 1. Create Page in Admin
+
+```typescript
+// Admin: Create new page
+const newPage = await db.createDocument(
+  'database_id',
+  'pages',
+  ID.unique(),
+  {
+    slug: 'about-us',
+    title: 'About Us',
+    status: 'draft',
+    puck_document: JSON.stringify({
+      content: [],
+      root: { props: {} }
+    })
+  }
+);
+```
+
+### 2. Edit with Puck
+
+```tsx
+// Admin: Edit page
+<Editor
+  data={JSON.parse(page.puck_document)}
+  onPublish={async (data) => {
+    await db.updateDocument('pages', pageId, {
+      puck_document: JSON.stringify(data),
+      status: 'published'
+    });
+  }}
+/>
+```
+
+### 3. Render in Web App
+
+```tsx
+// Web: Display page
+const page = await db.getDocument('pages', pageId);
+const puckData = JSON.parse(page.puck_document);
+
+return <Renderer data={puckData} />;
+```
+
+## Future Enhancements
+
+Planned features for the editor:
+
+- ✅ **More Components** - Hero, Gallery, Testimonials, Forms
+- ✅ **@repo/ui Integration** - All UI components available in editor
+- ✅ **Asset Manager** - Upload and manage images
+- ✅ **Templates** - Pre-built page templates
+- ✅ **Component Presets** - Save common configurations
+- ✅ **Multi-language Support** - Edit content in multiple languages
+- ✅ **Version History** - Track page changes over time
+- ✅ **Collaboration** - Multiple editors working simultaneously
+
+## Best Practices
+
+1. **Keep components simple** - Each component should do one thing well
+2. **Use semantic names** - `Hero` not `BigImageWithText`
+3. **Provide defaults** - Make props optional with sensible defaults
+4. **Test rendering** - Ensure components work in both apps
+5. **Document props** - Add descriptions to field definitions
+6. **Handle edge cases** - Empty content, missing images, etc.
+
+## Troubleshooting
+
+### Component Not Showing in Editor
+
+- Check it's exported in `page-builder-config.tsx`
+- Verify the component follows Puck's `ComponentConfig` interface
+- Restart the admin app dev server
+
+### Rendering Issues in Web App
+
+- Ensure Renderer has access to all component definitions
+- Check for console errors in browser
+- Verify JSON data structure is valid
+
+### Styling Differences
+
+- Remember editor uses admin app styles, renderer uses web app styles
+- Use consistent Tailwind classes
+- Test in both environments
+
+## Next Steps
+
+<Callout type="info">
+  - [UI Package](/docs/packages/ui/overview) - Available UI components
+  - [Admin App Guide](/docs/apps/admin) - Using the admin interface
+  - [Content Management](/docs/guides/creating-features) - Managing content
+</Callout>
+

@@ -1,0 +1,320 @@
+---
+title: Web App Overview
+description: Complete guide to the BISO Sites public-facing web application, including features, architecture, and key concepts.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+
+# Web App Overview
+
+The BISO Sites Web App is the public-facing website that serves as the primary interface for students, members, and visitors. Built with Next.js 15 and the App Router, it provides a comprehensive platform for membership management, event registration, e-commerce, and organizational information.
+
+## Purpose & Features
+
+The Web App serves multiple purposes:
+
+1. **Public Information Hub** - About pages, policies, contact information
+2. **Membership Platform** - Member registration and management
+3. **Event Management** - Event listings, registrations, and attendance
+4. **E-commerce** - Product catalog, shopping cart, checkout with Vipps
+5. **Department Showcase** - Units/departments with teams, products, and news
+6. **Job Board** - Job postings and application submissions
+7. **News & Press** - Latest updates and press releases
+
+## Technology Stack
+
+```mermaid
+graph TB
+    subgraph "Frontend"
+        NEXTJS[Next.js 15<br/>App Router]
+        REACT[React 19]
+        I18N[next-intl<br/>i18n]
+        TAILWIND[Tailwind CSS]
+    end
+    
+    subgraph "Shared Packages"
+        API[@repo/api]
+        UI[@repo/ui]
+        EDITOR[@repo/editor]
+        PAYMENT[@repo/payment]
+    end
+    
+    subgraph "Backend"
+        APPWRITE[Appwrite<br/>Database, Auth, Storage]
+        VIPPS[Vipps MobilePay<br/>Payment Gateway]
+    end
+    
+    NEXTJS --> API
+    NEXTJS --> UI
+    NEXTJS --> EDITOR
+    NEXTJS --> PAYMENT
+    API --> APPWRITE
+    PAYMENT --> VIPPS
+    I18N --> NEXTJS
+    REACT --> NEXTJS
+    TAILWIND --> NEXTJS
+```
+
+### Key Technologies
+
+- **Next.js 15** - React framework with App Router
+- **React 19** - UI library with Server Components
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first CSS framework
+- **next-intl** - Internationalization (English and Norwegian)
+- **Appwrite** - Backend-as-a-Service (database, auth, storage)
+- **Vipps MobilePay** - Norwegian payment gateway
+- **Zod** - Schema validation
+- **React Hook Form** - Form management
+
+## Architecture
+
+### Directory Structure
+
+```
+apps/web/src/
+├── app/                          # Next.js App Router
+│   ├── (public)/                 # Public routes
+│   │   ├── page.tsx             # Homepage
+│   │   ├── about/               # About pages
+│   │   ├── events/              # Events listing and detail
+│   │   ├── shop/                # E-commerce
+│   │   ├── units/               # Departments
+│   │   ├── membership/          # Membership
+│   │   ├── contact/             # Contact
+│   │   └── ...
+│   ├── (protected)/             # Protected routes (requires auth)
+│   │   ├── profile/             # User profile
+│   │   └── fs/                  # Expense system
+│   ├── (auth)/                  # Authentication routes
+│   │   └── auth/
+│   ├── actions/                 # Server actions
+│   ├── api/                     # API routes
+│   └── ...
+├── components/                   # React components
+│   ├── ui/                      # UI components
+│   ├── forms/                   # Form components
+│   └── ...
+├── lib/                         # Utilities and helpers
+│   ├── appwrite.ts              # Appwrite client setup
+│   ├── utils.ts                 # Utility functions
+│   └── ...
+└── proxy.ts                      # Middleware/proxy setup
+```
+
+### Route Organization
+
+The app uses **route groups** to organize pages by access level:
+
+- **(public)** - Publicly accessible pages
+- **(protected)** - Requires authentication
+- **(auth)** - Authentication flows
+
+<Callout type="info" title="Route Groups">
+Route groups in Next.js (folders with parentheses) don't affect the URL structure but help organize code. For example, `app/(public)/about/page.tsx` results in the `/about` URL.
+</Callout>
+
+## Internationalization (i18n)
+
+The web app supports **English** and **Norwegian** using `next-intl`:
+
+```typescript
+// Message files structure
+apps/web/messages/
+├── en/               # English translations
+│   ├── common.json
+│   ├── home.json
+│   ├── about.json
+│   └── ...
+└── no/               # Norwegian translations
+    ├── common.json
+    ├── home.json
+    ├── about.json
+    └── ...
+```
+
+URLs are prefixed with locale:
+- `/en` - English
+- `/no` - Norwegian (default)
+
+Example: `/no/about` and `/en/about` serve the same page in different languages.
+
+## Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant NextJS
+    participant ServerAction
+    participant API
+    participant Appwrite
+    
+    User->>NextJS: Visit page
+    NextJS->>Appwrite: Fetch data (Server Component)
+    Appwrite-->>NextJS: Return data
+    NextJS-->>User: Render page (HTML)
+    
+    User->>NextJS: Submit form
+    NextJS->>ServerAction: Call server action
+    ServerAction->>API: Use @repo/api
+    API->>Appwrite: Database operation
+    Appwrite-->>API: Success
+    API-->>ServerAction: Return result
+    ServerAction-->>NextJS: Revalidate
+    NextJS-->>User: Updated UI
+```
+
+### Data Fetching Patterns
+
+1. **Server Components** - Fetch data directly in components
+2. **Server Actions** - Handle form submissions and mutations
+3. **API Routes** - External integrations (webhooks, payments)
+4. **Client Components** - Interactive UI with state
+
+<Callout type="warning" title="Server vs Client">
+By default, components in the App Router are Server Components. Use `"use client"` directive only when you need interactivity (state, events, browser APIs).
+</Callout>
+
+## Key Features at a Glance
+
+### 1. Homepage
+
+Dynamic homepage with:
+- Hero section
+- Featured events
+- Latest news
+- Department highlights
+- Quick links
+
+### 2. Membership System
+
+- Member registration with form validation
+- Membership benefits overview
+- Integration with payment system
+- Member dashboard (protected)
+
+### 3. Events
+
+- Event listings with filters
+- Event detail pages with registration
+- Calendar integration
+- Attendance tracking
+
+### 4. E-commerce
+
+- Product catalog by department
+- Shopping cart with reservations
+- Vipps checkout integration
+- Order tracking
+- Product variations and custom fields
+
+### 5. Units/Departments
+
+- Department directory with filtering
+- Individual department pages with:
+  - Team members
+  - Products
+  - News updates
+  - Social links
+  - Custom content
+
+### 6. About Section
+
+- History
+- Organizational structure
+- Bylaws and policies
+- Contact information
+- Academic contacts
+
+## Authentication
+
+<Callout type="info" title="Authentication">
+Authentication is handled by Appwrite with support for email/password and OAuth providers.
+</Callout>
+
+Three authentication states:
+
+1. **Anonymous** - Unauthenticated visitors (read-only access)
+2. **Authenticated Member** - Logged-in users (profile, expenses, protected content)
+3. **Admin** - Redirected to admin app for management tasks
+
+## Environment Variables
+
+Required environment variables for the web app:
+
+```bash
+# Appwrite Configuration
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+APPWRITE_API_KEY=your_api_key
+
+# Vipps Payment
+VIPPS_CLIENT_ID=your_client_id
+VIPPS_CLIENT_SECRET=your_client_secret
+VIPPS_SUBSCRIPTION_KEY=your_subscription_key
+VIPPS_MERCHANT_SERIAL_NUMBER=your_merchant_serial
+
+# Application
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+## Port Configuration
+
+- **Development**: `http://localhost:3000`
+- **Production**: Configured via hosting provider
+
+## Quick Start
+
+<Steps>
+<Step title="Install Dependencies">
+
+```bash
+cd apps/web
+bun install
+```
+
+</Step>
+
+<Step title="Configure Environment">
+
+Create `.env.local` with required variables (see Environment Variables section above).
+
+</Step>
+
+<Step title="Run Development Server">
+
+```bash
+bun run dev
+```
+
+Visit `http://localhost:3000`
+
+</Step>
+
+<Step title="Build for Production">
+
+```bash
+bun run build
+bun run start
+```
+
+</Step>
+</Steps>
+
+## Related Documentation
+
+- [Routing and Pages](/docs/web-app/routing) - Complete routing structure
+- [Components](/docs/web-app/components) - Component organization
+- [Server Actions](/docs/web-app/server-actions) - Data mutations
+- [API Routes](/docs/web-app/api-routes) - API endpoints
+- [@repo/api Package](/docs/packages/api/overview) - Appwrite integration
+- [@repo/payment Package](/docs/packages/payment/overview) - Payment processing
+
+## Next Steps
+
+- Learn about [routing structure](/docs/web-app/routing)
+- Explore [key features](/docs/web-app/features/membership)
+- Understand [component patterns](/docs/web-app/components)
+- Review [server actions](/docs/web-app/server-actions)
+

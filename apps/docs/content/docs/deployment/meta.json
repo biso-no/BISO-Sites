@@ -1,0 +1,10 @@
+{
+  "title": "Deployment",
+  "pages": [
+    "overview",
+    "environment-variables",
+    "docker",
+    "appwrite-setup"
+  ]
+}
+

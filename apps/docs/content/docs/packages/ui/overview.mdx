@@ -1,0 +1,478 @@
+---
+title: UI Package Overview
+description: Shared component library for BISO Sites based on shadcn/ui.
+---
+
+import { Callout } from 'components/callout';
+
+# UI Package Overview
+
+The `@repo/ui` package is BISO Sites' shared component library, providing consistent UI components across all applications. Built on shadcn/ui with Tailwind CSS.
+
+## What's Included
+
+- 📦 **37+ shadcn/ui components** - Fully styled and accessible
+- 🎨 **Theme system** - Light/dark mode with customization
+- 🎯 **Utility functions** - `cn()` and helper utilities
+- 🪝 **Custom hooks** - `useMobile()` and more
+- 📱 **Responsive patterns** - Mobile-first composite components
+- 🌈 **Design tokens** - Consistent colors, spacing, typography
+
+## Package Structure
+
+```
+packages/ui/
+├── components/
+│   ├── ui/              # shadcn components (37+ components)
+│   │   ├── button.tsx
+│   │   ├── input.tsx
+│   │   ├── card.tsx
+│   │   └── ... (34 more)
+│   ├── patterns/        # Composite components
+│   └── theme-provider.tsx
+├── hooks/
+│   └── use-mobile.ts
+├── lib/
+│   ├── utils.ts         # cn() and utilities
+│   ├── fonts.ts         # Font definitions
+│   └── tokens.ts        # Design tokens
+├── styles/
+│   └── globals.css      # Global styles
+└── package.json
+```
+
+## Quick Start
+
+### Installation
+
+The package is automatically available in all workspace apps:
+
+```typescript
+import { Button } from '@repo/ui/components/ui/button';
+import { Card } from '@repo/ui/components/ui/card';
+import { ThemeProvider } from '@repo/ui/components/theme-provider';
+```
+
+### Basic Usage
+
+```tsx
+import { Button } from '@repo/ui/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@repo/ui/components/ui/card';
+
+export function MyComponent() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Hello World</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Button>Click me</Button>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## Available Components
+
+### Form Components
+
+- `Button` - Buttons with variants (default, destructive, outline, ghost)
+- `Input` - Text inputs with validation states
+- `Textarea` - Multi-line text inputs
+- `Checkbox` - Checkboxes with labels
+- `Radio` - Radio buttons and groups
+- `Select` - Dropdowns and select menus
+- `Switch` - Toggle switches
+- `Slider` - Range sliders
+- `Label` - Form labels
+
+**Example:**
+
+```tsx
+import { Button } from '@repo/ui/components/ui/button';
+import { Input } from '@repo/ui/components/ui/input';
+import { Label } from '@repo/ui/components/ui/label';
+
+<div className="space-y-4">
+  <div>
+    <Label htmlFor="email">Email</Label>
+    <Input id="email" type="email" placeholder="you@example.com" />
+  </div>
+  <Button>Submit</Button>
+</div>
+```
+
+### Layout Components
+
+- `Card` - Content containers with header/footer
+- `Separator` - Dividers
+- `Tabs` - Tabbed interfaces
+- `Accordion` - Collapsible sections
+- `Sheet` - Slide-out panels
+- `Dialog` - Modal dialogs
+- `Drawer` - Bottom drawers
+
+**Example:**
+
+```tsx
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@repo/ui/components/ui/card';
+
+<Card>
+  <CardHeader>
+    <CardTitle>Product</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <p>Product details here...</p>
+  </CardContent>
+  <CardFooter>
+    <Button>Add to Cart</Button>
+  </CardFooter>
+</Card>
+```
+
+### Feedback Components
+
+- `Alert` - Inline alerts and notifications
+- `Toast` - Toast notifications (Sonner)
+- `Badge` - Status badges
+- `Progress` - Progress bars
+- `Skeleton` - Loading skeletons
+- `Spinner` - Loading spinners
+
+**Example:**
+
+```tsx
+import { Alert, AlertTitle, AlertDescription } from '@repo/ui/components/ui/alert';
+import { Badge } from '@repo/ui/components/ui/badge';
+
+<Alert>
+  <AlertTitle>Success!</AlertTitle>
+  <AlertDescription>
+    Your changes have been saved.
+  </AlertDescription>
+</Alert>
+
+<Badge variant="success">Active</Badge>
+```
+
+### Navigation Components
+
+- `NavigationMenu` - Main navigation menus
+- `Breadcrumb` - Breadcrumb navigation
+- `Pagination` - Page pagination
+- `Command` - Command palette (⌘K menu)
+- `ContextMenu` - Right-click menus
+- `DropdownMenu` - Dropdown menus
+- `Menubar` - Menu bars
+
+### Data Display
+
+- `Table` - Data tables
+- `Avatar` - User avatars
+- `Tooltip` - Hover tooltips
+- `Popover` - Pop-up content
+- `HoverCard` - Rich hover cards
+
+### Utilities
+
+- `ScrollArea` - Custom scrollbars
+- `Resizable` - Resizable panels
+- `Collapsible` - Collapsible content
+
+## Theme System
+
+### Theme Provider
+
+Wrap your app with `ThemeProvider`:
+
+```tsx
+// app/layout.tsx
+import { ThemeProvider } from '@repo/ui/components/theme-provider';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### Theme Toggle
+
+```tsx
+'use client';
+
+import { useTheme } from 'next-themes';
+import { Button } from '@repo/ui/components/ui/button';
+
+export function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+    >
+      Toggle Theme
+    </Button>
+  );
+}
+```
+
+## Utility Functions
+
+### cn() - Class Name Utility
+
+Merge Tailwind classes intelligently:
+
+```typescript
+import { cn } from '@repo/ui/lib/utils';
+
+// Merge classes
+const className = cn('px-4 py-2', 'bg-blue-500', 'hover:bg-blue-600');
+
+// Conditional classes
+const buttonClass = cn(
+  'px-4 py-2 rounded',
+  isActive && 'bg-blue-500',
+  isDisabled && 'opacity-50 cursor-not-allowed'
+);
+
+// In components
+<button className={cn('base-class', className, props.className)}>
+  Click me
+</button>
+```
+
+## Custom Hooks
+
+### useMobile()
+
+Detect mobile screens:
+
+```tsx
+'use client';
+
+import { useMobile } from '@repo/ui/hooks/use-mobile';
+
+export function MyComponent() {
+  const isMobile = useMobile();
+  
+  return (
+    <div>
+      {isMobile ? (
+        <MobileView />
+      ) : (
+        <DesktopView />
+      )}
+    </div>
+  );
+}
+```
+
+## Styling Guidelines
+
+### Tailwind CSS
+
+All components use Tailwind CSS:
+
+```tsx
+<Button className="w-full md:w-auto">
+  Responsive Button
+</Button>
+
+<div className="flex items-center gap-4 p-4">
+  <Avatar />
+  <div>
+    <p className="font-semibold">John Doe</p>
+    <p className="text-sm text-muted-foreground">john@example.com</p>
+  </div>
+</div>
+```
+
+### Component Variants
+
+Most components support variants:
+
+```tsx
+// Button variants
+<Button variant="default">Default</Button>
+<Button variant="destructive">Delete</Button>
+<Button variant="outline">Outline</Button>
+<Button variant="ghost">Ghost</Button>
+<Button variant="link">Link</Button>
+
+// Button sizes
+<Button size="sm">Small</Button>
+<Button size="default">Default</Button>
+<Button size="lg">Large</Button>
+<Button size="icon"><Icon /></Button>
+
+// Badge variants
+<Badge variant="default">Default</Badge>
+<Badge variant="secondary">Secondary</Badge>
+<Badge variant="destructive">Error</Badge>
+<Badge variant="outline">Outline</Badge>
+```
+
+## Toast Notifications
+
+Using Sonner for toasts:
+
+```tsx
+'use client';
+
+import { toast } from 'sonner';
+import { Button } from '@repo/ui/components/ui/button';
+
+export function ToastDemo() {
+  return (
+    <div className="space-x-2">
+      <Button onClick={() => toast.success('Success!')}>
+        Success
+      </Button>
+      <Button onClick={() => toast.error('Error occurred')}>
+        Error
+      </Button>
+      <Button onClick={() => toast.info('Information')}>
+        Info
+      </Button>
+      <Button onClick={() => toast.loading('Loading...')}>
+        Loading
+      </Button>
+    </div>
+  );
+}
+
+// In layout, add Toaster
+import { Toaster } from 'sonner';
+
+<body>
+  <ThemeProvider>
+    {children}
+    <Toaster />
+  </ThemeProvider>
+</body>
+```
+
+## Form Patterns
+
+Common form pattern with shadcn components:
+
+```tsx
+'use client';
+
+import { Button } from '@repo/ui/components/ui/button';
+import { Input } from '@repo/ui/components/ui/input';
+import { Label } from '@repo/ui/components/ui/label';
+import { Card } from '@repo/ui/components/ui/card';
+import { toast } from 'sonner';
+
+export function ContactForm() {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    try {
+      // Submit form
+      toast.success('Message sent!');
+    } catch (error) {
+      toast.error('Failed to send message');
+    }
+  };
+  
+  return (
+    <Card className="p-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="name">Name</Label>
+          <Input id="name" name="name" required />
+        </div>
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" name="email" type="email" required />
+        </div>
+        <div>
+          <Label htmlFor="message">Message</Label>
+          <Textarea id="message" name="message" required />
+        </div>
+        <Button type="submit">Send Message</Button>
+      </form>
+    </Card>
+  );
+}
+```
+
+## Customization
+
+### Custom Component Variants
+
+Extend component variants:
+
+```tsx
+// components/custom-button.tsx
+import { Button } from '@repo/ui/components/ui/button';
+import { cn } from '@repo/ui/lib/utils';
+
+export function CustomButton({ className, ...props }) {
+  return (
+    <Button
+      className={cn('custom-styling', className)}
+      {...props}
+    />
+  );
+}
+```
+
+### Theme Colors
+
+Customize theme in your app's `globals.css`:
+
+```css
+@layer base {
+  :root {
+    --primary: 221 83% 53%;
+    --secondary: 210 40% 96%;
+    --accent: 210 40% 96%;
+    --destructive: 0 84% 60%;
+    /* ... more variables */
+  }
+  
+  .dark {
+    --primary: 217 91% 60%;
+    --secondary: 217 33% 17%;
+    /* ... dark mode colors */
+  }
+}
+```
+
+## Best Practices
+
+1. **Use semantic variants** - `variant="destructive"` not `className="bg-red-500"`
+2. **Combine with Tailwind** - Use `className` for additional styles
+3. **Accessibility first** - Components are accessible by default
+4. **Responsive design** - Use Tailwind responsive prefixes (`md:`, `lg:`)
+5. **Consistent spacing** - Use Tailwind spacing scale
+6. **Theme-aware** - Use theme colors, not hardcoded values
+
+<Callout type="info">
+  For complete component examples and API references, visit [shadcn/ui documentation](https://ui.shadcn.com/).
+</Callout>
+
+## Next Steps
+
+- Explore all components at [shadcn/ui](https://ui.shadcn.com/)
+- [Styling Guide](/docs/guides/styling-conventions) - BISO Sites styling patterns
+- [Forms Guide](/docs/guides/forms) - Building forms with these components
+

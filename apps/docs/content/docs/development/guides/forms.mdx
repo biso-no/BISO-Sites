@@ -1,0 +1,86 @@
+---
+title: Forms Guide
+description: Form handling patterns with react-hook-form, Zod validation, and server actions.
+---
+
+import { Callout } from 'components/callout';
+
+# Forms Guide
+
+Learn how to handle forms in BISO Sites using react-hook-form, Zod for validation, and server actions for submissions.
+
+## Basic Form Pattern
+
+```typescript
+'use client';
+
+import { useActionState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { Button } from '@repo/ui/components/ui/button';
+import { Input } from '@repo/ui/components/ui/input';
+
+const schema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email'),
+});
+
+type FormData = z.infer<typeof schema>;
+
+export function MyForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+  
+  const onSubmit = async (data: FormData) => {
+    const result = await submitForm(data);
+    if (result.success) {
+      // Handle success
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Input {...register('name')} />
+      {errors.name && <p>{errors.name.message}</p>}
+      
+      <Input {...register('email')} type="email" />
+      {errors.email && <p>{errors.email.message}</p>}
+      
+      <Button type="submit">Submit</Button>
+    </form>
+  );
+}
+```
+
+## Server Action Validation
+
+```typescript
+'use server';
+
+import { z } from 'zod';
+
+const schema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+});
+
+export async function submitForm(data: unknown) {
+  try {
+    const validated = schema.parse(data);
+    // Process form
+    return { success: true };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { success: false, errors: error.errors };
+    }
+    return { success: false, error: 'Failed to submit' };
+  }
+}
+```
+
+## Related Documentation
+- [Server Actions](/docs/web-app/server-actions)
+- [Components](/docs/web-app/components)
+

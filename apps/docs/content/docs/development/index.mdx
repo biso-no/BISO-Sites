@@ -1,0 +1,158 @@
+---
+title: Development
+description: Development guides and best practices for building with BISO Sites
+---
+
+# Development Guides
+
+Welcome to the development guides section. This section provides comprehensive guides for common development tasks and workflows.
+
+## Available Guides
+
+### Development Workflow
+
+Daily development workflow including running apps, making changes, and using the monorepo tools.
+
+**Topics Covered:**
+- Running development servers
+- Making code changes
+- Using Turbo tasks
+- Branch management
+
+[View Guide →](/docs/development/guides/development-workflow)
+
+### Authentication
+
+Authentication patterns and implementation using Appwrite Auth.
+
+**Topics Covered:**
+- User registration and login
+- Session management
+- Role-based access control
+- Protected routes
+
+[View Guide →](/docs/development/guides/authentication)
+
+### Database Operations
+
+Working with Appwrite Database including CRUD operations and queries.
+
+**Topics Covered:**
+- Creating documents
+- Querying data
+- Relationships
+- Permissions
+
+[View Guide →](/docs/development/guides/database)
+
+### Forms
+
+Form handling patterns with react-hook-form and Zod validation.
+
+**Topics Covered:**
+- Form setup
+- Validation schemas
+- Server actions
+- Error handling
+
+[View Guide →](/docs/development/guides/forms)
+
+### Internationalization
+
+Implementing multi-language support with next-intl.
+
+**Topics Covered:**
+- Message catalogs
+- Language switching
+- Translation patterns
+- Dynamic content
+
+[View Guide →](/docs/development/guides/i18n)
+
+### Styling
+
+Styling with Tailwind CSS and the design system.
+
+**Topics Covered:**
+- Tailwind configuration
+- Custom tokens
+- Component styling
+- Responsive design
+
+[View Guide →](/docs/development/guides/styling)
+
+### Testing
+
+Testing strategy and best practices.
+
+**Topics Covered:**
+- Type checking
+- Linting
+- Manual testing
+- Integration tests
+
+[View Guide →](/docs/development/guides/testing)
+
+## Quick Links
+
+### For New Developers
+
+1. Start with Development Workflow
+2. Learn Authentication Patterns
+3. Practice Form Handling
+4. Master i18n
+
+See the guides above for links to each topic.
+
+### Common Tasks
+
+- **Adding a new page**: Check routing in Web App or Admin App documentation
+- **Database operations**: See the Database Guide above
+- **Styling components**: Read the Styling Guide above
+- **Form validation**: Follow the Forms Guide above
+
+### Related Documentation
+
+- Repository Architecture
+- API Package
+- UI Components
+
+Navigate using the sidebar tabs to access related documentation.
+
+## Best Practices
+
+### Code Style
+
+- Use TypeScript strict mode
+- Follow Prettier formatting (2-space indent)
+- Use Conventional Commits
+- Run `bun run lint` before committing
+
+### Component Guidelines
+
+- Use PascalCase for components
+- Co-locate styles and logic
+- Prefer composition over inheritance
+- Document complex components
+
+### State Management
+
+- Use React Server Components by default
+- Lift state only when needed
+- Use server actions for mutations
+- Cache expensive computations
+
+### Performance
+
+- Optimize images with Next.js Image
+- Use dynamic imports for heavy components
+- Implement proper loading states
+- Monitor bundle size
+
+## Need Help?
+
+- Browse these development guides
+- Check [Troubleshooting](/docs/repository/troubleshooting)
+- Review [Commands Reference](/docs/reference/commands)
+- Read package-specific documentation
+

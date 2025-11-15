@@ -1,0 +1,533 @@
+---
+title: Project Structure
+description: Understand the monorepo structure, file organization, and naming conventions used in MON.
+---
+
+import { Callout } from 'components/callout';
+import { FileTree, FileTreeItem } from 'components/file-tree';
+
+# Project Structure
+
+This guide explains how the BISO Sites monorepo is organized, including directory structures, naming conventions, and the purpose of each major file and folder.
+
+## Monorepo Overview
+
+MON uses **Turborepo** to manage a monorepo with multiple applications and shared packages. This allows code sharing, consistent tooling, and atomic commits across all projects.
+
+```
+mon/
+├── apps/              # Applications (Next.js apps)
+├── packages/          # Shared packages
+├── node_modules/      # Root dependencies
+├── package.json       # Root workspace configuration
+├── turbo.json         # Turborepo pipeline configuration
+└── bun.lock          # Dependency lockfile
+```
+
+## Root Level Files
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `package.json` | Root workspace config, defines scripts and workspaces |
+| `turbo.json` | Turborepo task pipeline and caching configuration |
+| `bun.lock` | Lockfile for exact dependency versions |
+| `.gitignore` | Files and directories to exclude from Git |
+
+### Documentation Files
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Project overview (originally Turborepo template) |
+| `AGENTS.md` | Repository guidelines for AI agents and developers |
+| `ARCHITECTURE_REFACTOR.md` | Documentation of architectural changes |
+| `DOCS_PROGRESS.md` | Track documentation completion |
+
+### Quality & Configuration
+
+| File | Purpose |
+|------|---------|
+| `knip.json` | Configuration for unused code detection |
+| `.editorconfig` | Editor configuration for consistent formatting |
+
+## Applications (`apps/`)
+
+Each application is a standalone Next.js 15 app with the App Router.
+
+### Web App (`apps/web/`)
+
+The public-facing website accessible to users.
+
+<FileTree>
+  <FileTreeItem name="apps/web/" icon="📁">
+    <FileTreeItem name="src/" icon="📁" depth={1}>
+      <FileTreeItem name="app/" icon="📁" depth={2}>
+        <FileTreeItem name="(routes)/" icon="📁" depth={3} />
+        <FileTreeItem name="actions/" icon="📁" depth={3} />
+        <FileTreeItem name="api/" icon="📁" depth={3} />
+        <FileTreeItem name="layout.tsx" icon="📄" depth={3} />
+        <FileTreeItem name="page.tsx" icon="📄" depth={3} />
+      </FileTreeItem>
+      <FileTreeItem name="components/" icon="📁" depth={2} />
+      <FileTreeItem name="lib/" icon="📁" depth={2} />
+      <FileTreeItem name="i18n/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="public/" icon="📁" depth={1}>
+      <FileTreeItem name="images/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="messages/" icon="📁" depth={1}>
+      <FileTreeItem name="en/" icon="📁" depth={2} />
+      <FileTreeItem name="no/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="package.json" icon="⚙️" depth={1} />
+    <FileTreeItem name="next.config.ts" icon="⚙️" depth={1} />
+    <FileTreeItem name="tailwind.config.cjs" icon="⚙️" depth={1} />
+    <FileTreeItem name="tsconfig.json" icon="⚙️" depth={1} />
+  </FileTreeItem>
+</FileTree>
+
+**Key Directories:**
+- `src/app/` - Next.js App Router routes and layouts
+- `src/components/` - React components specific to web
+- `src/lib/` - Utility functions and helpers
+- `src/i18n/` - i18n configuration
+- `messages/` - Translation files for next-intl
+- `public/` - Static assets (images, fonts, etc.)
+
+**Port:** 3000
+
+### Admin App (`apps/admin/`)
+
+Content management system for managing website content.
+
+<FileTree>
+  <FileTreeItem name="apps/admin/" icon="📁">
+    <FileTreeItem name="src/" icon="📁" depth={1}>
+      <FileTreeItem name="app/" icon="📁" depth={2}>
+        <FileTreeItem name="(admin)/" icon="📁" depth={3}>
+          <FileTreeItem name="admin/" icon="📁" depth={4}>
+            <FileTreeItem name="pages/" icon="📁" depth={5} />
+            <FileTreeItem name="posts/" icon="📁" depth={5} />
+            <FileTreeItem name="users/" icon="📁" depth={5} />
+          </FileTreeItem>
+        </FileTreeItem>
+        <FileTreeItem name="(auth)/" icon="📁" depth={3} />
+        <FileTreeItem name="(protected)/" icon="📁" depth={3} />
+        <FileTreeItem name="actions/" icon="📁" depth={3} />
+        <FileTreeItem name="api/" icon="📁" depth={3} />
+      </FileTreeItem>
+      <FileTreeItem name="components/" icon="📁" depth={2} />
+      <FileTreeItem name="lib/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="messages/" icon="📁" depth={1} />
+    <FileTreeItem name="public/" icon="📁" depth={1} />
+    <FileTreeItem name="package.json" icon="⚙️" depth={1} />
+  </FileTreeItem>
+</FileTree>
+
+**Key Features:**
+- Page builder integration (Puck editor)
+- User management
+- Content creation and editing
+- Media management
+- Role-based access control
+
+**Port:** 3001
+
+### Docs App (`apps/docs/`)
+
+This documentation site built with Fumadocs.
+
+<FileTree>
+  <FileTreeItem name="apps/docs/" icon="📁">
+    <FileTreeItem name="app/" icon="📁" depth={1}>
+      <FileTreeItem name="docs/" icon="📁" depth={2}>
+        <FileTreeItem name="[...slug]/" icon="📁" depth={3}>
+          <FileTreeItem name="page.tsx" icon="📄" depth={4} />
+        </FileTreeItem>
+        <FileTreeItem name="layout.tsx" icon="📄" depth={3} />
+      </FileTreeItem>
+      <FileTreeItem name="api/search/" icon="📁" depth={2} />
+      <FileTreeItem name="page.tsx" icon="📄" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="content/docs/" icon="📁" depth={1}>
+      <FileTreeItem name="index.mdx" icon="📄" depth={2} />
+      <FileTreeItem name="architecture/" icon="📁" depth={2} />
+      <FileTreeItem name="packages/" icon="📁" depth={2} />
+      <FileTreeItem name="guides/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="components/" icon="📁" depth={1} />
+    <FileTreeItem name="lib/" icon="📁" depth={1} />
+  </FileTreeItem>
+</FileTree>
+
+**Port:** 3002
+
+## Packages (`packages/`)
+
+Shared code used across multiple applications.
+
+### API Package (`packages/api/`)
+
+Appwrite client wrappers and utilities.
+
+```
+packages/api/
+├── client.ts          # Client-side API (browser)
+├── server.ts          # Server-side API (Node.js)
+├── storage.ts         # Storage utilities
+├── index.ts           # Main exports
+├── types/             # TypeScript type definitions
+│   └── appwrite.ts
+├── package.json
+└── tsconfig.json
+```
+
+**Usage:**
+```typescript
+// Server-side
+import { createSessionClient } from '@repo/api/server';
+
+// Client-side
+import { Client, Account } from '@repo/api/client';
+
+// Storage helpers
+import { getStorageFileUrl } from '@repo/api';
+```
+
+### UI Package (`packages/ui/`)
+
+Shared React components based on shadcn/ui.
+
+```
+packages/ui/
+├── components/
+│   ├── ui/           # shadcn/ui components
+│   │   ├── button.tsx
+│   │   ├── input.tsx
+│   │   └── ...
+│   ├── patterns/     # Composite patterns
+│   └── theme-provider.tsx
+├── lib/
+│   ├── utils.ts      # Utility functions (cn, etc.)
+│   ├── fonts.ts      # Font definitions
+│   └── tokens.ts     # Design tokens
+├── styles/
+│   └── globals.css   # Global styles
+├── hooks/
+│   └── use-mobile.ts
+└── package.json
+```
+
+**Usage:**
+```typescript
+import { Button } from '@repo/ui/components/ui/button';
+import { ThemeProvider } from '@repo/ui/components/theme-provider';
+```
+
+### Editor Package (`packages/editor/`)
+
+Puck editor configuration for visual page building.
+
+```
+packages/editor/
+├── components/       # Custom Puck components
+│   ├── button.tsx
+│   ├── heading.tsx
+│   ├── section.tsx
+│   └── text.tsx
+├── editor.tsx        # Editor component
+├── renderer.tsx      # Render engine
+├── page-builder-config.tsx  # Puck configuration
+├── types.ts          # TypeScript types
+└── package.json
+```
+
+<Callout type="note" title="Work in Progress">
+  The editor package is actively being developed. Future versions will support more components and advanced features.
+</Callout>
+
+### Payment Package (`packages/payment/`)
+
+Payment provider integrations (currently Vipps).
+
+```
+packages/payment/
+├── vipps.ts          # Core Vipps logic (framework-agnostic)
+├── actions.ts        # Server actions for Next.js
+├── types/            # TypeScript types
+├── package.json
+└── README.md
+```
+
+**Key Feature:** Framework-agnostic with dependency injection pattern.
+
+**Usage:**
+```typescript
+// In Next.js Server Actions
+import { initiateVippsCheckout } from '@repo/payment/actions';
+
+// Direct usage (pass db manually)
+import { createCheckoutSession } from '@repo/payment/vipps';
+```
+
+### Configuration Packages
+
+#### ESLint Config (`packages/eslint-config/`)
+
+```
+packages/eslint-config/
+├── base.js           # Base ESLint rules
+├── next.js           # Next.js-specific rules
+├── react-internal.js # React component rules
+└── package.json
+```
+
+#### TypeScript Config (`packages/typescript-config/`)
+
+```
+packages/typescript-config/
+├── base.json         # Base TypeScript config
+├── nextjs.json       # Next.js-specific config
+├── react-library.json # React library config
+└── package.json
+```
+
+## App-Level Structure
+
+### Typical Next.js App Structure
+
+Each Next.js app follows this pattern:
+
+```
+app/
+├── (route-groups)/   # Grouped routes (shared layouts)
+│   ├── layout.tsx
+│   └── page.tsx
+├── actions/          # Server Actions
+│   └── feature.ts
+├── api/              # API Routes
+│   └── route/
+│       └── route.ts
+├── layout.tsx        # Root layout
+├── page.tsx          # Home page
+├── globals.css       # Global styles
+└── fonts.ts          # Font definitions
+```
+
+### Component Organization
+
+Components are organized by type:
+
+```
+components/
+├── ui/              # Generic UI components
+├── features/        # Feature-specific components
+├── layouts/         # Layout components
+├── forms/           # Form components
+└── shared/          # Shared across features
+```
+
+### Library Code
+
+```
+lib/
+├── utils.ts         # Generic utilities
+├── constants.ts     # App constants
+├── types.ts         # Type definitions
+├── api/             # API wrappers
+└── hooks/           # Custom React hooks
+```
+
+## Naming Conventions
+
+### Files
+
+| Type | Convention | Examples |
+|------|------------|----------|
+| Components | PascalCase | `Button.tsx`, `UserProfile.tsx` |
+| Utilities | kebab-case | `format-date.ts`, `api-client.ts` |
+| Routes | kebab-case | `user-profile/`, `about-us/` |
+| Constants | UPPERCASE | `CONSTANTS.ts`, `API_ENDPOINTS.ts` |
+
+### Directories
+
+| Type | Convention | Examples |
+|------|------------|----------|
+| Route Groups | (parentheses) | `(auth)/`, `(admin)/` |
+| Features | kebab-case | `user-profile/`, `payment-flow/` |
+| Components | PascalCase folders OK | `Button/`, `components/` |
+
+### Code
+
+```typescript
+// Components: PascalCase
+export function UserProfile() {}
+export const Button = () => {}
+
+// Functions: camelCase
+export function formatDate() {}
+export const getUserData = () => {}
+
+// Constants: UPPER_SNAKE_CASE
+export const API_ENDPOINT = '/api';
+export const MAX_ITEMS = 100;
+
+// Types/Interfaces: PascalCase
+export type User = {};
+export interface ButtonProps {}
+```
+
+## Special Directories
+
+### Route Groups `(name)/`
+
+Route groups organize routes without affecting the URL:
+
+```
+app/
+├── (auth)/           # Auth routes, won't show "(auth)" in URL
+│   ├── login/
+│   └── register/
+├── (admin)/          # Admin routes
+│   └── dashboard/
+└── (public)/         # Public routes
+    └── about/
+```
+
+URL: `/login`, `/dashboard`, `/about` (group names not in URL)
+
+### Private Folders `_name/`
+
+Folders starting with `_` are private and excluded from routing:
+
+```
+app/
+├── _components/      # Private components
+├── _lib/            # Private utilities
+└── page.tsx         # Public route
+```
+
+### API Routes
+
+```
+app/api/
+├── users/
+│   └── route.ts     # GET/POST /api/users
+├── posts/
+│   └── [id]/
+│       └── route.ts # GET/PUT /api/posts/[id]
+```
+
+## Import Paths
+
+### Absolute Imports
+
+TypeScript is configured for absolute imports:
+
+```typescript
+// ✅ Good: Absolute from src
+import { Button } from 'components/ui/button';
+import { formatDate } from '@/lib/utils';
+
+// ❌ Avoid: Relative imports that are deep
+import { Button } from '../../../components/ui/button';
+```
+
+### Package Imports
+
+```typescript
+// Import from packages
+import { Button } from '@repo/ui/components/ui/button';
+import { createSessionClient } from '@repo/api/server';
+import { initiateVippsCheckout } from '@repo/payment/actions';
+```
+
+## Configuration Files per App
+
+Each app has these config files:
+
+```
+app/
+├── next.config.ts        # Next.js configuration
+├── tsconfig.json         # TypeScript config (extends base)
+├── tailwind.config.cjs   # Tailwind CSS config
+├── postcss.config.js     # PostCSS config
+├── eslint.config.js      # ESLint config
+└── package.json          # App dependencies & scripts
+```
+
+## Environment Files
+
+```
+app/
+├── .env.local            # Local environment (gitignored)
+├── .env.example          # Example environment variables
+├── .env.development      # Development defaults (optional)
+└── .env.production       # Production defaults (optional)
+```
+
+<Callout type="warning" title="Environment Variables">
+  Only `.env.local` is gitignored. Never commit secrets! Always use `.env.example` for documentation.
+</Callout>
+
+## Static Assets
+
+```
+public/
+├── images/
+│   ├── hero/
+│   └── logos/
+├── fonts/
+├── icons/
+└── favicon.ico
+```
+
+**Access in code:**
+```tsx
+<Image src="/images/logo.png" alt="Logo" />
+```
+
+## i18n Structure
+
+Translation files for internationalization:
+
+```
+messages/
+├── en/
+│   ├── common.json
+│   ├── home.json
+│   └── about.json
+├── no/
+│   ├── common.json
+│   ├── home.json
+│   └── about.json
+├── en.ts             # English exports
+└── no.ts             # Norwegian exports
+```
+
+## Build Outputs
+
+Build artifacts (gitignored):
+
+```
+app/
+├── .next/            # Next.js build output
+├── dist/             # Package build output
+├── node_modules/     # Dependencies
+└── .turbo/           # Turborepo cache
+```
+
+## Key Takeaways
+
+1. **Monorepo** structure enables code sharing and consistency
+2. **Apps** are standalone Next.js applications
+3. **Packages** contain shared code used by multiple apps
+4. **Turborepo** manages the build pipeline and caching
+5. **Conventions** ensure consistency across the codebase
+
+<Callout type="info" title="Next Steps">
+  Now that you understand the structure, learn about the [Architecture](/docs/architecture/overview) or dive into [Development Workflow](/docs/guides/development-workflow).
+</Callout>
+

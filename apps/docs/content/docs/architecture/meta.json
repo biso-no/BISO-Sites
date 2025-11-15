@@ -1,0 +1,5 @@
+{
+  "title": "Architecture",
+  "pages": ["overview", "apps", "packages", "data-flow", "dependency-injection"]
+}
+

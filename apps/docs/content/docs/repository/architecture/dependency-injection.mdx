@@ -1,0 +1,588 @@
+---
+title: Dependency Injection Pattern
+description: How and why the payment package uses dependency injection to remain framework-agnostic.
+---
+
+import { Callout } from 'components/callout';
+
+# Dependency Injection Pattern
+
+The BISO Sites payment package demonstrates clean architecture principles through **dependency injection (DI)**. This document explains what DI is, why we use it, and how to apply this pattern in your own code.
+
+## What is Dependency Injection?
+
+**Dependency Injection** is a design pattern where dependencies are "injected" (passed in) to a function or class, rather than being created or imported directly inside it.
+
+### Without DI (❌ Tight Coupling)
+
+```typescript
+// packages/payment/vipps.ts
+import { createSessionClient } from '@repo/api/server'; // Next.js dependency!
+
+export async function createCheckout(params) {
+  const { db } = await createSessionClient(); // Importing Next.js runtime
+  const order = await db.createDocument(...);
+  return order;
+}
+```
+
+**Problems:**
+- ❌ Package directly imports Next.js runtime (`cookies()`)
+- ❌ Cannot be used outside Next.js
+- ❌ Tight coupling between package and framework
+- ❌ Harder to test (need to mock Next.js environment)
+- ❌ Hidden dependencies
+
+### With DI (✅ Loose Coupling)
+
+```typescript
+// packages/payment/vipps.ts
+// No Next.js imports! Framework-agnostic
+
+export async function createCheckout(params, db) {
+  // db is passed as parameter - dependency injection!
+  const order = await db.createDocument(...);
+  return order;
+}
+```
+
+**Benefits:**
+- ✅ Package is framework-agnostic
+- ✅ Clear separation of concerns
+- ✅ Easy to test (mock db)
+- ✅ No hidden dependencies
+- ✅ Can be reused in other apps
+- ✅ Follows SOLID principles
+
+---
+
+## The Problem: Framework Lock-in
+
+### Original Implementation
+
+The payment package originally looked like this:
+
+```typescript
+// packages/payment/vipps.ts
+import { createSessionClient } from '@repo/api/server';
+import "server-only"; // Next.js specific!
+
+export async function createCheckoutSession(params: CheckoutParams) {
+  // Directly imports and calls Next.js function
+  const { db } = await createSessionClient();
+  
+  // Business logic
+  const order = await db.createDocument(
+    'database_id',
+    'orders',
+    'unique()',
+    {
+      userId: params.userId,
+      total: params.total,
+      status: 'pending',
+      // ...
+    }
+  );
+  
+  // Call Vipps API
+  const vippsSession = await fetch(VIPPS_API, {
+    method: 'POST',
+    body: JSON.stringify({
+      orderId: order.$id,
+      amount: params.total,
+      // ...
+    }),
+  });
+  
+  return vippsSession.url;
+}
+```
+
+### Why This is Problematic
+
+1. **Framework Dependency**: Package depends on Next.js runtime
+2. **Testing Difficulty**: Must mock entire Next.js environment
+3. **Limited Reusability**: Can't use in Express, Fastify, CLI tools, etc.
+4. **Hidden Dependencies**: Not obvious what the function needs
+5. **Violation of SRP**: Function handles both data access AND business logic
+
+---
+
+## The Solution: Dependency Injection
+
+### Refactored Implementation
+
+```typescript
+// packages/payment/vipps.ts
+// No framework imports!
+import { ID } from 'node-appwrite';
+import type { Databases } from 'node-appwrite';
+
+export async function createCheckoutSession(
+  params: CheckoutParams,
+  db: Databases // ← Dependency injected!
+) {
+  // Business logic (unchanged)
+  const order = await db.createDocument(
+    'database_id',
+    'orders',
+    ID.unique(),
+    {
+      userId: params.userId,
+      total: params.total,
+      status: 'pending',
+      // ...
+    }
+  );
+  
+  // Call Vipps API (unchanged)
+  const vippsSession = await fetch(VIPPS_API, {
+    method: 'POST',
+    body: JSON.stringify({
+      orderId: order.$id,
+      amount: params.total,
+      // ...
+    }),
+  });
+  
+  return vippsSession.url;
+}
+```
+
+### Wrapper for Next.js (Convenience)
+
+```typescript
+// packages/payment/actions.ts
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { createCheckoutSession } from './vipps';
+
+export async function initiateVippsCheckout(params: CheckoutParams) {
+  // Next.js-specific code stays here
+  const { db } = await createSessionClient();
+  
+  // Pass db to core function
+  const checkoutUrl = await createCheckoutSession(params, db);
+  
+  // Next.js-specific redirect
+  redirect(checkoutUrl);
+}
+```
+
+Now:
+- ✅ Core logic (`vipps.ts`) is framework-agnostic
+- ✅ Next.js code is isolated in `actions.ts`
+- ✅ Clear separation of concerns
+
+---
+
+## Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Next.js Layer"
+        A[Server Action<br/>actions.ts]
+    end
+    
+    subgraph "API Layer"
+        B[@repo/api/server<br/>createSessionClient]
+    end
+    
+    subgraph "Business Logic Layer"
+        C[Core Functions<br/>vipps.ts]
+    end
+    
+    subgraph "External Services"
+        D[Appwrite Database]
+        E[Vipps API]
+    end
+    
+    A -->|gets db from| B
+    A -->|passes db to| C
+    B --> D
+    C --> E
+    C -.uses injected db.-> D
+    
+    style C fill:#90EE90
+    style A fill:#87CEEB
+```
+
+**Key Points:**
+1. **Green (Business Logic)**: Framework-agnostic, testable
+2. **Blue (Next.js Layer)**: Framework-specific, thin wrapper
+3. **Dependency Flow**: One-way, clear boundaries
+
+---
+
+## Benefits in Practice
+
+### 1. Easy Testing
+
+```typescript
+// test/vipps.test.ts
+import { createCheckoutSession } from '@repo/payment/vipps';
+
+describe('createCheckoutSession', () => {
+  it('creates order and returns checkout URL', async () => {
+    // Mock database - no Next.js needed!
+    const mockDb = {
+      createDocument: jest.fn().mockResolvedValue({
+        $id: 'order_123',
+        total: 1000,
+      }),
+    };
+    
+    const result = await createCheckoutSession(
+      { userId: 'user_1', total: 1000 },
+      mockDb as any
+    );
+    
+    expect(mockDb.createDocument).toHaveBeenCalled();
+    expect(result).toContain('vipps.no');
+  });
+});
+```
+
+**No Next.js mocking required!**
+
+### 2. Reusability
+
+Can now use in different contexts:
+
+```typescript
+// In Next.js App (web/admin)
+import { createSessionClient } from '@repo/api/server';
+import { createCheckoutSession } from '@repo/payment/vipps';
+
+const { db } = await createSessionClient();
+await createCheckoutSession(params, db);
+```
+
+```typescript
+// In Express API
+import { Databases } from 'node-appwrite';
+import { createCheckoutSession } from '@repo/payment/vipps';
+
+const db = new Databases(client);
+await createCheckoutSession(params, db);
+```
+
+```typescript
+// In CLI Tool
+import { Databases } from 'node-appwrite';
+import { createCheckoutSession } from '@repo/payment/vipps';
+
+const db = new Databases(adminClient);
+await createCheckoutSession(params, db);
+```
+
+### 3. Clear Dependencies
+
+Function signature explicitly shows what it needs:
+
+```typescript
+// ✅ Clear: I need params and a database
+function createCheckoutSession(params: CheckoutParams, db: Databases)
+
+// ❌ Hidden: What does this need? Have to read the code
+function createCheckoutSession(params: CheckoutParams)
+```
+
+---
+
+## SOLID Principles
+
+This pattern follows SOLID principles:
+
+### Single Responsibility Principle (SRP)
+
+```typescript
+// ✅ Good: Each function has one responsibility
+
+// vipps.ts - Only business logic
+export async function createCheckoutSession(params, db) {
+  // Pure business logic
+}
+
+// actions.ts - Only Next.js integration
+export async function initiateVippsCheckout(params) {
+  const { db } = await createSessionClient(); // Framework
+  return createCheckoutSession(params, db);    // Business logic
+}
+```
+
+### Dependency Inversion Principle (DIP)
+
+```typescript
+// High-level module (vipps.ts) depends on abstraction (Databases interface)
+import type { Databases } from 'node-appwrite';
+
+export async function createCheckoutSession(
+  params: CheckoutParams,
+  db: Databases // ← Interface, not concrete implementation
+) {
+  // ...
+}
+
+// Low-level modules (Next.js, Express) provide the implementation
+const { db } = await createSessionClient();
+await createCheckoutSession(params, db);
+```
+
+---
+
+## When to Use Dependency Injection
+
+### ✅ Use DI When:
+
+1. **Creating shared packages** that should work in multiple environments
+2. **Testing is important** and you want to mock dependencies easily
+3. **Framework-agnostic code** is desired
+4. **Dependencies are complex** and need to be swapped
+5. **Following clean architecture** principles
+
+### ❌ Don't Overcomplicate:
+
+1. **Simple utilities** that don't need testing
+2. **Framework-specific components** (React components, Next.js layouts)
+3. **When it adds no value** (don't DI everything just because)
+
+---
+
+## Patterns in MON
+
+### Pattern 1: Package Core + Action Wrapper
+
+```typescript
+// Package core (framework-agnostic)
+// packages/payment/vipps.ts
+export async function coreFunction(params, dependencies) {
+  // Business logic
+}
+
+// Next.js wrapper
+// packages/payment/actions.ts
+'use server';
+export async function actionWrapper(params) {
+  const dependencies = await getDependencies();
+  return coreFunction(params, dependencies);
+}
+```
+
+### Pattern 2: Server Component Direct Usage
+
+```typescript
+// Server Component
+import { createSessionClient } from '@repo/api/server';
+import { coreFunction } from '@repo/payment/vipps';
+
+export default async function Page() {
+  const { db } = await createSessionClient();
+  const result = await coreFunction(params, db);
+  // ...
+}
+```
+
+### Pattern 3: API Route Usage
+
+```typescript
+// API Route Handler
+import { createAdminClient } from '@repo/api/server';
+import { handleWebhook } from '@repo/payment/vipps';
+
+export async function POST(request: NextRequest) {
+  const { db } = await createAdminClient();
+  await handleWebhook(data, db);
+  return NextResponse.json({ success: true });
+}
+```
+
+---
+
+## Migration Example
+
+If you have tightly coupled code, here's how to refactor:
+
+### Before
+
+```typescript
+// packages/email/sender.ts
+import { createSessionClient } from '@repo/api/server';
+
+export async function sendEmail(to: string, subject: string, body: string) {
+  const { db } = await createSessionClient();
+  
+  // Log to database
+  await db.createDocument('emails', ID.unique(), {
+    to,
+    subject,
+    sentAt: new Date().toISOString(),
+  });
+  
+  // Send email
+  await externalEmailService.send({ to, subject, body });
+}
+```
+
+### After (Refactored with DI)
+
+```typescript
+// packages/email/sender.ts
+import type { Databases } from 'node-appwrite';
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  body: string,
+  db: Databases // ← Injected dependency
+) {
+  // Log to database
+  await db.createDocument('emails', ID.unique(), {
+    to,
+    subject,
+    sentAt: new Date().toISOString(),
+  });
+  
+  // Send email
+  await externalEmailService.send({ to, subject, body });
+}
+```
+
+```typescript
+// packages/email/actions.ts
+'use server';
+import { createSessionClient } from '@repo/api/server';
+import { sendEmail as sendEmailCore } from './sender';
+
+export async function sendEmail(to: string, subject: string, body: string) {
+  const { db } = await createSessionClient();
+  return sendEmailCore(to, subject, body, db);
+}
+```
+
+---
+
+## Best Practices
+
+### 1. Inject at Function Level
+
+```typescript
+// ✅ Good: Function parameter
+export async function doSomething(params, db: Databases) {
+  // ...
+}
+
+// ❌ Avoid: Module-level import
+import { db } from './db';
+export async function doSomething(params) {
+  // Tightly coupled to module
+}
+```
+
+### 2. Use TypeScript Interfaces
+
+```typescript
+// ✅ Good: Depend on interface
+import type { Databases } from 'node-appwrite';
+
+export async function doSomething(db: Databases) {
+  // Can accept any implementation of Databases
+}
+```
+
+### 3. Keep Core Logic Pure
+
+```typescript
+// ✅ Good: Pure business logic
+export async function calculateTotal(items: Item[], db: Databases) {
+  const taxes = await db.getDocument('config', 'taxes');
+  return items.reduce((sum, item) => sum + item.price, 0) * (1 + taxes.rate);
+}
+
+// ❌ Avoid: Mixed concerns
+export async function calculateTotal(items: Item[]) {
+  const { db } = await createSessionClient(); // Framework coupling
+  const taxes = await db.getDocument('config', 'taxes');
+  return items.reduce((sum, item) => sum + item.price, 0) * (1 + taxes.rate);
+}
+```
+
+### 4. Create Convenience Wrappers
+
+```typescript
+// Core function with DI
+export async function coreFunction(params, db) { /* ... */ }
+
+// Convenient wrapper for Next.js
+export async function nextjsFunction(params) {
+  const { db } = await createSessionClient();
+  return coreFunction(params, db);
+}
+```
+
+---
+
+## Common Questions
+
+### Q: Doesn't this add boilerplate?
+
+**A:** Slightly, but the benefits outweigh the cost. The extra parameter is minimal compared to the gains in testability and reusability.
+
+### Q: When should I NOT use DI?
+
+**A:** For framework-specific code like React components, Next.js layouts, or simple utilities that don't need testing.
+
+### Q: Can I inject multiple dependencies?
+
+**A:** Yes! Pass an object:
+
+```typescript
+export async function doSomething(
+  params,
+  deps: { db: Databases; storage: Storage; cache: Cache }
+) {
+  // Use deps.db, deps.storage, deps.cache
+}
+```
+
+### Q: What about constructor injection (classes)?
+
+**A:** Function injection is simpler for this codebase, but class-based DI is also valid:
+
+```typescript
+class VippsService {
+  constructor(private db: Databases) {}
+  
+  async createCheckout(params) {
+    // Use this.db
+  }
+}
+```
+
+---
+
+## Summary
+
+**Dependency Injection** in the BISO Sites payment package:
+
+1. ✅ **Keeps packages framework-agnostic**
+2. ✅ **Makes testing easy** (mock the dependencies)
+3. ✅ **Follows SOLID principles**
+4. ✅ **Enables reusability** across different contexts
+5. ✅ **Makes dependencies explicit** and clear
+
+This pattern can be applied to any package where you want to maintain framework independence and improve testability.
+
+<Callout type="success" title="Clean Architecture">
+  By using dependency injection, BISO Sites packages follow clean architecture principles, making them maintainable, testable, and reusable.
+</Callout>
+
+## Next Steps
+
+<Callout type="info" title="Apply This Pattern">
+  - [Payment Package](/docs/packages/payment/overview) - See DI in action
+  - [Development Guides](/docs/guides/creating-features) - Apply when building features
+  - [Testing Guide](/docs/guides/testing) - Learn to test with DI
+</Callout>
+

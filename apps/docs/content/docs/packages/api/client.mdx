@@ -1,0 +1,637 @@
+---
+title: Client API Reference
+description: Complete reference for browser-side Appwrite usage in BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+
+# Client API Reference
+
+Client-side Appwrite exports for use in Client Components and browser JavaScript.
+
+## Overview
+
+The `@repo/api/client` package re-exports Appwrite SDK classes for browser usage. These are used in Client Components that need to interact with Appwrite directly from the browser.
+
+<Callout type="info">
+  For most cases, prefer Server Components and Server Actions. Use client-side APIs only when necessary (real-time updates, client-side interactivity).
+</Callout>
+
+## Exports
+
+```typescript
+import {
+  Client,
+  Account,
+  Databases,
+  Storage,
+  Functions,
+  Query,
+  ID,
+  OAuthProvider,
+  Realtime
+} from '@repo/api/client';
+
+// Types (type-only imports)
+import type { Models, RealtimeResponseEvent, Payload } from '@repo/api/client';
+```
+
+## Pre-configured Clients
+
+For convenience, the package provides pre-configured client instances:
+
+```typescript
+import {
+  clientSideClient,
+  clientDatabase,
+  clientStorage,
+  clientAccount,
+  clientFunctions
+} from '@repo/api/client';
+
+// Use directly
+const user = await clientAccount.get();
+const posts = await clientDatabase.listDocuments('db_id', 'posts');
+```
+
+## Basic Setup
+
+### Manual Client Setup
+
+```tsx
+'use client';
+
+import { Client, Account, Databases } from '@repo/api/client';
+
+export function MyComponent() {
+  // Create client
+  const client = new Client()
+    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT!);
+  
+  // Initialize services
+  const account = new Account(client);
+  const databases = new Databases(client);
+  
+  // Use services...
+}
+```
+
+### Using Pre-configured Client
+
+```tsx
+'use client';
+
+import { clientAccount, clientDatabase } from '@repo/api/client';
+
+export function MyComponent() {
+  // Already configured, ready to use
+  const fetchUser = async () => {
+    const user = await clientAccount.get();
+    console.log(user);
+  };
+}
+```
+
+## Services
+
+### Account
+
+Authentication and user management from the browser.
+
+```tsx
+'use client';
+
+import { clientAccount } from '@repo/api/client';
+import { useState } from 'react';
+
+export function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      // Note: Actual authentication is handled server-side
+      // This is a simplified example of client-side interaction
+      const response = await fetch('/api/auth/send-magic-link', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      
+      if (response.ok) {
+        setMessage('Check your email for login link!');
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  };
+  
+  return (
+    <form onSubmit={handleLogin}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Enter your email"
+      />
+      {message && <p>{message}</p>}
+      <button type="submit">Login</button>
+    </form>
+  );
+}
+```
+
+**Common Methods:**
+
+```typescript
+// Get current user
+const user = await clientAccount.get();
+
+// Logout
+await clientAccount.deleteSession('current');
+
+// Update preferences
+await clientAccount.updatePrefs({ theme: 'dark' });
+
+// Get sessions
+const sessions = await clientAccount.listSessions();
+```
+
+<Callout type="info" title="Authentication">
+  BISO Sites uses server-side authentication (Magic Link and OAuth). Authentication is handled via server actions and API routes, not directly from client components. See the [Authentication Guide](/docs/development/guides/authentication) for implementation details.
+</Callout>
+
+### Databases
+
+Query and mutate data from the browser.
+
+```tsx
+'use client';
+
+import { clientDatabase, Query } from '@repo/api/client';
+import { useEffect, useState } from 'react';
+
+export function PostsList() {
+  const [posts, setPosts] = useState([]);
+  
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const result = await clientDatabase.listDocuments(
+        'database_id',
+        'posts',
+        [
+          Query.equal('status', 'published'),
+          Query.orderDesc('$createdAt'),
+          Query.limit(10)
+        ]
+      );
+      
+      setPosts(result.documents);
+    };
+    
+    fetchPosts();
+  }, []);
+  
+  return (
+    <div>
+      {posts.map(post => (
+        <div key={post.$id}>{post.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+**Common Methods:**
+
+```typescript
+// List documents
+const result = await clientDatabase.listDocuments(
+  'database_id',
+  'collection_id',
+  [Query.limit(10)]
+);
+
+// Get document
+const doc = await clientDatabase.getDocument(
+  'database_id',
+  'collection_id',
+  'document_id'
+);
+
+// Create document
+const doc = await clientDatabase.createDocument(
+  'database_id',
+  'collection_id',
+  ID.unique(),
+  { title: 'Hello', content: 'World' }
+);
+
+// Update document
+await clientDatabase.updateDocument(
+  'database_id',
+  'collection_id',
+  'document_id',
+  { title: 'Updated' }
+);
+
+// Delete document
+await clientDatabase.deleteDocument(
+  'database_id',
+  'collection_id',
+  'document_id'
+);
+```
+
+### Storage
+
+File operations from the browser.
+
+```tsx
+'use client';
+
+import { clientStorage, ID } from '@repo/api/client';
+import { getStorageFileUrl } from '@repo/api';
+
+export function FileUpload() {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      // Upload file
+      const uploaded = await clientStorage.createFile(
+        'bucket_id',
+        ID.unique(),
+        file
+      );
+      
+      // Get URL
+      const url = getStorageFileUrl('bucket_id', uploaded.$id);
+      console.log('File uploaded:', url);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    }
+  };
+  
+  return <input type="file" onChange={handleUpload} />;
+}
+```
+
+**Common Methods:**
+
+```typescript
+// Upload file
+const file = await clientStorage.createFile(
+  'bucket_id',
+  ID.unique(),
+  fileBlob
+);
+
+// Get file info
+const fileInfo = await clientStorage.getFile('bucket_id', 'file_id');
+
+// List files
+const files = await clientStorage.listFiles('bucket_id');
+
+// Delete file
+await clientStorage.deleteFile('bucket_id', 'file_id');
+
+// Get file view URL (use helper instead)
+// const url = clientStorage.getFileView('bucket_id', 'file_id');
+```
+
+### Realtime
+
+Subscribe to real-time updates.
+
+```tsx
+'use client';
+
+import { Client, Databases } from '@repo/api/client';
+import { useEffect, useState } from 'react';
+
+export function LivePosts() {
+  const [posts, setPosts] = useState([]);
+  
+  useEffect(() => {
+    const client = new Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT!);
+    
+    const databases = new Databases(client);
+    
+    // Subscribe to collection changes
+    const unsubscribe = client.subscribe(
+      'databases.database_id.collections.posts.documents',
+      (response) => {
+        console.log('Update received:', response.payload);
+        
+        // Handle different event types
+        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+          setPosts(prev => [...prev, response.payload]);
+        }
+        
+        if (response.events.includes('databases.*.collections.*.documents.*.update')) {
+          setPosts(prev => prev.map(post =>
+            post.$id === response.payload.$id ? response.payload : post
+          ));
+        }
+        
+        if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
+          setPosts(prev => prev.filter(post => post.$id !== response.payload.$id));
+        }
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
+  
+  return (
+    <div>
+      {posts.map(post => (
+        <div key={post.$id}>{post.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+**Subscription Channels:**
+
+```typescript
+// All documents in a collection
+client.subscribe('databases.{databaseId}.collections.{collectionId}.documents');
+
+// Specific document
+client.subscribe('databases.{databaseId}.collections.{collectionId}.documents.{documentId}');
+
+// All files in a bucket
+client.subscribe('buckets.{bucketId}.files');
+
+// Specific file
+client.subscribe('buckets.{bucketId}.files.{fileId}');
+
+// Account changes
+client.subscribe('account');
+```
+
+## React Hooks Pattern
+
+Common pattern for using Appwrite in React:
+
+```tsx
+'use client';
+
+import { clientDatabase, Query } from '@repo/api/client';
+import { useEffect, useState } from 'react';
+
+export function usePosts() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const result = await clientDatabase.listDocuments(
+          'database_id',
+          'posts',
+          [Query.orderDesc('$createdAt')]
+        );
+        setPosts(result.documents);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPosts();
+  }, []);
+  
+  return { posts, loading, error };
+}
+
+// Usage
+export function PostsList() {
+  const { posts, loading, error } = usePosts();
+  
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  
+  return (
+    <div>
+      {posts.map(post => (
+        <div key={post.$id}>{post.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+## OAuth Authentication
+
+```tsx
+'use client';
+
+import { clientAccount, OAuthProvider } from '@repo/api/client';
+
+export function SocialLogin() {
+  const handleGoogleLogin = () => {
+    clientAccount.createOAuth2Session(
+      OAuthProvider.Google,
+      'http://localhost:3000/auth/callback', // Success URL
+      'http://localhost:3000/login' // Failure URL
+    );
+  };
+  
+  const handleGitHubLogin = () => {
+    clientAccount.createOAuth2Session(
+      OAuthProvider.Github,
+      'http://localhost:3000/auth/callback',
+      'http://localhost:3000/login'
+    );
+  };
+  
+  return (
+    <div>
+      <button onClick={handleGoogleLogin}>Login with Google</button>
+      <button onClick={handleGitHubLogin}>Login with GitHub</button>
+    </div>
+  );
+}
+```
+
+## Error Handling
+
+```tsx
+'use client';
+
+import { clientAccount } from '@repo/api/client';
+import { AppwriteException } from 'appwrite';
+
+export function UserProfile() {
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const currentUser = await clientAccount.get();
+        setUser(currentUser);
+      } catch (error) {
+        if (error instanceof AppwriteException) {
+          // Handle specific Appwrite errors
+          switch (error.code) {
+            case 401:
+              console.error('Not authenticated');
+              break;
+            case 429:
+              console.error('Too many requests');
+              break;
+            default:
+              console.error('Error:', error.message);
+          }
+        } else {
+          console.error('Unknown error:', error);
+        }
+      }
+    };
+    
+    fetchUser();
+  }, []);
+  
+  if (!user) return <div>Loading...</div>;
+  
+  return <div>Welcome, {user.name}</div>;
+}
+```
+
+## Query Helper
+
+```typescript
+import { Query } from '@repo/api/client';
+
+// Build queries
+const queries = [
+  Query.equal('status', 'published'),
+  Query.greaterThan('views', 100),
+  Query.search('title', 'react'),
+  Query.orderDesc('$createdAt'),
+  Query.limit(20),
+  Query.offset(0)
+];
+
+const result = await clientDatabase.listDocuments(
+  'database_id',
+  'posts',
+  queries
+);
+```
+
+## ID Helper
+
+```typescript
+import { ID } from '@repo/api/client';
+
+// Generate unique ID
+const uniqueId = ID.unique();
+
+// Use custom ID
+const customId = ID.custom('my-custom-id');
+```
+
+## Best Practices
+
+### 1. Prefer Server Components
+
+```tsx
+// ✅ Better: Server Component
+async function Posts() {
+  const { db } = await createSessionClient();
+  const posts = await db.listDocuments(...);
+  return <div>{posts.map(...)}</div>;
+}
+
+// ❌ Avoid: Client Component unless necessary
+'use client';
+function Posts() {
+  const [posts, setPosts] = useState([]);
+  useEffect(() => { /* fetch */ }, []);
+  return <div>{posts.map(...)}</div>;
+}
+```
+
+### 2. Handle Loading States
+
+```tsx
+'use client';
+
+export function Posts() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    clientDatabase.listDocuments(...)
+      .then(result => setPosts(result.documents))
+      .finally(() => setLoading(false));
+  }, []);
+  
+  if (loading) return <div>Loading...</div>;
+  
+  return <div>{/* render posts */}</div>;
+}
+```
+
+### 3. Clean Up Subscriptions
+
+```tsx
+useEffect(() => {
+  const unsubscribe = client.subscribe(channel, callback);
+  
+  // ✅ Clean up on unmount
+  return () => unsubscribe();
+}, []);
+```
+
+### 4. Use Environment Variables
+
+```tsx
+// ✅ Good: Use env vars
+const client = new Client()
+  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT!);
+
+// ❌ Bad: Hardcoded values
+const client = new Client()
+  .setEndpoint('https://cloud.appwrite.io/v1')
+  .setProject('abc123');
+```
+
+## When to Use Client API
+
+Use client-side APIs when:
+
+✅ Real-time updates needed
+✅ Client-side interactivity required
+✅ OAuth authentication flows
+✅ File uploads with progress tracking
+✅ Dynamic, user-specific data that can't be pre-rendered
+
+Avoid client-side APIs when:
+
+❌ SEO is important (use Server Components)
+❌ Data can be fetched at build/request time
+❌ No real-time updates needed
+❌ Server Actions can handle the mutation
+
+## Next Steps
+
+<Callout type="info">
+  - [Server API Reference](/docs/packages/api/server) - Server-side usage
+  - [Storage Utilities](/docs/packages/api/storage) - File handling helpers
+  - [Authentication Guide](/docs/guides/authentication) - Auth patterns
+</Callout>
+

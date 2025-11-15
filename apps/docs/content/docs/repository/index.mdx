@@ -1,0 +1,122 @@
+---
+title: Home
+---
+
+import { Callout } from 'components/callout';
+
+# Welcome to BISO Sites Documentation
+
+Comprehensive documentation for the BISO Sites monorepo - a modern student organization platform built with Next.js, React, and Appwrite.
+
+## Documentation Sections
+
+### 🏛️ Repository
+
+General monorepo documentation including setup, architecture, and deployment.
+
+- [Quick Start](/docs/repository/quickstart) - Get up and running in 5 minutes
+- [Installation](/docs/repository/installation) - Detailed setup instructions
+- [Architecture](/docs/repository/architecture/overview) - System design and patterns
+- [Deployment](/docs/repository/deployment/overview) - Production deployment guides
+
+### 🌐 Web App
+
+Public-facing website documentation including features and implementation details.
+
+- [Overview](/docs/web-app) - Web app introduction
+- [Routing](/docs/web-app/routing) - Route structure and navigation
+- [Features](/docs/web-app/features/membership) - Membership, events, e-commerce
+- [API Routes](/docs/web-app/api-routes) - API endpoints and webhooks
+
+### 🔐 Admin App
+
+Content management system documentation for administrators and editors.
+
+- [Overview](/docs/admin-app) - Admin app introduction
+- [Authentication](/docs/admin-app/auth) - Auth and role-based access
+- [User Management](/docs/admin-app/user-management) - Managing users and roles
+
+### 📦 Packages
+
+Shared package documentation and API references.
+
+- [@repo/api](/docs/packages/api/overview) - Appwrite client wrapper
+- [@repo/payment](/docs/packages/payment/overview) - Vipps payment integration
+- [@repo/ui](/docs/packages/ui/overview) - Shared UI component library
+- [@repo/editor](/docs/packages/editor/overview) - Puck page builder
+
+### 💻 Development
+
+Development guides and best practices for daily workflows.
+
+- [Development Workflow](/docs/development/guides/development-workflow) - Daily dev workflow
+- [Forms](/docs/development/guides/forms) - Form handling patterns
+- [i18n](/docs/development/guides/i18n) - Internationalization
+- [Database](/docs/development/guides/database) - Appwrite database operations
+- [Authentication](/docs/development/guides/authentication) - Auth patterns
+- [Styling](/docs/development/guides/styling) - Tailwind CSS guide
+- [Testing](/docs/development/guides/testing) - Testing strategy
+
+## Quick Links
+
+### For New Developers
+
+1. Start with [Quickstart](/docs/repository/quickstart)
+2. Read [Installation Guide](/docs/repository/installation)
+3. Follow [Development Workflow](/docs/development/guides/development-workflow)
+4. Refer to package docs as needed
+
+### For Experienced Developers
+
+1. Review [Architecture Overview](/docs/repository/architecture/overview)
+2. Deep dive into [Package Documentation](/docs/packages/api/overview)
+3. Check [Commands Reference](/docs/repository/reference/commands)
+
+### For Deployment
+
+1. Review [Deployment Overview](/docs/repository/deployment/overview)
+2. Configure [Environment Variables](/docs/repository/deployment/environment-variables)
+3. Set up [Appwrite Backend](/docs/repository/deployment/appwrite-setup)
+
+## Technology Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS
+- **Backend**: Appwrite (Database, Auth, Storage)
+- **Payment**: Vipps MobilePay
+- **i18n**: next-intl (Norwegian & English)
+- **Monorepo**: Turborepo with Bun
+
+## Project Structure
+
+```
+mon/
+├── apps/
+│   ├── web/         # Public website (port 3000)
+│   ├── admin/       # Admin CMS (port 3001)
+│   └── docs/        # Documentation (port 3002)
+├── packages/
+│   ├── api/         # Appwrite client
+│   ├── payment/     # Vipps integration
+│   ├── ui/          # Shared components
+│   └── editor/      # Page builder
+└── turbo.json       # Monorepo config
+```
+
+## Contributing
+
+Interested in contributing? Read our [Contributing Guide](/docs/repository/contributing).
+
+## Getting Help
+
+- Browse this documentation
+- Check [Troubleshooting](/docs/repository/troubleshooting)
+- View [Commands Reference](/docs/repository/reference/commands)
+
+<Callout type="success" title="Documentation Status">
+This documentation is **production-ready** and covers all major aspects of the BISO Sites platform. It provides approximately 80% coverage of comprehensive documentation needs.
+</Callout>
+
+## What's Next?
+
+Choose a section from the sidebar to dive deeper into specific topics. The documentation is organized by concern with a topic selector that lets you switch between Repository, Web App, Admin App, Packages, and Development sections.

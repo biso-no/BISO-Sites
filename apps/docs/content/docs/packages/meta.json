@@ -1,0 +1,7 @@
+{
+  "title": "Packages",
+  "description": "Shared package documentation",
+  "root": true,
+  "icon": "Package",
+  "pages": ["index", "api", "editor", "payment", "ui"]
+}

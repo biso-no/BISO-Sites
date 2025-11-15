@@ -1,0 +1,13 @@
+{
+  "title": "Development Guides",
+  "pages": [
+    "development-workflow",
+    "forms",
+    "i18n",
+    "database",
+    "authentication",
+    "styling",
+    "testing"
+  ]
+}
+

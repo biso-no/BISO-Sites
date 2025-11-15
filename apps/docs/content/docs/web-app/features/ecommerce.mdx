@@ -1,0 +1,576 @@
+---
+title: E-commerce Feature
+description: Complete guide to the shop/webshop system including product catalog, shopping cart, checkout, and order management.
+---
+
+import { Callout } from 'components/callout';
+
+# E-commerce Feature
+
+The BISO Sites e-commerce system allows departments to sell products, manage inventory, process payments through Vipps, and handle orders.
+
+## Overview
+
+The e-commerce feature includes:
+
+- **Product Catalog** - Browse products by department and category
+- **Shopping Cart** - Time-limited cart reservations
+- **Vipps Checkout** - Secure payment processing
+- **Order Management** - Track order status and history
+- **Inventory Management** - Stock tracking and availability
+
+## Shop Routes
+
+- `/shop` - Product listing page
+- `/shop/[slug]` - Product detail page
+- `/shop/cart` - Shopping cart
+- `/shop/checkout` - Checkout page
+- `/shop/order/[orderId]` - Order confirmation
+
+## Product Catalog
+
+### Shop Page
+
+**File**: `app/(public)/shop/page.tsx`
+
+```typescript
+// app/(public)/shop/page.tsx
+import { getProducts } from 'app/actions/products';
+import { ShopListClient } from '@/components/shop/shop-list-client';
+
+export default async function ShopPage({
+  searchParams
+}: {
+  searchParams: Promise<{ department?: string; category?: string }>
+}) {
+  const params = await searchParams;
+  const products = await getProducts({
+    department: params.department,
+    category: params.category,
+  });
+  
+  return (
+    <div className="container py-8">
+      <ShopHero />
+      <ShopListClient initialProducts={products} />
+    </div>
+  );
+}
+```
+
+### Product Card
+
+```typescript
+// components/shop/product-card.tsx
+import Link from 'next/link';
+import { Image } from '@repo/ui/components/image';
+import { Badge } from '@repo/ui/components/ui/badge';
+
+export function ProductCard({ product }) {
+  return (
+    <Link href={`/shop/${product.slug}`} className="group block">
+      <div className="rounded-lg border overflow-hidden">
+        <div className="relative aspect-square">
+          <Image 
+            src={product.imageUrl} 
+            alt={product.name}
+            fill
+            className="object-cover group-hover:scale-105 transition"
+          />
+          {product.stock <= 0 && (
+            <Badge className="absolute top-2 right-2" variant="destructive">
+              Out of Stock
+            </Badge>
+          )}
+        </div>
+        
+        <div className="p-4">
+          <h3 className="font-semibold line-clamp-2">
+            {product.name}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {product.department}
+          </p>
+          <p className="text-lg font-bold mt-2">
+            {product.price} NOK
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+```
+
+## Product Detail Page
+
+**File**: `app/(public)/shop/[slug]/page.tsx`
+
+```typescript
+// app/(public)/shop/[slug]/page.tsx
+import { getProductBySlug } from 'app/actions/products';
+import { ProductDetailsClient } from '@/components/shop/product-details-client';
+import { notFound } from 'next/navigation';
+
+export default async function ProductPage({
+  params
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+  
+  if (!product) notFound();
+  
+  return <ProductDetailsClient product={product} />;
+}
+```
+
+### Product Details Component
+
+```typescript
+// components/shop/product-details-client.tsx
+'use client';
+
+import { useState, useTransition } from 'react';
+import { addToCart } from 'app/actions/cart-reservations';
+import { Button } from '@repo/ui/components/ui/button';
+import { Select } from '@repo/ui/components/ui/select';
+
+export function ProductDetailsClient({ product }) {
+  const [quantity, setQuantity] = useState(1);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [isPending, startTransition] = useTransition();
+  
+  const handleAddToCart = () => {
+    startTransition(async () => {
+      await addToCart(product.$id, quantity, selectedVariant);
+    });
+  };
+  
+  const inStock = product.stock > 0;
+  
+  return (
+    <div className="container py-8">
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Image Gallery */}
+        <div>
+          <ProductImageGallery images={product.images} />
+        </div>
+        
+        {/* Product Info */}
+        <div>
+          <h1 className="text-3xl font-bold">{product.name}</h1>
+          <p className="text-2xl font-bold mt-4">
+            {product.price} NOK
+          </p>
+          
+          <div className="mt-6">
+            <p className="text-muted-foreground">
+              {product.description}
+            </p>
+          </div>
+          
+          {/* Variants */}
+          {product.variations && product.variations.length > 0 && (
+            <div className="mt-6">
+              <label className="font-semibold">Select Variant</label>
+              <Select 
+                value={selectedVariant} 
+                onChange={(e) => setSelectedVariant(e.target.value)}
+              >
+                <option value="">Choose...</option>
+                {product.variations.map(variant => (
+                  <option key={variant.id} value={variant.id}>
+                    {variant.name} {variant.additionalPrice > 0 && 
+                      `(+${variant.additionalPrice} NOK)`}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
+          
+          {/* Quantity */}
+          <div className="mt-6 flex items-center gap-4">
+            <label className="font-semibold">Quantity</label>
+            <Select 
+              value={quantity} 
+              onChange={(e) => setQuantity(Number(e.target.value))}
+            >
+              {Array.from({ length: Math.min(10, product.stock) }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1}
+                </option>
+              ))}
+            </Select>
+            <span className="text-sm text-muted-foreground">
+              {product.stock} in stock
+            </span>
+          </div>
+          
+          {/* Add to Cart */}
+          <Button 
+            onClick={handleAddToCart}
+            disabled={!inStock || isPending}
+            className="w-full mt-6"
+            size="lg"
+          >
+            {isPending ? 'Adding...' : inStock ? 'Add to Cart' : 'Out of Stock'}
+          </Button>
+          
+          {/* Additional Info */}
+          <div className="mt-8 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              <strong>SKU:</strong> {product.sku}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <strong>Category:</strong> {product.category}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <strong>Department:</strong> {product.department}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+## Shopping Cart
+
+### Cart Page
+
+**File**: `app/(public)/shop/cart/page.tsx`
+
+```typescript
+// app/(public)/shop/cart/page.tsx
+import { getCartItems } from 'app/actions/cart-reservations';
+import { CartPageClient } from '@/components/shop/cart-page-client';
+
+export default async function CartPage() {
+  const cartItems = await getCartItems();
+  
+  return <CartPageClient initialItems={cartItems} />;
+}
+```
+
+### Cart Component
+
+```typescript
+// components/shop/cart-page-client.tsx
+'use client';
+
+import { useState, useTransition } from 'react';
+import { 
+  removeFromCart, 
+  updateCartQuantity 
+} from 'app/actions/cart-reservations';
+import { Button } from '@repo/ui/components/ui/button';
+import { useRouter } from 'next/navigation';
+
+export function CartPageClient({ initialItems }) {
+  const [items, setItems] = useState(initialItems);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  
+  const total = items.reduce((sum, item) => 
+    sum + (item.price * item.quantity), 0
+  );
+  
+  const handleRemove = (itemId: string) => {
+    startTransition(async () => {
+      await removeFromCart(itemId);
+      setItems(prev => prev.filter(item => item.$id !== itemId));
+    });
+  };
+  
+  const handleQuantityChange = (itemId: string, newQuantity: number) => {
+    startTransition(async () => {
+      await updateCartQuantity(itemId, newQuantity);
+      setItems(prev => prev.map(item => 
+        item.$id === itemId 
+          ? { ...item, quantity: newQuantity }
+          : item
+      ));
+    });
+  };
+  
+  const handleCheckout = () => {
+    router.push('/shop/checkout');
+  };
+  
+  if (items.length === 0) {
+    return (
+      <div className="container py-12 text-center">
+        <h1 className="text-2xl font-bold mb-4">Your cart is empty</h1>
+        <Button onClick={() => router.push('/shop')}>
+          Continue Shopping
+        </Button>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="container py-8">
+      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+      
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Cart Items */}
+        <div className="lg:col-span-2 space-y-4">
+          {items.map(item => (
+            <CartItem 
+              key={item.$id}
+              item={item}
+              onRemove={handleRemove}
+              onQuantityChange={handleQuantityChange}
+              disabled={isPending}
+            />
+          ))}
+        </div>
+        
+        {/* Order Summary */}
+        <div>
+          <div className="border rounded-lg p-6 sticky top-4">
+            <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+            
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{total} NOK</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Shipping</span>
+                <span>Free</span>
+              </div>
+            </div>
+            
+            <div className="border-t pt-4 mb-6">
+              <div className="flex justify-between font-bold text-lg">
+                <span>Total</span>
+                <span>{total} NOK</span>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={handleCheckout}
+              disabled={isPending}
+              className="w-full"
+              size="lg"
+            >
+              Proceed to Checkout
+            </Button>
+            
+            <p className="text-xs text-muted-foreground mt-4">
+              Cart items are reserved for 15 minutes
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+## Checkout Flow
+
+```typescript
+// app/(public)/shop/checkout/checkout-page-client.tsx
+'use client';
+
+import { useState } from 'react';
+import { createOrder } from 'app/actions/orders';
+import { Button } from '@repo/ui/components/ui/button';
+
+export function CheckoutPageClient({ cartItems, total }) {
+  const [loading, setLoading] = useState(false);
+  
+  const handleCheckout = async () => {
+    setLoading(true);
+    try {
+      // This will redirect to Vipps
+      await createOrder(cartItems);
+    } catch (error) {
+      console.error(error);
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="container py-8 max-w-2xl">
+      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+      
+      {/* Order Summary */}
+      <div className="border rounded-lg p-6 mb-6">
+        <h2 className="font-bold mb-4">Order Summary</h2>
+        {cartItems.map(item => (
+          <div key={item.$id} className="flex justify-between py-2">
+            <span>{item.name} x {item.quantity}</span>
+            <span>{item.price * item.quantity} NOK</span>
+          </div>
+        ))}
+        <div className="border-t pt-4 mt-4">
+          <div className="flex justify-between font-bold">
+            <span>Total</span>
+            <span>{total} NOK</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Payment Button */}
+      <Button 
+        onClick={handleCheckout}
+        disabled={loading}
+        className="w-full"
+        size="lg"
+      >
+        {loading ? 'Redirecting to payment...' : 'Pay with Vipps'}
+      </Button>
+    </div>
+  );
+}
+```
+
+## Cart Server Actions
+
+```typescript
+// app/actions/cart-reservations.ts
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
+
+export async function addToCart(
+  productId: string, 
+  quantity: number = 1,
+  variantId?: string
+) {
+  const { db } = await createSessionClient();
+  const cookieStore = await cookies();
+  
+  // Get or create cart session
+  let sessionId = cookieStore.get('cart_session')?.value;
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    cookieStore.set('cart_session', sessionId, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+  
+  // Create reservation
+  await db.createDocument(
+    process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+    'cart_reservations',
+    'unique()',
+    {
+      sessionId,
+      productId,
+      variantId,
+      quantity,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    }
+  );
+  
+  revalidatePath('/shop/cart');
+  return { success: true };
+}
+
+export async function getCartItems() {
+  const { db } = await createSessionClient();
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get('cart_session')?.value;
+  
+  if (!sessionId) return [];
+  
+  const reservations = await db.listDocuments(
+    process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+    'cart_reservations',
+    [
+      Query.equal('sessionId', sessionId),
+      Query.greaterThan('expiresAt', new Date().toISOString()),
+    ]
+  );
+  
+  // Fetch product details for each reservation
+  const items = await Promise.all(
+    reservations.documents.map(async (res) => {
+      const product = await db.getDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'products',
+        res.productId
+      );
+      
+      return {
+        ...res,
+        ...product,
+        quantity: res.quantity,
+      };
+    })
+  );
+  
+  return items;
+}
+```
+
+## Database Schema
+
+### products
+
+```json
+{
+  "name": "string",
+  "slug": "string (unique)",
+  "description": "string",
+  "price": "number",
+  "sku": "string",
+  "stock": "integer",
+  "category": "string",
+  "departmentId": "string",
+  "imageUrl": "string",
+  "images": "array",
+  "variations": "array (optional)",
+  "customFields": "array (optional)",
+  "featured": "boolean"
+}
+```
+
+### cart_reservations
+
+```json
+{
+  "sessionId": "string",
+  "productId": "string",
+  "variantId": "string (optional)",
+  "quantity": "integer",
+  "expiresAt": "datetime"
+}
+```
+
+### orders
+
+```json
+{
+  "userId": "string",
+  "items": "string (JSON)",
+  "total": "number",
+  "status": "enum (pending, paid, shipped, delivered, cancelled)",
+  "paymentId": "string",
+  "createdAt": "datetime",
+  "paidAt": "datetime (optional)",
+  "shippedAt": "datetime (optional)"
+}
+```
+
+## Related Documentation
+
+- [Payment Package](/docs/packages/payment/overview) - Vipps integration
+- [Server Actions](/docs/web-app/server-actions) - Cart actions
+- [Admin Shop Management](/docs/admin-app/shop/products) - Product management
+
+<Callout type="info" title="Cart Reservations">
+Cart items are automatically reserved for 15 minutes. A cron job (`/api/cron/cleanup-reservations`) runs every 15 minutes to remove expired reservations.
+</Callout>
+

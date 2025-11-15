@@ -1,0 +1,510 @@
+---
+title: Routing and Pages
+description: Complete guide to the routing structure, pages, and navigation in the BISO Sites web app.
+---
+
+import { Callout } from 'components/callout';
+import { FileTree, FileTreeItem } from 'components/file-tree';
+
+# Routing and Pages
+
+The BISO Sites Web App uses **Next.js 15 App Router** with file-based routing. This document covers the complete routing structure, route groups, dynamic routes, and internationalization.
+
+## Route Organization
+
+Routes are organized using **route groups** to separate concerns:
+
+<FileTree>
+  <FileTreeItem name="app/" icon="📁">
+    <FileTreeItem name="(public)/" icon="📁" depth={1}>
+      <FileTreeItem name="page.tsx - Homepage" icon="📄" depth={2} />
+      <FileTreeItem name="about/" icon="📁" depth={2} />
+      <FileTreeItem name="events/" icon="📁" depth={2} />
+      <FileTreeItem name="shop/" icon="📁" depth={2} />
+      <FileTreeItem name="units/" icon="📁" depth={2} />
+      <FileTreeItem name="membership/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="(protected)/" icon="📁" depth={1}>
+      <FileTreeItem name="profile/" icon="📁" depth={2} />
+      <FileTreeItem name="fs/ - Expense system" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="(auth)/" icon="📁" depth={1}>
+      <FileTreeItem name="auth/login/" icon="📁" depth={2} />
+      <FileTreeItem name="auth/callback/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="actions/" icon="📁" depth={1} />
+    <FileTreeItem name="api/" icon="📁" depth={1} />
+  </FileTreeItem>
+</FileTree>
+
+<Callout type="info" title="Route Groups">
+Folders wrapped in parentheses `(group)` are route groups - they organize code but don't affect URLs. For example, `(public)/about/page.tsx` creates the `/about` route.
+</Callout>
+
+## Public Routes
+
+These routes are accessible to all visitors without authentication.
+
+### Homepage
+
+**Route**: `/`  
+**File**: `app/(public)/page.tsx`
+
+The landing page featuring:
+- Hero section with dynamic content
+- Featured events
+- Latest news
+- Department highlights
+- Call-to-action buttons
+
+```typescript
+// app/(public)/page.tsx
+import { Suspense } from 'react';
+import { HeroSection } from '@/components/homepage/hero-section';
+import { FeaturedEvents } from '@/components/homepage/featured-events';
+import { LatestNews } from '@/components/homepage/latest-news';
+
+export default function HomePage() {
+  return (
+    <div className="flex flex-col gap-16">
+      <HeroSection />
+      <Suspense fallback={<EventsSkeleton />}>
+        <FeaturedEvents />
+      </Suspense>
+      <Suspense fallback={<NewsSkeleton />}>
+        <LatestNews />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+### About Pages
+
+**Route**: `/about/*`  
+**Files**: `app/(public)/about/**/*.tsx`
+
+Organizational information pages:
+
+- `/about` - General overview
+- `/about/what-is-biso` - Organization introduction
+- `/about/history` - Historical timeline
+- `/about/bylaws` - Bylaws and constitution
+- `/about/operations` - Operational structure
+- `/about/politics` - Political stance
+- `/about/study-quality` - Academic quality work
+- `/about/saih` - SAIH partnership
+- `/about/alumni` - Alumni network
+- `/about/academics-contact` - Academic contact persons
+
+Each page uses shared layout for consistent navigation.
+
+### Events
+
+**Route**: `/events`, `/events/[id]`  
+**Files**: `app/(public)/events/page.tsx`, `app/(public)/events/[id]/page.tsx`
+
+Event management system:
+
+```typescript
+// Event listing
+// app/(public)/events/page.tsx
+import { getEvents } from 'app/actions/events';
+
+export default async function EventsPage() {
+  const events = await getEvents();
+  
+  return (
+    <div>
+      <h1>Upcoming Events</h1>
+      <EventsList events={events} />
+    </div>
+  );
+}
+
+// Event detail
+// app/(public)/events/[id]/page.tsx
+export default async function EventPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  const { id } = await params;
+  const event = await getEventById(id);
+  
+  return <EventDetail event={event} />;
+}
+```
+
+### Shop/E-commerce
+
+**Route**: `/shop/*`  
+**Files**: `app/(public)/shop/**/*.tsx`
+
+Full e-commerce functionality:
+
+- `/shop` - Product catalog
+- `/shop/[slug]` - Product detail pages
+- `/shop/cart` - Shopping cart
+- `/shop/checkout` - Checkout process
+- `/shop/order/[orderId]` - Order confirmation
+
+<Callout type="info" title="Shopping Cart">
+The shopping cart uses time-limited reservations to prevent overselling. Reservations expire after 15 minutes if not checked out.
+</Callout>
+
+```typescript
+// Product detail page
+// app/(public)/shop/[slug]/page.tsx
+import { getProductBySlug } from 'app/actions/products';
+import { AddToCartButton } from '@/components/shop/add-to-cart-button';
+
+export default async function ProductPage({
+  params
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+  
+  return (
+    <div className="grid md:grid-cols-2 gap-8">
+      <ProductImages images={product.images} />
+      <div>
+        <h1>{product.name}</h1>
+        <p className="text-2xl font-bold">{product.price} NOK</p>
+        <AddToCartButton productId={product.$id} />
+      </div>
+    </div>
+  );
+}
+```
+
+### Units/Departments
+
+**Route**: `/units`, `/units/[id]`  
+**Files**: `app/(public)/units/page.tsx`, `app/(public)/units/[id]/page.tsx`
+
+Department showcase system:
+
+- `/units` - All departments with filtering
+- `/units/[id]` - Individual department pages with tabs:
+  - Overview
+  - Team members
+  - Products
+  - News updates
+
+```typescript
+// Department page
+// app/(public)/units/[id]/page.tsx
+import { getDepartmentById } from 'app/actions/campus';
+
+export default async function DepartmentPage({
+  params
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params;
+  const department = await getDepartmentById(id);
+  
+  return (
+    <div>
+      <DepartmentHero department={department} />
+      <DepartmentTabsClient department={department} />
+    </div>
+  );
+}
+```
+
+### Membership
+
+**Route**: `/membership`  
+**File**: `app/(public)/membership/page.tsx`
+
+Membership registration and information:
+
+```typescript
+// app/(public)/membership/membership-page-client.tsx
+'use client';
+
+import { MembershipForm } from '@/components/forms/membership-form';
+import { BenefitsSection } from '@/components/membership/benefits';
+
+export function MembershipPageClient() {
+  return (
+    <div className="container py-12">
+      <h1>Become a Member</h1>
+      <BenefitsSection />
+      <MembershipForm />
+    </div>
+  );
+}
+```
+
+### Other Public Routes
+
+- `/contact` - Contact information and form
+- `/jobs` - Job listings
+- `/jobs/[slug]` - Job detail and application
+- `/news` - News listing
+- `/news/[id]` - News article
+- `/press` - Press releases
+- `/projects` - Project showcase
+- `/projects/[slug]` - Project details
+- `/students` - Student resources
+- `/campus` - Campus information
+- `/partner` - Partner information
+- `/bi-fondet` - BI Fund information
+- `/business-hotspot` - Business hotspot
+- `/policies/*` - Policy pages
+- `/privacy` - Privacy policy
+- `/terms` - Terms and conditions
+- `/safety` - Safety information (varsling)
+
+## Protected Routes
+
+These routes require authentication and redirect to `/auth/login` if not logged in.
+
+### Profile
+
+**Route**: `/profile`  
+**File**: `app/(protected)/profile/page.tsx`
+
+User profile management:
+
+```typescript
+// app/(protected)/profile/page.tsx
+import { createSessionClient } from '@repo/api/server';
+import { redirect } from 'next/navigation';
+
+export default async function ProfilePage() {
+  const { account } = await createSessionClient();
+  
+  try {
+    const user = await account.get();
+    return <UserProfile user={user} />;
+  } catch {
+    redirect('/auth/login');
+  }
+}
+```
+
+### Expense System
+
+**Route**: `/fs`, `/fs/[id]`, `/fs/new`  
+**Files**: `app/(protected)/fs/**/*.tsx`
+
+Internal expense tracking system:
+
+- `/fs` - Expense listing
+- `/fs/[id]` - Expense details
+- `/fs/new` - Create new expense
+
+```typescript
+// app/(protected)/fs/page.tsx
+import { getUserExpenses } from 'app/actions/expenses';
+
+export default async function ExpensesPage() {
+  const expenses = await getUserExpenses();
+  
+  return (
+    <div className="container py-8">
+      <h1>My Expenses</h1>
+      <ExpenseList expenses={expenses} />
+    </div>
+  );
+}
+```
+
+## Authentication Routes
+
+Routes for authentication flows.
+
+### Login
+
+**Route**: `/auth/login`  
+**File**: `app/(auth)/auth/login/page.tsx`
+
+Login page with email/password and OAuth options.
+
+### OAuth Callback
+
+**Route**: `/auth/callback`  
+**File**: `app/(auth)/auth/callback/route.ts`
+
+Handles OAuth redirects from Appwrite.
+
+### Invite Callback
+
+**Route**: `/auth/invite`  
+**File**: `app/(auth)/auth/invite/route.ts`
+
+Handles team invitation links.
+
+## API Routes
+
+Server-side API endpoints for external integrations.
+
+### Authentication API
+
+**Routes**:
+- `POST /api/auth/anonymous` - Create anonymous session
+- `GET /api/auth/check` - Check authentication status
+
+### Payment Webhooks
+
+**Routes**:
+- `POST /api/checkout/webhook` - Vipps payment webhook
+- `GET /api/checkout/return` - Payment return URL
+- `POST /api/payment/vipps/callback` - Vipps callback
+
+### Utilities
+
+**Routes**:
+- `GET /api/health` - Health check endpoint
+- `POST /api/cron/cleanup-reservations` - Cleanup expired cart reservations
+
+## Internationalization (i18n)
+
+All routes support both English and Norwegian through URL prefixes:
+
+- **Norwegian** (default): `/no/about`, `/no/events`, etc.
+- **English**: `/en/about`, `/en/events`, etc.
+
+The locale is automatically detected from:
+1. URL prefix
+2. Cookie preference
+3. Accept-Language header
+4. Default (Norwegian)
+
+```typescript
+// Using translations in a component
+import { useTranslations } from 'next-intl';
+
+export function WelcomeMessage() {
+  const t = useTranslations('home');
+  
+  return <h1>{t('welcome')}</h1>;
+}
+```
+
+### Message Files
+
+Translation files are organized by page/feature:
+
+```
+apps/web/messages/
+├── en/
+│   ├── common.json       # Shared translations
+│   ├── home.json         # Homepage
+│   ├── about.json        # About pages
+│   ├── events.json       # Events
+│   └── ...
+└── no/
+    └── ... (same structure)
+```
+
+## Dynamic Routes
+
+### Type-Safe Parameters
+
+Use TypeScript for type-safe route parameters:
+
+```typescript
+interface PageParams {
+  params: Promise<{
+    id: string;
+    slug?: string;
+  }>;
+  searchParams?: Promise<{
+    page?: string;
+    filter?: string;
+  }>;
+}
+
+export default async function Page({ 
+  params, 
+  searchParams 
+}: PageParams) {
+  const { id } = await params;
+  const query = await searchParams;
+  // ...
+}
+```
+
+### Generating Static Params
+
+For static generation of dynamic routes:
+
+```typescript
+export async function generateStaticParams() {
+  const events = await getAllEvents();
+  
+  return events.map((event) => ({
+    id: event.$id,
+  }));
+}
+```
+
+## Middleware and Protection
+
+Route protection is handled by Next.js middleware:
+
+```typescript
+// middleware.ts
+import { createServerClient } from '@repo/api/server';
+import { NextResponse } from 'next/server';
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Protected routes
+  if (pathname.startsWith('/profile') || pathname.startsWith('/fs')) {
+    const { account } = await createSessionClient();
+    
+    try {
+      await account.get();
+    } catch {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+  }
+  
+  return NextResponse.next();
+}
+```
+
+## Route Conventions
+
+### File Naming
+
+- `page.tsx` - Route page component
+- `layout.tsx` - Shared layout for routes
+- `loading.tsx` - Loading UI
+- `error.tsx` - Error boundary
+- `not-found.tsx` - 404 page
+- `route.ts` - API route handler
+
+### Component Naming
+
+- **Page components**: `HomePage`, `AboutPage`
+- **Client components**: `*Client` suffix (e.g., `MembershipPageClient`)
+- **Server actions**: Exported functions in `app/actions/`
+
+## Related Documentation
+
+- [Components](/docs/web-app/components) - Component organization
+- [Server Actions](/docs/web-app/server-actions) - Data mutations
+- [API Routes](/docs/web-app/api-routes) - API endpoints
+- [i18n Guide](/docs/development/guides/i18n) - Internationalization
+
+## Best Practices
+
+<Callout type="success" title="Route Best Practices">
+1. **Use Server Components by default** - Add `"use client"` only when needed
+2. **Colocate client components** - Keep them close to where they're used
+3. **Type your parameters** - Use TypeScript interfaces for params
+4. **Handle loading states** - Use `loading.tsx` and Suspense
+5. **Handle errors gracefully** - Use `error.tsx` boundaries
+6. **Protect routes** - Use middleware for authentication checks
+</Callout>
+

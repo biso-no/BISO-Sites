@@ -1,0 +1,5 @@
+{
+  "title": "@repo/api",
+  "pages": ["overview", "server", "client", "storage"]
+}
+

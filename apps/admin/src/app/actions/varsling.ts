@@ -17,7 +17,7 @@ export interface VarslingSubmission {
 }
 
 // Get varsling settings for a specific campus
-async function getVarslingSettings(campusId?: string): Promise<VarslingSettings[]> {
+export async function getVarslingSettings(campusId?: string): Promise<VarslingSettings[]> {
   try {
     const { db } = await createAdminClient();
     

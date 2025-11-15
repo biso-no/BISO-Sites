@@ -1,0 +1,534 @@
+---
+title: Payment Package Overview
+description: Multi-provider payment processing package for BISO Sites, currently supporting Vipps MobilePay.
+---
+
+import { Callout } from 'components/callout';
+
+# Payment Package Overview
+
+The `@repo/payment` package provides payment processing capabilities for BISO Sites. Currently supports Vipps MobilePay with a clean, framework-agnostic architecture.
+
+## Key Features
+
+- ✅ **Vipps MobilePay Integration** - Full checkout flow
+- ✅ **Framework-Agnostic Core** - Uses dependency injection
+- ✅ **Server Actions** - Convenient Next.js wrappers
+- ✅ **Webhook Handling** - Automatic order status updates
+- ✅ **Type-Safe** - Full TypeScript support
+- ✅ **Race Condition Handling** - Between webhooks and redirects
+- ✅ **Error Handling** - Comprehensive error management
+
+## Package Structure
+
+```
+packages/payment/
+├── vipps.ts          # Core Vipps logic (framework-agnostic)
+├── actions.ts        # Server actions for Next.js
+├── package.json
+├── README.md
+└── tsconfig.json
+```
+
+## Quick Start
+
+### 1. Install & Configure
+
+```bash
+# Environment variables
+VIPPS_CLIENT_ID=your_client_id
+VIPPS_CLIENT_SECRET=your_secret
+VIPPS_MERCHANT_SERIAL_NUMBER=your_msn
+VIPPS_SUBSCRIPTION_KEY=your_sub_key
+VIPPS_TEST_MODE=true
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+### 2. Initiate Checkout
+
+```typescript
+'use server';
+
+import { initiateVippsCheckout } from '@repo/payment/actions';
+
+export async function handleCheckout() {
+  await initiateVippsCheckout({
+    userId: 'user_123',
+    items: [
+      {
+        productId: 'prod_1',
+        name: 'T-Shirt',
+        price: 299,
+        quantity: 2
+      }
+    ],
+    subtotal: 598,
+    total: 598,
+    currency: 'NOK',
+  });
+  // User is redirected to Vipps
+}
+```
+
+### 3. Handle Callback
+
+```typescript
+// app/api/payment/vipps/callback/route.ts
+import { createAdminClient } from '@repo/api/server';
+import { handleVippsCallback } from '@repo/payment/vipps';
+
+export async function POST(request: NextRequest) {
+  const authToken = request.headers.get('authorization');
+  const sessionId = request.nextUrl.searchParams.get('sessionId');
+  
+  const { db } = await createAdminClient();
+  await handleVippsCallback(authToken, sessionId, db);
+  
+  return NextResponse.json({ success: true });
+}
+```
+
+### 4. Display Order Confirmation
+
+```typescript
+// app/checkout/confirmation/[orderId]/page.tsx
+import { getOrder } from '@repo/payment/actions';
+
+export default async function OrderConfirmation({ 
+  params 
+}: { 
+  params: { orderId: string } 
+}) {
+  const order = await getOrder(params.orderId);
+  
+  if (!order) return <div>Order not found</div>;
+  
+  return (
+    <div>
+      <h1>Order Confirmed!</h1>
+      <p>Status: {order.status}</p>
+      <p>Total: {order.total} {order.currency}</p>
+    </div>
+  );
+}
+```
+
+## Architecture
+
+The payment package follows clean architecture with dependency injection:
+
+```mermaid
+graph LR
+    A[Next.js App] --> B[Server Actions<br/>actions.ts]
+    B --> C[Core Logic<br/>vipps.ts]
+    C --> D[Vipps API]
+    B --> E[Appwrite DB]
+    C -.db injected.-> E
+```
+
+**Benefits:**
+- Core logic is framework-agnostic
+- Easy to test (mock database)
+- Can be used in any Node.js environment
+- Clear separation of concerns
+
+## Complete Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant Payment
+    participant DB as Appwrite
+    participant Vipps
+    
+    User->>App: Click "Checkout"
+    App->>Payment: initiateVippsCheckout()
+    Payment->>DB: Create order (PENDING)
+    Payment->>Vipps: Create session
+    Vipps-->>Payment: Checkout URL
+    Payment-->>App: Redirect
+    App-->>User: Redirect to Vipps
+    
+    User->>Vipps: Complete payment
+    
+    par Webhook
+        Vipps->>App: POST /api/payment/callback
+        App->>Payment: handleVippsCallback()
+        Payment->>DB: Update (AUTHORIZED/PAID)
+    and Return URL
+        Vipps-->>User: Redirect to /checkout/return
+        User->>App: GET /checkout/return
+        App->>Payment: verifyOrderStatus()
+        Payment->>Vipps: Check status
+        Vipps-->>Payment: Status
+        Payment->>DB: Update if needed
+    end
+    
+    App-->>User: Show confirmation
+```
+
+## Order States
+
+| State | Description |
+|-------|-------------|
+| `PENDING` | Order created, awaiting payment |
+| `AUTHORIZED` | Payment authorized, money reserved |
+| `PAID` | Payment captured, money transferred |
+| `CANCELLED` | User cancelled or payment expired |
+| `FAILED` | Technical failure |
+| `REFUNDED` | Order refunded |
+
+## API Reference
+
+### Server Actions (Recommended)
+
+#### initiateVippsCheckout()
+
+Initiates checkout and redirects to Vipps.
+
+```typescript
+async function initiateVippsCheckout(
+  params: CheckoutSessionParams
+): Promise<never>
+```
+
+**Parameters:**
+
+```typescript
+interface CheckoutSessionParams {
+  userId: string;
+  items: Array<{
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
+  subtotal: number;
+  discountTotal?: number;
+  shippingCost?: number;
+  total: number;
+  currency: 'NOK';
+  membershipApplied?: boolean;
+  memberDiscountPercent?: number;
+  campusId?: string;
+  customerInfo?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    streetAddress?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
+}
+```
+
+**Example:**
+
+```typescript
+'use server';
+
+import { initiateVippsCheckout } from '@repo/payment/actions';
+
+export async function checkout(cartItems: CartItem[]) {
+  await initiateVippsCheckout({
+    userId: 'user_123',
+    items: cartItems.map(item => ({
+      productId: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    })),
+    subtotal: calculateSubtotal(cartItems),
+    total: calculateTotal(cartItems),
+    currency: 'NOK',
+    customerInfo: {
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john@example.com',
+      phone: '+4712345678'
+    }
+  });
+}
+```
+
+#### getOrder()
+
+Retrieves order from database.
+
+```typescript
+async function getOrder(orderId: string): Promise<Orders | null>
+```
+
+**Example:**
+
+```typescript
+const order = await getOrder('order_123');
+if (order) {
+  console.log(`Order status: ${order.status}`);
+}
+```
+
+#### verifyOrder()
+
+Verifies order status with Vipps and updates database.
+
+```typescript
+async function verifyOrder(orderId: string): Promise<Orders | null>
+```
+
+**Example:**
+
+```typescript
+// After user returns from Vipps
+const order = await verifyOrder('order_123');
+if (order?.status === 'PAID') {
+  // Show success message
+}
+```
+
+### Core Functions (Advanced)
+
+For direct usage or non-Next.js environments:
+
+#### createCheckoutSession()
+
+```typescript
+async function createCheckoutSession(
+  params: CheckoutSessionParams,
+  db: Database
+): Promise<VippsCheckoutResponse>
+```
+
+#### handleVippsCallback()
+
+```typescript
+async function handleVippsCallback(
+  authToken: string | null,
+  sessionId: string | null,
+  db: Database
+): Promise<void>
+```
+
+#### getOrderStatus()
+
+```typescript
+async function getOrderStatus(
+  orderId: string,
+  db: Database
+): Promise<Orders | null>
+```
+
+#### verifyOrderStatus()
+
+```typescript
+async function verifyOrderStatus(
+  orderId: string,
+  db: Database
+): Promise<Orders | null>
+```
+
+## Environment Variables
+
+```bash
+# Vipps Configuration
+VIPPS_CLIENT_ID=your_client_id
+VIPPS_CLIENT_SECRET=your_client_secret
+VIPPS_MERCHANT_SERIAL_NUMBER=your_msn
+VIPPS_SUBSCRIPTION_KEY=your_subscription_key
+
+# Test mode (true/false)
+VIPPS_TEST_MODE=true
+
+# Your site URL (for callbacks)
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# Appwrite (for order storage)
+APPWRITE_DATABASE_ID=your_db_id
+APPWRITE_ORDERS_COLLECTION_ID=your_orders_collection_id
+```
+
+## Testing
+
+### Test Mode
+
+Set `VIPPS_TEST_MODE=true` to use Vipps test environment.
+
+**Test Card Numbers:**
+
+```
+Card: 4925 0000 0000 0004
+Expiry: Any future date
+CVC: Any 3 digits
+```
+
+### Manual Testing
+
+1. Start checkout flow
+2. Complete payment in Vipps test environment
+3. Verify order status updates correctly
+4. Test both webhook and return URL paths
+5. Test cancellation flow
+
+## Error Handling
+
+```typescript
+'use server';
+
+import { initiateVippsCheckout } from '@repo/payment/actions';
+
+export async function handleCheckout(params) {
+  try {
+    await initiateVippsCheckout(params);
+  } catch (error) {
+    console.error('Checkout failed:', error);
+    
+    // Handle specific errors
+    if (error.message.includes('insufficient stock')) {
+      return { error: 'Some items are out of stock' };
+    }
+    
+    return { error: 'Checkout failed. Please try again.' };
+  }
+}
+```
+
+## Common Patterns
+
+### Cart Checkout Button
+
+```tsx
+'use client';
+
+import { Button } from '@repo/ui/components/ui/button';
+import { checkout } from './actions';
+
+export function CheckoutButton({ items }: { items: CartItem[] }) {
+  return (
+    <form action={() => checkout(items)}>
+      <Button type="submit" size="lg">
+        Go to Checkout
+      </Button>
+    </form>
+  );
+}
+```
+
+### Order Status Display
+
+```tsx
+import { getOrder } from '@repo/payment/actions';
+import { Badge } from '@repo/ui/components/ui/badge';
+
+export async function OrderStatus({ orderId }: { orderId: string }) {
+  const order = await getOrder(orderId);
+  
+  if (!order) return null;
+  
+  const statusColor = {
+    PENDING: 'warning',
+    AUTHORIZED: 'info',
+    PAID: 'success',
+    CANCELLED: 'default',
+    FAILED: 'destructive'
+  }[order.status];
+  
+  return <Badge variant={statusColor}>{order.status}</Badge>;
+}
+```
+
+### Return URL Handler
+
+```typescript
+// app/checkout/return/page.tsx
+import { verifyOrder } from '@repo/payment/actions';
+import { redirect } from 'next/navigation';
+
+export default async function CheckoutReturn({
+  searchParams
+}: {
+  searchParams: { orderId?: string }
+}) {
+  const orderId = searchParams.orderId;
+  
+  if (!orderId) {
+    redirect('/shop/cart');
+  }
+  
+  // Verify with Vipps (handles race condition)
+  const order = await verifyOrder(orderId);
+  
+  if (!order) {
+    redirect('/shop/cart?error=order_not_found');
+  }
+  
+  // Redirect to confirmation
+  redirect(`/checkout/confirmation/${orderId}`);
+}
+```
+
+## Security
+
+<Callout type="warning" title="Important Security Notes">
+  - Never expose `VIPPS_CLIENT_SECRET` to the client
+  - Always verify webhook signatures
+  - Use admin client for webhook handlers (no user session)
+  - Validate all input parameters
+  - Check order ownership before displaying details
+</Callout>
+
+### Webhook Verification
+
+```typescript
+// Verify Vipps webhook signature
+function verifyWebhookSignature(
+  authToken: string,
+  expectedToken: string
+): boolean {
+  // Implement signature verification
+  return authToken === expectedToken;
+}
+```
+
+## Best Practices
+
+1. **Always use Server Actions** for initiating checkout
+2. **Implement proper error handling** for failed payments
+3. **Show loading states** during checkout initiation
+4. **Verify order ownership** before displaying details
+5. **Handle webhooks and return URLs** (race condition safe)
+6. **Log all payment operations** for debugging
+7. **Test thoroughly** in test mode before going live
+
+## Troubleshooting
+
+### Order Stuck in PENDING
+
+- Check webhook is receiving callbacks
+- Verify webhook URL is accessible
+- Check Vipps dashboard for webhook logs
+- Manually verify with `verifyOrder()`
+
+### Webhook Not Received
+
+- Check firewall/proxy settings
+- Verify webhook URL in Vipps dashboard
+- Check server logs for incoming requests
+- Test with Vipps webhook testing tool
+
+### Payment Authorized but Not Captured
+
+- Vipps has two-phase payments: authorize then capture
+- Implement capture logic if needed
+- Or use direct charge (single-phase)
+
+## Next Steps
+
+<Callout type="info">
+  - [Vipps Integration Guide](/docs/packages/payment/vipps) - Detailed Vipps setup
+  - [Server Actions Reference](/docs/packages/payment/actions) - All action APIs
+  - [Development Workflow](/docs/guides/development-workflow) - Daily development
+</Callout>
+

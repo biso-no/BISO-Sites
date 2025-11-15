@@ -1,0 +1,137 @@
+---
+title: Testing Guide
+description: Testing strategy, type checking, linting, and validation approaches.
+---
+
+import { Callout } from 'components/callout';
+
+# Testing Guide
+
+BISO Sites uses a pragmatic testing approach focused on type safety, linting, and manual validation.
+
+## Type Checking
+
+Run TypeScript checks:
+
+```bash
+# Check all apps and packages
+bun run check-types
+
+# Check specific app
+cd apps/web && bun run tsc --noEmit
+```
+
+## Linting
+
+ESLint configuration for code quality:
+
+```bash
+# Lint all
+bun run lint
+
+# Lint specific app
+cd apps/web && bun run lint
+```
+
+## Build Validation
+
+The build process validates the entire application:
+
+```bash
+# Build all
+bun run build
+
+# Build specific app
+bun run build --filter=web
+```
+
+## Manual Testing Workflow
+
+<Steps>
+<Step title="Start Development Server">
+
+```bash
+bun run dev --filter=web
+```
+
+</Step>
+
+<Step title="Test Critical Flows">
+
+- User registration and login
+- Product purchase flow
+- Event registration
+- Admin content creation
+
+</Step>
+
+<Step title="Verify Responsiveness">
+
+Test on different screen sizes:
+- Mobile (375px)
+- Tablet (768px)
+- Desktop (1440px)
+
+</Step>
+
+<Step title="Check Both Languages">
+
+Test in English (`/en`) and Norwegian (`/no`)
+
+</Step>
+</Steps>
+
+## Testing Patterns
+
+### Validate with Zod
+
+```typescript
+import { z } from 'zod';
+
+const schema = z.object({
+  email: z.string().email(),
+  age: z.number().min(18),
+});
+
+// This will throw if invalid
+const validated = schema.parse(userInput);
+```
+
+### Type-Safe Forms
+
+```typescript
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+const { register, handleSubmit } = useForm({
+  resolver: zodResolver(schema), // Automatic validation
+});
+```
+
+### Error Boundaries
+
+```typescript
+// app/error.tsx
+'use client';
+
+export default function Error({ error, reset }: {
+  error: Error;
+  reset: () => void;
+}) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+## Related Documentation
+- [Forms Guide](/docs/development/guides/forms)
+- [Database Guide](/docs/development/guides/database)
+
+<Callout type="info" title="Testing Philosophy">
+BISO Sites prioritizes TypeScript type safety, ESLint rules, and build-time validation over extensive unit testing. This approach works well for rapid development while maintaining quality.
+</Callout>
+

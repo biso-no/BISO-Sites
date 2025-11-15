@@ -1,0 +1,229 @@
+---
+title: Authentication Guide
+description: Authentication patterns and best practices for both web and admin apps.
+---
+
+import { Callout } from 'components/callout';
+
+# Authentication Guide
+
+Authentication in BISO Sites is handled by Appwrite with different authentication methods for web and admin apps.
+
+## Authentication Methods
+
+BISO Sites uses two different authentication methods:
+
+1. **Magic Link** (Email Link) - For public web app users
+2. **OAuth (Microsoft/Azure)** - For admin users with BISO accounts
+
+<Callout type="info" title="No Password Authentication">
+BISO Sites does NOT use traditional email/password authentication. Instead, it uses passwordless magic links for users and OAuth for administrators.
+</Callout>
+
+## Web App Authentication (Magic Link)
+
+### How It Works
+
+1. User enters their email address
+2. System sends a magic link to their email
+3. User clicks the link
+4. System creates a session and redirects to app
+
+### Implementation
+
+**Send Magic Link** (`apps/web/src/lib/server.ts`):
+
+```typescript
+'use server';
+
+import { createAdminClient } from '@repo/api/server';
+import { headers } from 'next/headers';
+import { ID } from '@repo/api';
+
+export async function signInWithMagicLink(email: string) {
+  const { account } = await createAdminClient();
+  const origin = (await headers()).get("origin");
+
+  const redirectUrl = await account.createMagicURLToken(
+    ID.unique(),
+    email,
+    `${origin}/auth/callback`
+  );
+
+  return redirectUrl ? true : false;
+}
+```
+
+**Handle Callback** (`apps/web/src/app/(auth)/auth/callback/route.ts`):
+
+```typescript
+import { createAdminClient } from "@repo/api/server";
+import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
+import { redirect } from "next/navigation";
+
+export async function GET(request: NextRequest) {
+  const userId = request.nextUrl.searchParams.get("userId");
+  const secret = request.nextUrl.searchParams.get("secret");
+  const redirectTo = request.nextUrl.searchParams.get("redirectTo");
+  
+  if (!userId || !secret) {
+    return redirect('/auth/login?error=invalid_parameters');
+  }
+
+  const { account } = await createAdminClient();
+  const session = await account.createSession(userId, secret);
+
+  const fetchedCookies = await cookies();
+  fetchedCookies.set("a_session_biso", session.secret, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+  });
+
+  // Redirect to original destination or homepage
+  if (redirectTo) {
+    return redirect(decodeURIComponent(redirectTo));
+  }
+
+  return redirect('/');
+}
+```
+
+## Admin App Authentication (OAuth)
+
+### How It Works
+
+1. User clicks "Sign in with BISO account"
+2. System redirects to Microsoft OAuth
+3. User authenticates with their BISO Microsoft account
+4. OAuth redirects back with credentials
+5. System creates session with admin privileges
+
+### Implementation
+
+**Initiate OAuth** (`apps/admin/src/lib/server.ts`):
+
+```typescript
+'use server';
+
+import { createAdminClient } from '@repo/api/server';
+import { headers } from 'next/headers';
+import { OAuthProvider } from '@repo/api';
+import { redirect } from 'next/navigation';
+
+export async function signInWithAzure() {
+  const { account } = await createAdminClient();
+  const origin = (await headers()).get("origin");
+  
+  // Get redirect parameter from URL
+  const url = new URL((await headers()).get("referer") || `${origin}/auth/login`);
+  const redirectTo = url.searchParams.get("redirectTo");
+  
+  // Include redirectTo in success URL
+  const successUrl = redirectTo ? 
+    `${origin}/auth/oauth?redirectTo=${redirectTo}` : 
+    `${origin}/auth/oauth`;
+
+  const redirectUrl = await account.createOAuth2Token(
+    OAuthProvider.Microsoft,
+    successUrl,
+    `${origin}/auth/login`
+  );
+
+  return redirect(redirectUrl);
+}
+```
+
+**Handle OAuth Callback** (`apps/admin/src/app/(auth)/auth/oauth/route.ts`):
+
+```typescript
+import { createAdminClient } from "@repo/api/server";
+import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
+import { redirect } from "next/navigation";
+
+export async function GET(request: NextRequest) {
+  const userId = request.nextUrl.searchParams.get("userId");
+  const secret = request.nextUrl.searchParams.get("secret");
+  const redirectTo = request.nextUrl.searchParams.get("redirectTo");
+
+  const { account } = await createAdminClient();
+  const session = await account.createSession(userId, secret);
+
+  (await cookies()).set("a_session_biso", session.secret, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
+    domain: ".biso.no"
+  });
+
+  // Redirect to original destination or admin dashboard
+  if (redirectTo) {
+    return redirect(decodeURIComponent(redirectTo));
+  }
+
+  return redirect(`/admin`);
+}
+```
+
+## Checking Authentication Status
+
+Both apps use role-based access control:
+
+```typescript
+const { account } = await createSessionClient();
+const user = await account.get();
+
+// Check if user has admin/editor role
+const hasAccess = user.labels?.includes('admin') || 
+                  user.labels?.includes('editor');
+```
+
+## Protected Routes
+
+Use middleware for route protection:
+
+```typescript
+// middleware.ts
+export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    const { account } = await createSessionClient();
+    
+    try {
+      const user = await account.get();
+      if (!user.labels?.includes('admin')) {
+        return NextResponse.redirect('/unauthorized');
+      }
+    } catch {
+      return NextResponse.redirect('/auth/login');
+    }
+  }
+}
+```
+
+## Session Management
+
+Sessions are stored in HTTP-only cookies:
+
+```typescript
+import { cookies } from 'next/headers';
+
+const cookieStore = await cookies();
+cookieStore.set('session', session.secret, {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'lax',
+});
+```
+
+<Callout type="warning">
+Never store sensitive session data in client-accessible storage (localStorage, sessionStorage).
+</Callout>
+
+## Related Documentation
+- [Admin Auth](/docs/admin-app/auth)
+- [@repo/api Package](/docs/packages/api/overview)
+

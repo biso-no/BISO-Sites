@@ -1,0 +1,690 @@
+---
+title: Data Flow
+description: How data flows through the BISO Sites monorepo - from user interaction to database and back.
+---
+
+import { Callout } from 'components/callout';
+
+# Data Flow
+
+Understanding how data moves through the system is crucial for building features and debugging issues. This document explains the various data flow patterns used in MON.
+
+## Data Flow Patterns
+
+MON uses different patterns depending on the operation type:
+
+1. **Server Component Query** - Read data in Server Components
+2. **Server Action Mutation** - Write data with Server Actions
+3. **API Route Handler** - External webhooks and callbacks
+4. **Client-Side Fetch** - Dynamic client-side data
+
+---
+
+## 1. Server Component Data Flow (Reads)
+
+The most common pattern for displaying data.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Browser
+    participant NextJS
+    participant ServerComp
+    participant API
+    participant Appwrite
+    
+    User->>Browser: Navigate to /posts
+    Browser->>NextJS: Request page
+    NextJS->>ServerComp: Render server component
+    ServerComp->>API: createSessionClient()
+    API->>Appwrite: Query posts
+    Appwrite-->>API: Return data
+    API-->>ServerComp: Posts data
+    ServerComp-->>NextJS: Rendered HTML
+    NextJS-->>Browser: HTML response
+    Browser-->>User: Display page
+```
+
+### Example
+
+```typescript
+// app/posts/page.tsx - Server Component
+import { createSessionClient } from '@repo/api/server';
+
+export default async function PostsPage() {
+  // Fetch data directly in Server Component
+  const { db } = await createSessionClient();
+  const posts = await db.listDocuments(
+    'database_id',
+    'posts_collection'
+  );
+
+  return (
+    <div>
+      {posts.documents.map(post => (
+        <PostCard key={post.$id} post={post} />
+      ))}
+    </div>
+  );
+}
+```
+
+**Benefits:**
+- ✅ No loading states needed
+- ✅ SEO friendly
+- ✅ Fast initial render
+- ✅ Direct database access
+- ✅ Automatic deduplication
+
+**Use When:**
+- Displaying content
+- SEO is important
+- Data doesn't change frequently
+
+---
+
+## 2. Server Action Data Flow (Writes)
+
+Used for mutations like creating, updating, deleting data.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ClientComp
+    participant ServerAction
+    participant API
+    participant Appwrite
+    
+    User->>ClientComp: Submit form
+    ClientComp->>ServerAction: Call server action
+    ServerAction->>API: createSessionClient()
+    API->>Appwrite: Create/Update/Delete
+    Appwrite-->>API: Success
+    API-->>ServerAction: Result
+    ServerAction->>ServerAction: revalidatePath()
+    ServerAction-->>ClientComp: Return result
+    ClientComp-->>User: Update UI
+```
+
+### Example
+
+```typescript
+// app/actions/posts.ts - Server Action
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { revalidatePath } from 'next/cache';
+
+export async function createPost(formData: FormData) {
+  const { db } = await createSessionClient();
+  
+  const post = await db.createDocument(
+    'database_id',
+    'posts_collection',
+    'unique()',
+    {
+      title: formData.get('title'),
+      content: formData.get('content'),
+      publishedAt: new Date().toISOString(),
+    }
+  );
+  
+  // Revalidate the posts page to show new post
+  revalidatePath('/posts');
+  
+  return { success: true, postId: post.$id };
+}
+```
+
+```tsx
+// components/create-post-form.tsx - Client Component
+'use client';
+
+import { createPost } from '@/app/actions/posts';
+import { Button } from '@repo/ui/components/ui/button';
+
+export function CreatePostForm() {
+  return (
+    <form action={createPost}>
+      <input name="title" required />
+      <textarea name="content" required />
+      <Button type="submit">Create Post</Button>
+    </form>
+  );
+}
+```
+
+**Benefits:**
+- ✅ Type-safe mutations
+- ✅ No API routes needed
+- ✅ Progressive enhancement
+- ✅ Automatic revalidation
+
+**Use When:**
+- Creating, updating, deleting data
+- Form submissions
+- User actions
+
+---
+
+## 3. API Route Data Flow (External)
+
+Used for webhooks, callbacks, and external integrations.
+
+```mermaid
+sequenceDiagram
+    participant External
+    participant APIRoute
+    participant API
+    participant Appwrite
+    
+    External->>APIRoute: POST /api/webhook
+    APIRoute->>APIRoute: Verify signature
+    APIRoute->>API: createAdminClient()
+    API->>Appwrite: Update data
+    Appwrite-->>API: Success
+    API-->>APIRoute: Result
+    APIRoute-->>External: 200 OK
+```
+
+### Example
+
+```typescript
+// app/api/payment/vipps/callback/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@repo/api/server';
+import { handleVippsCallback } from '@repo/payment/vipps';
+
+export async function POST(request: NextRequest) {
+  // Verify Vipps signature
+  const authToken = request.headers.get('authorization');
+  if (!verifyVippsSignature(authToken)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // Process webhook
+  const sessionId = request.nextUrl.searchParams.get('sessionId');
+  const { db } = await createAdminClient(); // Admin client (no user session)
+  
+  await handleVippsCallback(authToken, sessionId, db);
+  
+  return NextResponse.json({ success: true });
+}
+```
+
+**Benefits:**
+- ✅ Handle external events
+- ✅ Server-side validation
+- ✅ No user session needed
+
+**Use When:**
+- Payment webhooks
+- Third-party callbacks
+- Scheduled tasks
+- External integrations
+
+---
+
+## 4. Client-Side Data Flow
+
+Sometimes data needs to be fetched on the client.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ClientComp
+    participant API
+    participant Appwrite
+    
+    User->>ClientComp: Interact with UI
+    ClientComp->>ClientComp: useEffect()
+    ClientComp->>API: fetch('/api/data')
+    API->>Appwrite: Query data
+    Appwrite-->>API: Return data
+    API-->>ClientComp: JSON response
+    ClientComp-->>User: Update UI
+```
+
+### Example
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+
+export function LiveData() {
+  const [data, setData] = useState(null);
+  
+  useEffect(() => {
+    fetch('/api/live-data')
+      .then(res => res.json())
+      .then(setData);
+  }, []);
+  
+  if (!data) return <div>Loading...</div>;
+  
+  return <div>{/* Render data */}</div>;
+}
+```
+
+**Use When:**
+- Real-time data
+- User-specific dynamic data
+- Polling/live updates
+- Data that can't be pre-rendered
+
+<Callout type="warning" title="Prefer Server Components">
+  Only use client-side fetching when necessary. Server Components are usually better for performance and SEO.
+</Callout>
+
+---
+
+## Payment Flow (Detailed)
+
+A complete payment flow showing all data movement:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Web
+    participant Payment
+    participant Appwrite
+    participant Vipps
+    
+    User->>Web: Click "Checkout"
+    Web->>Payment: initiateVippsCheckout()
+    Payment->>Appwrite: Create order (status: PENDING)
+    Appwrite-->>Payment: Order ID
+    Payment->>Vipps: POST /checkout/v3/session
+    Vipps-->>Payment: Checkout URL
+    Payment-->>Web: Redirect URL
+    Web-->>User: Redirect to Vipps
+    
+    User->>Vipps: Complete payment
+    
+    par Webhook Path
+        Vipps->>Web: POST /api/payment/vipps/callback
+        Web->>Payment: handleVippsCallback()
+        Payment->>Appwrite: Update order (status: AUTHORIZED)
+    and Return Path
+        Vipps-->>User: Redirect to /checkout/return
+        User->>Web: GET /checkout/return
+        Web->>Payment: verifyOrderStatus()
+        Payment->>Vipps: GET /checkout/v3/session/{id}
+        Vipps-->>Payment: Session status
+        Payment->>Appwrite: Update order (if not updated)
+    end
+    
+    Web-->>User: Show confirmation
+```
+
+### Race Condition Handling
+
+The webhook and return redirect can arrive in any order. The system handles this:
+
+```typescript
+export async function verifyOrderStatus(orderId: string, db: Database) {
+  // Get current order
+  const order = await db.getDocument('orders', orderId);
+  
+  // If already processed by webhook, skip Vipps check
+  if (order.status !== 'pending') {
+    return order;
+  }
+  
+  // Otherwise, check with Vipps and update
+  const vippsStatus = await getVippsSessionStatus(order.vippsSessionId);
+  await db.updateDocument('orders', orderId, {
+    status: vippsStatus.status,
+    updatedAt: new Date().toISOString(),
+  });
+  
+  return order;
+}
+```
+
+---
+
+## Authentication Flow
+
+<Callout type="info" title="Authentication Methods">
+  BISO Sites uses Magic Link (email link) for web app and OAuth (Microsoft) for admin app. No password authentication is used.
+</Callout>
+
+### Magic Link Flow (Web App)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant Appwrite
+    participant Email
+    
+    User->>App: Enter email
+    App->>Appwrite: account.createMagicURLToken()
+    Appwrite->>Email: Send magic link
+    Email-->>User: Magic link email
+    User->>App: Click link (with userId & secret)
+    App->>Appwrite: account.createSession(userId, secret)
+    Appwrite-->>App: Session token (cookie)
+    App-->>User: Set HTTPOnly cookie & redirect
+```
+
+### OAuth Flow (Admin App)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant Microsoft
+    participant Appwrite
+    
+    User->>App: Click "Sign in with BISO account"
+    App->>Microsoft: account.createOAuth2Token()
+    Microsoft-->>User: Microsoft login page
+    User->>Microsoft: Authenticate
+    Microsoft->>App: Redirect with userId & secret
+    App->>Appwrite: account.createSession(userId, secret)
+    Appwrite-->>App: Session token (cookie)
+    App-->>User: Set HTTPOnly cookie & redirect to /admin
+```
+
+### Session Management
+
+```typescript
+// Magic Link: Send link (web app)
+const { account } = await createAdminClient();
+await account.createMagicURLToken(ID.unique(), email, callbackUrl);
+
+// OAuth: Initiate flow (admin app)
+const { account } = await createAdminClient();
+const redirectUrl = await account.createOAuth2Token(
+  OAuthProvider.Microsoft,
+  successUrl,
+  failureUrl
+);
+
+// Handle callback: Create session (both apps)
+const { account } = await createAdminClient();
+const session = await account.createSession(userId, secret);
+cookies().set("a_session_biso", session.secret, { httpOnly: true });
+
+// Verify session (middleware)
+const { account } = await createSessionClient();
+try {
+  const user = await account.get();
+  // User is authenticated
+} catch {
+  // No valid session
+  redirect('/login');
+}
+
+// Delete session (logout)
+const { account } = await createSessionClient();
+await account.deleteSession('current');
+```
+
+---
+
+## Cache & Revalidation
+
+### Automatic Caching
+
+Next.js caches Server Component data by default:
+
+```typescript
+// This is cached automatically
+const posts = await db.listDocuments('posts');
+```
+
+### Manual Revalidation
+
+```typescript
+import { revalidatePath, revalidateTag } from 'next/cache';
+
+// Revalidate specific path
+revalidatePath('/posts');
+
+// Revalidate all pages with tag
+revalidateTag('posts');
+```
+
+### Opt-out of Caching
+
+```typescript
+// Dynamic (no cache)
+export const dynamic = 'force-dynamic';
+
+// Time-based revalidation
+export const revalidate = 60; // 60 seconds
+```
+
+---
+
+## Real-time Updates
+
+For real-time features, Appwrite provides subscriptions:
+
+```typescript
+'use client';
+
+import { Client, Databases } from '@repo/api/client';
+
+export function LivePosts() {
+  useEffect(() => {
+    const client = new Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      
+    const databases = new Databases(client);
+    
+    // Subscribe to changes
+    const unsubscribe = databases.subscribe(
+      'database_id.posts_collection',
+      (response) => {
+        console.log('Post updated:', response.payload);
+        // Update UI
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
+  
+  // ...
+}
+```
+
+---
+
+## File Upload Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client
+    participant ServerAction
+    participant Storage
+    
+    User->>Client: Select file
+    Client->>ServerAction: Upload file
+    ServerAction->>Storage: storage.createFile()
+    Storage-->>ServerAction: File ID
+    ServerAction->>Storage: Get file URL
+    Storage-->>ServerAction: Public URL
+    ServerAction-->>Client: Return URL
+    Client-->>User: Display image
+```
+
+### Example
+
+```typescript
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { ID } from 'node-appwrite';
+
+export async function uploadFile(formData: FormData) {
+  const file = formData.get('file') as File;
+  
+  const { storage } = await createSessionClient();
+  const uploaded = await storage.createFile(
+    'bucket_id',
+    ID.unique(),
+    file
+  );
+  
+  return {
+    fileId: uploaded.$id,
+    url: getStorageFileUrl('bucket_id', uploaded.$id),
+  };
+}
+```
+
+---
+
+## Best Practices
+
+### 1. Prefer Server Components
+
+```tsx
+// ✅ Good: Server Component
+async function PostsList() {
+  const posts = await getPosts(); // Direct DB access
+  return <div>{posts.map(...)}</div>;
+}
+
+// ❌ Avoid: Client Component with fetch
+'use client';
+function PostsList() {
+  const [posts, setPosts] = useState([]);
+  useEffect(() => {
+    fetch('/api/posts').then(...);
+  }, []);
+  return <div>{posts.map(...)}</div>;
+}
+```
+
+### 2. Use Server Actions for Mutations
+
+```tsx
+// ✅ Good: Server Action
+'use server';
+async function deletePost(postId: string) {
+  const { db } = await createSessionClient();
+  await db.deleteDocument('posts', postId);
+  revalidatePath('/posts');
+}
+
+// ❌ Avoid: API Route for simple mutations
+// app/api/posts/[id]/route.ts
+export async function DELETE(request: NextRequest, { params }) {
+  // Unnecessary API route
+}
+```
+
+### 3. Revalidate After Mutations
+
+```typescript
+'use server';
+
+export async function createPost(data) {
+  await db.createDocument(...);
+  
+  // ✅ Revalidate to show new data
+  revalidatePath('/posts');
+  revalidatePath('/');
+}
+```
+
+### 4. Handle Errors Gracefully
+
+```typescript
+'use server';
+
+export async function createPost(data) {
+  try {
+    const post = await db.createDocument(...);
+    revalidatePath('/posts');
+    return { success: true, post };
+  } catch (error) {
+    console.error('Failed to create post:', error);
+    return { success: false, error: 'Failed to create post' };
+  }
+}
+```
+
+### 5. Use Admin Client for Webhooks
+
+```typescript
+// Webhooks don't have user sessions
+// Use admin client instead
+
+export async function POST(request: NextRequest) {
+  // ✅ Good: Admin client
+  const { db } = await createAdminClient();
+  
+  // ❌ Wrong: Session client (no session exists)
+  // const { db } = await createSessionClient();
+}
+```
+
+## Common Patterns
+
+### Loading States
+
+```tsx
+// Use Suspense for Server Components
+<Suspense fallback={<Loading />}>
+  <PostsList />
+</Suspense>
+```
+
+### Error Handling
+
+```tsx
+// Error boundaries
+export default function Error({ error, reset }) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+### Optimistic Updates
+
+```tsx
+'use client';
+
+import { useOptimistic } from 'react';
+
+export function TodoList({ todos }) {
+  const [optimisticTodos, addOptimisticTodo] = useOptimistic(
+    todos,
+    (state, newTodo) => [...state, newTodo]
+  );
+  
+  async function createTodo(formData) {
+    const title = formData.get('title');
+    addOptimisticTodo({ title, id: 'temp' }); // Show immediately
+    await createTodoAction(formData); // Save to server
+  }
+  
+  return (
+    <form action={createTodo}>
+      {/* ... */}
+    </form>
+  );
+}
+```
+
+## Next Steps
+
+<Callout type="info" title="Related Documentation">
+  - [API Package](/docs/packages/api/overview) - Appwrite client usage
+  - [Payment Package](/docs/packages/payment/overview) - Payment flows
+  - [Development Workflow](/docs/guides/development-workflow) - Building features
+</Callout>
+

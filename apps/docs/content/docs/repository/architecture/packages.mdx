@@ -1,0 +1,610 @@
+---
+title: Packages Overview
+description: Overview of shared packages in the BISO Sites monorepo and how they work together.
+---
+
+import { Callout } from 'components/callout';
+
+# Packages Overview
+
+The BISO Sites monorepo includes five shared packages that provide reusable functionality across applications. This document explains each package's purpose, exports, and how they interact.
+
+## Package Summary
+
+| Package | Purpose | Used By |
+|---------|---------|---------|
+| `@repo/api` | Appwrite client wrappers | web, admin |
+| `@repo/ui` | UI component library | web, admin, docs |
+| `@repo/editor` | Puck page builder | web, admin |
+| `@repo/payment` | Payment processing | web, admin |
+| `@repo/eslint-config` | ESLint configuration | all |
+| `@repo/typescript-config` | TypeScript configuration | all |
+
+## Package Dependency Graph
+
+```mermaid
+graph TD
+    API[[@repo/api<br/>Appwrite Clients]]
+    UI[[@repo/ui<br/>Components]]
+    EDITOR[[@repo/editor<br/>Page Builder]]
+    PAYMENT[[@repo/payment<br/>Payments]]
+    
+    EDITOR --> UI
+    PAYMENT --> API
+    
+    WEB[Web App]
+    ADMIN[Admin App]
+    DOCS[Docs App]
+    
+    WEB --> API
+    WEB --> UI
+    WEB --> EDITOR
+    WEB --> PAYMENT
+    
+    ADMIN --> API
+    ADMIN --> UI
+    ADMIN --> EDITOR
+    ADMIN --> PAYMENT
+    
+    DOCS --> UI
+```
+
+---
+
+## @repo/api
+
+**Purpose:** Appwrite client wrappers for server-side and client-side usage
+
+### Key Exports
+
+```typescript
+// Server-side (uses cookies for sessions)
+export { createSessionClient, createAdminClient } from './server';
+
+// Client-side (browser)
+export { Client, Account, Teams, Storage, Users, Functions, Messaging, TablesDB, Query, ID, OAuthProvider } from 'node-appwrite';
+
+// Storage utilities
+export { getStorageFileUrl, getStorageFileDownloadUrl, getStorageFileThumbnailUrl } from './storage';
+
+// Types
+export type { Models } from 'node-appwrite';
+```
+
+### Usage Example
+
+```typescript
+// Server Component or Server Action
+import { createSessionClient } from '@repo/api/server';
+
+const { account, db } = await createSessionClient();
+const user = await account.get();
+const posts = await db.listDocuments('database_id', 'posts_collection');
+```
+
+```typescript
+// Client Component
+import { Client, Account } from '@repo/api/client';
+
+const client = new Client()
+  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+
+const account = new Account(client);
+const user = await account.get();
+```
+
+### Architecture
+
+- **Server functions** use Next.js `cookies()` for session management
+- **Client exports** re-export from `node-appwrite` for browser use
+- **Type-safe** with full TypeScript support
+
+<Callout type="info">
+  See [API Package Documentation](/docs/packages/api/overview) for detailed usage.
+</Callout>
+
+---
+
+## @repo/ui
+
+**Purpose:** Shared React component library based on shadcn/ui
+
+### Key Exports
+
+```typescript
+// UI Components
+export * from './components/ui/button';
+export * from './components/ui/input';
+export * from './components/ui/card';
+// ... 30+ shadcn components
+
+// Patterns
+export * from './components/patterns/...';
+
+// Theme
+export { ThemeProvider } from './components/theme-provider';
+
+// Utilities
+export { cn } from './lib/utils';
+export * from './lib/fonts';
+export * from './lib/tokens';
+
+// Hooks
+export { useMobile } from './hooks/use-mobile';
+```
+
+### Component Categories
+
+#### Base Components (shadcn/ui)
+- `Button`, `Input`, `Textarea`
+- `Card`, `Dialog`, `Sheet`
+- `Select`, `Checkbox`, `Radio`
+- `Table`, `Badge`, `Avatar`
+- `Dropdown`, `Popover`, `Tooltip`
+- And 20+ more...
+
+#### Patterns
+- Composite components built from base components
+- Common UI patterns (search bars, forms, etc.)
+
+#### Theme System
+- Light/dark mode support
+- Customizable design tokens
+- Tailwind CSS integration
+
+### Usage Example
+
+```tsx
+import { Button } from '@repo/ui/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@repo/ui/components/ui/card';
+import { ThemeProvider } from '@repo/ui/components/theme-provider';
+
+export function MyComponent() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Hello World</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Button>Click me</Button>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Architecture
+
+- **shadcn/ui** components customized for MON
+- **Tailwind CSS** for styling
+- **Radix UI** primitives for accessibility
+- **Theme-aware** with light/dark mode
+
+<Callout type="info">
+  See [UI Package Documentation](/docs/packages/ui/overview) for component catalog.
+</Callout>
+
+---
+
+## @repo/editor
+
+**Purpose:** Puck-based visual page builder
+
+### Key Exports
+
+```typescript
+// Editor component
+export { Editor } from './editor';
+
+// Renderer for displaying published pages
+export { Renderer } from './renderer';
+
+// Configuration
+export { puckConfig } from './page-builder-config';
+
+// Types
+export type { EditorData, ComponentConfig } from './types';
+
+// Available components
+export * from './components/button';
+export * from './components/heading';
+export * from './components/section';
+export * from './components/text';
+```
+
+### Available Components
+
+#### Current Components
+- **Button** - Call-to-action buttons
+- **Heading** - H1-H6 headings
+- **Section** - Layout sections
+- **Text** - Rich text content
+
+#### Future Components (Planned)
+- Hero sections
+- Image galleries
+- Forms
+- Testimonials
+- Pricing tables
+- More from @repo/ui
+
+### Usage Example
+
+```tsx
+// In Admin App - Edit page
+import { Editor } from '@repo/editor';
+
+export function PageEditor({ initialData }) {
+  return (
+    <Editor
+      data={initialData}
+      onPublish={async (data) => {
+        // Save to database
+        await savePageData(data);
+      }}
+    />
+  );
+}
+```
+
+```tsx
+// In Web App - Render published page
+import { Renderer } from '@repo/editor';
+
+export function PageView({ pageData }) {
+  return <Renderer data={pageData} />;
+}
+```
+
+### Architecture
+
+- **Puck editor** as the foundation
+- **@repo/ui components** available in editor
+- **JSON-based** data storage
+- **Extensible** - easy to add new components
+
+<Callout type="note" title="Work in Progress">
+  The editor package is actively being developed. More components and features are coming soon!
+</Callout>
+
+<Callout type="info">
+  See [Editor Package Documentation](/docs/packages/editor/overview) for full guide.
+</Callout>
+
+---
+
+## @repo/payment
+
+**Purpose:** Multi-provider payment processing (currently Vipps)
+
+### Key Exports
+
+```typescript
+// Server Actions (recommended for Next.js)
+export {
+  initiateVippsCheckout,
+  getOrder,
+  verifyOrder
+} from './actions';
+
+// Core functions (framework-agnostic)
+export {
+  createCheckoutSession,
+  handleVippsCallback,
+  getOrderStatus,
+  verifyOrderStatus
+} from './vipps';
+```
+
+### Usage Example
+
+```typescript
+// Using Server Actions (easy)
+import { initiateVippsCheckout } from '@repo/payment/actions';
+
+export async function checkout() {
+  'use server';
+  
+  const result = await initiateVippsCheckout({
+    userId: 'user_123',
+    items: cartItems,
+    subtotal: 1000,
+    total: 1000,
+    currency: 'NOK',
+  });
+  
+  // User is redirected to Vipps
+}
+```
+
+```typescript
+// Using core functions (advanced)
+import { createCheckoutSession } from '@repo/payment/vipps';
+import { createSessionClient } from '@repo/api/server';
+
+const { db } = await createSessionClient();
+const checkoutUrl = await createCheckoutSession(params, db);
+```
+
+### Architecture
+
+**Key Feature:** Framework-agnostic with dependency injection
+
+- Core logic (`vipps.ts`) has **zero Next.js dependencies**
+- Database client is **passed as parameter** (DI pattern)
+- Server actions (`actions.ts`) handle Next.js-specific code
+- Can be used in any Node.js environment
+
+```mermaid
+graph LR
+    A[Next.js App] --> B[Server Actions<br/>actions.ts]
+    B --> C[Core Logic<br/>vipps.ts]
+    C --> D[Vipps API]
+    B --> E[Appwrite DB]
+    C -.db passed.-> E
+```
+
+<Callout type="success" title="Clean Architecture">
+  This package demonstrates clean architecture principles with dependency injection, making it testable and reusable.
+</Callout>
+
+<Callout type="info">
+  See [Payment Package Documentation](/docs/packages/payment/overview) for complete integration guide.
+</Callout>
+
+---
+
+## @repo/eslint-config
+
+**Purpose:** Shared ESLint configuration
+
+### Exports
+
+```javascript
+// base.js - Base rules for all packages
+module.exports = {
+  extends: ['eslint:recommended', 'prettier'],
+  // ...
+};
+
+// next.js - Next.js-specific rules
+module.exports = {
+  extends: ['./base.js', 'next/core-web-vitals'],
+  // ...
+};
+
+// react-internal.js - React component rules
+module.exports = {
+  extends: ['./base.js'],
+  plugins: ['react', 'react-hooks'],
+  // ...
+};
+```
+
+### Usage
+
+```javascript
+// In app's eslint.config.js
+module.exports = {
+  extends: ['@repo/eslint-config/next'],
+};
+```
+
+### Includes
+
+- ESLint recommended rules
+- Next.js rules (for apps)
+- React rules
+- TypeScript rules
+- Prettier integration
+- Turbo rules (env var validation)
+
+---
+
+## @repo/typescript-config
+
+**Purpose:** Shared TypeScript configuration
+
+### Exports
+
+```json
+// base.json - Base config
+{
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+
+// nextjs.json - Next.js apps
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./src/*"] }
+  }
+}
+
+// react-library.json - React packages
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+```
+
+### Usage
+
+```json
+// In app's tsconfig.json
+{
+  "extends": "@repo/typescript-config/nextjs.json",
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
+```
+
+---
+
+## Package Development
+
+### Adding a New Package
+
+1. **Create directory**
+```bash
+mkdir packages/my-package
+cd packages/my-package
+```
+
+2. **Create package.json**
+```json
+{
+  "name": "@repo/my-package",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts"
+}
+```
+
+3. **Create index.ts**
+```typescript
+export function myFunction() {
+  return 'Hello from my package!';
+}
+```
+
+4. **Use in apps**
+```typescript
+import { myFunction } from '@repo/my-package';
+```
+
+### Package Guidelines
+
+1. **Keep it framework-agnostic** - Don't import Next.js runtime unless necessary
+2. **Export types** - Always export TypeScript types
+3. **Document exports** - Add JSDoc comments
+4. **Test thoroughly** - Packages are used by multiple apps
+5. **Semantic versioning** - Version carefully (even if private)
+
+### Package Dependencies
+
+**Install in specific package:**
+```bash
+cd packages/my-package
+bun add some-dependency
+```
+
+**Install in root (affects all):**
+```bash
+bun add -w some-dependency
+```
+
+## Best Practices
+
+### 1. Dependency Direction
+
+Packages should not depend on apps, only other packages:
+
+✅ **Good:**
+```
+app -> package -> package
+```
+
+❌ **Bad:**
+```
+package -> app (circular dependency!)
+```
+
+### 2. Minimal Dependencies
+
+Keep package dependencies minimal:
+
+```json
+{
+  "dependencies": {
+    // Only what you actually need
+    "zod": "^3.0.0"
+  },
+  "peerDependencies": {
+    // Let consuming apps provide these
+    "react": "^19.0.0"
+  }
+}
+```
+
+### 3. Clear Exports
+
+Be explicit about exports:
+
+```typescript
+// index.ts
+export { Button } from './button';
+export { Input } from './input';
+export type { ButtonProps } from './button';
+export type { InputProps } from './input';
+
+// Don't: export * from './components'
+```
+
+### 4. TypeScript Configuration
+
+Extend base configs:
+
+```json
+{
+  "extends": "@repo/typescript-config/react-library.json"
+}
+```
+
+### 5. Testing
+
+Test packages independently:
+
+```bash
+cd packages/my-package
+bun test
+```
+
+## Troubleshooting
+
+### Package Not Found
+
+```bash
+# Reinstall dependencies
+bun install
+
+# Check package.json name matches import
+# Import: @repo/my-package
+# Package: "name": "@repo/my-package"
+```
+
+### Type Errors
+
+```bash
+# Rebuild packages
+bun run build
+
+# Check types
+bun run check-types
+```
+
+### Circular Dependencies
+
+Use dependency injection or restructure packages.
+
+## Next Steps
+
+<Callout type="info" title="Package Deep Dives">
+  Learn more about each package:
+  - [API Package](/docs/packages/api/overview)
+  - [UI Package](/docs/packages/ui/overview)
+  - [Editor Package](/docs/packages/editor/overview)
+  - [Payment Package](/docs/packages/payment/overview)
+</Callout>
+
