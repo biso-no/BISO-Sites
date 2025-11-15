@@ -6,6 +6,8 @@ import { AdminProviders } from '@/components/layout/admin-providers';
 import { getAuthStatus } from '@/lib/auth-utils';
 import { redirect } from 'next/navigation';
 
+const allowedRoles = ['Admin', 'hr', 'finance', 'pr']
+
 export default async function AdminLayout({
   children,
 }: {
@@ -24,6 +26,10 @@ export default async function AdminLayout({
   }
 
   const roles = await getUserRoles()
+
+  if (!allowedRoles.some(role => roles.includes(role))) {
+    return redirect('/unauthorized')
+  }
   
   // Add fallback for when name is undefined
   const firstName = user && user.user.name ? user.user.name.split(' ')[0] : 'User'
