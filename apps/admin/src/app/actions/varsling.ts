@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import { ID, Query } from "@repo/api";
 import { revalidatePath } from "next/cache";
 import { VarslingSettings } from "@repo/api/types/appwrite";
@@ -19,7 +19,7 @@ export interface VarslingSubmission {
 // Get varsling settings for a specific campus
 export async function getVarslingSettings(campusId?: string): Promise<VarslingSettings[]> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     
     const queries = [
       Query.equal("is_active", true),
@@ -42,7 +42,7 @@ export async function getVarslingSettings(campusId?: string): Promise<VarslingSe
 // Get all varsling settings (admin only)
 export async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     
     const response = await db.listRows<VarslingSettings>("app", "varsling_settings", [
       Query.orderAsc("campus_id"),
@@ -60,7 +60,7 @@ export async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
 // Create new varsling settings (admin only)
 export async function createVarslingSettings(data: Omit<VarslingSettings, keyof import("@repo/api").Models.Row>): Promise<{ success: boolean; error?: string }> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     
     await db.createRow<VarslingSettings>("app", "varsling_settings", ID.unique(), data);
     
@@ -75,7 +75,7 @@ export async function createVarslingSettings(data: Omit<VarslingSettings, keyof 
 // Update varsling settings (admin only)
 export async function updateVarslingSettings(id: string, data: Partial<Omit<VarslingSettings, keyof import("@repo/api").Models.Row>>): Promise<{ success: boolean; error?: string }> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     
     await db.updateRow<VarslingSettings>("app", "varsling_settings", id, data);
     
@@ -90,7 +90,7 @@ export async function updateVarslingSettings(id: string, data: Partial<Omit<Vars
 // Delete varsling settings (admin only)
 export async function deleteVarslingSettings(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     
     await db.deleteRow("app", "varsling_settings", id);
     
@@ -105,7 +105,7 @@ export async function deleteVarslingSettings(id: string): Promise<{ success: boo
 // Submit varsling case (public)
 async function submitVarslingCase(data: VarslingSubmission): Promise<{ success: boolean; error?: string }> {
   try {
-    const { messaging } = await createAdminClient();
+    const { messaging } = await createSessionClient();
     
     // Create email content
     const subject = `BISO Varsling: ${data.submission_type === 'harassment' ? 'Trakassering' : data.submission_type === 'witness' ? 'Vitne' : 'Annet'}`;

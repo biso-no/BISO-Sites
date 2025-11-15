@@ -1,6 +1,6 @@
 "use server"
 
-import { createAdminClient } from "@repo/api/server"
+import { createSessionClient } from "@repo/api/server"
 import { Query } from "@repo/api"
 import type { ProductMetadata } from "@/lib/types/webshop"
 
@@ -33,7 +33,7 @@ export async function checkMaxPerUser(
   }
   
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Get all completed orders for this user with 'authorized' or 'paid' status
     const orders = await db.listRows(
@@ -176,7 +176,7 @@ async function getPurchaseHistory(
   }
   
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const orders = await db.listRows(
       'app',

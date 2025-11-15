@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import { ID, Query } from '@repo/api'
 import { revalidatePath } from 'next/cache'
 import type { SitePages, ContentTranslations, Locale } from '@repo/api/types/appwrite'
@@ -23,7 +23,7 @@ export async function getSitePageTranslation(
   locale: Locale
 ): Promise<SitePageTranslation | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // First, get the site page
     const sitePageResponse = await db.listRows<SitePages>('app', 'site_pages', [
@@ -62,7 +62,7 @@ export async function getSitePageTranslation(
 
 export async function upsertSitePage(input: UpsertSitePageInput): Promise<boolean> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Check if site page exists
     const existingResponse = await db.listRows<SitePages>('app', 'site_pages', [
@@ -131,7 +131,7 @@ export async function translateSitePageContent(
   toLocale: Locale
 ): Promise<boolean> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Get the site page
     const sitePageResponse = await db.listRows<SitePages>('app', 'site_pages', [

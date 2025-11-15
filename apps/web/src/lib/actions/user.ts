@@ -1,5 +1,5 @@
 "use server";
-import { createSessionClient, createAdminClient, } from "@repo/api/server";
+import { createSessionClient, createAdminClient } from "@repo/api/server";
 import { create } from "domain";
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -73,7 +73,7 @@ async function getUserById(userId: string): Promise<Models.User<Models.Preferenc
 
 async function signIn(email: string) {
     try {
-        const { account } = await createAdminClient();
+        const { account } = await createSessionClient();
         const user = await account.createMagicURLToken(ID.unique(), email, `${BASE_URL}/auth/callback`);
         return user;
     } catch (error) {
@@ -83,7 +83,7 @@ async function signIn(email: string) {
 }
 
 async function signInWithOauth() {
-	const { account } = await createAdminClient();
+	const { account } = await createSessionClient();
 
   const origin = (await headers()).get("origin");
   
@@ -233,15 +233,8 @@ async function signOut(): Promise<void> {
 
 export async function deleteUserData() {
     const { account } = await createSessionClient();
-    const { users, db } = await createAdminClient();
+    const { users } = await createAdminClient();
     const user = await account.get();
-    const deletedUserDoc = await db.deleteRow('app', 'user', user.$id);
-    if (deletedUserDoc) {
-        const deletedUser = await users.delete(user.$id);
-        if (deletedUser) {
-            return true;
-        } else {
-            return false;
-        }
-    }
+    await users.delete(user.$id);
+    return true;
 }

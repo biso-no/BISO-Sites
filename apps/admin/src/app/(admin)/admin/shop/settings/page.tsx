@@ -1,11 +1,11 @@
-import { createAdminClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
 import { Input } from '@repo/ui/components/ui/input'
 import { Label } from '@repo/ui/components/ui/label'
 import { Button } from '@repo/ui/components/ui/button'
 
 async function getSettings() {
-  const { db } = await createAdminClient()
+  const { db } = await createSessionClient()
   try {
     const doc = await db.getRow('app', 'shop_settings', 'singleton')
     const parsed = {
@@ -104,7 +104,7 @@ export default async function ShopSettingsPage() {
 export async function saveSettings(formData: FormData) {
   'use server'
   const section = formData.get('section') as string
-  const { db } = await createAdminClient()
+  const { db } = await createSessionClient()
   const existing = await getSettings()
   const next = existing || { $id: 'singleton', vipps: {}, general: {} }
 

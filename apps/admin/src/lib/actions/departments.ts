@@ -1,7 +1,7 @@
 "use server";
 
 import { Query, getStorageFileUrl } from "@repo/api";
-import { createSessionClient, createAdminClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import { Departments, ContentTranslations, ContentType, Locale } from "@repo/api/types/appwrite";
 
 interface GetDepartmentsParams {
@@ -244,7 +244,7 @@ export async function uploadDepartmentLogo(formData: FormData) {
     throw new Error('No file provided')
   }
 
-  const { storage } = await createAdminClient()
+  const { storage } = await createSessionClient()
   const uploaded = await storage.createFile(DEPARTMENT_LOGO_BUCKET, 'unique()', file)
   const url = getStorageFileUrl(DEPARTMENT_LOGO_BUCKET, uploaded.$id)
   
@@ -260,7 +260,7 @@ export async function uploadDepartmentHero(formData: FormData) {
     throw new Error('No file provided')
   }
 
-  const { storage } = await createAdminClient()
+  const { storage } = await createSessionClient()
   const uploaded = await storage.createFile(DEPARTMENT_HERO_BUCKET, 'unique()', file)
   const url = getStorageFileUrl(DEPARTMENT_HERO_BUCKET, uploaded.$id)
   

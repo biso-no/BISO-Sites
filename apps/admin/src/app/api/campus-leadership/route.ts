@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { createAdminClient } from "@repo/api/server"
+import { createSessionClient } from "@repo/api/server"
 
 const FUNCTION_ID = process.env.APPWRITE_CAMPUS_BOARD_FUNCTION_ID || "get_board_members"
 
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { functions } = await createAdminClient()
+    const { functions } = await createSessionClient()
     const execution = await functions.createExecution(
       FUNCTION_ID,
       JSON.stringify({ campus, departmentId })

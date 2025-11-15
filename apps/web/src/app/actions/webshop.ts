@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient, createSessionClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import { Query } from '@repo/api'
 import { ContentTranslations, ContentType, Locale, WebshopProducts, Status, Campus } from '@repo/api/types/appwrite'
 import { revalidatePath } from 'next/cache'
@@ -97,7 +97,7 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Con
 
 async function getProduct(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
       Query.equal('content_type', ContentType.PRODUCT),
@@ -142,7 +142,7 @@ export async function getProductBySlug(slug: string, locale: 'en' | 'no'): Promi
 
 async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const translationRefs: ContentTranslations[] = []
     
@@ -197,7 +197,7 @@ async function createProduct(data: CreateProductData, skipRevalidation = false):
 
 async function updateProduct(id: string, data: Partial<CreateProductData>): Promise<WebshopProducts | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const updateData: Record<string, unknown> = {}
     
@@ -258,7 +258,7 @@ async function updateProduct(id: string, data: Partial<CreateProductData>): Prom
 
 async function deleteProduct(id: string): Promise<boolean> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const translationsResponse = await db.listRows('app', 'content_translations', [
       Query.equal('content_type', ContentType.PRODUCT),

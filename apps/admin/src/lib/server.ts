@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { ID, OAuthProvider, Query, Models } from "@repo/api";
@@ -24,7 +24,7 @@ interface DashboardCard {
   }
 
 export async function signInWithAzure() {
-    const { account } = await createAdminClient();
+    const { account } = await createSessionClient();
 
     const origin = (await headers()).get("origin");
     
@@ -47,7 +47,7 @@ export async function signInWithAzure() {
 }
 
 export async function signInWithMagicLink(email: string) {
-    const { account } = await createAdminClient();
+    const { account } = await createSessionClient();
 
     const origin = (await headers()).get("origin");
 

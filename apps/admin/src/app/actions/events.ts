@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient, createSessionClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import { ID, Query, getStorageFileUrl } from '@repo/api'
 import { revalidatePath } from 'next/cache'
 import type { AdminEvent, EventMetadata } from '@/lib/types/event'
@@ -127,7 +127,7 @@ export async function listEvents(params: ListEventsParams = {}): Promise<AdminEv
   } = params
 
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     const queries = [
       Query.limit(limit),
@@ -156,7 +156,7 @@ export async function listEvents(params: ListEventsParams = {}): Promise<AdminEv
 
 export async function getEvent(id: string): Promise<AdminEvent | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     const response = await db.listRows<Events>('app', 'events', [
       Query.equal('$id', id),
@@ -240,7 +240,7 @@ export async function createEvent(data: CreateEventData, skipRevalidation = fals
 
 export async function updateEvent(eventId: string, data: UpdateEventData): Promise<Events | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Build update object - same pattern as products
     const updateData: Record<string, unknown> = {}
