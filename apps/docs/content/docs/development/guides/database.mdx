@@ -1,0 +1,116 @@
+---
+title: Database Guide
+description: Working with Appwrite database including queries, CRUD operations, and best practices.
+---
+
+import { Callout } from 'components/callout';
+
+# Database Guide
+
+Learn how to work with Appwrite database in BISO Sites.
+
+## Basic CRUD Operations
+
+### Create Document
+
+```typescript
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+
+export async function createPost(data: PostData) {
+  const { db } = await createSessionClient();
+  
+  const post = await db.createDocument(
+    process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+    'posts',
+    'unique()',
+    data
+  );
+  
+  return post;
+}
+```
+
+### Read Documents
+
+```typescript
+import { createSessionClient } from '@repo/api/server';
+import { Query } from '@repo/api';
+
+export async function getPosts() {
+  const { db } = await createSessionClient();
+  
+  const posts = await db.listDocuments(
+    process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+    'posts',
+    [
+      Query.orderDesc('$createdAt'),
+      Query.limit(10),
+    ]
+  );
+  
+  return posts.documents;
+}
+```
+
+### Update Document
+
+```typescript
+export async function updatePost(postId: string, data: Partial<PostData>) {
+  const { db } = await createSessionClient();
+  
+  await db.updateDocument(
+    process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+    'posts',
+    postId,
+    data
+  );
+}
+```
+
+### Delete Document
+
+```typescript
+export async function deletePost(postId: string) {
+  const { db } = await createSessionClient();
+  
+  await db.deleteDocument(
+    process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+    'posts',
+    postId
+  );
+}
+```
+
+## Queries
+
+```typescript
+import { Query } from '@repo/api';
+
+// Equal
+Query.equal('status', 'published')
+
+// Not equal
+Query.notEqual('status', 'draft')
+
+// Greater than
+Query.greaterThan('price', 100)
+
+// Search
+Query.search('title', 'nextjs')
+
+// Order
+Query.orderDesc('$createdAt')
+
+// Limit
+Query.limit(20)
+
+// Offset
+Query.offset(20)
+```
+
+## Related Documentation
+- [@repo/api Package](/docs/packages/api/overview)
+- [Server Actions](/docs/web-app/server-actions)
+

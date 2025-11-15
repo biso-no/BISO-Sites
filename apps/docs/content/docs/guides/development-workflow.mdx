@@ -1,0 +1,558 @@
+---
+title: Development Workflow
+description: Daily development workflow, commands, and best practices for BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+
+# Development Workflow
+
+This guide covers the day-to-day development workflow for BISO Sites, from starting the dev server to committing your changes.
+
+## Daily Workflow
+
+<Steps>
+  <Step title="Start development server">
+    ```bash
+    # All apps
+    bun run dev
+    
+    # Or specific app
+    bun run dev --filter=web
+    ```
+  </Step>
+
+  <Step title="Make your changes">
+    Edit files in your IDE. Hot reload will update automatically.
+  </Step>
+
+  <Step title="Test your changes">
+    ```bash
+    # Type check
+    bun run check-types
+    
+    # Lint
+    bun run lint
+    
+    # Build (ensure it compiles)
+    bun run build --filter=web
+    ```
+  </Step>
+
+  <Step title="Commit your changes">
+    ```bash
+    git add .
+    git commit -m "feat(web): add new feature"
+    git push
+    ```
+  </Step>
+</Steps>
+
+## Common Commands
+
+### Development
+
+```bash
+# Start all apps in development mode
+bun run dev
+
+# Start specific app
+bun run dev --filter=web      # Web app only
+bun run dev --filter=admin    # Admin app only
+bun run dev --filter=docs     # Docs only
+```
+
+### Building
+
+```bash
+# Build all apps
+bun run build
+
+# Build specific app
+bun run build --filter=web
+
+# Build for Appwrite deployment
+cd apps/web
+bun run build:appwrite
+```
+
+### Quality Checks
+
+```bash
+# Type checking
+bun run check-types           # All packages
+cd apps/web && bun run check-types  # Specific app
+
+# Linting
+bun run lint                  # All packages
+cd apps/web && bunx eslint .  # Specific app
+
+# Formatting
+bun run format                # Format all files
+```
+
+### Package Management
+
+```bash
+# Install dependencies
+bun install
+
+# Add dependency to specific app
+cd apps/web
+bun add package-name
+
+# Add dependency to package
+cd packages/ui
+bun add package-name
+
+# Add dev dependency
+bun add -D package-name
+
+# Add to root (affects all)
+bun add -w package-name
+```
+
+## Application Ports
+
+| App | Port | URL |
+|-----|------|-----|
+| Web | 3000 | http://localhost:3000 |
+| Admin | 3001 | http://localhost:3001 |
+| Docs | 3002 | http://localhost:3002 |
+
+## File Structure
+
+### Creating a New Page
+
+#### Web App
+
+```bash
+# Create route
+apps/web/src/app/[locale]/about/page.tsx
+
+# Create server action
+apps/web/src/app/actions/about.ts
+
+# Create components
+apps/web/src/components/about/hero.tsx
+apps/web/src/components/about/features.tsx
+```
+
+#### Admin App
+
+```bash
+# Protected route
+apps/admin/src/app/(admin)/admin/settings/page.tsx
+
+# Server action
+apps/admin/src/app/actions/settings.ts
+```
+
+### Creating a Component
+
+```bash
+# In app
+apps/web/src/components/feature/my-component.tsx
+
+# In UI package (shared)
+packages/ui/components/ui/my-component.tsx
+```
+
+### Creating a Server Action
+
+```typescript
+// apps/web/src/app/actions/posts.ts
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+import { revalidatePath } from 'next/cache';
+
+export async function createPost(formData: FormData) {
+  const { db, account } = await createSessionClient();
+  
+  // Verify auth
+  const user = await account.get();
+  
+  // Create post
+  const post = await db.createDocument(
+    'database_id',
+    'posts',
+    ID.unique(),
+    {
+      title: formData.get('title'),
+      content: formData.get('content'),
+      authorId: user.$id,
+    }
+  );
+  
+  revalidatePath('/posts');
+  
+  return { success: true, postId: post.$id };
+}
+```
+
+## Code Organization
+
+### Server Components
+
+```typescript
+// app/posts/page.tsx - Server Component
+import { createSessionClient } from '@repo/api/server';
+
+export default async function PostsPage() {
+  // Fetch data directly
+  const { db } = await createSessionClient();
+  const posts = await db.listDocuments('database_id', 'posts');
+  
+  return (
+    <div>
+      {posts.documents.map(post => (
+        <PostCard key={post.$id} post={post} />
+      ))}
+    </div>
+  );
+}
+```
+
+### Client Components
+
+```tsx
+// components/post-form.tsx - Client Component
+'use client';
+
+import { useState } from 'react';
+import { createPost } from '@/app/actions/posts';
+import { Button } from '@repo/ui/components/ui/button';
+
+export function PostForm() {
+  const [loading, setLoading] = useState(false);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const formData = new FormData(e.target as HTMLFormElement);
+    await createPost(formData);
+    
+    setLoading(false);
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="title" required />
+      <textarea name="content" required />
+      <Button type="submit" disabled={loading}>
+        {loading ? 'Creating...' : 'Create Post'}
+      </Button>
+    </form>
+  );
+}
+```
+
+## Debugging
+
+### Server-Side Debugging
+
+```typescript
+// Add console.log in Server Components/Actions
+export default async function Page() {
+  console.log('Server: Rendering page');
+  const data = await fetchData();
+  console.log('Server: Data fetched', data);
+  return <div>...</div>;
+}
+```
+
+Output appears in terminal where `bun run dev` is running.
+
+### Client-Side Debugging
+
+```tsx
+'use client';
+
+export function MyComponent() {
+  console.log('Client: Component mounted');
+  return <div>...</div>;
+}
+```
+
+Output appears in browser console (F12).
+
+### React DevTools
+
+Install browser extension:
+- [Chrome](https://chrome.google.com/webstore/detail/react-developer-tools)
+- [Firefox](https://addons.mozilla.org/en-US/firefox/addon/react-devtools/)
+
+### Network Debugging
+
+Check browser Network tab (F12) to see:
+- API requests
+- Response data
+- Request timing
+- Error responses
+
+## Environment Variables
+
+### Local Development
+
+Create `.env.local` in each app:
+
+```bash
+# apps/web/.env.local
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://your-appwrite.com/v1
+NEXT_PUBLIC_APPWRITE_PROJECT=your-project-id
+APPWRITE_API_KEY=your-api-key
+
+# Payment
+VIPPS_CLIENT_ID=your-vipps-client-id
+VIPPS_CLIENT_SECRET=your-secret
+VIPPS_TEST_MODE=true
+```
+
+### Accessing Environment Variables
+
+```typescript
+// Public (client-side accessible)
+const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+
+// Server-only (never exposed to client)
+const apiKey = process.env.APPWRITE_API_KEY;
+```
+
+## Common Tasks
+
+### Adding a New Feature
+
+<Steps>
+  <Step title="Plan the feature">
+    - Identify required components
+    - Design data model
+    - Plan API calls
+  </Step>
+
+  <Step title="Create database structure (if needed)">
+    - Add collection in Appwrite
+    - Update type definitions in `packages/api/types/appwrite.ts`
+  </Step>
+
+  <Step title="Create components">
+    ```bash
+    # UI components
+    apps/web/src/components/feature/component.tsx
+    
+    # Server actions
+    apps/web/src/app/actions/feature.ts
+    ```
+  </Step>
+
+  <Step title="Create route">
+    ```bash
+    apps/web/src/app/[locale]/feature/page.tsx
+    ```
+  </Step>
+
+  <Step title="Test and refine">
+    ```bash
+    bun run dev --filter=web
+    # Test in browser
+    ```
+  </Step>
+</Steps>
+
+### Updating Shared Packages
+
+```bash
+# Make changes in package
+cd packages/ui
+# Edit components/ui/button.tsx
+
+# Changes are immediately available in apps (hot reload)
+# No need to rebuild package
+```
+
+### Adding Dependencies
+
+```bash
+# To specific app
+cd apps/web
+bun add zod
+
+# To package
+cd packages/payment
+bun add @vippsmobilepay/sdk
+
+# Workspace-wide (use sparingly)
+bun add -w turbo
+```
+
+### Database Migrations
+
+```bash
+# Update collection via Appwrite Console
+# Or use Appwrite CLI
+
+cd apps/web
+appwrite deploy collection
+```
+
+### Translations
+
+```bash
+# Add new translation key
+# apps/web/messages/en/common.json
+{
+  "welcome": "Welcome to BISO Sites"
+}
+
+# apps/web/messages/no/common.json
+{
+  "welcome": "Velkommen til BISO Sites"
+}
+
+# Use in components
+import { useTranslations } from 'next-intl';
+
+const t = useTranslations('common');
+<h1>{t('welcome')}</h1>
+```
+
+## Git Workflow
+
+### Commit Message Format
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```bash
+# Format: type(scope): description
+
+feat(web): add user profile page
+fix(admin): correct form validation
+docs(api): update API documentation
+style(ui): improve button styling
+refactor(payment): simplify checkout flow
+test(web): add unit tests for utils
+chore(repo): update dependencies
+```
+
+### Common Types
+
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation
+- `style` - Formatting, missing semi-colons, etc.
+- `refactor` - Code restructuring
+- `test` - Adding tests
+- `chore` - Maintenance tasks
+
+### Branch Strategy
+
+```bash
+# Create feature branch
+git checkout -b feat/user-profile
+
+# Make changes and commit
+git add .
+git commit -m "feat(web): add user profile page"
+
+# Push branch
+git push origin feat/user-profile
+
+# Create Pull Request on GitHub
+```
+
+## Troubleshooting
+
+### Port Already in Use
+
+```bash
+# Find process on port
+lsof -ti:3000
+
+# Kill process
+lsof -ti:3000 | xargs kill -9
+
+# Or change port in package.json
+{
+  "scripts": {
+    "dev": "next dev -p 3050"
+  }
+}
+```
+
+### Module Not Found
+
+```bash
+# Reinstall dependencies
+rm -rf node_modules apps/*/node_modules packages/*/node_modules
+bun install
+
+# Clear Next.js cache
+rm -rf apps/web/.next
+```
+
+### Type Errors
+
+```bash
+# Generate Next.js types
+cd apps/web
+bunx next build --typegen-only
+
+# Check types
+bun run check-types
+```
+
+### Hot Reload Not Working
+
+- Restart dev server
+- Clear browser cache
+- Check file is saved
+- Ensure file is in correct directory
+
+## Performance Tips
+
+### Optimize Build Times
+
+```bash
+# Use Turbo cache
+bun run dev  # Automatically caches
+
+# Build only changed apps
+bun run build --filter=web --force
+```
+
+### Reduce Bundle Size
+
+- Use dynamic imports for large components
+- Optimize images with next/image
+- Tree-shake unused code
+- Check bundle analyzer:
+
+```bash
+cd apps/web
+ANALYZE=true bun run build
+```
+
+## Best Practices
+
+1. **TypeScript Strict Mode** - Fix type errors immediately
+2. **ESLint** - Run before committing
+3. **Prettier** - Format code with `bun run format`
+4. **Server Components First** - Default to Server Components
+5. **Revalidate After Mutations** - Use `revalidatePath()`
+6. **Error Handling** - Always handle errors gracefully
+7. **Loading States** - Show feedback during async operations
+8. **Accessibility** - Use semantic HTML and ARIA labels
+9. **Mobile First** - Design for mobile, enhance for desktop
+10. **Test Locally** - Test before pushing
+
+## Next Steps
+
+<Callout type="info">
+  - [Creating Features](/docs/guides/creating-features) - Step-by-step feature development
+  - [Styling Guide](/docs/guides/styling-conventions) - CSS and Tailwind patterns
+  - [Forms Guide](/docs/guides/forms) - Building and handling forms
+  - [Database Guide](/docs/guides/database) - Working with Appwrite
+</Callout>
+

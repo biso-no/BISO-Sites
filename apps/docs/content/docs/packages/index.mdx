@@ -1,0 +1,105 @@
+---
+title: Packages
+description: Shared packages and libraries used across the BISO Sites monorepo
+---
+
+# Packages
+
+Welcome to the packages documentation. This section covers all shared packages used across the BISO Sites monorepo.
+
+## Available Packages
+
+### @repo/api
+
+Appwrite client wrapper providing type-safe access to database, authentication, and storage services.
+
+**Key Features:**
+- Type-safe database operations
+- Client and server-side implementations
+- Storage helpers for file uploads
+- Authentication utilities
+
+[View API Documentation →](/docs/packages/api/overview)
+
+### @repo/payment
+
+Vipps MobilePay integration for handling payments and checkout flows.
+
+**Key Features:**
+- Vipps Checkout integration
+- Payment session management
+- Webhook handling
+- Type-safe API
+
+[View Payment Documentation →](/docs/packages/payment/overview)
+
+### @repo/ui
+
+Shared UI component library built with React, Tailwind CSS, and shadcn/ui.
+
+**Key Features:**
+- Reusable React components
+- Consistent design tokens
+- Dark mode support
+- Accessible components
+
+[View UI Documentation →](/docs/packages/ui/overview)
+
+### @repo/editor
+
+Page builder components using Puck for visual content editing.
+
+**Key Features:**
+- Drag-and-drop page builder
+- Custom content blocks
+- Visual editing interface
+- JSON-based storage
+
+[View Editor Documentation →](/docs/packages/editor/overview)
+
+## Package Architecture
+
+All packages are located in the `packages/` directory at the monorepo root:
+
+```
+packages/
+├── api/           # Appwrite client wrapper
+├── payment/       # Vipps integration
+├── ui/            # Shared components
+├── editor/        # Page builder
+├── eslint-config/ # ESLint configurations
+└── typescript-config/ # TypeScript configurations
+```
+
+## Using Packages
+
+Packages are consumed by apps using workspace dependencies:
+
+```json title="apps/web/package.json"
+{
+  "dependencies": {
+    "@repo/api": "workspace:*",
+    "@repo/payment": "workspace:*",
+    "@repo/ui": "workspace:*"
+  }
+}
+```
+
+## Development
+
+Each package has its own `package.json` and TypeScript configuration. Changes to packages are automatically detected by Turbo's caching system.
+
+To work on a package:
+
+1. Navigate to the package directory
+2. Make your changes
+3. Build the package if needed: `bun run build`
+4. Test in consuming apps
+
+## Next Steps
+
+- Explore [API Package](/docs/packages/api/overview) for backend integration
+- Check [Payment Package](/docs/packages/payment/overview) for Vipps integration
+- Browse [UI Package](/docs/packages/ui/overview) for component library
+- Learn about [Editor Package](/docs/packages/editor/overview) for page building
+

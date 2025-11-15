@@ -1,0 +1,529 @@
+---
+title: Applications Overview
+description: Detailed overview of each application in the BISO Sites monorepo - Web, Admin, and Docs.
+---
+
+import { Callout } from 'components/callout';
+
+# Applications Overview
+
+The BISO Sites monorepo contains three Next.js applications, each serving a specific purpose. This document provides an overview of each application's role, features, and technical details.
+
+## Application Summary
+
+| Application | Port | Purpose | Users |
+|-------------|------|---------|-------|
+| **web** | 3000 | Public website | Public visitors |
+| **admin** | 3001 | Content management | Content managers, admins |
+| **docs** | 3002 | Documentation | Developers |
+
+## Web Application
+
+### Purpose
+
+The public-facing website that serves content to end users. This is what visitors see when they access your site.
+
+### Key Features
+
+#### 🌐 Internationalization
+- Multi-language support (English, Norwegian)
+- Automatic locale detection
+- SEO-friendly localized URLs (`/en/about`, `/no/om`)
+
+#### 📱 Responsive Design
+- Mobile-first approach
+- Optimized for all screen sizes
+- Touch-friendly interfaces
+
+#### ⚡ Performance Optimized
+- Server Components for fast initial load
+- Image optimization with `next/image`
+- Static generation where possible
+- Efficient data fetching
+
+#### 💳 Payment Integration
+- Vipps checkout flow
+- Order management
+- Payment status tracking
+
+#### 🎨 Dynamic Pages
+- Puck editor-powered pages
+- Render content created in admin
+- Flexible page layouts
+
+### Technical Stack
+
+```typescript
+// Key dependencies
+{
+  "next": "^15.2.4",
+  "react": "^19.2.0",
+  "next-intl": "^4.3.9",
+  "@repo/api": "*",
+  "@repo/ui": "*",
+  "@repo/editor": "*",
+  "@repo/payment": "*"
+}
+```
+
+### Directory Structure
+
+```
+apps/web/
+├── src/
+│   ├── app/
+│   │   ├── [locale]/          # Internationalized routes
+│   │   │   ├── (routes)/      # Public routes
+│   │   │   ├── layout.tsx     # Locale layout
+│   │   │   └── page.tsx       # Homepage
+│   │   ├── actions/           # Server actions
+│   │   ├── api/               # API routes
+│   │   └── globals.css
+│   ├── components/
+│   │   ├── navigation/
+│   │   ├── features/
+│   │   └── shared/
+│   ├── lib/
+│   │   ├── utils.ts
+│   │   ├── constants.ts
+│   │   └── api/
+│   └── i18n/
+│       ├── config.ts
+│       └── request.ts
+├── messages/                  # Translation files
+│   ├── en/
+│   └── no/
+└── public/                    # Static assets
+```
+
+### Key Routes
+
+| Route | Purpose |
+|-------|---------|
+| `/` | Homepage |
+| `/[locale]/*` | Localized content |
+| `/api/payment/vipps/callback` | Payment webhook |
+| `/api/checkout/return` | Payment return URL |
+
+### Environment Variables
+
+```bash
+# Appwrite
+NEXT_PUBLIC_APPWRITE_ENDPOINT=
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=
+APPWRITE_API_KEY=
+
+# Payment
+NEXT_PUBLIC_VIPPS_CLIENT_ID=
+VIPPS_CLIENT_SECRET=
+VIPPS_SUBSCRIPTION_KEY=
+VIPPS_TEST_MODE=true
+
+# Optional
+NEXT_PUBLIC_GA_ID=
+```
+
+### Use Cases
+
+1. **Content Consumption** - Users read articles, view pages
+2. **E-commerce** - Browse products, make purchases
+3. **User Interaction** - Forms, comments, feedback
+4. **Membership** - Registration, login, profiles
+
+<Callout type="info">
+  For detailed web app development, see [Web App Documentation](/docs/apps/web).
+</Callout>
+
+---
+
+## Admin Application
+
+### Purpose
+
+Content management system (CMS) where administrators and content creators manage all website content.
+
+### Key Features
+
+#### 📝 Content Management
+- Create and edit pages
+- Manage posts and articles
+- Media library management
+
+#### 🎨 Visual Page Builder
+- Puck editor integration
+- Drag-and-drop page creation
+- Real-time preview
+- Component-based editing
+
+#### 👥 User Management
+- Create and manage users
+- Role-based access control
+- Permission management
+
+#### 🔐 Authentication
+- Secure login system
+- Session management
+- Protected routes
+
+#### 🤖 AI-Powered Features
+- Content assistance
+- Auto-generation capabilities
+- Smart suggestions
+
+#### 📊 Analytics Dashboard
+- Content statistics
+- User activity
+- System health
+
+### Technical Stack
+
+```typescript
+// Key dependencies
+{
+  "next": "^15.2.4",
+  "react": "^19.2.0",
+  "next-intl": "^4.3.9",
+  "@repo/api": "*",
+  "@repo/ui": "*",
+  "@repo/editor": "*",
+  "@repo/payment": "*",
+  "@ai-sdk/openai": "^2.0.30"
+}
+```
+
+### Directory Structure
+
+```
+apps/admin/
+├── src/
+│   ├── app/
+│   │   ├── (admin)/           # Admin routes (protected)
+│   │   │   └── admin/
+│   │   │       ├── pages/     # Page management
+│   │   │       ├── posts/     # Post management
+│   │   │       ├── users/     # User management
+│   │   │       └── dashboard/
+│   │   ├── (auth)/            # Authentication routes
+│   │   │   ├── login/
+│   │   │   └── register/
+│   │   ├── (protected)/       # Other protected routes
+│   │   ├── actions/           # Server actions
+│   │   └── api/               # API routes
+│   ├── components/
+│   │   ├── dashboard/
+│   │   ├── forms/
+│   │   ├── tables/
+│   │   └── editors/
+│   └── lib/
+│       ├── auth.ts
+│       ├── permissions.ts
+│       └── api/
+└── messages/                  # Admin UI translations
+```
+
+### Key Routes
+
+| Route | Purpose |
+|-------|---------|
+| `/login` | Admin login |
+| `/admin/dashboard` | Main dashboard |
+| `/admin/pages` | Page management |
+| `/admin/pages/[id]` | Edit page with Puck |
+| `/admin/posts` | Post management |
+| `/admin/users` | User management |
+
+### Authentication Flow
+
+```typescript
+// Middleware protection
+export async function middleware(request: NextRequest) {
+  // Check session
+  const { account } = await createSessionClient();
+  
+  // Redirect to login if not authenticated
+  if (!account) {
+    return NextResponse.redirect('/login');
+  }
+  
+  // Check permissions
+  const hasPermission = await checkPermissions(account);
+  if (!hasPermission) {
+    return NextResponse.redirect('/unauthorized');
+  }
+  
+  return NextResponse.next();
+}
+```
+
+### User Roles
+
+| Role | Permissions |
+|------|-------------|
+| **Super Admin** | Full system access |
+| **Admin** | Content + user management |
+| **Editor** | Content creation/editing |
+| **Viewer** | Read-only access |
+
+### Environment Variables
+
+```bash
+# Appwrite
+NEXT_PUBLIC_APPWRITE_ENDPOINT=
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=
+APPWRITE_API_KEY=
+
+# AI Features
+OPENAI_API_KEY=
+
+# Admin Config
+NEXT_PUBLIC_ADMIN_URL=http://localhost:3001
+```
+
+### Use Cases
+
+1. **Page Creation** - Build pages with visual editor
+2. **Content Publishing** - Create and publish articles
+3. **User Administration** - Manage users and permissions
+4. **Media Management** - Upload and organize assets
+5. **System Configuration** - Configure site settings
+
+<Callout type="info">
+  For detailed admin app development, see [Admin App Documentation](/docs/apps/admin).
+</Callout>
+
+---
+
+## Docs Application
+
+### Purpose
+
+Developer documentation site (this site!) built with Fumadocs. Provides comprehensive documentation for developers working on the project.
+
+### Key Features
+
+#### 📚 MDX-Based Content
+- Write docs in Markdown with JSX components
+- Code syntax highlighting
+- Interactive examples
+
+#### 🔍 Search
+- Full-text search
+- Keyboard shortcuts
+- Fast and accurate
+
+#### 🎨 Custom Components
+- Callouts for important information
+- Tabs for multiple examples
+- Steps for tutorials
+- File tree visualization
+
+#### 📱 Responsive Documentation
+- Mobile-friendly
+- Dark mode support
+- Accessible navigation
+
+#### ⚡ Static Generation
+- All docs pre-rendered
+- Fast page loads
+- SEO optimized
+
+### Technical Stack
+
+```typescript
+// Key dependencies
+{
+  "next": "^16.0.0",
+  "react": "^19.2.0",
+  "fumadocs-core": "^16.0.11",
+  "fumadocs-mdx": "^13.0.8",
+  "fumadocs-ui": "^16.0.11",
+  "@repo/ui": "*"
+}
+```
+
+### Directory Structure
+
+```
+apps/docs/
+├── app/
+│   ├── docs/
+│   │   ├── [[...slug]]/       # Dynamic doc routes
+│   │   │   └── page.tsx
+│   │   └── layout.tsx         # Docs layout
+│   ├── api/search/            # Search API
+│   └── page.tsx               # Homepage
+├── content/docs/              # MDX documentation
+│   ├── index.mdx
+│   ├── quickstart.mdx
+│   ├── architecture/
+│   ├── packages/
+│   └── guides/
+├── components/
+│   ├── callout.tsx
+│   ├── tabs.tsx
+│   ├── steps.tsx
+│   └── mdx.tsx                # MDX components
+└── lib/
+    ├── source.ts              # Fumadocs configuration
+    └── layout.shared.tsx
+```
+
+### Custom MDX Components
+
+Available in all documentation:
+
+```mdx
+<Callout type="info" title="Title">
+  Important information
+</Callout>
+
+<Steps>
+  <Step title="First">Content</Step>
+  <Step title="Second">Content</Step>
+</Steps>
+
+<FileTree>
+  <FileTreeItem name="src/" icon="📁">
+    <FileTreeItem name="app/" icon="📁" depth={1} />
+  </FileTreeItem>
+</FileTree>
+```
+
+### Creating Documentation
+
+```mdx
+---
+title: Page Title
+description: Page description for SEO
+---
+
+import { Callout } from 'components/callout';
+
+# Page Title
+
+Your content here...
+
+<Callout type="warning">
+  Important note
+</Callout>
+```
+
+### Environment Variables
+
+Docs typically don't need environment variables for local development.
+
+### Use Cases
+
+1. **Onboarding** - Help new developers get started
+2. **API Reference** - Document package APIs
+3. **Guides** - Tutorials and best practices
+4. **Architecture** - System design documentation
+5. **Troubleshooting** - Common issues and solutions
+
+<Callout type="info">
+  For maintaining the docs, see [Docs App Documentation](/docs/apps/docs).
+</Callout>
+
+---
+
+## Shared Infrastructure
+
+All three applications share:
+
+### Package Dependencies
+
+- `@repo/api` - Appwrite clients
+- `@repo/ui` - UI components
+- `@repo/eslint-config` - Linting rules
+- `@repo/typescript-config` - TypeScript config
+
+### Common Technologies
+
+- Next.js 15+ with App Router
+- React 19
+- TypeScript 5.9
+- Tailwind CSS
+- Bun for package management
+- Turborepo for build orchestration
+
+### Development Scripts
+
+```bash
+# Start specific app
+bun run dev --filter=web
+bun run dev --filter=admin
+bun run dev --filter=docs
+
+# Build specific app
+bun run build --filter=web
+
+# Type check
+bun run check-types
+
+# Lint
+bun run lint
+```
+
+## Application Communication
+
+### Direct Database Access
+
+Each app connects directly to Appwrite:
+
+```typescript
+// No inter-app API calls
+// Each app queries Appwrite independently
+
+// In web app
+const { db } = await createSessionClient();
+const posts = await db.listDocuments('posts');
+
+// In admin app (same database)
+const { db } = await createAdminClient();
+const posts = await db.listDocuments('posts');
+```
+
+### Shared Content
+
+Content created in **admin** is available in **web**:
+
+1. Admin creates/edits page
+2. Saves to Appwrite database
+3. Web app queries and displays page
+4. No sync needed - same database
+
+### Independent Deployments
+
+Each app can be deployed independently:
+
+- Different domains/subdomains
+- Different hosting providers
+- Different scaling strategies
+- Independent versioning
+
+## Comparison Table
+
+| Feature | Web | Admin | Docs |
+|---------|-----|-------|------|
+| **Target Users** | Public | Content creators | Developers |
+| **Authentication** | Optional | Required | None |
+| **Database Access** | Read-mostly | Read + Write | None (static) |
+| **Internationalization** | Yes | Yes | No (English only) |
+| **Payment** | Yes | No | No |
+| **Page Builder** | Render only | Edit + Render | No |
+| **Static Export** | Possible | No | Yes |
+| **SEO Important** | Critical | No | Important |
+
+## Next Steps
+
+<Callout type="info" title="Deep Dives">
+  Ready to learn more about each application?
+  - [Web App Deep Dive](/docs/apps/web)
+  - [Admin App Deep Dive](/docs/apps/admin)
+  - [Docs App Deep Dive](/docs/apps/docs)
+  
+  Or continue with:
+  - [Packages Overview](/docs/architecture/packages)
+  - [Data Flow](/docs/architecture/data-flow)
+</Callout>
+

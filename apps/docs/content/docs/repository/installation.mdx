@@ -1,0 +1,427 @@
+---
+title: Installation Guide
+description: Comprehensive installation and setup guide for the BISO Sites monorepo including prerequisites, environment configuration, and Appwrite setup.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+import { FileTree, FileTreeItem } from 'components/file-tree';
+
+# Installation Guide
+
+This guide covers everything you need to install and configure the BISO Sites monorepo for development, from system prerequisites to full Appwrite integration.
+
+<Callout type="info" title="Already set up?">
+  If you just want to get running quickly, see the [Quickstart Guide](/docs/quickstart).
+</Callout>
+
+## Prerequisites
+
+### Required Software
+
+Before installing MON, ensure you have these tools installed:
+
+| Tool | Version | Purpose | Install Link |
+|------|---------|---------|--------------|
+| **Node.js** | >= 18.0 | JavaScript runtime | [nodejs.org](https://nodejs.org/) |
+| **Bun** | >= 1.3.1 | Package manager & runtime | [bun.sh](https://bun.sh/docs/installation) |
+| **Git** | Latest | Version control | [git-scm.com](https://git-scm.com/) |
+
+### Optional Tools
+
+These are optional but recommended for the full development experience:
+
+| Tool | Purpose |
+|------|---------|
+| **Docker** | For running Appwrite locally |
+| **VS Code** | Recommended IDE with great TypeScript support |
+| **Appwrite Cloud Account** | Alternative to self-hosting Appwrite |
+
+### Verify Installation
+
+Check your installations:
+
+```bash
+# Check Node.js
+node --version  # Should be >= 18.0
+
+# Check Bun
+bun --version   # Should be >= 1.3
+
+# Check Git
+git --version   # Any modern version
+```
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    Get the code from your repository:
+    
+    ```bash
+    git clone <your-repository-url> mon
+    cd mon
+    ```
+    
+    <Callout type="note">
+      Replace `<your-repository-url>` with your actual repository URL.
+    </Callout>
+  </Step>
+
+  <Step title="Install Dependencies">
+    Use Bun to install all workspace dependencies:
+    
+    ```bash
+    bun install
+    ```
+    
+    This installs dependencies for:
+    - All 3 applications (web, admin, docs)
+    - All 5 packages (api, ui, editor, payment, configs)
+    - Root workspace tools
+    
+    **What's happening?**
+    - Bun reads `package.json` in the root
+    - Identifies all workspaces in `apps/*` and `packages/*`
+    - Installs dependencies for each workspace
+    - Creates a single `node_modules` at the root
+    - Generates `bun.lock` lockfile
+    
+    <Callout type="success" title="Fast Installation">
+      Bun is significantly faster than npm/yarn. A full install typically takes 10-30 seconds.
+    </Callout>
+  </Step>
+
+  <Step title="Verify Installation">
+    Ensure everything installed correctly:
+    
+    ```bash
+    # Check workspace structure
+    bun run --help
+    
+    # Verify TypeScript setup
+    bun run check-types
+    
+    # Run linters
+    bun run lint
+    ```
+    
+    All commands should complete without errors.
+  </Step>
+</Steps>
+
+## Environment Setup
+
+Each application requires environment variables for full functionality.
+
+### Web Application Environment
+
+Create `apps/web/.env.local`:
+
+```bash
+# Appwrite Configuration
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://your-appwrite-endpoint.com/v1
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your-project-id
+
+# Optional: For server-side operations
+APPWRITE_API_KEY=your-api-key
+
+# Payment Integration (Vipps)
+NEXT_PUBLIC_VIPPS_CLIENT_ID=your-vipps-client-id
+VIPPS_CLIENT_SECRET=your-vipps-secret
+VIPPS_SUBSCRIPTION_KEY=your-subscription-key
+VIPPS_TEST_MODE=true
+
+# Optional: Analytics & Monitoring
+NEXT_PUBLIC_GA_ID=your-google-analytics-id
+```
+
+### Admin Application Environment
+
+Create `apps/admin/.env.local`:
+
+```bash
+# Appwrite Configuration
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://your-appwrite-endpoint.com/v1
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your-project-id
+APPWRITE_API_KEY=your-api-key
+
+# AI Features (optional)
+OPENAI_API_KEY=your-openai-key
+
+# Admin-specific
+NEXT_PUBLIC_ADMIN_URL=http://localhost:3001
+```
+
+### Docs Application Environment
+
+The docs app typically doesn't need environment variables for local development.
+
+<Callout type="warning" title="Never Commit Secrets">
+  `.env.local` files are gitignored. Never commit secrets to the repository!
+</Callout>
+
+## Appwrite Setup
+
+MON uses Appwrite as its backend. You have two options:
+
+### Option 1: Appwrite Cloud (Recommended for Beginners)
+
+<Steps>
+  <Step title="Create Appwrite Account">
+    Sign up at [cloud.appwrite.io](https://cloud.appwrite.io)
+  </Step>
+
+  <Step title="Create a New Project">
+    - Click "Create Project"
+    - Name it (e.g., "MON Development")
+    - Copy the Project ID
+  </Step>
+
+  <Step title="Create an API Key">
+    - Go to Settings → API Keys
+    - Create new key with necessary permissions
+    - Copy the API key (you won't see it again!)
+  </Step>
+
+  <Step title="Configure Applications">
+    - Add platform (Web) for your domains
+    - For localhost: `http://localhost:3000`, `http://localhost:3001`
+  </Step>
+
+  <Step title="Update Environment Variables">
+    Update your `.env.local` files with:
+    - Appwrite endpoint (from cloud)
+    - Project ID
+    - API key
+  </Step>
+</Steps>
+
+### Option 2: Self-Hosted Appwrite
+
+<Steps>
+  <Step title="Install Docker">
+    Ensure Docker and Docker Compose are installed.
+  </Step>
+
+  <Step title="Install Appwrite">
+    ```bash
+    # Create directory for Appwrite
+    mkdir appwrite
+    cd appwrite
+    
+    # Download docker-compose.yml
+    curl -o docker-compose.yml https://appwrite.io/install/compose
+    
+    # Start Appwrite
+    docker compose up -d
+    ```
+  </Step>
+
+  <Step title="Access Appwrite Console">
+    Open [http://localhost:80](http://localhost:80) and complete setup wizard.
+  </Step>
+
+  <Step title="Configure Environment">
+    Use `http://localhost:80/v1` as your `NEXT_PUBLIC_APPWRITE_ENDPOINT`.
+  </Step>
+</Steps>
+
+<Callout type="info" title="Detailed Appwrite Setup">
+  For complete Appwrite database schema and configuration, see [Appwrite Setup](/docs/deployment/appwrite-setup).
+</Callout>
+
+## Database Schema
+
+Once Appwrite is set up, you need to create the database schema. This can be done via:
+
+1. **Appwrite Console** - Manually create collections and attributes
+2. **Appwrite CLI** - Import from `database.json` files
+3. **Migration Scripts** - Run provided migration scripts
+
+Example using Appwrite CLI:
+
+```bash
+# Install Appwrite CLI
+npm install -g appwrite-cli
+
+# Login to your Appwrite instance
+appwrite login
+
+# Deploy database schema (from apps/web or apps/admin)
+cd apps/web
+appwrite deploy collection
+```
+
+<Callout type="note">
+  Database schema files are located in `apps/web/database.json` and `apps/admin/database.json`.
+</Callout>
+
+## Running the Applications
+
+After installation and configuration:
+
+### Start All Applications
+
+```bash
+# From root directory
+bun run dev
+```
+
+This starts:
+- Web app on [http://localhost:3000](http://localhost:3000)
+- Admin app on [http://localhost:3001](http://localhost:3001)
+- Docs on [http://localhost:3002](http://localhost:3002)
+
+### Start Individual Applications
+
+```bash
+# Web only
+bun run dev --filter=web
+
+# Admin only
+bun run dev --filter=admin
+
+# Docs only
+bun run dev --filter=docs
+```
+
+### Build for Production
+
+```bash
+# Build all applications
+bun run build
+
+# Build specific application
+bun run build --filter=web
+```
+
+## Development Tools Setup
+
+### VS Code Extensions (Recommended)
+
+Install these extensions for the best development experience:
+
+```json
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-typescript-next",
+    "unifiedjs.vscode-mdx"
+  ]
+}
+```
+
+### Git Hooks
+
+Set up Git hooks for automatic linting and formatting:
+
+```bash
+# Install husky (if not already in package.json)
+bun add -D husky
+
+# Enable Git hooks
+bunx husky install
+```
+
+## Verification Checklist
+
+After installation, verify everything works:
+
+- [ ] All dependencies installed without errors
+- [ ] `bun run check-types` passes
+- [ ] `bun run lint` passes
+- [ ] `bun run dev` starts all applications
+- [ ] Can access all three applications in browser
+- [ ] Appwrite connection working (check browser console)
+- [ ] Hot reload working (make a change and see it update)
+
+## Troubleshooting
+
+### Bun Installation Issues
+
+If Bun fails to install:
+
+```bash
+# On macOS/Linux
+curl -fsSL https://bun.sh/install | bash
+
+# On Windows (use WSL)
+wsl --install
+# Then install Bun in WSL
+```
+
+### Dependency Installation Failures
+
+```bash
+# Clear all node_modules and reinstall
+rm -rf node_modules apps/*/node_modules packages/*/node_modules
+rm bun.lock
+bun install
+```
+
+### Port Conflicts
+
+If ports 3000, 3001, or 3002 are already in use:
+
+1. **Find and kill the process**:
+```bash
+# macOS/Linux
+lsof -ti:3000 | xargs kill -9
+
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+```
+
+2. **Change the port** in `apps/*/package.json`:
+```json
+{
+  "scripts": {
+    "dev": "next dev -p 3050"
+  }
+}
+```
+
+### Appwrite Connection Issues
+
+1. **Verify environment variables** are correct
+2. **Check Appwrite console** is accessible
+3. **Verify platform is added** in Appwrite project settings
+4. **Check browser console** for specific error messages
+5. **Ensure CORS is configured** correctly in Appwrite
+
+### TypeScript Errors
+
+```bash
+# Generate Next.js types
+cd apps/web
+bunx next build --typegen-only
+
+# Check types across workspace
+bun run check-types
+```
+
+### Module Resolution Issues
+
+If imports aren't working:
+
+1. Check `tsconfig.json` has correct paths
+2. Restart TypeScript server in VS Code: `Cmd+Shift+P` → "TypeScript: Restart TS Server"
+3. Ensure package names in `package.json` match imports
+
+## Next Steps
+
+Now that you're set up:
+
+1. **Learn the Architecture** - [Architecture Overview](/docs/architecture/overview)
+2. **Explore the Code** - [Project Structure](/docs/project-structure)
+3. **Start Developing** - [Development Workflow](/docs/guides/development-workflow)
+4. **Build a Feature** - [Creating Features](/docs/guides/creating-features)
+
+<Callout type="success" title="Successfully Installed!">
+  You're all set! Head to the [Development Workflow](/docs/guides/development-workflow) to learn about day-to-day development.
+</Callout>
+

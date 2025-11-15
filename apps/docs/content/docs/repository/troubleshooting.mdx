@@ -1,0 +1,537 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for BISO Sites development.
+---
+
+import { Callout } from 'components/callout';
+
+# Troubleshooting
+
+Common issues and their solutions when developing BISO Sites.
+
+## Installation & Setup
+
+### Bun Installation Fails
+
+**Problem:** Can't install Bun or getting errors
+
+**Solution:**
+```bash
+# macOS/Linux
+curl -fsSL https://bun.sh/install | bash
+
+# Restart terminal
+source ~/.bashrc  # or ~/.zshrc
+
+# Verify installation
+bun --version
+```
+
+### Dependencies Won't Install
+
+**Problem:** `bun install` fails or hangs
+
+**Solutions:**
+
+1. Clear cache and retry:
+```bash
+rm -rf node_modules apps/*/node_modules packages/*/node_modules
+rm bun.lock
+bun install
+```
+
+2. Check Node.js version (requires >= 18):
+```bash
+node --version
+```
+
+3. Try with clean environment:
+```bash
+rm -rf ~/.bun
+curl -fsSL https://bun.sh/install | bash
+```
+
+## Development Server
+
+### Port Already in Use
+
+**Problem:** `Error: Port 3000 is already in use`
+
+**Solutions:**
+
+1. Kill the process:
+```bash
+# macOS/Linux
+lsof -ti:3000 | xargs kill -9
+
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+```
+
+2. Change the port in `package.json`:
+```json
+{
+  "scripts": {
+    "dev": "next dev -p 3050"
+  }
+}
+```
+
+### Hot Reload Not Working
+
+**Problem:** Changes not reflecting in browser
+
+**Solutions:**
+
+1. Hard refresh browser: `Cmd+Shift+R` (Mac) or `Ctrl+Shift+R` (Windows)
+2. Restart dev server
+3. Clear Next.js cache:
+```bash
+cd apps/web
+rm -rf .next
+bun run dev
+```
+
+4. Check file is saved
+5. Ensure using correct port
+
+### Dev Server Crashes
+
+**Problem:** Server crashes with memory errors
+
+**Solution:**
+```bash
+# Increase Node memory
+NODE_OPTIONS=--max-old-space-size=4096 bun run dev
+```
+
+## Build Errors
+
+### Type Errors
+
+**Problem:** TypeScript errors during build
+
+**Solutions:**
+
+1. Generate Next.js types:
+```bash
+cd apps/web
+bunx next build --typegen-only
+```
+
+2. Check for import errors:
+```typescript
+// ❌ Wrong
+import { Button } from '@repo/ui/button'
+
+// ✅ Correct
+import { Button } from '@repo/ui/components/ui/button'
+```
+
+3. Restart TypeScript server in VS Code:
+- `Cmd+Shift+P` → "TypeScript: Restart TS Server"
+
+### Module Not Found
+
+**Problem:** `Module not found: Can't resolve '@repo/...'`
+
+**Solutions:**
+
+1. Reinstall dependencies:
+```bash
+bun install
+```
+
+2. Check `tsconfig.json` paths:
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@repo/ui": ["../../packages/ui"],
+      "@repo/api": ["../../packages/api"]
+    }
+  }
+}
+```
+
+3. Ensure package exists in workspace
+
+### Build Fails with "Out of Memory"
+
+**Solution:**
+```bash
+NODE_OPTIONS=--max-old-space-size=8192 bun run build
+```
+
+Or in `package.json`:
+```json
+{
+  "scripts": {
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 next build"
+  }
+}
+```
+
+## Database & API
+
+### Appwrite Connection Failed
+
+**Problem:** Can't connect to Appwrite
+
+**Solutions:**
+
+1. Check environment variables:
+```bash
+# Verify .env.local exists
+ls -la apps/web/.env.local
+
+# Check contents
+cat apps/web/.env.local
+```
+
+2. Verify endpoint is accessible:
+```bash
+curl https://your-appwrite.com/v1/health/version
+```
+
+3. Check browser console for CORS errors
+
+4. Verify project ID matches Appwrite dashboard
+
+### Session Not Found (401 Error)
+
+**Problem:** Getting unauthorized errors
+
+**Solutions:**
+
+1. Check cookie is set:
+- Open browser DevTools → Application → Cookies
+- Look for `a_session_biso` cookie
+
+2. Verify session client usage:
+```typescript
+// ✅ Correct
+const { account } = await createSessionClient();
+const user = await account.get();
+
+// ❌ Wrong (no session)
+const { account } = await createAdminClient();
+const user = await account.get();
+```
+
+3. Re-login to get new session
+
+### Database Permission Denied
+
+**Problem:** Can't read/write documents
+
+**Solutions:**
+
+1. Check Appwrite collection permissions
+2. Verify user has required role
+3. Use admin client for system operations:
+```typescript
+// In webhook/system operation
+const { db } = await createAdminClient();
+```
+
+## Payment Issues
+
+### Vipps Test Mode Not Working
+
+**Problem:** Payment fails in test mode
+
+**Solutions:**
+
+1. Verify test mode enabled:
+```bash
+VIPPS_TEST_MODE=true
+```
+
+2. Use test card numbers:
+```
+Card: 4925 0000 0000 0004
+Expiry: Any future date
+CVC: Any 3 digits
+```
+
+3. Check Vipps credentials are for test environment
+
+### Webhook Not Received
+
+**Problem:** Order stuck in PENDING
+
+**Solutions:**
+
+1. Check webhook URL is accessible from internet
+2. Verify webhook URL in Vipps dashboard
+3. Check server logs for incoming requests
+4. Test webhook manually:
+```bash
+curl -X POST http://your-domain.com/api/payment/vipps/callback?sessionId=test_123
+```
+
+5. Use ngrok for local testing:
+```bash
+ngrok http 3000
+# Use ngrok URL in Vipps dashboard
+```
+
+## Styling Issues
+
+### Tailwind Classes Not Working
+
+**Problem:** Styles not applying
+
+**Solutions:**
+
+1. Check `tailwind.config.cjs` includes file:
+```javascript
+module.exports = {
+  content: [
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
+    '../../packages/ui/components/**/*.{js,ts,jsx,tsx}',
+  ],
+  // ...
+}
+```
+
+2. Restart dev server after config changes
+
+3. Ensure classes are in content files (not dynamically generated):
+```typescript
+// ❌ Wrong (dynamic classes)
+className={`text-${color}-500`}
+
+// ✅ Correct
+className={color === 'blue' ? 'text-blue-500' : 'text-red-500'}
+```
+
+### Dark Mode Not Working
+
+**Problem:** Theme toggle doesn't work
+
+**Solutions:**
+
+1. Ensure ThemeProvider is in layout:
+```tsx
+import { ThemeProvider } from '@repo/ui/components/theme-provider';
+
+<html suppressHydrationWarning>
+  <body>
+    <ThemeProvider>
+      {children}
+    </ThemeProvider>
+  </body>
+</html>
+```
+
+2. Add `suppressHydrationWarning` to `<html>` tag
+
+3. Use theme-aware classes:
+```typescript
+className="bg-white dark:bg-gray-900"
+```
+
+## Git & Version Control
+
+### Merge Conflicts
+
+**Problem:** Git merge conflicts
+
+**Solutions:**
+
+1. View conflicts:
+```bash
+git status
+```
+
+2. Resolve manually in editor, looking for:
+```
+<<<<<<< HEAD
+Your changes
+=======
+Their changes
+>>>>>>> branch-name
+```
+
+3. After resolving:
+```bash
+git add .
+git commit -m "fix: resolve merge conflicts"
+```
+
+### Accidentally Committed Secrets
+
+**Problem:** Committed API keys to repo
+
+**Solutions:**
+
+1. Remove from history:
+```bash
+# Install BFG Repo Cleaner
+brew install bfg
+
+# Remove secrets
+bfg --replace-text passwords.txt
+
+# Force push (⚠️ dangerous)
+git push --force
+```
+
+2. Rotate all exposed secrets immediately
+3. Add to `.gitignore`:
+```
+.env.local
+.env*.local
+```
+
+## Performance Issues
+
+### Slow Page Load
+
+**Solutions:**
+
+1. Use Server Components by default
+2. Minimize client-side JavaScript
+3. Optimize images:
+```tsx
+import Image from 'next/image';
+
+<Image
+  src="/image.jpg"
+  width={800}
+  height={600}
+  alt="Description"
+/>
+```
+
+4. Use `loading="lazy"` for images below fold
+
+### Large Bundle Size
+
+**Solutions:**
+
+1. Analyze bundle:
+```bash
+cd apps/web
+ANALYZE=true bun run build
+```
+
+2. Use dynamic imports:
+```typescript
+const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+  loading: () => <p>Loading...</p>
+});
+```
+
+3. Check for duplicate dependencies
+
+## VS Code Issues
+
+### IntelliSense Not Working
+
+**Solutions:**
+
+1. Restart TypeScript server:
+- `Cmd+Shift+P` → "TypeScript: Restart TS Server"
+
+2. Reload window:
+- `Cmd+Shift+P` → "Developer: Reload Window"
+
+3. Check `.vscode/settings.json`:
+```json
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}
+```
+
+### Format on Save Not Working
+
+**Solution:**
+
+Create `.vscode/settings.json`:
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
+```
+
+## Deployment Issues
+
+### Build Fails in Production
+
+**Solutions:**
+
+1. Check environment variables are set
+2. Increase build timeout
+3. Use build:appwrite script for Appwrite:
+```bash
+bun run build:appwrite
+```
+
+### Environment Variables Not Found
+
+**Problem:** `process.env.SOMETHING is undefined`
+
+**Solutions:**
+
+1. Check variable is in `.env.local`
+2. Restart dev server after adding variables
+3. For client-side, prefix with `NEXT_PUBLIC_`:
+```bash
+NEXT_PUBLIC_APPWRITE_ENDPOINT=...
+```
+
+## Getting Help
+
+If you're still stuck:
+
+1. **Check logs** - Terminal and browser console
+2. **Search issues** - GitHub issues or documentation
+3. **Simplify** - Create minimal reproduction
+4. **Ask for help** - Team chat or create issue
+
+<Callout type="tip" title="Debug Mode">
+  Set `DEBUG=true` in `.env.local` for verbose logging.
+</Callout>
+
+## Prevention
+
+### Best Practices to Avoid Issues
+
+1. **Keep dependencies updated** - Run `bun update` regularly
+2. **Clear cache periodically** - `rm -rf .next .turbo`
+3. **Use TypeScript strict mode** - Catch errors early
+4. **Test before committing** - Run `bun run check-types && bun run lint`
+5. **Read error messages** - They usually tell you what's wrong
+6. **Keep `.env.example` updated** - Document required variables
+
+## Quick Fixes Checklist
+
+When something breaks:
+
+- [ ] Restart dev server
+- [ ] Hard refresh browser
+- [ ] Clear Next.js cache (`rm -rf .next`)
+- [ ] Reinstall dependencies (`rm -rf node_modules && bun install`)
+- [ ] Check for type errors (`bun run check-types`)
+- [ ] Check browser console for errors
+- [ ] Check terminal for errors
+- [ ] Verify environment variables
+- [ ] Try in incognito/private window
+
+## Next Steps
+
+- [Commands Reference](/docs/reference/commands) - All available commands
+- [Development Workflow](/docs/guides/development-workflow) - Daily development guide
+- [Contributing](/docs/contributing) - How to contribute
+
+<Callout type="info">
+  Found a solution not listed here? Consider contributing it to the docs!
+</Callout>
+

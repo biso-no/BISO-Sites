@@ -1,0 +1,65 @@
+---
+title: Internationalization (i18n) Guide
+description: Implementing multi-language support with next-intl in BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+
+# Internationalization (i18n)
+
+BISO Sites supports Norwegian and English using next-intl.
+
+## Message Files
+
+```
+messages/
+├── en/
+│   ├── common.json
+│   ├── home.json
+│   └── ...
+└── no/
+    ├── common.json
+    ├── home.json
+    └── ...
+```
+
+## Using Translations
+
+### In Server Components
+
+```typescript
+import { getTranslations } from 'next-intl/server';
+
+export default async function Page() {
+  const t = await getTranslations('home');
+  
+  return <h1>{t('title')}</h1>;
+}
+```
+
+### In Client Components
+
+```typescript
+'use client';
+
+import { useTranslations } from 'next-intl';
+
+export function Component() {
+  const t = useTranslations('home');
+  
+  return <h1>{t('title')}</h1>;
+}
+```
+
+## Adding New Translations
+
+1. Add key to both `messages/en/[section].json` and `messages/no/[section].json`
+2. Use `t('key')` in components
+
+<Callout type="info">
+URLs are automatically prefixed with locale: `/en/about` and `/no/about`
+</Callout>
+
+## Related Documentation
+- [Web App Routing](/docs/web-app/routing)
+

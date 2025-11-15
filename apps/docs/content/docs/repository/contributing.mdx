@@ -1,0 +1,157 @@
+---
+title: Contributing Guide
+description: Guidelines for contributing to the BISO Sites project including code style, PR process, and conventions.
+---
+
+import { Callout } from 'components/callout';
+
+# Contributing Guide
+
+Thank you for your interest in contributing to BISO Sites! This guide will help you get started.
+
+## Code of Conduct
+
+- Be respectful and inclusive
+- Follow project conventions
+- Write clear commit messages
+- Test your changes
+
+## Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/your-org/biso-sites.git
+cd biso-sites
+
+# Install dependencies
+bun install
+
+# Run development server
+bun run dev
+```
+
+## Branch Strategy
+
+- `main` - Production-ready code
+- `develop` - Development branch
+- Feature branches: `feature/feature-name`
+- Bug fixes: `fix/bug-description`
+
+## Commit Messages
+
+Use Conventional Commits format:
+
+```
+feat(web): add membership registration form
+fix(admin): resolve user table pagination issue
+docs(readme): update installation instructions
+chore(deps): update dependencies
+```
+
+Types:
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation
+- `style` - Code style (formatting)
+- `refactor` - Code refactoring
+- `test` - Adding tests
+- `chore` - Maintenance tasks
+
+## Pull Request Process
+
+1. **Create a branch** from `develop`
+2. **Make your changes**
+3. **Run checks**:
+   ```bash
+   bun run format
+   bun run lint
+   bun run check-types
+   bun run build
+   ```
+4. **Commit changes** with conventional commits
+5. **Push branch** and create PR
+6. **Fill PR template**:
+   - Description of changes
+   - Related issues
+   - Screenshots (for UI changes)
+7. **Wait for review**
+8. **Address feedback**
+9. **Merge** after approval
+
+## Code Style
+
+### TypeScript
+
+```typescript
+// Use explicit types
+export function getUser(id: string): Promise<User> {
+  // ...
+}
+
+// Prefer interfaces over types
+interface UserProps {
+  name: string;
+  email: string;
+}
+
+// Use const assertions
+const ROLES = ['admin', 'editor', 'viewer'] as const;
+```
+
+### React
+
+```typescript
+// Use function components
+export function Component({ prop }: Props) {
+  return <div>{prop}</div>;
+}
+
+// Client components: use "use client" directive
+'use client';
+
+// Server actions: use "use server" directive
+'use server';
+```
+
+### Naming Conventions
+
+- **Components**: PascalCase (`UserProfile.tsx`)
+- **Files**: kebab-case (`user-profile.ts`)
+- **Functions**: camelCase (`getUserById`)
+- **Constants**: UPPER_SNAKE_CASE (`API_ENDPOINT`)
+
+## Testing
+
+Before submitting:
+
+```bash
+# Type check
+bun run check-types
+
+# Lint
+bun run lint
+
+# Build
+bun run build --filter=web
+```
+
+## Documentation
+
+Update documentation when:
+- Adding new features
+- Changing APIs
+- Modifying configuration
+- Updating dependencies
+
+## Related Documentation
+
+- [Development Workflow](/docs/development/guides/development-workflow)
+- [Code Style](/docs/development/guides/styling)
+
+<Callout type="success" title="Getting Help">
+If you need help, reach out in:
+- GitHub Issues
+- Team chat
+- Documentation discussions
+</Callout>
+

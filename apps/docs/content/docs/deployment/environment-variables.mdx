@@ -1,0 +1,86 @@
+---
+title: Environment Variables
+description: Complete list of environment variables required for each application in BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+
+# Environment Variables
+
+This guide lists all required environment variables for each application.
+
+## Web App (`apps/web/.env.local`)
+
+```bash
+# Appwrite Configuration
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+APPWRITE_API_KEY=your_server_api_key
+
+# Vipps Payment
+VIPPS_CLIENT_ID=your_client_id
+VIPPS_CLIENT_SECRET=your_client_secret
+VIPPS_SUBSCRIPTION_KEY=your_subscription_key
+VIPPS_MERCHANT_SERIAL_NUMBER=your_merchant_serial
+VIPPS_SYSTEM_NAME=BISO-Sites
+VIPPS_SYSTEM_VERSION=1.0.0
+
+# Application
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_APPWRITE_DATABASE_ID=your_database_id
+
+# Optional: AI Features
+OPENAI_API_KEY=your_openai_key
+```
+
+## Admin App (`apps/admin/.env.local`)
+
+```bash
+# Appwrite Configuration
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+APPWRITE_API_KEY=your_server_api_key
+
+# Application
+NEXT_PUBLIC_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_APPWRITE_DATABASE_ID=your_database_id
+```
+
+## Docs App (`apps/docs/.env.local`)
+
+```bash
+# Usually no environment variables needed for docs
+# Unless integrating search or analytics
+```
+
+<Callout type="warning" title="Security">
+Never commit `.env.local` files to version control. Use `.env.example` as a template.
+</Callout>
+
+## Obtaining Credentials
+
+### Appwrite
+
+1. Sign up at [cloud.appwrite.io](https://cloud.appwrite.io) or self-host
+2. Create a project
+3. Get Project ID from project settings
+4. Create API key with required scopes
+
+### Vipps
+
+1. Register at [Vipps Developer Portal](https://developer.vippsmobilepay.com/)
+2. Create merchant account
+3. Obtain API credentials from portal
+
+## Production Setup
+
+Use your hosting provider's environment variable settings:
+- Vercel: Project Settings → Environment Variables
+- Netlify: Site Settings → Build & Deploy → Environment
+- Docker: Use `.env` file or docker-compose environment
+
+## Related Documentation
+
+- [Deployment Overview](/docs/repository/deployment/overview)
+- [Appwrite Setup](/docs/repository/deployment/appwrite-setup)
+
