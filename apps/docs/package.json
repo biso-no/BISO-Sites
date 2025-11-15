@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@repo/ui": "*",
     "fumadocs-core": "16.0.11",
     "fumadocs-mdx": "13.0.8",
     "fumadocs-typescript": "^4.0.13",
