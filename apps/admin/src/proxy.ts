@@ -6,9 +6,7 @@ export function proxy(req: NextRequest) {
 
   const existingCookie = req.cookies.get('a_session_biso');
   if (!existingCookie) {
-    const anonymousUrl = new URL('/api/auth/anonymous', req.url);
-    anonymousUrl.searchParams.set('redirect', pathname + req.nextUrl.search);
-    return NextResponse.redirect(anonymousUrl);
+    return NextResponse.redirect(new URL('/auth/login', req.url));
   }
   return NextResponse.next();
 }
