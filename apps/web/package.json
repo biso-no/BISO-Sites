@@ -5,13 +5,8 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "build:appwrite": "DISABLE_MINIFY=1 NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
-    "lint": "next lint",
-    "i18n:sync": "node scripts/sync-translations.mjs",
-    "docker:build": "docker build -t biso-app .",
-    "docker:save": "docker save biso-app -o biso-app.tar",
-    "import:jobs": "bun scripts/import-jobs.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",

@@ -3,11 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "dev": "next dev -p 3002",
     "build": "next build",
-    "dev": "next dev",
     "start": "next start",
-    "postinstall": "fumadocs-mdx",
-    "lint": "eslint"
+    "lint": "next lint"
   },
   "dependencies": {
     "fumadocs-core": "16.0.11",
