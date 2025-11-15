@@ -1,6 +1,6 @@
 "use server"
 
-import { createAdminClient } from "@repo/api/server"
+import { createSessionClient } from "@repo/api/server"
 import { CampusData } from "@repo/api/types/appwrite"
 
 const NATIONAL_CAMPUS_ID = "5"
@@ -12,7 +12,7 @@ function normaliseName(value?: string | null) {
 
 export async function getGlobalMembershipBenefits(): Promise<CampusData | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     try {
       const document = await db.getRow<CampusData>("app", "campus_data", NATIONAL_CAMPUS_ID)

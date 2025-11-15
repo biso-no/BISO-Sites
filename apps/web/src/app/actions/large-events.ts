@@ -1,7 +1,7 @@
 "use server"
 
 import { Query } from "@repo/api"
-import { createAdminClient } from "@repo/api/server"
+import { createSessionClient } from "@repo/api/server"
 import type {
   LargeEventItem,
   ParsedLargeEvent
@@ -41,7 +41,7 @@ const toParsedEvent = (event: LargeEvent): ParsedLargeEvent => {
 export async function listLargeEvents(params: ListParams = {}): Promise<ParsedLargeEvent[]> {
   const { limit = 25, activeOnly = true, showcaseTypes } = params
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     const queries = [Query.orderDesc("priority"), Query.limit(limit)]
 
@@ -64,7 +64,7 @@ export async function listLargeEvents(params: ListParams = {}): Promise<ParsedLa
 export async function getLargeEventBySlug(slug: string): Promise<ParsedLargeEvent | null> {
   if (!slug) return null
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     const response = await db.listRows<LargeEvent>("app", "large_event", [
       Query.equal("slug", slug),
@@ -95,7 +95,7 @@ export async function getLargeEventBySlug(slug: string): Promise<ParsedLargeEven
 async function getLargeEventItems(eventId: string): Promise<LargeEventItem[]> {
   if (!eventId) return []
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     const response = await db.listRows<LargeEventItem>("app", "large_event_item", [
       Query.equal("eventId", eventId),

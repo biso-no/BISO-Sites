@@ -1,5 +1,5 @@
 "use server"
-import { createSessionClient, createAdminClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import { Query } from "@repo/api";
 import { createVippsCheckout } from "@/lib/vipps";
 import { getProduct } from "@/app/actions/products";
@@ -253,7 +253,7 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
     }
 
     const discountTotal = Math.max(0, originalTotal - subtotal)
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const order = await db.createRow('app', 'orders', 'unique()', {
       status: 'pending',
       currency: 'NOK',
@@ -315,7 +315,7 @@ export async function startCartCheckout(data: CartCheckoutData) {
 
 async function getCheckoutStatus(orderId: string): Promise<CheckoutStatusResult> {
     try {
-        const { db } = await createAdminClient()
+        const { db } = await createSessionClient()
         const order = await db.getRow<Orders>('app', 'orders', orderId)
         
         if (!order.vipps_session_id) {

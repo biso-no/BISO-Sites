@@ -25,7 +25,7 @@ function extractDate(text: string): string | null {
       try {
         const date = new Date(match[0]);
         if (!isNaN(date.getTime())) {
-          return date.toISOString().split('T')[0];
+          return date.toISOString().split('T')[0] || null;
         }
       } catch (e) {
         continue;
@@ -47,7 +47,7 @@ function extractAmount(text: string): number | null {
   for (const pattern of amountPatterns) {
     const match = text.match(pattern);
     if (match) {
-      const amount = parseFloat(match[1].replace(',', '.'));
+      const amount = parseFloat(match[1]?.replace(',', '.') || '0');
       if (!isNaN(amount)) {
         return amount;
       }

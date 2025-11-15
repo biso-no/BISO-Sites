@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { cn } from '@repo/ui/lib/utils';
 
-type CalloutType = 'info' | 'warning' | 'danger' | 'success' | 'note';
+type CalloutType = 'info' | 'warning' | 'danger' | 'success' | 'note' | 'tip';
 
 interface CalloutProps {
   type?: CalloutType;
@@ -35,6 +35,11 @@ const calloutStyles: Record<CalloutType, { container: string; icon: string; icon
     icon: 'text-gray-600 dark:text-gray-400',
     iconBg: 'bg-gray-100 dark:bg-gray-800',
   },
+  tip: {
+    container: 'border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950',
+    icon: 'text-purple-600 dark:text-purple-400',
+    iconBg: 'bg-purple-100 dark:bg-purple-900',
+  },
 };
 
 const calloutIcons: Record<CalloutType, string> = {
@@ -43,6 +48,7 @@ const calloutIcons: Record<CalloutType, string> = {
   danger: '🚫',
   success: '✅',
   note: '📝',
+  tip: '💡',
 };
 
 export function Callout({ type = 'info', title, children }: CalloutProps) {

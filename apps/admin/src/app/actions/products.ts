@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { Query, getStorageFileUrl } from '@repo/api'
-import { createAdminClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import type {
   CreateProductData,
   UpdateProductData,
@@ -18,7 +18,7 @@ import { PRODUCT_SELECT_FIELDS, normalizeProductRow } from './_utils/translatabl
 
 export async function listProducts(params: ListProductsParams = {}): Promise<ProductWithTranslations[]> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const queries = [
       Query.select([...PRODUCT_SELECT_FIELDS]),
@@ -55,7 +55,7 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Pro
 
 export async function getProduct(id: string): Promise<ProductWithTranslations | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     const response = await db.listRows<WebshopProducts>('app', 'webshop_products', [
       Query.equal('$id', id),
@@ -78,7 +78,7 @@ export async function getProduct(id: string): Promise<ProductWithTranslations | 
 
 async function getProductBySlug(slug: string): Promise<ProductWithTranslations | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const productsResponse = await db.listRows<WebshopProducts>('app', 'webshop_products', [
       Query.equal('slug', slug),
@@ -99,7 +99,7 @@ async function getProductBySlug(slug: string): Promise<ProductWithTranslations |
 
 export async function createProduct(data: CreateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const statusValue =
       data.status === 'draft'
         ? Status.DRAFT
@@ -160,7 +160,7 @@ export async function createProduct(data: CreateProductData, skipRevalidation = 
 
 export async function updateProduct(id: string, data: UpdateProductData, skipRevalidation = false): Promise<WebshopProducts | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Build update object
     const updateData: Record<string, unknown> = {}
@@ -241,7 +241,7 @@ export async function updateProduct(id: string, data: UpdateProductData, skipRev
 
 export async function deleteProduct(id: string, skipRevalidation = false): Promise<boolean> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Delete the product (translations will be deleted automatically due to cascade)
     await db.deleteRow('app', 'webshop_products', id)
@@ -264,7 +264,7 @@ async function updateProductStatus(
   skipRevalidation = false
 ): Promise<WebshopProducts | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const statusValue =
       status === 'draft'
         ? Status.DRAFT
@@ -339,7 +339,7 @@ export async function uploadProductImage(formData: FormData) {
     throw new Error('No file provided')
   }
 
-  const { storage } = await createAdminClient()
+  const { storage } = await createSessionClient()
   const uploaded = await storage.createFile(PRODUCT_IMAGE_BUCKET, 'unique()', file)
   const url = getStorageFileUrl(PRODUCT_IMAGE_BUCKET, uploaded.$id)
   return { id: uploaded.$id, url }

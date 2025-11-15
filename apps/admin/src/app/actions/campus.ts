@@ -1,6 +1,6 @@
 "use server"
 
-import { createAdminClient, createSessionClient } from "@repo/api/server"
+import { createSessionClient } from "@repo/api/server"
 import { Campus } from "@repo/api/types/appwrite"
 import { CampusData } from "@/lib/types/campus-data"
 import { Query, Models } from "@repo/api"
@@ -8,7 +8,7 @@ import type { CampusMetadata } from "@repo/api/types/appwrite"
 
 async function getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const result = await db.listRows<CampusMetadata>('app', 'campus_metadata')
     
@@ -30,7 +30,7 @@ async function getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
 
 async function getCampusMetadataById(campusId: string): Promise<CampusMetadata | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const result = await db.listRows<CampusMetadata>('app', 'campus_metadata', [
       Query.equal('campus_id', campusId)
@@ -49,7 +49,7 @@ async function getCampusMetadataById(campusId: string): Promise<CampusMetadata |
 
 async function getCampusMetadataByName(campusName: string): Promise<CampusMetadata | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const result = await db.listRows<CampusMetadata>('app', 'campus_metadata', [
       Query.equal('campus_name', campusName.toLowerCase())

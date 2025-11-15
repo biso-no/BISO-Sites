@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache"
 import { ID, Models, Query } from "@repo/api"
 
-import { createAdminClient } from "@repo/api/server"
+import { createSessionClient } from "@repo/api/server"
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from "@/i18n/config"
 
 const DATABASE_ID = "webapp"
 const NAV_COLLECTION = "nav_menu"
 const NAV_TRANSLATIONS_COLLECTION = "nav_menu_translations"
 
-type AdminDbClient = Awaited<ReturnType<typeof createAdminClient>>["db"]
+type AdminDbClient = Awaited<ReturnType<typeof createSessionClient>>["db"]
 
 type NavMenuDocument = Models.Row & {
   slug: string
@@ -153,7 +153,7 @@ const buildNavTree = (
 }
 
 const fetchNavData = async (dbClient?: AdminDbClient) => {
-  const db = dbClient ?? (await createAdminClient()).db
+  const db = dbClient ?? (await createSessionClient()).db
 
   const navDocumentsResponse = await db.listRows<NavMenuDocument>(DATABASE_ID, NAV_COLLECTION, [
     Query.limit(400),
@@ -244,7 +244,7 @@ interface CreateNavMenuInput {
 
 export const createNavMenuItem = async (input: CreateNavMenuInput): Promise<MutationResponse> => {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const trimmedSlug = input.slug.trim()
     if (!trimmedSlug) {
       return { success: false, error: "Slug is required" }
@@ -301,7 +301,7 @@ interface UpdateNavMenuInput {
 
 export const updateNavMenuItem = async (input: UpdateNavMenuInput): Promise<MutationResponse> => {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     await db.updateRow(DATABASE_ID, NAV_COLLECTION, input.id, {
       parent_id: input.parentId ?? null,
@@ -331,7 +331,7 @@ export const updateNavMenuItem = async (input: UpdateNavMenuInput): Promise<Muta
 
 export const deleteNavMenuItem = async (navId: string): Promise<MutationResponse> => {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const { documents } = await fetchNavData(db)
 
     const hasChildren = documents.some((doc) => (doc.parent_id ?? null) === navId)
@@ -369,7 +369,7 @@ const moveNavMenuItem = async (
   direction: "up" | "down"
 ): Promise<MutationResponse> => {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const { documents } = await fetchNavData(db)
     const target = documents.find((doc) => doc.$id === navId)
 
@@ -413,7 +413,7 @@ export const syncNavMenuStructure = async (
   structure: NavMenuStructureItem[]
 ): Promise<MutationResponse> => {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
 
     await Promise.all(
       structure.map((item) =>

@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import { Query } from '@repo/api'
 import { NewsItem } from '@/lib/types/news'
 import { revalidatePath } from 'next/cache'
@@ -44,7 +44,7 @@ export async function listNews(params: ListNewsParams = {}): Promise<ContentTran
   } = params
 
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const queries = [
       Query.equal('content_type', ContentType.NEWS),
@@ -79,7 +79,7 @@ export async function listNews(params: ListNewsParams = {}): Promise<ContentTran
 
 export async function getNewsItem(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Query content_translations by content_id and locale
     const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
@@ -103,7 +103,7 @@ export async function getNewsItem(id: string, locale: 'en' | 'no'): Promise<Cont
 
 async function createNewsItem(data: CreateNewsData, skipRevalidation = false): Promise<News | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Build translation_refs array from provided translations only
     const translationRefs: ContentTranslations[] = []
@@ -156,7 +156,7 @@ async function createNewsItem(data: CreateNewsData, skipRevalidation = false): P
 
 async function updateNewsItem(id: string, data: Partial<CreateNewsData>, skipRevalidation = false): Promise<NewsItem | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Build update object
     const updateData: Record<string, unknown> = {}

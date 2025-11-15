@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient, createSessionClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import { Query } from '@repo/api'
 import { JobApplication, JobApplicationFormData } from '@/lib/types/job-application'
 import { ContentTranslation } from '@/lib/types/content-translation'
@@ -52,7 +52,7 @@ export async function listJobs(params: ListJobsParams = {}): Promise<ContentTran
   } = params
 
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     const queries = [
       Query.equal('content_type', ContentType.JOB),
@@ -87,7 +87,7 @@ export async function listJobs(params: ListJobsParams = {}): Promise<ContentTran
 
 async function getJob(id: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Query content_translations by content_id and locale
     const translationsResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
@@ -111,7 +111,7 @@ async function getJob(id: string, locale: 'en' | 'no'): Promise<ContentTranslati
 
 export async function getJobBySlug(slug: string, locale: 'en' | 'no'): Promise<ContentTranslations | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Get job by slug
     const jobsResponse = await db.listRows<Jobs>('app', 'jobs', [
@@ -143,7 +143,7 @@ export async function getJobBySlug(slug: string, locale: 'en' | 'no'): Promise<C
 
 async function createJob(data: CreateJobData, skipRevalidation = false): Promise<Jobs | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Build translation_refs array from provided translations only
     const translationRefs: ContentTranslations[] = []
@@ -196,7 +196,7 @@ async function createJob(data: CreateJobData, skipRevalidation = false): Promise
 
 async function updateJob(id: string, data: Partial<CreateJobData>): Promise<Jobs | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Build update object
     const updateData: Record<string, unknown> = {}
@@ -254,7 +254,7 @@ async function updateJob(id: string, data: Partial<CreateJobData>): Promise<Jobs
 
 async function deleteJob(id: string): Promise<boolean> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Delete translations first
     const translationsResponse = await db.listRows('app', 'content_translations', [
@@ -288,7 +288,7 @@ async function translateJobContent(
   toLocale: 'en' | 'no'
 ): Promise<ContentTranslation | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     
     // Get existing translation
     const existingResponse = await db.listRows<ContentTranslations>('app', 'content_translations', [
@@ -369,7 +369,7 @@ async function listDepartments(campusId?: string) {
   }
 
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const response = await db.listRows('app', 'departments', queries)
     return response.rows
   } catch (error) {
@@ -380,7 +380,7 @@ async function listDepartments(campusId?: string) {
 
 async function listCampuses() {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const response = await db.listRows('app', 'campus')
     return response.rows
   } catch (error) {
@@ -434,7 +434,7 @@ async function createJobApplication(data: JobApplicationFormData & { job_id: str
 
 async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const queries = [Query.orderDesc('$createdAt')]
     
     if (jobId) {
@@ -451,7 +451,7 @@ async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
 
 async function updateJobApplicationStatus(applicationId: string, status: JobApplication['status']): Promise<JobApplication | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const application = await db.updateRow<JobApplication>('app', 'job_applications', applicationId, { status })
     revalidatePath('/admin/jobs')
     return application
@@ -463,7 +463,7 @@ async function updateJobApplicationStatus(applicationId: string, status: JobAppl
 
 async function exportJobApplicationData(applicationId: string): Promise<JobApplication | null> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const application = await db.getRow<JobApplication>('app', 'job_applications', applicationId)
     return application
   } catch (error) {
@@ -474,7 +474,7 @@ async function exportJobApplicationData(applicationId: string): Promise<JobAppli
 
 async function deleteJobApplicationData(applicationId: string): Promise<boolean> {
   try {
-    const { db, storage } = await createAdminClient()
+    const { db, storage } = await createSessionClient()
     
     const application = await db.getRow<JobApplication>('app', 'job_applications', applicationId)
     

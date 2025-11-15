@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@repo/api/server'
+import { createSessionClient } from '@repo/api/server'
 import { handleVippsCallback } from '@repo/payment/vipps'
 import { headers } from 'next/headers'
 
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         console.log(`[Vipps Webhook] Received callback for session: ${sessionId}`)
         
         // Get admin database client (webhooks don't have user sessions)
-        const { db } = await createAdminClient()
+        const { db } = await createSessionClient()
         
         // Handle the callback using our payment package
         const result = await handleVippsCallback(authToken, sessionId, db)

@@ -1,7 +1,7 @@
 "use server"
 
 import { Query } from "@repo/api"
-import { createAdminClient } from "@repo/api/server"
+import { createSessionClient } from "@repo/api/server"
 import type { FundingProgram, ParsedFundingProgram, FundingProgramMetadata } from "@/lib/types/funding-program"
 
 const parseFundingMetadata = (value?: string | null): FundingProgramMetadata => {
@@ -21,7 +21,7 @@ const toParsedProgram = (program: FundingProgram): ParsedFundingProgram => ({
 
 async function listFundingPrograms(status: string = "active"): Promise<ParsedFundingProgram[]> {
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const queries = [Query.orderAsc("slug"), Query.limit(50)]
     if (status) {
       queries.push(Query.equal("status", status))
@@ -37,7 +37,7 @@ async function listFundingPrograms(status: string = "active"): Promise<ParsedFun
 export async function getFundingProgramBySlug(slug: string): Promise<ParsedFundingProgram | null> {
   if (!slug) return null
   try {
-    const { db } = await createAdminClient()
+    const { db } = await createSessionClient()
     const response = await db.listRows<FundingProgram>("app", "funding_programs", [
       Query.equal("slug", slug),
       Query.limit(1)
