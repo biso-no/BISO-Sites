@@ -1,8 +1,6 @@
 import { createMDX } from 'fumadocs-mdx/next';
 
-const withMDX = createMDX({
-  configPath: '.next/source.config.ts', // <-- Add .next/ prefix
-});
+const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const config = {
