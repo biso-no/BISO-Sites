@@ -1,45 +1,90 @@
-# docs1
+## BISO Sites Docs App (`apps/docs`)
 
-This is a Next.js application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+The **Docs App** is the canonical documentation site for the BISO Sites monorepo. It is built with Next.js and Fumadocs, and hosts guides for the repository, applications, architecture, operations, and shared packages.
 
-Run development server:
+This is where onboarding guides, operational runbooks, and API/package documentation live.
+
+### Audience
+
+- **New IT managers / maintainers** – onboarding, operations, and architecture.
+- **Developers** – development workflow, package APIs, and feature guides.
+- **Editors / stakeholders** – high-level overviews of applications and features.
+
+### Tech Stack
+
+- Next.js 15 with the App Router.
+- React 19 with MDX content rendering.
+- Fumadocs (`fumadocs-core`, `fumadocs-ui`, `fumadocs-mdx`) for navigation and layout.
+- Shared UI components from `@repo/ui`.
+
+### Local Development
+
+From the monorepo root:
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+# Install dependencies (once)
+bun install
+
+# Run only the docs app (port 3002)
+bun run dev --filter=docs
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+Then open `http://localhost:3002` in your browser.
 
-## Explore
+### Directory Structure
 
-In the project, you can see:
+```text
+apps/docs/
+├── app/
+│  ├── (home)/              # Landing page for docs
+│  ├── docs/                # Fumadocs routes ([[...slug]])
+│  ├── api/search/          # Search route handler
+│  └── og/                  # Open Graph images
+├── content/
+│  └── docs/
+│     ├── repository/       # Monorepo & onboarding docs
+│     ├── applications/     # web/admin/docs app docs
+│     ├── packages/         # @repo/api, @repo/payment, @repo/ui, @repo/editor
+│     ├── development/      # Dev workflow, patterns, guides
+│     ├── architecture/     # High-level system design
+│     ├── operations/       # Environments, Appwrite, Docker, deployments
+│     └── reference/        # Command reference and misc
+├── components/             # MDX components (Callout, Steps, Tabs, etc.)
+├── lib/
+│  ├── source.ts            # Content source adapter
+│  └── layout.shared.tsx    # Shared layout config
+├── next.config.mjs
+├── postcss.config.mjs
+├── tsconfig.json
+└── package.json
+```
 
-- `lib/source.ts`: Code for content source adapter, [`loader()`](https://fumadocs.dev/docs/headless/source-api) provides the interface to access your content.
-- `lib/layout.shared.tsx`: Shared options for layouts, optional but preferred to keep.
+### Editing Documentation
 
-| Route                     | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| `app/(home)`              | The route group for your landing page and other pages. |
-| `app/docs`                | The documentation layout and pages.                    |
-| `app/api/search/route.ts` | The Route Handler for search.                          |
+All docs content lives under `apps/docs/content/docs`. Each section has its own `meta.json` and `.mdx` files:
 
-### Fumadocs MDX
+- Repository docs: `content/docs/repository/*`
+- Application docs: `content/docs/applications/*`
+- Package docs: `content/docs/packages/*`
+- Architecture docs: `content/docs/architecture/*`
+- Operations docs: `content/docs/operations/*`
 
-A `source.config.ts` config file has been included, you can customise different options like frontmatter schema.
+After editing `.mdx` files, save and refresh your browser; Fast Refresh will reload the page automatically.
 
-Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
+### Scripts
 
-## Learn More
+Defined in `apps/docs/package.json`:
 
-To learn more about Next.js and Fumadocs, take a look at the following
-resources:
+```bash
+bun run dev      # next dev -p 3002 --turbo
+bun run build    # next build
+bun run start    # next start
+bun run lint     # next lint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js
-  features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [Fumadocs](https://fumadocs.dev) - learn about Fumadocs
+### Further Reading
+
+- Repository overview: `/docs/repository`
+- 5-minute quickstart: `/docs/repository/quickstart`
+- Packages overview: `/docs/packages`
+- Architecture overview: `/docs/architecture/overview`

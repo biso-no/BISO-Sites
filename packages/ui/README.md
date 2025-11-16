@@ -1,59 +1,106 @@
-@repo/ui — Design System
+## `@repo/ui` – Design System
 
-Overview
+The `@repo/ui` package is the shared design system for BISO Sites. It provides tokens, theming, and UI primitives built on Tailwind CSS v4, Radix UI, and `class-variance-authority`, and is used across the web, admin, and docs apps.
 
-- Shared tokens, theming, and UI primitives for apps in this monorepo.
-- Technology: Tailwind CSS v4, Radix UI, class-variance-authority, next-themes.
-- Import tokens via CSS: `@import "@repo/ui/styles/tokens.css"` in your app `globals.css`.
+For a full catalogue and patterns, see `/docs/packages/ui/overview` in the docs app.
 
-Getting Started
+### What’s Included
 
-- CSS setup in app globals.css:
-  - `@config "../../tailwind.config.cjs"`
-  - `@plugin "tailwindcss-animate"`
-  - `@import "tailwindcss"`
-  - `@import "@repo/ui/styles/tokens.css"`
+- Shared tokens for colors, spacing, radius, typography, and motion.
+- 30+ Radix-based UI primitives under `components/ui/*`.
+- Composite patterns (filter bars, resource cards, etc.).
+- Theme provider and dark/light mode handling.
+- Utilities (`cn`, tokens helpers) and global styles.
 
-- Providers:
-  - Wrap your app with `ThemeProvider` and `ToastProvider`, `TooltipProvider` as needed.
-  - Example:
+### Package Structure
 
-    ```tsx
-    import { ThemeProvider } from "@repo/ui/components/theme-provider";
-    import { ToastProvider } from "@repo/ui/components/ui/use-toast";
-    import { TooltipProvider } from "@repo/ui/components/ui/tooltip";
+```text
+packages/ui/
+├── components/
+│  ├── ui/               # shadcn/Radix components
+│  ├── patterns/         # Composite patterns
+│  ├── theme-provider.tsx
+│  └── image.tsx, mode-toggle.tsx, ...
+├── hooks/
+│  └── use-mobile.ts
+├── lib/
+│  ├── utils.ts          # cn(), helpers
+│  ├── fonts.ts
+│  └── tokens.ts         # typed token helpers
+├── styles/
+│  └── globals.css       # global styles & tokens import
+└── package.json
+```
 
-    export function Providers({ children }: { children: React.ReactNode }) {
-      return (
-        <ThemeProvider>
-          <ToastProvider>
-            <TooltipProvider>{children}</TooltipProvider>
-          </ToastProvider>
-        </ThemeProvider>
-      );
-    }
-    ```
+### Setup in an App
 
-Tokens
+In your app `globals.css`:
 
-- CSS variables for colors, spacing, radius, typography, and motion are defined in `styles/tokens.css`.
-- Type-safe accessors are available in `lib/tokens.ts`:
-  - `tokens.color.primary` → `hsl(var(--primary))`
-  - `tokens.radius["radius-sm"]` → `var(--radius-sm)`
-  - `motion.transition(["opacity","transform"], "duration-200", "ease-standard")`
+```css
+@config "../../tailwind.config.cjs";
+@plugin "tailwindcss-animate";
+@import "tailwindcss";
+@import "@repo/ui/styles/tokens.css";
+```
 
-Components
+Wrap your app with the theme and UI providers:
 
-- Radix-wrapped UI primitives live under `components/ui/*`.
-- Prefer using exported variants (CVA) for consistent sizing and intent.
+```tsx
+import { ThemeProvider } from '@repo/ui/components/theme-provider';
+import { ToastProvider } from '@repo/ui/components/ui/use-toast';
+import { TooltipProvider } from '@repo/ui/components/ui/tooltip';
 
-Theming
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <TooltipProvider>{children}</TooltipProvider>
+      </ToastProvider>
+    </ThemeProvider>
+  );
+}
+```
 
-- Uses `next-themes` with class attribute. Ensure `html` class switches between `dark` and light.
-- Dark/light tokens are AA contrast verified for general UI; preview editorial content for brand tweaks.
+### Tokens
 
-Editorial
+- CSS variables are defined in `styles/tokens.css`.
+- Typed helpers in `lib/tokens.ts`:
 
-- The `.prose` class customizes rich content using the tokenized typography scale.
-- Add `not-prose` to opt-out containers.
+```ts
+import { tokens, motion } from '@repo/ui/lib/tokens';
 
+const primary = tokens.color.primary; // hsl(var(--primary))
+const radiusSm = tokens.radius['radius-sm']; // var(--radius-sm)
+const transition = motion.transition(['opacity', 'transform'], 'duration-200', 'ease-standard');
+```
+
+### Components
+
+- Radix-wrapped primitives live under `components/ui/*` (button, card, dialog, table, etc.).
+- Prefer using CVA-based variants over custom classes to stay consistent.
+
+Typical usage:
+
+```tsx
+import { Button } from '@repo/ui/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@repo/ui/components/ui/card';
+
+export function Example() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Example</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Button variant="primary">Click me</Button>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Theming & Editorial
+
+- Uses `next-themes` with `class` attribute; make sure the root `html` element toggles between `dark` and light.
+- Dark/light tokens are AA contrast-checked for general UI; editorial content may need visual QA.
+- `.prose` applies rich text styling using the tokenized typography scale; use `not-prose` to opt out for specific containers.
