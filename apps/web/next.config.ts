@@ -9,6 +9,7 @@ const baseConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
   productionBrowserSourceMaps: false,
+  output: 'standalone',
 
   transpilePackages: [],
 
