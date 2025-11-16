@@ -5,8 +5,6 @@ import {
   frontmatterSchema,
   metaSchema
 } from "fumadocs-mdx/config";
-import { remarkAutoTypeTable, createGenerator } from "fumadocs-typescript";
-var generator = createGenerator();
 var docs = defineDocs({
   dir: "content/docs",
   docs: {
@@ -19,11 +17,10 @@ var docs = defineDocs({
     schema: metaSchema
   }
 });
-var source_config_default = defineConfig({
-  mdxOptions: {
-    remarkPlugins: [[remarkAutoTypeTable, { generator }]]
-  }
+var config = defineConfig({
+  mdxOptions: {}
 });
+var source_config_default = config;
 export {
   source_config_default as default,
   docs
