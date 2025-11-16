@@ -5,7 +5,7 @@ export async function GET() {
     { 
       status: 'ok',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV
+      //environment: process.env.NODE_ENV
     }, 
     { status: 200 }
   );
