@@ -1,0 +1,301 @@
+---
+title: Appwrite Setup
+description: Setting up and configuring Appwrite database, authentication, and storage for BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+import { Tabs } from 'components/tabs';
+
+# Appwrite Setup
+
+Appwrite is the backend-as-a-service that powers BISO Sites. This guide covers setup and configuration.
+
+## Before you start
+
+- Decide who owns Appwrite credentials (IT manager + backup person).
+- Confirm you have access to the current project ID, endpoint, and API key from the password vault.
+- Export the latest `database.json` files from `apps/web` and `apps/admin` for reference.
+
+## Choose your hosting option
+
+<Tabs
+  tabs={[
+    {
+      label: 'Appwrite Cloud',
+      value: 'cloud',
+      content: (
+        <ol className="list-decimal list-inside space-y-2">
+          <li>
+            Sign up at{' '}
+            <a href="https://cloud.appwrite.io" target="_blank" rel="noreferrer">
+              cloud.appwrite.io
+            </a>.
+          </li>
+          <li>
+            Create a project named <strong>BISO Sites</strong>.
+          </li>
+          <li>Note the Project ID and Endpoint for your `.env.local` files.</li>
+        </ol>
+      ),
+    },
+    {
+      label: 'Self-hosted',
+      value: 'self',
+      content: (
+        <>
+          <pre>
+            <code>{`docker run -d
+  --name=appwrite
+  --restart unless-stopped
+  --publish 80:80
+  --publish 443:443
+  --volume appwrite-data:/storage/uploads
+  --volume appwrite-certificates:/storage/certificates
+  appwrite/appwrite:latest`}</code>
+          </pre>
+          <p className="mt-2 text-sm text-muted-foreground">
+            After the container is running, visit <code>https://localhost</code> (or your server URL) to finish the wizard.
+          </p>
+        </>
+      ),
+    },
+  ]}
+/>
+
+## Setup checklist
+
+<Steps>
+  <Step title="Create project + database">
+    In the Appwrite console, create the `app` database and note its ID. Use the `database.json` files in `apps/web` and `apps/admin` as your schema reference.
+  </Step>
+  <Step title="Import collections & storage buckets">
+    Manually create collections and buckets (`events`, `product-images`, `documents`) with the permissions outlined below. Double-check indexes for orders, events, and translations.
+  </Step>
+  <Step title="Configure auth providers">
+    Enable Magic Link for the web app and Microsoft OAuth (BISO tenant) for the admin app. Test each flow once.
+  </Step>
+  <Step title="Issue API keys + env vars">
+    Generate a server API key (`APPWRITE_API_KEY`) with `databases`, `users`, and `storage` scopes. Update `.env.local` files and the vault entry immediately.
+  </Step>
+</Steps>
+
+## Project Configuration
+
+### 1. Create Database
+
+1. Go to Databases in Appwrite Console
+2. Create a new database
+3. Note the Database ID
+
+### 2. Create Collections
+
+Both web and admin apps include `database.json` files with collection schemas:
+
+```bash
+# Import collections from database.json
+# (Manual process via Appwrite Console)
+```
+
+**Key Collections**:
+- `users` - User profiles
+- `posts` - News/blog posts
+- `events` - Events
+- `products` - E-commerce products
+- `orders` - Order tracking
+- `departments` - Units/departments
+- `membership_applications` - Member data
+
+### 1. Set Up Storage
+
+1. Create storage buckets:
+   - `events` - Event images
+   - `product-images` - Product images
+   - `documents` - File uploads
+
+2. Configure permissions:
+   - Read: `any` (public access)
+   - Write: `users` (authenticated only)
+
+### 2. Configure Authentication
+
+**Web App** (Public Site):
+1. Enable Magic Link authentication (passwordless email link)
+2. Optional: Enable OAuth Microsoft provider for BI Business School accounts
+3. Set session length (default: 365 days)
+
+**Admin App**:
+1. Enable OAuth Microsoft provider (required)
+2. Configure BISO Azure tenant
+3. Admin-only access via OAuth
+
+<Callout type="info" title="Authentication Methods">
+  - **Web App**: Magic Link (primary) + optional Microsoft OAuth (for BI students)
+  - **Admin App**: Microsoft OAuth only (BISO tenant)
+</Callout>
+
+### 5. Create API Keys
+
+1. Go to Settings → API Keys
+2. Create server API key with scopes:
+   - `databases.*`
+   - `users.*`
+   - `storage.*`
+3. Note the API key (use as `APPWRITE_API_KEY`)
+
+## Database Schema
+
+BISO Sites uses a custom `TablesDB` implementation with these methods:
+- `getRow(database, collection, id)` - Get single document
+- `listRows(database, collection, queries)` - List documents with queries  
+- `createRow(database, collection, id, data)` - Create document
+- `updateRow(database, collection, id, data)` - Update document
+- `deleteRow(database, collection, id)` - Delete document
+
+All collections are in database: **`app`**
+
+<Callout type="info" title="Database Name">
+  All server actions use `'app'` as the database name: `db.listRows('app', 'collection_name', queries)`
+</Callout>
+
+### Core Collections
+
+**Key Collections**:
+- `content_translations` - Localized content (events, products, pages)
+- `webshop_products` - Product data
+- `cart_reservations` - Temporary cart items (10 min expiry)
+- `orders` - Orders and transactions
+- `campus` - Campus/location data
+- `campus_data` - Campus-specific settings
+- `campus_metadata` - Additional campus info
+- `departments` - Units/departments/clubs
+- `funding_programs` - BI Fondet funding programs
+- `varsling_settings` - Safety reporting settings
+- `user` - Extended user profile data
+
+### Content Translation System
+
+The `content_translations` collection stores all translatable content:
+
+```typescript
+{
+  content_id: string;        // Reference to actual content
+  content_type: 'event' | 'product' | 'page' | 'post';
+  locale: 'en' | 'no';
+  title: string;
+  description: string;
+  event_ref: Events;         // Relationship to events table
+  product_ref: WebshopProducts; // Relationship to webshop_products
+}
+```
+
+Usage example:
+
+```typescript
+// Get events with translations
+const response = await db.listRows<ContentTranslations>(
+  'app',
+  'content_translations',
+  [
+    Query.equal('content_type', 'event'),
+    Query.equal('locale', 'en'),
+    Query.select(['content_id', '$id', 'locale', 'title', 'event_ref.*'])
+  ]
+);
+```
+
+### Cart Reservations
+
+Temporary stock reservations with automatic expiration:
+
+```typescript
+{
+  product_id: string;
+  user_id: string;
+  quantity: number;
+  expires_at: datetime;  // Auto-expires after 10 minutes
+}
+```
+
+### Orders
+
+```typescript
+{
+  status: 'pending' | 'paid' | 'authorized' | 'cancelled' | 'failed';
+  currency: string;
+  subtotal: number;
+  discount_total: number;
+  total: number;
+  buyer_name: string;
+  buyer_email: string;
+  buyer_phone: string;
+  membership_applied: boolean;
+  member_discount_percent: number;
+  items_json: string;  // JSON array of order items
+  vipps_session_id: string;
+  vipps_payment_link: string;
+  campus_id?: string;
+}
+```
+
+### Database Files
+
+Use the included `database.json` files as reference:
+- `apps/web/database.json`
+- `apps/admin/database.json`
+
+<Callout type="warning" title="Manual Setup Required">
+  Appwrite collections must be created manually via console. Use the `database.json` files as a reference for attributes, indexes, and relationships.
+</Callout>
+
+## Verify everything works
+
+<Steps>
+  <Step title="Health check">
+    Load the Appwrite console → <strong>Health</strong> tab. Ensure all services show green. Restart containers if needed.
+  </Step>
+  <Step title="Web app smoke test">
+    Run `bun run dev --filter=web`, sign up via Magic Link, and confirm a user document appears in the `users` collection.
+  </Step>
+  <Step title="Admin login test">
+    Run `bun run dev --filter=admin`, authenticate via Microsoft OAuth, and confirm your labels include `admin` or `editor`.
+  </Step>
+  <Step title="Order lifecycle">
+    Place a test checkout (Vipps test mode) and ensure an `orders` document transitions from `PENDING` → `PAID` via webhook.
+  </Step>
+</Steps>
+
+## Security Configuration
+
+### Platform Configuration
+
+Add your domains to allowed platforms:
+
+1. Go to Settings → Platforms
+2. Add Web Platform:
+   - **Name**: Web App
+   - **Hostname**: `yourdomain.com` (or `localhost:3000` for dev)
+3. Add Admin Platform:
+   - **Name**: Admin App
+   - **Hostname**: `admin.yourdomain.com` (or `localhost:3001` for dev)
+
+### CORS Configuration
+
+Configure allowed origins in Appwrite settings.
+
+## Backup & Restore
+
+```bash
+# Backup (if self-hosted)
+docker exec appwrite backup-database
+
+# Restore
+docker exec appwrite restore-database backup.sql
+```
+
+## Related Documentation
+
+- [Deployment Overview](/docs/operations/overview)
+- [Environment Variables](/docs/operations/environment-variables)
+- [@repo/api Package](/docs/packages/api/overview)
+

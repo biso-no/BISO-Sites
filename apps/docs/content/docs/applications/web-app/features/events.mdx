@@ -1,0 +1,97 @@
+---
+title: Events Feature
+description: Event management system including listings, registrations, and attendance tracking.
+---
+
+import { Callout } from 'components/callout';
+
+# Events Feature
+
+The events system manages event creation, registration, and attendance for BISO Sites activities and programs.
+
+## Overview
+
+Key capabilities:
+- Event listings with filtering
+- Event detail pages with registration
+- Attendance tracking
+- Calendar integration
+- Email notifications
+
+## Routes
+
+- `/events` - Event listings
+- `/events/[id]` - Event detail with registration
+
+## Implementation
+
+### Events Listing
+
+```typescript
+// app/(public)/events/page.tsx
+import { getEvents } from 'app/actions/events';
+import { EventsListClient } from '@/components/events/events-list-client';
+
+export default async function EventsPage() {
+  const events = await getEvents();
+  return <EventsListClient initialEvents={events} />;
+}
+```
+
+### Event Registration
+
+```typescript
+// app/actions/events.ts
+'use server';
+
+import { createSessionClient } from '@repo/api/server';
+
+export async function registerForEvent(eventId: string) {
+  const { db, account } = await createSessionClient();
+  const user = await account.get();
+  
+  await db.createDocument(
+    process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+    'event_registrations',
+    'unique()',
+    {
+      eventId,
+      userId: user.$id,
+      registeredAt: new Date().toISOString(),
+    }
+  );
+  
+  return { success: true };
+}
+```
+
+## Database Schema
+
+### events
+```json
+{
+  "title": "string",
+  "description": "string",
+  "date": "datetime",
+  "location": "string",
+  "capacity": "integer",
+  "imageUrl": "string",
+  "category": "string",
+  "departmentId": "string"
+}
+```
+
+### event_registrations
+```json
+{
+  "eventId": "string",
+  "userId": "string",
+  "registeredAt": "datetime",
+  "attended": "boolean"
+}
+```
+
+## Related Documentation
+- [Server Actions](/docs/applications/web-app/server-actions)
+- [Admin Events](/docs/applications/admin-app/content-management/events)
+

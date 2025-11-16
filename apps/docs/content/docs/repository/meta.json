@@ -5,12 +5,11 @@
   "icon": "BookOpen",
   "pages": [
     "index",
+    "onboarding",
     "quickstart",
     "installation",
     "project-structure",
-    "architecture",
-    "deployment",
-    "reference",
+    "writing-guide",
     "troubleshooting",
     "contributing"
   ]

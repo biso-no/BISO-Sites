@@ -71,7 +71,7 @@ This project uses Tailwind CSS for styling. The configuration can be found in `t
 
 ## Deployment
 
-Follow the [Next.js deployment documentation](https://nextjs.org/docs/deployment) for detailed instructions on how to deploy your app.
+Follow the [Next.js deployment documentation](https://nextjs.org/docs/operations) for detailed instructions on how to deploy your app.
 
 ## Contributing
 

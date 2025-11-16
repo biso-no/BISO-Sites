@@ -5,6 +5,7 @@ description: Understand the monorepo structure, file organization, and naming co
 
 import { Callout } from 'components/callout';
 import { FileTree, FileTreeItem } from 'components/file-tree';
+import { Tabs } from 'components/tabs';
 
 # Project Structure
 
@@ -53,116 +54,118 @@ biso-sites/
 
 ## Applications (`apps/`)
 
-Each application is a standalone Next.js 15 app with the App Router.
+Each Next.js application follows the same conventions—`src/app` for routes, colocated `components`, and per-app configuration files.
 
-### Web App (`apps/web/`)
+<Callout type="info">
+Use the tabs below to explore the directory structure for each app without scrolling through three separate sections.
+</Callout>
 
-The public-facing website accessible to users.
+<Tabs
+  tabs={[
+    {
+      label: 'Web (apps/web)',
+      value: 'web',
+      content: (
+        <>
+          <p>The public-facing site consumed by students and visitors.</p>
+          <FileTree>
+            <FileTreeItem name="apps/web/" icon="📁">
+              <FileTreeItem name="src/" icon="📁" depth={1}>
+                <FileTreeItem name="app/" icon="📁" depth={2}>
+                  <FileTreeItem name="(routes)/" icon="📁" depth={3} />
+                  <FileTreeItem name="actions/" icon="📁" depth={3} />
+                  <FileTreeItem name="api/" icon="📁" depth={3} />
+                  <FileTreeItem name="layout.tsx" icon="📄" depth={3} />
+                  <FileTreeItem name="page.tsx" icon="📄" depth={3} />
+                </FileTreeItem>
+                <FileTreeItem name="components/" icon="📁" depth={2} />
+                <FileTreeItem name="lib/" icon="📁" depth={2} />
+                <FileTreeItem name="i18n/" icon="📁" depth={2} />
+              </FileTreeItem>
+              <FileTreeItem name="messages/" icon="📁" depth={1}>
+                <FileTreeItem name="en/" icon="📁" depth={2} />
+                <FileTreeItem name="no/" icon="📁" depth={2} />
+              </FileTreeItem>
+              <FileTreeItem name="public/" icon="📁" depth={1} />
+              <FileTreeItem name="package.json" icon="⚙️" depth={1} />
+              <FileTreeItem name="next.config.ts" icon="⚙️" depth={1} />
+            </FileTreeItem>
+          </FileTree>
+        </>
+      ),
+    },
+    {
+      label: 'Admin (apps/admin)',
+      value: 'admin',
+      content: (
+        <>
+          <p>The content management system used by editors and staff.</p>
+          <FileTree>
+            <FileTreeItem name="apps/admin/" icon="📁">
+              <FileTreeItem name="src/" icon="📁" depth={1}>
+                <FileTreeItem name="app/" icon="📁" depth={2}>
+                  <FileTreeItem name="(admin)/" icon="📁" depth={3}>
+                    <FileTreeItem name="admin/" icon="📁" depth={4}>
+                      <FileTreeItem name="pages/" icon="📁" depth={5} />
+                      <FileTreeItem name="posts/" icon="📁" depth={5} />
+                      <FileTreeItem name="users/" icon="📁" depth={5} />
+                    </FileTreeItem>
+                  </FileTreeItem>
+                  <FileTreeItem name="(auth)/" icon="📁" depth={3} />
+                  <FileTreeItem name="(protected)/" icon="📁" depth={3} />
+                  <FileTreeItem name="actions/" icon="📁" depth={3} />
+                  <FileTreeItem name="api/" icon="📁" depth={3} />
+                </FileTreeItem>
+                <FileTreeItem name="components/" icon="📁" depth={2} />
+                <FileTreeItem name="lib/" icon="📁" depth={2} />
+              </FileTreeItem>
+              <FileTreeItem name="messages/" icon="📁" depth={1} />
+              <FileTreeItem name="public/" icon="📁" depth={1} />
+              <FileTreeItem name="package.json" icon="⚙️" depth={1} />
+            </FileTreeItem>
+          </FileTree>
+        </>
+      ),
+    },
+    {
+      label: 'Docs (apps/docs)',
+      value: 'docs',
+      content: (
+        <>
+          <p>The Fumadocs-powered documentation site.</p>
+          <FileTree>
+            <FileTreeItem name="apps/docs/" icon="📁">
+              <FileTreeItem name="app/" icon="📁" depth={1}>
+                <FileTreeItem name="(home)/page.tsx" icon="📄" depth={2} />
+                <FileTreeItem name="docs/" icon="📁" depth={2}>
+                  <FileTreeItem name="[[...slug]]/page.tsx" icon="📄" depth={3} />
+                  <FileTreeItem name="layout.tsx" icon="📄" depth={3} />
+                </FileTreeItem>
+              </FileTreeItem>
+              <FileTreeItem name="content/docs/" icon="📁" depth={1}>
+                <FileTreeItem name="repository/" icon="📁" depth={2} />
+                <FileTreeItem name="applications/" icon="📁" depth={2} />
+                <FileTreeItem name="packages/" icon="📁" depth={2} />
+                <FileTreeItem name="development/" icon="📁" depth={2} />
+                <FileTreeItem name="architecture/" icon="📁" depth={2} />
+                <FileTreeItem name="operations/" icon="📁" depth={2} />
+                <FileTreeItem name="reference/" icon="📁" depth={2} />
+              </FileTreeItem>
+              <FileTreeItem name="components/" icon="📁" depth={1} />
+              <FileTreeItem name="lib/" icon="📁" depth={1} />
+            </FileTreeItem>
+          </FileTree>
+        </>
+      ),
+    },
+  ]}
+/>
 
-<FileTree>
-  <FileTreeItem name="apps/web/" icon="📁">
-    <FileTreeItem name="src/" icon="📁" depth={1}>
-      <FileTreeItem name="app/" icon="📁" depth={2}>
-        <FileTreeItem name="(routes)/" icon="📁" depth={3} />
-        <FileTreeItem name="actions/" icon="📁" depth={3} />
-        <FileTreeItem name="api/" icon="📁" depth={3} />
-        <FileTreeItem name="layout.tsx" icon="📄" depth={3} />
-        <FileTreeItem name="page.tsx" icon="📄" depth={3} />
-      </FileTreeItem>
-      <FileTreeItem name="components/" icon="📁" depth={2} />
-      <FileTreeItem name="lib/" icon="📁" depth={2} />
-      <FileTreeItem name="i18n/" icon="📁" depth={2} />
-    </FileTreeItem>
-    <FileTreeItem name="public/" icon="📁" depth={1}>
-      <FileTreeItem name="images/" icon="📁" depth={2} />
-    </FileTreeItem>
-    <FileTreeItem name="messages/" icon="📁" depth={1}>
-      <FileTreeItem name="en/" icon="📁" depth={2} />
-      <FileTreeItem name="no/" icon="📁" depth={2} />
-    </FileTreeItem>
-    <FileTreeItem name="package.json" icon="⚙️" depth={1} />
-    <FileTreeItem name="next.config.ts" icon="⚙️" depth={1} />
-    <FileTreeItem name="tailwind.config.cjs" icon="⚙️" depth={1} />
-    <FileTreeItem name="tsconfig.json" icon="⚙️" depth={1} />
-  </FileTreeItem>
-</FileTree>
-
-**Key Directories:**
-- `src/app/` - Next.js App Router routes and layouts
-- `src/components/` - React components specific to web
-- `src/lib/` - Utility functions and helpers
-- `src/i18n/` - i18n configuration
-- `messages/` - Translation files for next-intl
-- `public/` - Static assets (images, fonts, etc.)
-
-**Port:** 3000
-
-### Admin App (`apps/admin/`)
-
-Content management system for managing website content.
-
-<FileTree>
-  <FileTreeItem name="apps/admin/" icon="📁">
-    <FileTreeItem name="src/" icon="📁" depth={1}>
-      <FileTreeItem name="app/" icon="📁" depth={2}>
-        <FileTreeItem name="(admin)/" icon="📁" depth={3}>
-          <FileTreeItem name="admin/" icon="📁" depth={4}>
-            <FileTreeItem name="pages/" icon="📁" depth={5} />
-            <FileTreeItem name="posts/" icon="📁" depth={5} />
-            <FileTreeItem name="users/" icon="📁" depth={5} />
-          </FileTreeItem>
-        </FileTreeItem>
-        <FileTreeItem name="(auth)/" icon="📁" depth={3} />
-        <FileTreeItem name="(protected)/" icon="📁" depth={3} />
-        <FileTreeItem name="actions/" icon="📁" depth={3} />
-        <FileTreeItem name="api/" icon="📁" depth={3} />
-      </FileTreeItem>
-      <FileTreeItem name="components/" icon="📁" depth={2} />
-      <FileTreeItem name="lib/" icon="📁" depth={2} />
-    </FileTreeItem>
-    <FileTreeItem name="messages/" icon="📁" depth={1} />
-    <FileTreeItem name="public/" icon="📁" depth={1} />
-    <FileTreeItem name="package.json" icon="⚙️" depth={1} />
-  </FileTreeItem>
-</FileTree>
-
-**Key Features:**
-- Page builder integration (Puck editor)
-- User management
-- Content creation and editing
-- Media management
-- Role-based access control
-
-**Port:** 3001
-
-### Docs App (`apps/docs/`)
-
-This documentation site built with Fumadocs.
-
-<FileTree>
-  <FileTreeItem name="apps/docs/" icon="📁">
-    <FileTreeItem name="app/" icon="📁" depth={1}>
-      <FileTreeItem name="docs/" icon="📁" depth={2}>
-        <FileTreeItem name="[...slug]/" icon="📁" depth={3}>
-          <FileTreeItem name="page.tsx" icon="📄" depth={4} />
-        </FileTreeItem>
-        <FileTreeItem name="layout.tsx" icon="📄" depth={3} />
-      </FileTreeItem>
-      <FileTreeItem name="api/search/" icon="📁" depth={2} />
-      <FileTreeItem name="page.tsx" icon="📄" depth={2} />
-    </FileTreeItem>
-    <FileTreeItem name="content/docs/" icon="📁" depth={1}>
-      <FileTreeItem name="index.mdx" icon="📄" depth={2} />
-      <FileTreeItem name="architecture/" icon="📁" depth={2} />
-      <FileTreeItem name="packages/" icon="📁" depth={2} />
-      <FileTreeItem name="guides/" icon="📁" depth={2} />
-    </FileTreeItem>
-    <FileTreeItem name="components/" icon="📁" depth={1} />
-    <FileTreeItem name="lib/" icon="📁" depth={1} />
-  </FileTreeItem>
-</FileTree>
-
-**Port:** 3002
+| App | Port | Purpose | Key References |
+|-----|------|---------|----------------|
+| Web | 3000 | Public website for students and visitors | [Web App Docs](/docs/applications/web-app) |
+| Admin | 3001 | CMS for editors and IT managers | [Admin App Docs](/docs/applications/admin-app) |
+| Docs | 3002 | This documentation site | [Docs Architecture](/docs/architecture/apps#docs-application) |
 
 ## Packages (`packages/`)
 
@@ -528,6 +531,6 @@ app/
 5. **Conventions** ensure consistency across the codebase
 
 <Callout type="info" title="Next Steps">
-  Now that you understand the structure, learn about the [Architecture](/docs/architecture/overview) or dive into [Development Workflow](/docs/guides/development-workflow).
+  Now that you understand the structure, learn about the [Architecture](/docs/architecture/overview) or dive into [Development Workflow](/docs/development/guides/development-workflow).
 </Callout>
 

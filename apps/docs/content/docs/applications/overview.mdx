@@ -1,0 +1,42 @@
+---
+title: Applications Overview
+description: Understand how the web and admin applications fit together and where to start for each role.
+---
+
+import Link from 'next/link';
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+
+# Applications Overview
+
+The monorepo ships with two primary user-facing applications plus this documentation site.
+
+| Application | Audience | Purpose | Primary Docs |
+|-------------|----------|---------|--------------|
+| `web` | Students & public visitors | Public-facing marketing and transactional site | [Web Application](/docs/applications/web-app) |
+| `admin` | IT managers & content editors | Control center for content, commerce, and membership data | [Admin Application](/docs/applications/admin-app) |
+
+<Callout type="info" title="Tip for new maintainers">
+Skim this page first, then follow the persona-specific journeys below to get hands-on with each app.
+</Callout>
+
+## Choose Your Journey
+
+<Steps>
+  <Step title="Operate the public site">
+    Learn page structure, routing, and feature toggles in the <Link href="/docs/applications/web-app">Web App</Link> section. Start with the feature-specific guides if you only need to manage events, e-commerce, or membership.
+  </Step>
+  <Step title="Run content & commerce tooling">
+    Head to the <Link href="/docs/applications/admin-app">Admin App</Link> guides to manage content, users, and shop data. Non-technical editors can follow the how-to articles, while developers can dive into the implementation notes.
+  </Step>
+  <Step title="Need to update both?">
+    Keep the <Link href="/docs/repository/project-structure">project structure overview</Link> handy. It explains where each app lives and how shared packages (UI, API, editor, payment) connect them.
+  </Step>
+</Steps>
+
+## Related Guides
+
+- [Repository Quickstart](/docs/repository/quickstart) – set up your environment
+- [Development Guides](/docs/development/guides/development-workflow) – day-to-day developer workflow
+- [Operations Overview](/docs/operations/overview) – deploy, manage environments, and monitor services
+

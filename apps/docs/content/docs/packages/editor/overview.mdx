@@ -9,6 +9,26 @@ import { Callout } from 'components/callout';
 
 The `@repo/editor` package provides a visual page builder for BISO Sites, powered by [Puck](https://puckeditor.com/). It enables non-technical users to create and edit pages visually in the admin app, which are then rendered in the web app.
 
+## When to use this package
+
+- Build or customize drag-and-drop page experiences for editors.
+- Render dynamic page content on the public web app.
+- Create new reusable blocks that both admin and web apps understand.
+
+## Installation
+
+```bash
+bun add @repo/editor
+```
+
+## Where it's used
+
+| Surface | Usage |
+|---------|-------|
+| [Admin App → Page Builder](/docs/applications/admin-app/index) | Editors compose content with `<Editor />` |
+| [Web App dynamic pages](/docs/applications/web-app/routing) | `<Renderer />` turns JSON into live UI |
+| Shared packages | Component definitions live alongside shared UI primitives |
+
 <Callout type="note" title="Work in Progress">
   The editor package is actively being developed. More components and features are coming soon!
 </Callout>
@@ -393,7 +413,7 @@ Planned features for the editor:
 
 <Callout type="info">
   - [UI Package](/docs/packages/ui/overview) - Available UI components
-  - [Admin App Guide](/docs/apps/admin) - Using the admin interface
-  - [Content Management](/docs/guides/creating-features) - Managing content
+  - [Admin App Guide](/docs/applications/admin-app) - Using the admin interface
+  - [Content Management](/docs/development/guides/creating-features) - Managing content
 </Callout>
 

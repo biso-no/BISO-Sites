@@ -1,0 +1,85 @@
+---
+title: Example How-to Guide
+description: Template demonstrating the recommended structure for task-based documentation.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+import { Tabs } from 'components/tabs';
+
+# Example How-to: Publish a New Event
+
+Use this template whenever you document a repeatable task. Swap the content with the real workflow, but keep the structure intact.
+
+## Goal
+
+Publish a new event that appears on the public web app with localized content and the correct registration link.
+
+## Prerequisites
+
+- Access to the [Admin App](/docs/applications/admin-app) with the `editor` or `admin` role.
+- Event assets ready (cover image, description, ticket info).
+- Optional: External registration link (Eventbrite, Hoopla, etc.).
+
+<Callout type="info">
+If you only need to update an existing event, jump to Step 3 and edit the existing record instead of creating a new one.
+</Callout>
+
+## Steps
+
+<Steps>
+  <Step title="Open the events module">
+    Log into the [Admin App](/docs/applications/admin-app) and navigate to <code>/admin/events</code>. Click <strong>New Event</strong>.
+  </Step>
+  <Step title="Fill out event details">
+    Enter the title, date, location, and description in Norwegian first. Use the language toggle to provide English translations.
+  </Step>
+  <Step title="Attach image + registration">
+    Upload a cover image (3:2 aspect ratio). Select <strong>Registration</strong> → choose <em>Internal</em> (Appwrite form) or <em>External</em> (paste the URL).
+  </Step>
+  <Step title="Publish & verify">
+    Click <strong>Publish</strong>. Visit <code>/events</code> on the [Web App](/docs/applications/web-app/features/events) to confirm the new event appears in both locales.
+  </Step>
+</Steps>
+
+## Optional commands
+
+Use the commands below if you need to preview the change locally before releasing it.
+
+<Tabs
+  tabs={[
+    {
+      label: 'Bun dev server',
+      value: 'bun',
+      content: (
+        <pre>
+<code>{`bun run dev --filter=admin
+bun run dev --filter=web  # in another terminal`}</code>
+        </pre>
+      ),
+    },
+    {
+      label: 'Docker compose',
+      value: 'docker',
+      content: (
+        <pre>
+<code>{`docker compose up -d admin web
+docker compose logs -f admin`}</code>
+        </pre>
+      ),
+    },
+  ]}
+/>
+
+## Verification
+
+1. The event appears on `/events` and `/no/events`.
+2. Clicking the event shows the correct localized content.
+3. Registration links or forms load as expected.
+
+## Troubleshooting
+
+- **Event missing?** Double-check that the event status is set to `published`.
+- **Wrong order?** Update the event date/time or use the manual ordering field in the admin list view.
+- **Broken image?** Confirm the file uploaded to the `events` storage bucket in Appwrite and that the URL is HTTPS.
+

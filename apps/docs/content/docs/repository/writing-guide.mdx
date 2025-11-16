@@ -1,0 +1,99 @@
+---
+title: Documentation Writing Guide
+description: Standards for tone, structure, and components when contributing to BISO Sites documentation.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+import { FileTree, FileTreeItem } from 'components/file-tree';
+
+# Documentation Writing Guide
+
+This guide keeps every contributor aligned on tone, page structure, and interactive components. Share it with anyone who updates the docs (even if they are new to Markdown).
+
+## Audience & tone
+
+<Callout type="info">
+- Assume **two personas**: non-technical IT managers and developers.  
+- Use plain language first, then dive into code.  
+- Prefer short paragraphs, active voice, and imperative steps.  
+- Link generously to related docs so readers never feel stuck.
+</Callout>
+
+## Page templates
+
+### How-to (task-oriented)
+
+- **Goal** – one or two sentences summarizing the outcome.
+- **Prerequisites** – tooling, access, or context.
+- **Steps** – use `<Steps>` with clear titles. Keep each step task-based.
+- **Verification** – describe how to confirm success.
+- **Troubleshooting** – common mistakes with fixes.
+
+### Concept (explainers)
+
+- **Overview** – why this concept matters.
+- **When to use** – scenarios where it applies.
+- **How it works** – architecture diagrams, file trees, data flow.
+- **Related docs** – link to how-tos or references for deeper dives.
+
+### Reference (API/command lists)
+
+- **Summary** – what is documented here.
+- **Tables** – props, parameters, commands.
+- **Examples** – short copy/paste snippets.
+- **Links** – upstream specs or vendor docs.
+
+## Components toolbox
+
+| Component | When to use | Example |
+|-----------|-------------|---------|
+| `<Callout type="info" />` | Tips, prerequisites, warnings | `<Callout type="warning">Rotate keys every 90 days.</Callout>` |
+| `<Steps>` | Anything sequential | `<Steps><Step title="Do thing">...</Step></Steps>` |
+| `<Tabs>` | Show variants (dev vs prod, Mac vs Windows) | `tabs={[{ label: 'dev', content: <pre>...</pre> }]}` |
+| `<FileTree>` | Visualize folders instead of code blocks | See snippet below |
+
+<FileTree>
+  <FileTreeItem name="apps/docs/content/docs/" icon="📁">
+    <FileTreeItem name="repository/" icon="📁" depth={1} />
+    <FileTreeItem name="applications/" icon="📁" depth={1} />
+    <FileTreeItem name="operations/" icon="📁" depth={1} />
+    <FileTreeItem name="packages/" icon="📁" depth={1} />
+  </FileTreeItem>
+</FileTree>
+
+## Add or update a page
+
+<Steps>
+  <Step title="Create the MDX file">
+    Place it inside `apps/docs/content/docs/<section>/`. Copy an existing template (see Example pages below) for structure.
+  </Step>
+  <Step title="Update meta.json">
+    Add the slug to the section's `meta.json` so it appears in the sidebar. Keep names kebab-case.
+  </Step>
+  <Step title="Use components consistently">
+    Import `Callout`, `Steps`, `Tabs`, `FileTree`, etc., at the top of the MDX when needed.
+  </Step>
+  <Step title="Preview locally">
+    Run `bun run dev --filter=docs` and verify formatting, links, and code blocks. Fix lint warnings before committing.
+  </Step>
+  <Step title="Cross-link & review">
+    Link to related docs, add screenshots if applicable, and request a review focusing on clarity.
+  </Step>
+</Steps>
+
+## Review checklist
+
+- [ ] Persona(s) and outcome clearly stated near the top.
+- [ ] Uses at least one interactive component when helpful (Callout, Steps, Tabs, FileTree).
+- [ ] Links to referenced routes, packages, or operations docs.
+- [ ] Commands and code blocks tested locally.
+- [ ] `meta.json` updated and navigation verified.
+
+## Example pages
+
+Use these as copy/paste starting points:
+
+- [Example How-to Guide](/docs/reference/example-how-to)
+- [Example Concept Guide](/docs/reference/example-concept)
+

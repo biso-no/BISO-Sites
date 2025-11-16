@@ -1,5 +1,13 @@
 {
   "title": "Introduction",
-  "pages": ["repository", "web-app", "admin-app", "packages", "development", "architecture", "deployment", "guides", "reference"]
+  "pages": [
+    "repository",
+    "applications",
+    "packages",
+    "development",
+    "architecture",
+    "operations",
+    "reference"
+  ]
 }
 

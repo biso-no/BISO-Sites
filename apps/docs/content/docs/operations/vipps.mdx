@@ -1,0 +1,112 @@
+---
+title: Vipps Playbook
+description: Step-by-step guide for configuring, testing, and maintaining Vipps MobilePay in BISO Sites.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+import { Tabs } from 'components/tabs';
+
+# Vipps Playbook
+
+Use this guide whenever you onboard a new Vipps account, rotate credentials, or troubleshoot payments. Keep it close to the finance lead so you can hand over responsibility quickly.
+
+## When to follow this guide
+
+<Callout type="info">
+- New IT manager setting up payments for the first time  
+- Rotating or revoking credentials (every 6–12 months)  
+- Investigating failed checkouts or webhook issues  
+- Auditing the payment flow before large events
+</Callout>
+
+## Account setup
+
+<Steps>
+  <Step title="Access the Vipps Developer Portal">
+    Go to <a href="https://portal.vipps.no" target="_blank" rel="noreferrer">portal.vipps.no</a> and confirm you have admin rights for the student union account.
+  </Step>
+  <Step title="Register test + production apps">
+    Create one app for Sandbox and one for Production. Record their IDs in the shared password vault along with a note about the owner.
+  </Step>
+  <Step title="Enable MobilePay Checkout">
+    In each app, enable the Checkout scope and configure the callback URL (`/api/payment/vipps/callback`) and return URL (`/checkout/return`).
+  </Step>
+  <Step title="Share credentials securely">
+    Store the client ID, client secret, merchant serial number, and subscription key in the vault. Never paste them into Slack or email.
+  </Step>
+</Steps>
+
+## Credentials & environment variables
+
+<Tabs
+  tabs={[
+    {
+      label: 'Sandbox / Test',
+      value: 'sandbox',
+      content: (
+        <ul className="list-disc list-inside space-y-1">
+          <li><code>VIPPS_CLIENT_ID</code> – from the developer portal (test app).</li>
+          <li><code>VIPPS_CLIENT_SECRET</code> – client secret for the test app.</li>
+          <li><code>VIPPS_SUBSCRIPTION_KEY</code> – test subscription key.</li>
+          <li><code>VIPPS_MERCHANT_SERIAL_NUMBER</code> – test merchant number.</li>
+          <li><code>VIPPS_TEST_MODE=true</code> (required).</li>
+          <li><code>NEXT_PUBLIC_BASE_URL</code> – where Vipps should send users back (usually `http://localhost:3000`).</li>
+        </ul>
+      ),
+    },
+    {
+      label: 'Production',
+      value: 'prod',
+      content: (
+        <ul className="list-disc list-inside space-y-1">
+          <li>
+            <code>VIPPS_CLIENT_ID</code>, <code>VIPPS_CLIENT_SECRET</code>, <code>VIPPS_SUBSCRIPTION_KEY</code> from the live merchant app.
+          </li>
+          <li><code>VIPPS_MERCHANT_SERIAL_NUMBER</code> for the organization.</li>
+          <li><code>VIPPS_TEST_MODE=false</code>.</li>
+          <li><code>NEXT_PUBLIC_BASE_URL=https://public.biso.no</code> (or the production domain).</li>
+          <li>
+            Update the callback URL in the Vipps portal to <code>https://public.biso.no/api/payment/vipps/callback</code>.
+          </li>
+        </ul>
+      ),
+    },
+  ]}
+/>
+
+<Callout type="warning">
+Whenever you rotate credentials, immediately update all three `.env.local` files, Vercel/Docker secrets, and the shared vault entry. Out-of-sync values are the #1 cause of failed payments.
+</Callout>
+
+## Test a transaction
+
+<Steps>
+  <Step title="Switch to sandbox">
+    Set `VIPPS_TEST_MODE=true` and use the sandbox credentials. Restart the dev server.
+  </Step>
+  <Step title="Place an order">
+    In the web app shop, add a product and check out. Use the Vipps test number provided in the portal.
+  </Step>
+  <Step title="Verify order status">
+    In Appwrite, confirm the `orders` document transitions from `PENDING` → `PAID`. Also check the admin dashboard for the updated status.
+  </Step>
+  <Step title="Review logs">
+    Look at the server logs (`bun run dev --filter=web`) and the Vipps portal event log to ensure the webhook fired successfully.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+- **User stuck on Vipps redirect** – Confirm the callback URL matches the deployed domain and that HTTPS certificates are valid.
+- **Order never updates** – Check Appwrite logs and ensure the API key used in `handleVippsCallback` still has `databases` scope.
+- **`Unauthorized` response from Vipps** – Credentials are invalid or expired; rotate them in the portal and redeploy.
+- **Currency mismatch** – Vipps only supports NOK for this integration. Ensure prices and totals are in NOK.
+
+## Escalation checklist
+
+- Capture the order ID, Vipps transaction ID, and timestamp.
+- Download logs from `/api/payment/vipps/callback` and the Vipps portal.
+- Contact Vipps support using the merchant ID and attach the logs.
+- Update this document with the resolution so the next maintainer learns from it.
+

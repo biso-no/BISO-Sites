@@ -1,0 +1,59 @@
+---
+title: IT Manager Onboarding
+description: Start here when you take over BISO Sites. Step-by-step guidance tailored for non-technical maintainers.
+---
+
+import { Steps, Step } from 'components/steps';
+import { Callout } from 'components/callout';
+
+# IT Manager Onboarding
+
+Welcome! This guide is for future IT managers or committee members who inherit BISO Sites and need a structured way to understand, run, and maintain the platform—even if you have minimal coding experience.
+
+## What You'll Achieve
+
+- Know what lives inside the monorepo and how the applications connect.
+- Set up a working development environment you can demo to stakeholders.
+- Understand where to find feature-specific docs and operational playbooks.
+- Capture a punch-list for handover or incident response.
+
+<Callout type="warning" title="Before you begin">
+Make sure you have access to the GitHub repository, Appwrite console, Vipps account, and any environment-variable vault the previous maintainer used.
+</Callout>
+
+## Guided Path
+
+<Steps>
+  <Step title="Get oriented (15 min)">
+    - Skim the [Repository Project Structure](/docs/repository/project-structure) and [Architecture Overview](/docs/architecture/overview).\n    - Visit the [Applications Overview](/docs/applications/overview) to see how the web and admin apps are positioned.\n    - Bookmark the [Commands Reference](/docs/reference/commands) so you always know which scripts to run.
+  </Step>
+  <Step title="Run the stack locally (30 min)">
+    - Follow the [Quickstart](/docs/repository/quickstart) and [Installation Guide](/docs/repository/installation).\n    - Use the [Development Workflow](/docs/development/guides/development-workflow) to start the dev servers.\n    - Log into the admin app with a test account and walk through the critical flows (events, membership, shop).
+  </Step>
+  <Step title="Review operations & credentials (30 min)">
+    - Read the [Operations Overview](/docs/operations/overview) to understand how deployments work.\n    - Compare `.env.local` files with the [Environment Variables](/docs/operations/environment-variables) checklist.\n    - Verify Appwrite, Vipps, and hosting consoles are accessible and note who controls billing.
+  </Step>
+  <Step title="Plan your first improvements (ongoing)">
+    - Capture issues or questions in GitHub under a `handover` label.\n    - Document recurring tasks (publishing events, onboarding new units) inside the Admin App section.\n    - Schedule a quarterly review of dependencies and security updates.
+  </Step>
+</Steps>
+
+## Daily Toolkit
+
+- [Applications → Web App](/docs/applications/web-app) for anything public-facing.
+- [Applications → Admin App](/docs/applications/admin-app) for editor workflows and permissions.
+- [Packages](/docs/packages) to understand shared logic (API, payment, editor, UI).
+- [Operations](/docs/operations/overview) for deployments, secrets, and external services.
+
+## When to Ask for Help
+
+<Callout type="info">
+If something feels risky or you lack access, pause and reach out:
+
+- Open a GitHub issue tagged `help wanted`
+- Contact the previous IT manager or faculty advisor
+- Ask within the student union’s tech channel for context
+</Callout>
+
+Keep improving this page as you learn—future maintainers will thank you.
+

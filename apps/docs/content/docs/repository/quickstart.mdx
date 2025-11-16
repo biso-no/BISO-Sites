@@ -5,10 +5,18 @@ description: Get the BISO Sites monorepo up and running on your local machine in
 
 import { Callout } from 'components/callout';
 import { Steps, Step } from 'components/steps';
+import { Tabs } from 'components/tabs';
+import { FileTree, FileTreeItem } from 'components/file-tree';
 
 # 5-Minute Quickstart
 
 This guide will get you up and running with the BISO Sites monorepo in about 5 minutes. We'll skip the theory and focus on getting the applications running on your machine.
+
+## Goal
+
+- Install dependencies and boot all three applications locally.
+- Confirm Fast Refresh works by editing a component.
+- Learn the core commands you'll use daily (`dev`, `build`, `lint`, `check-types`).
 
 <Callout type="info" title="Prerequisites">
   Before starting, make sure you have:
@@ -51,7 +59,7 @@ This guide will get you up and running with the BISO Sites monorepo in about 5 m
     ```
     
     <Callout type="note">
-      See [Installation Guide](/docs/installation#environment-setup) for detailed environment configuration.
+      See [Installation Guide](/docs/repository/installation#environment-setup) for detailed environment configuration.
     </Callout>
   </Step>
 
@@ -83,20 +91,44 @@ This guide will get you up and running with the BISO Sites monorepo in about 5 m
   </Step>
 </Steps>
 
-## Running Individual Apps
+## Start the dev server your way
 
-Don't need all apps running? You can start them individually:
-
-```bash
-# Just the web app
+<Tabs
+  tabs={[
+    {
+      label: 'All apps',
+      value: 'all',
+      content: (
+        <>
+          <p>Keep the entire stack in sync when you need to QA end-to-end flows.</p>
+          <pre>
+<code>{`# start web, admin, and docs together
+bun run dev`}</code>
+          </pre>
+        </>
+      ),
+    },
+    {
+      label: 'Single app',
+      value: 'single',
+      content: (
+        <>
+          <p>Speed up feedback loops by filtering to just the app you are working on.</p>
+          <pre>
+<code>{`# Web
 bun run dev --filter=web
 
-# Just the admin app
+# Admin
 bun run dev --filter=admin
 
-# Just the docs
-bun run dev --filter=docs
-```
+# Docs
+bun run dev --filter=docs`}</code>
+          </pre>
+        </>
+      ),
+    },
+  ]}
+/>
 
 ## Making Your First Change
 
@@ -137,23 +169,39 @@ bun run lint                   # Lint all packages
 bun run format                 # Format code with Prettier
 ```
 
+<Callout type="info">
+Need the rest of the scripts? The [Commands Reference](/docs/reference/commands) covers every Bun and Turbo command plus when to run them.
+</Callout>
+
 ## Project Structure at a Glance
 
-```
-biso-sites/
-├── apps/
-│   ├── web/          # Public website (port 3000)
-│   ├── admin/        # Admin CMS (port 3001)
-│   └── docs/         # Documentation (port 3002)
-├── packages/
-│   ├── api/          # Appwrite client wrappers
-│   ├── ui/           # Shared UI components
-│   ├── editor/       # Puck page builder
-│   ├── payment/      # Payment integrations
-│   └── *-config/     # Shared configurations
-├── package.json      # Root package scripts
-└── turbo.json        # Turborepo configuration
-```
+<FileTree>
+  <FileTreeItem name="apps/" icon="📁">
+    <FileTreeItem name="web/" icon="📁" depth={1}>
+      <FileTreeItem name="src/app/" icon="📁" depth={2} />
+      <FileTreeItem name="src/components/" icon="📁" depth={2} />
+      <FileTreeItem name="messages/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="admin/" icon="📁" depth={1}>
+      <FileTreeItem name="src/app/(admin)/" icon="📁" depth={2} />
+      <FileTreeItem name="src/components/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="docs/" icon="📁" depth={1}>
+      <FileTreeItem name="app/(home)/page.tsx" icon="📄" depth={2} />
+      <FileTreeItem name="content/docs/" icon="📁" depth={2} />
+    </FileTreeItem>
+  </FileTreeItem>
+  <FileTreeItem name="packages/" icon="📁">
+    <FileTreeItem name="api/" icon="📁" depth={1} />
+    <FileTreeItem name="payment/" icon="📁" depth={1} />
+    <FileTreeItem name="ui/" icon="📁" depth={1} />
+    <FileTreeItem name="editor/" icon="📁" depth={1} />
+    <FileTreeItem name="configs/" icon="📁" depth={1} />
+  </FileTreeItem>
+  <FileTreeItem name="package.json" icon="⚙️" />
+  <FileTreeItem name="turbo.json" icon="⚙️" />
+  <FileTreeItem name="bun.lock" icon="⚙️" />
+</FileTree>
 
 ## Troubleshooting
 
@@ -204,9 +252,9 @@ Now that you have everything running:
 
 2. **Explore the Packages** - Check out the [API Package](/docs/packages/api/overview) documentation to see how to use shared code
 
-3. **Development Workflow** - Learn the [Development Workflow](/docs/guides/development-workflow) for day-to-day development
+3. **Development Workflow** - Learn the [Development Workflow](/docs/development/guides/development-workflow) for day-to-day development
 
-4. **Create Your First Feature** - Follow the [Creating Features](/docs/guides/creating-features) guide to build something new
+4. **Create Your First Feature** - Follow the [Creating Features](/docs/development/guides/creating-features) guide to build something new
 
 <Callout type="info" title="Need More Details?">
   This was the quick version. For comprehensive setup including Appwrite configuration, Docker, and production deployment, see the [Installation Guide](/docs/installation).
