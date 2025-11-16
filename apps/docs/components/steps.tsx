@@ -1,5 +1,4 @@
 import { ReactNode } from 'react';
-import { cn } from '@repo/ui/lib/utils';
 
 interface StepsProps {
   children: ReactNode;
