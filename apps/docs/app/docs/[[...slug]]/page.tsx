@@ -6,6 +6,7 @@ import { getPageImage } from 'lib/source';
 import { PageData } from 'fumadocs-core/source';
 import { TOCItemType } from 'fumadocs-core/toc';
 import { ElementType } from 'react';
+import { getMDXComponents } from 'mdx-components';
 
 interface Param {
   slug?: string[];
@@ -37,6 +38,7 @@ export default async function Page(props: { params: Promise<Param> }) {
     <DocsPage
       toc={(page.data as MDX).toc}
       full={(page.data as MDX).full}
+      
       editOnGithub={{
         owner: 'biso-no',
         repo: 'biso-sites',
@@ -46,7 +48,7 @@ export default async function Page(props: { params: Promise<Param> }) {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
-        <MDX />
+        <MDX components={getMDXComponents()} />
       </DocsBody>
     </DocsPage>
   );

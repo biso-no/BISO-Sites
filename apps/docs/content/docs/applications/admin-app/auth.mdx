@@ -59,7 +59,7 @@ sequenceDiagram
 
 The login page offers a single authentication option - OAuth with Microsoft:
 
-```typescript
+```tsx title="apps/admin/src/app/(auth)/auth/login/page.tsx"
 // apps/admin/src/app/(auth)/auth/login/page.tsx
 import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
