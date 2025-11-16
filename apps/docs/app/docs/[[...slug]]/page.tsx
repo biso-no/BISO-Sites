@@ -3,9 +3,18 @@ import type { Metadata } from 'next';
 import { DocsPage, DocsBody, DocsDescription, DocsTitle } from 'fumadocs-ui/page';
 import { notFound, redirect } from 'next/navigation';
 import { getPageImage } from 'lib/source';
+import { PageData } from 'fumadocs-core/source';
+import { TOCItemType } from 'fumadocs-core/toc';
+import { ElementType } from 'react';
 
 interface Param {
   slug?: string[];
+}
+
+interface MDX extends PageData {
+  body: ElementType
+  toc: TOCItemType[];
+  full: boolean;
 }
 
 export default async function Page(props: { params: Promise<Param> }) {
@@ -19,12 +28,15 @@ export default async function Page(props: { params: Promise<Param> }) {
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
-  const MDX = page.data.body;
+
+  const mdxPage = page.data as MDX;
+
+  const MDX = mdxPage.body;
 
   return (
     <DocsPage
-      toc={page.data.toc}
-      full={page.data.full}
+      toc={(page.data as MDX).toc}
+      full={(page.data as MDX).full}
       editOnGithub={{
         owner: 'biso-no',
         repo: 'biso-sites',
