@@ -1,16 +1,4 @@
 import { Suspense } from 'react'
-import Link from "next/link"
-import { Search } from "lucide-react"
-
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@repo/ui/components/ui/breadcrumb"
-import { Input } from "@repo/ui/components/ui/input"
 import {
   Tabs,
   TabsContent,
@@ -21,10 +9,24 @@ import {
 import { listProducts } from '@/app/actions/products'
 import { ProductsTable } from './_components/products-table'
 import { ProductActions } from './_components/product-actions'
+import { ProductFilters } from './_components/product-filters'
+import type { ProductWithTranslations } from '@/lib/types/product'
 
-export default async function DashboardPage() {
-  // Don't filter by locale for admin view - show all products
-  const products = await listProducts({})
+const LOW_STOCK_THRESHOLD = 10
+
+type ProductsPageProps = {
+  searchParams?: Record<string, string | string[] | undefined>
+}
+
+export default async function DashboardPage({ searchParams = {} }: ProductsPageProps) {
+  const filters = buildProductFilters(searchParams)
+  const [products, filterSource] = await Promise.all([
+    listProducts(filters),
+    listProducts({ limit: 200 }),
+  ])
+
+  const filterOptions = buildFilterOptions(filterSource)
+  const initialValues = buildInitialValues(searchParams)
 
   return (
     <div className="flex w-full flex-col">
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
               </TabsList>
               <ProductActions />
             </div>
+            <ProductFilters initialValues={initialValues} options={filterOptions} />
             <Suspense fallback={<div>Loading...</div>}>
               <ProductsTable products={products} />
             </Suspense>
@@ -50,4 +53,82 @@ export default async function DashboardPage() {
       </div>
     </div>
   )
+}
+
+function buildProductFilters(params: Record<string, string | string[] | undefined>) {
+  const filters: Parameters<typeof listProducts>[0] = {}
+
+  const search = getParam(params, 'q')
+  if (search) filters.search = search
+
+  const campus = getParam(params, 'campus')
+  if (campus && campus !== 'all') filters.campus_id = campus
+
+  const category = getParam(params, 'category')
+  if (category && category !== 'all') filters.category = category
+
+  const stock = getParam(params, 'stock')
+  if (stock === 'in-stock') {
+    filters.stock_min = 1
+  } else if (stock === 'low-stock') {
+    filters.stock_min = 1
+    filters.stock_max = LOW_STOCK_THRESHOLD
+  } else if (stock === 'out-of-stock') {
+    filters.stock_max = 0
+  }
+
+  const priceMin = toNumber(getParam(params, 'priceMin'))
+  if (priceMin !== undefined) {
+    filters.price_min = priceMin
+  }
+  const priceMax = toNumber(getParam(params, 'priceMax'))
+  if (priceMax !== undefined) {
+    filters.price_max = priceMax
+  }
+
+  return filters
+}
+
+function buildFilterOptions(products: ProductWithTranslations[]) {
+  const campusMap = new Map<string, string>()
+  const categories = new Set<string>()
+
+  products.forEach((product) => {
+    if (product.campus_id) {
+      campusMap.set(product.campus_id, product.campus?.name || product.campus_id)
+    }
+    if (product.category) {
+      categories.add(product.category)
+    }
+  })
+
+  return {
+    campuses: Array.from(campusMap.entries()).map(([id, name]) => ({ id, name })),
+    categories: Array.from(categories.values()).sort(),
+  }
+}
+
+function buildInitialValues(params: Record<string, string | string[] | undefined>) {
+  return {
+    search: getParam(params, 'q') || '',
+    campus: getParam(params, 'campus') || 'all',
+    category: getParam(params, 'category') || 'all',
+    stock: getParam(params, 'stock') || 'all',
+    priceMin: getParam(params, 'priceMin') || '',
+    priceMax: getParam(params, 'priceMax') || '',
+  }
+}
+
+function getParam(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key]
+  if (Array.isArray(value)) {
+    return value[0]
+  }
+  return value
+}
+
+function toNumber(value?: string | null) {
+  if (!value) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
 }

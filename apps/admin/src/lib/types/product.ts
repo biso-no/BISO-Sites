@@ -85,6 +85,12 @@ export interface ListProductsParams {
   status?: 'draft' | 'published' | 'archived'
   campus_id?: string
   locale?: 'en' | 'no'
+  category?: string
+  member_only?: boolean
+  stock_min?: number
+  stock_max?: number
+  price_min?: number
+  price_max?: number
   limit?: number
   offset?: number
   search?: string

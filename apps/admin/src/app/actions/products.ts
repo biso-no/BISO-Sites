@@ -32,6 +32,30 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Pro
     if (params.campus_id) {
       queries.push(Query.equal('campus_id', params.campus_id))
     }
+
+    if (params.category) {
+      queries.push(Query.equal('category', params.category))
+    }
+
+    if (params.member_only !== undefined) {
+      queries.push(Query.equal('member_only', params.member_only))
+    }
+
+    if (typeof params.stock_min === 'number') {
+      queries.push(Query.greaterThanEqual('stock', params.stock_min))
+    }
+
+    if (typeof params.stock_max === 'number') {
+      queries.push(Query.lessThanEqual('stock', params.stock_max))
+    }
+
+    if (typeof params.price_min === 'number') {
+      queries.push(Query.greaterThanEqual('regular_price', params.price_min))
+    }
+
+    if (typeof params.price_max === 'number') {
+      queries.push(Query.lessThanEqual('regular_price', params.price_max))
+    }
     
     if (params.limit) {
       queries.push(Query.limit(params.limit))
@@ -284,6 +308,127 @@ async function updateProductStatus(
     console.error('Error updating product status:', error)
     return null
   }
+}
+
+export async function bulkUpdateProductStatus(
+  productIds: string[],
+  status: 'draft' | 'published' | 'archived',
+) {
+  if (!productIds.length) {
+    return { success: false, error: 'No products selected' }
+  }
+
+  try {
+    const { db } = await createSessionClient()
+    const statusValue =
+      status === 'draft'
+        ? Status.DRAFT
+        : status === 'published'
+          ? Status.PUBLISHED
+          : Status.ARCHIVED
+
+    await Promise.all(
+      productIds.map((id) =>
+        db.updateRow<WebshopProducts>('app', 'webshop_products', id, { status: statusValue }),
+      ),
+    )
+
+    revalidateProductPaths()
+    return { success: true }
+  } catch (error) {
+    console.error('Error bulk updating product status:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update status',
+    }
+  }
+}
+
+export async function bulkUpdateProductPrices(
+  productIds: string[],
+  options: { mode: 'percent' | 'absolute'; value: number },
+) {
+  if (!productIds.length) {
+    return { success: false, error: 'No products selected' }
+  }
+  if (!Number.isFinite(options.value)) {
+    return { success: false, error: 'Invalid value' }
+  }
+
+  try {
+    const { db } = await createSessionClient()
+    await Promise.all(
+      productIds.map(async (id) => {
+        const product = await db.getRow<WebshopProducts>('app', 'webshop_products', id)
+        const currentPrice = Number(product?.regular_price ?? 0)
+        let nextPrice =
+          options.mode === 'percent'
+            ? currentPrice * (1 + options.value / 100)
+            : options.value
+        nextPrice = Number.isFinite(nextPrice) ? Math.max(0, Number(nextPrice.toFixed(2))) : currentPrice
+
+        await db.updateRow<WebshopProducts>('app', 'webshop_products', id, {
+          regular_price: nextPrice,
+        })
+      }),
+    )
+
+    revalidateProductPaths()
+    return { success: true }
+  } catch (error) {
+    console.error('Error bulk updating product prices:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update prices',
+    }
+  }
+}
+
+export async function bulkUpdateProductStock(
+  productIds: string[],
+  options: { mode: 'set' | 'adjust'; value: number },
+) {
+  if (!productIds.length) {
+    return { success: false, error: 'No products selected' }
+  }
+  if (!Number.isFinite(options.value)) {
+    return { success: false, error: 'Invalid value' }
+  }
+
+  try {
+    const { db } = await createSessionClient()
+    await Promise.all(
+      productIds.map(async (id) => {
+        const product = await db.getRow<WebshopProducts>('app', 'webshop_products', id)
+        const currentStock = typeof product?.stock === 'number' ? product.stock : 0
+        let nextStock =
+          options.mode === 'set'
+            ? options.value
+            : currentStock + options.value
+
+        nextStock = Number.isFinite(nextStock) ? Math.max(0, Math.floor(nextStock)) : currentStock
+
+        await db.updateRow<WebshopProducts>('app', 'webshop_products', id, {
+          stock: nextStock,
+        })
+      }),
+    )
+
+    revalidateProductPaths()
+    return { success: true }
+  } catch (error) {
+    console.error('Error bulk updating product stock:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update stock',
+    }
+  }
+}
+
+function revalidateProductPaths() {
+  revalidatePath('/admin/shop/products')
+  revalidatePath('/admin/shop')
+  revalidatePath('/shop')
 }
 
 // AI Translation function

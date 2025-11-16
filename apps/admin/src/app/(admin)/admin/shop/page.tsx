@@ -2,14 +2,11 @@ import Link from "next/link"
 import {
   Activity,
   ArrowUpRight,
-  CircleUser,
   CreditCard,
   DollarSign,
-  Menu,
-  Package2,
-  Search,
   Users,
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 import {
   Avatar,
@@ -26,16 +23,6 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@repo/ui/components/ui/dropdown-menu"
-import { Input } from "@repo/ui/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@repo/ui/components/ui/sheet"
-import {
   Table,
   TableBody,
   TableCell,
@@ -43,68 +30,78 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table"
+import { cn } from "@repo/ui/lib/utils"
 import { getOrders } from "@/app/actions/orders"
+import { getShopMetrics, type MetricTrend } from "@/app/actions/shop-metrics"
+import type { Orders } from "@repo/api/types/appwrite"
 
 export const description =
   "An application shell with a header and main content area. The header has a navbar, a search input and and a user nav dropdown. The user nav is toggled by a button with an avatar image."
 
-export default function Dashboard() {
+const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
+  style: "currency",
+  currency: "NOK",
+  maximumFractionDigits: 0,
+})
+
+const NUMBER_FORMATTER = new Intl.NumberFormat("nb-NO", {
+  maximumFractionDigits: 0,
+})
+
+const PERCENT_FORMATTER = new Intl.NumberFormat("nb-NO", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+})
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+})
+
+const STATUS_STYLES: Record<string, string> = {
+  paid: "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
+  authorized: "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
+  pending: "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100",
+  cancelled: "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
+  failed: "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
+  refunded: "border-transparent bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200",
+}
+
+export default async function Dashboard() {
+  const [metrics, orders] = await Promise.all([getShopMetrics(), getOrders({ limit: 12, path: "/admin/shop/orders" })])
+  const orderList = Array.isArray(orders) ? orders : []
+  const transactions = orderList.slice(0, 8)
+  const recentSales = orderList.slice(0, 5)
+
   return (
     <div className="flex w-full flex-col">
       <main className="flex flex-1 flex-col gap-4">
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-          <Card className="glass-panel" x-chunk="dashboard-01-chunk-0">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Revenue
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">45,231.89 kr</div>
-              <p className="text-xs text-muted-foreground">
-                +20.1% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="glass-panel" x-chunk="dashboard-01-chunk-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Subscriptions
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+2350</div>
-              <p className="text-xs text-muted-foreground">
-                +180.1% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="glass-panel" x-chunk="dashboard-01-chunk-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sales</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+12,234</div>
-              <p className="text-xs text-muted-foreground">
-                +19% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="glass-panel" x-chunk="dashboard-01-chunk-3">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Now</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+573</div>
-              <p className="text-xs text-muted-foreground">
-                +201 since last hour
-              </p>
-            </CardContent>
-          </Card>
+          <MetricCard
+            icon={DollarSign}
+            label="Total Revenue"
+            value={NOK_FORMATTER.format(metrics.revenue.value)}
+            trend={metrics.revenue.trend}
+          />
+          <MetricCard
+            icon={Users}
+            label="Product Catalog"
+            value={NUMBER_FORMATTER.format(metrics.catalog.value)}
+            trend={metrics.catalog.trend}
+          />
+          <MetricCard
+            icon={CreditCard}
+            label="Sales"
+            value={NUMBER_FORMATTER.format(metrics.sales.value)}
+            trend={metrics.sales.trend}
+          />
+          <MetricCard
+            icon={Activity}
+            label="Active Now"
+            value={NUMBER_FORMATTER.format(metrics.activeCatalog.value)}
+            trend={metrics.activeCatalog.trend}
+          />
         </div>
         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
           <Card
@@ -114,11 +111,11 @@ export default function Dashboard() {
               <div className="grid gap-2">
                 <CardTitle>Transactions</CardTitle>
                 <CardDescription>
-                  Recent transactions from your store.
+                  Latest orders across the store.
                 </CardDescription>
               </div>
               <Button asChild size="sm" className="ml-auto gap-1">
-                <Link href="#">
+                <Link href="/admin/shop/orders">
                   View All
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
@@ -130,7 +127,7 @@ export default function Dashboard() {
                   <TableRow>
                     <TableHead>Customer</TableHead>
                     <TableHead className="hidden xl:table-column">
-                      Type
+                      Order
                     </TableHead>
                     <TableHead className="hidden xl:table-column">
                       Status
@@ -142,143 +139,132 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell>
-                      <div className="font-medium">Liam Johnson</div>
-                      <div className="hidden text-sm text-muted-foreground md:inline">
-                        liam@example.com
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      Sale
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      <Badge className="text-xs" variant="outline">
-                        Approved
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
-                      2023-06-23
-                    </TableCell>
-                    <TableCell className="text-right">$250.00</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>
-                      <div className="font-medium">Olivia Smith</div>
-                      <div className="hidden text-sm text-muted-foreground md:inline">
-                        olivia@example.com
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      Refund
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      <Badge className="text-xs" variant="outline">
-                        Declined
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
-                      2023-06-24
-                    </TableCell>
-                    <TableCell className="text-right">$150.00</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>
-                      <div className="font-medium">Noah Williams</div>
-                      <div className="hidden text-sm text-muted-foreground md:inline">
-                        noah@example.com
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      Member turnover
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      <Badge className="text-xs" variant="outline">
-                        Approved
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
-                      2023-06-25
-                    </TableCell>
-                    <TableCell className="text-right">$350.00</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>
-                      <div className="font-medium">Emma Brown</div>
-                      <div className="hidden text-sm text-muted-foreground md:inline">
-                        emma@example.com
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      Sale
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      <Badge className="text-xs" variant="outline">
-                        Approved
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
-                      2023-06-26
-                    </TableCell>
-                    <TableCell className="text-right">$450.00</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>
-                      <div className="font-medium">Liam Johnson</div>
-                      <div className="hidden text-sm text-muted-foreground md:inline">
-                        liam@example.com
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      Sale
-                    </TableCell>
-                    <TableCell className="hidden xl:table-column">
-                      <Badge className="text-xs" variant="outline">
-                        Approved
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
-                      2023-06-27
-                    </TableCell>
-                    <TableCell className="text-right">$550.00</TableCell>
-                  </TableRow>
+                  {transactions.map((order) => {
+                    const buyerName = order.buyer_name || "Guest"
+                    const buyerEmail = order.buyer_email || "—"
+                    const status = (order.status || "pending").toLowerCase()
+                    const statusClasses = STATUS_STYLES[status] || "border-transparent bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200"
+                    const createdAt = DATE_FORMATTER.format(new Date(order.$createdAt))
+                    const totalAmount = NOK_FORMATTER.format(Number(order.total) || 0)
+
+                    return (
+                      <TableRow key={order.$id}>
+                        <TableCell>
+                          <div className="font-medium">{buyerName}</div>
+                          <div className="hidden text-sm text-muted-foreground md:inline">
+                            {buyerEmail}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden xl:table-column text-sm text-muted-foreground">
+                          #{order.$id.slice(-6)}
+                        </TableCell>
+                        <TableCell className="hidden xl:table-column">
+                          <Badge className={cn("text-xs capitalize", statusClasses)}>
+                            {status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
+                          {createdAt}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{totalAmount}</TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {transactions.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                        Ingen ordre å vise enda.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-          <RecentSales />
+          <RecentSales orders={recentSales} />
         </div>
       </main>
     </div>
   )
 }
 
-async function RecentSales() {
-const orders = await getOrders({ limit: 5, path: '/admin/shop/orders' })
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  trend,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+  trend: MetricTrend
+}) {
   return (
-    <Card className="glass-panel" x-chunk="dashboard-01-chunk-5">
-    <CardHeader>
-      <CardTitle>Recent Sales</CardTitle>
-    </CardHeader>
-    <CardContent className="grid gap-8">
-      {orders.map((order) => (
-        <div key={order.$id} className="flex items-center gap-4">
-          <Avatar className="hidden h-9 w-9 sm:flex">
-            <AvatarImage src="/avatars/01.png" alt="Avatar" />
-            <AvatarFallback>OM</AvatarFallback>
-          </Avatar>
-          <div className="grid gap-1">
-            <p className="text-sm font-medium leading-none">
-              Olivia Martin
-            </p>
-            <p className="text-sm text-muted-foreground">
-              olivia.martin@email.com
-            </p>
-          </div>
-          <div className="ml-auto font-medium">+$1,999.00</div>
-        </div>
-      ))}
-    </CardContent>
+    <Card className="glass-panel" x-chunk="dashboard-01-chunk-0">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{formatTrend(trend)}</p>
+      </CardContent>
     </Card>
   )
+}
+
+function RecentSales({ orders }: { orders: Orders[] }) {
+  return (
+    <Card className="glass-panel" x-chunk="dashboard-01-chunk-5">
+      <CardHeader>
+        <CardTitle>Recent Sales</CardTitle>
+        <CardDescription>Latest payments captured through Vipps</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-8">
+        {orders.length === 0 && (
+          <div className="text-sm text-muted-foreground">Ingen salg enda.</div>
+        )}
+        {orders.map((order) => {
+          const buyerName = order.buyer_name || "Guest"
+          const buyerEmail = order.buyer_email || "—"
+          const amount = NOK_FORMATTER.format(Number(order.total) || 0)
+          const avatarSource = order.buyer_name || order.buyer_email || order.$id
+          const avatarSeed = encodeURIComponent(avatarSource || "guest")
+          const initials = getInitials(avatarSource || "BISO")
+
+          return (
+            <div key={order.$id} className="flex items-center gap-4">
+              <Avatar className="hidden h-9 w-9 sm:flex">
+                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`} alt={buyerName} />
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+              <div className="grid gap-1">
+                <p className="text-sm font-medium leading-none">
+                  {buyerName}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {buyerEmail}
+                </p>
+              </div>
+              <div className="ml-auto font-medium">{amount}</div>
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
+function formatTrend(trend: MetricTrend) {
+  const prefix = trend.percent > 0 ? "+" : trend.percent < 0 ? "" : ""
+  const percent = PERCENT_FORMATTER.format(trend.percent)
+  return `${prefix}${percent}% ${trend.label}`
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) {
+    return parts[0]?.[0]?.toUpperCase() ?? "B"
+  }
+  return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase()
 }

@@ -1,88 +1,20 @@
-@plugin "tailwindcss-animate";
-@plugin "@tailwindcss/typography";
-@import "tailwindcss";
-@import "tw-animate-css";
+/* packages/ui/styles/globals.css */
 
+/* DO NOT import tailwind here.
+   Tailwind is only imported in the app's globals.css. */
+
+/* Dark variant helper (used by Tailwind utilities compiled in the app) */
 @custom-variant dark (&:is(.dark *));
 
+/* Only non-color root variables. Colors come from the app via Tailwind addBase. */
 :root {
   --font-size: 16px;
-  --background: #f5f8fa;
-  --foreground: #001731;
-  --card: #ffffff;
-  --card-foreground: #001731;
-  --popover: #ffffff;
-  --popover-foreground: #001731;
-  --primary: #001731;
-  --primary-foreground: #ffffff;
-  --secondary: #f1fafb;
-  --secondary-foreground: #001731;
-  --muted: #f5f8fa;
-  --muted-foreground: #004fa8;
-  --accent: #f1fafb;
-  --accent-foreground: #001731;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 95, 202, 0.15);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #005fca;
-  --chart-1: #3DA9E0;
-  --chart-2: #005fca;
-  --chart-3: #F7D64A;
-  --chart-4: #1A77E9;
-  --chart-5: #BD9E16;
-  --radius: 0.625rem;
-  --sidebar: #f5f8fa;
-  --sidebar-foreground: #001731;
-  --sidebar-primary: #001731;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1fafb;
-  --sidebar-accent-foreground: #001731;
-  --sidebar-border: rgba(0, 95, 202, 0.15);
-  --sidebar-ring: #005fca;
 }
 
-.dark {
-  --background: #0c1520;
-  --foreground: #f0f5f9;
-  --card: #151d28;
-  --card-foreground: #f0f5f9;
-  --popover: #151d28;
-  --popover-foreground: #f0f5f9;
-  --primary: #3DA9E0;
-  --primary-foreground: #001731;
-  --secondary: #1e3a52;
-  --secondary-foreground: #f0f5f9;
-  --muted: #1e3a52;
-  --muted-foreground: #8db0ce;
-  --accent: #1e3a52;
-  --accent-foreground: #f0f5f9;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(61, 169, 224, 0.2);
-  --input: rgba(61, 169, 224, 0.2);
-  --ring: #3DA9E0;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: #5bb5e8;
-  --chart-2: #3DA9E0;
-  --chart-3: #F7D64A;
-  --chart-4: #4d9ff5;
-  --chart-5: #d4af3a;
-  --sidebar: #151d28;
-  --sidebar-foreground: #f0f5f9;
-  --sidebar-primary: #3DA9E0;
-  --sidebar-primary-foreground: #001731;
-  --sidebar-accent: #1e3a52;
-  --sidebar-accent-foreground: #f0f5f9;
-  --sidebar-border: rgba(61, 169, 224, 0.2);
-  --sidebar-ring: #3DA9E0;
-}
-
+/* Map custom tokens to the Tailwind HSL tokens.
+   These are just aliases; they don't set concrete numeric values. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -124,8 +56,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Base styles shared across apps using the UI package */
 @layer base {
   * {
+    /* These utilities are compiled by the app’s Tailwind build */
     @apply border-border outline-ring/50;
   }
 
