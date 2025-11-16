@@ -1,0 +1,14 @@
+{
+  "title": "Operations",
+  "description": "Deployments, environments, and external services",
+  "root": true,
+  "icon": "ServerCog",
+  "pages": [
+    "overview",
+    "environment-variables",
+    "docker",
+    "appwrite-setup",
+    "vipps"
+  ]
+}
+

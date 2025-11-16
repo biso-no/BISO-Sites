@@ -9,6 +9,31 @@ import { Callout } from 'components/callout';
 
 The `@repo/api` package provides type-safe Appwrite client wrappers for both server-side and client-side usage. It's the central package for all database, authentication, storage, and function interactions.
 
+## When to use this package
+
+- Whenever you need to talk to Appwrite (database, storage, auth) from web, admin, or docs apps.
+- When you want session-aware clients in Server Components, server actions, or API routes.
+- To avoid duplicating low-level Appwrite client setup, especially around API keys and cookie handling.
+
+<Callout type="info">
+Use `createSessionClient()` inside components/actions that run in response to user requests. Use `createAdminClient()` sparingly for webhooks or automation where you need elevated privileges.
+</Callout>
+
+## Installation
+
+```bash
+bun add @repo/api
+```
+
+> Already listed as a workspace dependency; install it in new packages or scripts if needed.
+
+## Where it's used
+
+| Surface | Usage |
+|---------|-------|
+| [Web App server actions](/docs/applications/web-app/server-actions) | Reads/writes memberships, orders, events |
+| [Admin App dashboards](/docs/applications/admin-app/index) | Powers CRUD flows for users, posts, products |
+| [Docs search/API routes](/docs/applications/web-app/api-routes) | Securely queries Appwrite for index data |
 ## What's Included
 
 The API package exports:
@@ -502,7 +527,7 @@ export async function updatePost(postId: string, data: any) {
   - [Server API Reference](/docs/packages/api/server) - Complete server client guide
   - [Client API Reference](/docs/packages/api/client) - Browser usage guide
   - [Storage Utilities](/docs/packages/api/storage) - File handling
-  - [Database Guide](/docs/guides/database) - Working with Appwrite database
-  - [Authentication Guide](/docs/guides/authentication) - Auth patterns
+  - [Database Guide](/docs/development/guides/database) - Working with Appwrite database
+  - [Authentication Guide](/docs/development/guides/authentication) - Auth patterns
 </Callout>
 

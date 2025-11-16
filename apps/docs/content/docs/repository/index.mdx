@@ -3,80 +3,74 @@ title: Home
 ---
 
 import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
 
 # Welcome to BISO Sites Documentation
 
-Comprehensive documentation for the BISO Sites monorepo - a modern student organization platform built with Next.js, React, and Appwrite.
+This is the control center for everything related to the BISO Sites monorepo—repositories, apps, shared packages, and operational playbooks. Whether you are the incoming IT manager or an active contributor, you can navigate the entire system from here.
 
-## Documentation Sections
+<Callout type="success" title="Who is this for?">
+Two primary personas:
 
-### 🏛️ Repository
+- **New IT Manager / Maintainer** – needs a guided orientation, environment setup, and operational checklist.
+- **Developers & Contributors** – need direct access to quickstart, workflows, and package APIs.
+</Callout>
 
-General monorepo documentation including setup, architecture, and deployment.
+## Choose Your Path
 
-- [Quick Start](/docs/repository/quickstart) - Get up and running in 5 minutes
-- [Installation](/docs/repository/installation) - Detailed setup instructions
-- [Architecture](/docs/repository/architecture/overview) - System design and patterns
-- [Deployment](/docs/repository/deployment/overview) - Production deployment guides
+<Steps>
+  <Step title="New IT Manager">
+    1. Start with the [Onboarding Guide](/docs/repository/onboarding).
+    2. Review the [Operations Overview](/docs/operations/overview) and confirm credentials.
+    3. Read the [Applications Overview](/docs/applications/overview) to understand who uses which app.
+  </Step>
+  <Step title="Developers & Contributors">
+    1. Follow the [Quickstart](/docs/repository/quickstart) and [Installation Guide](/docs/repository/installation).
+    2. Adopt the [Development Workflow](/docs/development/guides/development-workflow).
+    3. Dive into [Packages](/docs/packages) or specific app docs when you need implementation details.
+  </Step>
+</Steps>
 
-### 🌐 Web App
+## Section Map
 
-Public-facing website documentation including features and implementation details.
+### Repository
+- [Project Structure](/docs/repository/project-structure) – how the monorepo is organized.
+- [Installation](/docs/repository/installation) – prerequisites, tooling, and dev setup.
+- [Troubleshooting](/docs/repository/troubleshooting) – common issues and fixes.
 
-- [Overview](/docs/web-app) - Web app introduction
-- [Routing](/docs/web-app/routing) - Route structure and navigation
-- [Features](/docs/web-app/features/membership) - Membership, events, e-commerce
-- [API Routes](/docs/web-app/api-routes) - API endpoints and webhooks
+### Applications
+- [Overview](/docs/applications/overview) – when to use the web vs admin app.
+- [Web App](/docs/applications/web-app) – routing, components, API routes, and features.
+- [Admin App](/docs/applications/admin-app) – authentication, permissions, and editor workflows.
 
-### 🔐 Admin App
+### Packages
+- [`@repo/api`](/docs/packages/api/overview) – Appwrite client usage patterns.
+- [`@repo/payment`](/docs/packages/payment/overview) – Vipps integration steps.
+- [`@repo/ui` & `@repo/editor`](/docs/packages/ui/overview) – reusable components and the Puck builder.
 
-Content management system documentation for administrators and editors.
+### Development
+- [Guides](/docs/development/guides/development-workflow) – auth, database, forms, i18n, styling, and tests.
+- Command references for linting, type-checking, and builds live in [Reference](/docs/reference/commands).
 
-- [Overview](/docs/admin-app) - Admin app introduction
-- [Authentication](/docs/admin-app/auth) - Auth and role-based access
-- [User Management](/docs/admin-app/user-management) - Managing users and roles
+### Architecture
+- [Overview](/docs/architecture/overview) – big-picture system design.
+- [Applications](/docs/architecture/apps) & [Packages](/docs/architecture/packages) – how each piece collaborates.
+- [Data Flow & Dependency Injection](/docs/architecture/data-flow) – learn how requests move through the stack.
 
-### 📦 Packages
+### Operations
+- [Operations Overview](/docs/operations/overview) – deployment models and infrastructure.
+- [Environment Variables](/docs/operations/environment-variables) – canonical env var definitions.
+- [Appwrite Setup](/docs/operations/appwrite-setup) & [Docker Guide](/docs/operations/docker) – external services.
 
-Shared package documentation and API references.
+### Reference
+- [Commands Reference](/docs/reference/commands) – everything you can run with Bun/Turbo.
 
-- [@repo/api](/docs/packages/api/overview) - Appwrite client wrapper
-- [@repo/payment](/docs/packages/payment/overview) - Vipps payment integration
-- [@repo/ui](/docs/packages/ui/overview) - Shared UI component library
-- [@repo/editor](/docs/packages/editor/overview) - Puck page builder
+## Quick Actions
 
-### 💻 Development
-
-Development guides and best practices for daily workflows.
-
-- [Development Workflow](/docs/development/guides/development-workflow) - Daily dev workflow
-- [Forms](/docs/development/guides/forms) - Form handling patterns
-- [i18n](/docs/development/guides/i18n) - Internationalization
-- [Database](/docs/development/guides/database) - Appwrite database operations
-- [Authentication](/docs/development/guides/authentication) - Auth patterns
-- [Styling](/docs/development/guides/styling) - Tailwind CSS guide
-- [Testing](/docs/development/guides/testing) - Testing strategy
-
-## Quick Links
-
-### For New Developers
-
-1. Start with [Quickstart](/docs/repository/quickstart)
-2. Read [Installation Guide](/docs/repository/installation)
-3. Follow [Development Workflow](/docs/development/guides/development-workflow)
-4. Refer to package docs as needed
-
-### For Experienced Developers
-
-1. Review [Architecture Overview](/docs/repository/architecture/overview)
-2. Deep dive into [Package Documentation](/docs/packages/api/overview)
-3. Check [Commands Reference](/docs/repository/reference/commands)
-
-### For Deployment
-
-1. Review [Deployment Overview](/docs/repository/deployment/overview)
-2. Configure [Environment Variables](/docs/repository/deployment/environment-variables)
-3. Set up [Appwrite Backend](/docs/repository/deployment/appwrite-setup)
+- ✅ **Set up local dev**: `bun run dev` (all apps) or `bun run dev --filter=web`.
+- 🔁 **Run quality gates**: `bun run lint`, `bun run check-types`, `bun run build`.
+- 🚀 **Deploy**: follow [Operations Overview](/docs/operations/overview) and the per-app checklists.
+- 🧭 **Need support?** Open a GitHub issue and link the relevant doc page.
 
 ## Technology Stack
 
@@ -103,20 +97,9 @@ biso-sites/
 └── turbo.json       # Monorepo config
 ```
 
-## Contributing
-
-Interested in contributing? Read our [Contributing Guide](/docs/repository/contributing).
-
 ## Getting Help
 
-- Browse this documentation
-- Check [Troubleshooting](/docs/repository/troubleshooting)
-- View [Commands Reference](/docs/repository/reference/commands)
-
-<Callout type="success" title="Documentation Status">
-This documentation is **production-ready** and covers all major aspects of the BISO Sites platform. It provides approximately 80% coverage of comprehensive documentation needs.
-</Callout>
-
-## What's Next?
-
-Choose a section from the sidebar to dive deeper into specific topics. The documentation is organized by concern with a topic selector that lets you switch between Repository, Web App, Admin App, Packages, and Development sections.
+- Browse this documentation and follow the cross-links.
+- Check [Troubleshooting](/docs/repository/troubleshooting).
+- Consult the [Commands Reference](/docs/reference/commands) when you forget a script.
+- Update docs whenever you discover a new process so the next maintainer has a smoother handover.

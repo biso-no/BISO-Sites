@@ -1,0 +1,14 @@
+{
+  "title": "Web App",
+  "description": "Public-facing website documentation",
+  "icon": "Globe",
+  "pages": [
+    "index",
+    "routing",
+    "components",
+    "api-routes",
+    "server-actions",
+    "features"
+  ]
+}
+

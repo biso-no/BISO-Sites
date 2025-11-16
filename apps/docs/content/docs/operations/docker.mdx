@@ -1,0 +1,140 @@
+---
+title: Docker Deployment
+description: Containerized deployment of BISO Sites applications using Docker.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+
+# Docker Deployment
+
+Both web and admin apps include Dockerfiles for containerized deployment.
+
+## When to choose Docker
+
+Use Docker when you need to host the apps on your own infrastructure (student-union servers, cloud VMs, or temporary demo environments) and want predictable builds. If you deploy to Vercel or Netlify you can skip this section.
+
+## Deployment checklist
+
+<Steps>
+  <Step title="Build the images">
+    Use `docker build -t biso-web -f apps/web/Dockerfile .` (and the admin/docs equivalents). Tag with the commit SHA for traceability.
+  </Step>
+  <Step title="Provision environment variables">
+    Copy `.env.local` files or a secrets manager into `/apps/*/.env.production`. Reference [Environment Variables](/docs/operations/environment-variables) for the canonical list.
+  </Step>
+  <Step title="Run containers or compose stack">
+    Use `docker run` for one-off tests or `docker compose up -d` in production so all apps share the same network.
+  </Step>
+  <Step title="Smoke test + monitor logs">
+    Visit each port (`3000`, `3001`, `3002`) and tail logs with `docker logs -f <container>`. Check Appwrite and Vipps integrations immediately after deployment.
+  </Step>
+</Steps>
+
+## Dockerfile Structure
+
+```dockerfile
+# apps/web/Dockerfile
+FROM oven/bun:1 as base
+WORKDIR /usr/src/app
+
+# Install dependencies
+FROM base AS install
+RUN mkdir -p /temp/prod
+COPY package.json bun.lockb /temp/prod/
+RUN cd /temp/prod && bun install --frozen-lockfile --production
+
+# Build application
+FROM base AS build
+COPY --from=install /temp/prod/node_modules node_modules
+COPY . .
+RUN bun run build
+
+# Production image
+FROM base AS release
+COPY --from=install /temp/prod/node_modules node_modules
+COPY --from=build /usr/src/app/.next .next
+COPY --from=build /usr/src/app/public public
+COPY --from=build /usr/src/app/package.json .
+
+EXPOSE 3000
+CMD ["bun", "run", "start"]
+```
+
+## Building Images
+
+```bash
+# Build web app
+docker build -t biso-web -f apps/web/Dockerfile .
+
+# Build admin app
+docker build -t biso-admin -f apps/admin/Dockerfile .
+```
+
+## Running Containers
+
+```bash
+# Run web app
+docker run -p 3000:3000 \
+  -e NEXT_PUBLIC_APPWRITE_PROJECT_ID=... \
+  -e APPWRITE_API_KEY=... \
+  biso-web
+
+# Run admin app
+docker run -p 3001:3001 \
+  -e NEXT_PUBLIC_APPWRITE_PROJECT_ID=... \
+  -e APPWRITE_API_KEY=... \
+  biso-admin
+```
+
+## Docker Compose
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - apps/web/.env.local
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - apps/admin/.env.local
+    restart: unless-stopped
+
+  docs:
+    build:
+      context: .
+      dockerfile: apps/docs/Dockerfile
+    ports:
+      - "3002:3002"
+    restart: unless-stopped
+```
+
+Run with:
+
+```bash
+docker-compose up -d
+```
+
+<Callout type="info" title="Multi-stage Builds">
+The Dockerfiles use multi-stage builds to minimize final image size by excluding build dependencies.
+</Callout>
+
+## Related Documentation
+
+- [Deployment Overview](/docs/operations/overview)
+- [Environment Variables](/docs/operations/environment-variables)
+

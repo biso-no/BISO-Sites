@@ -1,0 +1,8 @@
+{
+  "title": "Applications",
+  "description": "Guides for operating the web and admin apps.",
+  "root": true,
+  "icon": "LayoutPanelLeft",
+  "pages": ["overview", "web-app", "admin-app"]
+}
+

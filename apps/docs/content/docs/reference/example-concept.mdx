@@ -1,0 +1,56 @@
+---
+title: Example Concept Guide
+description: Template demonstrating the structure for concept and architecture documentation.
+---
+
+import { Callout } from 'components/callout';
+import { FileTree, FileTreeItem } from 'components/file-tree';
+
+# Example Concept: Feature Flags Pipeline
+
+Use this as a blueprint for explaining architecture, data flow, or abstract concepts.
+
+## Overview
+
+Feature flags let you ship changes to a subset of users, toggle experiments, or disable unstable features without redeploying.
+
+## When to use
+
+- Launching a beta version of a page.
+- Gradually enabling integrations (Vipps, Appwrite collections) while monitoring metrics.
+- Providing per-tenant customization.
+
+<Callout type="warning">
+Do not use feature flags to hide unfinished code from version control. Ship minimal, reviewable slices instead.
+</Callout>
+
+## How it works
+
+1. **Admin toggle** – Editors set flag values in the admin app (`/admin/experiments`).
+2. **Appwrite storage** – Flags are stored in the `feature_flags` collection with context (environment, locale, rollout %).
+3. **Runtime lookup** – Web and admin apps read flags via `@repo/api` in Server Components or server actions.
+4. **Rendering** – Components branch on the flag value (SSR-safe).
+
+### Folder layout
+
+<FileTree>
+  <FileTreeItem name="apps/" icon="📁">
+    <FileTreeItem name="web/" icon="📁" depth={1}>
+      <FileTreeItem name="src/lib/flags.ts" icon="📄" depth={2} />
+      <FileTreeItem name="src/components/feature-flag/" icon="📁" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="admin/" icon="📁" depth={1}>
+      <FileTreeItem name="src/app/(admin)/admin/experiments/" icon="📁" depth={2} />
+    </FileTreeItem>
+  </FileTreeItem>
+  <FileTreeItem name="packages/" icon="📁">
+    <FileTreeItem name="api/flags.ts" icon="📄" depth={1} />
+  </FileTreeItem>
+</FileTree>
+
+## Related documentation
+
+- [@repo/api Package](/docs/packages/api/overview) – retrieving Appwrite documents.
+- [Admin App Overview](/docs/applications/admin-app) – where editors manage flags.
+- [Web App Components](/docs/applications/web-app/components) – conditional rendering patterns.
+

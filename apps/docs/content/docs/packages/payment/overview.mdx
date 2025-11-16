@@ -9,6 +9,30 @@ import { Callout } from 'components/callout';
 
 The `@repo/payment` package provides payment processing capabilities for BISO Sites. Currently supports Vipps MobilePay with a clean, framework-agnostic architecture.
 
+## When to use this package
+
+- Triggering checkout flows from the web app or admin dashboards.
+- Handling Vipps callbacks/webhooks and updating Appwrite orders.
+- Building new payment providers using the same abstraction points.
+
+<Callout type="warning">
+Always run through the [Operations → Environment Variables](/docs/operations/environment-variables) checklist before touching payments—Vipps credentials and redirect URLs must match the environment.
+</Callout>
+
+## Installation
+
+```bash
+bun add @repo/payment
+```
+
+## Where it's used
+
+| Surface | Usage |
+|---------|-------|
+| [Web App → E-commerce](/docs/applications/web-app/features/ecommerce) | Initiates checkout and handles order confirmation |
+| Admin App (shop backlog) | Views and reconciles `@repo/payment` order records |
+| API Routes `/api/payment/*` | Receive Vipps webhooks via `handleVippsCallback` |
+
 ## Key Features
 
 - ✅ **Vipps MobilePay Integration** - Full checkout flow
@@ -529,6 +553,6 @@ function verifyWebhookSignature(
 <Callout type="info">
   - [Vipps Integration Guide](/docs/packages/payment/vipps) - Detailed Vipps setup
   - [Server Actions Reference](/docs/packages/payment/actions) - All action APIs
-  - [Development Workflow](/docs/guides/development-workflow) - Daily development
+  - [Development Workflow](/docs/development/guides/development-workflow) - Daily development
 </Callout>
 

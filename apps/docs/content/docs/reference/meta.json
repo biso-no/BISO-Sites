@@ -1,4 +1,7 @@
 {
   "title": "Reference",
-  "pages": ["commands", "configuration", "troubleshooting", "contributing"]
+  "description": "Command cheatsheets and configuration tables",
+  "root": true,
+  "icon": "BookMarked",
+  "pages": ["commands", "example-how-to", "example-concept"]
 }

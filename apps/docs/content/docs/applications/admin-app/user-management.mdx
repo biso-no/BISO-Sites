@@ -1,0 +1,190 @@
+---
+title: User Management
+description: Managing users, roles, permissions, and invitations in the admin app.
+---
+
+import { Callout } from 'components/callout';
+
+# User Management
+
+The user management system allows admins to view, edit, and manage all system users including role assignment and access control.
+
+## Features
+
+- User listing with search and filters
+- User profile editing
+- Role assignment (Admin, Editor, Viewer)
+- User invitation system
+- Activity tracking
+
+## User List Page
+
+**Route**: `/admin/users`  
+**File**: `app/(admin)/admin/users/page.tsx`
+
+```typescript
+// app/(admin)/admin/users/page.tsx
+import { getUsers } from 'app/actions/users';
+import { UserTable } from '@/components/users/user-table';
+
+export default async function UsersPage() {
+  const users = await getUsers();
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Users</h1>
+        <Button href="/admin/users/invite">
+          Invite User
+        </Button>
+      </div>
+      
+      <UserTable users={users} />
+    </div>
+  );
+}
+```
+
+## User Table Component
+
+```typescript
+// components/users/user-table.tsx
+'use client';
+
+import { useState } from 'react';
+import { UserAvatar } from './user-avatar';
+import { RoleBadge } from './role-badge';
+import { UserStatusBadge } from './user-status';
+
+export function UserTable({ users }) {
+  const [filter, setFilter] = useState('');
+  
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(filter.toLowerCase()) ||
+    user.email.toLowerCase().includes(filter.toLowerCase())
+  );
+  
+  return (
+    <div>
+      <Input 
+        placeholder="Search users..."
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        className="mb-4"
+      />
+      
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>User</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredUsers.map(user => (
+            <TableRow key={user.$id}>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <UserAvatar user={user} />
+                  <span>{user.name}</span>
+                </div>
+              </TableCell>
+              <TableCell>{user.email}</TableCell>
+              <TableCell>
+                <RoleBadge role={user.labels[0]} />
+              </TableCell>
+              <TableCell>
+                <UserStatusBadge status={user.status} />
+              </TableCell>
+              <TableCell>
+                <Button href={`/admin/users/${user.$id}`} variant="ghost">
+                  Edit
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+```
+
+## Edit User Page
+
+**Route**: `/admin/users/[userId]`  
+**File**: `app/(admin)/admin/users/[userId]/page.tsx`
+
+```typescript
+// app/(admin)/admin/users/[userId]/page.tsx
+import { getUserById } from 'app/actions/users';
+import { UserForm } from './user-form';
+
+export default async function EditUserPage({
+  params
+}: {
+  params: Promise<{ userId: string }>
+}) {
+  const { userId } = await params;
+  const user = await getUserById(userId);
+  
+  return (
+    <div>
+      <h1 className="text-3xl font-bold mb-8">Edit User</h1>
+      <UserForm user={user} />
+    </div>
+  );
+}
+```
+
+## Server Actions
+
+```typescript
+// app/actions/users.ts
+'use server';
+
+import { createAdminClient } from '@repo/api/server';
+
+export async function getUsers() {
+  const { account } = await createAdminClient();
+  const users = await account.list();
+  return users.users;
+}
+
+export async function getUserById(userId: string) {
+  const { account } = await createAdminClient();
+  return await account.get(userId);
+}
+
+export async function updateUser(userId: string, data: {
+  name?: string;
+  email?: string;
+  labels?: string[];
+}) {
+  const { account } = await createAdminClient();
+  
+  if (data.name) {
+    await account.updateName(userId, data.name);
+  }
+  
+  if (data.labels) {
+    await account.updateLabels(userId, data.labels);
+  }
+  
+  revalidatePath('/admin/users');
+  return { success: true };
+}
+```
+
+<Callout type="info" title="Role Management">
+Only users with the "admin" role can manage other users and assign roles.
+</Callout>
+
+## Related Documentation
+
+- [Authentication](/docs/applications/admin-app/auth) - Auth and roles
+- [@repo/api Package](/docs/packages/api/overview) - Appwrite API
+
