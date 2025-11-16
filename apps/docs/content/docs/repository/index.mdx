@@ -4,6 +4,7 @@ title: Home
 
 import { Callout } from 'components/callout';
 import { Steps, Step } from 'components/steps';
+import { Files, File, Folder } from 'fumadocs-ui/components/files';
 
 # Welcome to BISO Sites Documentation
 
@@ -83,19 +84,46 @@ Two primary personas:
 
 ## Project Structure
 
-```
-biso-sites/
-├── apps/
-│   ├── web/         # Public website (port 3000)
-│   ├── admin/       # Admin CMS (port 3001)
-│   └── docs/        # Documentation (port 3002)
-├── packages/
-│   ├── api/         # Appwrite client
-│   ├── payment/     # Vipps integration
-│   ├── ui/          # Shared components
-│   └── editor/      # Page builder
-└── turbo.json       # Monorepo config
-```
+<Files>
+  <Folder name="biso-sites/" defaultOpen>
+    <Folder name="apps/" defaultOpen>
+      <Folder name="web/" >
+        <File name=".../" />
+      </Folder>
+      <Folder name="admin/" >
+        <File name=".../" />
+      </Folder>
+      <Folder name="docs/" >
+        <File name=".../" />
+      </Folder>
+    </Folder>
+    <Folder name="packages/" defaultOpen>
+      <Folder name="api/" >
+        <File name=".../" />
+      </Folder>
+      <Folder name="payment/" >
+        <File name=".../" />
+      </Folder>
+      <Folder name="ui/" >
+        <File name=".../" />
+      </Folder>
+      <Folder name="editor/" >
+        <File name=".../" />
+      </Folder>
+      <Folder name="typescript-config/" >
+        <File name=".../" />
+      </Folder>
+      <Folder name="eslint-config/" >
+        <File name=".../" />
+      </Folder>
+    </Folder>
+    <File name="turbo.json" />
+    <File name="bun.lock" />
+    <File name="package.json" />
+    <File name="README.md" />
+  </Folder>
+</Files>
+
 
 ## Getting Help
 

@@ -5,8 +5,7 @@ import { Tabs, CodeTabs } from './components/tabs';
 import { Steps, Step } from './components/steps';
 import { FileTree, FileTreeItem } from './components/file-tree';
 import { Mermaid } from './components/mdx/mermaid';
-import { AutoTypeTable } from 'fumadocs-typescript/ui';
-import { createGenerator } from 'fumadocs-typescript';
+import { CodeBlock, Pre } from 'fumadocs-ui/components/codeblock';
 
 // Export components directly for MDX usage (Next.js MDX pattern)
 export const components: MDXComponents = {
@@ -21,13 +20,17 @@ export const components: MDXComponents = {
   Mermaid,
 };
 
-const generator = createGenerator();
 
 export function getMDXComponents(customComponents?: MDXComponents): MDXComponents {
   return {
     ...components,
-    AutoTypeTable: (props) => (
-      <AutoTypeTable {...props} generator={generator} />
+    pre: ({ ref: _ref, ...props }) => (
+      <CodeBlock 
+      
+        {...props}
+      >
+        <Pre>{props.children}</Pre>
+      </CodeBlock>
     ),
     ...customComponents,
   };
