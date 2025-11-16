@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo } from "react"
+import { useMemo, useEffect, useState, useTransition } from "react"
+import type { FormEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { MoreHorizontal, Plus, TrendingUp } from "lucide-react"
 
 import { Badge } from "@repo/ui/components/ui/badge"
@@ -23,6 +25,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu"
+import { Checkbox } from "@repo/ui/components/ui/checkbox"
+import { Input } from "@repo/ui/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select"
 import {
   Table,
   TableBody,
@@ -33,7 +44,7 @@ import {
 } from "@repo/ui/components/ui/table"
 import { TabsContent } from "@repo/ui/components/ui/tabs"
 
-import { updateProduct, deleteProduct } from "@/app/actions/products"
+import { updateProduct, deleteProduct, bulkUpdateProductStatus, bulkUpdateProductPrices, bulkUpdateProductStock } from "@/app/actions/products"
 import { ProductWithTranslations } from "@/lib/types/product"
 import {
   formatPercentage,
@@ -43,6 +54,7 @@ import {
   parseJSONSafe,
 } from "@/lib/utils/admin"
 import { AdminSummary } from "@/components/admin/admin-summary"
+import { cn } from "@repo/ui/lib/utils"
 
 const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
   style: "currency",
@@ -56,7 +68,18 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
   day: "numeric",
 })
 
+const LOW_STOCK_THRESHOLD = 10
+
 export function ProductsTable({ products }: { products: ProductWithTranslations[] }) {
+  const router = useRouter()
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [priceValue, setPriceValue] = useState("5")
+  const [priceMode, setPriceMode] = useState<"percent" | "absolute">("percent")
+  const [stockValue, setStockValue] = useState("5")
+  const [stockMode, setStockMode] = useState<"adjust" | "set">("adjust")
+  const [bulkFeedback, setBulkFeedback] = useState<string | null>(null)
+  const [isBulkPending, startBulkTransition] = useTransition()
+
   const aggregates = useMemo(() => {
     const total = products.length
     const published = products.filter((product) => product.status === "published").length
@@ -68,13 +91,22 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
       return locales.includes("no") && locales.includes("en")
     }).length
 
+    const lowStock = products.filter(
+      (product) => typeof product.stock === "number" && product.stock >= 0 && product.stock <= LOW_STOCK_THRESHOLD,
+    ).length
+
     return {
       total,
       published,
       draft,
       archived,
       translationCoverage: formatPercentage(translationComplete, total),
+      lowStock,
     }
+  }, [products])
+
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => products.some((product) => product.$id === id)))
   }, [products])
 
   const formatPrice = (price: number | null | undefined) => {
@@ -92,6 +124,87 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     await deleteProduct(productId)
   }
 
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(products.map((product) => product.$id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const toggleSelect = (productId: string, checked: boolean) => {
+    setSelectedIds((prev) =>
+      checked ? Array.from(new Set([...prev, productId])) : prev.filter((id) => id !== productId),
+    )
+  }
+
+  const runBulkStatusUpdate = (status: "draft" | "published" | "archived") => {
+    startBulkTransition(async () => {
+      const result = await bulkUpdateProductStatus(selectedIds, status)
+      if (!result?.success) {
+        setBulkFeedback(result?.error || "Kunne ikke oppdatere status.")
+        return
+      }
+      setBulkFeedback("Status oppdatert")
+      setSelectedIds([])
+      router.refresh()
+    })
+  }
+
+  const handlePriceSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const value = Number(priceValue)
+    if (!Number.isFinite(value)) {
+      setBulkFeedback("Oppgi en gyldig prisverdi.")
+      return
+    }
+    startBulkTransition(async () => {
+      const result = await bulkUpdateProductPrices(selectedIds, { mode: priceMode, value })
+      if (!result?.success) {
+        setBulkFeedback(result?.error || "Kunne ikke oppdatere pris.")
+        return
+      }
+      setBulkFeedback("Pris oppdatert")
+      setSelectedIds([])
+      router.refresh()
+    })
+  }
+
+  const handleStockSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const value = Number(stockValue)
+    if (!Number.isFinite(value)) {
+      setBulkFeedback("Oppgi en gyldig lagerverdi.")
+      return
+    }
+    startBulkTransition(async () => {
+      const result = await bulkUpdateProductStock(selectedIds, { mode: stockMode, value })
+      if (!result?.success) {
+        setBulkFeedback(result?.error || "Kunne ikke oppdatere lager.")
+        return
+      }
+      setBulkFeedback("Lager oppdatert")
+      setSelectedIds([])
+      router.refresh()
+    })
+  }
+
+  const renderStockValue = (stock: number | null | undefined) => {
+    if (typeof stock === "number") {
+      if (stock <= 0) {
+        return <Badge variant="destructive">Tomt</Badge>
+      }
+      if (stock <= LOW_STOCK_THRESHOLD) {
+        return <Badge variant="outline" className="border-amber-200 text-amber-600">Lavt ({stock})</Badge>
+      }
+      return stock
+    }
+    return "—"
+  }
+
+  const allSelected = selectedIds.length > 0 && selectedIds.length === products.length
+  const partiallySelected = selectedIds.length > 0 && selectedIds.length < products.length
+
   return (
     <TabsContent value="all">
       <AdminSummary
@@ -104,6 +217,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
           { label: "Publiserte", value: aggregates.published },
           { label: "Utkast", value: aggregates.draft },
           { label: "Oversettelser", value: aggregates.translationCoverage },
+          { label: "Lavt lager", value: aggregates.lowStock },
         ]}
         action={
           <div className="flex flex-wrap gap-2">
@@ -120,6 +234,102 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
           </div>
         }
       />
+
+      {selectedIds.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 shadow-inner">
+          <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-primary-90">
+            <span>{selectedIds.length} valgt</span>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedIds([])}>
+              Nullstill
+            </Button>
+            {bulkFeedback && <span className="text-xs text-primary-60">{bulkFeedback}</span>}
+          </div>
+          <div className="mt-3 grid gap-4 lg:grid-cols-3">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">Status</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isBulkPending}
+                  onClick={() => runBulkStatusUpdate("published")}
+                >
+                  Publiser
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isBulkPending}
+                  onClick={() => runBulkStatusUpdate("draft")}
+                >
+                  Utkast
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isBulkPending}
+                  onClick={() => runBulkStatusUpdate("archived")}
+                >
+                  Arkiver
+                </Button>
+              </div>
+            </div>
+            <form className="space-y-2" onSubmit={handlePriceSubmit}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">Pris</p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={priceValue}
+                  onChange={(event) => setPriceValue(event.target.value)}
+                  className="h-9"
+                  placeholder="Verdi"
+                />
+                <Select value={priceMode} onValueChange={(value) => setPriceMode(value as "percent" | "absolute")}>
+                  <SelectTrigger className="h-9 w-[140px]">
+                    <SelectValue placeholder="Velg modus" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percent">% juster</SelectItem>
+                    <SelectItem value="absolute">Sett pris</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="submit" size="sm" disabled={isBulkPending}>
+                  Oppdater
+                </Button>
+              </div>
+            </form>
+            <form className="space-y-2" onSubmit={handleStockSubmit}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">Lager</p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="1"
+                  value={stockValue}
+                  onChange={(event) => setStockValue(event.target.value)}
+                  className="h-9"
+                  placeholder="Antall"
+                />
+                <Select value={stockMode} onValueChange={(value) => setStockMode(value as "adjust" | "set")}>
+                  <SelectTrigger className="h-9 w-[140px]">
+                    <SelectValue placeholder="Velg modus" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="adjust">Juster ±</SelectItem>
+                    <SelectItem value="set">Sett lager</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="submit" size="sm" disabled={isBulkPending}>
+                  Oppdater
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.4)]">
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -138,6 +348,13 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
             <Table className="text-sm">
               <TableHeader>
                 <TableRow className="bg-primary/5">
+                  <TableHead className="w-10">
+                    <Checkbox
+                      aria-label="Velg alle produkter"
+                      checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                      onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
+                    />
+                  </TableHead>
                   <TableHead className="hidden w-[100px] sm:table-cell">
                     <span className="sr-only">Image</span>
                   </TableHead>
@@ -145,6 +362,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   <TableHead>Status</TableHead>
                   <TableHead>Oversettelser</TableHead>
                   <TableHead className="hidden md:table-cell">Pris</TableHead>
+                  <TableHead className="hidden md:table-cell">Lager</TableHead>
                   <TableHead className="hidden md:table-cell">Campus</TableHead>
                   <TableHead className="hidden md:table-cell">Opprettet</TableHead>
                   <TableHead>
@@ -161,8 +379,23 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   const uniqueLocales = getUniqueLocales(refs)
                   const primaryImage = product.image || (metadata as any).image || "/placeholder.svg"
 
+                  const isSelected = selectedIds.includes(product.$id)
+
                   return (
-                    <TableRow key={product.$id} className="group transition hover:bg-primary/5">
+                    <TableRow
+                      key={product.$id}
+                      className={cn(
+                        "group transition hover:bg-primary/5",
+                        isSelected && "bg-primary/5/60",
+                      )}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          aria-label={`Velg ${title}`}
+                          checked={isSelected}
+                          onCheckedChange={(checked) => toggleSelect(product.$id, Boolean(checked))}
+                        />
+                      </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <div className="overflow-hidden rounded-xl border border-primary/10 bg-primary/5">
                           <Image
@@ -205,6 +438,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {formatPrice(product.regular_price)}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {renderStockValue(product.stock)}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {product.campus?.name || product.campus_id || "—"}

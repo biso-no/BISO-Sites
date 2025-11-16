@@ -267,15 +267,15 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       <div className="pointer-events-none absolute -left-20 top-[-18%] h-72 w-72 rounded-full bg-secondary-20/60 dark:bg-primary/30 blur-[140px]" />
       <div className="pointer-events-none absolute bottom-[-25%] right-[-10%] h-80 w-80 rounded-full bg-gold-muted/45 dark:bg-secondary-100/20 blur-[160px]" />
 
-      <div className="relative z-10 flex w-full gap-4 p-4">
+      <div className="relative z-10 flex h-screen w-full gap-4 overflow-hidden p-4">
         <motion.nav
           initial={false}
           animate={{ width: isSidebarExpanded ? 268 : 88 }}
-          className="relative flex shrink-0 flex-col overflow-hidden rounded-[26px] border border-primary-100/30 bg-primary-100/95 text-white shadow-[0_45px_80px_-45px_rgba(0,23,49,0.9)]"
+          className="relative flex h-full shrink-0 flex-col overflow-hidden rounded-[26px] border border-primary-100/30 bg-primary-100/95 text-white shadow-[0_45px_80px_-45px_rgba(0,23,49,0.9)]"
         >
           <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,169,224,0.25),transparent_60%)]" />
-          <div className="relative flex h-full flex-col justify-between">
-            <div>
+          <div className="relative flex h-full flex-col">
+            <div className="flex-1 overflow-y-auto pb-6">
               <motion.div
                 className="flex items-center gap-3 px-4 pb-4 pt-5"
                 initial={false}
@@ -320,7 +320,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                 </AnimatePresence>
               </ul>
             </div>
-            <div className="mt-6 space-y-3 px-4 pb-4">
+            <div className="space-y-3 px-4 pb-4">
               <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-xs text-white/70">
                 <p className="font-semibold text-white">Supportlinje</p>
                 <p className="mt-1 text-white/70">support@biso.no</p>

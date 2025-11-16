@@ -17,6 +17,7 @@ export function ThemeProvider({
   defaultTheme = "system",
   enableSystem = true,
   storageKey = "theme",
+  ...props
 }: ThemeProviderProps) {
   return (
     <NextThemesProvider
@@ -25,6 +26,7 @@ export function ThemeProvider({
       enableSystem={enableSystem}
       storageKey={storageKey}
       disableTransitionOnChange
+      {...props}
     >
       {children}
     </NextThemesProvider>
