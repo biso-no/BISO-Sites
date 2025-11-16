@@ -1,5 +1,5 @@
 {
-  "name": "mon",
+  "name": "biso-sites",
   "private": true,
   "scripts": {
     "build": "turbo run build",
