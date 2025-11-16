@@ -4,6 +4,7 @@ description: Admin app authentication flows using OAuth with Microsoft/Azure, an
 ---
 
 import { Callout } from 'components/callout';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Authentication & Authorization
 
@@ -35,7 +36,7 @@ const hasAccess = isAdmin || isEditor;
 
 ## Authentication Flow
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant LoginPage
@@ -52,7 +53,7 @@ sequenceDiagram
     Microsoft->>OAuthCallback: Redirect with credentials
     OAuthCallback->>Dashboard: Create session & redirect
     Dashboard-->>User: Show admin interface
-```
+`} />
 
 ## Login Page
 

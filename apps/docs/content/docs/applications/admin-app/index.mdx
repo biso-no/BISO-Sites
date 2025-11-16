@@ -5,6 +5,7 @@ description: Complete guide to the BISO Sites admin application for content mana
 
 import { Callout } from 'components/callout';
 import { Steps, Step } from 'components/steps';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Admin App Overview
 
@@ -83,7 +84,7 @@ The Admin App provides tools for:
 
 ## Architecture
 
-```mermaid
+<Mermaid chart={`
 graph TB
     subgraph "Admin App"
         AUTH[Authentication]
@@ -105,7 +106,7 @@ graph TB
     USERS --> APPWRITE
     CONTENT --> STORAGE
     ECOMM --> STORAGE
-```
+`} />
 
 ## Directory Structure
 

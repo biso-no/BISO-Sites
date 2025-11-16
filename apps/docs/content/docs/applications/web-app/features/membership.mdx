@@ -5,6 +5,7 @@ description: Complete guide to the membership system including registration, pay
 
 import { Callout } from 'components/callout';
 import { Steps, Step } from 'components/steps';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Membership Feature
 
@@ -21,7 +22,7 @@ The membership feature handles:
 
 ## User Flow
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant Page
@@ -40,7 +41,7 @@ sequenceDiagram
     Vipps->>ServerAction: Webhook callback
     ServerAction->>Database: Activate membership
     Database-->>User: Confirmation email
-```
+`} />
 
 ## Implementation
 

@@ -4,6 +4,7 @@ description: How and why the payment package uses dependency injection to remain
 ---
 
 import { Callout } from 'components/callout';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Dependency Injection Pattern
 
@@ -179,7 +180,7 @@ Now:
 
 ## Architecture Diagram
 
-```mermaid
+<Mermaid chart={`
 graph TB
     subgraph "Next.js Layer"
         A[Server Action<br/>actions.ts]
@@ -206,7 +207,7 @@ graph TB
     
     style C fill:#90EE90
     style A fill:#87CEEB
-```
+`} />
 
 **Key Points:**
 1. **Green (Business Logic)**: Framework-agnostic, testable

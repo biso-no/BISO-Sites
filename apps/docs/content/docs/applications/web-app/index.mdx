@@ -5,6 +5,7 @@ description: Complete guide to the BISO Sites public-facing web application, inc
 
 import { Callout } from 'components/callout';
 import { Steps, Step } from 'components/steps';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Web App Overview
 
@@ -51,7 +52,7 @@ The Web App serves multiple purposes:
 
 ## Technology Stack
 
-```mermaid
+<Mermaid chart={`
 graph TB
     subgraph "Frontend"
         NEXTJS[Next.js 15<br/>App Router]
@@ -81,7 +82,7 @@ graph TB
     I18N --> NEXTJS
     REACT --> NEXTJS
     TAILWIND --> NEXTJS
-```
+`} />
 
 ### Key Technologies
 
@@ -107,36 +108,42 @@ graph TB
 
 ### Directory Structure
 
-```
-apps/web/src/
-├── app/                          # Next.js App Router
-│   ├── (public)/                 # Public routes
-│   │   ├── page.tsx             # Homepage
-│   │   ├── about/               # About pages
-│   │   ├── events/              # Events listing and detail
-│   │   ├── shop/                # E-commerce
-│   │   ├── units/               # Departments
-│   │   ├── membership/          # Membership
-│   │   ├── contact/             # Contact
-│   │   └── ...
-│   ├── (protected)/             # Protected routes (requires auth)
-│   │   ├── profile/             # User profile
-│   │   └── fs/                  # Expense system
-│   ├── (auth)/                  # Authentication routes
-│   │   └── auth/
-│   ├── actions/                 # Server actions
-│   ├── api/                     # API routes
-│   └── ...
-├── components/                   # React components
-│   ├── ui/                      # UI components
-│   ├── forms/                   # Form components
-│   └── ...
-├── lib/                         # Utilities and helpers
-│   ├── appwrite.ts              # Appwrite client setup
-│   ├── utils.ts                 # Utility functions
-│   └── ...
-└── proxy.ts                      # Middleware/proxy setup
-```
+<FileTree>
+  <FileTreeItem name="apps/web/src/" icon="📁">
+    <FileTreeItem name="app/" icon="📁" depth={1}>
+      <FileTreeItem name="(public)/" icon="📁" depth={2}>
+        <FileTreeItem name="page.tsx" icon="📄" depth={3} />
+        <FileTreeItem name="about/" icon="📁" depth={3}>
+          <FileTreeItem name="page.tsx" icon="📄" depth={4} />
+        </FileTreeItem>
+      </FileTreeItem>
+    </FileTreeItem>
+    <FileTreeItem name="(protected)/" icon="📁" depth={1}>
+      <FileTreeItem name="profile/" icon="📁" depth={2}>
+        <FileTreeItem name="page.tsx" icon="📄" depth={3} />
+      </FileTreeItem>
+      <FileTreeItem name="fs/" icon="📁" depth={2}>
+        <FileTreeItem name="page.tsx" icon="📄" depth={3} />
+      </FileTreeItem>
+    </FileTreeItem>
+    <FileTreeItem name="(auth)/" icon="📁" depth={1}>
+      <FileTreeItem name="auth/" icon="📁" depth={2}>
+        <FileTreeItem name="login/" icon="📁" depth={3}>
+          <FileTreeItem name="page.tsx" icon="📄" depth={4} />
+        </FileTreeItem>
+        <FileTreeItem name="callback/" icon="📁" depth={3}>
+          <FileTreeItem name="page.tsx" icon="📄" depth={4} />
+        </FileTreeItem>
+      </FileTreeItem>   
+    </FileTreeItem>
+    <FileTreeItem name="actions/" icon="📁" depth={1}>
+      <FileTreeItem name="page.tsx" icon="📄" depth={2} />
+    </FileTreeItem>
+    <FileTreeItem name="api/" icon="📁" depth={1}>
+      <FileTreeItem name="page.tsx" icon="📄" depth={2} />
+    </FileTreeItem>
+  </FileTreeItem>
+</FileTree>
 
 ### Route Organization
 
@@ -177,7 +184,7 @@ Example: `/no/about` and `/en/about` serve the same page in different languages.
 
 ## Data Flow
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant NextJS
@@ -198,7 +205,7 @@ sequenceDiagram
     API-->>ServerAction: Return result
     ServerAction-->>NextJS: Revalidate
     NextJS-->>User: Updated UI
-```
+`} />
 
 ### Data Fetching Patterns
 

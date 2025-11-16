@@ -4,6 +4,7 @@ description: Multi-provider payment processing package for BISO Sites, currently
 ---
 
 import { Callout } from 'components/callout';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Payment Package Overview
 
@@ -141,14 +142,14 @@ export default async function OrderConfirmation({
 
 The payment package follows clean architecture with dependency injection:
 
-```mermaid
+<Mermaid chart={`
 graph LR
     A[Next.js App] --> B[Server Actions<br/>actions.ts]
     B --> C[Core Logic<br/>vipps.ts]
     C --> D[Vipps API]
     B --> E[Appwrite DB]
     C -.db injected.-> E
-```
+`} />
 
 **Benefits:**
 - Core logic is framework-agnostic
@@ -158,7 +159,7 @@ graph LR
 
 ## Complete Flow
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant App
@@ -190,7 +191,7 @@ sequenceDiagram
     end
     
     App-->>User: Show confirmation
-```
+`} />
 
 ## Order States
 
