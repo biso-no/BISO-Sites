@@ -6,7 +6,13 @@ const withMDX = createMDX({
 
 /** @type {import('next').NextConfig} */
 const config = {
-  reactStrictMode: true
+  reactStrictMode: true,
+  experimental: {
+    outputFileTracingIncludes: {
+      // Include .source directory in the standalone build
+      '/': ['./.source/**/*'],
+    },
+  },
 };
 
 export default withMDX(config);
