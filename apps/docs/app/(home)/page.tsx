@@ -10,7 +10,7 @@ export default function Home() {
             BISO Sites Documentation
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            Comprehensive documentation for the MON monorepo. Everything you need to understand, develop, and deploy this application suite.
+            Comprehensive documentation for the BISO Sites monorepo. Everything you need to understand, develop, and deploy this application suite.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
