@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { museoSans, inter } from "./fonts";
 import Providers from "./providers"
 import '@/app/globals.css';
@@ -5,9 +6,18 @@ import {NextIntlClientProvider} from 'next-intl';
 import {getLocale} from '@/app/actions/locale';
 import {getMessages} from 'next-intl/server';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'BI Student Organisation',
   description: 'BISO Apps',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favico.png', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180' },
+    ],
+  },
 };
 
 export default async function RootLayout({

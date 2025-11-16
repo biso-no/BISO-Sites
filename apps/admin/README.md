@@ -1,82 +1,100 @@
-# Bunpack
+## BISO Sites Admin App (`apps/admin`)
 
-Bunpack is a Next.js application with TypeScript and Tailwind CSS.
+The **Admin App** is the CMS and control center for BISO Sites. It is used by IT, editors, and operations staff to manage users, content, events, shop data, units, jobs, and expenses.
 
-## Table of Contents
+For a full overview, see `/docs/applications/admin-app` in the docs app.
 
-1. [Project Structure](#project-structure)
-2. [Installation](#installation)
-3. [Usage](#usage)
-4. [Configuration](#configuration)
-5. [API Routes](#api-routes)
-6. [Components](#components)
-7. [Styling](#styling)
-8. [Deployment](#deployment)
-9. [Contributing](#contributing)
-10. [License](#license)
+### Features
 
-## Project Structure
+- **Authentication & RBAC** – login, role-based access control (admin/editor/viewer).
+- **User management** – manage accounts, roles, and invitations.
+- **Content management** – posts/news, pages, events, units, jobs.
+- **Page builder** – Puck-powered visual editor for landing pages and content blocks.
+- **Shop & payments** – products, orders, integration with Vipps via `@repo/payment`.
+- **Internal tools** – expense tracking and operational dashboards.
 
+### Tech Stack
+
+- Next.js 15 (App Router) with React 19 and Server Components.
+- TypeScript with shared config from `@repo/typescript-config`.
+- Tailwind CSS + shared components from `@repo/ui`.
+- Appwrite for auth, database, and storage via `@repo/api`.
+- Puck (`@measured/puck`) and `@repo/editor` for visual page building.
+- Vipps payments via `@repo/payment`.
+
+### Local Development
+
+From the monorepo root:
+
+```bash
+# Install dependencies (once)
+bun install
+
+# Run only the admin app (port 3001)
+bun run dev --filter=admin
 ```
-bunpack/
-├── .next/
-├── app/
-├── components/
-├── lib/
-├── public/
-├── .env
-├── .env.example
-├── .eslintrc.js
-├── .gitignore
-├── bun.lockb
-├── components.json
-├── database.json
-├── middleware.ts
-├── next-env.d.ts
-├── next.config.js
-├── package.json
-├── postcss.config.js
-├── tailwind.config.js
+
+Visit `http://localhost:3001`. Authentication, roles, and collections are configured in Appwrite – see `/docs/operations/appwrite-setup` and `/docs/applications/admin-app/auth`.
+
+### Directory Structure
+
+```text
+apps/admin/
+├── src/
+│  ├── app/
+│  │  ├── (admin)/          # Protected admin routes
+│  │  │  └── admin/
+│  │  │     ├── page.tsx    # Dashboard
+│  │  │     ├── users/      # User management
+│  │  │     ├── posts/      # News/posts
+│  │  │     ├── events/     # Events
+│  │  │     ├── pages/      # Page builder
+│  │  │     ├── shop/       # E‑commerce
+│  │  │     ├── units/      # Departments
+│  │  │     ├── jobs/       # Job board
+│  │  │     └── expenses/   # Expense system
+│  │  ├── (auth)/           # Login and auth routes
+│  │  ├── (protected)/      # Other protected routes
+│  │  ├── actions/          # Server actions
+│  │  ├── api/              # Route handlers
+│  │  └── ...
+│  ├── components/          # Admin UI components
+│  ├── lib/                 # Utilities, hooks, server helpers
+│  ├── i18n/                # Localization helpers
+│  └── proxy.ts
+├── messages/               # `en`/`no` translation JSON files
+├── public/                 # Static assets
+├── next.config.ts
+├── tailwind.config.cjs
 ├── tsconfig.json
-└── README.md
+└── package.json
 ```
 
-## Installation
+See `/docs/applications/admin-app` for detailed module and route documentation.
 
-See [Installation Guide](docs/installation.md) for detailed instructions.
+### Shared Packages
 
-## Usage
+- `@repo/api` – Appwrite clients for server actions and dashboards.
+- `@repo/editor` – Puck editor configuration and renderer used in the page builder.
+- `@repo/ui` – shared design system (tables, forms, navigation, etc.).
+- `@repo/payment` – Vipps-related order and payment handling.
 
-See [Usage Guide](docs/usage.md) for information on how to use Bunpack.
+### Scripts
 
-## Configuration
+Defined in `apps/admin/package.json`:
 
-- `next.config.js`: Next.js configuration
-- `tsconfig.json`: TypeScript configuration
-- `tailwind.config.js`: Tailwind CSS configuration
-- `postcss.config.js`: PostCSS configuration
-- `.eslintrc.js`: ESLint configuration
+```bash
+bun run dev      # next dev -p 3001
+bun run build    # next build
+bun run start    # next start
+bun run lint     # next lint
+```
 
-## API Routes
+Prefer running repo-wide commands from the root (`bun run dev`, `bun run build`, etc.) when working across apps.
 
-API routes can be accessed on `/api/*`. This directory is mapped to `/app/api/*`.
+### Further Reading
 
-## Components
-
-Reusable components are stored in the `components/` directory.
-
-## Styling
-
-This project uses Tailwind CSS for styling. The configuration can be found in `tailwind.config.js`.
-
-## Deployment
-
-Follow the [Next.js deployment documentation](https://nextjs.org/docs/operations) for detailed instructions on how to deploy your app.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- Admin overview: `/docs/applications/admin-app`
+- Auth & RBAC: `/docs/applications/admin-app/auth`
+- User management: `/docs/applications/admin-app/user-management`
+- Page builder: `/docs/packages/editor/overview`
