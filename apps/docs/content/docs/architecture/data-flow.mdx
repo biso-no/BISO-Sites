@@ -4,6 +4,7 @@ description: How data flows through the BISO Sites monorepo - from user interact
 ---
 
 import { Callout } from 'components/callout';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Data Flow
 
@@ -24,7 +25,7 @@ BISO SItes uses different patterns depending on the operation type:
 
 The most common pattern for displaying data.
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant Browser
@@ -43,7 +44,7 @@ sequenceDiagram
     ServerComp-->>NextJS: Rendered HTML
     NextJS-->>Browser: HTML response
     Browser-->>User: Display page
-```
+`} />
 
 ### Example
 
@@ -87,7 +88,7 @@ export default async function PostsPage() {
 
 Used for mutations like creating, updating, deleting data.
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant ClientComp
@@ -104,7 +105,7 @@ sequenceDiagram
     ServerAction->>ServerAction: revalidatePath()
     ServerAction-->>ClientComp: Return result
     ClientComp-->>User: Update UI
-```
+`} />
 
 ### Example
 
@@ -171,7 +172,7 @@ export function CreatePostForm() {
 
 Used for webhooks, callbacks, and external integrations.
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant External
     participant APIRoute
@@ -185,7 +186,7 @@ sequenceDiagram
     Appwrite-->>API: Success
     API-->>APIRoute: Result
     APIRoute-->>External: 200 OK
-```
+`} />
 
 ### Example
 
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
 
 Sometimes data needs to be fetched on the client.
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant ClientComp
@@ -243,7 +244,7 @@ sequenceDiagram
     Appwrite-->>API: Return data
     API-->>ClientComp: JSON response
     ClientComp-->>User: Update UI
-```
+`} />
 
 ### Example
 
@@ -283,7 +284,7 @@ export function LiveData() {
 
 A complete payment flow showing all data movement:
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant Web
@@ -316,7 +317,7 @@ sequenceDiagram
     end
     
     Web-->>User: Show confirmation
-```
+`} />
 
 ### Race Condition Handling
 
@@ -353,7 +354,7 @@ export async function verifyOrderStatus(orderId: string, db: Database) {
 
 ### Magic Link Flow (Web App)
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant App
@@ -368,11 +369,11 @@ sequenceDiagram
     App->>Appwrite: account.createSession(userId, secret)
     Appwrite-->>App: Session token (cookie)
     App-->>User: Set HTTPOnly cookie & redirect
-```
+  `} />
 
 ### OAuth Flow (Admin App)
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant App
@@ -387,7 +388,7 @@ sequenceDiagram
     App->>Appwrite: account.createSession(userId, secret)
     Appwrite-->>App: Session token (cookie)
     App-->>User: Set HTTPOnly cookie & redirect to /admin
-```
+`} />
 
 ### Session Management
 
@@ -498,7 +499,7 @@ export function LivePosts() {
 
 ## File Upload Flow
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant Client
@@ -513,7 +514,7 @@ sequenceDiagram
     Storage-->>ServerAction: Public URL
     ServerAction-->>Client: Return URL
     Client-->>User: Display image
-```
+`} />
 
 ### Example
 

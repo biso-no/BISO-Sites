@@ -1,3 +1,4 @@
+import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
 import {
   defineConfig,
   defineDocs,
@@ -24,7 +25,9 @@ export const docs = defineDocs({
 });
 
 const config: GlobalConfig = defineConfig({
-  mdxOptions: {},
+  mdxOptions: {
+    remarkPlugins: [remarkMdxMermaid]
+  },
 });
 
 export default config;

@@ -4,6 +4,7 @@ description: High-level architecture of the BISO Sites monorepo including system
 ---
 
 import { Callout } from 'components/callout';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Architecture Overview
 
@@ -21,7 +22,7 @@ BISO SItes is built as a **monorepo** containing multiple applications that shar
 
 ### High-Level Diagram
 
-```mermaid
+<Mermaid chart={`
 graph TB
     subgraph "Frontend Applications"
         WEB[Web App :3000<br/>Public Website]
@@ -57,7 +58,7 @@ graph TB
     PAYMENT --> VIPPS
     PAYMENT --> API
     EDITOR --> UI
-```
+`} />
 
 ## Layer Architecture
 
@@ -238,7 +239,7 @@ UI components follow atomic design principles:
 
 ### Read Operations (Queries)
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant NextJS as Next.js App
@@ -254,11 +255,11 @@ sequenceDiagram
     API-->>ServerComp: Return data
     ServerComp-->>NextJS: Render with data
     NextJS-->>User: Send HTML
-```
+`} />
 
 ### Write Operations (Mutations)
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant ClientComp as Client Component
@@ -274,11 +275,11 @@ sequenceDiagram
     API-->>ServerAction: Success
     ServerAction-->>ClientComp: Revalidate & redirect
     ClientComp-->>User: Show success
-```
+`} />
 
 ### Payment Flow
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant Web as Web App
@@ -298,11 +299,11 @@ sequenceDiagram
     Web->>Payment: handleVippsCallback()
     Payment->>DB: Update order (PAID)
     Vipps-->>User: Redirect to confirmation
-```
+`} />
 
 ## Authentication Flow
 
-```mermaid
+<Mermaid chart={`
 sequenceDiagram
     participant User
     participant App
@@ -319,11 +320,11 @@ sequenceDiagram
     App->>Appwrite: Verify session
     Appwrite-->>App: User data
     App-->>User: Render page
-```
+`} />
 
 ## Build & Deploy Pipeline
 
-```mermaid
+<Mermaid chart={`
 graph LR
     A[Code Change] --> B[Turborepo]
     B --> C{Changed Apps?}
@@ -336,7 +337,7 @@ graph LR
     G --> H[Type Check]
     H --> I[Lint]
     I --> J[Deploy]
-```
+  `} />
 
 **Key Features:**
 - **Incremental builds** - Only rebuild what changed

@@ -5,6 +5,7 @@ description: Deployment strategy, infrastructure requirements, and production se
 
 import { Callout } from 'components/callout';
 import { Steps, Step } from 'components/steps';
+import { Mermaid } from 'components/mdx/mermaid';
 
 # Operations Overview
 
@@ -51,7 +52,7 @@ Typically the IT Manager (or equivalent) is the primary owner, but always name a
 
 ## Deployment Architecture
 
-```mermaid
+<Mermaid chart={`
 graph TB
     subgraph "Frontend (Vercel/Netlify/Self-hosted)"
         WEB[Web App :3000]
@@ -67,7 +68,7 @@ graph TB
     WEB --> APPWRITE
     ADMIN --> APPWRITE
     WEB --> VIPPS
-```
+`} />
 
 ## Build Commands
 

@@ -4,6 +4,7 @@ description: Overview of shared packages in the BISO Sites monorepo and how they
 ---
 
 import { Callout } from 'components/callout';
+import { Mermaid } from 'components/mdx/mermaid'; 
 
 # Packages Overview
 
@@ -22,7 +23,7 @@ The BISO Sites monorepo includes five shared packages that provide reusable func
 
 ## Package Dependency Graph
 
-```mermaid
+<Mermaid chart={`
 graph TD
     API[[@repo/api<br/>Appwrite Clients]]
     UI[[@repo/ui<br/>Components]]
@@ -47,7 +48,7 @@ graph TD
     ADMIN --> PAYMENT
     
     DOCS --> UI
-```
+`} />
 
 ---
 
@@ -336,14 +337,14 @@ const checkoutUrl = await createCheckoutSession(params, db);
 - Server actions (`actions.ts`) handle Next.js-specific code
 - Can be used in any Node.js environment
 
-```mermaid
+<Mermaid chart={`
 graph LR
     A[Next.js App] --> B[Server Actions<br/>actions.ts]
     B --> C[Core Logic<br/>vipps.ts]
     C --> D[Vipps API]
     B --> E[Appwrite DB]
     C -.db passed.-> E
-```
+`} />
 
 <Callout type="success" title="Clean Architecture">
   This package demonstrates clean architecture principles with dependency injection, making it testable and reusable.
