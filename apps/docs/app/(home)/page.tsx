@@ -51,7 +51,7 @@ export default function Home() {
           </div>
 
           <div className="pt-16 text-left max-w-2xl mx-auto space-y-6">
-            <h2 className="text-2xl font-bold">What's Inside?</h2>
+            <h2 className="text-2xl font-bold">What&apos;s Inside?</h2>
             <div className="space-y-4 text-muted-foreground">
               <div>
                 <strong className="text-foreground">3 Applications:</strong>
