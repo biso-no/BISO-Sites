@@ -4,6 +4,7 @@ import { PublicProfiles, Users, MemberBenefit } from "@repo/api/types/appwrite"
 import { Permission, Query } from "@repo/api"
 import { checkMembership } from "@/lib/profile"
 import { ID } from "node-appwrite"
+import { BenefitReveals } from "@repo/api/types/appwrite"
 
 export async function createOrUpdatePublicProfile(profile: Partial<PublicProfiles>, isPublic: boolean): Promise<PublicProfiles | null> {
     if (!profile.$id) {
@@ -115,12 +116,7 @@ export async function updatePublicProfile(data: Partial<PublicProfiles>): Promis
     }
 }
 
-interface BenefitReveal {
-    $id: string;
-    user_id: string;
-    benefit_id: string;
-    revealed_at: string;
-}
+
 
 export async function revealBenefit(benefitId: string): Promise<{ success: boolean; value?: string } | null> {
     try {
@@ -163,7 +159,7 @@ export async function revealBenefit(benefitId: string): Promise<{ success: boole
 export async function getBenefitReveals(userId: string): Promise<Set<string>> {
     try {
         const { db } = await createSessionClient();
-        const response = await db.listRows<BenefitReveal>('app', 'benefit_reveals', [
+        const response = await db.listRows<BenefitReveals>('app', 'benefit_reveals', [
             Query.equal('user_id', userId)
         ]);
         

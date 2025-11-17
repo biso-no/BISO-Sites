@@ -694,3 +694,8 @@ export type MemberBenefit = Models.Row & {
     expiresAt?: string;
   }
   
+  export type BenefitReveals = Models.Row & {
+    user_id: string;
+    benefit_id: string;
+    revealed_at: string | null;
+}
