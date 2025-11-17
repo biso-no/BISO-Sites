@@ -1,0 +1,64 @@
+{
+  "title": "Users",
+  "description": "Manage users and their roles",
+  "table": {
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "roles": "Roles",
+    "status": "Status",
+    "registeredAt": "Registered",
+    "actions": "Actions"
+  },
+  "filters": {
+    "search": "Search users...",
+    "role": "Filter by role",
+    "status": "Filter by status",
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "actions": {
+    "view": "View",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "resetPassword": "Reset password"
+  },
+  "roles": {
+    "admin": "Admin",
+    "hr": "HR",
+    "finance": "Finance",
+    "pr": "PR",
+    "member": "Member"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "suspended": "Suspended"
+  },
+  "form": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "roles": "Roles",
+    "status": "Status",
+    "save": "Save",
+    "cancel": "Cancel",
+    "create": "Create user",
+    "update": "Update user"
+  },
+  "messages": {
+    "loading": "Loading users...",
+    "noUsers": "No users found",
+    "deleteConfirm": "Are you sure you want to delete this user?",
+    "deleteSuccess": "User deleted successfully",
+    "updateSuccess": "User updated successfully",
+    "createSuccess": "User created successfully",
+    "error": "An error occurred"
+  }
+}
+

@@ -1,0 +1,65 @@
+{
+  "title": "Events",
+  "description": "Manage events and activities",
+  "create": "Create event",
+  "edit": "Edit event",
+  "delete": "Delete event",
+  "search": "Search events...",
+  "filters": {
+    "all": "All events",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "draft": "Draft"
+  },
+  "table": {
+    "title": "Title",
+    "date": "Date",
+    "location": "Location",
+    "participants": "Participants",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "form": {
+    "title": "Event title",
+    "description": "Description",
+    "date": "Date",
+    "startTime": "Start time",
+    "endTime": "End time",
+    "location": "Location",
+    "capacity": "Capacity",
+    "registrationDeadline": "Registration deadline",
+    "images": "Images",
+    "status": "Status",
+    "save": "Save event",
+    "cancel": "Cancel",
+    "publish": "Publish",
+    "preview": "Preview"
+  },
+  "status": {
+    "active": "Active",
+    "draft": "Draft",
+    "cancelled": "Cancelled",
+    "completed": "Completed"
+  },
+  "imageUpload": {
+    "title": "Upload images",
+    "dragDrop": "Drag and drop images here",
+    "or": "or",
+    "browse": "Browse files",
+    "remove": "Remove"
+  },
+  "participants": {
+    "title": "Participants",
+    "registered": "Registered",
+    "attended": "Attended",
+    "export": "Export list"
+  },
+  "messages": {
+    "loading": "Loading events...",
+    "noEvents": "No events found",
+    "deleteConfirm": "Are you sure you want to delete this event?",
+    "saveSuccess": "Event saved successfully",
+    "error": "An error occurred"
+  }
+}
+

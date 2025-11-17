@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, SlidersHorizontal, Download, UserPlus, RefreshCw, ChevronDown, ChevronUp, Check } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { User } from "@/lib/types/user"
 import { useUserStore } from "./user-store"
 import { UserAvatar } from "./user-avatar"
@@ -66,6 +67,7 @@ import { AdminSummary } from "@/components/admin/admin-summary"
 import { formatPercentage } from "@/lib/utils/admin"
 
 export function UserTable({ initialUsers }: { initialUsers: User[] }) {
+  const t = useTranslations('adminUsers')
   const router = useRouter()
   const [isClient, setIsClient] = useState(false)
   
@@ -131,9 +133,9 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
   )
 
   const summaryMetrics = [
-    { label: "Total users", value: totalCount, hint: `${selectedUsers.length} selected` },
-    { label: "Active", value: activeCount, hint: `${activeRate} active` },
-    { label: "Inactive", value: inactiveCount },
+    { label: t('table.name'), value: totalCount, hint: `${selectedUsers.length} ${t('filters.search')}` },
+    { label: t('filters.active'), value: activeCount, hint: `${activeRate} ${t('filters.active').toLowerCase()}` },
+    { label: t('filters.inactive'), value: inactiveCount },
     { label: "Campuses", value: uniqueCampuses.length },
   ]
 
@@ -145,8 +147,8 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
       label: roleName,
       value: roleName,
     }))
-    return [{ label: "All users", value: "all" }, ...roleEntries]
-  }, [uniqueRoles])
+    return [{ label: t('filters.all'), value: "all" }, ...roleEntries]
+  }, [uniqueRoles, t])
   
   // Handle row click to navigate to user detail
   const handleRowClick = (userId: string, e: React.MouseEvent) => {
@@ -275,9 +277,9 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
   return (
     <div className="space-y-6">
       <AdminSummary
-        badge="User operations"
-        title="Member directory"
-        description="Administrer rettigheter, roller og campus-tilhørighet i ett samlet overblikk."
+        badge={t('title')}
+        title={t('title')}
+        description={t('description')}
         metrics={summaryMetrics.map((metric) => ({
           label: metric.label,
           value: formatMetricValue(metric.value),
@@ -310,9 +312,9 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <CardTitle className="text-xl font-semibold text-primary-100">User Management</CardTitle>
+            <CardTitle className="text-xl font-semibold text-primary-100">{t('title')}</CardTitle>
             <CardDescription className="mt-1.5 text-sm text-primary-60">
-              Manage memberships, verify activity, og raffiner tilgangsroller for BISO sine medlemmer.
+              {t('description')}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -329,14 +331,14 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Refresh user data</p>
+                  <p>{t('messages.loading')}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             
             <Button variant="default" className="gap-1.5 rounded-xl bg-primary-40 px-4 py-2 text-white shadow-[0_18px_45px_-30px_rgba(0,23,49,0.7)] hover:bg-primary-30">
               <UserPlus className="h-4 w-4" />
-              <span>Add User</span>
+              <span>{t('form.create')}</span>
             </Button>
           </div>
         </div>
@@ -349,7 +351,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-primary-40" />
               <Input
                 type="text"
-                placeholder="Search users..."
+                placeholder={t('filters.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full rounded-xl border-primary/20 bg-white/70 pl-9 text-sm shadow-inner focus-visible:ring-primary-40"
@@ -359,12 +361,12 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
             <div className="flex flex-wrap items-center gap-2">
               <Select value={filterRole} onValueChange={setFilterRole}>
                 <SelectTrigger className="w-[180px] rounded-xl border-primary/20 bg-white/70">
-                  <SelectValue placeholder="Filter by role" />
+                  <SelectValue placeholder={t('filters.role')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectLabel>Roles</SelectLabel>
-                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectLabel>{t('table.roles')}</SelectLabel>
+                    <SelectItem value="all">{t('filters.all')}</SelectItem>
                     {uniqueRoles.map((roleName) => (
                       <SelectItem key={roleName} value={roleName}>
                         {roleName}
@@ -378,22 +380,22 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-1.5 rounded-xl border-primary/20 bg-white/70 text-sm">
                     <SlidersHorizontal className="h-4 w-4" />
-                    <span className="hidden sm:inline">Filters</span>
+                    <span className="hidden sm:inline">{t('filters.role')}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px]">
                   <DropdownMenuItem>
-                    Active Users
+                    {t('filters.active')}
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    Inactive Users
+                    {t('filters.inactive')}
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    Recently Added
+                    {t('table.registeredAt')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
-                    Clear Filters
+                    {t('filters.all')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -402,7 +404,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-1.5 rounded-xl border-primary/20 bg-white/70 text-sm">
                     <Download className="h-4 w-4" />
-                    <span className="hidden sm:inline">Export</span>
+                    <span className="hidden sm:inline">{t('actions.view')}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px]">
@@ -426,7 +428,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur">
               <div className="animate-pulse flex flex-col items-center">
                 <RefreshCw className="animate-spin h-8 w-8 text-primary mb-2" />
-                <span className="text-sm text-muted-foreground">Loading users...</span>
+                <span className="text-sm text-muted-foreground">{t('messages.loading')}</span>
               </div>
             </div>
           )}
@@ -448,7 +450,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center">
-                      <span>User</span>
+                      <span>{t('table.name')}</span>
                       {getSortIcon('name')}
                     </div>
                   </TableHead>
@@ -457,11 +459,11 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                     onClick={() => handleSort('email')}
                   >
                     <div className="flex items-center">
-                      <span>Email</span>
+                      <span>{t('table.email')}</span>
                       {getSortIcon('email')}
                     </div>
                   </TableHead>
-                  <TableHead>Roles</TableHead>
+                  <TableHead>{t('table.roles')}</TableHead>
                   <TableHead 
                     className="cursor-pointer"
                     onClick={() => handleSort('campus')}

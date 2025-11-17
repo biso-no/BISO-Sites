@@ -1,0 +1,81 @@
+{
+  "title": "BISO Admin",
+  "subtitle": "Control Center",
+  "welcome": "Welcome back",
+  "loading": "Loading...",
+  "activeRole": "Active role",
+  "supportLine": "Support line",
+  "collapse": "Collapse",
+  "expand": "Expand",
+  "commandMenuPlaceholder": "Quick search in admin...",
+  "commandMenuTitle": "Command Menu",
+  "commandMenuSearchPlaceholder": "Type a command or search...",
+  "commandMenuNoResults": "No results found.",
+  "navigation": {
+    "dashboard": "Dashboard",
+    "posts": "Posts",
+    "shop": "Shop",
+    "expenses": "Expenses",
+    "jobs": "Jobs",
+    "events": "Events",
+    "alumni": "Alumni",
+    "units": "Units",
+    "users": "Users",
+    "varsling": "Varsling",
+    "settings": "Settings"
+  },
+  "shopSubItems": {
+    "orders": "Orders",
+    "products": "Products",
+    "customers": "Customers",
+    "settings": "Settings"
+  },
+  "jobsSubItems": {
+    "allJobs": "All jobs",
+    "applications": "Applications"
+  },
+  "eventsSubItems": {
+    "allEvents": "All events",
+    "createEvent": "Create event"
+  },
+  "alumniSubItems": {
+    "mentorApprovals": "Mentor Approvals"
+  },
+  "settingsSubItems": {
+    "navigation": "Navigation",
+    "profile": "Profile",
+    "security": "Security"
+  },
+  "commandGroups": {
+    "navigation": "Navigation",
+    "shop": "Shop",
+    "finance": "Finance",
+    "hr": "HR",
+    "content": "Content",
+    "organization": "Organization",
+    "compliance": "Compliance",
+    "system": "System"
+  },
+  "commandKeywords": {
+    "dashboard": "home overview stats",
+    "users": "members accounts people",
+    "shop": "store ecommerce",
+    "products": "items catalog inventory",
+    "orders": "sales purchases transactions",
+    "customers": "buyers clients",
+    "expenses": "costs spending budget",
+    "jobs": "positions vacancies recruitment",
+    "applications": "candidates applicants",
+    "posts": "news articles blog content",
+    "events": "calendar activities happenings",
+    "units": "departments divisions teams",
+    "varsling": "whistleblowing reports security",
+    "settings": "configuration preferences options"
+  },
+  "signOut": "Sign out",
+  "assistant": {
+    "title": "Admin Assistant",
+    "close": "Close"
+  }
+}
+

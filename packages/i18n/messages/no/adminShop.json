@@ -1,0 +1,127 @@
+{
+  "title": "Butikk",
+  "description": "Administrer butikken din",
+  "products": {
+    "title": "Produkter",
+    "create": "Opprett produkt",
+    "edit": "Rediger produkt",
+    "delete": "Slett produkt",
+    "search": "Søk produkter...",
+    "filters": {
+      "all": "Alle produkter",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "outOfStock": "Utsolgt"
+    },
+    "table": {
+      "image": "Bilde",
+      "name": "Navn",
+      "price": "Pris",
+      "stock": "Lager",
+      "status": "Status",
+      "actions": "Handlinger"
+    },
+    "form": {
+      "name": "Produktnavn",
+      "description": "Beskrivelse",
+      "price": "Pris",
+      "comparePrice": "Sammenlign pris",
+      "cost": "Kostnad per enhet",
+      "sku": "SKU",
+      "barcode": "Strekkode",
+      "trackQuantity": "Spor antall",
+      "stock": "Lager",
+      "weight": "Vekt",
+      "category": "Kategori",
+      "tags": "Tags",
+      "images": "Bilder",
+      "variations": "Varianter",
+      "customFields": "Egendefinerte felt",
+      "save": "Lagre produkt",
+      "cancel": "Avbryt",
+      "preview": "Forhåndsvisning"
+    },
+    "variations": {
+      "title": "Varianter",
+      "add": "Legg til variant",
+      "option": "Alternativ",
+      "values": "Verdier"
+    },
+    "status": {
+      "active": "Aktiv",
+      "draft": "Utkast",
+      "archived": "Arkivert"
+    }
+  },
+  "orders": {
+    "title": "Bestillinger",
+    "view": "Vis bestilling",
+    "export": "Eksporter bestillinger",
+    "search": "Søk bestillinger...",
+    "filters": {
+      "all": "Alle bestillinger",
+      "pending": "Venter",
+      "processing": "Behandles",
+      "completed": "Fullført",
+      "cancelled": "Kansellert"
+    },
+    "table": {
+      "orderNumber": "Ordre #",
+      "customer": "Kunde",
+      "date": "Dato",
+      "total": "Total",
+      "status": "Status",
+      "actions": "Handlinger"
+    },
+    "details": {
+      "customer": "Kunde",
+      "orderDate": "Ordredato",
+      "paymentMethod": "Betalingsmetode",
+      "shippingAddress": "Leveringsadresse",
+      "billingAddress": "Fakturaadresse",
+      "items": "Produkter",
+      "subtotal": "Delsum",
+      "shipping": "Frakt",
+      "tax": "MVA",
+      "total": "Total"
+    },
+    "status": {
+      "pending": "Venter",
+      "processing": "Behandles",
+      "completed": "Fullført",
+      "cancelled": "Kansellert",
+      "refunded": "Refundert"
+    }
+  },
+  "customers": {
+    "title": "Kunder",
+    "view": "Vis kunde",
+    "search": "Søk kunder...",
+    "table": {
+      "name": "Navn",
+      "email": "E-post",
+      "orders": "Bestillinger",
+      "totalSpent": "Totalt brukt",
+      "registeredAt": "Registrert",
+      "actions": "Handlinger"
+    }
+  },
+  "settings": {
+    "title": "Butikkinnstillinger",
+    "general": "Generelt",
+    "payment": "Betaling",
+    "shipping": "Frakt",
+    "tax": "MVA",
+    "save": "Lagre innstillinger"
+  },
+  "messages": {
+    "loading": "Laster...",
+    "noProducts": "Ingen produkter funnet",
+    "noOrders": "Ingen bestillinger funnet",
+    "noCustomers": "Ingen kunder funnet",
+    "deleteConfirm": "Er du sikker på at du vil slette dette produktet?",
+    "saveSuccess": "Endringer lagret",
+    "error": "En feil oppstod"
+  }
+}
+

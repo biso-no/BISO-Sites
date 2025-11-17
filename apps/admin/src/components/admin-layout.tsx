@@ -9,6 +9,7 @@ import Breadcrumb from './breadcrumb';
 import { RoleSwitcher } from './role-switcher';
 import { cn } from '@repo/ui/lib/utils';
 import { motion, AnimatePresence } from "framer-motion"
+import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
   FileText,
@@ -31,6 +32,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@repo/ui/c
 import { ModeToggle } from '@repo/ui/components/mode-toggle';
 import { CommandMenu } from './command-menu';
 import { NotificationsDropdown } from './notifications/notifications-dropdown';
+import { LocaleSwitcher } from './locale-switcher';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -155,6 +157,7 @@ const SidebarItem = ({
 };
 
 export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
+  const t = useTranslations('admin');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const pathname = usePathname();
   const [selectedRole, setSelectedRole] = useState(roles.includes('Admin') ? 'Admin' : roles[0] || '');
@@ -169,75 +172,75 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   const toggleSidebar = () => setIsSidebarExpanded(!isSidebarExpanded);
 
   const navItems: NavItem[] = [
-    { href: '/admin', icon: LayoutDashboard, label: 'Dashboard', roles: ['Admin'] },
-    { href: '/admin/posts', icon: FileText, label: 'Posts', roles: ['Admin', 'pr'] },
+    { href: '/admin', icon: LayoutDashboard, label: t('navigation.dashboard'), roles: ['Admin'] },
+    { href: '/admin/posts', icon: FileText, label: t('navigation.posts'), roles: ['Admin', 'pr'] },
     {
       href: '/admin/shop',
       icon: Store,
-      label: 'Shop',
+      label: t('navigation.shop'),
       roles: ['Admin', 'finance'],
       subItems: [
-        { href: '/admin/shop/orders', label: 'Orders', roles: ['Admin', 'finance'] },
-        { href: '/admin/shop/products', label: 'Products', roles: ['Admin', 'finance'] },
-        { href: '/admin/shop/customers', label: 'Customers', roles: ['Admin', 'finance'] },
-        { href: '/admin/shop/settings', label: 'Settings', roles: ['Admin'] },
+        { href: '/admin/shop/orders', label: t('shopSubItems.orders'), roles: ['Admin', 'finance'] },
+        { href: '/admin/shop/products', label: t('shopSubItems.products'), roles: ['Admin', 'finance'] },
+        { href: '/admin/shop/customers', label: t('shopSubItems.customers'), roles: ['Admin', 'finance'] },
+        { href: '/admin/shop/settings', label: t('shopSubItems.settings'), roles: ['Admin'] },
       ],
     },
     
     {
       href: '/admin/expenses',
       icon: CalendarIcon,
-      label: 'Expenses',
+      label: t('navigation.expenses'),
       roles: ['Admin', 'finance'],
     },
     {
       href: '/admin/jobs',
       icon: Users,
-      label: 'Jobs',
+      label: t('navigation.jobs'),
       roles: ['Admin', 'hr', 'pr'],
       subItems: [
-        { href: '/admin/jobs', label: 'All jobs', roles: ['Admin', 'hr', 'pr'] },
-        { href: '/admin/jobs/applications', label: 'Applications', roles: ['Admin', 'hr', 'pr'] },
+        { href: '/admin/jobs', label: t('jobsSubItems.allJobs'), roles: ['Admin', 'hr', 'pr'] },
+        { href: '/admin/jobs/applications', label: t('jobsSubItems.applications'), roles: ['Admin', 'hr', 'pr'] },
       ],
     },
     {
       href: '/admin/events',
       icon: CalendarIcon,
-      label: 'Events',
+      label: t('navigation.events'),
       roles: ['Admin', 'pr'],
       subItems: [
-        { href: '/admin/events', label: 'All events', roles: ['Admin', 'pr'] },
-        { href: '/admin/events/new', label: 'Create event', roles: ['Admin', 'pr'] },
+        { href: '/admin/events', label: t('eventsSubItems.allEvents'), roles: ['Admin', 'pr'] },
+        { href: '/admin/events/new', label: t('eventsSubItems.createEvent'), roles: ['Admin', 'pr'] },
       ],
     },
     /*
     {
       href: '/admin/alumni',
       icon: Users,
-      label: 'Alumni',
+      label: t('navigation.alumni'),
       roles: ['Admin'],
       subItems: [
-        { href: '/admin/alumni/mentors', label: 'Mentor Approvals', roles: ['Admin'] },
+        { href: '/admin/alumni/mentors', label: t('alumniSubItems.mentorApprovals'), roles: ['Admin'] },
       ],
     },
     */
     {
       href: '/admin/units',
       icon: Building2,
-      label: 'Units',
+      label: t('navigation.units'),
       roles: ['Admin', 'hr', 'finance', 'pr'],
     },
-    { href: '/admin/users', icon: Users, label: 'Users', roles: ['Admin', 'hr', 'finance'] },
-    { href: '/admin/varsling', icon: Shield, label: 'Varsling', roles: ['Admin'] },
+    { href: '/admin/users', icon: Users, label: t('navigation.users'), roles: ['Admin', 'hr', 'finance'] },
+    { href: '/admin/varsling', icon: Shield, label: t('navigation.varsling'), roles: ['Admin'] },
     {
       href: '/admin/settings',
       icon: Settings,
-      label: 'Settings',
+      label: t('navigation.settings'),
       roles: ['Admin'],
       subItems: [
-        { href: '/admin/settings', label: 'Navigation', roles: ['Admin'] },
-        { href: '/admin/settings/profile', label: 'Profile', roles: ['Admin'] },
-        { href: '/admin/settings/security', label: 'Security', roles: ['Admin'] },
+        { href: '/admin/settings', label: t('settingsSubItems.navigation'), roles: ['Admin'] },
+        { href: '/admin/settings/profile', label: t('settingsSubItems.profile'), roles: ['Admin'] },
+        { href: '/admin/settings/security', label: t('settingsSubItems.security'), roles: ['Admin'] },
       ],
     },
   ];
@@ -280,14 +283,14 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                 </Link>
                 {isSidebarExpanded && (
                   <div className="space-y-0.5">
-                    <span className="text-xs uppercase tracking-[0.2em] text-white/60">BISO Admin</span>
-                    <span className="text-base font-semibold leading-none text-white">Control Center</span>
+                    <span className="text-xs uppercase tracking-[0.2em] text-white/60">{t('title')}</span>
+                    <span className="text-base font-semibold leading-none text-white">{t('subtitle')}</span>
                   </div>
                 )}
               </motion.div>
               <div className="px-4">
                 <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/60">Aktiv rolle</p>
+                  <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/60">{t('activeRole')}</p>
                   <p className="text-sm font-medium text-white">{selectedRole}</p>
                 </div>
               </div>
@@ -316,7 +319,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             </div>
             <div className="space-y-3 px-4 pb-4">
               <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-xs text-white/70">
-                <p className="font-semibold text-white">Supportlinje</p>
+                <p className="font-semibold text-white">{t('supportLine')}</p>
                 <p className="mt-1 text-white/70">support@biso.no</p>
               </div>
               <button
@@ -326,7 +329,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                 <motion.div animate={{ rotate: isSidebarExpanded ? 0 : 180 }} transition={{ duration: 0.25 }}>
                   <ChevronLeft className="h-5 w-5" />
                 </motion.div>
-                {isSidebarExpanded && <span className="ml-2">Collapse</span>}
+                {isSidebarExpanded && <span className="ml-2">{t('collapse')}</span>}
               </button>
             </div>
           </div>
@@ -336,7 +339,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-primary/10 dark:border-primary/20 bg-white/85 dark:bg-card/85 px-6 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-6 lg:px-10">
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-[0.22em] text-primary-60">
-              {isLoading ? "Laster..." : `Velkommen tilbake`}
+              {isLoading ? t('loading') : t('welcome')}
             </span>
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-2xl font-semibold text-primary-100">
@@ -352,6 +355,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           </div>
 
           <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
+            <LocaleSwitcher />
             <CommandMenu />
             <NotificationsDropdown />
             <ModeToggle />
@@ -390,9 +394,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
               <ResizablePanel defaultSize={30} minSize={22} maxSize={50} className="min-w-[280px] bg-white/70 backdrop-blur-xl">
                 <div className="flex h-full flex-col border-l border-primary/10">
                   <div className="flex items-center justify-between border-b border-primary/10 px-4 py-3">
-                    <span className="text-sm font-semibold text-primary-90">Admin Assistant</span>
+                    <span className="text-sm font-semibold text-primary-90">{t('assistant.title')}</span>
                     <Button variant="outline" size="sm" onClick={() => setSidebarOpen(false)}>
-                      Close
+                      {t('assistant.close')}
                     </Button>
                   </div>
                   <div className="flex-1 min-h-0">

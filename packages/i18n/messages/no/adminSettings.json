@@ -1,0 +1,55 @@
+{
+  "title": "Innstillinger",
+  "description": "Konfigurer admin-innstillinger",
+  "navigation": {
+    "title": "Navigasjon",
+    "description": "Administrer navigasjonsmeny",
+    "add": "Legg til menyelement",
+    "edit": "Rediger menyelement",
+    "delete": "Slett menyelement",
+    "reorder": "Dra for å endre rekkefølge"
+  },
+  "profile": {
+    "title": "Profil",
+    "description": "Administrer profilen din",
+    "firstName": "Fornavn",
+    "lastName": "Etternavn",
+    "email": "E-post",
+    "phone": "Telefon",
+    "avatar": "Profilbilde",
+    "save": "Lagre profil"
+  },
+  "security": {
+    "title": "Sikkerhet",
+    "description": "Sikkerhetsinnstillinger",
+    "changePassword": "Endre passord",
+    "currentPassword": "Nåværende passord",
+    "newPassword": "Nytt passord",
+    "confirmPassword": "Bekreft passord",
+    "twoFactor": "Tofaktorautentisering",
+    "enable": "Aktiver",
+    "disable": "Deaktiver",
+    "sessions": "Aktive økter",
+    "revokeAll": "Tilbakekall alle økter"
+  },
+  "policies": {
+    "title": "Policysider",
+    "description": "Administrer policysider",
+    "privacy": "Personvernpolicy",
+    "terms": "Vilkår for bruk",
+    "cookies": "Cookiepolicy"
+  },
+  "general": {
+    "title": "Generelt",
+    "siteName": "Nettstedsnavn",
+    "siteDescription": "Nettstedsbeskrivelse",
+    "contactEmail": "Kontakt e-post",
+    "language": "Språk",
+    "timezone": "Tidssone"
+  },
+  "messages": {
+    "saveSuccess": "Innstillinger lagret",
+    "error": "En feil oppstod"
+  }
+}
+
