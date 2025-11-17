@@ -1,0 +1,81 @@
+{
+  "title": "Expenses",
+  "description": "Track and manage expenses",
+  "create": "Create expense",
+  "edit": "Edit expense",
+  "delete": "Delete expense",
+  "search": "Search expenses...",
+  "filters": {
+    "all": "All expenses",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "paid": "Paid"
+  },
+  "table": {
+    "description": "Description",
+    "amount": "Amount",
+    "category": "Category",
+    "date": "Date",
+    "submittedBy": "Submitted by",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "form": {
+    "description": "Description",
+    "amount": "Amount",
+    "category": "Category",
+    "date": "Date",
+    "receipt": "Receipt",
+    "notes": "Notes",
+    "save": "Save expense",
+    "cancel": "Cancel",
+    "submit": "Submit for approval"
+  },
+  "categories": {
+    "travel": "Travel",
+    "office": "Office supplies",
+    "meals": "Meals",
+    "accommodation": "Accommodation",
+    "equipment": "Equipment",
+    "other": "Other"
+  },
+  "status": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "paid": "Paid"
+  },
+  "actions": {
+    "approve": "Approve",
+    "reject": "Reject",
+    "markAsPaid": "Mark as paid",
+    "viewReceipt": "View receipt",
+    "download": "Download"
+  },
+  "details": {
+    "submittedBy": "Submitted by",
+    "submittedAt": "Submitted at",
+    "approvedBy": "Approved by",
+    "approvedAt": "Approved at",
+    "paidAt": "Paid at",
+    "receipt": "Receipt",
+    "notes": "Notes"
+  },
+  "messages": {
+    "loading": "Loading expenses...",
+    "noExpenses": "No expenses found",
+    "deleteConfirm": "Are you sure you want to delete this expense?",
+    "saveSuccess": "Expense saved successfully",
+    "approveSuccess": "Expense approved",
+    "rejectSuccess": "Expense rejected",
+    "error": "An error occurred"
+  },
+  "export": {
+    "title": "Export expenses",
+    "dateRange": "Date range",
+    "format": "Format",
+    "download": "Download"
+  }
+}
+

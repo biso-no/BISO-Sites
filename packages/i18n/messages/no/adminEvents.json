@@ -1,0 +1,65 @@
+{
+  "title": "Arrangementer",
+  "description": "Administrer arrangementer og aktiviteter",
+  "create": "Opprett arrangement",
+  "edit": "Rediger arrangement",
+  "delete": "Slett arrangement",
+  "search": "Søk arrangementer...",
+  "filters": {
+    "all": "Alle arrangementer",
+    "upcoming": "Kommende",
+    "past": "Tidligere",
+    "draft": "Utkast"
+  },
+  "table": {
+    "title": "Tittel",
+    "date": "Dato",
+    "location": "Sted",
+    "participants": "Deltakere",
+    "status": "Status",
+    "actions": "Handlinger"
+  },
+  "form": {
+    "title": "Arrangementtittel",
+    "description": "Beskrivelse",
+    "date": "Dato",
+    "startTime": "Starttid",
+    "endTime": "Sluttid",
+    "location": "Sted",
+    "capacity": "Kapasitet",
+    "registrationDeadline": "Påmeldingsfrist",
+    "images": "Bilder",
+    "status": "Status",
+    "save": "Lagre arrangement",
+    "cancel": "Avbryt",
+    "publish": "Publiser",
+    "preview": "Forhåndsvisning"
+  },
+  "status": {
+    "active": "Aktiv",
+    "draft": "Utkast",
+    "cancelled": "Kansellert",
+    "completed": "Fullført"
+  },
+  "imageUpload": {
+    "title": "Last opp bilder",
+    "dragDrop": "Dra og slipp bilder her",
+    "or": "eller",
+    "browse": "Bla gjennom filer",
+    "remove": "Fjern"
+  },
+  "participants": {
+    "title": "Deltakere",
+    "registered": "Påmeldt",
+    "attended": "Deltok",
+    "export": "Eksporter liste"
+  },
+  "messages": {
+    "loading": "Laster arrangementer...",
+    "noEvents": "Ingen arrangementer funnet",
+    "deleteConfirm": "Er du sikker på at du vil slette dette arrangementet?",
+    "saveSuccess": "Arrangement lagret",
+    "error": "En feil oppstod"
+  }
+}
+

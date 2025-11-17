@@ -1,0 +1,89 @@
+{
+  "title": "Jobs",
+  "description": "Manage job postings and applications",
+  "create": "Create job",
+  "edit": "Edit job",
+  "delete": "Delete job",
+  "search": "Search jobs...",
+  "filters": {
+    "all": "All jobs",
+    "active": "Active",
+    "draft": "Draft",
+    "closed": "Closed"
+  },
+  "table": {
+    "title": "Title",
+    "department": "Department",
+    "type": "Type",
+    "status": "Status",
+    "applications": "Applications",
+    "deadline": "Deadline",
+    "actions": "Actions"
+  },
+  "form": {
+    "title": "Job title",
+    "description": "Description",
+    "requirements": "Requirements",
+    "department": "Department",
+    "location": "Location",
+    "type": "Job type",
+    "deadline": "Application deadline",
+    "contactPerson": "Contact person",
+    "contactEmail": "Contact email",
+    "status": "Status",
+    "save": "Save job",
+    "cancel": "Cancel",
+    "publish": "Publish"
+  },
+  "type": {
+    "fullTime": "Full-time",
+    "partTime": "Part-time",
+    "internship": "Internship",
+    "volunteer": "Volunteer"
+  },
+  "status": {
+    "active": "Active",
+    "draft": "Draft",
+    "closed": "Closed"
+  },
+  "applications": {
+    "title": "Applications",
+    "view": "View application",
+    "search": "Search applications...",
+    "filters": {
+      "all": "All applications",
+      "pending": "Pending",
+      "reviewed": "Reviewed",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "job": "Job",
+      "appliedAt": "Applied",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "pending": "Pending",
+      "reviewed": "Reviewed",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
+    "actions": {
+      "accept": "Accept",
+      "reject": "Reject",
+      "download": "Download CV"
+    }
+  },
+  "messages": {
+    "loading": "Loading jobs...",
+    "noJobs": "No jobs found",
+    "noApplications": "No applications found",
+    "deleteConfirm": "Are you sure you want to delete this job?",
+    "saveSuccess": "Job saved successfully",
+    "error": "An error occurred"
+  }
+}
+

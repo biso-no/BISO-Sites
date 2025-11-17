@@ -1,6 +1,6 @@
-import {getRequestConfig} from 'next-intl/server';
+import { getRequestConfig } from 'next-intl/server';
 import { getLocale } from '@/app/actions/locale';
-import { loadMessages } from '../../messages';
+import { loadMessages } from '@repo/i18n/messages';
 
 export default getRequestConfig(async () => {
   const locale = await getLocale();

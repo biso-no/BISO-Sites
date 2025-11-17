@@ -1,0 +1,81 @@
+{
+  "title": "Utgifter",
+  "description": "Spor og administrer utgifter",
+  "create": "Opprett utgift",
+  "edit": "Rediger utgift",
+  "delete": "Slett utgift",
+  "search": "Søk utgifter...",
+  "filters": {
+    "all": "Alle utgifter",
+    "pending": "Venter",
+    "approved": "Godkjent",
+    "rejected": "Avvist",
+    "paid": "Betalt"
+  },
+  "table": {
+    "description": "Beskrivelse",
+    "amount": "Beløp",
+    "category": "Kategori",
+    "date": "Dato",
+    "submittedBy": "Sendt av",
+    "status": "Status",
+    "actions": "Handlinger"
+  },
+  "form": {
+    "description": "Beskrivelse",
+    "amount": "Beløp",
+    "category": "Kategori",
+    "date": "Dato",
+    "receipt": "Kvittering",
+    "notes": "Notater",
+    "save": "Lagre utgift",
+    "cancel": "Avbryt",
+    "submit": "Send til godkjenning"
+  },
+  "categories": {
+    "travel": "Reise",
+    "office": "Kontorrekvisita",
+    "meals": "Måltider",
+    "accommodation": "Overnatting",
+    "equipment": "Utstyr",
+    "other": "Annet"
+  },
+  "status": {
+    "pending": "Venter",
+    "approved": "Godkjent",
+    "rejected": "Avvist",
+    "paid": "Betalt"
+  },
+  "actions": {
+    "approve": "Godkjenn",
+    "reject": "Avvis",
+    "markAsPaid": "Merk som betalt",
+    "viewReceipt": "Vis kvittering",
+    "download": "Last ned"
+  },
+  "details": {
+    "submittedBy": "Sendt av",
+    "submittedAt": "Sendt",
+    "approvedBy": "Godkjent av",
+    "approvedAt": "Godkjent",
+    "paidAt": "Betalt",
+    "receipt": "Kvittering",
+    "notes": "Notater"
+  },
+  "messages": {
+    "loading": "Laster utgifter...",
+    "noExpenses": "Ingen utgifter funnet",
+    "deleteConfirm": "Er du sikker på at du vil slette denne utgiften?",
+    "saveSuccess": "Utgift lagret",
+    "approveSuccess": "Utgift godkjent",
+    "rejectSuccess": "Utgift avvist",
+    "error": "En feil oppstod"
+  },
+  "export": {
+    "title": "Eksporter utgifter",
+    "dateRange": "Datoperiode",
+    "format": "Format",
+    "download": "Last ned"
+  }
+}
+

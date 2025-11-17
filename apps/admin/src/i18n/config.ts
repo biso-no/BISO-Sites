@@ -1,10 +1,3 @@
-export const SUPPORTED_LOCALES = ["no", "en"] as const;
-
-export type Locale = (typeof SUPPORTED_LOCALES)[number];
-
-export const DEFAULT_LOCALE: Locale = "no";
-
-export function isLocale(value: string | null | undefined): value is Locale {
-  if (!value) return false;
-  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
+// Re-export from shared i18n package
+export { SUPPORTED_LOCALES, DEFAULT_LOCALE, isLocale } from '@repo/i18n/config';
+export type { Locale } from '@repo/i18n/config';

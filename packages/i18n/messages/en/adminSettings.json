@@ -1,0 +1,55 @@
+{
+  "title": "Settings",
+  "description": "Configure admin settings",
+  "navigation": {
+    "title": "Navigation",
+    "description": "Manage navigation menu",
+    "add": "Add menu item",
+    "edit": "Edit menu item",
+    "delete": "Delete menu item",
+    "reorder": "Drag to reorder"
+  },
+  "profile": {
+    "title": "Profile",
+    "description": "Manage your profile",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "avatar": "Avatar",
+    "save": "Save profile"
+  },
+  "security": {
+    "title": "Security",
+    "description": "Security settings",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "twoFactor": "Two-factor authentication",
+    "enable": "Enable",
+    "disable": "Disable",
+    "sessions": "Active sessions",
+    "revokeAll": "Revoke all sessions"
+  },
+  "policies": {
+    "title": "Policy Pages",
+    "description": "Manage policy pages",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "cookies": "Cookie Policy"
+  },
+  "general": {
+    "title": "General",
+    "siteName": "Site name",
+    "siteDescription": "Site description",
+    "contactEmail": "Contact email",
+    "language": "Language",
+    "timezone": "Timezone"
+  },
+  "messages": {
+    "saveSuccess": "Settings saved successfully",
+    "error": "An error occurred"
+  }
+}
+

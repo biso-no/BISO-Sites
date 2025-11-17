@@ -13,7 +13,7 @@ export async function getLocale() {
     }
 }
 
-async function setLocale(locale: string) {
+export async function setLocale(locale: string) {
     if (!isLocale(locale)) {
         throw new Error(`Unsupported locale: ${locale}`);
     }

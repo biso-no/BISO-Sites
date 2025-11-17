@@ -1,0 +1,51 @@
+{
+  "title": "Units",
+  "description": "Manage organizational units and departments",
+  "create": "Create unit",
+  "edit": "Edit unit",
+  "delete": "Delete unit",
+  "search": "Search units...",
+  "table": {
+    "name": "Name",
+    "type": "Type",
+    "members": "Members",
+    "head": "Head",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "form": {
+    "name": "Unit name",
+    "description": "Description",
+    "type": "Type",
+    "parentUnit": "Parent unit",
+    "head": "Head of unit",
+    "members": "Members",
+    "status": "Status",
+    "save": "Save unit",
+    "cancel": "Cancel"
+  },
+  "types": {
+    "department": "Department",
+    "team": "Team",
+    "division": "Division",
+    "committee": "Committee"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "departments": {
+    "title": "Departments",
+    "add": "Add department",
+    "edit": "Edit department",
+    "members": "Members"
+  },
+  "messages": {
+    "loading": "Loading units...",
+    "noUnits": "No units found",
+    "deleteConfirm": "Are you sure you want to delete this unit?",
+    "saveSuccess": "Unit saved successfully",
+    "error": "An error occurred"
+  }
+}
+

@@ -18,6 +18,7 @@
     "@minoru/react-dnd-treeview": "^3.5.3",
     "@radix-ui/react-slot": "^1.2.4",
     "@repo/api": "*",
+    "@repo/i18n": "*",
     "@repo/payment": "*",
     "@repo/ui": "*",
     "@tailwindcss/postcss": "^4.1.14",

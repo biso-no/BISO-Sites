@@ -1,0 +1,64 @@
+{
+  "title": "Brukere",
+  "description": "Administrer brukere og deres roller",
+  "table": {
+    "name": "Navn",
+    "email": "E-post",
+    "phone": "Telefon",
+    "roles": "Roller",
+    "status": "Status",
+    "registeredAt": "Registrert",
+    "actions": "Handlinger"
+  },
+  "filters": {
+    "search": "Søk brukere...",
+    "role": "Filtrer etter rolle",
+    "status": "Filtrer etter status",
+    "all": "Alle",
+    "active": "Aktiv",
+    "inactive": "Inaktiv"
+  },
+  "actions": {
+    "view": "Vis",
+    "edit": "Rediger",
+    "delete": "Slett",
+    "deactivate": "Deaktiver",
+    "activate": "Aktiver",
+    "resetPassword": "Tilbakestill passord"
+  },
+  "roles": {
+    "admin": "Admin",
+    "hr": "HR",
+    "finance": "Økonomi",
+    "pr": "PR",
+    "member": "Medlem"
+  },
+  "status": {
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "pending": "Venter",
+    "suspended": "Suspendert"
+  },
+  "form": {
+    "firstName": "Fornavn",
+    "lastName": "Etternavn",
+    "email": "E-post",
+    "phone": "Telefon",
+    "roles": "Roller",
+    "status": "Status",
+    "save": "Lagre",
+    "cancel": "Avbryt",
+    "create": "Opprett bruker",
+    "update": "Oppdater bruker"
+  },
+  "messages": {
+    "loading": "Laster brukere...",
+    "noUsers": "Ingen brukere funnet",
+    "deleteConfirm": "Er du sikker på at du vil slette denne brukeren?",
+    "deleteSuccess": "Bruker slettet",
+    "updateSuccess": "Bruker oppdatert",
+    "createSuccess": "Bruker opprettet",
+    "error": "En feil oppstod"
+  }
+}
+

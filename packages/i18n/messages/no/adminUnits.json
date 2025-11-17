@@ -1,0 +1,51 @@
+{
+  "title": "Enheter",
+  "description": "Administrer organisasjonsenheter og avdelinger",
+  "create": "Opprett enhet",
+  "edit": "Rediger enhet",
+  "delete": "Slett enhet",
+  "search": "Søk enheter...",
+  "table": {
+    "name": "Navn",
+    "type": "Type",
+    "members": "Medlemmer",
+    "head": "Leder",
+    "status": "Status",
+    "actions": "Handlinger"
+  },
+  "form": {
+    "name": "Enhetsnavn",
+    "description": "Beskrivelse",
+    "type": "Type",
+    "parentUnit": "Overordnet enhet",
+    "head": "Enhetsleder",
+    "members": "Medlemmer",
+    "status": "Status",
+    "save": "Lagre enhet",
+    "cancel": "Avbryt"
+  },
+  "types": {
+    "department": "Avdeling",
+    "team": "Team",
+    "division": "Divisjon",
+    "committee": "Komité"
+  },
+  "status": {
+    "active": "Aktiv",
+    "inactive": "Inaktiv"
+  },
+  "departments": {
+    "title": "Avdelinger",
+    "add": "Legg til avdeling",
+    "edit": "Rediger avdeling",
+    "members": "Medlemmer"
+  },
+  "messages": {
+    "loading": "Laster enheter...",
+    "noUnits": "Ingen enheter funnet",
+    "deleteConfirm": "Er du sikker på at du vil slette denne enheten?",
+    "saveSuccess": "Enhet lagret",
+    "error": "En feil oppstod"
+  }
+}
+

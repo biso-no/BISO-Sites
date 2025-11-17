@@ -1,0 +1,89 @@
+{
+  "title": "Stillinger",
+  "description": "Administrer stillingsannonser og søknader",
+  "create": "Opprett stilling",
+  "edit": "Rediger stilling",
+  "delete": "Slett stilling",
+  "search": "Søk stillinger...",
+  "filters": {
+    "all": "Alle stillinger",
+    "active": "Aktiv",
+    "draft": "Utkast",
+    "closed": "Lukket"
+  },
+  "table": {
+    "title": "Tittel",
+    "department": "Avdeling",
+    "type": "Type",
+    "status": "Status",
+    "applications": "Søknader",
+    "deadline": "Frist",
+    "actions": "Handlinger"
+  },
+  "form": {
+    "title": "Stillingstittel",
+    "description": "Beskrivelse",
+    "requirements": "Krav",
+    "department": "Avdeling",
+    "location": "Sted",
+    "type": "Stillingstype",
+    "deadline": "Søknadsfrist",
+    "contactPerson": "Kontaktperson",
+    "contactEmail": "Kontakt e-post",
+    "status": "Status",
+    "save": "Lagre stilling",
+    "cancel": "Avbryt",
+    "publish": "Publiser"
+  },
+  "type": {
+    "fullTime": "Heltid",
+    "partTime": "Deltid",
+    "internship": "Praksis",
+    "volunteer": "Frivillig"
+  },
+  "status": {
+    "active": "Aktiv",
+    "draft": "Utkast",
+    "closed": "Lukket"
+  },
+  "applications": {
+    "title": "Søknader",
+    "view": "Vis søknad",
+    "search": "Søk søknader...",
+    "filters": {
+      "all": "Alle søknader",
+      "pending": "Venter",
+      "reviewed": "Gjennomgått",
+      "accepted": "Akseptert",
+      "rejected": "Avvist"
+    },
+    "table": {
+      "name": "Navn",
+      "email": "E-post",
+      "job": "Stilling",
+      "appliedAt": "Søkt",
+      "status": "Status",
+      "actions": "Handlinger"
+    },
+    "status": {
+      "pending": "Venter",
+      "reviewed": "Gjennomgått",
+      "accepted": "Akseptert",
+      "rejected": "Avvist"
+    },
+    "actions": {
+      "accept": "Aksepter",
+      "reject": "Avvis",
+      "download": "Last ned CV"
+    }
+  },
+  "messages": {
+    "loading": "Laster stillinger...",
+    "noJobs": "Ingen stillinger funnet",
+    "noApplications": "Ingen søknader funnet",
+    "deleteConfirm": "Er du sikker på at du vil slette denne stillingen?",
+    "saveSuccess": "Stilling lagret",
+    "error": "En feil oppstod"
+  }
+}
+
