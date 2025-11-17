@@ -5,6 +5,7 @@ import { getLoggedInUser } from '@/lib/actions/user';
 import { AdminProviders } from '@/components/layout/admin-providers';
 import { getAuthStatus } from '@/lib/auth-utils';
 import { redirect } from 'next/navigation';
+import { fetchNotifications } from '@/lib/actions/notifications';
 
 const allowedRoles = ['Admin', 'hr', 'finance', 'pr']
 
@@ -34,11 +35,14 @@ export default async function AdminLayout({
   // Add fallback for when name is undefined
   const firstName = user && user.user.name ? user.user.name.split(' ')[0] : 'User'
 
+  // Fetch initial notifications
+  const initialNotifications = await fetchNotifications()
+
   return (
-    <AdminProviders>
-    <Component roles={roles} firstName={firstName || 'User'}>
-    {children}
-    </Component>
+    <AdminProviders initialNotifications={initialNotifications}>
+      <Component roles={roles} firstName={firstName || 'User'}>
+        {children}
+      </Component>
     </AdminProviders>
   );
 }

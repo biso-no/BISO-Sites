@@ -1,5 +1,5 @@
+'use client';
 import { Select, SelectContent, SelectItem, SelectGroup, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select';
-import { useHydration } from '@/lib/hooks/use-hydration';
 
 interface RoleSwitcherProps {
   roles: string[];
@@ -8,14 +8,13 @@ interface RoleSwitcherProps {
 }
 
 export function RoleSwitcher({ roles, selectedRole, setSelectedRole }: RoleSwitcherProps) {
-  const isHydrated = useHydration();
 
   if (!roles.includes('Admin')) return null; // Only show to Admins
 
   const availableRoles = ['Admin', 'pr', 'finance', 'Control Committee', 'hr']; // Define all possible roles
 
   // During SSR and initial hydration, use a consistent value to avoid mismatch
-  const selectValue = isHydrated ? selectedRole : 'Admin';
+  const selectValue = selectedRole;
 
   return (
     <div className="p-4 flex justify-between items-center">
