@@ -16,6 +16,7 @@ export type MessageNamespace =
   | 'policies'
   | 'about'
   | 'membership'
+  | 'memberPortal'
   | 'students'
   | 'terms'
   | 'projects'

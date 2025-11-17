@@ -14,6 +14,7 @@ import policies from './en/policies.json'
 import projectDetail from './en/projectDetail.json';
 import projects from './en/projects.json';
 import students from './en/students.json';
+import memberPortal from './en/memberPortal.json';
 import terms from './en/terms.json'
 import unused from './en/unused.json';
 import varsling from './en/varsling.json';
@@ -45,6 +46,7 @@ export default {
   students,
   terms,
   projects,
+  memberPortal,
   fundingProgram,
   projectDetail,
   volunteer,

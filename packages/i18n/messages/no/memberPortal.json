@@ -1,0 +1,167 @@
+{
+  "title": "Medlemsportal",
+  "welcome": "Velkommen tilbake, {name}!",
+  "backToHome": "Tilbake til Hjem",
+  "states": {
+    "signedOut": {
+      "title": "Medlemsportal",
+      "description": "Logg inn for å få tilgang til medlemskap, fordeler og profilinnstillinger.",
+      "signIn": "Logg inn med e-post"
+    },
+    "noBIEmail": {
+      "title": "Koble til din BI-student e-post",
+      "description": "For å verifisere medlemskapet ditt og få tilgang til fordeler, vennligst koble til din BI-student e-postkonto. Dette lar oss sikkert validere student-IDen din.",
+      "securityNote": "Du vil bli omdirigert til BIs sikre autentiseringssystem. Påloggingsdetaljene dine lagres aldri av BISO.",
+      "linkEmail": "Koble til BI-student e-post"
+    },
+    "notMember": {
+      "title": "Bli BISO-medlem",
+      "description": "Lås opp eksklusive fordeler, rabatter og opplevelser. Bli med tusenvis av BI-studenter som allerede er medlemmer!",
+      "purchaseMembership": "Kjøp medlemskap",
+      "whatYouGet": "Det du får:",
+      "benefits": {
+        "discounts": "Tilgang til {count}+ eksklusive partnerrabatter",
+        "memberPricing": "Medlemspriser på alle arrangementer og merchandise",
+        "priorityAccess": "Prioritert tilgang til workshops og nettverksarrangementer",
+        "community": "Koble til med BISO-fellesskapet"
+      },
+      "pricing": {
+        "semester": "Semester",
+        "year": "År",
+        "threeYear": "3 År",
+        "bestValue": "Best verdi",
+        "popular": "Populær"
+      }
+    }
+  },
+  "tabs": {
+    "overview": "Oversikt",
+    "profile": "Profil",
+    "membership": "Medlemskap",
+    "benefits": "Fordeler",
+    "settings": "Innstillinger"
+  },
+  "overview": {
+    "quickStats": "Hurtigstatistikk",
+    "featuredBenefits": "Utvalgte fordeler",
+    "viewAll": "Vis alle",
+    "membershipStatus": "Medlemskapsstatus",
+    "statusActive": "Medlemskapet ditt er aktivt og gyldig",
+    "statusInactive": "Medlemskapet ditt har utløpt",
+    "timeRemaining": "Gjenstående tid",
+    "daysRemaining": "{days} dager",
+    "started": "Startet:",
+    "expires": "Utløper:",
+    "renewMembership": "Forny medlemskap",
+    "stats": {
+      "membershipType": "Medlemskapstype",
+      "benefitsAvailable": "Tilgjengelige fordeler",
+      "benefitsCount": "{count} fordeler",
+      "daysUntilRenewal": "Til fornyelse",
+      "estimatedSavings": "Estimert besparelse"
+    }
+  },
+  "profile": {
+    "title": "Personlig informasjon",
+    "changePhoto": "Endre bilde",
+    "photoRequirements": "JPG, PNG eller GIF, maks 2MB",
+    "fullName": "Fullt navn",
+    "campus": "Campus",
+    "email": "E-post",
+    "biEmail": "BI-student e-post",
+    "studentId": "Student-ID",
+    "bio": "Bio",
+    "bioPlaceholder": "Fortell oss om deg selv...",
+    "publicProfile": "Offentlig profil",
+    "publicProfileDescription": "La andre medlemmer finne og koble til med deg",
+    "connectedAccounts": "Tilkoblede kontoer",
+    "connected": "Tilkoblet",
+    "notConnected": "Ikke tilkoblet",
+    "connect": "Koble til",
+    "disconnect": "Koble fra",
+    "verified": "Verifisert",
+    "cancel": "Avbryt",
+    "saveChanges": "Lagre endringer"
+  },
+  "membership": {
+    "title": "Ditt medlemskap",
+    "description": "Administrer ditt BISO-medlemskap og fakturering",
+    "active": "Aktiv",
+    "currentPlan": "Nåværende plan",
+    "nextBillingDate": "Neste faktureringsdato",
+    "autoRenewal": "Automatisk fornyelse",
+    "enabled": "Aktivert",
+    "disabled": "Deaktivert",
+    "enable": "Aktiver",
+    "disable": "Deaktiver",
+    "upgradeMembership": "Oppgrader medlemskapet ditt",
+    "upgradeDescription": "Spar mer med lengre medlemskapsperioder",
+    "currentPlanBadge": "Nåværende plan",
+    "monthlyPrice": "~{price} NOK/måned",
+    "savePercent": "Spar {percent}%",
+    "proTip": "Protips:",
+    "proTipDescription": "3-års medlemskapet sparer deg over 450 NOK sammenlignet med årlige fornyelser!",
+    "digitalCard": "Digitalt medlemskort",
+    "bisoMember": "BISO-medlem",
+    "studentId": "Student-ID",
+    "validUntil": "Gyldig til",
+    "useCard": "Bruk ditt digitale medlemskort for å få tilgang til fordeler og verifisere medlemskapsstatus.",
+    "addToAppleWallet": "Legg til i Apple Wallet",
+    "addToGooglePay": "Legg til i Google Pay",
+    "shareCard": "Del kort"
+  },
+  "benefits": {
+    "title": "Dine fordeler og rabatter",
+    "description": "Eksklusive fordeler tilgjengelig for BISO-medlemmer",
+    "available": "{count} tilgjengelig",
+    "reveal": "Vis kode",
+    "copy": "Kopier",
+    "copied": "Kopiert!",
+    "activateBenefit": "Aktiver fordel",
+    "terms": "Vilkår:",
+    "expires": "Utløper {date}",
+    "categories": {
+      "foodDrink": "Mat og drikke",
+      "entertainment": "Underholdning",
+      "healthFitness": "Helse og fitness",
+      "career": "Karriere",
+      "software": "Programvare",
+      "travel": "Reise",
+      "education": "Utdanning"
+    }
+  },
+  "settings": {
+    "notificationPreferences": "Varslingsinnstillinger",
+    "emailNotifications": "E-postvarsler",
+    "emailDescription": "Motta oppdateringer via e-post",
+    "pushNotifications": "Push-varsler",
+    "pushDescription": "Få varsler på enheten din",
+    "eventUpdates": "Arrangementsoppdateringer",
+    "eventDescription": "Nye arrangementer og billettutgivelser",
+    "newsUpdates": "Nyheter og oppdateringer",
+    "newsDescription": "BISO-kunngjøringer og nyheter",
+    "benefitsDiscounts": "Fordeler og rabatter",
+    "benefitsDescription": "Nye partnertilbud og avtaler",
+    "paymentInformation": "Betalingsinformasjon",
+    "paymentDescription": "For refusjonsbehandling og medlemskapsfornyelser",
+    "bankAccount": "Bankkontonummer",
+    "bankAccountPlaceholder": "1234 56 78901",
+    "bankAccountNote": "Brukes for utgiftsrefusjoner. Informasjonen din er kryptert og sikker.",
+    "securePayment": "Betalingsinformasjonen din er kryptert og lagret sikkert",
+    "dangerZone": "Faresone",
+    "dangerDescription": "Irreversible handlinger som påvirker kontoen din",
+    "cancelMembership": "Kanseller medlemskap",
+    "deleteAccount": "Slett konto"
+  },
+  "common": {
+    "campus": "Campus",
+    "member": "Medlem",
+    "membershipExpires": "Medlemskap utløper",
+    "daysRemaining": "Dager igjen",
+    "status": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "expired": "Utløpt"
+    }
+  }
+}
