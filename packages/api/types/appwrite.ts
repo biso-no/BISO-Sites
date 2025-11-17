@@ -355,6 +355,15 @@ export type AppNotices = Models.Row & {
     locale: Locale;
 }
 
+export type PageViewEvents = Models.Row & {
+    path: string;
+    locale: Locale | string | null;
+    referrer: string | null;
+    user_agent: string | null;
+    visitor_ip: string | null;
+    user_id: string | null;
+}
+
 export type LargeEvent = Models.Row & {
     slug: string;
     name: string;

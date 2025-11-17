@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { museoSans, inter } from "./fonts";
 import Providers from "./providers"
+import { AnalyticsTracker } from "@/components/analytics-tracker"
 import '@/app/globals.css';
 import {NextIntlClientProvider} from 'next-intl';
 import {getLocale} from '@/app/actions/locale';
@@ -34,6 +35,7 @@ export default async function RootLayout({
         <Providers>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <main>
+            <AnalyticsTracker locale={locale} />
             {children}
           </main>
         </NextIntlClientProvider>

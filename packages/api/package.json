@@ -7,7 +7,8 @@
     "./server": "./server.ts",
     "./client": "./client.ts",
     "./page-builder": "./page-builder.ts",
-    "./types/*": "./types/*.ts"
+    "./types/*": "./types/*.ts",
+    "./storage": "./storage.ts"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",
