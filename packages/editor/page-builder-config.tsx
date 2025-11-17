@@ -7,6 +7,15 @@ import { Heading } from "./components/heading";
 import { Text } from "./components/text";
 import { Button } from "./components/button";
 
+// Custom Fields
+import { dataSourceField } from "./components/fields/data-source-field";
+import { collectionSelectorField } from "./components/fields/collection-selector-field";
+import { queryBuilderField } from "./components/fields/query-builder-field";
+import { schemaAwareQueryBuilderField } from "./components/fields/schema-aware-query-builder-field";
+import { numericFieldSelector } from "./components/fields/numeric-field-selector";
+import { imageUploadField } from "./components/fields/image-upload-field";
+import { fieldMapperField } from "./components/fields/field-mapper-field";
+
 // Blocks
 import { Hero } from "./components/blocks/hero";
 import { Stats } from "./components/blocks/stats";
@@ -324,7 +333,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
         },
       },
       render: ({ content, ...props }) => (
-        <Section {...props}>{content?.({})}</Section>
+        <Section {...props}>{content ? content({}) : null}</Section>
       ),
     },
 
@@ -341,6 +350,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
         text: {
           type: "text",
           label: "Text",
+          contentEditable: true,
         },
         level: {
           type: "select",
@@ -377,6 +387,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
         text: {
           type: "textarea",
           label: "Text",
+          contentEditable: true,
         },
         size: {
           type: "select",
@@ -467,6 +478,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
           type: "textarea",
           label: "Description",
         },
+        backgroundImage: imageUploadField,
         backgroundGradient: {
           type: "select",
           label: "Background gradient",
@@ -515,6 +527,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
     Stats: {
       label: "Stats",
       defaultProps: {
+        dataSource: "manual",
         stats: [
           {
             id: "1",
@@ -527,34 +540,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
         animated: false,
       },
       fields: {
-        stats: {
-          type: "array",
-          label: "Stats",
-          arrayFields: {
-            icon: {
-              type: "text",
-              label: "Icon name (lucide-react)",
-            },
-            number: {
-              type: "text",
-              label: "Number",
-            },
-            label: {
-              type: "text",
-              label: "Label",
-            },
-            gradient: {
-              type: "select",
-              label: "Gradient",
-              options: gradientOptions,
-            },
-          },
-          defaultItemProps: {
-            number: "0",
-            label: "Metric",
-            gradient: "custom",
-          },
-        },
+        dataSource: dataSourceField,
         columns: {
           type: "select",
           label: "Columns",
@@ -568,6 +554,173 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
             { label: "Yes", value: true },
           ],
         },
+      },
+      resolveFields: (data) => {
+        if (data.props.dataSource === "database") {
+          const collectionId = data.props.collection;
+          const statType = data.props.statType;
+          const needsValueField = statType === "sum" || statType === "average";
+          
+          return {
+            dataSource: dataSourceField,
+            collection: collectionSelectorField,
+            statType: {
+              type: "select",
+              label: "Statistic Type",
+              options: [
+                { label: "Count Records", value: "count" },
+                { label: "Sum Field", value: "sum" },
+                { label: "Average Field", value: "average" },
+              ],
+            },
+            ...(needsValueField ? {
+              valueField: {
+                ...numericFieldSelector,
+                label: "Field to Sum/Average",
+                render: (props: any) => numericFieldSelector.render({
+                  ...props,
+                  collectionId,
+                }),
+              },
+            } : {}),
+            query: {
+              ...schemaAwareQueryBuilderField,
+              render: (props: any) => schemaAwareQueryBuilderField.render({
+                ...props,
+                collectionId,
+              }),
+            },
+            label: {
+              type: "text",
+              label: "Stat Label",
+            },
+            icon: {
+              type: "text",
+              label: "Icon name (lucide-react)",
+            },
+            gradient: {
+              type: "select",
+              label: "Gradient",
+              options: gradientOptions,
+            },
+            columns: {
+              type: "select",
+              label: "Columns",
+              options: columnsOptions,
+            },
+            animated: {
+              type: "radio",
+              label: "Animated",
+              options: [
+                { label: "No", value: false },
+                { label: "Yes", value: true },
+              ],
+            },
+          };
+        }
+
+        // Manual mode - show array field
+        return {
+          dataSource: dataSourceField,
+          stats: {
+            type: "array",
+            label: "Stats",
+            arrayFields: {
+              icon: {
+                type: "text",
+                label: "Icon name (lucide-react)",
+              },
+              number: {
+                type: "text",
+                label: "Number",
+              },
+              label: {
+                type: "text",
+                label: "Label",
+              },
+              gradient: {
+                type: "select",
+                label: "Gradient",
+                options: gradientOptions,
+              },
+            },
+            defaultItemProps: {
+              number: "0",
+              label: "Metric",
+              gradient: "custom",
+            },
+          },
+          columns: {
+            type: "select",
+            label: "Columns",
+            options: columnsOptions,
+          },
+          animated: {
+            type: "radio",
+            label: "Animated",
+            options: [
+              { label: "No", value: false },
+              { label: "Yes", value: true },
+            ],
+          },
+        };
+      },
+      resolveData: async ({ props }, { changed }) => {
+        // Only process if in database mode
+        if (props.dataSource !== "database") {
+          return { props };
+        }
+
+        // Only re-fetch if relevant fields changed
+        if (!changed.collection && !changed.query && !changed.statType && !changed.valueField) {
+          return { props };
+        }
+
+        // Validate we have required fields
+        if (!props.collection || !props.statType) {
+          return { props };
+        }
+
+        try {
+          // Call API to execute query and compute stat
+          const response = await fetch("/api/admin/query-stat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              collection: props.collection,
+              statType: props.statType,
+              valueField: props.valueField,
+              query: props.query || { conditions: [], limit: 5000 },
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Create a single stat item from the result
+            const stat = {
+              id: "1",
+              number: result.data.value.toString(),
+              label: props.label || `${props.statType} result`,
+              icon: props.icon,
+              gradient: props.gradient || "custom",
+            };
+
+            return {
+              props: {
+                ...props,
+                stats: [stat],
+              },
+              readOnly: {
+                stats: true, // Make computed stats read-only
+              },
+            };
+          }
+        } catch (error) {
+          console.error("Failed to compute stat:", error);
+        }
+
+        return { props };
       },
       render: (props) => <Stats {...props} />,
     },
@@ -700,6 +853,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
     CardGrid: {
       label: "Card Grid",
       defaultProps: {
+        dataSource: "manual",
         cards: [
           {
             id: "1",
@@ -711,32 +865,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
         cardVariant: "default",
       },
       fields: {
-        cards: {
-          type: "array",
-          label: "Cards",
-          arrayFields: {
-            title: {
-              type: "text",
-              label: "Title",
-            },
-            description: {
-              type: "textarea",
-              label: "Description",
-            },
-            link: {
-              type: "text",
-              label: "Link URL",
-            },
-            linkLabel: {
-              type: "text",
-              label: "Link label",
-            },
-          },
-          defaultItemProps: {
-            title: "New Card",
-            description: "Description",
-          },
-        },
+        dataSource: dataSourceField,
         columns: {
           type: "select",
           label: "Columns",
@@ -752,6 +881,134 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
             { label: "Golden", value: "golden" },
           ],
         },
+      },
+      resolveFields: (data) => {
+        if (data.props.dataSource === "database") {
+          const collectionId = data.props.collection;
+          
+          return {
+            dataSource: dataSourceField,
+            collection: collectionSelectorField,
+            query: {
+              ...schemaAwareQueryBuilderField,
+              render: (props: any) => schemaAwareQueryBuilderField.render({
+                ...props,
+                collectionId,
+              }),
+            },
+            fieldMapping: {
+              ...fieldMapperField,
+              render: (props: any) => fieldMapperField.render({
+                ...props,
+                collectionId,
+                targetFields: [
+                  { key: "title", label: "Title", required: true },
+                  { key: "description", label: "Description", required: true },
+                  { key: "link", label: "Link URL" },
+                  { key: "linkLabel", label: "Link Label" },
+                ],
+              }),
+            },
+            columns: {
+              type: "select",
+              label: "Columns",
+              options: columnsOptions,
+            },
+            cardVariant: {
+              type: "select",
+              label: "Card style",
+              options: [
+                { label: "Default", value: "default" },
+                { label: "Glass", value: "glass" },
+                { label: "Gradient", value: "gradient" },
+                { label: "Golden", value: "golden" },
+              ],
+            },
+          };
+        }
+        return {
+          dataSource: dataSourceField,
+          cards: {
+            type: "array",
+            label: "Cards",
+            arrayFields: {
+              title: {
+                type: "text",
+                label: "Title",
+              },
+              description: {
+                type: "textarea",
+                label: "Description",
+              },
+              link: {
+                type: "text",
+                label: "Link URL",
+              },
+              linkLabel: {
+                type: "text",
+                label: "Link label",
+              },
+            },
+            defaultItemProps: {
+              title: "New Card",
+              description: "Description",
+            },
+          },
+          columns: {
+            type: "select",
+            label: "Columns",
+            options: columnsOptions,
+          },
+          cardVariant: {
+            type: "select",
+            label: "Card style",
+            options: [
+              { label: "Default", value: "default" },
+              { label: "Glass", value: "glass" },
+              { label: "Gradient", value: "gradient" },
+              { label: "Golden", value: "golden" },
+            ],
+          },
+        };
+      },
+      resolveData: async ({ props }, { changed }) => {
+        if (props.dataSource !== "database") {
+          return { props };
+        }
+        if (!changed.collection && !changed.query && !changed.fieldMapping) {
+          return { props };
+        }
+        if (!props.collection) {
+          return { props };
+        }
+        try {
+          const response = await fetch("/api/admin/query-documents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              collection: props.collection,
+              query: props.query,
+              fieldMapping: props.fieldMapping,
+            }),
+          });
+          const result = await response.json();
+          if (result.success) {
+            const cards = result.data.documents.map((doc: any) => ({
+              id: doc.$id,
+              title: doc.title || "Untitled",
+              description: doc.description || "",
+              link: doc.link,
+              linkLabel: doc.linkLabel,
+            }));
+            return {
+              props: { ...props, cards },
+              readOnly: { cards: true },
+            };
+          }
+        } catch (error) {
+          console.error("Failed to load cards:", error);
+        }
+        return { props };
       },
       render: (props) => <CardGrid {...props} />,
     },
@@ -794,6 +1051,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
     FAQ: {
       label: "FAQ",
       defaultProps: {
+        dataSource: "manual",
         faqs: [
           {
             id: "1",
@@ -803,6 +1061,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
         ],
       },
       fields: {
+        dataSource: dataSourceField,
         heading: {
           type: "text",
           label: "Heading",
@@ -811,25 +1070,106 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
           type: "textarea",
           label: "Description",
         },
-        faqs: {
-          type: "array",
-          label: "Questions",
-          arrayFields: {
-            question: {
+      },
+      resolveFields: (data) => {
+        if (data.props.dataSource === "database") {
+          const collectionId = data.props.collection;
+          
+          return {
+            dataSource: dataSourceField,
+            collection: collectionSelectorField,
+            query: {
+              ...schemaAwareQueryBuilderField,
+              render: (props: any) => schemaAwareQueryBuilderField.render({
+                ...props,
+                collectionId,
+              }),
+            },
+            fieldMapping: {
+              ...fieldMapperField,
+              render: (props: any) => fieldMapperField.render({
+                ...props,
+                collectionId,
+                targetFields: [
+                  { key: "question", label: "Question", required: true },
+                  { key: "answer", label: "Answer", required: true },
+                ],
+              }),
+            },
+            heading: {
               type: "text",
-              label: "Question",
+              label: "Heading",
             },
-            answer: {
+            description: {
               type: "textarea",
-              label: "Answer",
+              label: "Description",
             },
+          };
+        }
+        return {
+          dataSource: dataSourceField,
+          heading: {
+            type: "text",
+            label: "Heading",
           },
-          defaultItemProps: {
-            question: "New question?",
-            answer: "Answer here.",
+          description: {
+            type: "textarea",
+            label: "Description",
           },
-          getItemSummary: (item: any) => item.question || "Question",
-        },
+          faqs: {
+            type: "array",
+            label: "Questions",
+            arrayFields: {
+              question: {
+                type: "text",
+                label: "Question",
+              },
+              answer: {
+                type: "textarea",
+                label: "Answer",
+              },
+            },
+            defaultItemProps: {
+              question: "New question?",
+              answer: "Answer here.",
+            },
+            getItemSummary: (item: any) => item.question || "Question",
+          },
+        };
+      },
+      resolveData: async ({ props }, { changed }) => {
+        if (props.dataSource !== "database" || !props.collection) {
+          return { props };
+        }
+        if (!changed.collection && !changed.query && !changed.fieldMapping) {
+          return { props };
+        }
+        try {
+          const response = await fetch("/api/admin/query-documents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              collection: props.collection,
+              query: props.query,
+              fieldMapping: props.fieldMapping,
+            }),
+          });
+          const result = await response.json();
+          if (result.success) {
+            const faqs = result.data.documents.map((doc: any) => ({
+              id: doc.$id,
+              question: doc.question || "",
+              answer: doc.answer || "",
+            }));
+            return {
+              props: { ...props, faqs },
+              readOnly: { faqs: true },
+            };
+          }
+        } catch (error) {
+          console.error("Failed to load FAQs:", error);
+        }
+        return { props };
       },
       render: (props) => <FAQ {...props} />,
     },

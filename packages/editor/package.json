@@ -8,7 +8,8 @@
     "./editor": "./editor.tsx",
     "./renderer": "./renderer.tsx",
     "./components/*": "./components/*.tsx",
-    "./types": "./types.ts"
+    "./types": "./types.ts",
+    "./lib/*": "./lib/*.ts"
   },
   "dependencies": {
     "@measured/puck": "^0.20.2",

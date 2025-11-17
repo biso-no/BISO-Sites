@@ -1,5 +1,63 @@
 import type { Data, Metadata } from "@measured/puck";
 
+// Query Builder types
+export type QueryOperator =
+  | "equal"
+  | "notEqual"
+  | "lessThan"
+  | "lessThanEqual"
+  | "greaterThan"
+  | "greaterThanEqual"
+  | "search"
+  | "contains"
+  | "isNull"
+  | "isNotNull"
+  | "between"
+  | "startsWith"
+  | "endsWith";
+
+export type QueryCondition = {
+  field: string;
+  operator: QueryOperator;
+  value?: string | number | boolean | null;
+  values?: (string | number)[];  // For 'between' operator
+};
+
+export type QuerySort = {
+  field: string;
+  direction: "asc" | "desc";
+};
+
+export type QueryConfig = {
+  conditions: QueryCondition[];
+  logic?: "and" | "or";  // How to combine conditions
+  sort?: QuerySort[];
+  limit?: number;
+  offset?: number;
+};
+
+export type DataSourceType = "manual" | "database";
+
+export type DataSourceConfig = {
+  type: DataSourceType;
+  collection?: string;
+  query?: QueryConfig;
+  fieldMapping?: Record<string, string>;  // componentField -> dbField
+};
+
+export type CollectionField = {
+  key: string;
+  type: string;
+  required: boolean;
+  array?: boolean;
+};
+
+export type CollectionSchema = {
+  $id: string;
+  name: string;
+  fields: CollectionField[];
+};
+
 // Common types
 export type SectionBackground = "default" | "muted" | "primary";
 export type SectionPadding = "none" | "sm" | "md" | "lg";
@@ -123,6 +181,15 @@ export type StatsBlockProps = {
   stats: StatItem[];
   columns?: GridColumns;
   animated?: boolean;
+  // Dynamic data source
+  dataSource?: DataSourceType;
+  collection?: string;
+  statType?: "count" | "sum" | "average";
+  valueField?: string;  // For sum/average
+  query?: QueryConfig;
+  label?: string;  // Label for the stat when using database mode
+  icon?: string;  // Icon for the stat when using database mode
+  gradient?: GradientPreset;  // Gradient for the stat when using database mode
 };
 
 export type FeatureItem = {
@@ -168,6 +235,11 @@ export type CardGridBlockProps = {
   cards: CardItem[];
   columns?: GridColumns;
   cardVariant?: "default" | "glass" | "gradient" | "golden";
+  // Dynamic data source
+  dataSource?: DataSourceType;
+  collection?: string;
+  query?: QueryConfig;
+  fieldMapping?: Record<string, string>;
 };
 
 export type TestimonialBlockProps = {
@@ -178,6 +250,11 @@ export type TestimonialBlockProps = {
   avatar?: ImageData;
   rating?: number;
   background?: SectionBackground;
+  // Dynamic data source
+  dataSource?: DataSourceType;
+  collection?: string;
+  query?: QueryConfig;
+  fieldMapping?: Record<string, string>;
 };
 
 export type FAQItem = {
@@ -191,6 +268,11 @@ export type FAQBlockProps = {
   faqs: FAQItem[];
   heading?: string;
   description?: string;
+  // Dynamic data source
+  dataSource?: DataSourceType;
+  collection?: string;
+  query?: QueryConfig;
+  fieldMapping?: Record<string, string>;
 };
 
 export type LogoItem = {
@@ -205,6 +287,11 @@ export type LogoCloudBlockProps = {
   logos: LogoItem[];
   grayscale?: boolean;
   layout?: "grid" | "marquee";
+  // Dynamic data source
+  dataSource?: DataSourceType;
+  collection?: string;
+  query?: QueryConfig;
+  fieldMapping?: Record<string, string>;
 };
 
 export type PricingFeature = {
@@ -229,6 +316,11 @@ export type PricingTableBlockProps = {
   tiers: PricingTier[];
   heading?: string;
   description?: string;
+  // Dynamic data source
+  dataSource?: DataSourceType;
+  collection?: string;
+  query?: QueryConfig;
+  fieldMapping?: Record<string, string>;
 };
 
 export type TeamMember = {
@@ -246,6 +338,11 @@ export type TeamGridBlockProps = {
   id?: string;
   members: TeamMember[];
   columns?: GridColumns;
+  // Dynamic data source
+  dataSource?: DataSourceType;
+  collection?: string;
+  query?: QueryConfig;
+  fieldMapping?: Record<string, string>;
 };
 
 export type NewsletterBlockProps = {
