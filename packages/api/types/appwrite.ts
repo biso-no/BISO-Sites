@@ -135,6 +135,7 @@ export type Users = Models.Row & {
     swift: string | null;
     savedJobs: SavedJobs[];
     is_public: boolean | null;
+    bio: string | null;
 }
 
 export type ExpenseAttachments = Models.Row & {
@@ -260,6 +261,7 @@ export type Memberships = Models.Row & {
     price: number;
     category: string | null;
     status: boolean;
+    startDate: string;
     expiryDate: string;
     canPurchase: boolean;
 }
@@ -677,3 +679,18 @@ export type PageViewEvents = Models.Row & {
     visitor_ip: string | null;
     user_id: string | null;
 }
+
+export type MemberBenefit = Models.Row & {
+    id: string;
+    title: string;
+    contentTranslations: ContentTranslations[];
+    description: string;
+    type: 'text' | 'code' | 'qr' | 'link';
+    category: string;
+    partner?: string;
+    partnerLogo?: string;
+    value?: string; // For codes or QR data
+    terms?: string;
+    expiresAt?: string;
+  }
+  

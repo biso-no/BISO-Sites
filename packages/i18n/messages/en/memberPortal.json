@@ -1,0 +1,167 @@
+{
+  "title": "Member Portal",
+  "welcome": "Welcome back, {name}!",
+  "backToHome": "Back to Home",
+  "states": {
+    "signedOut": {
+      "title": "Member Portal",
+      "description": "Sign in to access your membership, benefits, and profile settings.",
+      "signIn": "Sign In with Email"
+    },
+    "noBIEmail": {
+      "title": "Link Your BI Student Email",
+      "description": "To verify your membership and access benefits, please link your BI student email account. This allows us to securely validate your Student ID.",
+      "securityNote": "You'll be redirected to BI's secure authentication system. Your credentials are never stored by BISO.",
+      "linkEmail": "Link BI Student Email"
+    },
+    "notMember": {
+      "title": "Become a BISO Member",
+      "description": "Unlock exclusive benefits, discounts, and experiences. Join thousands of BI students who are already members!",
+      "purchaseMembership": "Purchase Membership",
+      "whatYouGet": "What You'll Get:",
+      "benefits": {
+        "discounts": "Access to {count}+ exclusive partner discounts",
+        "memberPricing": "Member pricing on all events and merchandise",
+        "priorityAccess": "Priority access to workshops and networking events",
+        "community": "Connect with the BISO community"
+      },
+      "pricing": {
+        "semester": "Semester",
+        "year": "Year",
+        "threeYear": "3 Years",
+        "bestValue": "Best Value",
+        "popular": "Popular"
+      }
+    }
+  },
+  "tabs": {
+    "overview": "Overview",
+    "profile": "Profile",
+    "membership": "Membership",
+    "benefits": "Benefits",
+    "settings": "Settings"
+  },
+  "overview": {
+    "quickStats": "Quick Stats",
+    "featuredBenefits": "Featured Benefits",
+    "viewAll": "View All",
+    "membershipStatus": "Membership Status",
+    "statusActive": "Your membership is active and valid",
+    "statusInactive": "Your membership has expired",
+    "timeRemaining": "Time Remaining",
+    "daysRemaining": "{days} days",
+    "started": "Started:",
+    "expires": "Expires:",
+    "renewMembership": "Renew Membership",
+    "stats": {
+      "membershipType": "Membership Type",
+      "benefitsAvailable": "Benefits Available",
+      "benefitsCount": "{count} Benefits",
+      "daysUntilRenewal": "Until Renewal",
+      "estimatedSavings": "Estimated Savings"
+    }
+  },
+  "profile": {
+    "title": "Personal Information",
+    "changePhoto": "Change Photo",
+    "photoRequirements": "JPG, PNG or GIF, max 2MB",
+    "fullName": "Full Name",
+    "campus": "Campus",
+    "email": "Email",
+    "biEmail": "BI Student Email",
+    "studentId": "Student ID",
+    "bio": "Bio",
+    "bioPlaceholder": "Tell us about yourself...",
+    "publicProfile": "Public Profile",
+    "publicProfileDescription": "Allow other members to find and connect with you",
+    "connectedAccounts": "Connected Accounts",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "verified": "Verified",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes"
+  },
+  "membership": {
+    "title": "Your Membership",
+    "description": "Manage your BISO membership and billing",
+    "active": "Active",
+    "currentPlan": "Current Plan",
+    "nextBillingDate": "Next Billing Date",
+    "autoRenewal": "Auto-Renewal",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "upgradeMembership": "Upgrade Your Membership",
+    "upgradeDescription": "Save more with longer membership periods",
+    "currentPlanBadge": "Current Plan",
+    "monthlyPrice": "~{price} NOK/month",
+    "savePercent": "Save {percent}%",
+    "proTip": "Pro tip:",
+    "proTipDescription": "The 3-year membership saves you over 450 NOK compared to yearly renewals!",
+    "digitalCard": "Digital Membership Card",
+    "bisoMember": "BISO Member",
+    "studentId": "Student ID",
+    "validUntil": "Valid Until",
+    "useCard": "Use your digital membership card to access benefits and verify your membership status.",
+    "addToAppleWallet": "Add to Apple Wallet",
+    "addToGooglePay": "Add to Google Pay",
+    "shareCard": "Share Card"
+  },
+  "benefits": {
+    "title": "Your Benefits & Discounts",
+    "description": "Exclusive perks available to BISO members",
+    "available": "{count} Available",
+    "reveal": "Reveal Code",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "activateBenefit": "Activate Benefit",
+    "terms": "Terms:",
+    "expires": "Expires {date}",
+    "categories": {
+      "foodDrink": "Food & Drink",
+      "entertainment": "Entertainment",
+      "healthFitness": "Health & Fitness",
+      "career": "Career",
+      "software": "Software",
+      "travel": "Travel",
+      "education": "Education"
+    }
+  },
+  "settings": {
+    "notificationPreferences": "Notification Preferences",
+    "emailNotifications": "Email Notifications",
+    "emailDescription": "Receive updates via email",
+    "pushNotifications": "Push Notifications",
+    "pushDescription": "Get notified on your device",
+    "eventUpdates": "Event Updates",
+    "eventDescription": "New events and ticket releases",
+    "newsUpdates": "News & Updates",
+    "newsDescription": "BISO announcements and news",
+    "benefitsDiscounts": "Benefits & Discounts",
+    "benefitsDescription": "New partner offers and deals",
+    "paymentInformation": "Payment Information",
+    "paymentDescription": "For reimbursement processing and membership renewals",
+    "bankAccount": "Bank Account Number",
+    "bankAccountPlaceholder": "1234 56 78901",
+    "bankAccountNote": "Used for expense reimbursements. Your information is encrypted and secure.",
+    "securePayment": "Your payment information is encrypted and stored securely",
+    "dangerZone": "Danger Zone",
+    "dangerDescription": "Irreversible actions that affect your account",
+    "cancelMembership": "Cancel Membership",
+    "deleteAccount": "Delete Account"
+  },
+  "common": {
+    "campus": "Campus",
+    "member": "Member",
+    "membershipExpires": "Membership Expires",
+    "daysRemaining": "Days Remaining",
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "expired": "Expired"
+    }
+  }
+}

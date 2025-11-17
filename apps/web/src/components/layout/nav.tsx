@@ -10,6 +10,7 @@ import { useCampus } from '@/components/context/campus';
 import { usePathname } from 'next/navigation';
 import { LocaleSwitcher } from '../locale-switcher';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 
 interface NavigationProps {
   onEventsClick?: () => void;
@@ -24,6 +25,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
   const { campuses } = useCampus();
   const pathname = usePathname();
   const t = useTranslations('common.navigation');
+  const router = useRouter();
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -100,6 +102,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
             <Link href="/partner">{t('partner')}</Link>
             <Button
               size="sm"
+              onClick={() => router.push('/member')}
               className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 shadow-lg"
             >
               {t('memberPortal')}
