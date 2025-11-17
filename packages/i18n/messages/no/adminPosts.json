@@ -1,0 +1,65 @@
+{
+  "title": "",
+  "description": "",
+  "create": "",
+  "edit": "",
+  "delete": "",
+  "publish": "",
+  "unpublish": "",
+  "search": "",
+  "filters": {
+    "all": "",
+    "published": "",
+    "draft": "",
+    "archived": ""
+  },
+  "table": {
+    "title": "",
+    "author": "",
+    "category": "",
+    "publishDate": "",
+    "status": "",
+    "views": "",
+    "actions": ""
+  },
+  "form": {
+    "title": "",
+    "slug": "",
+    "excerpt": "",
+    "content": "",
+    "author": "",
+    "category": "",
+    "tags": "",
+    "featuredImage": "",
+    "publishDate": "",
+    "status": "",
+    "metaTitle": "",
+    "metaDescription": "",
+    "save": "",
+    "saveDraft": "",
+    "cancel": "",
+    "preview": ""
+  },
+  "status": {
+    "published": "",
+    "draft": "",
+    "archived": "",
+    "scheduled": ""
+  },
+  "categories": {
+    "news": "",
+    "blog": "",
+    "announcement": "",
+    "update": ""
+  },
+  "messages": {
+    "loading": "",
+    "noPosts": "",
+    "deleteConfirm": "",
+    "saveSuccess": "",
+    "publishSuccess": "",
+    "deleteSuccess": "",
+    "error": ""
+  }
+}
+

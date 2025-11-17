@@ -3,23 +3,90 @@
   "description": "Manage your store",
   "products": {
     "title": "Products",
+    "badge": "Product Catalog",
+    "inventoryTitle": "Shop inventory",
+    "inventoryDescription": "Track releases, availability, and language coverage for merch and products.",
+    "manageDescription": "Manage products, status, and localization directly in the catalog.",
     "create": "Create product",
+    "newProduct": "New product",
     "edit": "Edit product",
     "delete": "Delete product",
     "search": "Search products...",
+    "searchPlaceholder": "Search by product or slug",
+    "reports": "Reports",
     "filters": {
       "all": "All products",
       "active": "Active",
+      "draft": "Draft",
       "inactive": "Inactive",
+      "archived": "Archived",
       "outOfStock": "Out of stock"
+    },
+    "tabs": {
+      "all": "All",
+      "active": "Active",
+      "draft": "Draft",
+      "archived": "Archived"
     },
     "table": {
       "image": "Image",
       "name": "Name",
+      "product": "Product",
       "price": "Price",
       "stock": "Stock",
       "status": "Status",
-      "actions": "Actions"
+      "translations": "Translations",
+      "campus": "Campus",
+      "created": "Created",
+      "actions": "Actions",
+      "selectAll": "Select all products",
+      "selectProduct": "Select {title}",
+      "missingTranslations": "Missing translations",
+      "covered": "covered",
+      "showing": "Showing <strong>{start}-{end}</strong> of <strong>{total}</strong> products",
+      "updated": "Updated {date}"
+    },
+    "metrics": {
+      "total": "Total",
+      "published": "Published",
+      "draft": "Draft",
+      "translations": "Translations",
+      "lowStock": "Low stock"
+    },
+    "stockStatus": {
+      "empty": "Empty",
+      "low": "Low ({count})",
+      "allLevels": "All levels",
+      "inStock": "In stock",
+      "lowStock": "Low stock",
+      "outOfStock": "Out of stock"
+    },
+    "bulkActions": {
+      "selected": "{count} selected",
+      "reset": "Reset",
+      "status": "Status",
+      "publish": "Publish",
+      "draft": "Draft",
+      "archive": "Archive",
+      "price": "Price",
+      "priceValue": "Value",
+      "selectMode": "Select mode",
+      "percentAdjust": "% adjust",
+      "setPrice": "Set price",
+      "stock": "Stock",
+      "stockValue": "Quantity",
+      "adjust": "Adjust ±",
+      "setStock": "Set stock",
+      "update": "Update",
+      "updating": "Updating...",
+      "applyFilters": "Apply filters",
+      "campus": "Campus",
+      "allCampuses": "All campuses",
+      "category": "Category",
+      "allCategories": "All categories",
+      "stockStatus": "Stock status",
+      "minPrice": "Min. price",
+      "maxPrice": "Max price"
     },
     "form": {
       "name": "Product name",
@@ -50,7 +117,14 @@
     "status": {
       "active": "Active",
       "draft": "Draft",
-      "archived": "Archived"
+      "archived": "Archived",
+      "published": "Published"
+    },
+    "actions": {
+      "setPublished": "Set Published",
+      "setDraft": "Set Draft",
+      "archive": "Archive",
+      "delete": "Delete"
     }
   },
   "orders": {
@@ -121,7 +195,15 @@
     "noCustomers": "No customers found",
     "deleteConfirm": "Are you sure you want to delete this product?",
     "saveSuccess": "Changes saved successfully",
-    "error": "An error occurred"
+    "error": "An error occurred",
+    "updateStatusError": "Could not update status.",
+    "statusUpdated": "Status updated",
+    "invalidPriceValue": "Enter a valid price value.",
+    "updatePriceError": "Could not update price.",
+    "priceUpdated": "Price updated",
+    "invalidStockValue": "Enter a valid stock value.",
+    "updateStockError": "Could not update stock.",
+    "stockUpdated": "Stock updated"
   }
 }
 

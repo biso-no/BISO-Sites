@@ -5,6 +5,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs"
+import { getTranslations } from 'next-intl/server'
 
 import { listProducts } from '@/app/actions/products'
 import { ProductsTable } from './_components/products-table'
@@ -19,6 +20,7 @@ type ProductsPageProps = {
 }
 
 export default async function DashboardPage({ searchParams = {} }: ProductsPageProps) {
+  const t = await getTranslations('adminShop')
   const filters = buildProductFilters(searchParams)
   const [products, filterSource] = await Promise.all([
     listProducts(filters),
@@ -35,17 +37,17 @@ export default async function DashboardPage({ searchParams = {} }: ProductsPageP
           <Tabs defaultValue="all">
             <div className="flex items-center">
               <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="draft">Draft</TabsTrigger>
+                <TabsTrigger value="all">{t('products.tabs.all')}</TabsTrigger>
+                <TabsTrigger value="active">{t('products.tabs.active')}</TabsTrigger>
+                <TabsTrigger value="draft">{t('products.tabs.draft')}</TabsTrigger>
                 <TabsTrigger value="archived" className="hidden sm:flex">
-                  Archived
+                  {t('products.tabs.archived')}
                 </TabsTrigger>
               </TabsList>
               <ProductActions />
             </div>
             <ProductFilters initialValues={initialValues} options={filterOptions} />
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<div>{t('messages.loading')}</div>}>
               <ProductsTable products={products} />
             </Suspense>
           </Tabs>

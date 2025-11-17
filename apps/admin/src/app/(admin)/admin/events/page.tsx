@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { getTranslations } from "next-intl/server"
 
 import { listEvents } from "@/app/actions/events"
 import { Badge } from "@repo/ui/components/ui/badge"
@@ -39,6 +40,7 @@ export default async function AdminEventsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
+  const t = await getTranslations('adminEvents')
   const params = await searchParams
   const campus = params.campus
   const status = params.status || "all"
@@ -59,18 +61,18 @@ export default async function AdminEventsPage({
   )
 
   const summaryCards = [
-    { label: "Aktive arrangementer", value: totalEvents, description: "Totalt registrert" },
-    { label: "Publiserte", value: publishedEvents, description: "Synlig for medlemmer" },
-    { label: "Utkast", value: draftEvents, description: "Til gjennomgang" },
-    { label: "Oversettelser", value: translationCoverage, description: "NO + EN ferdig" },
+    { label: t('metrics.activeEvents'), value: totalEvents, description: t('metrics.totalRegistered') },
+    { label: t('metrics.published'), value: publishedEvents, description: t('metrics.visibleToMembers') },
+    { label: t('metrics.drafts'), value: draftEvents, description: t('metrics.forReview') },
+    { label: t('metrics.translations'), value: translationCoverage, description: t('metrics.translationComplete') },
   ]
 
   return (
     <div className="space-y-8">
       <AdminSummary
-        badge="Arrangementer"
-        title="Event workbench"
-        description="Koordiner arrangementer på tvers av campus med språk, status og tilgjengelighet."
+        badge={t('badge')}
+        title={t('workbenchTitle')}
+        description={t('workbenchDescription')}
         metrics={summaryCards.map((card) => ({
           label: card.label,
           value: card.value,
@@ -78,16 +80,16 @@ export default async function AdminEventsPage({
         }))}
         action={
           <Button asChild className="rounded-full bg-primary-40 px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_45px_-30px_rgba(0,23,49,0.55)] hover:bg-primary-30">
-            <Link href="/admin/events/new">Ny event</Link>
+            <Link href="/admin/events/new">{t('newEvent')}</Link>
           </Button>
         }
       />
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.5)]">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold text-primary-100">Filtrer arrangementer</CardTitle>
+          <CardTitle className="text-lg font-semibold text-primary-100">{t('filterTitle')}</CardTitle>
           <CardDescription className="text-sm text-primary-60">
-            Avgrens visningen etter status, campus eller søkeord.
+            {t('filterDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -95,28 +97,28 @@ export default async function AdminEventsPage({
             <Input
               defaultValue={search || ""}
               name="q"
-              placeholder="Søk på tittel eller slug..."
+              placeholder={t('searchPlaceholder')}
               className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
             <Select name="status" defaultValue={status}>
               <SelectTrigger className="rounded-xl border-primary/20 bg-white/70">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t('filters.status')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle</SelectItem>
-                <SelectItem value="draft">Utkast</SelectItem>
-                <SelectItem value="published">Publisert</SelectItem>
-                <SelectItem value="cancelled">Avlyst</SelectItem>
+                <SelectItem value="all">{t('filters.all')}</SelectItem>
+                <SelectItem value="draft">{t('filters.draft')}</SelectItem>
+                <SelectItem value="published">{t('filters.published')}</SelectItem>
+                <SelectItem value="cancelled">{t('filters.cancelled')}</SelectItem>
               </SelectContent>
             </Select>
             <Input
               name="campus"
               defaultValue={campus || ""}
-              placeholder="Campus"
+              placeholder={t('filters.campus')}
               className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40"
             />
             <Button type="submit" className="w-full rounded-xl bg-primary-40 text-sm font-semibold text-white shadow">
-              Filtrer
+              {t('filters.filter')}
             </Button>
           </form>
         </CardContent>
@@ -125,25 +127,25 @@ export default async function AdminEventsPage({
       <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 bg-white/88 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex items-center justify-between border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">Eventliste</h2>
+            <h2 className="text-lg font-semibold text-primary-100">{t('eventList')}</h2>
             <p className="text-sm text-primary-60">
-              {totalEvents} arrangementer over {new Set(events.map((evt) => (typeof evt.campus === 'object' ? evt.campus?.name : evt.campus) || evt.campus_id || "Ukjent")).size} campuser
+              {t('eventsAcrossCampuses', { count: totalEvents, campuses: new Set(events.map((evt) => (typeof evt.campus === 'object' ? evt.campus?.name : evt.campus) || evt.campus_id || "Ukjent")).size })}
             </p>
           </div>
           <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-80">
-            {translationCoverage} oversatt
+            {translationCoverage} {t('translated')}
           </Badge>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-primary/5">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Event</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Status</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Språk</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Campus</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Dato</th>
-                <th className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-primary-70">Handlinger</th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">{t('table.event')}</th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">{t('table.status')}</th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">{t('table.language')}</th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">{t('table.campus')}</th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">{t('table.date')}</th>
+                <th className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-primary-70">{t('table.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-primary/10 bg-white/78">
@@ -182,7 +184,7 @@ export default async function AdminEventsPage({
                           ))
                         ) : (
                           <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
-                            Mangler
+                            {t('table.missing')}
                           </span>
                         )}
                       </div>
@@ -205,13 +207,13 @@ export default async function AdminEventsPage({
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1.5">
                         <Button asChild variant="ghost" size="sm" className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10">
-                          <Link href={`/admin/events/${evt.$id}`}>Rediger</Link>
+                          <Link href={`/admin/events/${evt.$id}`}>{t('table.edit')}</Link>
                         </Button>
                         <Button asChild variant="ghost" size="sm" className="rounded-full px-3 py-1 text-xs font-semibold text-primary-70 hover:bg-primary/10">
-                          <Link href={`/alumni/events/${evt.$id}`}>Preview</Link>
+                          <Link href={`/alumni/events/${evt.$id}`}>{t('table.preview')}</Link>
                         </Button>
                         <Button asChild variant="ghost" size="sm" className="rounded-full px-3 py-1 text-xs font-semibold text-primary-70 hover:bg-primary/10">
-                          <Link href={`/admin/events/new?duplicate=${evt.$id}`}>Dupliser</Link>
+                          <Link href={`/admin/events/new?duplicate=${evt.$id}`}>{t('table.duplicate')}</Link>
                         </Button>
                       </div>
                     </td>
@@ -222,7 +224,7 @@ export default async function AdminEventsPage({
           </table>
         </div>
         <div className="border-t border-primary/10 bg-primary/5 px-6 py-3 text-xs uppercase tracking-[0.2em] text-primary-60">
-          {cancelledEvents} avlyste arrangementer i arkivet
+          {t('cancelledInArchive', { count: cancelledEvents })}
         </div>
       </div>
     </div>

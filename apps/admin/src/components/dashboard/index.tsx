@@ -16,6 +16,7 @@ import {
   LineChart,
   Line,
 } from "recharts"
+import { useTranslations } from "next-intl"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@repo/ui/components/ui/table"
@@ -29,19 +30,6 @@ import { DashboardMetrics } from "@/lib/actions/admin-dashboard"
 // Fallback colors for SSR
 const FALLBACK_COLORS = ["#004797", "#3DA9E0", "#F7D64A", "#82ca9d", "#FF8042", "#8884D8"]
 
-const ROLE_OPTIONS = [
-  { value: "admin", label: "Admin", accent: "bg-primary-40 text-white" },
-  { value: "pr", label: "PR & Communication", accent: "bg-secondary-100/80 text-primary-100" },
-  { value: "finance", label: "Finance", accent: "bg-gold-default/80 text-primary-100" },
-  { value: "hr", label: "HR", accent: "bg-primary-10/70 text-primary-100" },
-]
-
-const SECTION_TABS = [
-  { value: "overview", label: "Overview" },
-  { value: "analytics", label: "Analytics" },
-  { value: "reports", label: "Reports" },
-  { value: "notifications", label: "Notifications" },
-]
 
 const formatNumber = (value: number) => {
   if (value === undefined || value === null) return "0"
@@ -56,13 +44,6 @@ const formatPercent = (value: number) => {
 }
 
 export type DateRange = '7d' | '30d' | '90d' | 'all'
-
-const DATE_RANGE_OPTIONS = [
-  { value: '7d' as const, label: 'Last 7 days' },
-  { value: '30d' as const, label: 'Last 30 days' },
-  { value: '90d' as const, label: 'Last 90 days' },
-  { value: 'all' as const, label: 'All time' },
-]
 
 export default function AdminDashboard({ 
   totalUsers,
@@ -82,9 +63,31 @@ export default function AdminDashboard({
   jobApplications,
   employeeDistribution
 }: DashboardMetrics) {
+  const t = useTranslations('admin')
   const [role, setRole] = useState("admin")
   const [activeTab, setActiveTab] = useState("overview")
   const [dateRange, setDateRange] = useState<DateRange>('30d')
+  
+  const ROLE_OPTIONS = [
+    { value: "admin", label: t('dashboard.roleOptions.admin'), accent: "bg-primary-40 text-white" },
+    { value: "pr", label: t('dashboard.roleOptions.pr'), accent: "bg-secondary-100/80 text-primary-100" },
+    { value: "finance", label: t('dashboard.roleOptions.finance'), accent: "bg-gold-default/80 text-primary-100" },
+    { value: "hr", label: t('dashboard.roleOptions.hr'), accent: "bg-primary-10/70 text-primary-100" },
+  ]
+
+  const SECTION_TABS = [
+    { value: "overview", label: t('dashboard.tabs.overview') },
+    { value: "analytics", label: t('dashboard.tabs.analytics') },
+    { value: "reports", label: t('dashboard.tabs.reports') },
+    { value: "notifications", label: t('dashboard.tabs.notifications') },
+  ]
+  
+  const DATE_RANGE_OPTIONS = [
+    { value: '7d' as const, label: t('dashboard.dateRange.last7Days') },
+    { value: '30d' as const, label: t('dashboard.dateRange.last30Days') },
+    { value: '90d' as const, label: t('dashboard.dateRange.last90Days') },
+    { value: 'all' as const, label: t('dashboard.dateRange.allTime') },
+  ]
 
   // Get chart colors from CSS variables (supports dark mode)
   const chartColors = useMemo(() => {

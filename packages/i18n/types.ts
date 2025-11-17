@@ -29,7 +29,8 @@ export type MessageNamespace =
   | 'adminEvents'
   | 'adminExpenses'
   | 'adminUnits'
-  | 'adminSettings';
+  | 'adminSettings'
+  | 'adminPosts';
 
 // Messages type structure
 export type Messages = Record<string, any>;
