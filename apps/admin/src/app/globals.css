@@ -447,4 +447,58 @@
     height: 1px;
     background: linear-gradient(to right, transparent, rgba(0, 23, 49, 0.2), transparent);
   }
+
+  /* Puck editor layout fixes */
+  /* Make Puck container fill available height */
+  .Puck {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .Puck-root {
+    height: 100% !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* The main grid layout inside Puck */
+  .Puck > div {
+    height: 100% !important;
+    flex: 1 !important;
+  }
+
+  /* Make the canvas area (middle column) fill viewport */
+  .Puck-portal,
+  [data-puck-portal] {
+    min-height: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Ensure the iframe/preview container fills height */
+  .Puck-frame,
+  .Puck-preview {
+    min-height: calc(100vh - 16rem) !important;
+    height: 100% !important;
+  }
+
+  /* Canvas background and min-height for empty pages */
+  .Puck-canvas,
+  [data-puck-canvas] {
+    min-height: calc(100vh - 16rem) !important;
+    background: white;
+  }
+
+  /* Make preview area scrollable if content exceeds viewport */
+  [data-puck-portal="preview"],
+  .Puck [data-rfd-droppable-id] {
+    overflow-y: auto !important;
+    min-height: 100% !important;
+  }
+
+  /* Ensure the renderer wrapper fills the canvas */
+  .Puck [data-puck-renderer] {
+    min-height: 100%;
+  }
 }

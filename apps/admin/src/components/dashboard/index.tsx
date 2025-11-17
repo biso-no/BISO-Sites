@@ -24,6 +24,9 @@ import { BellIcon, AlertCircleIcon, CheckCircleIcon } from "lucide-react"
 import { Badge } from "@repo/ui/components/ui/badge"
 import { Button } from "@repo/ui/components/ui/button"
 import { cn } from '@repo/ui/lib/utils'
+import type { DashboardMetrics } from '@/lib/actions/admin-dashboard'
+
+interface AdminDashboardProps extends DashboardMetrics {}
 
 const COLORS = ["#004797", "#3DA9E0", "#F7D64A", "#82ca9d", "#FF8042", "#8884D8"]
 
@@ -66,7 +69,7 @@ export default function AdminDashboard({
   expenseCategories,
   jobApplications,
   employeeDistribution
-}) {
+}: AdminDashboardProps) {
   const [role, setRole] = useState("admin")
   const [activeTab, setActiveTab] = useState("overview")
 
@@ -137,7 +140,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderAdminContent = (tab) => {
+  const renderAdminContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -176,7 +179,7 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {userDistribution.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -273,7 +276,7 @@ export default function AdminDashboard({
                       outerRadius={100}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {trafficSources.map((entry, index) => (
                         <Cell key={`traffic-cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -398,7 +401,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderPRContent = (tab) => {
+  const renderPRContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -449,7 +452,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderFinanceContent = (tab) => {
+  const renderFinanceContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -488,7 +491,7 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="amount"
-                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {expenseCategories.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -507,7 +510,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderHRContent = (tab) => {
+  const renderHRContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -548,7 +551,7 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {employeeDistribution.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

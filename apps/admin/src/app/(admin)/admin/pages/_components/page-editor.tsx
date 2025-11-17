@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import { Locale, PageStatus } from "@repo/api/types/appwrite";
 import type { PageRecord, PageTranslationRecord } from "@repo/api/page-builder";
 import {
   ensureTranslation,
@@ -13,91 +13,163 @@ import {
 import { PageBuilderEditor } from "@repo/editor/editor";
 import { DEFAULT_PAGE_DOCUMENT } from "@repo/editor";
 import type { PageBuilderDocument } from "@repo/editor/types";
+import { GlobalSettingsSidebar } from "./global-settings-sidebar";
+import { EditorHeader } from "./editor-header";
+import { areDocumentsInSync } from "@/lib/editor-utils";
 import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
-import { Textarea } from "@repo/ui/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@repo/ui/components/ui/select";
-import { cn } from "@repo/ui/lib/utils";
-import { RefreshCcw, Save, Send } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 
 const LOCALE_LABELS: Record<Locale, string> = {
-  no: "Norwegian",
-  en: "English",
+  [Locale.NO]: "Norwegian",
+  [Locale.EN]: "English",
 };
 
-const STATUS_OPTIONS: PageStatus[] = [PageStatus.DRAFT, PageStatus.PUBLISHED, PageStatus.ARCHIVED];
-const VISIBILITY_OPTIONS: PageVisibility[] = [PageVisibility.PUBLIC, PageVisibility.AUTHENTICATED];
+const ALL_LOCALES: Locale[] = [Locale.NO, Locale.EN];
 
 interface PageEditorProps {
   page: PageRecord;
   initialLocale: Locale;
 }
 
-function toEditorDocument(document: PageTranslationRecord["draftDocument"]): PageBuilderDocument {
+interface LocaleState {
+  translation: PageTranslationRecord;
+  title: string;
+  slug: string | null;
+  description: string | null;
+  document: PageBuilderDocument;
+  isDirty: boolean;
+}
+
+function toEditorDocument(
+  document: PageTranslationRecord["draftDocument"]
+): PageBuilderDocument {
   return (document ?? DEFAULT_PAGE_DOCUMENT) as PageBuilderDocument;
 }
 
 export function PageEditor({ page, initialLocale }: PageEditorProps) {
   const [pageState, setPageState] = useState<PageRecord>(page);
-  const [selectedLocale, setSelectedLocale] = useState<Locale>(initialLocale);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftSlug, setDraftSlug] = useState<string | null>(null);
-  const [draftDescription, setDraftDescription] = useState<string | null>(null);
-  const [editorState, setEditorState] = useState<PageBuilderDocument>(DEFAULT_PAGE_DOCUMENT);
-  const [dirty, setDirty] = useState(false);
+  const [activeLocale, setActiveLocale] = useState<Locale>(initialLocale);
   const [saving, startSaving] = useTransition();
   const [publishing, startPublishing] = useTransition();
   const [updatingPage, startUpdatingPage] = useTransition();
 
-  const translations = pageState.translations;
-  const currentTranslation = translations.find((item) => item.locale === selectedLocale);
-
-  useEffect(() => {
-    const fallback = translations[0];
-    const nextTranslation = currentTranslation ?? fallback;
-
-    if (nextTranslation) {
-      setSelectedLocale(nextTranslation.locale);
-      setDraftTitle(nextTranslation.title);
-      setDraftSlug(nextTranslation.slug);
-      setDraftDescription(nextTranslation.description);
-      setEditorState(toEditorDocument(nextTranslation.draftDocument));
-      setDirty(false);
+  // Manage state for all locales
+  const [localeStates, setLocaleStates] = useState<Map<Locale, LocaleState>>(
+    () => {
+      const map = new Map<Locale, LocaleState>();
+      pageState.translations.forEach((translation) => {
+        const doc = toEditorDocument(translation.draftDocument);
+        map.set(translation.locale, {
+          translation,
+          title: translation.title,
+          slug: translation.slug,
+          description: translation.description,
+          document: {
+            ...doc,
+            root: {
+              ...doc.root,
+              props: {
+                ...doc.root.props,
+                title: translation.title || "",
+                description: translation.description || "",
+                slug: translation.slug || "",
+              },
+            },
+          },
+          isDirty: false,
+        });
+      });
+      return map;
     }
-  }, [pageState.id, currentTranslation?.id]);
+  );
 
-  const publishDisabled = !currentTranslation || publishing || saving;
-  const saveDisabled = !currentTranslation || saving || !dirty;
-  const publishButtonDisabled =
-    publishDisabled || (!dirty && currentTranslation?.isPublished === true);
+  // Get current locale state
+  const currentState = localeStates.get(activeLocale);
 
-  const onSaveDraft = () => {
-    if (!currentTranslation) return;
+  // Calculate sync status
+  const inSync = useMemo(() => {
+    const documents = Array.from(localeStates.values()).map((s) => s.document);
+    return areDocumentsInSync(documents[0], documents[1]);
+  }, [localeStates]);
+
+  // Prepare status objects for LocaleSwitcher
+  const publishedStatus = useMemo(() => {
+    const status: Record<Locale, boolean> = {} as Record<Locale, boolean>;
+    localeStates.forEach((state, locale) => {
+      status[locale] = state.translation.isPublished ?? false;
+    });
+    return status;
+  }, [localeStates]);
+
+  const dirtyStatus = useMemo(() => {
+    const status: Record<Locale, boolean> = {} as Record<Locale, boolean>;
+    localeStates.forEach((state, locale) => {
+      status[locale] = state.isDirty;
+    });
+    return status;
+  }, [localeStates]);
+
+  // Always show all locales, not just ones with translations
+  const availableLocales = ALL_LOCALES;
+
+  // Handle document changes from Puck editor
+  const handleDocumentChange = (newDocument: PageBuilderDocument) => {
+    if (!currentState) return;
+
+    setLocaleStates((prev) => {
+      const next = new Map(prev);
+      const state = next.get(activeLocale);
+      if (!state) return prev;
+
+      // Extract metadata from root props
+      const title = newDocument.root.props?.title || state.title;
+      const description = newDocument.root.props?.description || state.description;
+      const slug = newDocument.root.props?.slug || state.slug;
+
+      next.set(activeLocale, {
+        ...state,
+        title,
+        description,
+        slug,
+        document: newDocument,
+        isDirty: true,
+      });
+      return next;
+    });
+  };
+
+  // Handle locale switching
+  const handleLocaleChange = (locale: Locale) => {
+    setActiveLocale(locale);
+  };
+
+  // Save draft for current locale
+  const handleSave = () => {
+    if (!currentState) return;
 
     startSaving(async () => {
       try {
         const updated = await savePageDraft({
-          translationId: currentTranslation.id,
-          title: draftTitle,
-          slug: draftSlug ?? null,
-          description: draftDescription ?? null,
-          draftDocument: editorState,
+          translationId: currentState.translation.id,
+          title: currentState.title,
+          slug: currentState.slug,
+          description: currentState.description,
+          draftDocument: currentState.document,
         });
 
-        setPageState((prev) => ({
-          ...prev,
-          translations: prev.translations.map((item) =>
-            item.id === updated.id ? { ...item, ...updated } : item
-          ),
-        }));
-        setDirty(false);
+        setLocaleStates((prev) => {
+          const next = new Map(prev);
+          const state = next.get(activeLocale);
+          if (!state) return prev;
+
+          next.set(activeLocale, {
+            ...state,
+            translation: { ...state.translation, ...updated },
+            isDirty: false,
+          });
+          return next;
+        });
+
         toast.success("Draft saved");
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to save";
@@ -106,299 +178,217 @@ export function PageEditor({ page, initialLocale }: PageEditorProps) {
     });
   };
 
-  const onPublish = () => {
-    if (!currentTranslation) return;
+  // Publish current locale
+  const handlePublish = () => {
+    if (!currentState) return;
 
     startPublishing(async () => {
       try {
         const updated = await publishPage({
-          translationId: currentTranslation.id,
-          document: editorState,
-          title: draftTitle,
-          slug: draftSlug ?? null,
-          description: draftDescription ?? null,
-          pageStatus: pageState.status === PageStatus.ARCHIVED ? pageState.status : PageStatus.PUBLISHED,
+          translationId: currentState.translation.id,
+          document: currentState.document,
+          title: currentState.title,
+          slug: currentState.slug,
+          description: currentState.description,
+          pageStatus:
+            pageState.status === PageStatus.ARCHIVED
+              ? pageState.status
+              : PageStatus.PUBLISHED,
+        });
+
+        setLocaleStates((prev) => {
+          const next = new Map(prev);
+          const state = next.get(activeLocale);
+          if (!state) return prev;
+
+          next.set(activeLocale, {
+            ...state,
+            translation: { ...state.translation, ...updated },
+            isDirty: false,
+          });
+          return next;
         });
 
         setPageState((prev) => ({
           ...prev,
           status: PageStatus.PUBLISHED,
-          translations: prev.translations.map((item) =>
-            item.id === updated.id ? { ...item, ...updated } : item
-          ),
         }));
-        setDirty(false);
+
         toast.success("Page published");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to publish";
+        const message =
+          error instanceof Error ? error.message : "Failed to publish";
         toast.error(message);
       }
     });
   };
 
-  const onUpdatePage = (changes: Partial<PageRecord>) => {
+  // Revert changes for current locale
+  const handleRevert = () => {
+    if (!currentState) return;
+
+    const originalDoc = toEditorDocument(currentState.translation.draftDocument);
+    setLocaleStates((prev) => {
+      const next = new Map(prev);
+      const state = next.get(activeLocale);
+      if (!state) return prev;
+
+      next.set(activeLocale, {
+        ...state,
+        title: state.translation.title,
+        slug: state.translation.slug,
+        description: state.translation.description,
+        document: {
+          ...originalDoc,
+          root: {
+            ...originalDoc.root,
+            props: {
+              ...originalDoc.root.props,
+              title: state.translation.title || "",
+              description: state.translation.description || "",
+              slug: state.translation.slug || "",
+            },
+          },
+        },
+        isDirty: false,
+      });
+      return next;
+    });
+  };
+
+  // Update page-level settings
+  const handlePageUpdate = (changes: Partial<PageRecord>) => {
     startUpdatingPage(async () => {
       try {
         const updated = await updateManagedPage({
           pageId: pageState.id,
-          slug: changes.slug,
-          title: changes.title,
-          status: changes.status,
-          visibility: changes.visibility,
+          slug: changes.slug ?? pageState.slug,
+          title: changes.title ?? pageState.title,
+          status: changes.status ?? pageState.status,
+          visibility: changes.visibility ?? pageState.visibility,
           template: changes.template ?? pageState.template,
           campusId: changes.campusId ?? pageState.campusId,
         });
         setPageState(updated);
         toast.success("Page settings updated");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to update page";
+        const message =
+          error instanceof Error ? error.message : "Failed to update page";
         toast.error(message);
       }
     });
   };
 
-  const addTranslation = (locale: Locale) => {
+  // Add translation for a locale
+  const handleAddTranslation = (locale: Locale) => {
     startSaving(async () => {
       try {
+        // Get a source translation to copy structure from
+        const sourceTranslation = Array.from(localeStates.values())[0]
+          ?.translation;
+
         const created = await ensureTranslation({
           pageId: pageState.id,
           locale,
-          sourceTranslationId: currentTranslation?.id,
+          sourceTranslationId: sourceTranslation?.id,
         });
-        setPageState((prev) => ({
-          ...prev,
-          translations: [...prev.translations, created],
-        }));
-        setSelectedLocale(locale);
+
+        // Add to locale states
+        const doc = toEditorDocument(created.draftDocument);
+        setLocaleStates((prev) => {
+          const next = new Map(prev);
+          next.set(locale, {
+            translation: created,
+            title: created.title,
+            slug: created.slug,
+            description: created.description,
+            document: {
+              ...doc,
+              root: {
+                ...doc.root,
+                props: {
+                  ...doc.root.props,
+                  title: created.title || "",
+                  description: created.description || "",
+                  slug: created.slug || "",
+                },
+              },
+            },
+            isDirty: false,
+          });
+          return next;
+        });
+
+        setActiveLocale(locale);
         toast.success(`${LOCALE_LABELS[locale]} translation added`);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to add translation";
+        const message =
+          error instanceof Error ? error.message : "Unable to add translation";
         toast.error(message);
       }
     });
   };
 
-  const availableLocales = useMemo(
-    () => new Set(pageState.translations.map((item) => item.locale)),
-    [pageState.translations]
-  );
+  const canSave = currentState?.isDirty && !saving && !publishing;
+  const canPublish = !saving && !publishing;
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 rounded-lg border border-primary/10 bg-white p-5">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="page-slug">Slug</Label>
-            <Input
-              id="page-slug"
-              value={pageState.slug}
-              onChange={(event) =>
-                setPageState((prev) => ({ ...prev, slug: event.target.value }))
-              }
-              onBlur={(event) =>
-                onUpdatePage({ slug: event.target.value || pageState.slug })
-              }
+    <div className="flex h-[calc(100vh-12rem)] gap-4">
+      {/* Main editor area */}
+      <div className="glass-panel flex flex-1 flex-col overflow-hidden rounded-lg border border-primary/10">
+        {/* Custom header */}
+        <EditorHeader
+          locales={availableLocales}
+          activeLocale={activeLocale}
+          onLocaleChange={handleLocaleChange}
+          inSync={inSync}
+          publishedStatus={publishedStatus}
+          dirtyStatus={dirtyStatus}
+          onSave={handleSave}
+          onPublish={handlePublish}
+          onRevert={handleRevert}
+          saving={saving}
+          publishing={publishing}
+          canSave={canSave ?? false}
+          canPublish={canPublish}
+        />
+
+        {/* Editor or empty state */}
+        {currentState ? (
+          <div className="flex h-full flex-1 flex-col overflow-hidden">
+            <PageBuilderEditor
+              data={currentState.document}
+              onChange={handleDocumentChange}
+              overrides={{
+                // Hide Puck's default header since we render our own above
+                header: () => <></>,
+              }}
             />
-          </div>
-          <div className="grid gap-2">
-            <Label>Status</Label>
-            <Select
-              value={pageState.status}
-              onValueChange={(value: PageStatus) => onUpdatePage({ status: value })}
-              disabled={updatingPage}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label>Visibility</Label>
-            <Select
-              value={pageState.visibility}
-              onValueChange={(value: PageVisibility) => onUpdatePage({ visibility: value })}
-              disabled={updatingPage}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VISIBILITY_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option === "public" ? "Public" : "Members only"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="page-template">Template key</Label>
-            <Input
-              id="page-template"
-              value={pageState.template ?? ""}
-              placeholder="Optional"
-              onChange={(event) =>
-                setPageState((prev) => ({ ...prev, template: event.target.value }))
-              }
-              onBlur={(event) =>
-                onUpdatePage({ template: event.target.value || null })
-              }
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-4 rounded-lg border border-primary/10 bg-white p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap gap-2">
-            {translations.map((translation) => {
-              const isActive = translation.locale === selectedLocale;
-
-              return (
-                <Button
-                  key={translation.id}
-                  type="button"
-                  size="sm"
-                  variant={isActive ? "default" : "outline"}
-                  className={cn(
-                    "flex items-center gap-2",
-                    isActive ? "bg-primary text-white" : "text-primary-100"
-                  )}
-                  onClick={() => setSelectedLocale(translation.locale)}
-                >
-                  <span>{LOCALE_LABELS[translation.locale]}</span>
-                  {translation.isPublished ? (
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
-                        isActive
-                          ? "bg-white/80 text-primary-90"
-                          : "bg-emerald-500/15 text-emerald-700"
-                      )}
-                    >
-                      Live
-                    </span>
-                  ) : null}
-                </Button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {Object.keys(LOCALE_LABELS)
-              .filter((locale) => !availableLocales.has(locale as Locale))
-              .map((locale) => (
-                <Button
-                  key={locale}
-                  size="sm"
-                  variant="outline"
-                  disabled={saving || publishing}
-                  onClick={() => addTranslation(locale as Locale)}
-                >
-                  Add {LOCALE_LABELS[locale as Locale]}
-                </Button>
-              ))}
-          </div>
-        </div>
-
-        {currentTranslation ? (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="translation-title">Title</Label>
-                <Input
-                  id="translation-title"
-                  value={draftTitle}
-                  onChange={(event) => {
-                    setDraftTitle(event.target.value);
-                    setDirty(true);
-                  }}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="translation-slug">Slug</Label>
-                <Input
-                  id="translation-slug"
-                  value={draftSlug ?? ""}
-                  placeholder="Optional locale override"
-                  onChange={(event) => {
-                    setDraftSlug(event.target.value || null);
-                    setDirty(true);
-                  }}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="translation-description">Description</Label>
-              <Textarea
-                id="translation-description"
-                value={draftDescription ?? ""}
-                placeholder="Optional meta description"
-                onChange={(event) => {
-                  setDraftDescription(event.target.value || null);
-                  setDirty(true);
-                }}
-              />
-            </div>
-            <div className="rounded-lg border border-dashed border-primary/20 bg-muted/40 p-4">
-              <PageBuilderEditor
-                data={editorState}
-                onChange={(data: PageBuilderDocument) => {
-                  setEditorState(data);
-                  setDirty(true);
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={saving || publishing}
-                onClick={() => {
-                  setEditorState(toEditorDocument(currentTranslation.draftDocument));
-                  setDraftTitle(currentTranslation.title);
-                  setDraftSlug(currentTranslation.slug);
-                  setDraftDescription(currentTranslation.description);
-                  setDirty(false);
-                }}
-              >
-                <RefreshCcw className="mr-2 h-4 w-4" /> Reset changes
-              </Button>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={saveDisabled}
-                  onClick={onSaveDraft}
-                  className="inline-flex items-center gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  {saving ? "Saving..." : "Save draft"}
-                </Button>
-                <Button
-                  disabled={publishButtonDisabled}
-                  onClick={onPublish}
-                  className="inline-flex items-center gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  {publishing ? "Publishing..." : "Publish"}
-                </Button>
-              </div>
-            </div>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Add a translation to start editing content.
-          </p>
+          <div className="flex flex-1 items-center justify-center p-8">
+            <div className="text-center">
+              <p className="mb-4 text-lg text-muted-foreground">
+                No {LOCALE_LABELS[activeLocale]} translation yet
+              </p>
+              <Button
+                onClick={() => handleAddTranslation(activeLocale)}
+                disabled={saving}
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                {saving ? "Creating..." : `Create ${LOCALE_LABELS[activeLocale]} translation`}
+              </Button>
+            </div>
+          </div>
         )}
-      </section>
+      </div>
+
+      {/* Global settings sidebar */}
+      <GlobalSettingsSidebar
+        page={pageState}
+        onUpdate={handlePageUpdate}
+        updating={updatingPage}
+      />
     </div>
   );
 }

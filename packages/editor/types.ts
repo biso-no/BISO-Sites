@@ -13,9 +13,15 @@ export type ButtonVariant = "primary" | "secondary" | "outline";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export type PageBuilderRootProps = {
+  // Visual settings
   background?: SectionBackground;
   width?: SectionWidth;
   spacing?: SectionPadding;
+  
+  // Translation-specific metadata (managed by admin)
+  title?: string;
+  description?: string;
+  slug?: string;
 };
 
 export type SectionBlockProps = {

@@ -99,6 +99,9 @@ const alignmentOptions = (
 export const DEFAULT_PAGE_DOCUMENT: PageBuilderDocument = {
   root: {
     props: {
+      title: "",
+      description: "",
+      slug: "",
       background: "default",
       spacing: "md",
     },
@@ -128,6 +131,18 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
       spacing: "md",
     },
     fields: {
+      title: {
+        type: "text",
+        label: "Page Title",
+      },
+      description: {
+        type: "textarea",
+        label: "Description",
+      },
+      slug: {
+        type: "text",
+        label: "Slug Override",
+      },
       background: {
         type: "select",
         label: "Background",
@@ -140,7 +155,7 @@ export const pageBuilderConfig: Config<PageBuilderComponents, PageBuilderRootPro
       },
     },
     render: ({ children, background = "default", spacing = "md" }) => (
-      <div className={cn("w-full", rootBackgroundMap[background])}>
+      <div className={cn("min-h-screen w-full", rootBackgroundMap[background])}>
         <div className={cn("mx-auto flex w-full flex-col", rootSpacingMap[spacing])}>
           {children}
         </div>
