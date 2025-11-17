@@ -6,7 +6,7 @@
   "title": "Presse og media",
   "contact": {
     "title": "Pressekontakt",
-    "body": "For mediehenvendelser, intervjuer og bruk av profil, kontakt oss på:"
+    "body": "For mediehenvendelser, intervjuer og bruk av merkevaren, kontakt oss på:"
   },
   "assets": {
     "title": "Profilmateriale",
@@ -15,7 +15,7 @@
     "orgChart": "Organisasjonskart"
   },
   "usage": {
-    "title": "Bruk av profil",
-    "body": "Bruk logoen med luft rundt, og ikke endre farger eller proporsjoner."
+    "title": "Bruk av merkevaren",
+    "body": "Bruk logoen med friområde rundt, og ikke endre farger eller proporsjoner."
   }
 }

@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui/components/ui/popover"
+import { useTranslations } from "next-intl"
 import { exportOrdersToCSV } from "@/app/actions/export-orders"
 
 const DATE_SUMMARY = new Intl.DateTimeFormat("nb-NO", {
@@ -34,6 +35,7 @@ const PRESETS: Preset[] = [
 ]
 
 export function OrderExportPopover() {
+  const t = useTranslations("adminShop")
   const defaultPreset = PRESETS[1]
   const [open, setOpen] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<string>(defaultPreset.id)
@@ -45,16 +47,21 @@ export function OrderExportPopover() {
 
   const rangeSummary = useMemo(() => {
     if (selectedPreset === "all") {
-      return "Eksporterer alle ordre."
+      return t("orders.exportDialog.allOrdersSummary")
     }
     if (dateRange?.from && dateRange?.to) {
-      return `${DATE_SUMMARY.format(dateRange.from)} – ${DATE_SUMMARY.format(dateRange.to)}`
+      return t("orders.exportDialog.rangeBetween", {
+        from: DATE_SUMMARY.format(dateRange.from),
+        to: DATE_SUMMARY.format(dateRange.to),
+      })
     }
     if (dateRange?.from) {
-      return `${DATE_SUMMARY.format(dateRange.from)}`
+      return t("orders.exportDialog.rangeFrom", {
+        from: DATE_SUMMARY.format(dateRange.from),
+      })
     }
-    return "Velg eller bruk et hurtigvalg for å bestemme perioden."
-  }, [dateRange, selectedPreset])
+    return t("orders.exportDialog.chooseRangeHint")
+  }, [dateRange, selectedPreset, t])
 
   const handlePresetSelect = (preset: Preset) => {
     setSelectedPreset(preset.id)
@@ -84,11 +91,11 @@ export function OrderExportPopover() {
           endDate: end?.toISOString(),
         })
         triggerDownload(result.filename, result.content)
-        setMessage("Eksport klar – CSV lastet ned.")
+        setMessage(t("orders.exportDialog.exportReady"))
         setOpen(false)
       } catch (error) {
         console.error(error)
-        setMessage("Kunne ikke eksportere ordre.")
+        setMessage(t("orders.exportDialog.exportError"))
       }
     })
   }
@@ -103,14 +110,18 @@ export function OrderExportPopover() {
           disabled={isPending}
         >
           <File className="h-3.5 w-3.5" />
-          <span className="sr-only sm:not-sr-only">Export</span>
+          <span className="sr-only sm:not-sr-only">
+            {t("orders.exportDialog.buttonLabel")}
+          </span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 space-y-4" align="end">
         <div>
-          <p className="text-sm font-medium">Quick ranges</p>
+          <p className="text-sm font-medium">
+            {t("orders.exportDialog.quickRangesTitle")}
+          </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {PRESETS.map((preset) => (
+                {PRESETS.map((preset) => (
               <Button
                 key={preset.id}
                 variant={selectedPreset === preset.id ? "default" : "outline"}
@@ -119,14 +130,16 @@ export function OrderExportPopover() {
                 className="text-xs"
                 onClick={() => handlePresetSelect(preset)}
               >
-                {preset.label}
+                    {t(`orders.exportDialog.presets.${preset.id}`)}
               </Button>
             ))}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="custom-range" className="text-sm font-medium">Custom range</Label>
+          <Label htmlFor="custom-range" className="text-sm font-medium">
+            {t("orders.exportDialog.customRangeLabel")}
+          </Label>
           <Calendar
             id="custom-range"
             mode="range"
@@ -144,7 +157,9 @@ export function OrderExportPopover() {
           disabled={isPending || !canExport}
           className="w-full"
         >
-          {isPending ? "Eksporterer…" : "Eksporter CSV"}
+              {isPending
+                ? t("orders.exportDialog.exporting")
+                : t("orders.exportDialog.exportCsv")}
         </Button>
         {message && (
           <p className="text-xs text-muted-foreground">

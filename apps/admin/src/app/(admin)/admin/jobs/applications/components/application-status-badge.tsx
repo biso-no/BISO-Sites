@@ -1,6 +1,7 @@
 "use client"
 
 import { Badge } from '@repo/ui/components/ui/badge'
+import { useTranslations } from 'next-intl'
 import { JobApplication } from '@/lib/types/job-application'
 
 interface ApplicationStatusBadgeProps {
@@ -8,21 +9,26 @@ interface ApplicationStatusBadgeProps {
 }
 
 export function ApplicationStatusBadge({ status }: ApplicationStatusBadgeProps) {
+  const t = useTranslations('adminJobs')
   const statusConfig = {
-    submitted: { label: 'Submitted', variant: 'secondary' as const },
-    reviewed: { label: 'Reviewed', variant: 'outline' as const },
-    interview: { label: 'Interview', variant: 'default' as const },
-    accepted: { label: 'Accepted', variant: 'default' as const },
-    rejected: { label: 'Rejected', variant: 'destructive' as const }
+    submitted: { variant: 'secondary' as const },
+    reviewed: { variant: 'outline' as const },
+    interview: { variant: 'default' as const },
+    accepted: { variant: 'default' as const },
+    rejected: { variant: 'destructive' as const },
   }
 
   const config = statusConfig[status] || statusConfig.submitted
+  const label = t(`applications.status.${status}`) || status
 
   return (
-    <Badge variant={config.variant} className={
-      status === 'accepted' ? 'bg-green-100 text-green-800 hover:bg-green-200' : ''
-    }>
-      {config.label}
+    <Badge
+      variant={config.variant}
+      className={
+        status === 'accepted' ? 'bg-green-100 text-green-800 hover:bg-green-200' : ''
+      }
+    >
+      {label}
     </Badge>
   )
 }

@@ -9,6 +9,7 @@ import { SelectCampus } from '@/components/select-campus';
 import { useCampus } from '@/components/context/campus';
 import { usePathname } from 'next/navigation';
 import { LocaleSwitcher } from '../locale-switcher';
+import { useTranslations } from 'next-intl';
 
 interface NavigationProps {
   onEventsClick?: () => void;
@@ -22,6 +23,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { campuses } = useCampus();
   const pathname = usePathname();
+  const t = useTranslations('common.navigation');
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -33,13 +35,13 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
   const isActive = (href: string) => pathname === href;
 
   const navItems = useMemo(() => [
-    { icon: Users, label: 'Campus', href: '/campus', onClick: undefined },
-    { icon: Calendar, label: 'Events', href: '/events', onClick: onEventsClick },
-    { icon: Newspaper, label: 'News', href: '/news', onClick: onNewsClick },
-    { icon: ShoppingBag, label: 'Shop', href: '/shop', onClick: onShopClick },
-    { icon: Briefcase, label: 'Apply Here', href: '/jobs', onClick: onApplyClick, highlight: true },
+    { icon: Users, label: t('campus'), href: '/campus', onClick: undefined },
+    { icon: Calendar, label: t('events'), href: '/events', onClick: onEventsClick },
+    { icon: Newspaper, label: t('news'), href: '/news', onClick: onNewsClick },
+    { icon: ShoppingBag, label: t('shop'), href: '/shop', onClick: onShopClick },
+    { icon: Briefcase, label: t('applyHere'), href: '/jobs', onClick: onApplyClick, highlight: true },
     //{ icon: Mail, label: 'Contact', href: '#contact', onClick: undefined },
-    { icon: Info, label: 'About', href: '#about', onClick: undefined },
+    { icon: Info, label: t('about'), href: '#about', onClick: undefined },
   ], [pathname]);
 
   return (
@@ -52,8 +54,8 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
           : 'bg-transparent'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+      <div className="w-full max-w-[min(1400px,100%)] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 h-20">
           {/* Logo */}
           <motion.div whileHover={{ scale: 1.05 }} className="flex items-center gap-3">
             <Link href="/">
@@ -70,7 +72,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
 
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex flex-1 flex-wrap items-center justify-end gap-6">
             {navItems.map((item) => (
               <Link
                 key={item.label}
@@ -95,12 +97,12 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
             ))}
             <SelectCampus campuses={campuses}/>
             <LocaleSwitcher variant="ghost" size="sm" />
-            <Link href="/partner">Partner</Link>
+            <Link href="/partner">{t('partner')}</Link>
             <Button
               size="sm"
               className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 shadow-lg"
             >
-              Member Portal
+              {t('memberPortal')}
             </Button>
           </div>
 

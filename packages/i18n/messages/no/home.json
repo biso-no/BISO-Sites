@@ -1,6 +1,7 @@
 {
   "hero": {
-    "badge": "Studentlivet, forsterket",
+    "badge": "Ditt studentliv",
+    "badgeElevated": "elevated",
     "imageAlt": "Studenter fra BISO på et arrangement",
     "primaryCtaSecondary": "Utforsk ditt campus",
     "promo": {
@@ -18,10 +19,28 @@
     "titleDefault": "En sterk studentstemme på alle BI-campuser",
     "mission": "Vi hjelper studenter å knytte kontakter, utvikle seg og påvirke på alle BI-campuser.",
     "contactCta": "Snakk med teamet",
+    "learnMore": "Les mer",
+    "viewAll": "Se alle {contentType}",
     "highlights": {
       "events": "Arrangementer",
       "jobs": "Muligheter",
       "news": "Nyheter"
+    },
+    "featuredContent": "Utvalgt {contentType}",
+    "featuredEvent": "Arrangement",
+    "featuredNews": "Nyhet"
+  },
+  "about": {
+    "upcomingEvents": "Kommende arrangementer",
+    "jobOpportunities": "Ledige stillinger",
+    "studentGroups": "Studentgrupper",
+    "mainContent": {
+      "title": "Om BISO", 
+      "subtitle": "BI Studentorganisasjon",
+      "premier": "Norges ledende",
+      "studentCommunity": "Studentfellesskap",
+      "paragraph1": "BI Studentorganisasjon (BISO) er hjertet i studentlivet på BI Norwegian Business School. Vi er dedikert til å skape uforglemmelige opplevelser, styrke meningsfulle kontakter og styrke studentene til å tjene det meste av sine universitetsår.",
+      "paragraph2": "Fra spennende sosiale arrangementer og karriereworkshops til kulturelle festivaler og sportskonkurranser, vi tilbyr noe for alle. Bli med oss og bli en del av et fellesskap som feirer diversitet, styrker innovasjon og skaper minner som varer til livet."
     }
   },
   "identity": {
@@ -48,7 +67,7 @@
     "title": "Ukens høydepunkter",
     "description": "Her er hendelsene og sakene du ikke bør gå glipp av akkurat nå.",
     "cta": "Se alle hendelser",
-    "featuredEvent": "Fremhevet arrangement",
+    "featuredEvent": "Utvalgt arrangement",
     "eventCta": "Les mer om arrangementet",
     "moreEvents": "Flere hendelser",
     "newsLabel": "Nyheter"
@@ -79,7 +98,7 @@
       },
       "benefits": {
         "title": "Medlemsfordeler",
-        "description": "Lås opp rabatter, merch og ressurser forbeholdt medlemmer.",
+        "description": "Lås opp rabatter, merch og ressurser som er forbeholdt medlemmer.",
         "cta": "Se fordeler",
         "href": "/shop"
       },
@@ -102,15 +121,27 @@
     "descriptionActive": "Planlegg uken din på {campusName}.",
     "descriptionDefault": "Se hva som skjer på dine campuser.",
     "empty": "Ingen kommende arrangementer for dette campus.",
+    "emptyDescription": "Se tilbake snart for spennende arrangementer!",
     "title": "Arrangementskalender",
-    "pendingDate": "Dato kommer snart"
+    "upcomingEvents": "Kommende arrangementer",
+    "dontMissOut": "Ikke gå glipp av",
+    "registerNow": "Registrer nå",
+    "viewAllEvents": "Se alle arrangementer",
+    "amazingExperiences": "Uforglemmelige opplevelser",
+    "pendingDate": "Dato kommer snart",
+    "description": "Fra nettverksarrangementer til uforglemmelige festene, har vi ditt semester dekket med spennende aktiviteter og muligheter."
   },
   "news": {
     "cta": "Alle nyheter",
     "description": "Nyheter, kunngjøringer og historier fra hele organisasjonen.",
     "empty": "Ingen nyheter publisert ennå.",
     "titleActive": "Høydepunkter fra {campusName}",
-    "titleDefault": "Nyheter i BISO"
+    "titleDefault": "Nyheter i BISO",
+    "emptyDescription": "Se tilbake snart for de siste oppdateringene!",
+    "stayUpdated": "Hold deg oppdatert med",
+    "readMore": "Les mer",
+    "latestNews": "Siste nyheter",
+    "viewAllNews": "Se alle nyheter"
   },
   "jobs": {
     "cta": "Se alle utlysninger",
@@ -123,7 +154,7 @@
   "quickLinks": {
     "benefits": {
       "cta": "Se fordeler",
-      "description": "Butikk, rabatter og ressurser eksklusivt for BISO-medlemmer.",
+      "description": "Shop, rabatter og ressurser eksklusivt for BISO-medlemmer.",
       "title": "Studentfordeler"
     },
     "highlights": {
@@ -147,23 +178,23 @@
     "title": "Muligheter for å engasjere seg",
     "description": "Frivillige verv og betalte stillinger som gjør studentlivet uforglemmelig.",
     "cta": "Se alle muligheter",
-    "featured": "Fremhevet verv",
+    "featured": "Utvalgt verv",
     "more": "Flere muligheter",
     "applyCta": "Søk på dette vervet",
     "supportTitle": "Trenger du veiledning?",
     "supportHeadline": "Vi hjelper deg å finne din plass",
-    "supportDescription": "Snakk med teamet vårt eller les veiledningene for å finne ut hvor du passer inn.",
+    "supportDescription": "Chat med teamet vårt eller les veiledningene for å finne ut hvor du passer inn.",
     "supportLinks": {
       "volunteer": "Frivillighåndbok",
       "contact": "Snakk med HR-teamet vårt",
       "safety": "Varsling og støtte"
     },
-    "empty": "Ingen ledige verv eller stillinger akkurat nå."
+    "empty": "Ingen verv eller stillinger tilgjengelig akkurat nå."
   },
   "benefits": {
     "eyebrow": "Medlemsfordeler",
     "title": "Fordeler og goder",
-    "description": "Medlemskap gir tilgang til rabatter, merch og karriereressurser fra partnere over hele Norge.",
+    "description": "Medlemskap gir deg rabatter, merch og karriereressurser fra partnere over hele Norge.",
     "cta": "Se alle fordeler",
     "shopTag": "Medlemsbutikk",
     "shopCta": "Kjøp merch",

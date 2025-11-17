@@ -2,26 +2,29 @@
 import { motion } from 'motion/react';
 import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from 'lucide-react';
 import Link from 'next/link';
-
+import { useTranslations } from 'next-intl';
+import Image from 'next/image';
+  
 export function Footer() {
+  const t = useTranslations('common.footer');
   const footerLinks = {
     About: [
-      { label: 'Our Story', href: '#' },
-      { label: 'Team', href: '#' },
-      { label: 'Careers', href: '#' },
-      { label: 'Contact', href: '#' },
+      { label: t('about.ourStory'), href: '#' },
+      { label: t('about.team'), href: '#' },
+      { label: t('about.careers'), href: '#' },
+      { label: t('about.contact'), href: '#' },
     ],
     Students: [
-      { label: 'Membership', href: '#join' },
-      { label: 'Events', href: '#events' },
-      { label: 'News', href: '#news' },
-      { label: 'Resources', href: '#' },
+      { label: t('students.membership'), href: '#join' },
+      { label: t('students.events'), href: '#events' },
+      { label: t('students.news'), href: '#news' },
+      { label: t('students.resources'), href: '#' },
     ],
     Support: [
-      { label: 'FAQ', href: '#' },
-      { label: 'Help Center', href: '#' },
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Terms of Service', href: '#' },
+      { label: t('support.faq'), href: '#' },
+      { label: t('support.helpCenter'), href: '#' },
+      { label: t('support.privacyPolicy'), href: '#' },
+      { label: t('support.termsOfService'), href: '#' },
     ],
   };
 
@@ -45,16 +48,19 @@ export function Footer() {
               className="mb-6"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-lg">
-                  <span>BI</span>
-                </div>
+                  <Image
+                    src="/images/logo-dark.png"
+                    alt="BISO"
+                    width={48}
+                    height={48}
+                  />
                 <div>
                   <div>BISO</div>
-                  <div className="text-sm text-gray-400">Student Organisation</div>
+                  <div className="text-sm text-gray-400">BI Student Organisation</div>
                 </div>
               </div>
               <p className="text-gray-400 mb-6">
-              BI Student Organisation connects students and the business society, facilitates social integration, and works to better the student welfare and quality of studies.
+                {t('about.description')}
               </p>
               
               {/* Contact Info */}

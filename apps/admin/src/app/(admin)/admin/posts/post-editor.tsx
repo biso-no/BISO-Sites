@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 import { Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
+import { useTranslations } from "next-intl"
 
 import { Button } from "@repo/ui/components/ui/button"
 import {
@@ -36,15 +37,15 @@ import { Campus, Department } from "@/lib/types/post"
 
 const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false })
 
-const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  content: z.string().min(1, "Content is required"),
+const baseFormSchema = z.object({
+  title: z.string(),
+  content: z.string(),
   status: z.enum(["publish", "draft"]),
-  department: z.string().min(1, "Department is required"),
-  campus: z.string().min(1, "Campus is required"),
+  department: z.string(),
+  campus: z.string(),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.infer<typeof baseFormSchema>
 
 type Post = {
   $id?: string
@@ -64,6 +65,19 @@ type PostEditorProps = {
 export default function PostEditor({ post, departments, campuses }: PostEditorProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const t = useTranslations("adminPosts")
+
+  const formSchema = React.useMemo(
+    () =>
+      baseFormSchema.extend({
+        title: z.string().min(1, t("formValidation.titleRequired")),
+        content: z.string().min(1, t("formValidation.contentRequired")),
+        status: z.enum(["publish", "draft"]),
+        department: z.string().min(1, t("formValidation.departmentRequired")),
+        campus: z.string().min(1, t("formValidation.campusRequired")),
+      }),
+    [t]
+  )
 
   const getInitialValues = React.useMemo((): FormValues => {
     if (!post) {
@@ -93,21 +107,36 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
   const handleSubmit = React.useCallback(async (values: FormValues) => {
     setIsSubmitting(true)
     try {
-      if (post) {
-        await updatePost(post.$id, values)
+      if (post && post.$id) {
+        await updatePost(post.$id, {
+          title: values.title,
+          content: values.content,
+          status: values.status,
+          // The underlying action expects richer types; we pass identifiers here.
+          department: values.department as unknown as any,
+          campus: values.campus as unknown as any,
+        } as any)
       } else {
-        await createPost(values)
+        await createPost({
+          title: values.title,
+          content: values.content,
+          status: values.status,
+          department: values.department as unknown as any,
+          campus: values.campus as unknown as any,
+        } as any)
       }
       toast({
-        title: "Success",
-        description: post ? "Post updated successfully" : "Post created successfully",
+        title: t("messages.successTitle"),
+        description: post
+          ? t("messages.updateSuccess")
+          : t("messages.createSuccess"),
       })
       router.push("/admin/posts")
     } catch (error) {
       console.error(error)
       toast({
-        title: "Error",
-        description: "An error occurred while saving the post",
+        title: t("messages.errorTitle"),
+        description: t("messages.saveError"),
         variant: "destructive",
       })
     } finally {
@@ -128,9 +157,12 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>{t("form.title")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter post title" {...field} />
+                      <Input
+                        placeholder={t("form.titlePlaceholder")}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,7 +173,7 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                   control={form.control}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Content</FormLabel>
+                      <FormLabel>{t("form.content")}</FormLabel>
                       <FormControl>
                         <JoditEditor
                           value={field.value}
@@ -157,7 +189,9 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
             </div>
             <Sidebar className="w-80 border-l">
               <SidebarHeader className="px-4 py-2">
-                <h2 className="text-lg font-semibold">Post Settings</h2>
+                <h2 className="text-lg font-semibold">
+                  {t("form.settingsTitle")}
+                </h2>
               </SidebarHeader>
               <SidebarContent>
                 <div className="space-y-4 px-4">
@@ -166,21 +200,29 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel>{t("form.status")}</FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select status">
-                                {field.value === 'publish' ? 'Published' : 'Draft'}
+                              <SelectValue
+                                placeholder={t("form.selectStatus")}
+                              >
+                                {field.value === "publish"
+                                  ? t("status.published")
+                                  : t("status.draft")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="publish">Published</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="publish">
+                              {t("status.published")}
+                            </SelectItem>
+                            <SelectItem value="draft">
+                              {t("status.draft")}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -192,15 +234,19 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     name="department"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department</FormLabel>
+                        <FormLabel>{t("form.department")}</FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select department">
-                                {departments.find(dep => dep.$id === field.value)?.Name || 'Select department'}
+                              <SelectValue
+                                placeholder={t("form.selectDepartment")}
+                              >
+                                {departments.find(
+                                  (dep) => dep.$id === field.value
+                                )?.Name || t("form.selectDepartment")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
@@ -221,15 +267,17 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     name="campus"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Campus</FormLabel>
+                        <FormLabel>{t("form.campus")}</FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select campus">
-                                {campuses.find(c => c.$id === field.value)?.name || 'Select campus'}
+                              <SelectValue placeholder={t("form.selectCampus")}>
+                                {campuses.find(
+                                  (c) => c.$id === field.value
+                                )?.name || t("form.selectCampus")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
@@ -245,9 +293,15 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {post ? "Update Post" : "Create Post"}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {t("form.save")}
                   </Button>
                 </div>
               </SidebarContent>

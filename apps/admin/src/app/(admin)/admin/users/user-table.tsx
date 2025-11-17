@@ -136,7 +136,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
     { label: t('table.name'), value: totalCount, hint: `${selectedUsers.length} ${t('filters.search')}` },
     { label: t('filters.active'), value: activeCount, hint: `${activeRate} ${t('filters.active').toLowerCase()}` },
     { label: t('filters.inactive'), value: inactiveCount },
-    { label: "Campuses", value: uniqueCampuses.length },
+    { label: t('metrics.campuses'), value: uniqueCampuses.length },
   ]
 
   const formatMetricValue = (value: number | string) =>
@@ -274,6 +274,16 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
     return <UserTableSkeleton />
   }
   
+  const selectionText = t("messages.usersSelected", {
+    count: selectedUsers.length,
+    plural: selectedUsers.length === 1 ? "" : "s",
+  })
+  const showingText = t("messages.showingRange", {
+    start: indexOfFirstUser + 1,
+    end: Math.min(indexOfLastUser, filteredUsers.length),
+    total: filteredUsers.length,
+  })
+
   return (
     <div className="space-y-6">
       <AdminSummary
@@ -409,13 +419,13 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px]">
                   <DropdownMenuItem>
-                    Export as CSV
+                    {t('actions.exportCsv')}
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    Export as Excel
+                    {t('actions.exportExcel')}
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    Export as PDF
+                    {t('actions.exportPdf')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -441,7 +451,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                     <Checkbox 
                       checked={allSelected}
                       onCheckedChange={handleSelectAll}
-                      aria-label="Select all users"
+                      aria-label={t('labels.selectAllUsers')}
                       className="row-action"
                     />
                   </TableHead>
@@ -469,7 +479,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                     onClick={() => handleSort('campus')}
                   >
                     <div className="flex items-center">
-                      <span>Campus</span>
+                      <span>{t('filters.campus')}</span>
                       {getSortIcon('campus')}
                     </div>
                   </TableHead>
@@ -478,7 +488,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                     onClick={() => handleSort('isActive')}
                   >
                     <div className="flex items-center">
-                      <span>Status</span>
+                      <span>{t('table.status')}</span>
                       {getSortIcon('isActive')}
                     </div>
                   </TableHead>
@@ -531,11 +541,11 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                     <TableCell colSpan={6} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <Search className="h-8 w-8 mb-2 opacity-50" />
-                        <h3 className="font-medium text-lg">No users found</h3>
+                        <h3 className="font-medium text-lg">{t('messages.noUsers')}</h3>
                         <p className="text-sm">
                           {searchTerm || filterRole !== 'all' 
-                            ? "Try adjusting your search or filter criteria" 
-                            : "No users have been added yet"}
+                            ? t('messages.adjustFilters')
+                            : t('messages.noUsersYet')}
                         </p>
                       </div>
                     </TableCell>
@@ -548,25 +558,21 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
       </CardContent>
       
       <CardFooter className="flex flex-col items-center justify-between gap-4 border-t border-primary/10 bg-white/70 px-6 py-4 sm:flex-row">
-        <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
           {selectedUsers.length > 0 ? (
             <div className="flex items-center gap-2">
-              <span>
-                <strong>{selectedUsers.length}</strong> {selectedUsers.length === 1 ? 'user' : 'users'} selected
-              </span>
+              <span>{selectionText}</span>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="h-8 gap-1.5 text-sm"
                 onClick={() => selectAllUsers(false)}
               >
-                <span>Clear selection</span>
+                <span>{t('messages.clearSelection')}</span>
               </Button>
             </div>
           ) : (
-            <span>
-              Showing <strong>{indexOfFirstUser + 1}</strong> to <strong>{Math.min(indexOfLastUser, filteredUsers.length)}</strong> of <strong>{filteredUsers.length}</strong> users
-            </span>
+            <span>{showingText}</span>
           )}
         </div>
         

@@ -29,7 +29,7 @@
   },
   "units": {
     "title": "Enheter og foreninger på {campus}",
-    "subtitle": "Møt studentstyrer, faglige foreninger og sosiale prosjekter du kan bli med i.",
+    "subtitle": "Møt studentstyrer, fagforeninger og sosiale prosjekter du kan bli med i.",
     "cta": "Utforsk alle enheter",
     "unknownType": "Enhet",
     "members": "{count, plural, one {# medlem} other {# medlemmer}}",
@@ -38,7 +38,7 @@
   "funding": {
     "title": "Søk BI-fondet",
     "subtitle": "Studentprosjekter kan få økonomisk støtte til initiativer som skaper verdi på campus.",
-    "body": "BI-fondet tar imot søknader fra studenter og BISO-enheter som vil starte nye faglige, sosiale eller inkluderingsrettede initiativer.",
+    "body": "BI-fondet tar imot søknader fra studenter og BISO-enheter som ønsker å starte nye faglige, sosiale eller inkluderingsrettede initiativer.",
     "cta": "Les mer og søk"
   },
   "events": {

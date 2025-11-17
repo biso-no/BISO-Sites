@@ -1,9 +1,11 @@
 {
+  "membership": "Membership",
   "hero": {
     "badge": "BISO membership",
     "title": "Benefits for you and {campus}",
     "titleNational": "Benefits for you and every campus",
     "titleFallback": "Benefits for you and BISO",
+    "subtitle": "Join the BI Student Organisation and gain access to all our exclusive benefits. Choose a duration that works best for you and start experiencing everything BISO has to offer.",
     "subtitleFallback": "Join Norway’s largest student-run community and unlock benefits for your entire study journey.",
     "campusFallback": "your campus",
     "ctas": {
@@ -46,9 +48,41 @@
       }
     }
   },
+  "durations": {
+    "six-months": {
+      "name": "6 Months",
+      "price": "350 kr",
+      "period": "6 months",
+      "savings": null,
+      "popular": false,
+      "gradient": "from-gray-600 to-gray-700"
+    },
+    "one-year": {
+      "name": "1 Year",
+      "price": "550 kr",
+      "period": "12 months",
+      "savings": "Save 150 kr",
+      "popular": true,
+      "gradient": "from-purple-600 to-pink-600"
+    },
+    "three-years": {
+      "name": "3 Years",
+      "price": "1350 kr",
+      "period": "36 months",
+      "savings": "Save 750 kr",
+      "popular": false,
+      "gradient": "from-[#3DA9E0] to-[#001731]"
+    }
+  },
   "onboarding": {
     "title": "Getting started",
+    "memberships-include": "All memberships include:",
     "subtitle": "Unlock your member benefits in under two minutes.",
+    "notSure": {
+      "cta": "Talk to Us",
+      "title": "Not sure which to choose?",
+      "subtitle": "First year student, and plan to stay for 3 years? Choose the 3 year membership and save 750 NOK, or contact us for more information."
+    },
     "steps": {
       "1": {
         "title": "Download the BI Student app",
@@ -73,6 +107,11 @@
     "subtitle": "These perks follow you regardless of campus. Everything lives in the BI Student app.",
     "cta": "Activate your membership",
     "empty": "We’re updating the national benefits right now. Check back very soon!"
+  },
+  "joinUs": {
+    "join": "Join",
+    "biso": "BISO",
+    "subtitle": "Unlock exclusive benefits, unforgettable experiences, and connections that will shape your future."
   },
   "local": {
     "title": "Local benefits at {campus}",

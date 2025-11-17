@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Calendar } from "lucide-react"
+import { getTranslations } from "next-intl/server"
 
 import { listJobs } from "@/app/actions/jobs"
 import { Badge } from "@repo/ui/components/ui/badge"
@@ -34,6 +35,7 @@ export default async function AdminJobsPage({
   searchParams: Promise<Record<string, string | undefined>>
 }) {
   const params = await searchParams
+  const t = await getTranslations("adminJobs")
   const status = params.status || "all"
   const campus = params.campus
   const q = params.q
@@ -53,18 +55,37 @@ export default async function AdminJobsPage({
   )
 
   const summaryCards = [
-    { label: "Aktive stillinger", value: totalJobs, description: "Total i katalogen" },
-    { label: "Publiserte", value: publishedJobs, description: "Synlig for studenter" },
-    { label: "Utkast", value: draftJobs, description: "Klar for gjennomgang" },
-    { label: "Oversatt", value: translationCoverage, description: "NO + EN komplett" },
+    {
+      label: t("metrics.activePositions"),
+      value: totalJobs,
+      description: t("metrics.totalInCatalog"),
+    },
+    {
+      label: t("metrics.published"),
+      value: publishedJobs,
+      description: t("metrics.visibleToStudents"),
+    },
+    {
+      label: t("metrics.drafts"),
+      value: draftJobs,
+      description: t("metrics.readyForReview"),
+    },
+    {
+      label: t("metrics.translated"),
+      value: translationCoverage,
+      description: t("metrics.translationComplete"),
+    },
   ]
+  const campusCount = new Set(
+    jobs.map((job) => job.campus?.name || job.campus_id || "Ukjent")
+  ).size
 
   return (
     <div className="space-y-8">
       <AdminSummary
-        badge="Rekruttering"
-        title="Jobboard"
-        description="Følg status, campus og språk for frivillige verv og stillinger."
+        badge={t("badge")}
+        title={t("jobboardTitle")}
+        description={t("jobboardDescription")}
         metrics={summaryCards.map((card) => ({
           label: card.label,
           value: card.value,
@@ -72,16 +93,18 @@ export default async function AdminJobsPage({
         }))}
         action={
           <Button asChild className="rounded-full bg-primary-40 px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_45px_-30px_rgba(0,23,49,0.65)] hover:bg-primary-30">
-            <Link href="/admin/jobs/new">Opprett ny stilling</Link>
+            <Link href="/admin/jobs/new">{t("createNew")}</Link>
           </Button>
         }
       />
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.5)]">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold text-primary-100">Filtrer jobber</CardTitle>
+          <CardTitle className="text-lg font-semibold text-primary-100">
+            {t("filterTitle")}
+          </CardTitle>
           <CardDescription className="text-sm text-primary-60">
-            Kombiner tekstsøk, campus og status for å snevre inn resultatene.
+            {t("filterDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -89,28 +112,30 @@ export default async function AdminJobsPage({
             <Input
               defaultValue={q || ""}
               name="q"
-              placeholder="Søk på tittel eller slug..."
+              placeholder={t("searchPlaceholder")}
               className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
             <Select name="status" defaultValue={status}>
               <SelectTrigger className="rounded-xl border-primary/20 bg-white/70">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("filters.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle</SelectItem>
-                <SelectItem value="published">Publisert</SelectItem>
-                <SelectItem value="draft">Utkast</SelectItem>
-                <SelectItem value="closed">Lukket</SelectItem>
+                <SelectItem value="all">{t("filters.all")}</SelectItem>
+                <SelectItem value="published">
+                  {t("filters.published")}
+                </SelectItem>
+                <SelectItem value="draft">{t("filters.draft")}</SelectItem>
+                <SelectItem value="closed">{t("filters.closed")}</SelectItem>
               </SelectContent>
             </Select>
             <Input
               name="campus"
               defaultValue={campus || ""}
-              placeholder="Campus"
+              placeholder={t("filters.campus")}
               className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40"
             />
             <Button type="submit" className="w-full rounded-xl bg-primary-40 text-sm font-semibold text-white shadow">
-              Filtrer
+              {t("filters.filter")}
             </Button>
           </form>
         </CardContent>
@@ -119,25 +144,40 @@ export default async function AdminJobsPage({
       <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 bg-white/85 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex items-center justify-between border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">Stillingsoversikt</h2>
+            <h2 className="text-lg font-semibold text-primary-100">{t("jobOverview")}</h2>
             <p className="text-sm text-primary-60">
-              {totalJobs}stillinger på tvers av {new Set(jobs.map((job) => job.campus?.name || job.campus_id || "Ukjent")).size} campuser
+              {t("positionsAcrossCampuses", {
+                count: totalJobs,
+                campuses: campusCount,
+              })}
             </p>
           </div>
           <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70">
-            {translationCoverage} oversatt
+            {translationCoverage} {t("metrics.translated")}
           </Badge>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-primary/5">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Tittel</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Status</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Språk</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Campus</th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">Frist</th>
-                <th className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-primary-70">Handlinger</th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                  {t("table.title")}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                  {t("table.status")}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                  {t("table.language")}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                  {t("table.campus")}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                  {t("table.deadline")}
+                </th>
+                <th className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-primary-70">
+                  {t("table.actions")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-primary/10 bg-white/80">
@@ -146,6 +186,7 @@ export default async function AdminJobsPage({
                 const primaryTitle = job.translation_refs?.[0]?.title || job.slug
                 const metadata = (job.metadata_parsed as Record<string, unknown> | undefined) ?? parseJSONSafe<Record<string, unknown>>(job.metadata as string | null | undefined)
                 const statusToken = getStatusToken(job.status)
+                const statusLabel = t(`status.${job.status}`) || statusToken.label
                 const deadline = metadata.application_deadline
                   ? new Date(metadata.application_deadline)
                   : null
@@ -158,7 +199,7 @@ export default async function AdminJobsPage({
                     </td>
                     <td className="px-4 py-3">
                       <Badge className={`rounded-full px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusToken.className}`}>
-                        {statusToken.label}
+                        {statusLabel}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
@@ -174,7 +215,7 @@ export default async function AdminJobsPage({
                           ))
                         ) : (
                           <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
-                            Mangler
+                            {t("table.missing")}
                           </span>
                         )}
                       </div>
@@ -195,7 +236,7 @@ export default async function AdminJobsPage({
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Button asChild variant="ghost" size="sm" className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10">
-                        <Link href={`/admin/jobs/${job.$id}`}>Rediger</Link>
+                      <Link href={`/admin/jobs/${job.$id}`}>{t("table.edit")}</Link>
                       </Button>
                     </td>
                   </tr>
@@ -205,7 +246,7 @@ export default async function AdminJobsPage({
           </table>
         </div>
         <div className="border-t border-primary/10 bg-primary/5 px-6 py-3 text-xs uppercase tracking-[0.2em] text-primary-60">
-          {closedJobs} lukkede stillinger i arkivet
+          {t("closedInArchive", { count: closedJobs })}
         </div>
       </div>
     </div>

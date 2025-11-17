@@ -18,13 +18,22 @@
     "active": "Active",
     "inactive": "Inactive"
   },
+  "metrics": {
+    "campuses": "Campuses"
+  },
+  "labels": {
+    "selectAllUsers": "Select all users"
+  },
   "actions": {
     "view": "View",
     "edit": "Edit",
     "delete": "Delete",
     "deactivate": "Deactivate",
     "activate": "Activate",
-    "resetPassword": "Reset password"
+    "resetPassword": "Reset password",
+    "exportCsv": "Export as CSV",
+    "exportExcel": "Export as Excel",
+    "exportPdf": "Export as PDF"
   },
   "roles": {
     "admin": "Admin",
@@ -51,14 +60,43 @@
     "create": "Create user",
     "update": "Update user"
   },
+  "editor": {
+    "userDetailsTitle": "User Details",
+    "userDetailsDescription": "View and manage user information",
+    "saveChanges": "Save Changes",
+    "saveChangesTooltip": "Save user changes",
+    "profileTab": "Profile",
+    "rolesTab": "Roles & Access",
+    "securityTab": "Security",
+    "fullName": "Full Name",
+    "campus": "Campus",
+    "accountStatus": "Account Status",
+    "userRolesTitle": "User Roles",
+    "userRolesDescription": "Assign roles to determine user access and permissions.",
+    "accountSecurityTitle": "Account Security",
+    "accountSecurityDescription": "Manage user security settings and reset options.",
+    "passwordReset": "Send Password Reset Link",
+    "selectCampus": "Select campus"
+  },
   "messages": {
     "loading": "Loading users...",
     "noUsers": "No users found",
+    "adjustFilters": "Try adjusting your search or filter criteria",
+    "noUsersYet": "No users have been added yet",
     "deleteConfirm": "Are you sure you want to delete this user?",
     "deleteSuccess": "User deleted successfully",
     "updateSuccess": "User updated successfully",
     "createSuccess": "User created successfully",
-    "error": "An error occurred"
+    "error": "An error occurred",
+    "usersSelected": "{count} user{plural} selected",
+    "clearSelection": "Clear selection",
+    "showingRange": "Showing {start} to {end} of {total} users",
+    "saveTitleSuccess": "Success",
+    "saveDescriptionSuccess": "User details have been updated",
+    "saveTitleError": "Error",
+    "saveDescriptionError": "Failed to update user details",
+    "passwordResetTitle": "Password reset",
+    "passwordResetDescription": "Password reset email has been sent to the user"
   }
 }
 

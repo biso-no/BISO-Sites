@@ -13,6 +13,7 @@ import { Input } from '@repo/ui/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/ui/components/ui/tabs'
 import { Badge } from '@repo/ui/components/ui/badge'
+import { useTranslations } from 'next-intl'
 import { toast } from '@/lib/hooks/use-toast'
 import { createJob, updateJob, translateJobContent } from '@/app/actions/jobs'
 import type { AdminJob } from '@/lib/types/job'
@@ -54,6 +55,7 @@ export default function JobEditor({
   const [selectedCampus, setSelectedCampus] = React.useState<string>(job?.campus_id || '')
   const [isTranslating, setIsTranslating] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState<'en' | 'no'>('en')
+  const t = useTranslations('adminJobs')
   
   const filteredDepartments = React.useMemo(() => {
     if (!departments) return []
@@ -123,23 +125,23 @@ export default function JobEditor({
 
       if (job?.$id) {
         await updateJob(job.$id, jobData)
-        toast({ title: 'Job updated' })
+        toast({ title: t('messages.jobUpdated') })
       } else {
         await createJob(jobData)
-        toast({ title: 'Job created' })
+        toast({ title: t('messages.jobCreated') })
         router.push('/admin/jobs')
       }
     } catch (e) {
       console.error(e)
-      toast({ title: 'Failed to save job', variant: 'destructive' })
+      toast({ title: t('messages.saveFailed'), variant: 'destructive' })
     }
   }
 
   const handleTranslate = async (fromLocale: 'en' | 'no', toLocale: 'en' | 'no') => {
     if (!job?.$id) {
       toast({ 
-        title: 'Save first', 
-        description: 'Please save the job before translating',
+        title: t('messages.saveFirst'), 
+        description: t('messages.saveBeforeTranslate'),
         variant: 'destructive' 
       })
       return
@@ -156,8 +158,10 @@ export default function JobEditor({
         form.setValue(`${toLocale}_description`, translation.description)
         
         toast({ 
-          title: 'Translation completed',
-          description: `Content translated to ${toLocale === 'en' ? 'English' : 'Norwegian'}`
+          title: t('messages.translationCompleted'),
+          description: t('messages.translationDescription', {
+            language: toLocale === 'en' ? t('editor.english') : t('editor.norwegian'),
+          }),
         })
         
         // Switch to the translated tab
@@ -167,11 +171,11 @@ export default function JobEditor({
       }
     } catch (error) {
       console.error('Translation error:', error)
-      toast({ 
-        title: 'Translation failed', 
-        description: 'Could not translate content. Please try again.',
-        variant: 'destructive' 
-      })
+        toast({ 
+          title: t('messages.translationFailed'), 
+          description: t('messages.translationError'),
+          variant: 'destructive' 
+        })
     } finally {
       setIsTranslating(false)
     }
@@ -181,38 +185,44 @@ export default function JobEditor({
     <div className="grid gap-6 md:grid-cols-3">
       <div className="md:col-span-2">
         <Card className="glass-panel">
-          <CardHeader>
-            <CardTitle>Job Details</CardTitle>
-          </CardHeader>
+        <CardHeader>
+          <CardTitle>{t("editor.jobDetailsTitle")}</CardTitle>
+        </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* Basic Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Basic Information</h3>
+                  <h3 className="text-lg font-medium">{t("editor.basicInformation")}</h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField control={form.control} name="slug" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Slug</FormLabel>
+                        <FormLabel>{t("form.slug")}</FormLabel>
                         <FormControl>
-                          <Input placeholder="unique-job-slug" {...field} />
+                          <Input placeholder={t("editor.labels.slugPlaceholder")} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="status" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel>{t("form.status")}</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
+                              <SelectValue placeholder={t("editor.labels.selectStatus")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
+                            <SelectItem value="draft">
+                              {t("status.draft")}
+                            </SelectItem>
+                            <SelectItem value="published">
+                              {t("status.published")}
+                            </SelectItem>
+                            <SelectItem value="closed">
+                              {t("status.closed")}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -223,11 +233,11 @@ export default function JobEditor({
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField control={form.control} name="campus_id" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Campus</FormLabel>
+                        <FormLabel>{t("form.campus")}</FormLabel>
                         <Select value={field.value} onValueChange={(v) => { field.onChange(v); setSelectedCampus(v) }}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select campus" />
+                              <SelectValue placeholder={t("editor.labels.selectCampus")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -241,11 +251,11 @@ export default function JobEditor({
                     )} />
                     <FormField control={form.control} name="department_id" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department</FormLabel>
+                        <FormLabel>{t("form.department")}</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select department" />
+                              <SelectValue placeholder={t("editor.labels.selectDepartment")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -262,20 +272,20 @@ export default function JobEditor({
 
                 {/* Metadata Fields */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Job Details</h3>
+                  <h3 className="text-lg font-medium">{t("editor.metadataTitle")}</h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField control={form.control} name="type" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Job Type</FormLabel>
+                        <FormLabel>{t("form.type")}</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., Board Position, Committee" {...field} />
+                          <Input placeholder={t("editor.labels.jobTypePlaceholder")} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="application_deadline" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Application Deadline</FormLabel>
+                        <FormLabel>{t("form.deadline")}</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -287,18 +297,18 @@ export default function JobEditor({
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField control={form.control} name="contact_name" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Contact Name</FormLabel>
+                        <FormLabel>{t("form.contactPerson")}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Contact person" {...field} />
+                          <Input placeholder={t("editor.labels.contactNamePlaceholder")} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="contact_email" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Contact Email</FormLabel>
+                        <FormLabel>{t("form.contactEmail")}</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="contact@biso.no" {...field} />
+                          <Input type="email" placeholder={t("editor.labels.contactEmailPlaceholder")} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -309,7 +319,9 @@ export default function JobEditor({
                 {/* Translation Tabs */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">Content & Translations</h3>
+                    <h3 className="text-lg font-medium">
+                      {t("editor.contentTranslations")}
+                    </h3>
                     {job?.$id && (
                       <div className="flex gap-2">
                         <Button
@@ -320,7 +332,7 @@ export default function JobEditor({
                           disabled={isTranslating || !form.watch('en_title')}
                         >
                           <Wand2 className="h-4 w-4 mr-2" />
-                          EN → NO
+                          {t("editor.translateEnToNo")}
                         </Button>
                         <Button
                           type="button"
@@ -330,7 +342,7 @@ export default function JobEditor({
                           disabled={isTranslating || !form.watch('no_title')}
                         >
                           <Wand2 className="h-4 w-4 mr-2" />
-                          NO → EN
+                          {t("editor.translateNoToEn")}
                         </Button>
                       </div>
                     )}
@@ -339,11 +351,11 @@ export default function JobEditor({
                   <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'en' | 'no')}>
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="en" className="flex items-center gap-2">
-                        🇬🇧 English
+                        🇬🇧 {t("editor.english")}
                         {form.watch('en_title') && <Badge variant="secondary" className="text-xs">✓</Badge>}
                       </TabsTrigger>
                       <TabsTrigger value="no" className="flex items-center gap-2">
-                        🇳🇴 Norwegian
+                        🇳🇴 {t("editor.norwegian")}
                         {form.watch('no_title') && <Badge variant="secondary" className="text-xs">✓</Badge>}
                       </TabsTrigger>
                     </TabsList>
@@ -351,7 +363,9 @@ export default function JobEditor({
                     <TabsContent value="en" className="space-y-4">
                       <FormField control={form.control} name="en_title" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Title (English)</FormLabel>
+                      <FormLabel>
+                        {t("form.title")} ({t("editor.english")})
+                      </FormLabel>
                           <FormControl>
                             <Input placeholder="Job title in English" {...field} />
                           </FormControl>
@@ -360,7 +374,9 @@ export default function JobEditor({
                       )} />
                       <FormField control={form.control} name="en_description" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Description (English)</FormLabel>
+                      <FormLabel>
+                        {t("form.description")} ({t("editor.english")})
+                      </FormLabel>
                           <FormControl>
                             <JoditEditor 
                               value={field.value || ''} 
@@ -377,7 +393,9 @@ export default function JobEditor({
                     <TabsContent value="no" className="space-y-4">
                       <FormField control={form.control} name="no_title" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Tittel (Norsk)</FormLabel>
+                      <FormLabel>
+                        {t("form.title")} ({t("editor.norwegian")})
+                      </FormLabel>
                           <FormControl>
                             <Input placeholder="Stillingstittel på norsk" {...field} />
                           </FormControl>
@@ -386,7 +404,9 @@ export default function JobEditor({
                       )} />
                       <FormField control={form.control} name="no_description" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Beskrivelse (Norsk)</FormLabel>
+                      <FormLabel>
+                        {t("form.description")} ({t("editor.norwegian")})
+                      </FormLabel>
                           <FormControl>
                             <JoditEditor 
                               value={field.value || ''} 
@@ -404,10 +424,10 @@ export default function JobEditor({
 
                 <div className="flex justify-end gap-3">
                   <Button type="button" variant="outline" onClick={() => router.back()}>
-                    Cancel
+                    {t("form.cancel")}
                   </Button>
                   <Button type="submit" disabled={isTranslating}>
-                    {job?.$id ? 'Update Job' : 'Create Job'}
+                    {job?.$id ? t("editor.updateJob") : t("editor.createJob")}
                   </Button>
                 </div>
               </form>
@@ -419,34 +439,38 @@ export default function JobEditor({
       {/* Preview Panel */}
       <div className="space-y-4">
         <Card className="glass-panel">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Languages className="h-4 w-4" />
-              Translation Status
-            </CardTitle>
-          </CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Languages className="h-4 w-4" />
+            {t("editor.translationStatusTitle")}
+          </CardTitle>
+        </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm">English</span>
+              <span className="text-sm">{t("editor.english")}</span>
               {form.watch('en_title') ? (
-                <Badge variant="default" className="bg-green-100 text-green-800">Complete</Badge>
+                <Badge variant="default" className="bg-green-100 text-green-800">
+                  {t("editor.complete")}
+                </Badge>
               ) : (
-                <Badge variant="secondary">Missing</Badge>
+                <Badge variant="secondary">{t("editor.missing")}</Badge>
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm">Norwegian</span>
+              <span className="text-sm">{t("editor.norwegian")}</span>
               {form.watch('no_title') ? (
-                <Badge variant="default" className="bg-green-100 text-green-800">Complete</Badge>
+                <Badge variant="default" className="bg-green-100 text-green-800">
+                  {t("editor.complete")}
+                </Badge>
               ) : (
-                <Badge variant="secondary">Missing</Badge>
+                <Badge variant="secondary">{t("editor.missing")}</Badge>
               )}
             </div>
             
             {job?.$id && (
               <div className="pt-3 border-t">
                 <p className="text-xs text-muted-foreground">
-                  Save changes before using AI translation
+                  {t("editor.saveBeforeTranslate")}
                 </p>
               </div>
             )}
@@ -455,13 +479,13 @@ export default function JobEditor({
         
         {/* Quick Preview */}
         <Card className="glass-panel">
-          <CardHeader>
-            <CardTitle>Preview</CardTitle>
-          </CardHeader>
+        <CardHeader>
+          <CardTitle>{t("editor.previewTitle")}</CardTitle>
+        </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <h4 className="font-medium">
-                {activeTab === 'en' ? form.watch('en_title') : form.watch('no_title') || 'No title'}
+                {activeTab === 'en' ? form.watch('en_title') : form.watch('no_title') || t("editor.noTitle")}
               </h4>
               <p className="text-sm text-muted-foreground">
                 {form.watch('campus_id') && campuses?.find(c => c.$id === form.watch('campus_id'))?.name}

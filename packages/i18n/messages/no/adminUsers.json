@@ -18,13 +18,22 @@
     "active": "Aktiv",
     "inactive": "Inaktiv"
   },
+  "metrics": {
+    "campuses": "Campuser"
+  },
+  "labels": {
+    "selectAllUsers": "Velg alle brukere"
+  },
   "actions": {
     "view": "Vis",
     "edit": "Rediger",
     "delete": "Slett",
     "deactivate": "Deaktiver",
     "activate": "Aktiver",
-    "resetPassword": "Tilbakestill passord"
+    "resetPassword": "Tilbakestill passord",
+    "exportCsv": "Eksporter som CSV",
+    "exportExcel": "Eksporter som Excel",
+    "exportPdf": "Eksporter som PDF"
   },
   "roles": {
     "admin": "Admin",
@@ -51,13 +60,42 @@
     "create": "Opprett bruker",
     "update": "Oppdater bruker"
   },
+  "editor": {
+    "userDetailsTitle": "Brukerdetaljer",
+    "userDetailsDescription": "Vis og administrer brukerinformasjon",
+    "saveChanges": "Lagre endringer",
+    "saveChangesTooltip": "Lagre brukerendringer",
+    "profileTab": "Profil",
+    "rolesTab": "Roller og tilgang",
+    "securityTab": "Sikkerhet",
+    "fullName": "Fullt navn",
+    "campus": "Campus",
+    "accountStatus": "Kontostatus",
+    "userRolesTitle": "Brukerroller",
+    "userRolesDescription": "Tildel roller for å bestemme brukerens tilgang og tillatelser.",
+    "accountSecurityTitle": "Kontosikkerhet",
+    "accountSecurityDescription": "Administrer sikkerhetsinnstillinger og tilbakestillingsalternativer for brukeren.",
+    "passwordReset": "Send lenke for tilbakestilling av passord",
+    "selectCampus": "Velg campus"
+  },
   "messages": {
     "loading": "Laster brukere...",
     "noUsers": "Ingen brukere funnet",
+    "adjustFilters": "Prøv å justere søke- eller filterkriteriene",
+    "noUsersYet": "Ingen brukere er lagt til ennå",
     "deleteConfirm": "Er du sikker på at du vil slette denne brukeren?",
     "deleteSuccess": "Bruker ble slettet",
     "updateSuccess": "Bruker ble oppdatert",
     "createSuccess": "Bruker ble opprettet",
-    "error": "Det oppstod en feil"
+    "error": "Det oppstod en feil",
+    "usersSelected": "{count} bruker{plural} valgt",
+    "clearSelection": "Tøm markering",
+    "showingRange": "Viser {start} til {end} av {total} brukere",
+    "saveTitleSuccess": "Vellykket",
+    "saveDescriptionSuccess": "Brukerdetaljene er oppdatert",
+    "saveTitleError": "Feil",
+    "saveDescriptionError": "Kunne ikke oppdatere brukerdetaljer",
+    "passwordResetTitle": "Tilbakestilling av passord",
+    "passwordResetDescription": "E-post for tilbakestilling av passord er sendt til brukeren"
   }
 }

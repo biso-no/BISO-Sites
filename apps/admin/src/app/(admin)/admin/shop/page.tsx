@@ -34,6 +34,7 @@ import { cn } from "@repo/ui/lib/utils"
 import { getOrders } from "@/app/actions/orders"
 import { getShopMetrics, type MetricTrend } from "@/app/actions/shop-metrics"
 import type { Orders } from "@repo/api/types/appwrite"
+import { getTranslations } from "next-intl/server"
 
 export const description =
   "An application shell with a header and main content area. The header has a navbar, a search input and and a user nav dropdown. The user nav is toggled by a button with an avatar image."
@@ -68,11 +69,14 @@ const STATUS_STYLES: Record<string, string> = {
   refunded: "border-transparent bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200",
 }
 
+type Translator = Awaited<ReturnType<typeof getTranslations>>
+
 export default async function Dashboard() {
   const [metrics, orders] = await Promise.all([getShopMetrics(), getOrders({ limit: 12, path: "/admin/shop/orders" })])
   const orderList = Array.isArray(orders) ? orders : []
   const transactions = orderList.slice(0, 8)
   const recentSales = orderList.slice(0, 5)
+  const t = await getTranslations("adminShop")
 
   return (
     <div className="flex w-full flex-col">
@@ -80,25 +84,25 @@ export default async function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
           <MetricCard
             icon={DollarSign}
-            label="Total Revenue"
+            label={t("dashboard.metrics.totalRevenue")}
             value={NOK_FORMATTER.format(metrics.revenue.value)}
             trend={metrics.revenue.trend}
           />
           <MetricCard
             icon={Users}
-            label="Product Catalog"
+            label={t("dashboard.metrics.productCatalog")}
             value={NUMBER_FORMATTER.format(metrics.catalog.value)}
             trend={metrics.catalog.trend}
           />
           <MetricCard
             icon={CreditCard}
-            label="Sales"
+            label={t("dashboard.metrics.sales")}
             value={NUMBER_FORMATTER.format(metrics.sales.value)}
             trend={metrics.sales.trend}
           />
           <MetricCard
             icon={Activity}
-            label="Active Now"
+            label={t("dashboard.metrics.activeNow")}
             value={NUMBER_FORMATTER.format(metrics.activeCatalog.value)}
             trend={metrics.activeCatalog.trend}
           />
@@ -109,14 +113,14 @@ export default async function Dashboard() {
           >
             <CardHeader className="flex flex-row items-center">
               <div className="grid gap-2">
-                <CardTitle>Transactions</CardTitle>
+                <CardTitle>{t("dashboard.transactions.title")}</CardTitle>
                 <CardDescription>
-                  Latest orders across the store.
+                  {t("dashboard.transactions.description")}
                 </CardDescription>
               </div>
               <Button asChild size="sm" className="ml-auto gap-1">
                 <Link href="/admin/shop/orders">
-                  View All
+                  {t("dashboard.transactions.viewAll")}
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -125,17 +129,19 @@ export default async function Dashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Customer</TableHead>
+                    <TableHead>{t("customers.table.name")}</TableHead>
                     <TableHead className="hidden xl:table-column">
-                      Order
+                      {t("orders.table.orderNumber")}
                     </TableHead>
                     <TableHead className="hidden xl:table-column">
-                      Status
+                      {t("orders.table.status")}
                     </TableHead>
                     <TableHead className="hidden xl:table-column">
-                      Date
+                      {t("orders.table.date")}
                     </TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">
+                      {t("orders.table.amount")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -173,7 +179,7 @@ export default async function Dashboard() {
                   {transactions.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                        Ingen ordre å vise enda.
+                        {t("dashboard.transactions.empty")}
                       </TableCell>
                     </TableRow>
                   )}
@@ -181,7 +187,7 @@ export default async function Dashboard() {
               </Table>
             </CardContent>
           </Card>
-          <RecentSales orders={recentSales} />
+          <RecentSales orders={recentSales} t={t} />
         </div>
       </main>
     </div>
@@ -213,19 +219,21 @@ function MetricCard({
   )
 }
 
-function RecentSales({ orders }: { orders: Orders[] }) {
+function RecentSales({ orders, t }: { orders: Orders[]; t: Translator }) {
   return (
     <Card className="glass-panel" x-chunk="dashboard-01-chunk-5">
       <CardHeader>
-        <CardTitle>Recent Sales</CardTitle>
-        <CardDescription>Latest payments captured through Vipps</CardDescription>
+        <CardTitle>{t("dashboard.recentSales.title")}</CardTitle>
+        <CardDescription>{t("dashboard.recentSales.description")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-8">
         {orders.length === 0 && (
-          <div className="text-sm text-muted-foreground">Ingen salg enda.</div>
+          <div className="text-sm text-muted-foreground">
+            {t("dashboard.recentSales.empty")}
+          </div>
         )}
         {orders.map((order) => {
-          const buyerName = order.buyer_name || "Guest"
+          const buyerName = order.buyer_name || t("orders.detail.guest")
           const buyerEmail = order.buyer_email || "—"
           const amount = NOK_FORMATTER.format(Number(order.total) || 0)
           const avatarSource = order.buyer_name || order.buyer_email || order.$id

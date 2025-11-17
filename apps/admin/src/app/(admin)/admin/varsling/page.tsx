@@ -186,7 +186,11 @@ export default function VarslingAdminPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center p-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        {t('messages.loading')}
+      </div>
+    );
   }
 
   return (

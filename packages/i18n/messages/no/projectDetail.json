@@ -6,7 +6,7 @@
     "ctaLabel": "Se programmet",
     "ctaUrl": "https://fadderullan.no",
     "highlights": [
-      "Konserter og dagarrangementer på alle campus",
+      "Konserter og dagsarrangementer på alle campus",
       "Eget crew for sikkerhet, trivsel og tilgjengelighet",
       "Støtte til lavterskel- og inkluderende aktiviteter"
     ],
@@ -17,7 +17,7 @@
       },
       {
         "title": "En nasjonal satsing, levert lokalt",
-        "body": "Festivalen koordineres nasjonalt, men gjennomføres av lokale frivillige. Det sikrer et profesjonelt opplegg, solide rutiner og omfattende støtte."
+        "body": "Festivalen koordineres nasjonalt, men gjennomføres av lokale frivillige. Det sikrer et profesjonelt opplegg, gode rutiner og omfattende støtte."
       }
     ]
   },
@@ -28,7 +28,7 @@
     "ctaLabel": "Sikre deg billett",
     "highlights": [
       "Felles overnatting og aktiviteter på tvers av campus",
-      "Programmer for både nybegynnere og erfarne skiløpere",
+      "Program for både nybegynnere og erfarne skiløpere",
       "Sikkerhetsteam og helsefaglige forberedelser fra BISO"
     ],
     "sections": [
@@ -58,8 +58,8 @@
         "body": "Hvert campus viser frem sitt lokale næringsliv, samtidig som nasjonale partnere deltar over hele landet."
       },
       {
-        "title": "For alle steg i løpet ditt",
-        "body": "Fra din første frivillige rolle til din første fulltidsstilling finner du veiledning og muligheter som matcher dine mål."
+        "title": "For alle steg i reisen din",
+        "body": "Fra din første frivillige rolle til din første fulltidsstilling finner du veiledning og muligheter som matcher målene dine."
       }
     ]
   },
@@ -69,7 +69,7 @@
     "description": "Inspire er BISO sin plattform for foredrag og historiefortelling der studenter, alumni og partnere deler erfaringer og innsikt.",
     "ctaLabel": "Registrer din interesse",
     "highlights": [
-      "Paneler og keynotes fra næringslivsledere og alumni",
+      "Panelsamtaler og keynotes fra næringslivsledere og alumni",
       "Historier fra studentledere og entreprenører",
       "Muligheter til å pitche egne prosjekter"
     ],
@@ -96,7 +96,7 @@
     "external": "Nettside"
   },
   "fallback": {
-    "description": "Mer informasjon publiseres snart. Kom tilbake for de siste oppdateringene.",
+    "description": "Mer informasjon blir publisert snart. Kom tilbake for de siste oppdateringene.",
     "cta": "Les mer"
   }
 }

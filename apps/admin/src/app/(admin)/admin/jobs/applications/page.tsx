@@ -49,7 +49,7 @@ export default async function JobApplicationsPage({ searchParams }: { searchPara
                     )}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>Applied: {new Date(application.$createdAt).toLocaleDateString()}</span>
-                      {job && <span>• Position: {job.title}</span>}
+                      {job && <span>• Position: {job.translations[0].title}</span>}
                     </div>
                   </div>
                   

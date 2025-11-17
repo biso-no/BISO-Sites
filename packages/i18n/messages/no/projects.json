@@ -10,7 +10,7 @@
     "title": "Hvorfor disse prosjektene er viktige",
     "item1": "Frivillige fra alle campus planlegger og gjennomfører opplevelsene sammen.",
     "item2": "Partnere møter studenter gjennom hele året på meningsfulle arenaer.",
-    "item3": "De bygger tradisjoner, stolthet og CV-verdig erfaring for alle som er involvert."
+    "item3": "De bygger tradisjoner, stolthet og CV-verdifull erfaring for alle involverte."
   },
   "featuredTitle": "Fire høydepunkter du ikke bør gå glipp av",
   "featuredSubtitle": "Start med prosjektene som definerer BISO-kulturen.",
@@ -24,7 +24,7 @@
     "fadderullan": {
       "slug": "fadderullan",
       "title": "Fadderullan",
-      "description": "Norges største studentfestival, fullpakket med konserter, aktiviteter og inkluderende møteplasser for nye og eksisterende studenter.",
+      "description": "Norges største studentfestival, fullpakket med konserter, aktiviteter og inkluderende treffpunkter for nye og eksisterende studenter.",
       "cta": "Les om Fadderullan",
       "highlight": "Festival"
     },
@@ -53,7 +53,7 @@
   "schedule": {
     "title": "Flere kommende prosjekter",
     "subtitle": "Hold oversikt over pågående og planlagte initiativer fra BISO.",
-    "empty": "Flere flaggskipprosjekter er ikke publisert ennå – følg med!",
+    "empty": "Flere flaggskipsprosjekter er ikke publisert ennå – følg med!",
     "defaultTag": "Prosjekt",
     "more": "Detaljer"
   }

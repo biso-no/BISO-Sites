@@ -5,31 +5,31 @@
     "data": {
       "title": "Hva vi samler inn",
       "items": {
-        "0": "Konto- og kontaktopplysninger (navn, e-post)",
-        "1": "Driftsdata for tjenestene du bruker (f.eks. medlemskap, påmelding til arrangementer, bestillinger i nettbutikken)",
-        "2": "Tekniske data for sikkerhet og ytelse (begrenset analyse-/informasjonskapsler som beskrevet på siden for informasjonskapsler)"
+        "0": "Konto- og kontaktopplysninger (navn, e‑post)",
+        "1": "Driftsdata for tjenestene du bruker (f.eks. medlemskap, påmeldinger til arrangementer, bestillinger i nettbutikk)",
+        "2": "Tekniske data for sikkerhet og ytelse (begrenset analyse/informasjonskapsler som beskrevet på siden for informasjonskapsler)"
       }
     },
     "legal": {
       "title": "Behandlingsgrunnlag",
-      "body": "Vi behandler data basert på samtykke, oppfyllelse av avtale (f.eks. oppfyllelse av medlemskap eller bestillinger) og berettigede interesser, som tjenestesikkerhet og studentrepresentasjon."
+      "body": "Vi behandler data basert på samtykke, oppfyllelse av avtale (f.eks. oppfyllelse av medlemskap eller bestillinger), og berettigede interesser som tjenestesikkerhet og studentrepresentasjon."
     },
     "retention": {
       "title": "Lagring og oppbevaring",
-      "body": "Data lagres sikkert og oppbevares bare så lenge det er nødvendig for det angitte formålet eller som kreves i lov (f.eks. regnskapsregler)."
+      "body": "Data lagres sikkert og oppbevares kun så lenge det er nødvendig for det angitte formålet eller som krevd i lov (f.eks. regnskapsregler)."
     },
     "rights": {
       "title": "Dine rettigheter",
       "items": {
         "0": "Få innsyn i dine data",
-        "1": "Rette feil",
+        "1": "Rette feilaktige opplysninger",
         "2": "Be om sletting der det er aktuelt",
         "3": "Trekke tilbake samtykke for frivillig behandling"
       }
     },
     "contact": {
       "title": "Kontakt",
-      "body": "Spørsmål om personvern? Kontakt vårt personvernombud på privacy@biso.no eller kontakt organisasjonen på post@biso.no."
+      "body": "Spørsmål om personvern? Kontakt vårt personvernombud på privacy@biso.no eller ta kontakt med organisasjonen på post@biso.no."
     }
   }
 }

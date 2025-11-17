@@ -30,7 +30,7 @@
     "enable": "Aktiver",
     "disable": "Deaktiver",
     "sessions": "Aktive økter",
-    "revokeAll": "Tilbakekall alle økter"
+    "revokeAll": "Opphev alle økter"
   },
   "policies": {
     "title": "Retningslinjesider",
@@ -48,7 +48,7 @@
     "timezone": "Tidssone"
   },
   "messages": {
-    "saveSuccess": "Innstillinger ble lagret",
+    "saveSuccess": "Innstillingene ble lagret",
     "error": "Det oppstod en feil"
   }
 }

@@ -35,6 +35,8 @@ import {
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs"
 
+import { getTranslations } from "next-intl/server"
+
 export const description =
   "Monitor Vipps orders, revenue trends, and customer details in real time."
 
@@ -47,6 +49,17 @@ import { OrderExportPopover } from "./_components/order-export"
 type PreparedOrder = Orders & {
   createdAtDate: Date
   totalValue: number
+}
+
+type Translator = Awaited<ReturnType<typeof getTranslations>>
+
+type OrdersTableLabels = {
+  customer: string
+  email: string
+  status: string
+  date: string
+  amount: string
+  view: string
 }
 
 const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
@@ -76,6 +89,7 @@ export default async function Dashboard() {
     createdAtDate: new Date(order.$createdAt),
     totalValue: Number(order.total ?? 0),
   }))
+  const t = await getTranslations("adminShop")
 
   const now = new Date()
   const startOfWeek = new Date(now)
@@ -95,6 +109,18 @@ export default async function Dashboard() {
   const monthProgress = calculateProgress(revenueMonth, revenueYear)
 
   const featuredOrder = orders[0] ?? null
+  const overviewDescription = orders.length
+    ? t("orders.analytics.syncedFromVipps", { count: orders.length })
+    : t("orders.analytics.overviewEmpty")
+  const tableLabels: OrdersTableLabels = {
+    customer: t("orders.table.customer"),
+    email: t("orders.table.email"),
+    status: t("orders.table.status"),
+    date: t("orders.table.date"),
+    amount: t("orders.table.amount"),
+    view: t("orders.table.view"),
+  }
+  const statusOptions = ["paid", "authorized", "pending", "cancelled", "failed", "refunded"]
 
   return (
     <div className="flex w-full flex-col">
@@ -105,58 +131,61 @@ export default async function Dashboard() {
               className="glass-panel sm:col-span-2" x-chunk="dashboard-05-chunk-0"
             >
               <CardHeader className="pb-3">
-                <CardTitle>Orders Overview</CardTitle>
+                <CardTitle>{t("orders.analytics.overviewTitle")}</CardTitle>
                 <CardDescription className="max-w-lg text-balance leading-relaxed">
-                  {orders.length ? `${orders.length} order${orders.length === 1 ? "" : "s"} synced from Vipps this year.` : "Ingen ordre registrert enda."}
+                  {overviewDescription}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-semibold">{NOK_FORMATTER.format(revenueYear)}</div>
                 <p className="text-xs text-muted-foreground">
-                  Totalt volum siden {DATE_FORMATTER.format(startOfYear)}
+                  {t("orders.analytics.totalVolumeSince", { date: DATE_FORMATTER.format(startOfYear) })}
                 </p>
               </CardContent>
               <CardFooter>
                 <Button asChild variant="outline">
-                  <NextLink href="/shop">Åpne nettbutikk</NextLink>
+                  <NextLink href="/shop">{t("orders.actions.openStore")}</NextLink>
                 </Button>
               </CardFooter>
             </Card>
             <Card className="glass-panel" x-chunk="dashboard-05-chunk-1">
               <CardHeader className="pb-2">
-                <CardDescription>Forrige 7 dager</CardDescription>
+                <CardDescription>{t("orders.analytics.weekTitle")}</CardDescription>
                 <CardTitle className="text-3xl">{NOK_FORMATTER.format(revenueWeek)}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  {ordersWeek.length} ordre denne uken
+                  {t("orders.analytics.weekOrders", { count: ordersWeek.length })}
                 </div>
               </CardContent>
               <CardFooter>
-                <Progress value={weekProgress} aria-label="Weekly contribution" />
+                <Progress value={weekProgress} aria-label={t("orders.analytics.weekTitle")} />
               </CardFooter>
             </Card>
             <Card className="glass-panel" x-chunk="dashboard-05-chunk-2">
               <CardHeader className="pb-2">
-                <CardDescription>Denne måneden</CardDescription>
+                <CardDescription>{t("orders.analytics.monthTitle")}</CardDescription>
                 <CardTitle className="text-3xl">{NOK_FORMATTER.format(revenueMonth)}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  {ordersMonth.length} ordre siden {DATE_FORMATTER.format(startOfMonth)}
+                  {t("orders.analytics.monthOrders", {
+                    count: ordersMonth.length,
+                    date: DATE_FORMATTER.format(startOfMonth),
+                  })}
                 </div>
               </CardContent>
               <CardFooter>
-                <Progress value={monthProgress} aria-label="Monthly share of yearly total" />
+                <Progress value={monthProgress} aria-label={t("orders.analytics.monthTitle")} />
               </CardFooter>
             </Card>
           </div>
           <Tabs defaultValue="week">
             <div className="flex items-center">
               <TabsList>
-                <TabsTrigger value="week">Week</TabsTrigger>
-                <TabsTrigger value="month">Month</TabsTrigger>
-                <TabsTrigger value="year">Year</TabsTrigger>
+                <TabsTrigger value="week">{t("orders.analytics.tabsWeek")}</TabsTrigger>
+                <TabsTrigger value="month">{t("orders.analytics.tabsMonth")}</TabsTrigger>
+                <TabsTrigger value="year">{t("orders.analytics.tabsYear")}</TabsTrigger>
               </TabsList>
               <div className="ml-auto flex items-center gap-2">
                 <DropdownMenu>
@@ -167,15 +196,19 @@ export default async function Dashboard() {
                       className="h-7 gap-1 text-sm"
                     >
                       <ListFilter className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only">Filter</span>
+                      <span className="sr-only sm:not-sr-only">
+                        {t("orders.analytics.filterButtonLabel")}
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Status</DropdownMenuLabel>
+                    <DropdownMenuLabel>
+                      {t("orders.analytics.filtersStatusLabel")}
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {["paid", "pending", "failed", "refunded"].map((status) => (
+                    {statusOptions.map((status) => (
                       <DropdownMenuCheckboxItem key={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                        {t(`orders.status.${status}`)}
                       </DropdownMenuCheckboxItem>
                     ))}
                   </DropdownMenuContent>
@@ -186,35 +219,50 @@ export default async function Dashboard() {
             <TabsContent value="week">
               <OrdersTable
                 orders={ordersWeek}
-                title="Orders"
-                description="Transaksjoner fra de siste 7 dagene."
-                emptyMessage="Ingen ordre registrert denne uken."
+                title={t("orders.analytics.weekTitle")}
+                description={t("orders.analytics.weekDescription")}
+                emptyMessage={t("orders.analytics.weekEmpty")}
+                labels={tableLabels}
+                t={t}
               />
             </TabsContent>
             <TabsContent value="month">
               <OrdersTable
                 orders={ordersMonth}
-                title="Orders"
-                description="Alle ordre fra denne måneden."
-                emptyMessage="Ingen ordre registrert hittil i måneden."
+                title={t("orders.analytics.monthTitle")}
+                description={t("orders.analytics.monthDescription")}
+                emptyMessage={t("orders.analytics.monthEmpty")}
+                labels={tableLabels}
+                t={t}
               />
             </TabsContent>
             <TabsContent value="year">
               <OrdersTable
                 orders={ordersYear}
-                title="Orders"
-                description="Årets ordre historikk."
-                emptyMessage="Ingen ordre registrert i år."
+                title={t("orders.analytics.tabsYear")}
+                description={t("orders.analytics.yearDescription")}
+                emptyMessage={t("orders.analytics.yearEmpty")}
+                labels={tableLabels}
+                t={t}
               />
             </TabsContent>
           </Tabs>
         </div>
         <div>
-          <OrderDetailCard order={featuredOrder} />
+          <OrderDetailCard order={featuredOrder} t={t} />
         </div>
       </main>
     </div>
   )
+}
+
+type OrdersTableProps = {
+  orders: PreparedOrder[]
+  title: string
+  description: string
+  emptyMessage: string
+  labels: OrdersTableLabels
+  t: Translator
 }
 
 function OrdersTable({
@@ -222,12 +270,9 @@ function OrdersTable({
   title,
   description,
   emptyMessage,
-}: {
-  orders: PreparedOrder[]
-  title: string
-  description: string
-  emptyMessage: string
-}) {
+  labels,
+  t,
+}: OrdersTableProps) {
   return (
     <Card className="glass-panel" x-chunk="dashboard-05-chunk-3">
       <CardHeader className="px-7">
@@ -238,40 +283,50 @@ function OrdersTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Customer</TableHead>
+              <TableHead>{labels.customer}</TableHead>
               <TableHead className="hidden sm:table-cell">
-                Email
+                {labels.email}
               </TableHead>
               <TableHead className="hidden sm:table-cell">
-                Status
+                {labels.status}
               </TableHead>
               <TableHead className="hidden md:table-cell">
-                Date
+                {labels.date}
               </TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="text-right">{labels.amount}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.map((order) => {
               const status = (order.status || "pending").toLowerCase()
               const statusClasses = STATUS_STYLES[status] || STATUS_STYLES.pending
+              const statusLabel = t(`orders.status.${status}`)
               return (
                 <TableRow key={order.$id}>
                   <TableCell>
-                    <div className="font-medium">{order.buyer_name || "Guest"}</div>
+                    <div className="font-medium">
+                      {order.buyer_name || t("orders.detail.guest")}
+                    </div>
                     <div className="hidden text-sm text-muted-foreground md:inline">{order.buyer_email || "—"}</div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">{order.buyer_email || "—"}</TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {order.buyer_email || "—"}
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Badge className={cn("text-xs capitalize", statusClasses)}>
-                      {status}
+                      {statusLabel}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{DATE_FORMATTER.format(order.createdAtDate)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <span>{NOK_FORMATTER.format(order.totalValue)}</span>
-                      <NextLink className="text-xs underline" href={`/admin/shop/orders/${order.$id}`}>View</NextLink>
+                      <NextLink
+                        className="text-xs underline"
+                        href={`/admin/shop/orders/${order.$id}`}
+                      >
+                        {labels.view}
+                      </NextLink>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -291,16 +346,22 @@ function OrdersTable({
   )
 }
 
-function OrderDetailCard({ order }: { order: PreparedOrder | null }) {
+function OrderDetailCard({
+  order,
+  t,
+}: {
+  order: PreparedOrder | null
+  t: Translator
+}) {
   if (!order) {
     return (
       <Card className="glass-panel" x-chunk="dashboard-05-chunk-4">
         <CardHeader>
-          <CardTitle>Order details</CardTitle>
-          <CardDescription>Velg en ordre for å se detaljer.</CardDescription>
+          <CardTitle>{t("orders.detail.emptyTitle")}</CardTitle>
+          <CardDescription>{t("orders.detail.emptyDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Ingen ordre tilgjengelig.
+          {t("orders.detail.emptyMessage")}
         </CardContent>
       </Card>
     )
@@ -308,6 +369,7 @@ function OrderDetailCard({ order }: { order: PreparedOrder | null }) {
 
   const status = (order.status || "pending").toLowerCase()
   const statusClasses = STATUS_STYLES[status] || STATUS_STYLES.pending
+  const statusLabel = t(`orders.status.${status}`)
   const items = parseOrderItems(order.items_json)
   const subtotal = typeof order.subtotal === "number" ? order.subtotal : order.totalValue
   const discount = Number(order.discount_total ?? 0)
@@ -315,35 +377,60 @@ function OrderDetailCard({ order }: { order: PreparedOrder | null }) {
 
   return (
     <Card
-      className="glass-panel overflow-hidden" x-chunk="dashboard-05-chunk-4"
+      className="glass-panel overflow-hidden"
+      x-chunk="dashboard-05-chunk-4"
     >
       <CardHeader className="flex flex-col gap-3 bg-muted/50">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>Order #{order.$id.slice(-8)}</CardTitle>
+            <CardTitle>
+              {t("orders.detail.title", { identifier: order.$id.slice(-8) })}
+            </CardTitle>
             <CardDescription>
-              Plassert {DATE_FORMATTER.format(order.createdAtDate)} av {order.buyer_name || "Guest"}
+              {t("orders.detail.subtitle", {
+                date: DATE_FORMATTER.format(order.createdAtDate),
+                buyer: order.buyer_name || t("orders.detail.guest"),
+              })}
             </CardDescription>
           </div>
           <Badge className={cn("capitalize", statusClasses)}>
-            {status}
+            {statusLabel}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="p-6 text-sm space-y-6">
         <div className="space-y-3">
-          <div className="font-semibold">Order Details</div>
+          <div className="font-semibold">
+            {t("orders.detail.section.orderDetails")}
+          </div>
           <ul className="grid gap-3">
             {items.length === 0 && (
-              <li className="text-muted-foreground">Ingen ordrelinjer registrert.</li>
+              <li className="text-muted-foreground">
+                {t("orders.detail.itemsEmpty")}
+              </li>
             )}
             {items.map((item) => (
-              <li key={`${item.product_id}-${item.variation_id ?? "base"}`} className="flex items-center justify-between gap-4">
+              <li
+                key={`${item.product_id}-${item.variation_id ?? "base"}`}
+                className="flex items-center justify-between gap-4"
+              >
                 <span className="text-muted-foreground">
-                  {item.title || item.product_slug || "Produkt"}{" "}
-                  {item.quantity ? <span className="text-xs text-muted-foreground">x {item.quantity}</span> : null}
+                  {item.title ||
+                    item.product_slug ||
+                    t("orders.detail.productFallback")}{" "}
+                  {item.quantity ? (
+                    <span className="text-xs text-muted-foreground">
+                      x {item.quantity}
+                    </span>
+                  ) : null}
                 </span>
-                <span>{NOK_FORMATTER.format(item.quantity && item.unit_price ? item.quantity * item.unit_price : item.unit_price ?? 0)}</span>
+                <span>
+                  {NOK_FORMATTER.format(
+                    item.quantity && item.unit_price
+                      ? item.quantity * item.unit_price
+                      : item.unit_price ?? 0
+                  )}
+                </span>
               </li>
             ))}
           </ul>
@@ -351,31 +438,50 @@ function OrderDetailCard({ order }: { order: PreparedOrder | null }) {
         <Separator />
         <ul className="grid gap-2 text-sm">
           <li className="flex items-center justify-between">
-            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-muted-foreground">
+              {t("orders.detail.subtotal")}
+            </span>
             <span>{NOK_FORMATTER.format(subtotal)}</span>
           </li>
           <li className="flex items-center justify-between">
-            <span className="text-muted-foreground">Discount</span>
-            <span>{discount ? `- ${NOK_FORMATTER.format(discount)}` : NOK_FORMATTER.format(0)}</span>
+            <span className="text-muted-foreground">
+              {t("orders.detail.discount")}
+            </span>
+            <span>
+              {discount
+                ? `- ${NOK_FORMATTER.format(discount)}`
+                : NOK_FORMATTER.format(0)}
+            </span>
           </li>
           <li className="flex items-center justify-between font-semibold">
-            <span className="text-muted-foreground">Total</span>
+            <span className="text-muted-foreground">
+              {t("orders.detail.total")}
+            </span>
             <span>{NOK_FORMATTER.format(total)}</span>
           </li>
         </ul>
         <Separator />
         <div className="space-y-2">
-          <div className="font-semibold">Customer</div>
+          <div className="font-semibold">
+            {t("orders.detail.section.customer")}
+          </div>
           <dl className="grid gap-2 text-sm">
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Name</dt>
-              <dd>{order.buyer_name || "Guest"}</dd>
+              <dt className="text-muted-foreground">
+                {t("orders.detail.customerName")}
+              </dt>
+              <dd>{order.buyer_name || t("orders.detail.guest")}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Email</dt>
+              <dt className="text-muted-foreground">
+                {t("orders.detail.customerEmail")}
+              </dt>
               <dd>
                 {order.buyer_email ? (
-                  <a className="underline" href={`mailto:${order.buyer_email}`}>
+                  <a
+                    className="underline"
+                    href={`mailto:${order.buyer_email}`}
+                  >
                     {order.buyer_email}
                   </a>
                 ) : (
@@ -384,10 +490,15 @@ function OrderDetailCard({ order }: { order: PreparedOrder | null }) {
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Phone</dt>
+              <dt className="text-muted-foreground">
+                {t("orders.detail.customerPhone")}
+              </dt>
               <dd>
                 {order.buyer_phone ? (
-                  <a className="underline" href={`tel:${order.buyer_phone}`}>
+                  <a
+                    className="underline"
+                    href={`tel:${order.buyer_phone}`}
+                  >
                     {order.buyer_phone}
                   </a>
                 ) : (
@@ -400,16 +511,24 @@ function OrderDetailCard({ order }: { order: PreparedOrder | null }) {
       </CardContent>
       <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-6 py-4">
         <div className="text-xs text-muted-foreground">
-          Sist oppdatert {DATE_FORMATTER.format(order.createdAtDate)}
+          {t("orders.detail.lastUpdated", {
+            date: DATE_FORMATTER.format(order.createdAtDate),
+          })}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm">
-            <NextLink href={`/admin/shop/orders/${order.$id}`}>Vis full ordre</NextLink>
+            <NextLink href={`/admin/shop/orders/${order.$id}`}>
+              {t("orders.detail.viewFull")}
+            </NextLink>
           </Button>
           {order.vipps_payment_link && (
             <Button asChild size="sm" variant="outline">
-              <a href={order.vipps_payment_link} target="_blank" rel="noreferrer">
-                Åpne Vipps-kvittering
+              <a
+                href={order.vipps_payment_link}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t("orders.detail.openReceipt")}
               </a>
             </Button>
           )}

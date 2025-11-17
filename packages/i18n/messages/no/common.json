@@ -10,12 +10,43 @@
   "locale": {
     "switcher": {
       "label": "Bytt språk",
-      "current": "Nåværende språk: {locale}",
+      "current": "Gjeldende språk: {locale}",
       "loading": "Bytter språk..."
     },
     "languages": {
       "en": "Engelsk",
       "no": "Norsk"
     }
+  },
+  "footer": {
+    "about": {
+      "description": "BI Studentforening kobler sammen studenter og næringslivet, legger til rette for sosial integrering og arbeider for å forbedre studentvelferden og kvaliteten på studiene.",
+      "ourStory": "Vår historie",
+      "team": "Team",
+      "careers": "Karrierer",
+      "contact": "Kontakt"
+    },
+    "students": {
+      "membership": "Medlemskap",
+      "events": "Arrangementer",
+      "news": "Nyheter",
+      "resources": "Resurser"
+    },
+    "support": {
+      "faq": "FAQ",
+      "helpCenter": "Hjelpesenter",
+      "privacyPolicy": "Personvernpolicy",
+      "termsOfService": "Tjenester og vilkår"
+    }
+  },
+  "navigation": {
+    "partner": "Partner",
+    "memberPortal": "Medlemsportal",
+    "campus": "Campus",
+    "events": "Arrangementer",
+    "news": "Nyheter",
+    "shop": "Butikk",
+    "applyHere": "Søk her",
+    "about": "Om oss"
   }
 }

@@ -20,7 +20,7 @@
     "all": "Alle",
     "all jobs": "Alle stillinger",
     "active": "Aktiv",
-    "draft": "Utkast",
+    "draft": "Kladd",
     "published": "Publisert",
     "closed": "Lukket",
     "status": "Status",
@@ -45,7 +45,7 @@
     "totalInCatalog": "Totalt i katalogen",
     "published": "Publisert",
     "visibleToStudents": "Synlig for studenter",
-    "drafts": "Utkast",
+    "drafts": "Kladder",
     "readyForReview": "Klar for gjennomgang",
     "translated": "Oversatt",
     "translationComplete": "NO + EN fullført"
@@ -59,11 +59,43 @@
     "type": "Stillingstype",
     "deadline": "Søknadsfrist",
     "contactPerson": "Kontaktperson",
-    "contactEmail": "Kontaktemail",
+    "contactEmail": "Kontakt-e-post",
     "status": "Status",
     "save": "Lagre stilling",
     "cancel": "Avbryt",
-    "publish": "Publiser"
+    "publish": "Publiser",
+    "slug": "Slug",
+    "campus": "Campus",
+    "applyUrl": "Søknadslenke (URL)",
+    "image": "Bilde-URL"
+  },
+  "editor": {
+    "jobDetailsTitle": "Stillingsdetaljer",
+    "basicInformation": "Grunnleggende informasjon",
+    "metadataTitle": "Stillingsdetaljer",
+    "contentTranslations": "Innhold og oversettelser",
+    "translateEnToNo": "EN → NO",
+    "translateNoToEn": "NO → EN",
+    "translationStatusTitle": "Oversettelsesstatus",
+    "previewTitle": "Forhåndsvisning",
+    "english": "Engelsk",
+    "norwegian": "Norsk",
+    "complete": "Fullført",
+    "missing": "Mangler",
+    "saveBeforeTranslate": "Lagre endringer før du bruker KI-oversettelse",
+    "noTitle": "Ingen tittel",
+    "cancel": "Avbryt",
+    "updateJob": "Oppdater stilling",
+    "createJob": "Opprett stilling",
+    "labels": {
+      "slugPlaceholder": "unik-stillings-slug",
+      "jobTypePlaceholder": "f.eks. Styreverv, Komité",
+      "contactNamePlaceholder": "Kontaktperson",
+      "contactEmailPlaceholder": "contact@biso.no",
+      "selectCampus": "Velg campus",
+      "selectDepartment": "Velg avdeling",
+      "selectStatus": "Velg status"
+    }
   },
   "type": {
     "fullTime": "Fulltid",
@@ -73,13 +105,17 @@
   },
   "status": {
     "active": "Aktiv",
-    "draft": "Utkast",
-    "closed": "Lukket"
+    "draft": "Kladd",
+    "closed": "Lukket",
+    "published": "Publisert",
+    "archived": "Arkivert",
+    "cancelled": "Kansellert"
   },
   "applications": {
     "title": "Søknader",
     "view": "Vis søknad",
     "search": "Søk i søknader...",
+    "summary": "{count} søknad{plural} totalt",
     "filters": {
       "all": "Alle søknader",
       "pending": "Avventer",
@@ -96,16 +132,43 @@
       "actions": "Handlinger"
     },
     "status": {
-      "pending": "Avventer",
+      "submitted": "Sendt inn",
       "reviewed": "Gjennomgått",
+      "interview": "Intervju",
       "accepted": "Godkjent",
       "rejected": "Avslått"
     },
     "actions": {
       "accept": "Godkjenn",
       "reject": "Avslå",
-      "download": "Last ned CV"
-    }
+      "download": "Last ned CV",
+      "markReviewed": "Marker som gjennomgått",
+      "scheduleInterview": "Planlegg intervju",
+      "markAccepted": "Marker som godkjent",
+      "markRejected": "Marker som avslått",
+      "exportData": "Eksporter data (GDPR)",
+      "deleteData": "Slett data (GDPR)",
+      "confirmDelete": "Er du sikker på at du vil slette disse søknadsdataene permanent? Denne handlingen kan ikke angres.",
+      "mailSubject": "Re: Søknad til stilling"
+    },
+    "labels": {
+      "appliedAt": "Søkt",
+      "position": "Stilling",
+      "coverLetter": "Søknadsbrev",
+      "dataRetention": "Lagring av data til: {date}",
+      "consentGiven": "Samtykke gitt: {date}"
+    },
+    "messages": {
+      "loading": "Laster stillinger...",
+      "noApplications": "Ingen søknader funnet",
+      "statusUpdated": "Søknadsstatus oppdatert",
+      "statusUpdateError": "Feil ved oppdatering av status",
+      "exportSuccess": "Søknadsdata eksportert",
+      "exportError": "Feil ved eksport av data",
+      "deleteSuccess": "Søknadsdata slettet",
+      "deleteError": "Feil ved sletting av data"
+    },
+    "back": "← Tilbake til stillinger"
   },
   "messages": {
     "loading": "Laster stillinger...",
@@ -113,6 +176,15 @@
     "noApplications": "Ingen søknader funnet",
     "deleteConfirm": "Er du sikker på at du vil slette denne stillingen?",
     "saveSuccess": "Stilling lagret",
-    "error": "Det oppstod en feil"
+    "error": "Det oppstod en feil",
+    "jobUpdated": "Stilling oppdatert",
+    "jobCreated": "Stilling opprettet",
+    "saveFailed": "Kunne ikke lagre stilling",
+    "saveFirst": "Lagre først",
+    "saveBeforeTranslate": "Vennligst lagre stillingen før du oversetter",
+    "translationCompleted": "Oversettelse fullført",
+    "translationDescription": "Innhold oversatt til {language}",
+    "translationFailed": "Oversettelse mislyktes",
+    "translationError": "Kunne ikke oversette innhold. Vennligst prøv igjen."
   }
 }

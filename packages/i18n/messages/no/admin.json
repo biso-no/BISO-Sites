@@ -70,7 +70,7 @@
     "events": "kalender aktiviteter hendelser",
     "units": "avdelinger divisjoner team",
     "varsling": "varsling rapporter sikkerhet",
-    "settings": "konfigurasjon preferanser alternativer"
+    "settings": "konfigurasjon innstillinger alternativer"
   },
   "signOut": "Logg ut",
   "assistant": {
@@ -95,6 +95,126 @@
       "pr": "PR og kommunikasjon",
       "finance": "Økonomi",
       "hr": "HR"
-    }
+    },
+    "hero": {
+      "badge": "Admin-intelligens",
+      "title": "Samlet kontrollsenter",
+      "description": "Overvåk vekst, engasjement, økonomi og personalanalyse fra ett samlet premium-arbeidsområde tilpasset BISO."
+    },
+    "focus": {
+      "title": "Fokusområder",
+      "description": "Bytt mellom analytiske perspektiver tilpasset din nåværende rolle."
+    },
+    "summary": {
+      "totalPageViews": {
+        "label": "Totalt sidevisninger",
+        "descriptionTopPage": "Topp-side • {page}",
+        "descriptionNoPage": "Ingen data for topp-side"
+      },
+      "activeMembers": {
+        "label": "Aktive medlemmer",
+        "description": "Rekkevidde i miljøet",
+        "segments": "{count} segmenter"
+      },
+      "systemAlerts": {
+        "label": "Systemvarsler",
+        "description": "På tvers av alle alvorlighetsgrader",
+        "critical": "{count} kritiske"
+      },
+      "jobPipeline": {
+        "label": "Rekrutteringspipeline",
+        "description": "{count} åpne stillinger",
+        "traffic": "Trafikk: {source}",
+        "tracking": "Sporing"
+      }
+    },
+    "cards": {
+      "pageViews": {
+        "title": "Sidevisninger",
+        "description": "Oversikt over sidevisninger på nettstedet"
+      },
+      "userDistribution": {
+        "title": "Brukerfordeling",
+        "description": "Fordeling av brukertyper"
+      },
+      "userGrowth": {
+        "title": "Brukervekst",
+        "overviewDescription": "Månedlig brukervekst over tid",
+        "analyticsDescription": "Endring fra måned til måned"
+      },
+      "totalPageViews": {
+        "title": "Totalt sidevisninger",
+        "description": "Aggregert på tvers av alle sporede sider"
+      },
+      "topTrafficSource": {
+        "title": "Viktigste trafikkilde",
+        "description": "Ledende kanal i denne perioden"
+      },
+      "trafficBreakdown": {
+        "title": "Fordeling av trafikkilder",
+        "description": "Hvor besøkende kommer fra"
+      },
+      "recentActivities": {
+        "title": "Siste aktiviteter",
+        "description": "Siste handlinger utført av brukere"
+      },
+      "postEngagement": {
+        "title": "Engasjement på innlegg",
+        "description": "Oversikt over likerklikk, kommentarer og delinger for nylige innlegg"
+      },
+      "audienceGrowth": {
+        "title": "Publikumsvekst",
+        "description": "Månedlig vekst i følgere"
+      },
+      "revenueByProduct": {
+        "title": "Inntekt per produkt",
+        "description": "Oversikt over inntekt generert av hvert produkt"
+      },
+      "expenseCategories": {
+        "title": "Utgiftskategorier",
+        "description": "Fordeling av utgifter per kategori"
+      },
+      "jobApplications": {
+        "title": "Jobbsøknader",
+        "description": "Antall søknader per utlyst stilling"
+      },
+      "employeeDistribution": {
+        "title": "Ansattfordeling",
+        "description": "Fordeling av ansatte per avdeling"
+      },
+      "table": {
+        "user": "Bruker",
+        "action": "Handling",
+        "timestamp": "Tidsstempel"
+      }
+    },
+    "notifications": {
+      "errors": {
+        "title": "Feil",
+        "description": "Krever umiddelbar oppmerksomhet"
+      },
+      "warnings": {
+        "title": "Advarsler",
+        "description": "Overvåk disse elementene"
+      },
+      "info": {
+        "title": "Informasjonsmeldinger",
+        "description": "Generelle systemoppdateringer"
+      },
+      "success": {
+        "title": "Vellykkede hendelser",
+        "description": "Fullførte oppgaver"
+      },
+      "systemAlerts": {
+        "title": "Systemvarsler",
+        "description": "Applikasjons- og plattformvarsler"
+      }
+    },
+    "analytics": {
+      "topPageLabel": "Topp-side: {page}",
+      "noPageData": "Ingen sidedata tilgjengelig"
+    },
+    "emptyContent": "Ingen innhold for denne fanen",
+    "missingRoleContent": "Ingen spesifikt innhold for denne rollen"
   }
 }

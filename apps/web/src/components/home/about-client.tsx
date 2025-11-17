@@ -1,7 +1,8 @@
 'use client';
 import { motion } from 'motion/react';
-import { Users, Heart, Lightbulb, Trophy, Rocket, Star, Calendar, Briefcase } from 'lucide-react';
+import { Calendar, Briefcase, Rocket, Megaphone, Link, Sparkles } from 'lucide-react';
 import { Card } from '@repo/ui/components/ui/card';
+import { useTranslations } from 'next-intl';
 
 interface AboutClientProps {
   eventCount: number;
@@ -10,30 +11,32 @@ interface AboutClientProps {
 }
 
 export function AboutClient({ eventCount, jobCount, departmentsCount }: AboutClientProps) {
+  const t = useTranslations('home');
+  const tAbout = useTranslations('about');
   const stats = [
-    { number: `${eventCount}+`, label: 'Upcoming Events', icon: Calendar },
-    { number: `${jobCount}+`, label: 'Job Opportunities', icon: Briefcase },
-    { number: `${departmentsCount}+`, label: 'Student Groups', icon: Rocket },
+    { number: `${eventCount}+`, label: t('about.upcomingEvents'), icon: Calendar },
+    { number: `${jobCount}+`, label: t('about.jobOpportunities'), icon: Briefcase },
+    { number: `${departmentsCount}+`, label: t('about.studentGroups'), icon: Rocket },
     //{ number: '15+', label: 'Years Strong', icon: Trophy },
   ];
 
   const values = [
     {
-      icon: Heart,
-      title: 'Community First',
-      description: 'Building lasting connections and friendships that extend beyond the classroom.',
+      icon: Megaphone,
+      title: tAbout('general.strategy.items.impact.title'),
+      description: tAbout('general.strategy.items.impact.desc'),
       gradient: 'from-[#3DA9E0] to-[#001731]',
     },
     {
-      icon: Lightbulb,
-      title: 'Innovation & Growth',
-      description: 'Creating opportunities for personal and professional development.',
+      icon: Link,
+      title: tAbout('general.strategy.items.connected.title'),
+      description: tAbout('general.strategy.items.connected.desc'),
       gradient: 'from-[#3DA9E0] to-cyan-600',
     },
     {
-      icon: Users,
-      title: 'Inclusive Culture',
-      description: 'Welcoming students from all backgrounds to create a diverse community.',
+      icon: Sparkles,
+      title: tAbout('general.strategy.items.engaged.title'),
+      description: tAbout('general.strategy.items.engaged.desc'),
       gradient: 'from-[#001731] to-[#3DA9E0]',
     },
   ];
@@ -73,21 +76,17 @@ export function AboutClient({ eventCount, jobCount, departmentsCount }: AboutCli
               About BISO
             </div>
             <h2 className="mb-6 text-gray-900">
-              Norway's Premier
+              {t('about.mainContent.premier')}
               <br />
               <span className="bg-linear-to-r from-[#3DA9E0] to-[#001731] bg-clip-text text-transparent">
-                Student Community
+                {t('about.mainContent.studentCommunity')}
               </span>
             </h2>
             <p className="text-gray-600 mb-6">
-              BI Student Organisation (BISO) is the heartbeat of student life at BI Norwegian Business School. 
-              We're dedicated to creating unforgettable experiences, fostering meaningful connections, and 
-              empowering students to make the most of their university years.
+              {t('about.mainContent.paragraph1')}
             </p>
             <p className="text-gray-600">
-              From exciting social events and career workshops to cultural festivals and sports competitions, 
-              we offer something for everyone. Join us and become part of a community that celebrates diversity, 
-              encourages innovation, and creates memories that last a lifetime.
+              {t('about.mainContent.paragraph2')}
             </p>
           </motion.div>
 
@@ -97,12 +96,10 @@ export function AboutClient({ eventCount, jobCount, departmentsCount }: AboutCli
             viewport={{ once: true }}
             className="relative"
           >
-            <div className="aspect-square rounded-2xl overflow-hidden shadow-2xl">
-              <img
-                src="https://images.unsplash.com/photo-1760351065294-b069f6bcadc4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50cyUyMHN0dWR5aW5nJTIwdG9nZXRoZXJ8ZW58MXx8fHwxNzYyMDczMzQ0fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="BI Students"
-                className="w-full h-full object-cover"
-              />
+            <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl">
+              <video width="100%" height="100%" autoPlay loop muted>
+                <source src="https://appwrite.biso.no/v1/storage/buckets/content/files/biso_video/view?project=biso&mode=admin" type="video/mp4" />
+              </video>
             </div>
             <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-linear-to-br from-[#3DA9E0] to-[#001731] rounded-2xl opacity-20 blur-2xl" />
           </motion.div>

@@ -1,9 +1,11 @@
+import { getTranslations } from 'next-intl/server'
 import { getOrders } from '@/app/actions/orders'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@repo/ui/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@repo/ui/components/ui/table'
 
 export default async function CustomersPage() {
   const orders = await getOrders({ limit: 500 })
+  const t = await getTranslations("adminShop")
 
   const customersMap = new Map<string, { name: string; email: string; orders: number; total: number }>()
   for (const o of orders as any[]) {
@@ -20,17 +22,21 @@ export default async function CustomersPage() {
     <div className="flex w-full flex-col">
       <Card className="glass-panel">
         <CardHeader>
-          <CardTitle>Customers</CardTitle>
-          <CardDescription>Unique buyers aggregated from orders</CardDescription>
+          <CardTitle>{t("customers.title")}</CardTitle>
+          <CardDescription>{t("customers.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-right">Orders</TableHead>
-                <TableHead className="text-right">Total Spent</TableHead>
+                <TableHead>{t("customers.table.name")}</TableHead>
+                <TableHead>{t("customers.table.email")}</TableHead>
+                <TableHead className="text-right">
+                  {t("customers.table.orders")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("customers.table.totalSpent")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -44,7 +50,9 @@ export default async function CustomersPage() {
               ))}
               {customers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">No customers yet</TableCell>
+                  <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                    {t("customers.empty")}
+                  </TableCell>
                 </TableRow>
               )}
             </TableBody>

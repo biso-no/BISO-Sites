@@ -2,6 +2,7 @@ import { getJob } from '@/app/actions/jobs'
 import { listCampuses, listDepartments } from '@/app/actions/events'
 import JobEditor from '../shared/JobEditor'
 import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
 
 export default async function EditJobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -10,11 +11,14 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
     listCampuses(),
     listDepartments(),
   ])
+  const t = await getTranslations("adminJobs")
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/admin/jobs/${id}`} className="font-medium">Editor</Link>
-        <Link href={`/admin/jobs/${id}/applications`} className="text-muted-foreground hover:text-foreground">Applications</Link>
+        <Link href={`/admin/jobs/${id}`} className="font-medium">{t("edit")}</Link>
+        <Link href={`/admin/jobs/${id}/applications`} className="text-muted-foreground hover:text-foreground">
+          {t("applications.title")}
+        </Link>
       </div>
       <JobEditor job={job as any} campuses={campuses as any} departments={departments as any} />
     </div>

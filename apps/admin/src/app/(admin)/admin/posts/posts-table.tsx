@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
-
 import {
   ChevronLeft,
   ChevronRight,
@@ -41,6 +40,7 @@ import {
 } from "@repo/ui/components/ui/card";
 import { deletePost } from "@/app/actions/admin";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 const getUniqueDepartments = (posts: Post[]): Department[] => {
   const uniqueMap = new Map<string, Department>();
@@ -73,6 +73,7 @@ const getUniqueCampuses = (posts: Post[]): Campus[] => {
 };
 
 export function PostTable({ posts }: { posts: Post[] }) {
+  const t = useTranslations("adminPosts");
   const [uniqueCampuses, setUniqueCampuses] = useState<Campus[]>([]);
   const [uniqueDepartments, setUniqueDepartments] = useState<Department[]>([]);
   const [page, setPage] = useState(1);
@@ -159,21 +160,33 @@ export function PostTable({ posts }: { posts: Post[] }) {
   const handleRowCreate = () => {
     router.push(`/admin/posts/createPost`);
   };
-  const handleRowDelete = (postId:string) => {
+  const handleRowDelete = (postId: string) => {
     deletePost(postId)
     router.refresh();
   };
+
+  const getStatusLabel = (status: Post["status"]) => {
+    switch (status) {
+      case "publish":
+        return t("status.published");
+      case "draft":
+        return t("status.draft");
+      default:
+        return status;
+    }
+  };
+
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-5">View Posts</h1>
+      <h1 className="mb-5 text-2xl font-bold">{t("title")}</h1>
       <div className="container mx-auto py-10">
-        <h1 className="text-2xl font-bold mb-5">View Posts</h1>
+        <h1 className="mb-5 text-2xl font-bold">{t("title")}</h1>
 
         <form onSubmit={handleSearch} className="flex gap-4 mb-5">
           <Input
             type="text"
             name="search"
-            placeholder=""
+            placeholder={t("search")}
             value={formData.search}
             onChange={handleChange}
             className="grow"
@@ -184,12 +197,14 @@ export function PostTable({ posts }: { posts: Post[] }) {
             name="department"
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="all" />
+              <SelectValue placeholder={t("filters.allDepartments")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
+              <SelectItem value="all">{t("filters.allDepartments")}</SelectItem>
               {uniqueDepartments.map((dep: Department) => (
-                <SelectItem value={dep.Name}>{dep.Name}</SelectItem>
+                <SelectItem key={dep.Name} value={dep.Name}>
+                  {dep.Name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -199,19 +214,21 @@ export function PostTable({ posts }: { posts: Post[] }) {
             name="campus"
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="all" />
+              <SelectValue placeholder={t("filters.allCampuses")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Campuses</SelectItem>
+              <SelectItem value="all">{t("filters.allCampuses")}</SelectItem>
               {uniqueCampuses.map((camp: Campus) => (
-                <SelectItem value={camp.name}>{camp.name}</SelectItem>
+                <SelectItem key={camp.name} value={camp.name}>
+                  {camp.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Button type="submit">
             <Search className="w-4 h-4 mr-2" />
-            Search
+            {t("search")}
           </Button>
 
           <Button type="button" onClick={toggleViewType} variant="outline">
@@ -220,12 +237,12 @@ export function PostTable({ posts }: { posts: Post[] }) {
             ) : (
               <List className="w-4 h-4 mr-2" />
             )}
-            {viewType === "list" ? "Grid View" : "List View"}
+            {viewType === "list" ? t("view.grid") : t("view.list")}
           </Button>
         </form>
         <Button className="w-full" onClick={() => router.push("/admin/posts/new")}>
-          <PlusCircle  />
-          Add New Post
+          <PlusCircle />
+          {t("create")}
         </Button>
 
         {viewType === "list" ? (
@@ -233,12 +250,12 @@ export function PostTable({ posts }: { posts: Post[] }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Campus</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Action</TableHead>
+                <TableHead>{t("table.title")}</TableHead>
+                <TableHead>{t("table.department")}</TableHead>
+                <TableHead>{t("table.campus")}</TableHead>
+                <TableHead>{t("table.status")}</TableHead>
+                <TableHead>{t("table.createdAt")}</TableHead>
+                <TableHead>{t("table.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -258,7 +275,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
                           : "bg-yellow-200 text-yellow-800"
                       }`}
                     >
-                      {post.status}
+                      {getStatusLabel(post.status)}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -266,12 +283,12 @@ export function PostTable({ posts }: { posts: Post[] }) {
                   </TableCell>
                   <TableCell >
                     <div className="flex justify-between">
-                    <Button onClick={() => handleRowClick(post.$id)}>
-                      <Edit /> Edit
-                    </Button>
-                    <Button onClick={() => handleRowDelete(post.$id)}>
-                      <DeleteIcon /> Delete
-                    </Button>                     
+                      <Button onClick={() => handleRowClick(post.$id)}>
+                        <Edit /> {t("edit")}
+                      </Button>
+                      <Button onClick={() => handleRowDelete(post.$id)}>
+                        <DeleteIcon /> {t("delete")}
+                      </Button>
                     </div>
 
                   </TableCell>
@@ -295,16 +312,16 @@ export function PostTable({ posts }: { posts: Post[] }) {
                     src={post.image}
                     width={300}
                     height={400}
-                    alt="post image"
+                    alt={t("imageAlt")}
                   />
                   <p>
-                    <strong>Department:</strong> {post.department.Name}
+                    <strong>{t("table.department")}:</strong> {post.department.Name}
                   </p>
                   <p>
-                    <strong>Campus:</strong> {post.campus.name}
+                    <strong>{t("table.campus")}:</strong> {post.campus.name}
                   </p>
                   <p>
-                    <strong>Status:</strong>
+                    <strong>{t("table.status")}:</strong>
                     <span
                       className={`ml-2 px-2 py-1 rounded-full text-xs ${
                         post.status === "publish"
@@ -312,11 +329,11 @@ export function PostTable({ posts }: { posts: Post[] }) {
                           : "bg-yellow-200 text-yellow-800"
                       }`}
                     >
-                      {post.status}
+                      {getStatusLabel(post.status)}
                     </span>
                   </p>
                   <p>
-                    <strong>Created At:</strong>{" "}
+                    <strong>{t("table.createdAt")}:</strong>{" "}
                     {format(new Date(post.$createdAt), "MMM d, yyyy")}
                   </p>
                 </CardContent>
@@ -325,7 +342,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
                     href={`/posts/${post.id}`}
                     className="text-blue-600 hover:underline"
                   >
-                    View/Edit
+                    {t("table.viewEdit")}
                   </Link>
                 </CardFooter>
               </Card>
@@ -340,16 +357,16 @@ export function PostTable({ posts }: { posts: Post[] }) {
             disabled={page === 1}
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
-            Previous
+            {t("pagination.previous")}
           </Button>
           <span>
-            Page {page} of {totalPages}
+            {t("pagination.label", { page, total: totalPages })}
           </span>
           <Button
             onClick={() => setPage((old) => (old < totalPages ? old + 1 : old))}
             disabled={page === totalPages}
           >
-            Next
+            {t("pagination.next")}
             <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
