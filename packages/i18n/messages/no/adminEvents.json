@@ -1,26 +1,60 @@
 {
   "title": "Arrangementer",
   "description": "Administrer arrangementer og aktiviteter",
+  "badge": "Arrangementer",
+  "workbenchTitle": "Arbeidsbenk for arrangementer",
+  "workbenchDescription": "Koordiner arrangementer på tvers av campus med språk, status og tilgjengelighet.",
+  "newEvent": "Nytt arrangement",
+  "filterTitle": "Filtrer arrangementer",
+  "filterDescription": "Avgrens visningen etter status, campus eller søkeord.",
+  "eventList": "Arrangementsoversikt",
+  "translated": "oversatt",
+  "cancelledInArchive": "{count} avlyste arrangementer i arkivet",
+  "eventsAcrossCampuses": "{count} arrangementer på tvers av {campuses} campuser",
   "create": "Opprett arrangement",
   "edit": "Rediger arrangement",
   "delete": "Slett arrangement",
-  "search": "Søk arrangementer...",
+  "search": "Søk i arrangementer...",
+  "searchPlaceholder": "Søk etter tittel eller slug...",
   "filters": {
-    "all": "Alle arrangementer",
+    "all": "Alle",
+    "all events": "Alle arrangementer",
     "upcoming": "Kommende",
     "past": "Tidligere",
-    "draft": "Utkast"
+    "draft": "Kladd",
+    "published": "Publisert",
+    "cancelled": "Avlyst",
+    "status": "Status",
+    "campus": "Campus",
+    "filter": "Filtrer"
   },
   "table": {
     "title": "Tittel",
+    "event": "Arrangement",
     "date": "Dato",
     "location": "Sted",
     "participants": "Deltakere",
     "status": "Status",
-    "actions": "Handlinger"
+    "language": "Språk",
+    "campus": "Campus",
+    "actions": "Handlinger",
+    "missing": "Mangler",
+    "edit": "Rediger",
+    "preview": "Forhåndsvis",
+    "duplicate": "Dupliser"
+  },
+  "metrics": {
+    "activeEvents": "Aktive arrangementer",
+    "totalRegistered": "Totalt påmeldte",
+    "published": "Publisert",
+    "visibleToMembers": "Synlig for medlemmer",
+    "drafts": "Kladder",
+    "forReview": "Til gjennomgang",
+    "translations": "Oversettelser",
+    "translationComplete": "NO + EN fullført"
   },
   "form": {
-    "title": "Arrangementtittel",
+    "title": "Arrangementsnavn",
     "description": "Beskrivelse",
     "date": "Dato",
     "startTime": "Starttid",
@@ -33,12 +67,12 @@
     "save": "Lagre arrangement",
     "cancel": "Avbryt",
     "publish": "Publiser",
-    "preview": "Forhåndsvisning"
+    "preview": "Forhåndsvis"
   },
   "status": {
     "active": "Aktiv",
-    "draft": "Utkast",
-    "cancelled": "Kansellert",
+    "draft": "Kladd",
+    "cancelled": "Avlyst",
     "completed": "Fullført"
   },
   "imageUpload": {
@@ -50,16 +84,15 @@
   },
   "participants": {
     "title": "Deltakere",
-    "registered": "Påmeldt",
-    "attended": "Deltok",
+    "registered": "Påmeldte",
+    "attended": "Møtte opp",
     "export": "Eksporter liste"
   },
   "messages": {
     "loading": "Laster arrangementer...",
     "noEvents": "Ingen arrangementer funnet",
     "deleteConfirm": "Er du sikker på at du vil slette dette arrangementet?",
-    "saveSuccess": "Arrangement lagret",
-    "error": "En feil oppstod"
+    "saveSuccess": "Arrangementet ble lagret",
+    "error": "Det oppsto en feil"
   }
 }
-

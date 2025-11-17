@@ -4,7 +4,7 @@
   "create": "Opprett enhet",
   "edit": "Rediger enhet",
   "delete": "Slett enhet",
-  "search": "Søk enheter...",
+  "search": "Søk i enheter...",
   "table": {
     "name": "Navn",
     "type": "Type",
@@ -45,7 +45,6 @@
     "noUnits": "Ingen enheter funnet",
     "deleteConfirm": "Er du sikker på at du vil slette denne enheten?",
     "saveSuccess": "Enhet lagret",
-    "error": "En feil oppstod"
+    "error": "Det oppstod en feil"
   }
 }
-

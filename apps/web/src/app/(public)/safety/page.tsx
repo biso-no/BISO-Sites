@@ -317,7 +317,7 @@ export default function SafetyPage() {
             <ul className="space-y-2">
               {['rules.0', 'rules.1', 'rules.2', 'rules.3', 'rules.4'].map((key, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
                   <span className="text-primary-70">{t(`codeOfConduct.${key}`)}</span>
                 </li>
               ))}
@@ -396,7 +396,7 @@ export default function SafetyPage() {
           <div className="text-sm text-primary-70 space-y-3">
             {['points.0', 'points.1', 'points.2', 'points.3'].map((key, index) => (
               <div key={index} className="flex items-start gap-3">
-                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                 <p>
                   {index === 3 ? (
                     <>

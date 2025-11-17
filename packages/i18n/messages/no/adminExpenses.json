@@ -1,10 +1,10 @@
 {
   "title": "Utgifter",
-  "description": "Spor og administrer utgifter",
-  "create": "Opprett utgift",
+  "description": "Følg opp og administrer utgifter",
+  "create": "Registrer utgift",
   "edit": "Rediger utgift",
   "delete": "Slett utgift",
-  "search": "Søk utgifter...",
+  "search": "Søk i utgifter...",
   "filters": {
     "all": "Alle utgifter",
     "pending": "Venter",
@@ -17,7 +17,7 @@
     "amount": "Beløp",
     "category": "Kategori",
     "date": "Dato",
-    "submittedBy": "Sendt av",
+    "submittedBy": "Sendt inn av",
     "status": "Status",
     "actions": "Handlinger"
   },
@@ -54,8 +54,8 @@
     "download": "Last ned"
   },
   "details": {
-    "submittedBy": "Sendt av",
-    "submittedAt": "Sendt",
+    "submittedBy": "Sendt inn av",
+    "submittedAt": "Sendt inn",
     "approvedBy": "Godkjent av",
     "approvedAt": "Godkjent",
     "paidAt": "Betalt",
@@ -69,7 +69,7 @@
     "saveSuccess": "Utgift lagret",
     "approveSuccess": "Utgift godkjent",
     "rejectSuccess": "Utgift avvist",
-    "error": "En feil oppstod"
+    "error": "Det oppstod en feil"
   },
   "export": {
     "title": "Eksporter utgifter",
@@ -78,4 +78,3 @@
     "download": "Last ned"
   }
 }
-

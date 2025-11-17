@@ -1,65 +1,64 @@
 {
-  "title": "",
-  "description": "",
-  "create": "",
-  "edit": "",
-  "delete": "",
-  "publish": "",
-  "unpublish": "",
-  "search": "",
+  "title": "Innlegg",
+  "description": "Administrer blogginnlegg og artikler",
+  "create": "Opprett innlegg",
+  "edit": "Rediger innlegg",
+  "delete": "Slett innlegg",
+  "publish": "Publiser",
+  "unpublish": "Avpubliser",
+  "search": "Søk i innlegg...",
   "filters": {
-    "all": "",
-    "published": "",
-    "draft": "",
-    "archived": ""
+    "all": "Alle innlegg",
+    "published": "Publisert",
+    "draft": "Kladd",
+    "archived": "Arkivert"
   },
   "table": {
-    "title": "",
-    "author": "",
-    "category": "",
-    "publishDate": "",
-    "status": "",
-    "views": "",
-    "actions": ""
+    "title": "Tittel",
+    "author": "Forfatter",
+    "category": "Kategori",
+    "publishDate": "Publiseringsdato",
+    "status": "Status",
+    "views": "Visninger",
+    "actions": "Handlinger"
   },
   "form": {
-    "title": "",
-    "slug": "",
-    "excerpt": "",
-    "content": "",
-    "author": "",
-    "category": "",
-    "tags": "",
-    "featuredImage": "",
-    "publishDate": "",
-    "status": "",
-    "metaTitle": "",
-    "metaDescription": "",
-    "save": "",
-    "saveDraft": "",
-    "cancel": "",
-    "preview": ""
+    "title": "Innleggstittel",
+    "slug": "Slug",
+    "excerpt": "Utdrag",
+    "content": "Innhold",
+    "author": "Forfatter",
+    "category": "Kategori",
+    "tags": "Tagger",
+    "featuredImage": "Fremhevet bilde",
+    "publishDate": "Publiseringsdato",
+    "status": "Status",
+    "metaTitle": "Metatittel",
+    "metaDescription": "Metabeskrivelse",
+    "save": "Lagre innlegg",
+    "saveDraft": "Lagre som kladd",
+    "cancel": "Avbryt",
+    "preview": "Forhåndsvis"
   },
   "status": {
-    "published": "",
-    "draft": "",
-    "archived": "",
-    "scheduled": ""
+    "published": "Publisert",
+    "draft": "Kladd",
+    "archived": "Arkivert",
+    "scheduled": "Planlagt"
   },
   "categories": {
-    "news": "",
-    "blog": "",
-    "announcement": "",
-    "update": ""
+    "news": "Nyheter",
+    "blog": "Blogg",
+    "announcement": "Kunngjøring",
+    "update": "Oppdatering"
   },
   "messages": {
-    "loading": "",
-    "noPosts": "",
-    "deleteConfirm": "",
-    "saveSuccess": "",
-    "publishSuccess": "",
-    "deleteSuccess": "",
-    "error": ""
+    "loading": "Laster innlegg...",
+    "noPosts": "Ingen innlegg funnet",
+    "deleteConfirm": "Er du sikker på at du vil slette dette innlegget?",
+    "saveSuccess": "Innlegg lagret",
+    "publishSuccess": "Innlegg publisert",
+    "deleteSuccess": "Innlegg slettet",
+    "error": "Det oppstod en feil"
   }
 }
-

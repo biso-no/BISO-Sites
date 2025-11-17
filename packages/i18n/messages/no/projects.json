@@ -1,21 +1,21 @@
 {
   "hero": {
     "badge": "Flaggskip",
-    "title": "Prosjekter som samler BI-studentene",
-    "subtitle": "Fadderullan, Winter Games, Karrieredagene og Inspire er plattformer som skaper fellesskap, nettverk og nye opplevelser på tvers av campus.",
+    "title": "Prosjekter som samler BI-studenter",
+    "subtitle": "Fadderullan, Winter Games, Karrieredagene og Inspire skaper fellesskap, nettverk og uforglemmelige opplevelser på tvers av alle campus.",
     "ctaPrimary": "Utforsk flaggskipene",
     "ctaSecondary": "Se oversikten"
   },
   "insight": {
-    "title": "Hvorfor flaggskipene betyr noe",
-    "item1": "Frivillige fra alle campuser planlegger og leverer prosjektene.",
-    "item2": "Gir partnere mulighet til å møte studenter gjennom året.",
-    "item3": "Skaper tradisjoner som bygger stolthet, fellesskap og CV-verdifull erfaring."
+    "title": "Hvorfor disse prosjektene er viktige",
+    "item1": "Frivillige fra alle campus planlegger og gjennomfører opplevelsene sammen.",
+    "item2": "Partnere møter studenter gjennom hele året på meningsfulle arenaer.",
+    "item3": "De bygger tradisjoner, stolthet og CV-verdig erfaring for alle som er involvert."
   },
-  "featuredTitle": "Fire høydepunkter du ikke vil gå glipp av",
+  "featuredTitle": "Fire høydepunkter du ikke bør gå glipp av",
   "featuredSubtitle": "Start med prosjektene som definerer BISO-kulturen.",
   "featuredLabels": {
-    "fadderullan": "Velkomst",
+    "fadderullan": "Fadderuke",
     "winterGames": "Nasjonal tur",
     "karrieredagene": "Karriere",
     "inspire": "Inspirasjon"
@@ -24,7 +24,7 @@
     "fadderullan": {
       "slug": "fadderullan",
       "title": "Fadderullan",
-      "description": "Norges største studentfestival fylt med konserter, aktiviteter og inkluderende møteplasser for nye og gamle studenter.",
+      "description": "Norges største studentfestival, fullpakket med konserter, aktiviteter og inkluderende møteplasser for nye og eksisterende studenter.",
       "cta": "Les om Fadderullan",
       "highlight": "Festival"
     },
@@ -38,22 +38,22 @@
     "karrieredagene": {
       "slug": "karrieredagene",
       "title": "Karrieredagene",
-      "description": "Møt næringslivet, delta på workshops og sikr intervjuer med toppbedrifter i regionen.",
+      "description": "Møt ledende bedrifter, delta på workshops og sikre deg intervjuer med attraktive arbeidsgivere i din region.",
       "cta": "Utforsk Karrieredagene",
       "highlight": "Karriere"
     },
     "inspire": {
       "slug": "inspire",
       "title": "Inspire",
-      "description": "Et forum for inspirerende foredrag, innsikt og historiedeling fra studenter og ledere.",
+      "description": "En scene for inspirerende foredrag, innsikt og historier fra studenter, alumni og ledere.",
       "cta": "Bli inspirert",
-      "highlight": "Scener"
+      "highlight": "Foredrag"
     }
   },
   "schedule": {
-    "title": "Andre kommende prosjekter",
-    "subtitle": "Oversikt over aktive og planlagte satsninger fra BISO.",
-    "empty": "Vi har ikke publisert flere prosjekter ennå – følg med!",
+    "title": "Flere kommende prosjekter",
+    "subtitle": "Hold oversikt over pågående og planlagte initiativer fra BISO.",
+    "empty": "Flere flaggskipprosjekter er ikke publisert ennå – følg med!",
     "defaultTag": "Prosjekt",
     "more": "Detaljer"
   }

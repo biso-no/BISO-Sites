@@ -3,29 +3,96 @@
   "description": "Administrer butikken din",
   "products": {
     "title": "Produkter",
+    "badge": "Produktkatalog",
+    "inventoryTitle": "Butikklager",
+    "inventoryDescription": "Følg opp lanseringer, tilgjengelighet og språkdekning for merch og produkter.",
+    "manageDescription": "Administrer produkter, status og lokalisering direkte i katalogen.",
     "create": "Opprett produkt",
+    "newProduct": "Nytt produkt",
     "edit": "Rediger produkt",
     "delete": "Slett produkt",
-    "search": "Søk produkter...",
+    "search": "Søk i produkter...",
+    "searchPlaceholder": "Søk etter produkt eller slug",
+    "reports": "Rapporter",
     "filters": {
       "all": "Alle produkter",
       "active": "Aktiv",
+      "draft": "Kladd",
       "inactive": "Inaktiv",
-      "outOfStock": "Utsolgt"
+      "archived": "Arkivert",
+      "outOfStock": "Tomt på lager"
+    },
+    "tabs": {
+      "all": "Alle",
+      "active": "Aktiv",
+      "draft": "Kladd",
+      "archived": "Arkivert"
     },
     "table": {
       "image": "Bilde",
       "name": "Navn",
+      "product": "Produkt",
       "price": "Pris",
       "stock": "Lager",
       "status": "Status",
-      "actions": "Handlinger"
+      "translations": "Oversettelser",
+      "campus": "Campus",
+      "created": "Opprettet",
+      "actions": "Handlinger",
+      "selectAll": "Velg alle produkter",
+      "selectProduct": "Velg {title}",
+      "missingTranslations": "Mangler oversettelser",
+      "covered": "dekket",
+      "showing": "Viser <strong>{start}-{end}</strong> av <strong>{total}</strong> produkter",
+      "updated": "Oppdatert {date}"
+    },
+    "metrics": {
+      "total": "Totalt",
+      "published": "Publisert",
+      "draft": "Kladd",
+      "translations": "Oversettelser",
+      "lowStock": "Lav lagerbeholdning"
+    },
+    "stockStatus": {
+      "empty": "Tomt",
+      "low": "Lav ({count})",
+      "allLevels": "Alle nivåer",
+      "inStock": "På lager",
+      "lowStock": "Lav lagerbeholdning",
+      "outOfStock": "Tomt på lager"
+    },
+    "bulkActions": {
+      "selected": "{count} valgt",
+      "reset": "Tilbakestill",
+      "status": "Status",
+      "publish": "Publiser",
+      "draft": "Kladd",
+      "archive": "Arkiver",
+      "price": "Pris",
+      "priceValue": "Verdi",
+      "selectMode": "Velg modus",
+      "percentAdjust": "% justering",
+      "setPrice": "Sett pris",
+      "stock": "Lager",
+      "stockValue": "Antall",
+      "adjust": "Juster ±",
+      "setStock": "Sett lager",
+      "update": "Oppdater",
+      "updating": "Oppdaterer...",
+      "applyFilters": "Bruk filtre",
+      "campus": "Campus",
+      "allCampuses": "Alle campuser",
+      "category": "Kategori",
+      "allCategories": "Alle kategorier",
+      "stockStatus": "Lagerstatus",
+      "minPrice": "Min. pris",
+      "maxPrice": "Maks pris"
     },
     "form": {
       "name": "Produktnavn",
       "description": "Beskrivelse",
       "price": "Pris",
-      "comparePrice": "Sammenlign pris",
+      "comparePrice": "Sammenligningspris",
       "cost": "Kostnad per enhet",
       "sku": "SKU",
       "barcode": "Strekkode",
@@ -33,13 +100,13 @@
       "stock": "Lager",
       "weight": "Vekt",
       "category": "Kategori",
-      "tags": "Tags",
+      "tags": "Tagger",
       "images": "Bilder",
       "variations": "Varianter",
       "customFields": "Egendefinerte felt",
       "save": "Lagre produkt",
       "cancel": "Avbryt",
-      "preview": "Forhåndsvisning"
+      "preview": "Forhåndsvis"
     },
     "variations": {
       "title": "Varianter",
@@ -49,45 +116,52 @@
     },
     "status": {
       "active": "Aktiv",
-      "draft": "Utkast",
-      "archived": "Arkivert"
+      "draft": "Kladd",
+      "archived": "Arkivert",
+      "published": "Publisert"
+    },
+    "actions": {
+      "setPublished": "Sett som publisert",
+      "setDraft": "Sett som kladd",
+      "archive": "Arkiver",
+      "delete": "Slett"
     }
   },
   "orders": {
     "title": "Bestillinger",
     "view": "Vis bestilling",
     "export": "Eksporter bestillinger",
-    "search": "Søk bestillinger...",
+    "search": "Søk i bestillinger...",
     "filters": {
       "all": "Alle bestillinger",
-      "pending": "Venter",
-      "processing": "Behandles",
+      "pending": "Avventer",
+      "processing": "Behandler",
       "completed": "Fullført",
       "cancelled": "Kansellert"
     },
     "table": {
-      "orderNumber": "Ordre #",
+      "orderNumber": "Bestilling #",
       "customer": "Kunde",
       "date": "Dato",
-      "total": "Total",
+      "total": "Totalt",
       "status": "Status",
       "actions": "Handlinger"
     },
     "details": {
       "customer": "Kunde",
-      "orderDate": "Ordredato",
+      "orderDate": "Bestillingsdato",
       "paymentMethod": "Betalingsmetode",
       "shippingAddress": "Leveringsadresse",
       "billingAddress": "Fakturaadresse",
-      "items": "Produkter",
+      "items": "Varer",
       "subtotal": "Delsum",
       "shipping": "Frakt",
       "tax": "MVA",
-      "total": "Total"
+      "total": "Totalt"
     },
     "status": {
-      "pending": "Venter",
-      "processing": "Behandles",
+      "pending": "Avventer",
+      "processing": "Behandler",
       "completed": "Fullført",
       "cancelled": "Kansellert",
       "refunded": "Refundert"
@@ -96,7 +170,7 @@
   "customers": {
     "title": "Kunder",
     "view": "Vis kunde",
-    "search": "Søk kunder...",
+    "search": "Søk i kunder...",
     "table": {
       "name": "Navn",
       "email": "E-post",
@@ -120,8 +194,15 @@
     "noOrders": "Ingen bestillinger funnet",
     "noCustomers": "Ingen kunder funnet",
     "deleteConfirm": "Er du sikker på at du vil slette dette produktet?",
-    "saveSuccess": "Endringer lagret",
-    "error": "En feil oppstod"
+    "saveSuccess": "Endringene ble lagret",
+    "error": "Det oppstod en feil",
+    "updateStatusError": "Kunne ikke oppdatere status.",
+    "statusUpdated": "Status oppdatert",
+    "invalidPriceValue": "Angi en gyldig prisverdi.",
+    "updatePriceError": "Kunne ikke oppdatere pris.",
+    "priceUpdated": "Pris oppdatert",
+    "invalidStockValue": "Angi en gyldig lagermengde.",
+    "updateStockError": "Kunne ikke oppdatere lager.",
+    "stockUpdated": "Lager oppdatert"
   }
 }
-

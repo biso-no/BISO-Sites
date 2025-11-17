@@ -87,7 +87,7 @@ Norwegian (Bokmål) translation:`;
     console.log(`  🤖 Sending to OpenAI for translation...`);
     
     const response = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-5.1',
       messages: [
         {
           role: 'system',

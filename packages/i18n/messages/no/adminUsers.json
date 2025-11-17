@@ -11,7 +11,7 @@
     "actions": "Handlinger"
   },
   "filters": {
-    "search": "Søk brukere...",
+    "search": "Søk etter brukere...",
     "role": "Filtrer etter rolle",
     "status": "Filtrer etter status",
     "all": "Alle",
@@ -36,7 +36,7 @@
   "status": {
     "active": "Aktiv",
     "inactive": "Inaktiv",
-    "pending": "Venter",
+    "pending": "Avventer",
     "suspended": "Suspendert"
   },
   "form": {
@@ -55,10 +55,9 @@
     "loading": "Laster brukere...",
     "noUsers": "Ingen brukere funnet",
     "deleteConfirm": "Er du sikker på at du vil slette denne brukeren?",
-    "deleteSuccess": "Bruker slettet",
-    "updateSuccess": "Bruker oppdatert",
-    "createSuccess": "Bruker opprettet",
-    "error": "En feil oppstod"
+    "deleteSuccess": "Bruker ble slettet",
+    "updateSuccess": "Bruker ble oppdatert",
+    "createSuccess": "Bruker ble opprettet",
+    "error": "Det oppstod en feil"
   }
 }
-

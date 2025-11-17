@@ -1,36 +1,35 @@
 {
   "title": "Personvernerklæring",
-  "intro": "Denne erklæringen forklarer hvordan BI Student Organisation (BISO) behandler personopplysninger i samsvar med GDPR og norsk lov.",
+  "intro": "Denne erklæringen forklarer hvordan BI Student Organisation (BISO) behandler personopplysninger i samsvar med GDPR og norsk personvernlovgivning.",
   "sections": {
     "data": {
       "title": "Hva vi samler inn",
       "items": {
-        "0": "Kontoinformasjon og kontaktdata (navn, e‑post)",
-        "1": "Driftsdata for tjenester du bruker (f.eks. medlemskap, påmelding til arrangement, butikkordre)",
-        "2": "Tekniske data for sikkerhet og ytelse (begrenset analyse/kapsler som beskrevet på Cookies‑siden)"
+        "0": "Konto- og kontaktopplysninger (navn, e-post)",
+        "1": "Driftsdata for tjenestene du bruker (f.eks. medlemskap, påmelding til arrangementer, bestillinger i nettbutikken)",
+        "2": "Tekniske data for sikkerhet og ytelse (begrenset analyse-/informasjonskapsler som beskrevet på siden for informasjonskapsler)"
       }
     },
     "legal": {
       "title": "Behandlingsgrunnlag",
-      "body": "Vi behandler data basert på samtykke, oppfyllelse av avtale (f.eks. medlemskap eller ordre), og berettiget interesse som tjenestesikkerhet og studentrepresentasjon."
+      "body": "Vi behandler data basert på samtykke, oppfyllelse av avtale (f.eks. oppfyllelse av medlemskap eller bestillinger) og berettigede interesser, som tjenestesikkerhet og studentrepresentasjon."
     },
     "retention": {
       "title": "Lagring og oppbevaring",
-      "body": "Data lagres sikkert og kun så lenge som nødvendig for formålet eller som loven krever (f.eks. regnskapsregler)."
+      "body": "Data lagres sikkert og oppbevares bare så lenge det er nødvendig for det angitte formålet eller som kreves i lov (f.eks. regnskapsregler)."
     },
     "rights": {
       "title": "Dine rettigheter",
       "items": {
-        "0": "Innsyn i egne data",
-        "1": "Rett til retting",
-        "2": "Sletting der det er aktuelt",
-        "3": "Trekke tilbake samtykke for valgfri behandling"
+        "0": "Få innsyn i dine data",
+        "1": "Rette feil",
+        "2": "Be om sletting der det er aktuelt",
+        "3": "Trekke tilbake samtykke for frivillig behandling"
       }
     },
     "contact": {
       "title": "Kontakt",
-      "body": "Spørsmål om personvern? Kontakt vårt personvernombud på privacy@biso.no eller organisasjonen på post@biso.no."
+      "body": "Spørsmål om personvern? Kontakt vårt personvernombud på privacy@biso.no eller kontakt organisasjonen på post@biso.no."
     }
   }
 }
-

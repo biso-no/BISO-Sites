@@ -1,15 +1,14 @@
 {
   "meta": {
-    "title": "Bli frivillig i BISO",
-    "description": "Engasjer deg og bygg kompetanse mens du bidrar til studentmiljøet."
+    "title": "Verv deg i BISO",
+    "description": "Engasjer deg og utvikle ferdighetene dine samtidig som du hjelper medstudenter."
   },
-  "title": "Bli frivillig i BISO",
-  "intro": "Som frivillig får du ansvar, nye venner og erfaring som styrker studiene.",
+  "title": "Verv deg i BISO",
+  "intro": "Å være frivillig er en flott måte å bygge erfaring, bli kjent med nye mennesker og bidra til studentmiljøet.",
   "benefits": {
     "0": "Reelt ansvar i studentverv",
-    "1": "Nettverk på tvers av campus og næringsliv",
-    "2": "Praktisk erfaring som utfyller studiet"
+    "1": "Nettverk på tvers av campus og bransjer",
+    "2": "Praktisk erfaring som kompletterer studiene dine"
   },
   "cta": "Se ledige verv"
 }
-

@@ -1,12 +1,26 @@
 {
   "title": "Kjøpsvilkår",
-  "intro": "Disse vilkårene omfatter betaling, levering/utlevering, angrerett og retur for kjøp hos BISO.",
+  "intro": "Disse vilkårene omfatter betaling, levering/henting, angrerett og retur ved kjøp hos BISO.",
   "sections": {
-    "payment": { "title": "Betaling", "body": "Vi aksepterer Vipps og kort gjennom sikker betaling. Beløp vises i NOK og inkluderer gjeldende avgifter." },
-    "delivery": { "title": "Levering / Utlevering", "body": "Fysiske varer hentes på campus eller leveres som spesifisert i produktet. Digitale varer leveres på e‑post eller i din konto." },
-    "returns": { "title": "Retur og refusjon", "body": "Kontakt oss før retur. Eventuelle refusjoner utbetales til samme betalingsmetode når vilkår er oppfylt." },
-    "withdrawal": { "title": "Angrerett", "body": "Forbrukere kan ha angrerett i 14 dager for enkelte kjøp, med unntak for tidsbestemte tjenester og brukte varer." },
-    "contact": { "title": "Kontakt", "body": "Spørsmål om bestillinger? Kontakt post@biso.no og oppgi ordrenummer." }
+    "payment": {
+      "title": "Betaling",
+      "body": "Vi aksepterer Vipps og kort via sikker betaling. Beløp vises i NOK og inkluderer gjeldende avgifter."
+    },
+    "delivery": {
+      "title": "Levering / Henting",
+      "body": "Fysiske varer hentes på campus eller leveres som angitt i produktet. Digitale varer leveres på e-post eller i brukerkontoen din."
+    },
+    "returns": {
+      "title": "Retur og refusjon",
+      "body": "Kontakt oss før du returnerer en vare. Refusjon behandles til opprinnelig betalingsmåte når vilkårene er oppfylt."
+    },
+    "withdrawal": {
+      "title": "Angrerett",
+      "body": "Forbrukere kan ha lovbestemt angrerett på 14 dager for enkelte kjøp, med unntak for tidsbestemte tjenester og brukte varer."
+    },
+    "contact": {
+      "title": "Kontakt",
+      "body": "Spørsmål om bestillinger? Kontakt post@biso.no med din ordreferanse."
+    }
   }
 }
-
