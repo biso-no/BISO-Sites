@@ -1,138 +1,138 @@
 {
   "hero": {
-    "badge": "BISO medlemskap",
+    "badge": "BISO-medlemskap",
     "title": "Fordeler for deg og {campus}",
     "titleNational": "Fordeler for deg og alle campuser",
     "titleFallback": "Fordeler for deg og BISO",
-    "subtitleFallback": "Bli med i Norges største studentdrevne fellesskap og få tilgang til fordeler i hele studietiden.",
+    "subtitleFallback": "Bli med i Norges største studentdrevne fellesskap og få fordeler gjennom hele studieløpet.",
     "campusFallback": "din campus",
     "ctas": {
       "join": "Bli medlem nå",
-      "roles": "Finn et verv",
-      "partners": "For samarbeidspartnere"
+      "roles": "Utforsk verv",
+      "partners": "Samarbeidsmuligheter"
     },
     "stats": {
-      "card": "Gratis medlemskort i appen",
-      "members": "Over 9 000 medlemmer",
+      "card": "Digitalt medlemskort i appen",
+      "members": "Over 9 000 medlemmer",
       "partners": "150+ samarbeidspartnere"
     }
   },
   "benefits": {
     "categories": {
       "student": {
-        "title": "Medlemskap og tilbud",
-        "global": "Fordeler som følger alle medlemmer – fra rabatter til eksklusive kampanjer.",
-        "local": "Tilpassede medlemsfordeler fra ditt campus og lokale samarbeidspartnere."
+        "title": "Medlemskap og fordeler",
+        "global": "Fordeler som følger hvert medlem – fra rabatter til eksklusive kampanjer.",
+        "local": "Skreddersydde medlemsfordeler fra din campus og lokale samarbeidspartnere."
       },
       "career": {
         "title": "Karriere og kompetanse",
-        "global": "Nasjonale programmer som kobler deg med arbeidslivet og utvikler ferdighetene dine.",
-        "local": "Karrieretiltak og relasjoner som er unike for ditt nærmiljø."
+        "global": "Nasjonale programmer som kobler deg med arbeidsgivere og bygger ferdighetene dine.",
+        "local": "Karriereinitiativ og relasjoner som er unike for ditt lokale økosystem."
       },
       "social": {
-        "title": "Fellesskap og arrangement",
-        "global": "Fadderullan, Winter Games og møteplasser som samler studenter fra hele landet.",
-        "local": "Festivaler, kultur og sosiale arenaer skapt av studenter på ditt campus."
+        "title": "Fellesskap og arrangementer",
+        "global": "Fadderullan, Winter Games og nasjonale treff som samler BI-studenter.",
+        "local": "Festivaler, kultur og sosiale arenaer skapt av studenter på din campus."
       },
       "safety": {
-        "title": "Trygghet og støtte",
-        "global": "Varsling, omsorg og påvirkningsarbeid som sikrer en trygg studietid for alle.",
-        "local": "Ressurser og støttepersoner du kan kontakte lokalt på ditt campus."
+        "title": "Støtte og trivsel",
+        "global": "Varsling, oppfølging og interessearbeid for å sikre at alle studenter blir ivaretatt.",
+        "local": "Lokale ressurser og kontaktpunkter du kan nå på din campus."
       },
       "business": {
-        "title": "For samarbeidspartnere",
+        "title": "For partnere",
         "global": "Nasjonale arenaer for bedrifter som vil møte BI-studenter.",
-        "local": "Muligheter for lokale virksomheter og samarbeid i ditt nærområde."
+        "local": "Muligheter for lokale bedrifter og samarbeid i ditt område."
       }
     }
   },
   "onboarding": {
-    "title": "Slik kommer du i gang",
-    "subtitle": "Få medlemsfordeler på under to minutter.",
+    "title": "Kom i gang",
+    "subtitle": "Aktiver medlemsfordelene dine på under to minutter.",
     "steps": {
       "1": {
         "title": "Last ned BI Student-appen",
-        "description": "Logg inn med din BI-konto for å få tilgang til medlemskap og digitale kort."
+        "description": "Logg inn med BI-kontoen din for å få tilgang til medlemskap og digitale kort."
       },
       "2": {
         "title": "Velg BISO i menyen",
-        "description": "Finn BISO i sidepanelet og utforsk fordelene før du registrerer deg."
+        "description": "Åpne sidemenyen, velg BISO og se fordelene før du melder deg inn."
       },
       "3": {
-        "title": "Velg betalingsalternativ",
-        "description": "År eller semester – du velger det som passer best. Vipps og kort støttes."
+        "title": "Velg betalingsmåte",
+        "description": "År eller semester – velg det som passer deg. Vipps og kort aksepteres."
       },
       "4": {
-        "title": "Aktiver medlemsfordeler",
-        "description": "Digitalt medlemskort og rabatter blir tilgjengelige med en gang."
+        "title": "Aktiver fordelene dine",
+        "description": "Ditt digitale medlemskort og rabatter er tilgjengelige umiddelbart."
       }
     }
   },
   "global": {
     "title": "Nasjonale medlemsfordeler",
-    "subtitle": "Disse fordelene får du uansett hvilken campus du velger. Alt samlet i BI Student-appen.",
+    "subtitle": "Disse fordelene følger deg uansett campus. Alt ligger i BI Student-appen.",
     "cta": "Aktiver medlemskapet ditt",
-    "empty": "Vi jobber med å oppdatere de nasjonale medlemsfordelene. Kom tilbake snart!"
+    "empty": "Vi oppdaterer de nasjonale fordelene akkurat nå. Kom tilbake veldig snart!"
   },
   "local": {
-    "title": "Lokale fordeler ved {campus}",
-    "subtitle": "Velg campus for å se rabatter, arrangementer og støtteordninger der du studerer.",
+    "title": "Lokale fordeler på {campus}",
+    "subtitle": "Velg campus for å se rabatter, arrangementer og støtte der du studerer.",
     "empty": "Velg en campus for å se lokale fordeler og medlemstilbud.",
     "switcherLabel": "Campusvelger for medlemsfordeler"
   },
   "highlights": {
-    "title": "Flaggskip for alle medlemmer",
-    "subtitle": "Tre høydepunkter vi vet alle studenter setter pris på – uansett hvor du studerer.",
-    "ctaAll": "Se alle arrangementene",
+    "title": "Flaggskipopplevelser for alle medlemmer",
+    "subtitle": "Tre høydepunkter studenter elsker – uansett hvor du studerer.",
+    "ctaAll": "Se alle arrangementer",
     "items": {
       "fadderullan": {
         "title": "Fadderullan",
-        "description": "Norges største studentfestival med konserter, happenings og inkluderende møteplasser.",
+        "description": "Norges største studentfestival, full av konserter, happenings og inkluderende opplevelser.",
         "cta": "Utforsk Fadderullan"
       },
       "careerDays": {
-        "title": "Karrieredagene",
-        "description": "Møt toppbedrifter, delta på workshops og sikre deg intervjuer og internship.",
-        "cta": "Les om Karrieredagene"
+        "title": "Career Days",
+        "description": "Møt ledende arbeidsgivere, bli med på workshops og sikre deg intervjuer og internships.",
+        "cta": "Les mer om Career Days"
       },
       "winterGames": {
         "title": "Winter Games",
-        "description": "Årlig vintertur med ski, afterski og nettverk på tvers av alle campuser.",
+        "description": "Årlig fjelltur med ski, afterski og nettverksbygging på tvers av alle campuser.",
         "cta": "Opplev Winter Games"
       }
     }
   },
   "faq": {
     "title": "Ofte stilte spørsmål",
-    "subtitle": "Finner du ikke svar? Ta kontakt med campusledelsen eller send oss en e-post på contact@biso.no.",
+    "subtitle": "Trenger du noe mer? Ta kontakt med campusledelsen din eller send e-post til contact@biso.no.",
     "items": {
       "cost": {
         "question": "Hva koster medlemskapet?",
-        "answer": "Medlemskapet koster 450 kroner for ett helt år. Du kan også velge semesterbetaling om du ønsker en fleksibel løsning."
+        "answer": "Medlemskapet koster 450 kroner for et helt år. Du kan også velge semesterbetaling hvis du ønsker mer fleksibilitet."
       },
       "discounts": {
         "question": "Hvordan får jeg tilgang til rabattene?",
-        "answer": "Alle medlemsfordeler ligger i BI Student-appen. Aktiver medlemskapet ditt, så finner du digitale rabattkoder og billetter direkte i appen."
+        "answer": "Alt ligger i BI Student-appen. Aktiver medlemskapet ditt, så finner du digitale koder og billetter med en gang."
       },
       "switchCampus": {
-        "question": "Kan jeg bytte campus etter at jeg har blitt medlem?",
-        "answer": "Ja. Fordelene følger medlemskapet ditt nasjonalt. Bytt campus i toppmenyen eller i appen for å se lokale tilbud."
+        "question": "Kan jeg bytte campus etter at jeg har meldt meg inn?",
+        "answer": "Ja. Fordelene dine er nasjonale. Bytt campus i toppmenyen eller i appen for å se lokale tilbud."
       },
       "engagement": {
-        "question": "Må jeg være aktiv i en undergruppe?",
-        "answer": "Nei. Medlemskapet gir deg tilgang til fordeler uavhengig av om du har verv. Men vi anbefaler å utforske mulighetene!"
+        "question": "Må jeg ha et verv for å få fordelene?",
+        "answer": "Nei. Fordelene er tilgjengelige uavhengig av om du har et verv – men vi oppfordrer deg til å utforske mulighetene!"
       }
     }
   },
   "ctaCard": {
-    "title": "Klar for å bli med?",
-    "subtitle": "Medlemskapet aktiveres umiddelbart. Du kan når som helst endre campus og hente ut nye fordeler.",
+    "title": "Klar for å bli medlem?",
+    "subtitle": "Medlemskapet aktiveres umiddelbart. Du kan bytte campus og låse opp nye fordeler når du vil.",
     "badges": {
-      "annual": "Årsmedlemskap 450,-",
-      "semester": "Semester 275,-",
+      "annual": "Årsmedlemskap 450 kroner",
+      "semester": "Semester 275 kroner",
       "digitalCard": "Digitalt medlemskort"
     },
     "primary": "Bli medlem i dag",
-    "secondary": "Snakk med oss om medlemskapet"
+    "secondary": "Snakk med oss om medlemskap"
   }
 }

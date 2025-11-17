@@ -1,13 +1,12 @@
 {
   "title": "Kontakt",
-  "intro": "Kontakt BISO nasjonalt eller direkte på din campus.",
+  "intro": "Kontakt BISO nasjonalt eller direkte på ditt campus.",
   "national": {
     "title": "Nasjonal kontakt",
-    "body": "For generelle henvendelser og presse, send e‑post til post@biso.no."
+    "body": "For generelle henvendelser og presse, send e-post til post@biso.no."
   },
   "campuses": {
     "title": "Campuser",
     "empty": "Ingen campuser tilgjengelig akkurat nå."
   }
 }
-

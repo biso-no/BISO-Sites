@@ -2,43 +2,43 @@
   "fadderullan": {
     "title": "Fadderullan",
     "tagline": "Festival og inkludering",
-    "description": "Fadderullan er BISOs velkomstfestival – planlagt av frivillige fra alle campuser, fylt med opplevelser som gjør det enkelt å bli kjent.",
-    "ctaLabel": "Se program",
+    "description": "Fadderullan er BISO sin velkomstfestival – skapt av frivillige fra alle campus for å gjøre det enkelt å bli kjent med nye mennesker og føle seg hjemme.",
+    "ctaLabel": "Se programmet",
     "ctaUrl": "https://fadderullan.no",
     "highlights": [
-      "Konserter og dagshappenings på alle campuser",
-      "Eget crew for sikkerhet og omsorg",
-      "Støtte til lavterskelaktivitet og inkludering"
+      "Konserter og dagarrangementer på alle campus",
+      "Eget crew for sikkerhet, trivsel og tilgjengelighet",
+      "Støtte til lavterskel- og inkluderende aktiviteter"
     ],
     "sections": [
       {
-        "title": "Lag gode førsteinntrykk",
-        "body": "Fadderullan er første møtet mellom nye studenter og BISO. Gjennom velkomstseremonier, temafester og dagsarrangement viser vi bredden i studentmiljøet."
+        "title": "Skap minneverdige førsteinntrykk",
+        "body": "Fadderullan er det første møtet mellom nye studenter og BISO. Velkomstseremonier, temakvelder og dagaktiviteter viser bredden i studentmiljøet vårt."
       },
       {
-        "title": "Et felles nasjonalt prosjekt",
-        "body": "Festivalen koordineres nasjonalt, men gjennomføres lokalt av frivillige. Det gir et profesjonelt oppsett, gode rutiner og et solid støtteapparat for alle som deltar."
+        "title": "En nasjonal satsing, levert lokalt",
+        "body": "Festivalen koordineres nasjonalt, men gjennomføres av lokale frivillige. Det sikrer et profesjonelt opplegg, solide rutiner og omfattende støtte."
       }
     ]
   },
   "winter-games": {
     "title": "Winter Games",
     "tagline": "Nasjonal vintertur",
-    "description": "Winter Games samler BI-studenter til ski, afterski og fellesskap. Turen roterer mellom destinasjoner og bygges av frivillige med erfaring fra tidligere år.",
+    "description": "Winter Games samler BI-studenter til ski, afterski og fellesskap. Destinasjonen rullerer og arrangementet leveres av et erfarent frivillig crew.",
     "ctaLabel": "Sikre deg billett",
     "highlights": [
-      "Felles hyttetun og aktiviteter på tvers av campus",
-      "Ski, afterski og egne progra mpunkter for nybegynnere",
-      "Sikkerhetscrew og helseberedskap fra BISO"
+      "Felles overnatting og aktiviteter på tvers av campus",
+      "Programmer for både nybegynnere og erfarne skiløpere",
+      "Sikkerhetsteam og helsefaglige forberedelser fra BISO"
     ],
     "sections": [
       {
-        "title": "Skiopplevelser for alle nivå",
-        "body": "Programmet tilpasser både nybegynnere og viderekommende med instruktører, felles nedfarter og sosiale arenaer."
+        "title": "Opplevelser for alle ferdighetsnivåer",
+        "body": "Instruksjon, guidede turer og sosiale arenaer gjør turen tilgjengelig enten det er første eller femtiende gang du står på ski."
       },
       {
-        "title": "Bygg nettverk over fjellet",
-        "body": "Det settes opp transport og felles innkvartering slik at du blir kjent med studenter fra hele landet."
+        "title": "Bygg et nasjonalt nettverk",
+        "body": "Transport og innkvartering koordineres for å hjelpe deg å knytte kontakt med studenter fra alle campus."
       }
     ]
   },
@@ -46,57 +46,57 @@
     "title": "Karrieredagene",
     "tagline": "Møt næringslivet",
     "description": "Karrieredagene kobler studenter og arbeidsgivere gjennom stands, workshops og intervjuprogrammer.",
-    "ctaLabel": "Les om årets program",
+    "ctaLabel": "Utforsk årets program",
     "highlights": [
-      "Bedriftspresentasjoner, stands og speed-intervjuer",
-      "Workshops i CV, søknad og case-trening",
-      "Eget opplegg for internasjonale og engelskspråklige studenter"
+      "Bedriftspresentasjoner, stands og speedintervjuer",
+      "Workshops om CV, søknader og casetrening",
+      "Egne løp for internasjonale og engelskspråklige studenter"
     ],
     "sections": [
       {
-        "title": "Skreddersydd for hvert campus",
-        "body": "Karrieredagene i Oslo, Bergen, Trondheim og Stavanger speiler det lokale næringslivet, samtidig som nasjonale partnere deltar."
+        "title": "Tilpasset hvert campus",
+        "body": "Hvert campus viser frem sitt lokale næringsliv, samtidig som nasjonale partnere deltar over hele landet."
       },
       {
-        "title": "Fra førsteårsstudent til alumn",
-        "body": "Vi tilbyr kurs og samtaler for alle nivå – enten du søker ditt første verv eller vil sikre deg fast jobb."
+        "title": "For alle steg i løpet ditt",
+        "body": "Fra din første frivillige rolle til din første fulltidsstilling finner du veiledning og muligheter som matcher dine mål."
       }
     ]
   },
   "inspire": {
     "title": "Inspire",
-    "tagline": "Scenen for nye perspektiver",
-    "description": "Inspire er BISOs egen foredrags- og talkscene hvor studenter, næringsliv og samfunnsaktører deler erfaringer.",
-    "ctaLabel": "Meld deg som deltaker",
+    "tagline": "En scene for nye perspektiver",
+    "description": "Inspire er BISO sin plattform for foredrag og historiefortelling der studenter, alumni og partnere deler erfaringer og innsikt.",
+    "ctaLabel": "Registrer din interesse",
     "highlights": [
-      "Panelsamtaler og keynotes fra næringsliv og alumni",
+      "Paneler og keynotes fra næringslivsledere og alumni",
       "Historier fra studentledere og entreprenører",
-      "Mulighet til å pitche egne prosjekter"
+      "Muligheter til å pitche egne prosjekter"
     ],
     "sections": [
       {
-        "title": "Gode historier fra studentmiljøet",
-        "body": "Inspire løfter frem initiativer, intraprenørskap og lærdom fra BISO sine egne prosjekter."
+        "title": "Historier fra vårt fellesskap",
+        "body": "Inspire løfter frem initiativer, intraprenørskap og læringspunkter fra BISO sine egne prosjekter."
       },
       {
         "title": "Møt mentorer og partnere",
-        "body": "Scenen gir deg direkte kontakt med samarbeidspartnere, mentorer og mulige sponsorer."
+        "body": "Scenen skaper en direkte kobling til partnere, mentorer og potensielle sponsorer."
       }
     ]
   },
   "schedule": {
     "title": "Campusprogram",
-    "subtitle": "Detaljer oppdateres fortløpende. Endringer kan forekomme.",
+    "subtitle": "Detaljer oppdateres fortløpende og kan endres.",
     "ticket": "Billetter"
   },
   "overview": {
-    "title": "Nøkkelinfo",
-    "dates": "Dato",
+    "title": "Oversikt",
+    "dates": "Datoer",
     "type": "Kategori",
-    "external": "Nettsted"
+    "external": "Nettside"
   },
   "fallback": {
-    "description": "Mer informasjon publiseres snart. Følg med for oppdaterte detaljer.",
+    "description": "Mer informasjon publiseres snart. Kom tilbake for de siste oppdateringene.",
     "cta": "Les mer"
   }
 }

@@ -1,0 +1,100 @@
+{
+  "title": "BISO Admin",
+  "subtitle": "Kontrollsenter",
+  "welcome": "Velkommen tilbake",
+  "loading": "Laster...",
+  "activeRole": "Aktiv rolle",
+  "supportLine": "Supportlinje",
+  "collapse": "Skjul",
+  "expand": "Utvid",
+  "commandMenuPlaceholder": "Hurtigsøk i admin...",
+  "commandMenuTitle": "Kommandomeny",
+  "commandMenuSearchPlaceholder": "Skriv en kommando eller søk...",
+  "commandMenuNoResults": "Ingen resultater funnet.",
+  "navigation": {
+    "dashboard": "Oversikt",
+    "posts": "Innlegg",
+    "shop": "Butikk",
+    "expenses": "Utgifter",
+    "jobs": "Stillinger",
+    "events": "Arrangementer",
+    "alumni": "Alumni",
+    "units": "Enheter",
+    "users": "Brukere",
+    "varsling": "Varsling",
+    "settings": "Innstillinger"
+  },
+  "shopSubItems": {
+    "orders": "Bestillinger",
+    "products": "Produkter",
+    "customers": "Kunder",
+    "settings": "Innstillinger"
+  },
+  "jobsSubItems": {
+    "allJobs": "Alle stillinger",
+    "applications": "Søknader"
+  },
+  "eventsSubItems": {
+    "allEvents": "Alle arrangementer",
+    "createEvent": "Opprett arrangement"
+  },
+  "alumniSubItems": {
+    "mentorApprovals": "Mentorgodkjenninger"
+  },
+  "settingsSubItems": {
+    "navigation": "Navigasjon",
+    "profile": "Profil",
+    "security": "Sikkerhet"
+  },
+  "commandGroups": {
+    "navigation": "Navigasjon",
+    "shop": "Butikk",
+    "finance": "Økonomi",
+    "hr": "HR",
+    "content": "Innhold",
+    "organization": "Organisasjon",
+    "compliance": "Etterlevelse",
+    "system": "System"
+  },
+  "commandKeywords": {
+    "dashboard": "hjem oversikt statistikk",
+    "users": "medlemmer kontoer personer",
+    "shop": "butikk nettbutikk",
+    "products": "varer katalog lager",
+    "orders": "salg kjøp transaksjoner",
+    "customers": "kjøpere klienter",
+    "expenses": "kostnader forbruk budsjett",
+    "jobs": "stillinger ledige stillinger rekruttering",
+    "applications": "kandidater søkere",
+    "posts": "nyheter artikler blogg innhold",
+    "events": "kalender aktiviteter hendelser",
+    "units": "avdelinger divisjoner team",
+    "varsling": "varsling rapporter sikkerhet",
+    "settings": "konfigurasjon preferanser alternativer"
+  },
+  "signOut": "Logg ut",
+  "assistant": {
+    "title": "Adminassistent",
+    "close": "Lukk"
+  },
+  "dashboard": {
+    "tabs": {
+      "overview": "Oversikt",
+      "analytics": "Analyse",
+      "reports": "Rapporter",
+      "notifications": "Varsler"
+    },
+    "dateRange": {
+      "last7Days": "Siste 7 dager",
+      "last30Days": "Siste 30 dager",
+      "last90Days": "Siste 90 dager",
+      "allTime": "Hele perioden"
+    },
+    "roleOptions": {
+      "admin": "Admin",
+      "pr": "PR og kommunikasjon",
+      "finance": "Økonomi",
+      "hr": "HR"
+    }
+  }
+}

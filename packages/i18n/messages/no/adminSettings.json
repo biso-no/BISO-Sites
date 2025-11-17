@@ -1,6 +1,6 @@
 {
   "title": "Innstillinger",
-  "description": "Konfigurer admin-innstillinger",
+  "description": "Konfigurer administratorinnstillinger",
   "navigation": {
     "title": "Navigasjon",
     "description": "Administrer navigasjonsmeny",
@@ -16,7 +16,7 @@
     "lastName": "Etternavn",
     "email": "E-post",
     "phone": "Telefon",
-    "avatar": "Profilbilde",
+    "avatar": "Avatar",
     "save": "Lagre profil"
   },
   "security": {
@@ -33,23 +33,22 @@
     "revokeAll": "Tilbakekall alle økter"
   },
   "policies": {
-    "title": "Policysider",
-    "description": "Administrer policysider",
-    "privacy": "Personvernpolicy",
+    "title": "Retningslinjesider",
+    "description": "Administrer retningslinjesider",
+    "privacy": "Personvernerklæring",
     "terms": "Vilkår for bruk",
-    "cookies": "Cookiepolicy"
+    "cookies": "Retningslinjer for informasjonskapsler"
   },
   "general": {
     "title": "Generelt",
     "siteName": "Nettstedsnavn",
     "siteDescription": "Nettstedsbeskrivelse",
-    "contactEmail": "Kontakt e-post",
+    "contactEmail": "Kontakt-e-post",
     "language": "Språk",
     "timezone": "Tidssone"
   },
   "messages": {
-    "saveSuccess": "Innstillinger lagret",
-    "error": "En feil oppstod"
+    "saveSuccess": "Innstillinger ble lagret",
+    "error": "Det oppstod en feil"
   }
 }
-
