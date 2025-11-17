@@ -4,7 +4,6 @@ import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { unauthorized, usePathname } from 'next/navigation';
 import { Button } from '@repo/ui/components/ui/button';
-import { Input } from '@repo/ui/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
 import Breadcrumb from './breadcrumb';
 import { RoleSwitcher } from './role-switcher';
@@ -19,10 +18,7 @@ import {
   ChevronRight,
   CalendarIcon,
   Store,
-  Search,
-  VoteIcon,
   LogOut,
-  Bell,
   Building2,
   Shield,
 } from 'lucide-react';
@@ -33,6 +29,8 @@ import { AssistantSidebar } from './ai/admin-sidebar';
 import { useAssistantUIStore } from './ai/assistant-ui-store';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@repo/ui/components/ui/resizable';
 import { ModeToggle } from '@repo/ui/components/mode-toggle';
+import { CommandMenu } from './command-menu';
+import { NotificationsDropdown } from './notifications/notifications-dropdown';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -158,7 +156,6 @@ const SidebarItem = ({
 
 export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const pathname = usePathname();
   const [selectedRole, setSelectedRole] = useState(roles.includes('Admin') ? 'Admin' : roles[0] || '');
   const [isLoading, setIsLoading] = useState(true);
@@ -173,10 +170,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
 
   const navItems: NavItem[] = [
     { href: '/admin', icon: LayoutDashboard, label: 'Dashboard', roles: ['Admin'] },
-        /*
-    { href: '/admin/pages', icon: FileText, label: 'Pages', roles: ['Admin', 'pr'] },
     { href: '/admin/posts', icon: FileText, label: 'Posts', roles: ['Admin', 'pr'] },
-*/
     {
       href: '/admin/shop',
       icon: Store,
@@ -358,21 +352,8 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           </div>
 
           <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
-            <div className="relative w-full max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-primary-30" />
-              <Input
-                type="search"
-                placeholder="Hurtigsøk i admin..."
-                className="w-full rounded-2xl border-primary/10 dark:border-primary/20 bg-white/60 dark:bg-card/60 pl-9 text-sm shadow-inner focus-visible:ring-primary-30"
-                onFocus={() => setIsSearchOpen(true)}
-                onBlur={() => setIsSearchOpen(false)}
-              />
-              {isSearchOpen && <span className="pointer-events-none absolute right-3 top-2 text-[11px] uppercase tracking-[0.18em] text-primary-40">⌘K</span>}
-            </div>
-            <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-xl border border-primary/10 dark:border-primary/20 bg-white/70 dark:bg-card/70 text-primary-80 dark:text-primary hover:bg-primary/5 dark:hover:bg-primary/10">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-secondary-100" />
-            </Button>
+            <CommandMenu />
+            <NotificationsDropdown />
             <ModeToggle />
             <Avatar className="h-10 w-10 border border-primary/10 dark:border-primary/20 shadow-sm">
               <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${firstName}`} />

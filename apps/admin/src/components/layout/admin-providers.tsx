@@ -7,8 +7,16 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { z } from "zod";
+import { NotificationsProvider } from "@/components/notifications/notifications-provider";
+import type { Notification } from "@/components/notifications/notifications-dropdown";
 
-export const AdminProviders = ({ children }: { children: React.ReactNode }) => {
+export const AdminProviders = ({ 
+  children, 
+  initialNotifications = [] 
+}: { 
+  children: React.ReactNode
+  initialNotifications?: Notification[]
+}) => {
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
       api: "/api/admin-assistant",
@@ -16,8 +24,10 @@ export const AdminProviders = ({ children }: { children: React.ReactNode }) => {
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <AdminAssistantContext />
-      {children}
+      <NotificationsProvider initialNotifications={initialNotifications}>
+        <AdminAssistantContext />
+        {children}
+      </NotificationsProvider>
     </AssistantRuntimeProvider>
   );
 };

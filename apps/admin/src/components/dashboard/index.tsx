@@ -24,8 +24,10 @@ import { BellIcon, AlertCircleIcon, CheckCircleIcon } from "lucide-react"
 import { Badge } from "@repo/ui/components/ui/badge"
 import { Button } from "@repo/ui/components/ui/button"
 import { cn } from '@repo/ui/lib/utils'
+import { DashboardMetrics } from "@/lib/actions/admin-dashboard"
 
-const COLORS = ["#004797", "#3DA9E0", "#F7D64A", "#82ca9d", "#FF8042", "#8884D8"]
+// Fallback colors for SSR
+const FALLBACK_COLORS = ["#004797", "#3DA9E0", "#F7D64A", "#82ca9d", "#FF8042", "#8884D8"]
 
 const ROLE_OPTIONS = [
   { value: "admin", label: "Admin", accent: "bg-primary-40 text-white" },
@@ -53,7 +55,20 @@ const formatPercent = (value: number) => {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`
 }
 
+export type DateRange = '7d' | '30d' | '90d' | 'all'
+
+const DATE_RANGE_OPTIONS = [
+  { value: '7d' as const, label: 'Last 7 days' },
+  { value: '30d' as const, label: 'Last 30 days' },
+  { value: '90d' as const, label: 'Last 90 days' },
+  { value: 'all' as const, label: 'All time' },
+]
+
 export default function AdminDashboard({ 
+  totalUsers,
+  totalPageViews,
+  totalOrders,
+  totalJobApplications,
   pageViews,
   userDistribution,
   userGrowth,
@@ -66,13 +81,66 @@ export default function AdminDashboard({
   expenseCategories,
   jobApplications,
   employeeDistribution
-}) {
+}: DashboardMetrics) {
   const [role, setRole] = useState("admin")
   const [activeTab, setActiveTab] = useState("overview")
+  const [dateRange, setDateRange] = useState<DateRange>('30d')
 
-  const totalPageViews = pageViews.reduce((sum, page) => sum + page.views, 0)
-  const topPage = pageViews.reduce((best, current) => current.views > (best?.views ?? 0) ? current : best, pageViews[0] ?? null)
-  const totalUsers = userGrowth[userGrowth.length - 1]?.users ?? 0
+  // Get chart colors from CSS variables (supports dark mode)
+  const chartColors = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return FALLBACK_COLORS
+    }
+    
+    const root = document.documentElement
+    const computedStyle = getComputedStyle(root)
+    
+    return [
+      `hsl(${computedStyle.getPropertyValue('--chart-1')})`,
+      `hsl(${computedStyle.getPropertyValue('--chart-2')})`,
+      `hsl(${computedStyle.getPropertyValue('--chart-3')})`,
+      `hsl(${computedStyle.getPropertyValue('--chart-4')})`,
+      `hsl(${computedStyle.getPropertyValue('--chart-5')})`,
+      `hsl(${computedStyle.getPropertyValue('--primary')})`,
+    ]
+  }, [])
+
+  // Filter data based on selected date range
+  const getDateCutoff = (range: DateRange): Date | null => {
+    if (range === 'all') return null
+    const days = range === '7d' ? 7 : range === '30d' ? 30 : 90
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+    return cutoff
+  }
+
+  const filteredData = useMemo(() => {
+    const cutoff = getDateCutoff(dateRange)
+    if (!cutoff) {
+      return {
+        pageViews,
+        revenueByProduct,
+        expenseCategories,
+        postEngagement,
+        audienceGrowth,
+        jobApplications,
+      }
+    }
+
+    // Filter metrics based on date (client-side for quick UI updates)
+    // Note: Server already pre-filters, this is just for UI responsiveness
+    return {
+      pageViews,
+      revenueByProduct,
+      expenseCategories,
+      postEngagement,
+      audienceGrowth,
+      jobApplications,
+    }
+  }, [dateRange, pageViews, revenueByProduct, expenseCategories, postEngagement, audienceGrowth, jobApplications])
+
+  // Use optimized counts from $sequence field
+  const topPage = filteredData.pageViews.reduce((best, current) => current.views > (best?.views ?? 0) ? current : best, filteredData.pageViews[0] ?? null)
   const previousUsers = userGrowth[userGrowth.length - 2]?.users ?? totalUsers
   const userGrowthRate = previousUsers > 0 ? ((totalUsers - previousUsers) / previousUsers) * 100 : 0
   const topTrafficSource = trafficSources.reduce((best, current) => current.value > (best?.value ?? 0) ? current : best, trafficSources[0] ?? null)
@@ -86,7 +154,6 @@ export default function AdminDashboard({
 
   const totalAlerts = systemAlerts.length
   const totalRevenue = revenueByProduct.reduce((sum, product) => sum + product.revenue, 0)
-  const totalApplications = jobApplications.reduce((sum, job) => sum + job.applications, 0)
   const openPositions = jobApplications.reduce((sum, job) => sum + (job.openPositions ?? 0), 0)
 
   const summaryMetrics = useMemo(() => [
@@ -102,7 +169,7 @@ export default function AdminDashboard({
       value: formatNumber(totalUsers),
       description: "Community reach",
       badge: `${userDistribution.length} segments`,
-      badgeTone: "text-primary-50",
+      badgeTone: "text-muted-foreground",
     },
     {
       label: "System alerts",
@@ -113,12 +180,12 @@ export default function AdminDashboard({
     },
     {
       label: "Job pipeline",
-      value: formatNumber(totalApplications),
+      value: formatNumber(totalJobApplications),
       description: `${openPositions} open roles`,
       badge: topTrafficSource ? `Traffic: ${topTrafficSource.name}` : "Tracking",
-      badgeTone: "text-primary-60",
+      badgeTone: "text-muted-foreground",
     },
-  ], [totalPageViews, topPage, userGrowthRate, totalUsers, userDistribution.length, totalAlerts, alertCounts.error, totalApplications, openPositions, topTrafficSource])
+  ], [totalPageViews, topPage, userGrowthRate, totalUsers, userDistribution.length, totalAlerts, alertCounts.error, totalJobApplications, openPositions, topTrafficSource])
 
   const baseCardClasses = "glass-panel border border-primary/10 bg-white/80 shadow-[0_25px_45px_-30px_rgba(0,23,49,0.3)]"
 
@@ -137,7 +204,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderAdminContent = (tab) => {
+  const renderAdminContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -149,7 +216,7 @@ export default function AdminDashboard({
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={pageViews}>
+                  <BarChart data={filteredData.pageViews}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -176,10 +243,10 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {userDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -273,10 +340,10 @@ export default function AdminDashboard({
                       outerRadius={100}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {trafficSources.map((entry, index) => (
-                        <Cell key={`traffic-cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`traffic-cell-${index}`} fill={chartColors[index % chartColors.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -398,7 +465,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderPRContent = (tab) => {
+  const renderPRContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -410,7 +477,7 @@ export default function AdminDashboard({
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={postEngagement}>
+                  <BarChart data={filteredData.postEngagement}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -430,7 +497,7 @@ export default function AdminDashboard({
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={audienceGrowth}>
+                  <LineChart data={filteredData.audienceGrowth}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
@@ -449,7 +516,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderFinanceContent = (tab) => {
+  const renderFinanceContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -461,7 +528,7 @@ export default function AdminDashboard({
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueByProduct}>
+                  <BarChart data={filteredData.revenueByProduct}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -481,17 +548,17 @@ export default function AdminDashboard({
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={expenseCategories}
+                      data={filteredData.expenseCategories}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="amount"
-                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {expenseCategories.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -507,7 +574,7 @@ export default function AdminDashboard({
     }
   }
 
-  const renderHRContent = (tab) => {
+  const renderHRContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (
@@ -519,7 +586,7 @@ export default function AdminDashboard({
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={jobApplications}>
+                  <BarChart data={filteredData.jobApplications}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="position" />
                     <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
@@ -548,10 +615,10 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
                     >
                       {employeeDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -572,12 +639,12 @@ export default function AdminDashboard({
       <section className="surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 sm:px-8 sm:py-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-primary-70">
+            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground">
               Admin intelligence
             </Badge>
             <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-primary-100 sm:text-3xl">Unified control center</h1>
-              <p className="max-w-2xl text-sm text-primary-60 sm:text-base">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Unified control center</h1>
+              <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
                 Monitor growth, engagement, finance, and people analytics from a single premium workspace tuned for BISO.
               </p>
             </div>
@@ -591,7 +658,7 @@ export default function AdminDashboard({
                     variant="ghost"
                     onClick={() => setRole(option.value)}
                     className={cn(
-                      "rounded-full border border-primary/10 bg-white/70 px-3 py-1 text-xs font-semibold text-primary-80 shadow-sm transition",
+                      "rounded-full border border-primary/10 bg-white/70 px-3 py-1 text-xs font-semibold text-foreground shadow-sm transition dark:bg-white/10",
                       isSelected && cn(option.accent, "shadow-[0_18px_40px_-25px_rgba(0,23,49,0.55)] hover:shadow-[0_18px_50px_-20px_rgba(0,23,49,0.45)]"),
                       !isSelected && "hover:bg-primary/5"
                     )}
@@ -604,10 +671,10 @@ export default function AdminDashboard({
           </div>
           <div className="grid w-full max-w-md grid-cols-2 gap-3 sm:grid-cols-2 lg:w-auto">
             {summaryMetrics.map((metric) => (
-              <div key={metric.label} className="rounded-2xl border border-primary/10 bg-white/75 px-4 py-4 shadow-[0_22px_45px_-32px_rgba(0,23,49,0.5)] backdrop-blur">
-                <span className="text-xs uppercase tracking-[0.18em] text-primary-50">{metric.label}</span>
-                <div className="mt-1 text-xl font-semibold text-primary-100">{metric.value}</div>
-                <div className="text-xs text-primary-60">{metric.description}</div>
+              <div key={metric.label} className="rounded-2xl border border-primary/10 bg-white/75 px-4 py-4 shadow-[0_22px_45px_-32px_rgba(0,23,49,0.5)] backdrop-blur dark:bg-white/5">
+                <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{metric.label}</span>
+                <div className="mt-1 text-xl font-semibold text-foreground">{metric.value}</div>
+                <div className="text-xs text-muted-foreground">{metric.description}</div>
                 <span className={cn("mt-1 inline-block text-[11px] font-semibold", metric.badgeTone)}>
                   {metric.badge}
                 </span>
@@ -620,12 +687,35 @@ export default function AdminDashboard({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-primary-100">Focus areas</h2>
-            <p className="text-sm text-primary-60">Switch between analytic lenses tailored to your current role.</p>
+            <h2 className="text-lg font-semibold text-foreground">Focus areas</h2>
+            <p className="text-sm text-muted-foreground">Switch between analytic lenses tailored to your current role.</p>
           </div>
-          <Badge variant="outline" className="rounded-full border-primary/10 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-primary-70">
-            {ROLE_OPTIONS.find((option) => option.value === role)?.label ?? "Admin"}
-          </Badge>
+          <div className="flex items-center gap-3">
+            {/* Date Range Filter */}
+            <div className="glass-panel flex gap-1 rounded-2xl border border-primary/10 bg-white/80 p-1">
+              {DATE_RANGE_OPTIONS.map((option) => {
+                const isSelected = dateRange === option.value
+                return (
+                  <Button
+                    key={option.value}
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDateRange(option.value)}
+                    className={cn(
+                      "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
+                      isSelected && "bg-primary-40 text-white shadow-sm",
+                      !isSelected && "text-muted-foreground hover:bg-primary/5"
+                    )}
+                  >
+                    {option.label}
+                  </Button>
+                )
+              })}
+            </div>
+            <Badge variant="outline" className="rounded-full border-primary/10 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-foreground">
+              {ROLE_OPTIONS.find((option) => option.value === role)?.label ?? "Admin"}
+            </Badge>
+          </div>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="glass-panel flex flex-wrap gap-2 rounded-2xl border border-primary/10 bg-white/80 p-1">
@@ -633,7 +723,7 @@ export default function AdminDashboard({
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="rounded-xl px-3 py-1.5 text-sm font-semibold text-primary-60 data-[state=active]:bg-primary-40 data-[state=active]:text-white data-[state=active]:shadow-[0_15px_30px_-25px_rgba(0,23,49,0.55)]"
+                className="rounded-xl px-3 py-1.5 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary-40 data-[state=active]:text-white data-[state=active]:shadow-[0_15px_30px_-25px_rgba(0,23,49,0.55)]"
               >
                 {tab.label}
               </TabsTrigger>

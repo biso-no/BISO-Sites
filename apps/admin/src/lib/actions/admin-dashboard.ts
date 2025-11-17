@@ -45,6 +45,12 @@ type JobApplicationMetric = { position: string; applications: number; openPositi
 type EmployeeDistributionMetric = { name: string; value: number }
 
 export type DashboardMetrics = {
+  // Count metrics (optimized with $sequence)
+  totalUsers: number
+  totalPageViews: number
+  totalOrders: number
+  totalJobApplications: number
+  // Detailed metrics for graphs and analysis
   pageViews: PageViewMetric[]
   userDistribution: UserDistributionMetric[]
   userGrowth: UserGrowthMetric[]
@@ -74,10 +80,32 @@ type ParsedOrderItem = {
   quantity?: number
 }
 
-export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  const { db } = await createAdminClient()
+export type DateRangeFilter = '7d' | '30d' | '90d' | 'all'
 
+/**
+ * Get date cutoff for filtering based on date range
+ */
+function getDateCutoff(dateRange: DateRangeFilter): Date | null {
+  if (dateRange === 'all') {
+    return null
+  }
+  
+  const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  return cutoff
+}
+
+export async function getDashboardMetrics(dateRange: DateRangeFilter = '30d'): Promise<DashboardMetrics> {
+  const { db } = await createAdminClient()
+  const dateCutoff = getDateCutoff(dateRange)
+
+  // Fetch counts using $sequence (fast) and detailed data for analysis (limited rows)
   const [
+    totalUsers,
+    totalPageViews,
+    totalOrders,
+    totalJobApplications,
     pageViewEvents,
     users,
     orders,
@@ -87,34 +115,45 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     notices,
     auditLogs,
   ] = await Promise.all([
+    // Optimized count queries using $sequence
+    safeFetch('total users count', () => getCount(db, USERS_TABLE)),
+    safeFetch('total page views count', () => getCount(db, PAGE_VIEWS_TABLE)),
+    safeFetch('total orders count', () => getCount(db, ORDERS_TABLE, [Query.equal('status', COMPLETED_ORDER_STATUSES)])),
+    safeFetch('total job applications count', () => getCount(db, JOB_APPLICATIONS_TABLE)),
+    // Detailed data for analysis (limited to recent data and date range)
     safeFetch('page views', () =>
       fetchRows<PageViewEvents>(db, PAGE_VIEWS_TABLE, [
-        Query.select(['$id', '$createdAt', 'path', 'referrer', 'locale', 'user_id', 'visitor_ip']),
+        ...(dateCutoff ? [Query.greaterThan('$createdAt', dateCutoff.toISOString())] : []),
         Query.orderDesc('$createdAt'),
       ], { maxRows: 2000 }),
     ),
     safeFetch('users', () =>
       fetchRows<Users>(db, USERS_TABLE, [
         Query.select(['$id', '$createdAt', 'isActive', 'roles']),
-      ], { maxRows: 5000 }),
+        Query.orderDesc('$createdAt'),
+      ], { maxRows: 1000 }),
     ),
     safeFetch('orders', () =>
       fetchRows<Orders>(db, ORDERS_TABLE, [
         Query.select(['$id', '$createdAt', 'status', 'items_json']),
         Query.equal('status', COMPLETED_ORDER_STATUSES),
+        ...(dateCutoff ? [Query.greaterThan('$createdAt', dateCutoff.toISOString())] : []),
         Query.orderDesc('$createdAt'),
-      ], { maxRows: 1000 }),
+      ], { maxRows: 500 }),
     ),
     safeFetch('expenses', () =>
       fetchRows<Expenses>(db, EXPENSES_TABLE, [
         Query.select(['$id', '$createdAt', 'total', 'department', 'departmentRel.Name']),
-      ], { maxRows: 1000 }),
+        ...(dateCutoff ? [Query.greaterThan('$createdAt', dateCutoff.toISOString())] : []),
+        Query.orderDesc('$createdAt'),
+      ], { maxRows: 500 }),
     ),
     safeFetch('job applications', () =>
       fetchRows<JobApplications>(db, JOB_APPLICATIONS_TABLE, [
         Query.select(['$id', '$createdAt', 'job_id', 'status']),
+        ...(dateCutoff ? [Query.greaterThan('$createdAt', dateCutoff.toISOString())] : []),
         Query.orderDesc('$createdAt'),
-      ], { maxRows: 1000 }),
+      ], { maxRows: 500 }),
     ),
     safeFetch('departments', () =>
       fetchRows<Departments>(db, DEPARTMENTS_TABLE, [
@@ -164,6 +203,12 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const jobMetadataMap = buildJobMetadataMap(jobs)
 
   return {
+    // Counts (from $sequence optimization)
+    totalUsers,
+    totalPageViews,
+    totalOrders,
+    totalJobApplications,
+    // Detailed metrics
     pageViews: buildPageViews(recentPageViews),
     userDistribution: buildUserDistribution(users),
     userGrowth: buildUserGrowth(users),
@@ -181,7 +226,8 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 
 async function safeFetch<T>(label: string, fn: () => Promise<T>): Promise<T> {
   try {
-    return await fn()
+    const result = await fn()
+    return result
   } catch (error) {
     console.error(`[dashboard] Failed to fetch ${label}`, error)
     return [] as T
@@ -234,6 +280,27 @@ function filterByDate<T extends Models.Row>(rows: T[], days: number): T[] {
     const created = new Date(row.$createdAt)
     return !Number.isNaN(created.getTime()) && created >= cutoff
   })
+}
+
+/**
+ * Get total count of rows in a table using $sequence field.
+ * Much more efficient than fetching all rows when only count is needed.
+ */
+async function getCount(db: DbClient, table: string, additionalQueries: string[] = []): Promise<number> {
+  try {
+    const queries = [
+      Query.select(['$sequence']),
+      Query.orderDesc('$sequence'),
+      Query.limit(1),
+      ...additionalQueries,
+    ]
+    const response = await db.listRows(DATABASE_ID, table, queries)
+    const lastRow = response.rows?.[0]
+    return (lastRow as { $sequence?: number })?.$sequence ?? 0
+  } catch (error) {
+    console.error(`[dashboard] Failed to get count for ${table}`, error)
+    return 0
+  }
 }
 
 function buildPageViews(events: PageViewEvents[]): PageViewMetric[] {
