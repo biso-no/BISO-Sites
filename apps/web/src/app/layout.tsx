@@ -5,7 +5,7 @@ import '@/app/globals.css';
 import {NextIntlClientProvider} from 'next-intl';
 import {getLocale} from '@/app/actions/locale';
 import {getMessages} from 'next-intl/server';
-
+import { AnalyticsTracker } from '@/components/analytics-tracker';
 export const metadata: Metadata = {
   title: 'BI Student Organisation',
   description: 'BISO Apps',
@@ -34,6 +34,7 @@ export default async function RootLayout({
         <Providers>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <main>
+            <AnalyticsTracker locale={locale} />
             {children}
           </main>
         </NextIntlClientProvider>

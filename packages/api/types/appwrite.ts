@@ -668,3 +668,12 @@ export type AuditLogs = Models.Row & {
     resource_type: string | null;
     payload: string | null;
 }
+
+export type PageViewEvents = Models.Row & {
+    path: string;
+    locale: Locale | string | null;
+    referrer: string | null;
+    user_agent: string | null;
+    visitor_ip: string | null;
+    user_id: string | null;
+}
