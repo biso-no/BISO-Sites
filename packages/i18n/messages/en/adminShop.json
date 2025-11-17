@@ -142,14 +142,18 @@
     "table": {
       "orderNumber": "Order #",
       "customer": "Customer",
+      "email": "Email",
       "date": "Date",
       "total": "Total",
+      "amount": "Amount",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "view": "View"
     },
     "details": {
       "customer": "Customer",
       "orderDate": "Order date",
+      "status": "Status",
       "paymentMethod": "Payment method",
       "shippingAddress": "Shipping address",
       "billingAddress": "Billing address",
@@ -157,18 +161,126 @@
       "subtotal": "Subtotal",
       "shipping": "Shipping",
       "tax": "Tax",
-      "total": "Total"
+      "total": "Total",
+      "phone": "Phone",
+      "discount": "Discount",
+      "buyer": "Buyer",
+      "email": "Email",
+      "customerInput": "Customer input",
+      "quantity": "Quantity",
+      "variation": "Variation",
+      "noItems": "No items"
     },
     "status": {
       "pending": "Pending",
       "processing": "Processing",
       "completed": "Completed",
       "cancelled": "Cancelled",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "paid": "Paid",
+      "authorized": "Authorized",
+      "failed": "Failed"
+    },
+    "analytics": {
+      "overviewTitle": "Orders overview",
+      "overviewDescription": "Monitor Vipps orders, revenue trends, and customer details in real time.",
+      "overviewEmpty": "No orders registered yet.",
+      "syncedFromVipps": "{count} orders synced from Vipps this year.",
+      "totalVolumeSince": "Total volume since {date}",
+      "weekTitle": "Last 7 days",
+      "weekOrders": "{count} orders this week",
+      "monthTitle": "This month",
+      "monthOrders": "{count} orders since {date}",
+      "tabsWeek": "Week",
+      "tabsMonth": "Month",
+      "tabsYear": "Year",
+      "filtersLabel": "Filter",
+      "filtersStatusLabel": "Status",
+      "filterButtonLabel": "Filter orders",
+      "filterSROnly": "Filter orders",
+      "weekDescription": "Transactions from the last 7 days.",
+      "weekEmpty": "No orders registered this week.",
+      "monthDescription": "All orders from this month.",
+      "monthEmpty": "No orders registered so far this month.",
+      "yearDescription": "Order history for this year.",
+      "yearEmpty": "No orders registered this year."
+    },
+    "actions": {
+      "openStore": "Open store",
+      "viewAll": "View all orders"
+    },
+    "detail": {
+      "emptyTitle": "Order details",
+      "emptyDescription": "Select an order to view details.",
+      "emptyMessage": "No order available.",
+      "section": {
+        "orderDetails": "Order details",
+        "customer": "Customer"
+      },
+      "title": "Order #{identifier}",
+      "subtitle": "Placed {date} by {buyer}",
+      "itemsTitle": "Order lines",
+      "itemsEmpty": "No order lines recorded.",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "total": "Total",
+      "labels": {
+        "status": "Status",
+        "buyer": "Buyer",
+        "email": "Email",
+        "phone": "Phone"
+      },
+      "customerName": "Name",
+      "customerEmail": "Email",
+      "customerPhone": "Phone",
+      "lastUpdated": "Last updated {date}",
+      "viewFull": "View full order",
+      "openReceipt": "Open Vipps receipt",
+      "productFallback": "Product",
+      "guest": "Guest"
+    },
+    "exportDialog": {
+      "buttonLabel": "Export",
+      "quickRangesTitle": "Quick ranges",
+      "customRangeLabel": "Custom range",
+      "allOrdersSummary": "Exporting all orders.",
+      "chooseRangeHint": "Choose or use a preset to select the period.",
+      "rangeBetween": "{from} – {to}",
+      "rangeFrom": "{from}",
+      "presets": {
+        "7": "Last 7 days",
+        "30": "Last 30 days",
+        "90": "Last 90 days",
+        "all": "All time"
+      },
+      "exporting": "Exporting…",
+      "exportCsv": "Export CSV",
+      "exportReady": "Export ready – CSV downloaded.",
+      "exportError": "Could not export orders."
+    }
+  },
+  "dashboard": {
+    "metrics": {
+      "totalRevenue": "Total revenue",
+      "productCatalog": "Product catalog",
+      "sales": "Sales",
+      "activeNow": "Active now"
+    },
+    "transactions": {
+      "title": "Transactions",
+      "description": "Latest orders across the store.",
+      "viewAll": "View all orders",
+      "empty": "No orders to show yet."
+    },
+    "recentSales": {
+      "title": "Recent Sales",
+      "description": "Latest payments captured through Vipps",
+      "empty": "No sales yet."
     }
   },
   "customers": {
     "title": "Customers",
+    "description": "Unique buyers aggregated from orders.",
     "view": "View customer",
     "search": "Search customers...",
     "table": {
@@ -178,14 +290,36 @@
       "totalSpent": "Total spent",
       "registeredAt": "Registered",
       "actions": "Actions"
-    }
+    },
+    "empty": "No customers yet"
   },
   "settings": {
     "title": "Shop Settings",
+    "description": "Configure your webshop preferences and Vipps Checkout.",
     "general": "General",
+    "generalDescription": "Configure core shop options.",
     "payment": "Payment",
     "shipping": "Shipping",
     "tax": "Tax",
+    "fields": {
+      "shopName": "Shop name",
+      "contactEmail": "Contact email",
+      "defaultCampus": "Default campus",
+      "vippsMerchantSerialNumber": "Merchant serial number",
+      "vippsSubscriptionKey": "Subscription key (Ocp-Apim-Subscription-Key)",
+      "vippsClientId": "Client ID",
+      "vippsClientSecret": "Client Secret",
+      "vippsReturnUrl": "Return URL",
+      "vippsCallbackPrefix": "Callback Prefix"
+    },
+    "vipps": {
+      "title": "Vipps Checkout",
+      "description": "Enter your Vipps API credentials and options"
+    },
+    "actions": {
+      "saveGeneral": "Save general",
+      "saveVipps": "Save Vipps"
+    },
     "save": "Save settings"
   },
   "messages": {
@@ -193,6 +327,7 @@
     "noProducts": "No products found",
     "noOrders": "No orders found",
     "noCustomers": "No customers found",
+    "noItems": "No items found",
     "deleteConfirm": "Are you sure you want to delete this product?",
     "saveSuccess": "Changes saved successfully",
     "error": "An error occurred",

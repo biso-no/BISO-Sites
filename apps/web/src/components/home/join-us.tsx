@@ -3,50 +3,48 @@ import { motion } from 'motion/react';
 import { Check, Sparkles, Gift, Crown, Zap } from 'lucide-react';
 import { Card } from '@repo/ui/components/ui/card';
 import { Button } from '@repo/ui/components/ui/button';
+import { useTranslations } from 'next-intl';
 
 export function JoinUs() {
+  const t = useTranslations('membership');
   const benefits = [
-    { icon: Sparkles, text: 'Access to 200+ exclusive events yearly' },
-    { icon: Gift, text: 'Member discounts at partner venues' },
-    { icon: Crown, text: 'Priority booking for popular events' },
-    { icon: Zap, text: 'Networking with 5000+ students' },
-    { icon: Check, text: 'Career development workshops' },
-    { icon: Check, text: 'International exchange opportunities' },
+    { icon: Sparkles, text: t('benefits.categories.social.global') },
+    { icon: Gift, text: t('benefits.categories.career.global') },
+    { icon: Crown, text: t('benefits.categories.student.global') },
+    { icon: Zap, text: t('benefits.categories.safety.global') },
+    { icon: Check, text: t('benefits.categories.business.global') },
   ];
 
   const memberFeatures = [
-    'Access to 200+ exclusive events yearly',
-    'Priority event registration',
-    'Member discounts at partner venues',
-    'Career development workshops',
-    'Networking opportunities',
-    'International exchange programs',
-    'BISO welcome package',
-    'Student discount card',
+    t('benefits.categories.social.global'),
+    t('benefits.categories.career.global'),
+    t('benefits.categories.student.global'),
+    t('benefits.categories.safety.global'),
+    t('benefits.categories.business.global'),
   ];
 
   const membershipDurations = [
     {
-      name: '6 Months',
-      price: '350 NOK',
-      period: '6 months',
+      name: t('durations.six-months.name'),
+      price: t('durations.six-months.price'),
+      period: t('durations.six-months.period'),
       savings: null,
       popular: false,
       gradient: 'from-gray-600 to-gray-700',
     },
     {
-      name: '1 Year',
-      price: '550 NOK',
-      period: '12 months',
-      savings: 'Save 150 NOK',
+      name: t('durations.one-year.name'),
+      price: t('durations.one-year.price'),
+      period: t('durations.one-year.period'),
+      savings: t('durations.one-year.savings'),
       popular: true,
       gradient: 'from-purple-600 to-pink-600',
     },
     {
-      name: '3 Years',
-      price: '1350 NOK',
-      period: '36 months',
-      savings: 'Save 750 NOK',
+      name: t('durations.three-years.name'),
+      price: t('durations.three-years.price'),
+      period: t('durations.three-years.period'),
+      savings: t('durations.three-years.savings'),
       popular: false,
       gradient: 'from-[#3DA9E0] to-[#001731]',
     },
@@ -69,17 +67,17 @@ export function JoinUs() {
           className="text-center mb-16"
         >
           <div className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-purple-100 to-pink-100 text-purple-700 mb-6">
-            Membership
+            {t('membership')}
           </div>
           <h2 className="mb-6 text-gray-900">
-            Join the
+            {t('joinUs.join')}
             <br />
             <span className="bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Best Student Community
+              {t('joinUs.biso')}
             </span>
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto mb-12">
-            Unlock exclusive benefits, unforgettable experiences, and connections that will shape your future.
+            {t('joinUs.subtitle')}
           </p>
         </motion.div>
 
@@ -114,10 +112,9 @@ export function JoinUs() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h3 className="text-2xl font-bold text-gray-900 mb-6">BISO Membership</h3>
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('hero.badge')}</h3>
           <p className="text-gray-600 max-w-3xl mx-auto mb-8">
-            Join the BI Student Organisation and gain access to all our exclusive benefits. 
-            Choose a duration that works best for you and start experiencing everything BISO has to offer.
+            {t('hero.subtitle')}
           </p>
         </motion.div>
 
@@ -129,7 +126,7 @@ export function JoinUs() {
           className="max-w-3xl mx-auto mb-16"
         >
           <Card className="p-8 border-0 shadow-xl bg-white">
-            <h4 className="text-xl font-semibold text-gray-900 mb-6 text-center">All Memberships Include:</h4>
+            <h4 className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('onboarding.memberships-include')}</h4>
             <div className="grid md:grid-cols-2 gap-4">
               {memberFeatures.map((feature, idx) => (
                 <div key={idx} className="flex items-start gap-3">
@@ -195,12 +192,12 @@ export function JoinUs() {
           className="text-center"
         >
           <Card className="p-12 border-0 shadow-2xl bg-linear-to-br from-purple-600 to-pink-600 text-white">
-            <h3 className="mb-4 text-white">Not sure which to choose?</h3>
+            <h3 className="mb-4 text-white">{t('onboarding.notSure.title')}</h3>
             <p className="mb-8 text-white/90 max-w-2xl mx-auto">
-              First year student, and plan to stay for 3 years? Choose the 3 year membership and save 750 NOK, or contact us for more information.
+              {t('onboarding.notSure.subtitle')}
             </p>
             <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 border-0">
-              Talk to Us
+              {t('onboarding.notSure.cta')}
             </Button>
           </Card>
         </motion.div>

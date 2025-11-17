@@ -1,19 +1,36 @@
+import { getTranslations } from 'next-intl/server'
 import { listJobApplications } from '@/app/actions/jobs'
 
 export default async function AdminJobApplications({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const apps = await listJobApplications(id)
+  const t = await getTranslations("adminJobs")
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Applications</h1>
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{t("applications.title")}</h1>
+          <p className="text-muted-foreground">
+            {t("applications.summary", {
+              count: apps.length,
+              plural: apps.length !== 1 ? "s" : "",
+            })}
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/admin/jobs">{t("applications.back")}</Link>
+        </Button>
+      </header>
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="p-3 text-left">Name</th>
-              <th className="p-3 text-left">Email</th>
-              <th className="p-3 text-left">Phone</th>
-              <th className="p-3 text-left">Applied</th>
+              <th className="p-3 text-left">{t("table.name")}</th>
+              <th className="p-3 text-left">{t("table.email")}</th>
+              <th className="p-3 text-left">{t("table.phone")}</th>
+              <th className="p-3 text-left">
+                {t("labels.appliedAt") || t("table.appliedAt")}
+              </th>
             </tr>
           </thead>
           <tbody>

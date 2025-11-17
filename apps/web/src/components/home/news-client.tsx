@@ -6,19 +6,21 @@ import { Button } from '@repo/ui/components/ui/button';
 import { ImageWithFallback } from '@repo/ui/components/image';
 import Link from 'next/link';
 import type { ContentTranslations } from '@repo/api/types/appwrite';
+import { useTranslations } from 'next-intl';
 
 interface NewsClientProps {
   news: ContentTranslations[];
 }
 
 export function NewsClient({ news }: NewsClientProps) {
+  const t = useTranslations('home.news');
   if (!news || news.length === 0) {
     return (
       <section id="news" className="py-24 bg-linear-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="mb-6 text-gray-900">No News Available</h2>
-            <p className="text-gray-600">Check back soon for the latest updates!</p>
+            <h2 className="mb-6 text-gray-900">{t('empty')}</h2>
+            <p className="text-gray-600">{t('emptyDescription')}</p>
           </div>
         </div>
       </section>
@@ -54,13 +56,13 @@ export function NewsClient({ news }: NewsClientProps) {
           className="text-center mb-16"
         >
           <div className="inline-block px-4 py-2 rounded-full bg-[#3DA9E0]/10 text-[#001731] mb-6">
-            Latest News
+            {t('cta')}
           </div>
           <h2 className="mb-6 text-gray-900">
-            Stay Updated with
+            {t('stayUpdated')}
             <br />
             <span className="bg-linear-to-r from-[#3DA9E0] to-[#001731] bg-clip-text text-transparent">
-              What's Happening
+              {t('titleDefault')}
             </span>
           </h2>
         </motion.div>
@@ -95,7 +97,7 @@ export function NewsClient({ news }: NewsClientProps) {
                   </p>
                   <Link href={`/news/${featuredNews.content_id}`}>
                     <Button className="w-fit bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 group">
-                      Read More
+                      {t('readMore')}
                       <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
@@ -137,7 +139,7 @@ export function NewsClient({ news }: NewsClientProps) {
                     </p>
                     <Link href={`/news/${item.content_id}`}>
                       <Button variant="ghost" className="text-[#001731] hover:text-[#3DA9E0] p-0 h-auto group">
-                        Read More
+                        {t('readMore')}
                         <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
@@ -157,7 +159,7 @@ export function NewsClient({ news }: NewsClientProps) {
         >
           <Link href="/news">
             <Button variant="outline" size="lg" className="border-blue-600 text-blue-600 hover:bg-blue-50">
-              View All News
+              {t('viewAllNews')}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>

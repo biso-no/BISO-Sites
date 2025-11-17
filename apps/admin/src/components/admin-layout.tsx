@@ -320,7 +320,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             <div className="space-y-3 px-4 pb-4">
               <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-xs text-white/70">
                 <p className="font-semibold text-white">{t('supportLine')}</p>
-                <p className="mt-1 text-white/70">support@biso.no</p>
+                <p className="mt-1 text-white/70">it@biso.no</p>
               </div>
               <button
                 onClick={toggleSidebar}

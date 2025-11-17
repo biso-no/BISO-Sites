@@ -32,6 +32,7 @@ import {
 } from "@repo/ui/components/ui/tooltip"
 import { ArrowLeft, Save, RefreshCw, UserCog, Shield, Building, Mail, AlertTriangle } from "lucide-react"
 import { Campus } from "@repo/api/types/appwrite"
+import { useTranslations } from "next-intl"
 
 export interface UserFormProps {
   user: Users
@@ -42,6 +43,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
   const [user, setUser] = useState<Users>(initialUser)
   const [isSaving, setIsSaving] = useState(false)
   const router = useRouter()
+  const t = useTranslations("adminUsers")
 
   const handleRoleChange = (role: string) => {
     if (!user) return
@@ -59,16 +61,16 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
     try {
       await updateProfile(user)
       toast({
-        title: "Success",
-        description: "User details have been updated",
+        title: t("messages.saveTitleSuccess"),
+        description: t("messages.saveDescriptionSuccess"),
         variant: "default",
       })
       router.refresh() // Refresh server components
     } catch (error) {
       console.error("Error updating user:", error)
       toast({
-        title: "Error",
-        description: "Failed to update user details",
+        title: t("messages.saveTitleError"),
+        description: t("messages.saveDescriptionError"),
         variant: "destructive",
       })
     } finally {
@@ -112,8 +114,8 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <CardTitle className="text-2xl">User Details</CardTitle>
-              <CardDescription>View and manage user information</CardDescription>
+              <CardTitle className="text-2xl">{t("editor.userDetailsTitle")}</CardTitle>
+              <CardDescription>{t("editor.userDetailsDescription")}</CardDescription>
             </div>
           </div>
           
@@ -130,11 +132,11 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  Save Changes
+                  {t("editor.saveChanges")}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Save user changes</p>
+                <p>{t("editor.saveChangesTooltip")}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -161,31 +163,31 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                 : "bg-gray-100 text-gray-800 hover:bg-gray-100"
               }
             >
-              {user.isActive ? "Active" : "Inactive"}
+              {user.isActive ? t("status.active") : t("status.inactive")}
             </Badge>
           </div>
           
           <div className="flex-1">
             <Tabs defaultValue="profile" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-4">
+                <TabsList className="grid grid-cols-3 mb-4">
                 <TabsTrigger value="profile" className="gap-2">
                   <UserCog className="h-4 w-4" />
-                  <span>Profile</span>
+                  <span>{t("editor.profileTab")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="roles" className="gap-2">
                   <Shield className="h-4 w-4" />
-                  <span>Roles & Access</span>
+                  <span>{t("editor.rolesTab")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="security" className="gap-2">
                   <AlertTriangle className="h-4 w-4" />
-                  <span>Security</span>
+                  <span>{t("editor.securityTab")}</span>
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="profile" className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name">{t("editor.fullName")}</Label>
                     <Input
                       id="name"
                       value={user.name || ""}
@@ -195,7 +197,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   </div>
                   
                   <div>
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t("form.email")}</Label>
                     <div className="relative mt-1">
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -208,13 +210,13 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   </div>
                   
                   <div>
-                    <Label htmlFor="campus">Campus</Label>
+                    <Label htmlFor="campus">{t("editor.campus")}</Label>
                     <Select
                       value={user.campus_id || undefined}
                       onValueChange={(value) => setUser({ ...user, campus_id: value })}
                     >
                       <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select campus" />
+                      <SelectValue placeholder={t("editor.selectCampus")} />
                       </SelectTrigger>
                       <SelectContent>
                         {campuses.map((campus) => (
@@ -227,7 +229,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   </div>
                   
                   <div>
-                    <Label htmlFor="account-status">Account Status</Label>
+                    <Label htmlFor="account-status">{t("editor.accountStatus")}</Label>
                     <div className="flex items-center space-x-2 mt-3">
                       <Switch
                         id="account-status"
@@ -244,9 +246,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
               
               <TabsContent value="roles" className="space-y-4">
                 <div className="bg-muted/40 p-4 rounded-lg">
-                  <h3 className="font-medium mb-1">User Roles</h3>
+                  <h3 className="font-medium mb-1">{t("editor.userRolesTitle")}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Assign roles to determine user access and permissions.
+                    {t("editor.userRolesDescription")}
                   </p>
                   
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -284,9 +286,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
               
               <TabsContent value="security" className="space-y-4">
                 <div className="bg-muted/40 p-4 rounded-lg">
-                  <h3 className="font-medium mb-1">Account Security</h3>
+                  <h3 className="font-medium mb-1">{t("editor.accountSecurityTitle")}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Manage user security settings and reset options.
+                    {t("editor.accountSecurityDescription")}
                   </p>
                   
                   <div className="space-y-2">
@@ -295,12 +297,12 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                       className="w-full sm:w-auto"
                       onClick={() => {
                         toast({
-                          title: "Password reset",
-                          description: "Password reset email has been sent to the user",
+                          title: t("messages.passwordResetTitle"),
+                          description: t("messages.passwordResetDescription"),
                         })
                       }}
                     >
-                      Send Password Reset Link
+                      {t("editor.passwordReset")}
                     </Button>
                   </div>
                 </div>

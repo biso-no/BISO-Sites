@@ -30,6 +30,7 @@ import type { Campus } from '@/lib/types/post'
 import ImageUploadCard from './image-upload-card'
 import { ToggleSection } from './toggle-section'
 import { EventPreview } from './event-preview'
+import { useTranslations } from 'next-intl'
 
 const formSchema = z.object({
   // Database schema fields
@@ -88,6 +89,7 @@ function slugify(text: string): string {
 
 export default function EventEditor({ event }: EventEditorProps) {
   const router = useRouter()
+  const t = useTranslations('adminEvents')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isTranslating, setIsTranslating] = React.useState<'en' | 'no' | null>(null)
   const [previewLocale, setPreviewLocale] = React.useState<'en' | 'no'>('en')
@@ -270,11 +272,23 @@ export default function EventEditor({ event }: EventEditorProps) {
     }
   }, [isEditingSlug])
 
+  const slugSourceLabel = slugSource
+    ? slugSource === 'no'
+      ? t('editor.norwegian')
+      : t('editor.english')
+    : t('editor.title')
+  const slugDescription = slugSource
+    ? t('editor.slugDescriptionAuto', { source: slugSourceLabel })
+    : t('editor.slugDescriptionFallback')
+  const slugEditingHint = t('editor.slugEditingHint')
+
   const handleTranslate = async (fromLocale: 'en' | 'no', toLocale: 'en' | 'no') => {
     const fromTranslation = form.getValues(`translations.${fromLocale}`)
     if (!fromTranslation?.title || !fromTranslation?.description) {
       toast({
-        title: `Please fill in the ${fromLocale === 'en' ? 'English' : 'Norwegian'} content first`,
+        title: t("editor.messages.fillContent", {
+          language: fromLocale === 'en' ? t("editor.english") : t("editor.norwegian"),
+        }),
         variant: 'destructive',
       })
       return
@@ -286,13 +300,18 @@ export default function EventEditor({ event }: EventEditorProps) {
       const translated = await translateEventContent(fromTranslation, fromLocale, toLocale)
       if (translated) {
         form.setValue(`translations.${toLocale}`, translated)
-        toast({ title: `Content translated to ${toLocale === 'en' ? 'English' : 'Norwegian'}` })
+        toast({
+          title: t("messages.translationCompleted"),
+          description: t("messages.translationDescription", {
+            language: toLocale === 'en' ? t("editor.english") : t("editor.norwegian"),
+          }),
+        })
       } else {
-        toast({ title: 'Translation failed', variant: 'destructive' })
+        toast({ title: t("messages.translationError"), variant: 'destructive' })
       }
     } catch (error) {
       console.error('Translation error:', error)
-      toast({ title: 'Translation failed', variant: 'destructive' })
+      toast({ title: t("messages.translationError"), variant: 'destructive' })
     } finally {
       setIsTranslating(null)
     }
@@ -341,22 +360,36 @@ export default function EventEditor({ event }: EventEditorProps) {
 
       if (event?.$id) {
         await updateEvent(event.$id, payload)
-        toast({ title: 'Event updated' })
+        toast({ title: t("messages.eventUpdated") })
       } else {
         await createEvent(payload)
-        toast({ title: 'Event created' })
+        toast({ title: t("messages.eventCreated") })
       }
 
       router.push('/admin/events')
     } catch (error) {
       console.error(error)
-      toast({ title: 'Failed to save event', variant: 'destructive' })
+      toast({ title: t("messages.eventSaveFailed"), variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const selectedCampus = campuses.find(c => c.$id === form.watch('campus_id'))
+  const unitPlaceholder = loadingDepartments
+    ? t("editor.placeholders.loading")
+    : !selectedCampus
+      ? t("editor.placeholders.selectCampusFirst")
+      : t("editor.placeholders.addUnit")
+  const departmentPlaceholder = loadingDepartments
+    ? t("editor.placeholders.loading")
+    : !selectedCampus
+      ? t("editor.placeholders.selectCampusFirst")
+      : t("editor.placeholders.selectDepartmentOptional")
+  const eventTitle = event?.translation_refs?.[0]?.title || event?.slug || ''
+  const headerTitle = isEditing
+    ? t("editor.headerEdit", { title: eventTitle || t("editor.title") })
+    : t("editor.headerNew")
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -366,20 +399,20 @@ export default function EventEditor({ event }: EventEditorProps) {
           <div className="flex items-center gap-4 mb-4">
             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
               <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Back</span>
+              <span className="sr-only">{t("editor.back")}</span>
             </Button>
             <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-              {isEditing ? `Edit ${event.translation_refs?.[0]?.title || event.slug}` : 'New Event'}
+              {headerTitle}
             </h1>
             <Badge variant="outline" className="ml-auto sm:ml-0">
               {form.watch('status')}
             </Badge>
             <div className="hidden items-center gap-2 md:ml-auto md:flex">
               <Button variant="outline" size="sm" onClick={() => router.back()}>
-                Cancel
+                {t("form.cancel")}
               </Button>
               <Button size="sm" onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : 'Save Event'}
+                {isSubmitting ? t("editor.saving") : t("editor.saveEvent")}
               </Button>
             </div>
           </div>
@@ -390,29 +423,29 @@ export default function EventEditor({ event }: EventEditorProps) {
               <div className="space-y-6">
                 {/* Event Content with Translations */}
                 <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Languages className="h-5 w-5" />
-                      Event Content
-                    </CardTitle>
-                    <CardDescription>
-                      Manage event content in multiple languages
-                    </CardDescription>
-                  </CardHeader>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Languages className="h-5 w-5" />
+                    {t("editor.eventContentTitle")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("editor.eventContentDescription")}
+                  </CardDescription>
+                </CardHeader>
                   <CardContent>
                     <Tabs defaultValue="en" className="w-full">
                       <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="en" className="flex items-center gap-2">
-                          🇬🇧 English
+                          🇬🇧 {t("editor.english")}
                         </TabsTrigger>
                         <TabsTrigger value="no" className="flex items-center gap-2">
-                          🇳🇴 Norsk
+                          🇳🇴 {t("editor.norwegian")}
                         </TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="en" className="space-y-4 mt-4">
                         <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">English Content</h3>
+                          <h3 className="text-lg font-medium">{t("editor.englishSectionTitle")}</h3>
                           <Button
                             type="button"
                             variant="outline"
@@ -422,7 +455,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                             className="flex items-center gap-2"
                           >
                             <Sparkles className="h-4 w-4" />
-                            {isTranslating === 'en' ? 'Translating...' : 'Translate from Norwegian'}
+                            {isTranslating === 'en'
+                              ? t("editor.translating")
+                              : t("editor.translateFromNorwegian")}
                           </Button>
                         </div>
                         <FormField
@@ -430,10 +465,10 @@ export default function EventEditor({ event }: EventEditorProps) {
                           name="translations.en.title"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Title</FormLabel>
+                              <FormLabel>{t("form.title")}</FormLabel>
                               <FormControl>
                                 <Input 
-                                  placeholder="Event title in English" 
+                                  placeholder={t("editor.placeholders.englishTitle")}
                                   {...field}
                                   className="glass-input"
                                 />
@@ -447,7 +482,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                           name="translations.en.description"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Description</FormLabel>
+                            <FormLabel>{t("form.description")}</FormLabel>
                               <FormControl>
                                 <RichTextEditor
                                   content={field.value || ''}
@@ -463,7 +498,7 @@ export default function EventEditor({ event }: EventEditorProps) {
 
                       <TabsContent value="no" className="space-y-4 mt-4">
                         <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">Norwegian Content</h3>
+                          <h3 className="text-lg font-medium">{t("editor.norwegianSectionTitle")}</h3>
                           <Button
                             type="button"
                             variant="outline"
@@ -473,7 +508,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                             className="flex items-center gap-2"
                           >
                             <Sparkles className="h-4 w-4" />
-                            {isTranslating === 'no' ? 'Translating...' : 'Translate from English'}
+                            {isTranslating === 'no'
+                              ? t("editor.translating")
+                              : t("editor.translateFromEnglish")}
                           </Button>
                         </div>
                         <FormField
@@ -481,10 +518,10 @@ export default function EventEditor({ event }: EventEditorProps) {
                           name="translations.no.title"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Tittel</FormLabel>
+                            <FormLabel>{t("form.title")}</FormLabel>
                               <FormControl>
                                 <Input 
-                                  placeholder="Arrangementstittel på norsk" 
+                                  placeholder={t("editor.placeholders.norwegianTitle")}
                                   {...field}
                                   className="glass-input"
                                 />
@@ -498,7 +535,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                           name="translations.no.description"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Beskrivelse</FormLabel>
+                              <FormLabel>{t("form.description")}</FormLabel>
                               <FormControl>
                                 <RichTextEditor
                                   content={field.value || ''}
@@ -520,10 +557,10 @@ export default function EventEditor({ event }: EventEditorProps) {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="h-5 w-5" />
-                      Schedule & Details
+                      {t("editor.scheduleTitle")}
                     </CardTitle>
                     <CardDescription>
-                      Configure event dates, times, and location
+                      {t("editor.scheduleDescription")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -533,7 +570,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="start_date"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Start date</FormLabel>
+                            <FormLabel>{t("editor.startDate")}</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} className="glass-input" />
                             </FormControl>
@@ -546,7 +583,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="end_date"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>End date</FormLabel>
+                            <FormLabel>{t("editor.endDate")}</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} className="glass-input" />
                             </FormControl>
@@ -562,7 +599,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="metadata.start_time"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Start time</FormLabel>
+                            <FormLabel>{t("editor.startTime")}</FormLabel>
                             <FormControl>
                               <Input type="time" {...field} className="glass-input" />
                             </FormControl>
@@ -575,7 +612,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="metadata.end_time"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>End time</FormLabel>
+                            <FormLabel>{t("editor.endTime")}</FormLabel>
                             <FormControl>
                               <Input type="time" {...field} className="glass-input" />
                             </FormControl>
@@ -590,7 +627,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                       name="location"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Location</FormLabel>
+                          <FormLabel>{t("editor.location")}</FormLabel>
                           <FormControl>
                             <Input placeholder="Event location" {...field} className="glass-input" />
                           </FormControl>
@@ -617,13 +654,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                           >
                             <FormControl>
                               <SelectTrigger className="glass-input">
-                                <SelectValue placeholder={
-                                  loadingDepartments 
-                                    ? 'Loading...' 
-                                    : !form.watch('campus_id')
-                                    ? 'Select a campus first'
-                                    : 'Add a unit'
-                                } />
+                              <SelectValue placeholder={unitPlaceholder} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -653,9 +684,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                               )
                             })}
                           </div>
-                          <FormDescription>
-                            Select units/departments associated with this event
-                          </FormDescription>
+                          <FormDescription>{t("editor.unitsHint")}</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -666,8 +695,8 @@ export default function EventEditor({ event }: EventEditorProps) {
                 {/* Toggle Sections */}
                 <div className="space-y-4">
                   <ToggleSection
-                    title="Members Only"
-                    description="Restrict this event to members"
+                    title={t("editor.membersOnlyTitle")}
+                    description={t("editor.membersOnlyDescription")}
                     enabled={memberOnlyEnabled}
                     onToggle={(enabled) => {
                       setMemberOnlyEnabled(enabled)
@@ -677,14 +706,14 @@ export default function EventEditor({ event }: EventEditorProps) {
                   >
                     <div className="rounded-lg border border-primary/20 p-4 bg-white/40">
                       <p className="text-sm text-muted-foreground">
-                        When enabled, only registered members will be able to view and register for this event.
+                        {t("editor.membersOnlyMessage")}
                       </p>
                     </div>
                   </ToggleSection>
 
                   <ToggleSection
-                    title="Pricing & Tickets"
-                    description="Set price and ticket information"
+                    title={t("editor.pricingTitle")}
+                    description={t("editor.pricingDescription")}
                     enabled={pricingEnabled}
                     onToggle={(enabled) => {
                       setPricingEnabled(enabled)
@@ -701,7 +730,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="price"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Price (NOK)</FormLabel>
+                            <FormLabel>{t("editor.priceLabel")}</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -720,7 +749,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                                 className="glass-input"
                               />
                             </FormControl>
-                            <FormDescription>Leave at 0 for free events</FormDescription>
+                            <FormDescription>{t("editor.priceDescription")}</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -731,11 +760,13 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="ticket_url"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Ticket URL</FormLabel>
+                            <FormLabel>{t("editor.ticketUrlLabel")}</FormLabel>
                             <FormControl>
                               <Input placeholder="https://..." {...field} className="glass-input" />
                             </FormControl>
-                            <FormDescription>External ticketing link (optional)</FormDescription>
+                            <FormDescription>
+                              {t("editor.ticketUrlDescription")}
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -744,8 +775,8 @@ export default function EventEditor({ event }: EventEditorProps) {
                   </ToggleSection>
 
                   <ToggleSection
-                    title="Collection Settings"
-                    description="Configure this event as a collection of sub-events"
+                    title={t("editor.collectionTitle")}
+                    description={t("editor.collectionDescription")}
                     enabled={collectionEnabled}
                     onToggle={(enabled) => {
                       setCollectionEnabled(enabled)
@@ -763,11 +794,13 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="collection_id"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Collection ID</FormLabel>
+                            <FormLabel>{t("editor.collectionIdLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Collection identifier" {...field} className="glass-input" />
+                              <Input placeholder={t("editor.collectionIdPlaceholder")} {...field} className="glass-input" />
                             </FormControl>
-                            <FormDescription>Unique identifier for this collection</FormDescription>
+                            <FormDescription>
+                              {t("editor.collectionIdDescription")}
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -778,7 +811,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="collection_pricing"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Collection pricing</FormLabel>
+                            <FormLabel>{t("editor.collectionPricingLabel")}</FormLabel>
                             <Select
                               value={field.value ?? undefined}
                               onValueChange={(value) =>
@@ -787,16 +820,16 @@ export default function EventEditor({ event }: EventEditorProps) {
                             >
                               <FormControl>
                                 <SelectTrigger className="glass-input">
-                                  <SelectValue placeholder="Choose pricing model" />
+                                  <SelectValue placeholder={t("editor.collectionPricingPlaceholder")} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="bundle">Bundle</SelectItem>
-                                <SelectItem value="individual">Individual</SelectItem>
+                                <SelectItem value="bundle">{t("editor.collectionBundle")}</SelectItem>
+                                <SelectItem value="individual">{t("editor.collectionIndividual")}</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormDescription>
-                              Bundle: Pay once for all events. Individual: Pay per event.
+                              {t("editor.collectionPricingDescription")}
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -821,12 +854,12 @@ export default function EventEditor({ event }: EventEditorProps) {
                       name="slug"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Slug</FormLabel>
+                          <FormLabel>{t("form.slug")}</FormLabel>
                           <FormControl>
                             {!isEditingSlug ? (
                               <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-white/40 px-3 py-2">
                                 <code className="flex-1 text-sm font-mono text-muted-foreground">
-                                  {field.value || 'auto-generated-from-title'}
+                                  {field.value || t("editor.slugFallback")}
                                 </code>
                                 <Button
                                   type="button"
@@ -836,13 +869,15 @@ export default function EventEditor({ event }: EventEditorProps) {
                                   onClick={() => setIsEditingSlug(true)}
                                 >
                                   <Edit2 className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Edit slug</span>
+                                  <span className="sr-only">
+                                    {t("editor.editSlug")}
+                                  </span>
                                 </Button>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2">
                                 <Input
-                                  placeholder="event-slug"
+                                  placeholder={t("editor.slugPlaceholder")}
                                   {...field}
                                   ref={(e) => {
                                     field.ref(e)
@@ -873,7 +908,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                                   onClick={() => setIsEditingSlug(false)}
                                 >
                                   <Check className="h-4 w-4" />
-                                  <span className="sr-only">Save slug</span>
+                                  <span className="sr-only">
+                                    {t("editor.saveSlug")}
+                                  </span>
                                 </Button>
                                 <Button
                                   type="button"
@@ -891,16 +928,15 @@ export default function EventEditor({ event }: EventEditorProps) {
                                   }}
                                 >
                                   <X className="h-4 w-4" />
-                                  <span className="sr-only">Cancel</span>
+                                  <span className="sr-only">
+                                    {t("editor.cancelSlug")}
+                                  </span>
                                 </Button>
                               </div>
                             )}
                           </FormControl>
                           <FormDescription>
-                            {!isEditingSlug 
-                              ? `Auto-generated from ${slugSource === 'no' ? 'Norwegian' : slugSource === 'en' ? 'English' : 'title'} • Click edit to customize`
-                              : 'Press Enter to save, Escape to cancel'
-                            }
+                            {!isEditingSlug ? slugDescription : slugEditingHint}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -911,17 +947,17 @@ export default function EventEditor({ event }: EventEditorProps) {
                       name="status"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Status</FormLabel>
+                          <FormLabel>{t("form.status")}</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger className="glass-input">
-                                <SelectValue placeholder="Select status" />
+                                <SelectValue placeholder={t("editor.selectStatus")} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="published">Published</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                              <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                              <SelectItem value="published">{t("status.published")}</SelectItem>
+                              <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -933,11 +969,11 @@ export default function EventEditor({ event }: EventEditorProps) {
                       name="campus_id"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Campus</FormLabel>
+                          <FormLabel>{t("form.campus")}</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger className="glass-input">
-                                <SelectValue placeholder="Select campus" />
+                                <SelectValue placeholder={t("editor.selectCampus")} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -950,7 +986,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                           </Select>
                           {selectedCampus && (
                             <FormDescription>
-                              Selected: {selectedCampus.name}
+                              {t("editor.selectedCampus", { name: selectedCampus.name })}
                             </FormDescription>
                           )}
                           <FormMessage />
@@ -970,13 +1006,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                           >
                             <FormControl>
                               <SelectTrigger className="glass-input">
-                                <SelectValue placeholder={
-                                  loadingDepartments 
-                                    ? 'Loading departments...' 
-                                    : !form.watch('campus_id')
-                                    ? 'Select a campus first'
-                                    : 'Select department (optional)'
-                                } />
+                                <SelectValue placeholder={departmentPlaceholder} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -988,7 +1018,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            {!form.watch('campus_id') && 'Select a campus to load departments'}
+                            {!form.watch('campus_id') && t("editor.selectCampusDepartmentHint")}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -1022,7 +1052,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
                         <Eye className="h-5 w-5" />
-                        Live Preview
+                        {t("editor.livePreviewTitle")}
                       </CardTitle>
                       <Tabs value={previewLocale} onValueChange={(value) => setPreviewLocale(value as 'en' | 'no')} className="w-auto">
                         <TabsList className="h-8">
@@ -1032,7 +1062,7 @@ export default function EventEditor({ event }: EventEditorProps) {
                       </Tabs>
                     </div>
                     <CardDescription>
-                      See how your event will appear to visitors
+                      {t("editor.livePreviewDescription")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1052,10 +1082,10 @@ export default function EventEditor({ event }: EventEditorProps) {
           {/* Mobile Actions */}
           <div className="flex items-center justify-center gap-2 md:hidden mt-4">
             <Button variant="outline" size="sm" onClick={() => router.back()}>
-              Cancel
+              {t("form.cancel")}
             </Button>
             <Button size="sm" onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Event'}
+              {isSubmitting ? t("editor.saving") : t("editor.saveEvent")}
             </Button>
           </div>
         </main>

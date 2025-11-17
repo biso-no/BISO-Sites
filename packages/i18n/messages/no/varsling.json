@@ -4,7 +4,7 @@
   "description": "Har du en sak som kan oppleves som ubehagelig, eller noe du har opplevd som krever oppfølging fra andre i BISO? Ta kontakt med oss gjennom skjemaet og send oss saken din. Kontaktinformasjon er valgfritt.",
   "form": {
     "title": "Send inn sak",
-    "description": "Kontaktskjema – kontakt oss her! Obligatoriske felt er merket med *",
+    "description": "Kontaktskjema – Kontakt oss her! Obligatoriske felt er merket med *",
     "fields": {
       "submissionType": {
         "label": "Sakstype",
@@ -41,7 +41,7 @@
       "button": "Send inn sak",
       "submitting": "Sender...",
       "success": "Saken din er sendt inn. Du vil få svar så snart som mulig.",
-      "error": "Det oppstod en feil under innsending. Vennligst prøv igjen senere.",
+      "error": "Det oppsto en feil under innsending. Vennligst prøv igjen senere.",
       "validation": {
         "required": "Vennligst fyll ut alle obligatoriske felt.",
         "noContact": "Kunne ikke finne kontaktinformasjon for valgt rolle."
@@ -51,11 +51,11 @@
   "infoCards": {
     "harassment": {
       "title": "Trakassering",
-      "description": "Meld fra dersom du har opplevd trakassering, mobbing eller annen uønsket atferd."
+      "description": "Varsle dersom du har opplevd trakassering, mobbing eller annen uønsket atferd."
     },
     "witness": {
       "title": "Vitne",
-      "description": "Meld fra dersom du har vært vitne til uønsket atferd eller trakassering."
+      "description": "Varsle dersom du har vært vitne til uønsket atferd eller trakassering."
     },
     "other": {
       "title": "Annet",
@@ -64,14 +64,14 @@
   },
   "whatIsWhistleblowing": {
     "title": "Hva er varsling?",
-    "content": "Varsling er å melde fra om kritikkverdige forhold eller uønsket atferd i en organisasjon. Det gjøres ofte av ansatte, medlemmer eller andre som har kjennskap til forholdet, men kan også gjøres av utenforstående som blir kjent med saken.\n\nI BISO har vi et etisk regelverk (Code of Conduct) som alle ansatte og medlemmer er forpliktet til å følge. Brudd på dette regelverket følges opp av BISOs kontrollkomité, som rapporterer saker til styret.\n\nDersom du har opplevd brudd på vårt etiske regelverk, ber vi deg sende inn en sak via skjemaet over."
+    "content": "Varsling er å melde fra om kritikkverdige forhold eller uønsket atferd i en organisasjon. Det gjøres ofte av ansatte, medlemmer eller andre som har kjennskap til forholdet, men kan også gjøres av utenforstående som blir oppmerksomme på saken.\n\nI BISO har vi et etisk regelverk (Code of Conduct) som alle ansatte og medlemmer er forpliktet til å følge. Brudd på dette regelverket følges opp av BISOs kontrollkomité, som rapporterer saker til styret.\n\nDersom du har opplevd brudd på vårt etiske regelverk, ber vi deg sende inn en sak via skjemaet over."
   },
   "codeOfConduct": {
     "title": "Etisk regelverk (Code of Conduct)",
     "purpose": "Formålet med dette etiske regelverket er å ha retningslinjer som fremmer positiv atferd og bidrar til en god organisasjonskultur i BI Student Organisation.",
     "rules": [
       "Du skal respektere dine medstudenter og deres grenser",
-      "Du skal følge opp dine forpliktelser og ansvarsområder som følger med din rolle",
+      "Du skal følge opp dine forpliktelser og ansvaret som følger med rollen din",
       "Du skal bidra til å skape et inkluderende, imøtekommende og åpent miljø for alle studenter og medlemmer",
       "Du skal alltid følge organisasjonens retningslinjer",
       "Alle rekrutteringsprosesser skal være etisk forsvarlige og basert på en objektiv vurdering av hver enkelt søker"
@@ -79,11 +79,11 @@
   },
   "anonymousReport": {
     "title": "Anonym varsling",
-    "content": "Det kan være ulike konsekvenser av å sende inn en anonym varsling, avhengig av type sak og hvordan saken håndteres. I noen tilfeller kan en anonym varsling bidra til å avdekke alvorlige forhold og føre til positive endringer, mens det i andre tilfeller ikke nødvendigvis fører til konkrete endringer eller konsekvenser.\n\nDet er viktig å huske at det kan være risikabelt å sende inn en anonym varsling, ettersom det ikke er noen garanti for at saken blir håndtert på en tilfredsstillende måte.\n\nDersom du velger å sende oss en anonym varsling, har vi ingen mulighet til å kontakte deg for videre oppfølging av saken."
+    "content": "Det kan være ulike konsekvenser av å sende inn en anonym varsling, avhengig av type sak og hvordan saken håndteres. I noen tilfeller kan en anonym varsling bidra til å avdekke alvorlige forhold og føre til positive endringer, mens det i andre tilfeller ikke nødvendigvis fører til konkrete endringer eller konsekvenser.\n\nDet er viktig å huske at det kan være risikabelt å sende inn en anonym varsling, ettersom det ikke er noen garanti for at saken blir håndtert på en tilfredsstillende måte.\n\nHvis du velger å sende oss en anonym varsling, har vi ingen mulighet til å kontakte deg for videre oppfølging av saken."
   },
   "sendingReport": {
     "title": "Innsending av varsling",
-    "content": "Varslingen sendes direkte til personen du har valgt som mottaker i BISO. Ikke alle personer i BISO har mulighet til å motta varsler.\n\nEtter at du har sendt inn en varsling, vil mottakeren kontakte deg for en samtale ved behov for å diskutere saken.\n\nDersom du sender inn en anonym varsling, vil ikke mottakeren kunne kontakte deg. Saken vil bli undersøkt så langt det lar seg gjøre basert på informasjonen som er sendt inn."
+    "content": "Varslingen sendes direkte til personen du har valgt som mottaker i BISO. Ikke alle personer i BISO har mulighet til å motta varsler.\n\nEtter at du har sendt inn en varsling, vil mottakeren kontakte deg for en samtale ved behov for å diskutere saken.\n\nHvis du sender inn en anonym varsling, vil mottakeren ikke kunne kontakte deg. Saken vil bli undersøkt så langt det lar seg gjøre basert på informasjonen som er sendt inn."
   },
   "contact": {
     "title": "Kontakt ved varsling i BISO",
@@ -114,7 +114,7 @@
     "privacyLink": "/privacy"
   },
   "admin": {
-    "title": "Varsling – administrasjon",
+    "title": "Varsling – Administrasjon",
     "subtitle": "Administrer kontaktpersoner og roller for varslingssystemet",
     "addContact": "Legg til kontakt",
     "table": {
@@ -182,11 +182,12 @@
       "created": "Innstilling opprettet",
       "updated": "Innstilling oppdatert",
       "deleted": "Innstilling slettet",
-      "error": "Det oppstod en feil",
+      "loading": "Laster...",
+      "error": "Det oppsto en feil",
       "validation": "Vennligst fyll ut alle obligatoriske felt.",
       "deleteConfirm": "Er du sikker på at du vil slette denne innstillingen?",
       "deleteError": "Kunne ikke slette innstillingen",
-      "deleteUnexpected": "Det oppstod en feil under sletting"
+      "deleteUnexpected": "Det oppsto en feil under sletting"
     }
   }
 }

@@ -16,17 +16,17 @@
     "reports": "Rapporter",
     "filters": {
       "all": "Alle produkter",
-      "active": "Aktiv",
-      "draft": "Kladd",
-      "inactive": "Inaktiv",
-      "archived": "Arkivert",
+      "active": "Aktive",
+      "draft": "Utkast",
+      "inactive": "Inaktive",
+      "archived": "Arkiverte",
       "outOfStock": "Tomt på lager"
     },
     "tabs": {
       "all": "Alle",
-      "active": "Aktiv",
-      "draft": "Kladd",
-      "archived": "Arkivert"
+      "active": "Aktive",
+      "draft": "Utkast",
+      "archived": "Arkiverte"
     },
     "table": {
       "image": "Bilde",
@@ -49,7 +49,7 @@
     "metrics": {
       "total": "Totalt",
       "published": "Publisert",
-      "draft": "Kladd",
+      "draft": "Utkast",
       "translations": "Oversettelser",
       "lowStock": "Lav lagerbeholdning"
     },
@@ -66,11 +66,11 @@
       "reset": "Tilbakestill",
       "status": "Status",
       "publish": "Publiser",
-      "draft": "Kladd",
+      "draft": "Utkast",
       "archive": "Arkiver",
       "price": "Pris",
       "priceValue": "Verdi",
-      "selectMode": "Velg modus",
+      "selectMode": "Markeringsmodus",
       "percentAdjust": "% justering",
       "setPrice": "Sett pris",
       "stock": "Lager",
@@ -116,13 +116,13 @@
     },
     "status": {
       "active": "Aktiv",
-      "draft": "Kladd",
+      "draft": "Utkast",
       "archived": "Arkivert",
       "published": "Publisert"
     },
     "actions": {
       "setPublished": "Sett som publisert",
-      "setDraft": "Sett som kladd",
+      "setDraft": "Sett som utkast",
       "archive": "Arkiver",
       "delete": "Slett"
     }
@@ -135,21 +135,25 @@
     "filters": {
       "all": "Alle bestillinger",
       "pending": "Avventer",
-      "processing": "Behandler",
+      "processing": "Behandles",
       "completed": "Fullført",
       "cancelled": "Kansellert"
     },
     "table": {
       "orderNumber": "Bestilling #",
       "customer": "Kunde",
+      "email": "E-post",
       "date": "Dato",
       "total": "Totalt",
+      "amount": "Beløp",
       "status": "Status",
-      "actions": "Handlinger"
+      "actions": "Handlinger",
+      "view": "Vis"
     },
     "details": {
       "customer": "Kunde",
       "orderDate": "Bestillingsdato",
+      "status": "Status",
       "paymentMethod": "Betalingsmetode",
       "shippingAddress": "Leveringsadresse",
       "billingAddress": "Fakturaadresse",
@@ -157,18 +161,126 @@
       "subtotal": "Delsum",
       "shipping": "Frakt",
       "tax": "MVA",
-      "total": "Totalt"
+      "total": "Totalt",
+      "phone": "Telefon",
+      "discount": "Rabatt",
+      "buyer": "Kjøper",
+      "email": "E-post",
+      "customerInput": "Kundeinnspill",
+      "quantity": "Antall",
+      "variation": "Variant",
+      "noItems": "Ingen varer"
     },
     "status": {
       "pending": "Avventer",
-      "processing": "Behandler",
+      "processing": "Behandles",
       "completed": "Fullført",
       "cancelled": "Kansellert",
-      "refunded": "Refundert"
+      "refunded": "Refundert",
+      "paid": "Betalt",
+      "authorized": "Autorisert",
+      "failed": "Feilet"
+    },
+    "analytics": {
+      "overviewTitle": "Bestillingsoversikt",
+      "overviewDescription": "Overvåk Vipps-bestillinger, inntektstrender og kundedetaljer i sanntid.",
+      "overviewEmpty": "Ingen bestillinger registrert ennå.",
+      "syncedFromVipps": "{count} bestillinger synkronisert fra Vipps i år.",
+      "totalVolumeSince": "Total omsetning siden {date}",
+      "weekTitle": "Siste 7 dager",
+      "weekOrders": "{count} bestillinger denne uken",
+      "monthTitle": "Denne måneden",
+      "monthOrders": "{count} bestillinger siden {date}",
+      "tabsWeek": "Uke",
+      "tabsMonth": "Måned",
+      "tabsYear": "År",
+      "filtersLabel": "Filter",
+      "filtersStatusLabel": "Status",
+      "filterButtonLabel": "Filtrer bestillinger",
+      "filterSROnly": "Filtrer bestillinger",
+      "weekDescription": "Transaksjoner fra de siste 7 dagene.",
+      "weekEmpty": "Ingen bestillinger registrert denne uken.",
+      "monthDescription": "Alle bestillinger fra denne måneden.",
+      "monthEmpty": "Ingen bestillinger registrert så langt denne måneden.",
+      "yearDescription": "Bestillingshistorikk for dette året.",
+      "yearEmpty": "Ingen bestillinger registrert i år."
+    },
+    "actions": {
+      "openStore": "Åpne butikk",
+      "viewAll": "Vis alle bestillinger"
+    },
+    "detail": {
+      "emptyTitle": "Bestillingsdetaljer",
+      "emptyDescription": "Velg en bestilling for å se detaljer.",
+      "emptyMessage": "Ingen bestilling tilgjengelig.",
+      "section": {
+        "orderDetails": "Bestillingsdetaljer",
+        "customer": "Kunde"
+      },
+      "title": "Bestilling #{identifier}",
+      "subtitle": "Lagt inn {date} av {buyer}",
+      "itemsTitle": "Bestillingslinjer",
+      "itemsEmpty": "Ingen bestillingslinjer registrert.",
+      "subtotal": "Delsum",
+      "discount": "Rabatt",
+      "total": "Totalt",
+      "labels": {
+        "status": "Status",
+        "buyer": "Kjøper",
+        "email": "E-post",
+        "phone": "Telefon"
+      },
+      "customerName": "Navn",
+      "customerEmail": "E-post",
+      "customerPhone": "Telefon",
+      "lastUpdated": "Sist oppdatert {date}",
+      "viewFull": "Vis full bestilling",
+      "openReceipt": "Åpne Vipps-kvittering",
+      "productFallback": "Produkt",
+      "guest": "Gjest"
+    },
+    "exportDialog": {
+      "buttonLabel": "Eksporter",
+      "quickRangesTitle": "Hurtigvalg",
+      "customRangeLabel": "Egendefinert periode",
+      "allOrdersSummary": "Eksporterer alle bestillinger.",
+      "chooseRangeHint": "Velg eller bruk en forhåndsinnstilling for å angi perioden.",
+      "rangeBetween": "{from} – {to}",
+      "rangeFrom": "{from}",
+      "presets": {
+        "7": "Siste 7 dager",
+        "30": "Siste 30 dager",
+        "90": "Siste 90 dager",
+        "all": "Hele perioden"
+      },
+      "exporting": "Eksporterer…",
+      "exportCsv": "Eksporter CSV",
+      "exportReady": "Eksport klar – CSV lastet ned.",
+      "exportError": "Kunne ikke eksportere bestillinger."
+    }
+  },
+  "dashboard": {
+    "metrics": {
+      "totalRevenue": "Total omsetning",
+      "productCatalog": "Produktkatalog",
+      "sales": "Salg",
+      "activeNow": "Aktive nå"
+    },
+    "transactions": {
+      "title": "Transaksjoner",
+      "description": "Siste bestillinger i butikken.",
+      "viewAll": "Vis alle bestillinger",
+      "empty": "Ingen bestillinger å vise ennå."
+    },
+    "recentSales": {
+      "title": "Nylige salg",
+      "description": "Siste betalinger registrert gjennom Vipps",
+      "empty": "Ingen salg ennå."
     }
   },
   "customers": {
     "title": "Kunder",
+    "description": "Unike kjøpere aggregert fra bestillinger.",
     "view": "Vis kunde",
     "search": "Søk i kunder...",
     "table": {
@@ -178,14 +290,36 @@
       "totalSpent": "Totalt brukt",
       "registeredAt": "Registrert",
       "actions": "Handlinger"
-    }
+    },
+    "empty": "Ingen kunder ennå"
   },
   "settings": {
     "title": "Butikkinnstillinger",
+    "description": "Konfigurer innstillinger for nettbutikken og Vipps Checkout.",
     "general": "Generelt",
+    "generalDescription": "Konfigurer grunnleggende butikkvalg.",
     "payment": "Betaling",
     "shipping": "Frakt",
     "tax": "MVA",
+    "fields": {
+      "shopName": "Butikknavn",
+      "contactEmail": "Kontakt-e-post",
+      "defaultCampus": "Standard campus",
+      "vippsMerchantSerialNumber": "Forhandlerens serienummer",
+      "vippsSubscriptionKey": "Abonnementsnøkkel (Ocp-Apim-Subscription-Key)",
+      "vippsClientId": "Client ID",
+      "vippsClientSecret": "Client Secret",
+      "vippsReturnUrl": "Retur-URL",
+      "vippsCallbackPrefix": "Callback-prefiks"
+    },
+    "vipps": {
+      "title": "Vipps Checkout",
+      "description": "Legg inn Vipps API-tilgangsdata og alternativer"
+    },
+    "actions": {
+      "saveGeneral": "Lagre generelt",
+      "saveVipps": "Lagre Vipps"
+    },
     "save": "Lagre innstillinger"
   },
   "messages": {
@@ -193,6 +327,7 @@
     "noProducts": "Ingen produkter funnet",
     "noOrders": "Ingen bestillinger funnet",
     "noCustomers": "Ingen kunder funnet",
+    "noItems": "Ingen varer funnet",
     "deleteConfirm": "Er du sikker på at du vil slette dette produktet?",
     "saveSuccess": "Endringene ble lagret",
     "error": "Det oppstod en feil",
@@ -201,7 +336,7 @@
     "invalidPriceValue": "Angi en gyldig prisverdi.",
     "updatePriceError": "Kunne ikke oppdatere pris.",
     "priceUpdated": "Pris oppdatert",
-    "invalidStockValue": "Angi en gyldig lagermengde.",
+    "invalidStockValue": "Angi en gyldig lagerverdi.",
     "updateStockError": "Kunne ikke oppdatere lager.",
     "stockUpdated": "Lager oppdatert"
   }

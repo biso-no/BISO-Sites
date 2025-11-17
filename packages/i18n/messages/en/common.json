@@ -17,5 +17,36 @@
       "en": "English",
       "no": "Norwegian"
     }
+  },
+  "footer": {
+    "about": {
+      "description": "BI Student Organisation connects students and the business society, facilitates social integration, and works to better the student welfare and quality of studies.",
+      "ourStory": "Our Story",
+      "team": "Team",
+      "careers": "Careers",
+      "contact": "Contact"
+    },
+    "students": {
+      "membership": "Membership",
+      "events": "Events",
+      "news": "News",
+      "resources": "Resources"
+    },
+    "support": {
+      "faq": "FAQ",
+      "helpCenter": "Help Center",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    }
+  },
+  "navigation": {
+    "partner": "Partner",
+    "memberPortal": "Member Portal",
+    "campus": "Campus",
+    "events": "Events",
+    "news": "News",
+    "shop": "Shop",
+    "applyHere": "Apply Here",
+    "about": "About"
   }
 }

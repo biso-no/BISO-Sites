@@ -1,8 +1,14 @@
 {
   "hero": {
-    "badge": "Student life, amplified",
+    "badge": "Your student life",
+    "badgeElevated": "elevated",
     "imageAlt": "Students from BISO at an event",
     "primaryCtaSecondary": "Explore your campus",
+    "ctas": {
+      "join": "Join now",
+      "roles": "Explore roles",
+      "partners": "Partner opportunities"
+    },
     "promo": {
       "headline": "Create experiences, influence policy and build networks for the future.",
       "tagline": "More than student life"
@@ -18,10 +24,28 @@
     "titleDefault": "A strong student voice across all BI campuses",
     "mission": "We help students connect, grow and influence across every BI campus.",
     "contactCta": "Talk to the team",
+    "learnMore": "Learn more",
+    "viewAll": "View all {contentType}",
     "highlights": {
       "events": "Events",
       "jobs": "Opportunities",
       "news": "News"
+      },
+      "featuredContent": "Featured {contentType}",
+      "featuredEvent": "Event",
+      "featuredNews": "News"
+  },
+  "about": {
+    "upcomingEvents": "Upcoming events",
+    "jobOpportunities": "Job opportunities",
+    "studentGroups": "Student groups",
+    "mainContent": {
+      "title": "About BISO",
+      "subtitle": "BI Student Organisation",
+      "premier": "Norway's Premier",
+      "studentCommunity": "Student Community",
+      "paragraph1": "BI Student Organisation (BISO) is the heartbeat of student life at BI Norwegian Business School. We're dedicated to creating unforgettable experiences, fostering meaningful connections, and empowering students to make the most of their university years.",
+      "paragraph2": "From exciting social events and career workshops to cultural festivals and sports competitions, we offer something for everyone. Join us and become part of a community that celebrates diversity, encourages innovation, and creates memories that last a lifetime."
     }
   },
   "identity": {
@@ -102,15 +126,27 @@
     "descriptionActive": "Plan your week at {campusName}.",
     "descriptionDefault": "See what is happening on your campuses.",
     "empty": "No upcoming events for this campus.",
+    "emptyDescription": "Check back soon for exciting events!",
     "title": "Event calendar",
-    "pendingDate": "Date coming soon"
+    "upcomingEvents": "Upcoming events",
+    "registerNow": "Register now",
+    "viewAllEvents": "View all events",
+    "dontMissOut": "Don't miss out on",
+    "amazingExperiences": "Amazing experiences",
+    "pendingDate": "Date coming soon",
+    "description": "From networking events to unforgettable parties, we've got your semester covered with exciting activities and opportunities."
   },
   "news": {
     "cta": "All news",
     "description": "News, announcements and stories from across the organisation.",
     "empty": "No news published yet.",
     "titleActive": "Highlights from {campusName}",
-    "titleDefault": "News in BISO"
+    "titleDefault": "News in BISO",
+    "emptyDescription": "Check back soon for the latest updates!",
+    "stayUpdated": "Stay updated with",
+    "readMore": "Read more",
+    "latestNews": "Latest news",
+    "viewAllNews": "View all news"
   },
   "jobs": {
     "cta": "See all openings",

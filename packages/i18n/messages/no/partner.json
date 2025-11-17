@@ -1,12 +1,12 @@
 {
   "meta": {
     "title": "Bli partner - BISO",
-    "description": "Bli partner med BISO og kom i kontakt med fremtidige kolleger. Oppdag muligheter til å synliggjøre selskapet og verdiene deres for BI-studenter på alle campus."
+    "description": "Bli partner med BISO og kom i kontakt med fremtidige kolleger. Oppdag muligheter til å vise frem selskapet og verdiene deres til BI-studenter på alle campus."
   },
   "hero": {
     "title": "Partnerskap",
     "subtitle": "For bedrifter",
-    "description": "Vis frem bedriften eller produktet ditt til BI-studenter. Møt dine fremtidige kolleger ved å kontakte BISO i din by."
+    "description": "Vis frem selskapet eller produktet deres til BI-studenter. Møt deres fremtidige kolleger ved å kontakte BISO i din by."
   },
   "benefits": {
     "title": "Fordeler som BISO-partner",
@@ -14,15 +14,15 @@
     "items": {
       "colleagues": {
         "title": "Møt fremtidige kolleger",
-        "description": "BI-studenter er dine fremtidige kolleger, møt dem allerede nå!"
+        "description": "BI-studenter er deres fremtidige kolleger – møt dem allerede nå!"
       },
       "values": {
-        "title": "Synliggjør deres verdier",
+        "title": "Vis frem verdiene deres",
         "description": "Hva gjør deg stolt av å jobbe i selskapet ditt? Finn studenter som verdsetter det samme."
       },
       "match": {
         "title": "Finn en faglig match",
-        "description": "Vi har over 100 komiteer og enheter i BISO, finn en faglig match og sett opp spennende workshops for å bygge tettere relasjoner."
+        "description": "Vi har over 100 komiteer og enheter i BISO. Finn en faglig match og sett opp spennende workshops for å bygge tettere relasjoner."
       }
     }
   },
@@ -31,11 +31,11 @@
     "description": "BISO har karrieredager på alle fire campus.",
     "cities": {
       "oslo": {
-        "title": "Karrieredager Oslo",
+        "title": "Karrieredagene Oslo",
         "action": "BLI MED"
       },
       "bergen": {
-        "title": "Karrieredager Bergen",
+        "title": "Karrieredagene Bergen",
         "action": "BLI MED"
       },
       "trondheim": {
@@ -43,7 +43,7 @@
         "action": "BLI MED"
       },
       "stavanger": {
-        "title": "Karrieredager Stavanger",
+        "title": "Karrieredagene Stavanger",
         "action": "BLI MED"
       }
     }
@@ -99,7 +99,7 @@
   },
   "buttons": {
     "readMore": "Les mer",
-    "joinUs": "Bli med",
+    "joinUs": "Bli med oss",
     "contact": "Kontakt"
   }
 }

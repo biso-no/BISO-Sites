@@ -11,24 +11,40 @@
     "all": "Alle innlegg",
     "published": "Publisert",
     "draft": "Kladd",
-    "archived": "Arkivert"
+    "archived": "Arkivert",
+    "department": "Avdeling",
+    "campus": "Campus",
+    "allDepartments": "Alle avdelinger",
+    "allCampuses": "Alle campuser"
+  },
+  "view": {
+    "list": "Listevisning",
+    "grid": "Rutenettvisning"
   },
   "table": {
     "title": "Tittel",
     "author": "Forfatter",
     "category": "Kategori",
+    "department": "Avdeling",
+    "campus": "Campus",
     "publishDate": "Publiseringsdato",
     "status": "Status",
     "views": "Visninger",
-    "actions": "Handlinger"
+    "createdAt": "Opprettet",
+    "actions": "Handlinger",
+    "viewEdit": "Vis / rediger"
   },
   "form": {
     "title": "Innleggstittel",
+    "titlePlaceholder": "Skriv inn tittel på innlegget",
     "slug": "Slug",
     "excerpt": "Utdrag",
     "content": "Innhold",
+    "contentPlaceholder": "Skriv innholdet i innlegget...",
     "author": "Forfatter",
     "category": "Kategori",
+    "department": "Avdeling",
+    "campus": "Campus",
     "tags": "Tagger",
     "featuredImage": "Fremhevet bilde",
     "publishDate": "Publiseringsdato",
@@ -38,7 +54,18 @@
     "save": "Lagre innlegg",
     "saveDraft": "Lagre som kladd",
     "cancel": "Avbryt",
-    "preview": "Forhåndsvis"
+    "preview": "Forhåndsvis",
+    "settingsTitle": "Innstillinger for innlegg",
+    "selectStatus": "Velg status",
+    "selectDepartment": "Velg avdeling",
+    "selectCampus": "Velg campus"
+  },
+  "formValidation": {
+    "titleRequired": "Tittel er obligatorisk",
+    "contentRequired": "Innhold er obligatorisk",
+    "statusRequired": "Status er obligatorisk",
+    "departmentRequired": "Avdeling er obligatorisk",
+    "campusRequired": "Campus er obligatorisk"
   },
   "status": {
     "published": "Publisert",
@@ -52,6 +79,12 @@
     "announcement": "Kunngjøring",
     "update": "Oppdatering"
   },
+  "pagination": {
+    "previous": "Forrige",
+    "next": "Neste",
+    "label": "Side {page} av {total}"
+  },
+  "imageAlt": "Innleggsbilde",
   "messages": {
     "loading": "Laster innlegg...",
     "noPosts": "Ingen innlegg funnet",
@@ -59,6 +92,11 @@
     "saveSuccess": "Innlegg lagret",
     "publishSuccess": "Innlegg publisert",
     "deleteSuccess": "Innlegg slettet",
+    "successTitle": "Vellykket",
+    "errorTitle": "Feil",
+    "createSuccess": "Innlegg opprettet",
+    "updateSuccess": "Innlegg oppdatert",
+    "saveError": "Det oppstod en feil under lagring av innlegget",
     "error": "Det oppstod en feil"
   }
 }

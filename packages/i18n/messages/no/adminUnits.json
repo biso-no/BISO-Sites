@@ -1,6 +1,6 @@
 {
   "title": "Enheter",
-  "description": "Administrer organisasjonsenheter og avdelinger",
+  "description": "Administrer organisatoriske enheter og avdelinger",
   "create": "Opprett enhet",
   "edit": "Rediger enhet",
   "delete": "Slett enhet",

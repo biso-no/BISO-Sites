@@ -159,36 +159,56 @@ export default function AdminDashboard({
   const totalRevenue = revenueByProduct.reduce((sum, product) => sum + product.revenue, 0)
   const openPositions = jobApplications.reduce((sum, job) => sum + (job.openPositions ?? 0), 0)
 
-  const summaryMetrics = useMemo(() => [
-    {
-      label: "Total page views",
-      value: formatNumber(totalPageViews),
-      description: topPage ? `Top page • ${topPage.name}` : "No top page data",
-      badge: formatPercent(userGrowthRate),
-      badgeTone: userGrowthRate >= 0 ? "text-emerald-500" : "text-red-500",
-    },
-    {
-      label: "Active members",
-      value: formatNumber(totalUsers),
-      description: "Community reach",
-      badge: `${userDistribution.length} segments`,
-      badgeTone: "text-muted-foreground",
-    },
-    {
-      label: "System alerts",
-      value: formatNumber(totalAlerts),
-      description: "Across all severities",
-      badge: `${alertCounts.error ?? 0} critical`,
-      badgeTone: (alertCounts.error ?? 0) > 0 ? "text-red-500" : "text-secondary-100",
-    },
-    {
-      label: "Job pipeline",
-      value: formatNumber(totalJobApplications),
-      description: `${openPositions} open roles`,
-      badge: topTrafficSource ? `Traffic: ${topTrafficSource.name}` : "Tracking",
-      badgeTone: "text-muted-foreground",
-    },
-  ], [totalPageViews, topPage, userGrowthRate, totalUsers, userDistribution.length, totalAlerts, alertCounts.error, totalJobApplications, openPositions, topTrafficSource])
+  const summaryMetrics = useMemo(() => {
+    const totalPageViewsDescription = topPage
+      ? t('dashboard.summary.totalPageViews.descriptionTopPage', { page: topPage.name })
+      : t('dashboard.summary.totalPageViews.descriptionNoPage')
+
+    return [
+      {
+        label: t('dashboard.summary.totalPageViews.label'),
+        value: formatNumber(totalPageViews),
+        description: totalPageViewsDescription,
+        badge: formatPercent(userGrowthRate),
+        badgeTone: userGrowthRate >= 0 ? "text-emerald-500" : "text-red-500",
+      },
+      {
+        label: t('dashboard.summary.activeMembers.label'),
+        value: formatNumber(totalUsers),
+        description: t('dashboard.summary.activeMembers.description'),
+        badge: t('dashboard.summary.activeMembers.segments', { count: userDistribution.length }),
+        badgeTone: "text-muted-foreground",
+      },
+      {
+        label: t('dashboard.summary.systemAlerts.label'),
+        value: formatNumber(totalAlerts),
+        description: t('dashboard.summary.systemAlerts.description'),
+        badge: t('dashboard.summary.systemAlerts.critical', { count: alertCounts.error ?? 0 }),
+        badgeTone: (alertCounts.error ?? 0) > 0 ? "text-red-500" : "text-secondary-100",
+      },
+      {
+        label: t('dashboard.summary.jobPipeline.label'),
+        value: formatNumber(totalJobApplications),
+        description: t('dashboard.summary.jobPipeline.description', { count: openPositions }),
+        badge: topTrafficSource
+          ? t('dashboard.summary.jobPipeline.traffic', { source: topTrafficSource.name })
+          : t('dashboard.summary.jobPipeline.tracking'),
+        badgeTone: "text-muted-foreground",
+      },
+    ]
+  }, [
+    alertCounts.error,
+    openPositions,
+    topPage,
+    topTrafficSource,
+    totalAlerts,
+    totalJobApplications,
+    totalPageViews,
+    totalUsers,
+    userDistribution.length,
+    userGrowthRate,
+    t,
+  ])
 
   const baseCardClasses = "glass-panel border border-primary/10 bg-white/80 shadow-[0_25px_45px_-30px_rgba(0,23,49,0.3)]"
 
@@ -203,7 +223,7 @@ export default function AdminDashboard({
       case "hr":
         return renderHRContent(tab)
       default:
-        return <div>No specific content for this role</div>
+        return <div>{t('dashboard.missingRoleContent')}</div>
     }
   }
 
@@ -213,10 +233,10 @@ export default function AdminDashboard({
         return (
           <>
             <Card className={cn(baseCardClasses, "col-span-2")}>
-              <CardHeader>
-                <CardTitle>Page Views</CardTitle>
-                <CardDescription>Overview of page views across the website</CardDescription>
-              </CardHeader>
+            <CardHeader>
+              <CardTitle>{t('dashboard.cards.pageViews.title')}</CardTitle>
+              <CardDescription>{t('dashboard.cards.pageViews.description')}</CardDescription>
+            </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={filteredData.pageViews}>
@@ -231,10 +251,10 @@ export default function AdminDashboard({
               </CardContent>
             </Card>
             <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>User Distribution</CardTitle>
-                <CardDescription>Breakdown of user types</CardDescription>
-              </CardHeader>
+            <CardHeader>
+              <CardTitle>{t('dashboard.cards.userDistribution.title')}</CardTitle>
+              <CardDescription>{t('dashboard.cards.userDistribution.description')}</CardDescription>
+            </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -258,10 +278,10 @@ export default function AdminDashboard({
               </CardContent>
             </Card>
             <Card className={cn(baseCardClasses, "col-span-3")}>
-              <CardHeader>
-                <CardTitle>User Growth</CardTitle>
-                <CardDescription>Monthly user growth over time</CardDescription>
-              </CardHeader>
+            <CardHeader>
+              <CardTitle>{t('dashboard.cards.userGrowth.title')}</CardTitle>
+              <CardDescription>{t('dashboard.cards.userGrowth.overviewDescription')}</CardDescription>
+            </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={userGrowth}>
@@ -283,22 +303,24 @@ export default function AdminDashboard({
             {/* High-level analytics cards */}
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>Total Page Views</CardTitle>
-                <CardDescription>Aggregate across all tracked pages</CardDescription>
+                <CardTitle>{t('dashboard.cards.totalPageViews.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.totalPageViews.description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{totalPageViews.toLocaleString()}</div>
                 {topPage ? (
-                  <div className="text-sm text-muted-foreground">Top page: {topPage.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {t('dashboard.analytics.topPageLabel', { page: topPage.name })}
+                  </div>
                 ) : (
-                  <div className="text-sm text-muted-foreground">No page data available</div>
+                  <div className="text-sm text-muted-foreground">{t('dashboard.analytics.noPageData')}</div>
                 )}
               </CardContent>
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>User Growth</CardTitle>
-                <CardDescription>Month-over-month change</CardDescription>
+                <CardTitle>{t('dashboard.cards.userGrowth.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.userGrowth.analyticsDescription')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{totalUsers.toLocaleString()}</div>
@@ -309,8 +331,8 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>Top Traffic Source</CardTitle>
-                <CardDescription>Leading channel this period</CardDescription>
+                <CardTitle>{t('dashboard.cards.topTrafficSource.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.topTrafficSource.description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 {topTrafficSource ? (
@@ -329,8 +351,8 @@ export default function AdminDashboard({
             {/* Traffic Source Breakdown */}
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>Traffic Source Breakdown</CardTitle>
-                <CardDescription>Where your visitors are coming from</CardDescription>
+                <CardTitle>{t('dashboard.cards.trafficBreakdown.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.trafficBreakdown.description')}</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -360,17 +382,17 @@ export default function AdminDashboard({
         return (
           <Card className={cn(baseCardClasses, "col-span-3")}>
             <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
-              <CardDescription>Latest actions performed by users</CardDescription>
+              <CardTitle>{t('dashboard.cards.recentActivities.title')}</CardTitle>
+              <CardDescription>{t('dashboard.cards.recentActivities.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Timestamp</TableHead>
-                  </TableRow>
+                    <TableRow>
+                      <TableHead>{t('dashboard.cards.table.user')}</TableHead>
+                      <TableHead>{t('dashboard.cards.table.action')}</TableHead>
+                      <TableHead>{t('dashboard.cards.table.timestamp')}</TableHead>
+                    </TableRow>
                 </TableHeader>
                 <TableBody>
                   {recentActivities.map((activity) => (
@@ -393,56 +415,56 @@ export default function AdminDashboard({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertCircleIcon className="h-5 w-5 text-red-500" />
-                  Errors
+                  {t('dashboard.notifications.errors.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-red-600">{alertCounts.error ?? 0}</div>
-                <div className="text-sm text-gray-600">Require immediate attention</div>
+                <div className="text-sm text-gray-600">{t('dashboard.notifications.errors.description')}</div>
               </CardContent>
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BellIcon className="h-5 w-5 text-yellow-500" />
-                  Warnings
+                  {t('dashboard.notifications.warnings.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-yellow-600">{alertCounts.warning ?? 0}</div>
-                <div className="text-sm text-gray-600">Monitor these items</div>
+                <div className="text-sm text-gray-600">{t('dashboard.notifications.warnings.description')}</div>
               </CardContent>
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BellIcon className="h-5 w-5 text-blue-500" />
-                  Info Messages
+                  {t('dashboard.notifications.info.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-blue-600">{alertCounts.info ?? 0}</div>
-                <div className="text-sm text-gray-600">General system updates</div>
+                <div className="text-sm text-gray-600">{t('dashboard.notifications.info.description')}</div>
               </CardContent>
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                  Success Events
+                  {t('dashboard.notifications.success.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-green-600">{alertCounts.success ?? 0}</div>
-                <div className="text-sm text-gray-600">Completed tasks</div>
+                <div className="text-sm text-gray-600">{t('dashboard.notifications.success.description')}</div>
               </CardContent>
             </Card>
 
             {/* System Alerts */}
             <Card className={cn(baseCardClasses, "col-span-1")}>
               <CardHeader>
-                <CardTitle>System Alerts</CardTitle>
-                <CardDescription>Application and platform notifications</CardDescription>
+                <CardTitle>{t('dashboard.notifications.systemAlerts.title')}</CardTitle>
+                <CardDescription>{t('dashboard.notifications.systemAlerts.description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[400px]">
@@ -464,7 +486,7 @@ export default function AdminDashboard({
           </>
         )
       default:
-        return <div>No content for this tab</div>
+        return <div>{t('dashboard.emptyContent')}</div>
     }
   }
 
@@ -475,8 +497,8 @@ export default function AdminDashboard({
           <>
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>Post Engagement</CardTitle>
-                <CardDescription>Overview of likes, comments, and shares for recent posts</CardDescription>
+                <CardTitle>{t('dashboard.cards.postEngagement.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.postEngagement.description')}</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -495,8 +517,8 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>Audience Growth</CardTitle>
-                <CardDescription>Monthly follower growth</CardDescription>
+                <CardTitle>{t('dashboard.cards.audienceGrowth.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.audienceGrowth.description')}</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -515,7 +537,7 @@ export default function AdminDashboard({
         )
       // ... (other tabs for PR role)
       default:
-        return <div>No content for this tab</div>
+        return <div>{t('dashboard.emptyContent')}</div>
     }
   }
 
@@ -526,8 +548,8 @@ export default function AdminDashboard({
           <>
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>Revenue by Product</CardTitle>
-                <CardDescription>Overview of revenue generated by each product</CardDescription>
+                <CardTitle>{t('dashboard.cards.revenueByProduct.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.revenueByProduct.description')}</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -544,8 +566,8 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>Expense Categories</CardTitle>
-                <CardDescription>Breakdown of expenses by category</CardDescription>
+                <CardTitle>{t('dashboard.cards.expenseCategories.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.expenseCategories.description')}</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -573,7 +595,7 @@ export default function AdminDashboard({
         )
       // ... (other tabs for Finance role)
       default:
-        return <div>No content for this tab</div>
+        return <div>{t('dashboard.emptyContent')}</div>
     }
   }
 
@@ -584,8 +606,8 @@ export default function AdminDashboard({
           <>
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>Job Applications</CardTitle>
-                <CardDescription>Number of applications per open position</CardDescription>
+                <CardTitle>{t('dashboard.cards.jobApplications.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.jobApplications.description')}</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -604,8 +626,8 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>Employee Distribution</CardTitle>
-                <CardDescription>Breakdown of employees by department</CardDescription>
+                <CardTitle>{t('dashboard.cards.employeeDistribution.title')}</CardTitle>
+                <CardDescription>{t('dashboard.cards.employeeDistribution.description')}</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -633,7 +655,7 @@ export default function AdminDashboard({
         )
       // ... (other tabs for HR role)
       default:
-        return <div>No content for this tab</div>
+        return <div>{t('dashboard.emptyContent')}</div>
     }
   }
 
@@ -642,13 +664,15 @@ export default function AdminDashboard({
       <section className="surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 sm:px-8 sm:py-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground">
-              Admin intelligence
-            </Badge>
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground">
+                {t('dashboard.hero.badge')}
+              </Badge>
             <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Unified control center</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {t('dashboard.hero.title')}
+              </h1>
               <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                Monitor growth, engagement, finance, and people analytics from a single premium workspace tuned for BISO.
+                {t('dashboard.hero.description')}
               </p>
             </div>
             <div className="inline-flex flex-wrap items-center gap-2">
@@ -690,8 +714,8 @@ export default function AdminDashboard({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Focus areas</h2>
-            <p className="text-sm text-muted-foreground">Switch between analytic lenses tailored to your current role.</p>
+            <h2 className="text-lg font-semibold text-foreground">{t('dashboard.focus.title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('dashboard.focus.description')}</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Date Range Filter */}

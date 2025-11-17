@@ -1,4 +1,5 @@
 import { createSessionClient } from '@repo/api/server'
+import { getTranslations } from 'next-intl/server'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
 import { Input } from '@repo/ui/components/ui/input'
 import { Label } from '@repo/ui/components/ui/label'
@@ -23,76 +24,101 @@ export default async function ShopSettingsPage() {
   const settings = await getSettings()
   const vipps = settings?.vipps || {}
   const general = settings?.general || {}
+  const t = await getTranslations("adminShop")
 
   return (
     <div className="flex w-full flex-col">
       <div className="mb-4">
-        <h1 className="text-xl font-semibold">Shop Settings</h1>
-        <p className="text-sm text-muted-foreground">Configure your webshop preferences and Vipps Checkout</p>
+        <h1 className="text-xl font-semibold">{t("settings.title")}</h1>
+        <p className="text-sm text-muted-foreground">
+          {t("settings.description")}
+        </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="glass-panel">
           <CardHeader>
-            <CardTitle>General</CardTitle>
-            <CardDescription>Configure core shop options</CardDescription>
+            <CardTitle>{t("settings.general")}</CardTitle>
+            <CardDescription>{t("settings.generalDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="shopName">Shop name</Label>
+              <Label htmlFor="shopName">
+                {t("settings.fields.shopName")}
+              </Label>
               <Input id="shopName" name="shopName" defaultValue={general.shopName || 'BISO Shop'} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="contactEmail">Contact email</Label>
+              <Label htmlFor="contactEmail">
+                {t("settings.fields.contactEmail")}
+              </Label>
               <Input id="contactEmail" name="contactEmail" type="email" defaultValue={general.contactEmail || ''} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="defaultCampusId">Default campus</Label>
+              <Label htmlFor="defaultCampusId">
+                {t("settings.fields.defaultCampus")}
+              </Label>
               <Input id="defaultCampusId" name="defaultCampusId" defaultValue={general.defaultCampusId || ''} />
             </div>
           </CardContent>
           <CardFooter>
             <form action={saveSettings}>
               <input type="hidden" name="section" value="general" />
-              <Button type="submit">Save General</Button>
+              <Button type="submit">
+                {t("settings.actions.saveGeneral")}
+              </Button>
             </form>
           </CardFooter>
         </Card>
 
         <Card className="glass-panel">
           <CardHeader>
-            <CardTitle>Vipps Checkout</CardTitle>
-            <CardDescription>Enter your Vipps API credentials and options</CardDescription>
+            <CardTitle>{t("settings.vipps.title")}</CardTitle>
+            <CardDescription>{t("settings.vipps.description")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="vipps_merchantSerialNumber">Merchant serial number</Label>
+              <Label htmlFor="vipps_merchantSerialNumber">
+                {t("settings.fields.vippsMerchantSerialNumber")}
+              </Label>
               <Input id="vipps_merchantSerialNumber" name="vipps_merchantSerialNumber" defaultValue={vipps.merchantSerialNumber || ''} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_subscriptionKey">Subscription key (Ocp-Apim-Subscription-Key)</Label>
+              <Label htmlFor="vipps_subscriptionKey">
+                {t("settings.fields.vippsSubscriptionKey")}
+              </Label>
               <Input id="vipps_subscriptionKey" name="vipps_subscriptionKey" defaultValue={vipps.subscriptionKey || ''} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_clientId">Client ID</Label>
+              <Label htmlFor="vipps_clientId">
+                {t("settings.fields.vippsClientId")}
+              </Label>
               <Input id="vipps_clientId" name="vipps_clientId" defaultValue={vipps.clientId || ''} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_clientSecret">Client Secret</Label>
+              <Label htmlFor="vipps_clientSecret">
+                {t("settings.fields.vippsClientSecret")}
+              </Label>
               <Input id="vipps_clientSecret" name="vipps_clientSecret" type="password" defaultValue={vipps.clientSecret || ''} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_returnUrl">Return URL</Label>
+              <Label htmlFor="vipps_returnUrl">
+                {t("settings.fields.vippsReturnUrl")}
+              </Label>
               <Input id="vipps_returnUrl" name="vipps_returnUrl" defaultValue={vipps.returnUrl || ''} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_callbackPrefix">Callback Prefix</Label>
+              <Label htmlFor="vipps_callbackPrefix">
+                {t("settings.fields.vippsCallbackPrefix")}
+              </Label>
               <Input id="vipps_callbackPrefix" name="vipps_callbackPrefix" defaultValue={vipps.callbackPrefix || ''} />
             </div>
           </CardContent>
           <CardFooter>
             <form action={saveSettings}>
               <input type="hidden" name="section" value="vipps" />
-              <Button type="submit">Save Vipps</Button>
+              <Button type="submit">
+                {t("settings.actions.saveVipps")}
+              </Button>
             </form>
           </CardFooter>
         </Card>

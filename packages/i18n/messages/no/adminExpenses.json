@@ -7,7 +7,7 @@
   "search": "Søk i utgifter...",
   "filters": {
     "all": "Alle utgifter",
-    "pending": "Venter",
+    "pending": "Avventer",
     "approved": "Godkjent",
     "rejected": "Avvist",
     "paid": "Betalt"
@@ -41,7 +41,7 @@
     "other": "Annet"
   },
   "status": {
-    "pending": "Venter",
+    "pending": "Avventer",
     "approved": "Godkjent",
     "rejected": "Avvist",
     "paid": "Betalt"

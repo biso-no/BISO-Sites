@@ -1,11 +1,11 @@
 {
   "title": "Informasjonskapsler",
-  "intro": "Vi bruker informasjonskapsler for å sikre grunnleggende funksjonalitet, huske preferanser og forbedre opplevelsen.",
+  "intro": "Vi bruker informasjonskapsler for å sikre nødvendig funksjonalitet, huske preferanser og forbedre opplevelsen.",
   "sections": {
     "categories": {
       "title": "Kategorier",
       "items": {
-        "0": "Nødvendige – påkrevd for kjernefunksjonalitet",
+        "0": "Nødvendige – kreves for grunnleggende funksjonalitet",
         "1": "Funksjonelle – husker innstillingene dine",
         "2": "Analyse – hjelper oss å forstå bruk",
         "3": "Markedsføring – brukes til å tilpasse innhold"

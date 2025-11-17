@@ -7,12 +7,14 @@ import { Badge } from '@repo/ui/components/ui/badge';
 import { ImageWithFallback } from '@repo/ui/components/image';
 import Link from 'next/link';
 import type { ContentTranslations } from '@repo/api/types/appwrite';
+import { useTranslations } from 'next-intl';
 
 interface EventsClientProps {
   events: ContentTranslations[];
 }
 
 export function EventsClient({ events }: EventsClientProps) {
+  const t = useTranslations('home.events');
   const categoryColors: Record<string, string> = {
     Social: 'bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20',
     Career: 'bg-[#001731]/10 text-[#001731] border-[#001731]/20',
@@ -24,8 +26,8 @@ export function EventsClient({ events }: EventsClientProps) {
       <section id="events" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="mb-6 text-gray-900">No Upcoming Events</h2>
-            <p className="text-gray-600">Check back soon for exciting events!</p>
+            <h2 className="mb-6 text-gray-900">{t('empty')}</h2>
+            <p className="text-gray-600">{t('emptyDescription')}</p>
           </div>
         </div>
       </section>
@@ -43,18 +45,17 @@ export function EventsClient({ events }: EventsClientProps) {
           className="text-center mb-16"
         >
           <div className="inline-block px-4 py-2 rounded-full bg-[#3DA9E0]/10 text-[#001731] mb-6">
-            Upcoming Events
+            {t('upcomingEvents')}
           </div>
           <h2 className="mb-6 text-gray-900">
-            Don't Miss Out on
+            {t('dontMissOut')}
             <br />
             <span className="bg-linear-to-r from-[#3DA9E0] to-[#001731] bg-clip-text text-transparent">
-              Amazing Experiences
+              {t('amazingExperiences')}
             </span>
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            From networking events to unforgettable parties, we've got your semester covered with 
-            exciting activities and opportunities.
+            {t('description')}
           </p>
         </motion.div>
 
@@ -133,7 +134,7 @@ export function EventsClient({ events }: EventsClientProps) {
 
                       <Link href={`/events/${event.content_id}`}>
                         <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 group">
-                          Register Now
+                          {t('registerNow')}
                           <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                         </Button>
                       </Link>
@@ -154,7 +155,7 @@ export function EventsClient({ events }: EventsClientProps) {
         >
           <Link href="/events">
             <Button variant="outline" size="lg" className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10">
-              View All Events
+              {t('viewAllEvents')}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>

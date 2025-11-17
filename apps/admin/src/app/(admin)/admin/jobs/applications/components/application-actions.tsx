@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@repo/ui/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@repo/ui/components/ui/dropdown-menu'
 import { MoreHorizontal, Download, Trash2, Mail } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { JobApplication } from '@/lib/types/job-application'
 import { updateJobApplicationStatus, exportJobApplicationData, deleteJobApplicationData } from '@/app/actions/jobs'
 import { toast } from '@/lib/hooks/use-toast'
@@ -16,15 +17,17 @@ interface ApplicationActionsProps {
 export function ApplicationActions({ application }: ApplicationActionsProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const t = useTranslations('adminJobs')
+  const mailSubject = encodeURIComponent(t('applications.actions.mailSubject'))
 
   const handleStatusUpdate = async (newStatus: JobApplication['status']) => {
     setIsLoading(true)
     try {
       await updateJobApplicationStatus(application.$id, newStatus)
-      toast({ title: 'Application status updated' })
+      toast({ title: t('applications.messages.statusUpdated') })
       router.refresh()
     } catch (error) {
-      toast({ title: 'Error updating status', variant: 'destructive' })
+      toast({ title: t('applications.messages.statusUpdateError'), variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
@@ -45,15 +48,15 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
         
-        toast({ title: 'Application data exported' })
+        toast({ title: t('applications.messages.exportSuccess') })
       }
     } catch (error) {
-      toast({ title: 'Error exporting data', variant: 'destructive' })
+      toast({ title: t('applications.messages.exportError'), variant: 'destructive' })
     }
   }
 
   const handleDeleteData = async () => {
-    if (!confirm('Are you sure you want to permanently delete this application data? This action cannot be undone.')) {
+    if (!confirm(t('applications.actions.confirmDelete'))) {
       return
     }
     
@@ -61,13 +64,13 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
     try {
       const success = await deleteJobApplicationData(application.$id)
       if (success) {
-        toast({ title: 'Application data deleted' })
+        toast({ title: t('applications.messages.deleteSuccess') })
         router.refresh()
       } else {
         throw new Error('Failed to delete')
       }
     } catch (error) {
-      toast({ title: 'Error deleting data', variant: 'destructive' })
+        toast({ title: t('applications.messages.deleteError'), variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
@@ -83,7 +86,7 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
           onClick={() => handleStatusUpdate('reviewed')}
           disabled={isLoading}
         >
-          Mark Reviewed
+          {t('applications.actions.markReviewed')}
         </Button>
       )}
       
@@ -94,13 +97,13 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
           onClick={() => handleStatusUpdate('interview')}
           disabled={isLoading}
         >
-          Schedule Interview
+          {t('applications.actions.scheduleInterview')}
         </Button>
       )}
       
       {/* Contact applicant */}
       <Button size="sm" variant="outline" asChild>
-        <a href={`mailto:${application.applicant_email}?subject=Re: Application for Job`}>
+        <a href={`mailto:${application.applicant_email}?subject=${mailSubject}`}>
           <Mail className="h-4 w-4" />
         </a>
       </Button>
@@ -114,21 +117,21 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => handleStatusUpdate('accepted')}>
-            Mark as Accepted
+            {t('applications.actions.markAccepted')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleStatusUpdate('rejected')}>
-            Mark as Rejected
+            {t('applications.actions.markRejected')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleExportData}>
             <Download className="h-4 w-4 mr-2" />
-            Export Data (GDPR)
+            {t('applications.actions.exportData')}
           </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={handleDeleteData}
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete Data (GDPR)
+            {t('applications.actions.deleteData')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
