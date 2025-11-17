@@ -1,0 +1,65 @@
+{
+  "title": "Posts",
+  "description": "Manage blog posts and articles",
+  "create": "Create post",
+  "edit": "Edit post",
+  "delete": "Delete post",
+  "publish": "Publish",
+  "unpublish": "Unpublish",
+  "search": "Search posts...",
+  "filters": {
+    "all": "All posts",
+    "published": "Published",
+    "draft": "Draft",
+    "archived": "Archived"
+  },
+  "table": {
+    "title": "Title",
+    "author": "Author",
+    "category": "Category",
+    "publishDate": "Publish date",
+    "status": "Status",
+    "views": "Views",
+    "actions": "Actions"
+  },
+  "form": {
+    "title": "Post title",
+    "slug": "Slug",
+    "excerpt": "Excerpt",
+    "content": "Content",
+    "author": "Author",
+    "category": "Category",
+    "tags": "Tags",
+    "featuredImage": "Featured image",
+    "publishDate": "Publish date",
+    "status": "Status",
+    "metaTitle": "Meta title",
+    "metaDescription": "Meta description",
+    "save": "Save post",
+    "saveDraft": "Save as draft",
+    "cancel": "Cancel",
+    "preview": "Preview"
+  },
+  "status": {
+    "published": "Published",
+    "draft": "Draft",
+    "archived": "Archived",
+    "scheduled": "Scheduled"
+  },
+  "categories": {
+    "news": "News",
+    "blog": "Blog",
+    "announcement": "Announcement",
+    "update": "Update"
+  },
+  "messages": {
+    "loading": "Loading posts...",
+    "noPosts": "No posts found",
+    "deleteConfirm": "Are you sure you want to delete this post?",
+    "saveSuccess": "Post saved successfully",
+    "publishSuccess": "Post published successfully",
+    "deleteSuccess": "Post deleted successfully",
+    "error": "An error occurred"
+  }
+}
+

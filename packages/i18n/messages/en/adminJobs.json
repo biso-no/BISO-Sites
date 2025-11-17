@@ -1,24 +1,54 @@
 {
   "title": "Jobs",
   "description": "Manage job postings and applications",
+  "badge": "Recruitment",
+  "jobboardTitle": "Jobboard",
+  "jobboardDescription": "Track status, campus, and language for volunteer positions and jobs.",
+  "createNew": "Create new position",
+  "filterTitle": "Filter jobs",
+  "filterDescription": "Combine text search, campus, and status to narrow results.",
+  "jobOverview": "Job overview",
+  "positionsAcrossCampuses": "{count} positions across {campuses} campuses",
+  "translated": "translated",
+  "closedInArchive": "{count} closed positions in archive",
   "create": "Create job",
   "edit": "Edit job",
   "delete": "Delete job",
   "search": "Search jobs...",
+  "searchPlaceholder": "Search by title or slug...",
   "filters": {
-    "all": "All jobs",
+    "all": "All",
+    "all jobs": "All jobs",
     "active": "Active",
     "draft": "Draft",
-    "closed": "Closed"
+    "published": "Published",
+    "closed": "Closed",
+    "status": "Status",
+    "campus": "Campus",
+    "filter": "Filter"
   },
   "table": {
     "title": "Title",
     "department": "Department",
     "type": "Type",
     "status": "Status",
+    "language": "Language",
+    "campus": "Campus",
     "applications": "Applications",
     "deadline": "Deadline",
-    "actions": "Actions"
+    "actions": "Actions",
+    "missing": "Missing",
+    "edit": "Edit"
+  },
+  "metrics": {
+    "activePositions": "Active positions",
+    "totalInCatalog": "Total in catalog",
+    "published": "Published",
+    "visibleToStudents": "Visible to students",
+    "drafts": "Drafts",
+    "readyForReview": "Ready for review",
+    "translated": "Translated",
+    "translationComplete": "NO + EN complete"
   },
   "form": {
     "title": "Job title",

@@ -5,6 +5,7 @@ import type { FormEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { MoreHorizontal, Plus, TrendingUp } from "lucide-react"
 
 import { Badge } from "@repo/ui/components/ui/badge"
@@ -71,6 +72,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
 const LOW_STOCK_THRESHOLD = 10
 
 export function ProductsTable({ products }: { products: ProductWithTranslations[] }) {
+  const t = useTranslations('adminShop')
   const router = useRouter()
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [priceValue, setPriceValue] = useState("5")
@@ -142,10 +144,10 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     startBulkTransition(async () => {
       const result = await bulkUpdateProductStatus(selectedIds, status)
       if (!result?.success) {
-        setBulkFeedback(result?.error || "Kunne ikke oppdatere status.")
+        setBulkFeedback(result?.error || t('messages.updateStatusError'))
         return
       }
-      setBulkFeedback("Status oppdatert")
+      setBulkFeedback(t('messages.statusUpdated'))
       setSelectedIds([])
       router.refresh()
     })
@@ -155,16 +157,16 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     event.preventDefault()
     const value = Number(priceValue)
     if (!Number.isFinite(value)) {
-      setBulkFeedback("Oppgi en gyldig prisverdi.")
+      setBulkFeedback(t('messages.invalidPriceValue'))
       return
     }
     startBulkTransition(async () => {
       const result = await bulkUpdateProductPrices(selectedIds, { mode: priceMode, value })
       if (!result?.success) {
-        setBulkFeedback(result?.error || "Kunne ikke oppdatere pris.")
+        setBulkFeedback(result?.error || t('messages.updatePriceError'))
         return
       }
-      setBulkFeedback("Pris oppdatert")
+      setBulkFeedback(t('messages.priceUpdated'))
       setSelectedIds([])
       router.refresh()
     })
@@ -174,16 +176,16 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     event.preventDefault()
     const value = Number(stockValue)
     if (!Number.isFinite(value)) {
-      setBulkFeedback("Oppgi en gyldig lagerverdi.")
+      setBulkFeedback(t('messages.invalidStockValue'))
       return
     }
     startBulkTransition(async () => {
       const result = await bulkUpdateProductStock(selectedIds, { mode: stockMode, value })
       if (!result?.success) {
-        setBulkFeedback(result?.error || "Kunne ikke oppdatere lager.")
+        setBulkFeedback(result?.error || t('messages.updateStockError'))
         return
       }
-      setBulkFeedback("Lager oppdatert")
+      setBulkFeedback(t('messages.stockUpdated'))
       setSelectedIds([])
       router.refresh()
     })
@@ -192,10 +194,10 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
   const renderStockValue = (stock: number | null | undefined) => {
     if (typeof stock === "number") {
       if (stock <= 0) {
-        return <Badge variant="destructive">Tomt</Badge>
+        return <Badge variant="destructive">{t('products.stockStatus.empty')}</Badge>
       }
       if (stock <= LOW_STOCK_THRESHOLD) {
-        return <Badge variant="outline" className="border-amber-200 text-amber-600">Lavt ({stock})</Badge>
+        return <Badge variant="outline" className="border-amber-200 text-amber-600">{t('products.stockStatus.low', { count: stock })}</Badge>
       }
       return stock
     }
@@ -209,27 +211,27 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     <TabsContent value="all">
       <AdminSummary
         className="mb-6"
-        badge="Produktkatalog"
-        title="Shop inventory"
-        description="Følg lanseringer, tilgjengelighet og språkdekning på merch og produkter."
+        badge={t('products.badge')}
+        title={t('products.inventoryTitle')}
+        description={t('products.inventoryDescription')}
         metrics={[
-          { label: "Totalt", value: aggregates.total },
-          { label: "Publiserte", value: aggregates.published },
-          { label: "Utkast", value: aggregates.draft },
-          { label: "Oversettelser", value: aggregates.translationCoverage },
-          { label: "Lavt lager", value: aggregates.lowStock },
+          { label: t('products.metrics.total'), value: aggregates.total },
+          { label: t('products.metrics.published'), value: aggregates.published },
+          { label: t('products.metrics.draft'), value: aggregates.draft },
+          { label: t('products.metrics.translations'), value: aggregates.translationCoverage },
+          { label: t('products.metrics.lowStock'), value: aggregates.lowStock },
         ]}
         action={
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" className="rounded-full bg-primary-40 px-4 font-semibold text-white shadow-[0_15px_35px_-22px_rgba(0,23,49,0.7)] hover:bg-primary-30">
               <Link href="/admin/shop/products/new" className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
-                Nytt produkt
+                {t('products.newProduct')}
               </Link>
             </Button>
             <Button variant="outline" size="sm" className="rounded-full border-primary/20 bg-white/80 text-primary-90 hover:bg-primary/5">
               <TrendingUp className="mr-2 h-4 w-4" />
-              Rapporter
+              {t('products.reports')}
             </Button>
           </div>
         }
@@ -238,15 +240,15 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
       {selectedIds.length > 0 && (
         <div className="mb-4 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 shadow-inner">
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-primary-90">
-            <span>{selectedIds.length} valgt</span>
+            <span>{t('products.bulkActions.selected', { count: selectedIds.length })}</span>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedIds([])}>
-              Nullstill
+              {t('products.bulkActions.reset')}
             </Button>
             {bulkFeedback && <span className="text-xs text-primary-60">{bulkFeedback}</span>}
           </div>
           <div className="mt-3 grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">Status</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">{t('products.bulkActions.status')}</p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
@@ -255,7 +257,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   disabled={isBulkPending}
                   onClick={() => runBulkStatusUpdate("published")}
                 >
-                  Publiser
+                  {t('products.bulkActions.publish')}
                 </Button>
                 <Button
                   type="button"
@@ -264,7 +266,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   disabled={isBulkPending}
                   onClick={() => runBulkStatusUpdate("draft")}
                 >
-                  Utkast
+                  {t('products.bulkActions.draft')}
                 </Button>
                 <Button
                   type="button"
@@ -273,12 +275,12 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   disabled={isBulkPending}
                   onClick={() => runBulkStatusUpdate("archived")}
                 >
-                  Arkiver
+                  {t('products.bulkActions.archive')}
                 </Button>
               </div>
             </div>
             <form className="space-y-2" onSubmit={handlePriceSubmit}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">Pris</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">{t('products.bulkActions.price')}</p>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
@@ -286,24 +288,24 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   value={priceValue}
                   onChange={(event) => setPriceValue(event.target.value)}
                   className="h-9"
-                  placeholder="Verdi"
+                  placeholder={t('products.bulkActions.priceValue')}
                 />
                 <Select value={priceMode} onValueChange={(value) => setPriceMode(value as "percent" | "absolute")}>
                   <SelectTrigger className="h-9 w-[140px]">
-                    <SelectValue placeholder="Velg modus" />
+                    <SelectValue placeholder={t('products.bulkActions.selectMode')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="percent">% juster</SelectItem>
-                    <SelectItem value="absolute">Sett pris</SelectItem>
+                    <SelectItem value="percent">{t('products.bulkActions.percentAdjust')}</SelectItem>
+                    <SelectItem value="absolute">{t('products.bulkActions.setPrice')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button type="submit" size="sm" disabled={isBulkPending}>
-                  Oppdater
+                  {t('products.bulkActions.update')}
                 </Button>
               </div>
             </form>
             <form className="space-y-2" onSubmit={handleStockSubmit}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">Lager</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">{t('products.bulkActions.stock')}</p>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
@@ -311,19 +313,19 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   value={stockValue}
                   onChange={(event) => setStockValue(event.target.value)}
                   className="h-9"
-                  placeholder="Antall"
+                  placeholder={t('products.bulkActions.stockValue')}
                 />
                 <Select value={stockMode} onValueChange={(value) => setStockMode(value as "adjust" | "set")}>
                   <SelectTrigger className="h-9 w-[140px]">
-                    <SelectValue placeholder="Velg modus" />
+                    <SelectValue placeholder={t('products.bulkActions.selectMode')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="adjust">Juster ±</SelectItem>
-                    <SelectItem value="set">Sett lager</SelectItem>
+                    <SelectItem value="adjust">{t('products.bulkActions.adjust')}</SelectItem>
+                    <SelectItem value="set">{t('products.bulkActions.setStock')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button type="submit" size="sm" disabled={isBulkPending}>
-                  Oppdater
+                  {t('products.bulkActions.update')}
                 </Button>
               </div>
             </form>
@@ -334,13 +336,13 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.4)]">
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold text-primary-100">Produkter</CardTitle>
+            <CardTitle className="text-lg font-semibold text-primary-100">{t('products.title')}</CardTitle>
             <CardDescription className="text-sm text-primary-60">
-              Administrer produkter, status og lokalisering direkte i katalogen.
+              {t('products.manageDescription')}
             </CardDescription>
           </div>
           <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-80">
-            {aggregates.translationCoverage} dekket
+            {aggregates.translationCoverage} {t('products.table.covered')}
           </Badge>
         </CardHeader>
         <CardContent className="p-0">
@@ -350,23 +352,23 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                 <TableRow className="bg-primary/5">
                   <TableHead className="w-10">
                     <Checkbox
-                      aria-label="Velg alle produkter"
+                      aria-label={t('products.table.selectAll')}
                       checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
                       onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
                     />
                   </TableHead>
                   <TableHead className="hidden w-[100px] sm:table-cell">
-                    <span className="sr-only">Image</span>
+                    <span className="sr-only">{t('products.table.image')}</span>
                   </TableHead>
-                  <TableHead className="min-w-[160px]">Produkt</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Oversettelser</TableHead>
-                  <TableHead className="hidden md:table-cell">Pris</TableHead>
-                  <TableHead className="hidden md:table-cell">Lager</TableHead>
-                  <TableHead className="hidden md:table-cell">Campus</TableHead>
-                  <TableHead className="hidden md:table-cell">Opprettet</TableHead>
+                  <TableHead className="min-w-[160px]">{t('products.table.product')}</TableHead>
+                  <TableHead>{t('products.table.status')}</TableHead>
+                  <TableHead>{t('products.table.translations')}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t('products.table.price')}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t('products.table.stock')}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t('products.table.campus')}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t('products.table.created')}</TableHead>
                   <TableHead>
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">{t('products.table.actions')}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -391,7 +393,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                     >
                       <TableCell>
                         <Checkbox
-                          aria-label={`Velg ${title}`}
+                          aria-label={t('products.table.selectProduct', { title })}
                           checked={isSelected}
                           onCheckedChange={(checked) => toggleSelect(product.$id, Boolean(checked))}
                         />
@@ -431,7 +433,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                             ))
                           ) : (
                             <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
-                              Mangler oversettelser
+                              {t('products.table.missingTranslations')}
                             </span>
                           )}
                         </div>
@@ -457,19 +459,19 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuLabel>{t('products.table.actions')}</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleUpdateStatus(product.$id, "published")}>
-                              Set Published
+                              {t('products.actions.setPublished')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleUpdateStatus(product.$id, "draft")}>
-                              Set Draft
+                              {t('products.actions.setDraft')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleUpdateStatus(product.$id, "archived")}>
-                              Archive
+                              {t('products.actions.archive')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleDeleteProduct(product.$id)}>
-                              Delete
+                              {t('products.actions.delete')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -482,11 +484,15 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
           </div>
         </CardContent>
         <CardFooter className="flex flex-col items-start justify-between gap-3 border-t border-primary/10 bg-white/70 px-6 py-4 text-xs text-primary-60 sm:flex-row sm:items-center sm:text-sm">
-          <span>
-            Viser <strong>1-{products.length}</strong> av <strong>{products.length}</strong> produkter
-          </span>
+          <span dangerouslySetInnerHTML={{ 
+            __html: t('products.table.showing', { 
+              start: 1, 
+              end: products.length, 
+              total: products.length 
+            }) 
+          }} />
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary-70">
-            Oppdatert {DATE_FORMATTER.format(new Date())}
+            {t('products.table.updated', { date: DATE_FORMATTER.format(new Date()) })}
           </div>
         </CardFooter>
       </Card>

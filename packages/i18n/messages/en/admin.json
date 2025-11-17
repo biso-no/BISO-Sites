@@ -76,6 +76,26 @@
   "assistant": {
     "title": "Admin Assistant",
     "close": "Close"
+  },
+  "dashboard": {
+    "tabs": {
+      "overview": "Overview",
+      "analytics": "Analytics",
+      "reports": "Reports",
+      "notifications": "Notifications"
+    },
+    "dateRange": {
+      "last7Days": "Last 7 days",
+      "last30Days": "Last 30 days",
+      "last90Days": "Last 90 days",
+      "allTime": "All time"
+    },
+    "roleOptions": {
+      "admin": "Admin",
+      "pr": "PR & Communication",
+      "finance": "Finance",
+      "hr": "HR"
+    }
   }
 }
 
