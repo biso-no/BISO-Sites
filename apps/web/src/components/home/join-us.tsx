@@ -191,7 +191,7 @@ export function JoinUs() {
           viewport={{ once: true }}
           className="text-center"
         >
-          <Card className="p-12 border-0 shadow-2xl bg-linear-to-br from-purple-600 to-pink-600 text-white">
+          <Card className="p-12 border-0 shadow-2xl bg-linear-to-br from-blue-600 to-primary-80 text-white">
             <h3 className="mb-4 text-white">{t('onboarding.notSure.title')}</h3>
             <p className="mb-8 text-white/90 max-w-2xl mx-auto">
               {t('onboarding.notSure.subtitle')}
