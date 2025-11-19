@@ -27,6 +27,7 @@ import adminEvents from './en/adminEvents.json';
 import adminExpenses from './en/adminExpenses.json';
 import adminUnits from './en/adminUnits.json';
 import adminSettings from './en/adminSettings.json';
+import adminPosts from './en/adminPosts.json';
 
 export default {
   academicsContact,
@@ -57,5 +58,6 @@ export default {
   adminEvents,
   adminExpenses,
   adminUnits,
-  adminSettings
+  adminSettings,
+  adminPosts
 };

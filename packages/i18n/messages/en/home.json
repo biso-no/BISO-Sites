@@ -7,7 +7,10 @@
     "ctas": {
       "join": "Join now",
       "roles": "Explore roles",
-      "partners": "Partner opportunities"
+      "partners": "Partner opportunities",
+      "viewEvents": "View events",
+      "viewJobs": "View jobs",
+      "viewNews": "View news"
     },
     "promo": {
       "headline": "Create experiences, influence policy and build networks for the future.",

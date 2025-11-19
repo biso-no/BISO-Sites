@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { unauthorized, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Button } from '@repo/ui/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
 import Breadcrumb from './breadcrumb';
@@ -186,7 +186,6 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
         { href: '/admin/shop/settings', label: t('shopSubItems.settings'), roles: ['Admin'] },
       ],
     },
-    
     {
       href: '/admin/expenses',
       icon: CalendarIcon,
@@ -213,17 +212,6 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
         { href: '/admin/events/new', label: t('eventsSubItems.createEvent'), roles: ['Admin', 'pr'] },
       ],
     },
-    /*
-    {
-      href: '/admin/alumni',
-      icon: Users,
-      label: t('navigation.alumni'),
-      roles: ['Admin'],
-      subItems: [
-        { href: '/admin/alumni/mentors', label: t('alumniSubItems.mentorApprovals'), roles: ['Admin'] },
-      ],
-    },
-    */
     {
       href: '/admin/units',
       icon: Building2,
@@ -244,10 +232,8 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       ],
     },
   ];
-  
 
   const hasAccess = (itemRoles: string[]) => selectedRole ? itemRoles.includes(selectedRole) : false;
-
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -259,84 +245,89 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   };
 
   return (
-    <div className="relative isolate flex min-h-screen overflow-hidden bg-linear-to-br from-primary-10/25 via-slate-50 to-secondary-10/40 dark:from-background dark:via-card dark:to-background">
+    <div className="fixed inset-0 flex overflow-hidden bg-gradient-to-br from-primary-10/25 via-slate-50 to-secondary-10/40 dark:from-background dark:via-card dark:to-background">
+      {/* Background Effects */}
       <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-40 dark:opacity-20" />
       <div className="pointer-events-none absolute -left-20 top-[-18%] h-72 w-72 rounded-full bg-secondary-20/60 dark:bg-primary/30 blur-[140px]" />
       <div className="pointer-events-none absolute bottom-[-25%] right-[-10%] h-80 w-80 rounded-full bg-gold-muted/45 dark:bg-secondary-100/20 blur-[160px]" />
 
-      <div className="relative z-10 flex h-screen w-full gap-4 overflow-hidden p-4">
-        <motion.nav
+      {/* Sidebar */}
+      <motion.nav
+        initial={false}
+        animate={{ width: isSidebarExpanded ? 268 : 88 }}
+        className="relative z-10 m-4 flex shrink-0 flex-col overflow-hidden rounded-[26px] border border-primary-100/30 bg-primary-100/95 text-white shadow-[0_45px_80px_-45px_rgba(0,23,49,0.9)]"
+      >
+        <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,169,224,0.25),transparent_60%)]" />
+        
+        {/* Sidebar Header */}
+        <motion.div
+          className="flex items-center gap-3 px-4 pb-4 pt-5"
           initial={false}
-          animate={{ width: isSidebarExpanded ? 268 : 88 }}
-          className="relative flex h-full shrink-0 flex-col overflow-hidden rounded-[26px] border border-primary-100/30 bg-primary-100/95 text-white shadow-[0_45px_80px_-45px_rgba(0,23,49,0.9)]"
+          animate={{ justifyContent: isSidebarExpanded ? "flex-start" : "center" }}
         >
-          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,169,224,0.25),transparent_60%)]" />
-          <div className="relative flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto pb-6">
-              <motion.div
-                className="flex items-center gap-3 px-4 pb-4 pt-5"
-                initial={false}
-                animate={{ justifyContent: isSidebarExpanded ? "flex-start" : "center" }}
-              >
-                <Link href="/admin" className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lg font-semibold tracking-tight text-white">
-                  B
-                </Link>
-                {isSidebarExpanded && (
-                  <div className="space-y-0.5">
-                    <span className="text-xs uppercase tracking-[0.2em] text-white/60">{t('title')}</span>
-                    <span className="text-base font-semibold leading-none text-white">{t('subtitle')}</span>
-                  </div>
-                )}
-              </motion.div>
-              <div className="px-4">
-                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/60">{t('activeRole')}</p>
-                  <p className="text-sm font-medium text-white">{selectedRole}</p>
-                </div>
-              </div>
-              <ul className="mt-6 space-y-1 px-2">
-                <AnimatePresence mode="wait">
-                  {navItems.map((item) => {
-                    if (!hasAccess(item.roles)) return null;
-
-                    const isActive =
-                      item.href === "/admin"
-                        ? pathname === "/admin" || pathname === "/admin/"
-                        : pathname.startsWith(item.href);
-
-                    return (
-                      <SidebarItem
-                        key={item.href}
-                        item={item}
-                        isActive={isActive}
-                        isExpanded={isSidebarExpanded}
-                        pathname={pathname}
-                      />
-                    );
-                  })}
-                </AnimatePresence>
-              </ul>
+          <Link href="/admin" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-lg font-semibold tracking-tight text-white">
+            B
+          </Link>
+          {isSidebarExpanded && (
+            <div className="space-y-0.5">
+              <span className="text-xs uppercase tracking-[0.2em] text-white/60">{t('title')}</span>
+              <span className="text-base font-semibold leading-none text-white">{t('subtitle')}</span>
             </div>
-            <div className="space-y-3 px-4 pb-4">
-              <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-xs text-white/70">
-                <p className="font-semibold text-white">{t('supportLine')}</p>
-                <p className="mt-1 text-white/70">it@biso.no</p>
-              </div>
-              <button
-                onClick={toggleSidebar}
-                className="flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-sm font-medium text-white/80 transition hover:bg-white/20"
-              >
-                <motion.div animate={{ rotate: isSidebarExpanded ? 0 : 180 }} transition={{ duration: 0.25 }}>
-                  <ChevronLeft className="h-5 w-5" />
-                </motion.div>
-                {isSidebarExpanded && <span className="ml-2">{t('collapse')}</span>}
-              </button>
-            </div>
+          )}
+        </motion.div>
+
+        {/* Role Badge */}
+        <div className="px-4">
+          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+            <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/60">{t('activeRole')}</p>
+            <p className="text-sm font-medium text-white">{selectedRole}</p>
           </div>
-        </motion.nav>
+        </div>
 
-        <div className="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-white/85 dark:bg-card/85 shadow-[0_45px_80px_-60px_rgba(0,23,49,0.35)] dark:shadow-[0_45px_80px_-60px_rgba(61,169,224,0.15)] backdrop-blur-xl">
-          <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-primary/10 dark:border-primary/20 bg-white/85 dark:bg-card/85 px-6 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-6 lg:px-10">
+        {/* Navigation Items */}
+        <ul className="mt-6 flex-1 space-y-1 overflow-y-auto px-2 pb-6">
+          <AnimatePresence mode="wait">
+            {navItems.map((item) => {
+              if (!hasAccess(item.roles)) return null;
+              const isActive = item.href === "/admin"
+                ? pathname === "/admin" || pathname === "/admin/"
+                : pathname.startsWith(item.href);
+
+              return (
+                <SidebarItem
+                  key={item.href}
+                  item={item}
+                  isActive={isActive}
+                  isExpanded={isSidebarExpanded}
+                  pathname={pathname}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </ul>
+
+        {/* Sidebar Footer */}
+        <div className="space-y-3 px-4 pb-4">
+          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-xs text-white/70">
+            <p className="font-semibold text-white">{t('supportLine')}</p>
+            <p className="mt-1 text-white/70">it@biso.no</p>
+          </div>
+          <button
+            onClick={toggleSidebar}
+            className="flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-sm font-medium text-white/80 transition hover:bg-white/20"
+          >
+            <motion.div animate={{ rotate: isSidebarExpanded ? 0 : 180 }} transition={{ duration: 0.25 }}>
+              <ChevronLeft className="h-5 w-5" />
+            </motion.div>
+            {isSidebarExpanded && <span className="ml-2">{t('collapse')}</span>}
+          </button>
+        </div>
+      </motion.nav>
+
+      {/* Main Content Area */}
+      <div className="relative z-10 m-4 ml-0 flex flex-1 flex-col overflow-hidden rounded-[32px]  bg-white/85 shadow-[0_45px_80px_-60px_rgba(0,23,49,0.35)] backdrop-blur-xl dark:border-primary/20 dark:bg-card/85 dark:shadow-[0_45px_80px_-60px_rgba(61,169,224,0.15)]">
+        {/* Header */}
+        <header className="flex shrink-0 flex-col gap-4  bg-white/85 px-6 py-4 backdrop-blur-xl dark:border-primary/20 dark:bg-card/85 sm:flex-row sm:items-center sm:justify-between sm:gap-6 lg:px-10">
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-[0.22em] text-primary-60">
               {isLoading ? t('loading') : t('welcome')}
@@ -349,7 +340,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                 <RoleSwitcher roles={roles} selectedRole={selectedRole} setSelectedRole={setSelectedRole} />
               )}
             </div>
-            <div className="rounded-full border border-primary/10 dark:border-primary/20 bg-primary/5 dark:bg-primary/10 px-4 py-1 text-xs font-medium text-primary-70 dark:text-primary">
+            <div className="rounded-full border border-primary/10 bg-primary/5 px-4 py-1 text-xs font-medium text-primary-70 dark:border-primary/20 dark:bg-primary/10 dark:text-primary">
               <Breadcrumb />
             </div>
           </div>
@@ -359,14 +350,14 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             <CommandMenu />
             <NotificationsDropdown />
             <ModeToggle />
-            <Avatar className="h-10 w-10 border border-primary/10 dark:border-primary/20 shadow-sm">
+            <Avatar className="h-10 w-10 border border-primary/10 shadow-sm dark:border-primary/20">
               <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${firstName}`} />
               <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
             </Avatar>
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 rounded-xl border border-primary/10 dark:border-primary/20 bg-primary-10/60 dark:bg-card/70 text-primary-80 dark:text-primary hover:bg-primary/10 dark:hover:bg-primary/15"
+              className="h-10 w-10 rounded-xl border border-primary/10 bg-primary-10/60 text-primary-80 hover:bg-primary/10 dark:border-primary/20 dark:bg-card/70 dark:text-primary dark:hover:bg-primary/15"
               onClick={handleSignOut}
               disabled={isLoading}
             >
@@ -381,8 +372,10 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           </div>
         </header>
 
-        <main className="relative flex-1">
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary-10/18 via-transparent to-secondary-10/30" />
+        {/* Main Content with Single Scrollbar */}
+        <main className="relative flex-1 overflow-y-auto">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary-10/18 via-transparent to-secondary-10/30" />
+          
           {assistantMode === "sidebar" && assistantSidebarOpen ? (
             <ResizablePanelGroup direction="horizontal" className="relative z-10 h-full">
               <ResizablePanel defaultSize={70} minSize={40} className="min-w-0">
@@ -399,21 +392,22 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                       {t('assistant.close')}
                     </Button>
                   </div>
-                  <div className="flex-1 min-h-0">
+                  <div className="flex-1 overflow-y-auto">
                     <AssistantSidebar open={assistantSidebarOpen} onOpenChange={setSidebarOpen} docked />
                   </div>
                 </div>
               </ResizablePanel>
             </ResizablePanelGroup>
           ) : (
-            <div className="relative z-10 h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
+            <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
               {children}
             </div>
           )}
-          <div className="fixed bottom-6 right-6 z-40">
-            <AssistantModal />
-          </div>
         </main>
+
+        {/* Assistant Modal */}
+        <div className="fixed bottom-6 right-6 z-40">
+          <AssistantModal />
         </div>
       </div>
     </div>

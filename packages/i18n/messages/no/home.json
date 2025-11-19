@@ -8,6 +8,14 @@
       "headline": "Skap opplevelser, påvirk politikk og bygg nettverk for fremtiden.",
       "tagline": "Mer enn studentliv"
     },
+    "ctas": {
+      "join": "Bli medlem",
+      "roles": "Utforsk verv",
+      "partners": "Utforsk partneroppgaver",
+      "viewEvents": "Se arrangementer",
+      "viewJobs": "Se ledige stillinger",
+      "viewNews": "Se nyheter"
+    },
     "stats": {
       "campuses": "Campuser",
       "events": "Kommende arrangementer",
