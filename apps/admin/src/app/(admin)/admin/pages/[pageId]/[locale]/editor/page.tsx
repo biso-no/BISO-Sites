@@ -1,15 +1,15 @@
 import type { Data } from "@measured/puck";
 import type { Locale } from "@repo/api/types/appwrite";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ensureTranslation, getManagedPage } from "@/app/actions/pages";
 import { EditorClient } from "./client";
 
-interface EditorPageProps {
+type EditorPageProps = {
   params: Promise<{
     pageId: string;
     locale: string;
   }>;
-}
+};
 
 const SUPPORTED_LOCALES: Locale[] = ["no", "en"] as Locale[];
 
@@ -46,7 +46,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
       // But ensureTranslation is an action, can we call it in Server Component?
       // It uses createAdminClient, so yes.
       try {
-        const newTranslation = await ensureTranslation({
+        const _newTranslation = await ensureTranslation({
           pageId,
           locale: locale as Locale,
           title: page.title, // Default title
@@ -84,7 +84,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
     // If still not found, maybe invalid locale or error
     return (
       <div className="p-8">
-        <h1 className="text-2xl font-bold mb-4">Translation not found</h1>
+        <h1 className="mb-4 font-bold text-2xl">Translation not found</h1>
         <p>Could not load or create translation for {locale}.</p>
       </div>
     );
@@ -92,26 +92,25 @@ export default async function EditorPage({ params }: EditorPageProps) {
 
   // Ensure we have valid initial data for Puck
   const draftDoc = freshTranslation.draftDocument as unknown as Data;
-  const initialData: Data =
-    draftDoc && draftDoc.content
-      ? draftDoc
-      : { content: [], root: { props: { title: freshTranslation.title } } };
+  const initialData: Data = draftDoc?.content
+    ? draftDoc
+    : { content: [], root: { props: { title: freshTranslation.title } } };
 
   return (
     <EditorClient
-      pageId={pageId}
-      translationId={freshTranslation.id}
-      initialData={initialData}
-      title={freshTranslation.title}
-      locale={locale as Locale}
       availableLocales={SUPPORTED_LOCALES}
-      slug={freshTranslation.slug || page.slug}
-      status={page.status}
-      visibility={page.visibility}
-      pageTranslations={freshPage!.translations.map((t) => ({
+      initialData={initialData}
+      locale={locale as Locale}
+      pageId={pageId}
+      pageTranslations={freshPage?.translations.map((t) => ({
         locale: t.locale,
         id: t.id,
       }))}
+      slug={freshTranslation.slug || page.slug}
+      status={page.status}
+      title={freshTranslation.title}
+      translationId={freshTranslation.id}
+      visibility={page.visibility}
     />
   );
 }

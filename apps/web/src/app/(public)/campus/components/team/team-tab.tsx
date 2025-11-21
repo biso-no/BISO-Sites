@@ -8,21 +8,21 @@ import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/config";
 import { TeamMemberCard } from "./team-member-card";
 
-interface TeamTabProps {
+type TeamTabProps = {
   fallbackTeam: DepartmentBoard[];
   campusId: string | null;
   campusName: string | null;
   locale: Locale;
-}
+};
 
-interface CampusLeader {
+type CampusLeader = {
   name: string;
   email?: string;
   phone?: string;
   role?: string;
   officeLocation?: string;
   profilePhotoUrl?: string;
-}
+};
 
 function mapToLeader(entry: any): CampusLeader {
   return {
@@ -84,7 +84,9 @@ export function TeamTab({
         return response.json();
       })
       .then((payload) => {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         const dataset = payload?.data ?? payload;
         const members = Array.isArray(dataset?.members)
           ? dataset.members
@@ -110,21 +112,25 @@ export function TeamTab({
         }
       })
       .catch((error) => {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         console.error("Failed to load campus leadership", error);
         setLeadership(fallbackTeam);
-        if (!fallbackTeam.length) {
+        if (fallbackTeam.length) {
+          setError(null);
+        } else {
           setError(
             locale === "en"
               ? "Campus leadership information is not available right now."
               : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå."
           );
-        } else {
-          setError(null);
         }
       })
       .finally(() => {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         setLoading(false);
       });
 
@@ -136,14 +142,14 @@ export function TeamTab({
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
+        className="mb-12 text-center"
+        initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="text-gray-900 mb-4">
+        <h2 className="mb-4 text-gray-900">
           {locale === "en" ? "Meet Our Team" : "Møt vårt team"}
         </h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-gray-600">
           {locale === "en"
             ? `Dedicated students working to create the best campus experience${campusName ? ` at ${campusName}` : ""}`
             : `Dedikerte studenter som jobber for å skape den beste campusopplevelsen${campusName ? ` ved ${campusName}` : ""}`}
@@ -152,7 +158,7 @@ export function TeamTab({
 
       {loading ? (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin text-primary-50" />
             <span>
               {locale === "en" ? "Loading team..." : "Laster team..."}
@@ -161,12 +167,12 @@ export function TeamTab({
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (
               <Card
+                className="h-full animate-pulse rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-card"
                 key={index}
-                className="h-full rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-card animate-pulse"
               >
                 <div className="flex flex-col items-center gap-4">
                   <div className="h-32 w-32 rounded-full bg-primary/10" />
-                  <div className="flex flex-col items-center gap-2 w-full">
+                  <div className="flex w-full flex-col items-center gap-2">
                     <div className="h-4 w-32 rounded bg-primary/10" />
                     <div className="h-3 w-24 rounded bg-primary/10" />
                   </div>
@@ -176,12 +182,12 @@ export function TeamTab({
           </div>
         </div>
       ) : leadership.length > 0 ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {leadership.map((member, index) => (
             <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              key={index}
               transition={{ delay: index * 0.1 }}
             >
               <TeamMemberCard member={member} />
@@ -189,7 +195,7 @@ export function TeamTab({
           ))}
         </div>
       ) : (
-        <div className="rounded-3xl border border-dashed border-primary/20 p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-3xl border border-primary/20 border-dashed p-8 text-center text-muted-foreground text-sm">
           {error ||
             (locale === "en"
               ? "We will update team information soon."

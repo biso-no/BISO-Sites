@@ -83,15 +83,17 @@ export default function JobEditor({
   const t = useTranslations("adminJobs");
 
   const filteredDepartments = React.useMemo(() => {
-    if (!departments) return [];
-    if (!selectedCampus) return departments;
+    if (!departments) {
+      return [];
+    }
+    if (!selectedCampus) {
+      return departments;
+    }
     return departments.filter((d) => d.campus_id === selectedCampus);
   }, [departments, selectedCampus]);
 
   // Extract translations from job data using Appwrite's nested relationships
-  const getTranslation = (locale: "en" | "no") => {
-    return job?.translations?.[locale];
-  };
+  const getTranslation = (locale: "en" | "no") => job?.translations?.[locale];
 
   const metadata = job?.metadata_parsed ?? {};
 
@@ -226,12 +228,12 @@ export default function JobEditor({
           <CardContent>
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-6"
+                onSubmit={form.handleSubmit(onSubmit)}
               >
                 {/* Basic Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
+                  <h3 className="font-medium text-lg">
                     {t("editor.basicInformation")}
                   </h3>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -258,8 +260,8 @@ export default function JobEditor({
                         <FormItem>
                           <FormLabel>{t("form.status")}</FormLabel>
                           <Select
-                            value={field.value}
                             onValueChange={field.onChange}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -294,11 +296,11 @@ export default function JobEditor({
                         <FormItem>
                           <FormLabel>{t("form.campus")}</FormLabel>
                           <Select
-                            value={field.value}
                             onValueChange={(v) => {
                               field.onChange(v);
                               setSelectedCampus(v);
                             }}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -326,8 +328,8 @@ export default function JobEditor({
                         <FormItem>
                           <FormLabel>{t("form.department")}</FormLabel>
                           <Select
-                            value={field.value}
                             onValueChange={field.onChange}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -355,7 +357,7 @@ export default function JobEditor({
 
                 {/* Metadata Fields */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
+                  <h3 className="font-medium text-lg">
                     {t("editor.metadataTitle")}
                   </h3>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -419,10 +421,10 @@ export default function JobEditor({
                           <FormLabel>{t("form.contactEmail")}</FormLabel>
                           <FormControl>
                             <Input
-                              type="email"
                               placeholder={t(
                                 "editor.labels.contactEmailPlaceholder"
                               )}
+                              type="email"
                               {...field}
                             />
                           </FormControl>
@@ -436,29 +438,29 @@ export default function JobEditor({
                 {/* Translation Tabs */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">
+                    <h3 className="font-medium text-lg">
                       {t("editor.contentTranslations")}
                     </h3>
                     {job?.$id && (
                       <div className="flex gap-2">
                         <Button
+                          disabled={isTranslating || !form.watch("en_title")}
+                          onClick={() => handleTranslate("en", "no")}
+                          size="sm"
                           type="button"
                           variant="outline"
-                          size="sm"
-                          onClick={() => handleTranslate("en", "no")}
-                          disabled={isTranslating || !form.watch("en_title")}
                         >
-                          <Wand2 className="h-4 w-4 mr-2" />
+                          <Wand2 className="mr-2 h-4 w-4" />
                           {t("editor.translateEnToNo")}
                         </Button>
                         <Button
+                          disabled={isTranslating || !form.watch("no_title")}
+                          onClick={() => handleTranslate("no", "en")}
+                          size="sm"
                           type="button"
                           variant="outline"
-                          size="sm"
-                          onClick={() => handleTranslate("no", "en")}
-                          disabled={isTranslating || !form.watch("no_title")}
                         >
-                          <Wand2 className="h-4 w-4 mr-2" />
+                          <Wand2 className="mr-2 h-4 w-4" />
                           {t("editor.translateNoToEn")}
                         </Button>
                       </div>
@@ -466,37 +468,37 @@ export default function JobEditor({
                   </div>
 
                   <Tabs
-                    value={activeTab}
                     onValueChange={(value) =>
                       setActiveTab(value as "en" | "no")
                     }
+                    value={activeTab}
                   >
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger
-                        value="en"
                         className="flex items-center gap-2"
+                        value="en"
                       >
                         🇬🇧 {t("editor.english")}
                         {form.watch("en_title") && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge className="text-xs" variant="secondary">
                             ✓
                           </Badge>
                         )}
                       </TabsTrigger>
                       <TabsTrigger
-                        value="no"
                         className="flex items-center gap-2"
+                        value="no"
                       >
                         🇳🇴 {t("editor.norwegian")}
                         {form.watch("no_title") && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge className="text-xs" variant="secondary">
                             ✓
                           </Badge>
                         )}
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="en" className="space-y-4">
+                    <TabsContent className="space-y-4" value="en">
                       <FormField
                         control={form.control}
                         name="en_title"
@@ -525,10 +527,10 @@ export default function JobEditor({
                             </FormLabel>
                             <FormControl>
                               <JoditEditor
-                                value={field.value || ""}
                                 config={{ height: 400 }}
                                 onBlur={field.onBlur}
                                 onChange={(val: string) => field.onChange(val)}
+                                value={field.value || ""}
                               />
                             </FormControl>
                             <FormMessage />
@@ -537,7 +539,7 @@ export default function JobEditor({
                       />
                     </TabsContent>
 
-                    <TabsContent value="no" className="space-y-4">
+                    <TabsContent className="space-y-4" value="no">
                       <FormField
                         control={form.control}
                         name="no_title"
@@ -566,10 +568,10 @@ export default function JobEditor({
                             </FormLabel>
                             <FormControl>
                               <JoditEditor
-                                value={field.value || ""}
                                 config={{ height: 400 }}
                                 onBlur={field.onBlur}
                                 onChange={(val: string) => field.onChange(val)}
+                                value={field.value || ""}
                               />
                             </FormControl>
                             <FormMessage />
@@ -582,13 +584,13 @@ export default function JobEditor({
 
                 <div className="flex justify-end gap-3">
                   <Button
+                    onClick={() => router.back()}
                     type="button"
                     variant="outline"
-                    onClick={() => router.back()}
                   >
                     {t("form.cancel")}
                   </Button>
-                  <Button type="submit" disabled={isTranslating}>
+                  <Button disabled={isTranslating} type="submit">
                     {job?.$id ? t("editor.updateJob") : t("editor.createJob")}
                   </Button>
                 </div>
@@ -612,8 +614,8 @@ export default function JobEditor({
               <span className="text-sm">{t("editor.english")}</span>
               {form.watch("en_title") ? (
                 <Badge
-                  variant="default"
                   className="bg-green-100 text-green-800"
+                  variant="default"
                 >
                   {t("editor.complete")}
                 </Badge>
@@ -625,8 +627,8 @@ export default function JobEditor({
               <span className="text-sm">{t("editor.norwegian")}</span>
               {form.watch("no_title") ? (
                 <Badge
-                  variant="default"
                   className="bg-green-100 text-green-800"
+                  variant="default"
                 >
                   {t("editor.complete")}
                 </Badge>
@@ -636,8 +638,8 @@ export default function JobEditor({
             </div>
 
             {job?.$id && (
-              <div className="pt-3 border-t">
-                <p className="text-xs text-muted-foreground">
+              <div className="border-t pt-3">
+                <p className="text-muted-foreground text-xs">
                   {t("editor.saveBeforeTranslate")}
                 </p>
               </div>
@@ -657,7 +659,7 @@ export default function JobEditor({
                   ? form.watch("en_title")
                   : form.watch("no_title") || t("editor.noTitle")}
               </h4>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {form.watch("campus_id") &&
                   campuses?.find((c) => c.$id === form.watch("campus_id"))
                     ?.name}

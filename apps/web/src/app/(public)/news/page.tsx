@@ -19,12 +19,12 @@ export const metadata: Metadata = {
   },
 };
 
-interface NewsPageProps {
+type NewsPageProps = {
   searchParams: Promise<{
     category?: string;
     search?: string;
   }>;
-}
+};
 
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const { category, search } = await searchParams;
@@ -48,23 +48,23 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
       {/* Filters - Client component for interactivity */}
       <Suspense
         fallback={
-          <div className="h-32 bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-100" />
+          <div className="h-32 border-gray-100 border-b bg-white/95 shadow-lg backdrop-blur-lg" />
         }
       >
         <NewsFilters
           categories={categories}
-          selectedCategory={selectedCategory}
           searchQuery={searchQuery}
+          selectedCategory={selectedCategory}
         />
       </Suspense>
 
       {/* News Grid */}
       <div className="bg-linear-to-b from-gray-50 to-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Suspense fallback={<NewsGridSkeleton />}>
             <NewsGrid
-              selectedCategory={selectedCategory}
               searchQuery={searchQuery}
+              selectedCategory={selectedCategory}
             />
           </Suspense>
         </div>

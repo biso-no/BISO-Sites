@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 
 type CalloutType = "info" | "warning" | "danger" | "success" | "note" | "tip";
 
-interface CalloutProps {
+type CalloutProps = {
   type?: CalloutType;
   title?: string;
   children: ReactNode;
-}
+};
 
 const calloutStyles: Record<
   CalloutType,
@@ -67,17 +67,17 @@ export function Callout({ type = "info", title, children }: CalloutProps) {
       <div className="flex items-start gap-3">
         <div
           className={cn(
-            "shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-sm",
+            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm",
             styles.iconBg
           )}
         >
           <span className={styles.icon}>{calloutIcons[type]}</span>
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           {title && (
-            <div className={cn("font-semibold mb-1", styles.icon)}>{title}</div>
+            <div className={cn("mb-1 font-semibold", styles.icon)}>{title}</div>
           )}
-          <div className="text-sm [&>p]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
+          <div className="text-sm [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-0">
             {children}
           </div>
         </div>

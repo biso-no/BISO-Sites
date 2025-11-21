@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { Events, type EventsProps } from "../sections/events";
 
 function FilteredEventsContent({ events = [], labels }: EventsProps) {
@@ -15,8 +15,7 @@ function FilteredEventsContent({ events = [], labels }: EventsProps) {
     const matchesSearch =
       !query ||
       event.title.toLowerCase().includes(query) ||
-      event.location?.toLowerCase().includes(query) ||
-      false;
+      event.location?.toLowerCase().includes(query);
 
     return matchesCategory && matchesSearch;
   });

@@ -6,10 +6,10 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
-interface JobPostingsProps {
+type JobPostingsProps = {
   jobs: ContentTranslations[];
   locale: Locale;
-}
+};
 
 export function JobPostings({ jobs, locale }: JobPostingsProps) {
   if (!jobs || jobs.length === 0) {
@@ -30,14 +30,14 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h2 className="text-gray-900">
           {locale === "en" ? "Open Positions" : "Ledige verv"}
         </h2>
-        <Button variant="ghost" size="sm" className="text-[#3DA9E0]">
-          <Link href="/jobs" className="flex items-center">
+        <Button className="text-[#3DA9E0]" size="sm" variant="ghost">
+          <Link className="flex items-center" href="/jobs">
             {locale === "en" ? "View All" : "Se alle"}
-            <ChevronRight className="w-4 h-4 ml-1" />
+            <ChevronRight className="ml-1 h-4 w-4" />
           </Link>
         </Button>
       </div>
@@ -45,26 +45,26 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
       <div className="space-y-4">
         {jobs.slice(0, 3).map((job, index) => (
           <motion.div
-            key={job.$id}
-            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, x: 20 }}
+            key={job.$id}
             transition={{ delay: index * 0.1 }}
           >
             <Link href={`/jobs/${job.job_ref?.slug}`}>
-              <Card className="p-6 border-0 shadow-md hover:shadow-lg transition-all cursor-pointer group hover:border-l-4 hover:border-l-[#3DA9E0]">
-                <h4 className="text-gray-900 mb-2 group-hover:text-[#3DA9E0] transition-colors">
+              <Card className="group cursor-pointer border-0 p-6 shadow-md transition-all hover:border-l-4 hover:border-l-[#3DA9E0] hover:shadow-lg">
+                <h4 className="mb-2 text-gray-900 transition-colors group-hover:text-[#3DA9E0]">
                   {job.title}
                 </h4>
-                <div className="flex items-center gap-4 text-sm text-gray-600 flex-wrap">
+                <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm">
                   {job.job_ref?.department?.Name && (
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-[#3DA9E0]" />
+                      <Building2 className="h-4 w-4 text-[#3DA9E0]" />
                       {job.job_ref.department.Name}
                     </div>
                   )}
                   {job.job_ref?.metadata?.application_deadline && (
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-[#3DA9E0]" />
+                      <Calendar className="h-4 w-4 text-[#3DA9E0]" />
                       {locale === "en" ? "Deadline:" : "Søknadsfrist:"}{" "}
                       {formatDate(job.job_ref.metadata.application_deadline)}
                     </div>

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { User } from "@/lib/types/user";
 
-interface UserTableState {
+type UserTableState = {
   users: User[];
   filteredUsers: User[];
   searchTerm: string;
@@ -23,7 +23,7 @@ interface UserTableState {
   selectAllUsers: (select: boolean) => void;
   setSorting: (field: keyof User | null, direction: "asc" | "desc") => void;
   setIsLoading: (loading: boolean) => void;
-}
+};
 
 export const useUserStore = create<UserTableState>((set) => ({
   users: [],
@@ -158,7 +158,9 @@ function sortUsers(
       bValue = b.campus?.name || "";
     }
 
-    if (aValue === bValue) return 0;
+    if (aValue === bValue) {
+      return 0;
+    }
 
     const result = aValue < bValue ? -1 : 1;
     return direction === "asc" ? result : -result;

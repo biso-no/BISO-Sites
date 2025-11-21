@@ -5,12 +5,12 @@ import { useTranslations } from "next-intl";
 import { BenefitCard } from "../shared/BenefitCard";
 import { LockedContentOverlay } from "../shared/LockedContentOverlay";
 
-interface BenefitsTabProps {
+type BenefitsTabProps = {
   benefits: MemberBenefit[];
   revealedBenefits: Set<string>;
   isMember: boolean;
   hasBIIdentity: boolean;
-}
+};
 
 export function BenefitsTab({
   benefits,
@@ -24,22 +24,22 @@ export function BenefitsTab({
     <>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <h2 className="mb-2 font-bold text-2xl text-gray-900 dark:text-gray-100">
             {t("title")}
           </h2>
           <p className="text-gray-600 dark:text-gray-400">{t("description")}</p>
         </div>
-        <Badge className="bg-[#3DA9E0]/10 text-[#3DA9E0] border-[#3DA9E0]/30 px-4 py-2">
+        <Badge className="border-[#3DA9E0]/30 bg-[#3DA9E0]/10 px-4 py-2 text-[#3DA9E0]">
           {t("available", { count: benefits.length })}
         </Badge>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
         {benefits.map((benefit) => (
           <BenefitCard
-            key={benefit.id}
             benefit={benefit}
             isRevealed={revealedBenefits.has(benefit.id)}
+            key={benefit.id}
           />
         ))}
       </div>
@@ -47,13 +47,13 @@ export function BenefitsTab({
   );
 
   return (
-    <TabsContent value="benefits" className="space-y-8">
-      {!isMember ? (
+    <TabsContent className="space-y-8" value="benefits">
+      {isMember ? (
+        content
+      ) : (
         <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
           {content}
         </LockedContentOverlay>
-      ) : (
-        content
       )}
     </TabsContent>
   );

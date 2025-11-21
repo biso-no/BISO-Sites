@@ -1,5 +1,5 @@
 "use server";
-import { Permission, Query } from "@repo/api";
+import { ID, Permission, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   BenefitReveals,
@@ -7,7 +7,6 @@ import type {
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
-import { ID } from "node-appwrite";
 import { checkMembership } from "@/lib/profile";
 
 export async function createOrUpdatePublicProfile(
@@ -28,13 +27,13 @@ export async function createOrUpdatePublicProfile(
       email: profile.email || null,
       phone: profile.phone || null,
       name: profile.name!,
-      email_visible: profile.email_visible || false,
-      phone_visible: profile.phone_visible || false,
+      email_visible: profile.email_visible,
+      phone_visible: profile.phone_visible,
       user_id: profile.user_id!,
       $permissions: [
         isPublic
           ? Permission.read("any")
-          : Permission.read("user:" + profile.user_id!),
+          : Permission.read(`user:${profile.user_id!}`),
       ],
     }
   );
@@ -84,7 +83,7 @@ export async function getUserProfile(): Promise<Users | null> {
     try {
       const profile = await db.getRow<Users>("app", "user", user.$id);
       return profile;
-    } catch (error) {
+    } catch (_error) {
       console.error("Profile not found for user:", user.$id);
       return null;
     }
@@ -120,7 +119,7 @@ export async function updatePublicProfile(
     const user = await account.get();
 
     const profile = await getPublicProfile(user.$id);
-    const isPublic = data.email_visible || data.phone_visible || false;
+    const isPublic = data.email_visible || data.phone_visible;
 
     return await createOrUpdatePublicProfile(
       {
@@ -209,7 +208,7 @@ export async function uploadAvatar(formData: FormData): Promise<{
 }> {
   try {
     const { account, storage } = await createSessionClient();
-    const user = await account.get();
+    const _user = await account.get();
     const file = formData.get("avatar") as File;
 
     if (!file) {
@@ -234,7 +233,7 @@ export async function uploadAvatar(formData: FormData): Promise<{
 }
 
 export async function calculateEstimatedSavings(
-  userId: string
+  _userId: string
 ): Promise<number> {
   // Placeholder: Returns estimated savings in NOK
   // Future enhancement: Calculate based on revealed benefits and usage patterns

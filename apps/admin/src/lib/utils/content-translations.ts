@@ -30,13 +30,15 @@ export function ensureTranslationArray<
   return references.filter((reference): reference is T => Boolean(reference));
 }
 
-function pickTranslation<T extends ContentTranslations = ContentTranslations>(
+function _pickTranslation<T extends ContentTranslations = ContentTranslations>(
   record: { translations?: TranslationMap<T>; translation_refs?: T[] },
   locale?: Locale
 ): T | undefined {
   const translations =
     record.translations ?? buildTranslationMap(record.translation_refs);
-  if (!translations) return undefined;
+  if (!translations) {
+    return;
+  }
 
   const fallbackOrder = locale
     ? [locale, Locale.EN, Locale.NO].filter(

@@ -7,7 +7,6 @@ import {
   remarkStructure,
 } from "fumadocs-core/mdx-plugins";
 import {
-  type DocsCollection,
   defineConfig,
   defineDocs,
   frontmatterSchema,

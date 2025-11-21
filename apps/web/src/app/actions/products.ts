@@ -108,7 +108,7 @@ export async function getProduct(
   }
 }
 
-async function getProductBySlug(
+async function _getProductBySlug(
   slug: string,
   locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
@@ -122,11 +122,15 @@ async function getProductBySlug(
       [Query.equal("slug", slug), Query.limit(1)]
     );
 
-    if (productsResponse.rows.length === 0) return null;
+    if (productsResponse.rows.length === 0) {
+      return null;
+    }
 
     const product = productsResponse.rows[0];
 
-    if (!product) return null;
+    if (!product) {
+      return null;
+    }
 
     // Get translation for the requested locale
     const translationsResponse = await db.listRows<ContentTranslations>(
@@ -148,7 +152,9 @@ async function getProductBySlug(
       ]
     );
 
-    if (translationsResponse.rows.length === 0) return null;
+    if (translationsResponse.rows.length === 0) {
+      return null;
+    }
 
     return translationsResponse.rows[0] ?? null;
   } catch (error) {
@@ -157,7 +163,7 @@ async function getProductBySlug(
   }
 }
 
-async function createProduct(
+async function _createProduct(
   data: CreateProductData,
   skipRevalidation = false
 ): Promise<Product | null> {
@@ -212,7 +218,7 @@ async function createProduct(
   }
 }
 
-async function updateProduct(
+async function _updateProduct(
   id: string,
   data: UpdateProductData,
   skipRevalidation = false
@@ -223,11 +229,18 @@ async function updateProduct(
     // Build update object
     const updateData: Record<string, unknown> = {};
 
-    if (data.slug !== undefined) updateData.slug = data.slug;
-    if (data.status !== undefined) updateData.status = data.status;
-    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.metadata !== undefined)
+    if (data.slug !== undefined) {
+      updateData.slug = data.slug;
+    }
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+    }
+    if (data.campus_id !== undefined) {
+      updateData.campus_id = data.campus_id;
+    }
+    if (data.metadata !== undefined) {
       updateData.metadata = JSON.stringify(data.metadata);
+    }
 
     // Build translation_refs array from provided translations only
     if (data.translations) {
@@ -277,7 +290,7 @@ async function updateProduct(
   }
 }
 
-async function deleteProduct(
+async function _deleteProduct(
   id: string,
   skipRevalidation = false
 ): Promise<boolean> {
@@ -299,7 +312,7 @@ async function deleteProduct(
   }
 }
 
-async function updateProductStatus(
+async function _updateProductStatus(
   id: string,
   status: Product["status"],
   skipRevalidation = false
@@ -327,7 +340,7 @@ async function updateProductStatus(
 }
 
 // AI Translation function
-async function translateProductContent(
+async function _translateProductContent(
   content: ProductTranslation,
   fromLocale: "en" | "no",
   toLocale: "en" | "no"
@@ -363,8 +376,8 @@ async function translateProductContent(
 }
 
 // Get products for public pages (published only)
-async function getProducts(
-  status: "in-stock" | "all" = "all",
+async function _getProducts(
+  _status: "in-stock" | "all" = "all",
   locale: "en" | "no" = "en"
 ): Promise<ContentTranslations[]> {
   return listProducts({
@@ -377,9 +390,9 @@ async function getProducts(
 const PRODUCT_IMAGE_BUCKET =
   process.env.APPWRITE_PRODUCT_BUCKET_ID || "product-images";
 
-async function uploadProductImage(formData: FormData) {
+async function _uploadProductImage(formData: FormData) {
   const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
+  if (!(file && file instanceof File)) {
     throw new Error("No file provided");
   }
 
@@ -390,5 +403,5 @@ async function uploadProductImage(formData: FormData) {
     file
   );
   const view = storage.getFile(PRODUCT_IMAGE_BUCKET, uploaded.$id);
-  const url = view.href;
+  const _url = view.href;
 }

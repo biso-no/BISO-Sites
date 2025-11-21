@@ -8,7 +8,7 @@ export async function getLocale() {
     const user = await account.get();
     const locale = user.prefs?.locale;
     return isLocale(locale) ? locale : DEFAULT_LOCALE;
-  } catch (error) {
+  } catch (_error) {
     return DEFAULT_LOCALE;
   }
 }

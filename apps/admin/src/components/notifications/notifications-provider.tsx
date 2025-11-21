@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import type { Notification } from "./notifications-dropdown";
 import { useNotifications } from "./use-notifications";
 
-interface NotificationsProviderProps {
+type NotificationsProviderProps = {
   children: React.ReactNode;
   initialNotifications?: Notification[];
-}
+};
 
 export function NotificationsProvider({
   children,

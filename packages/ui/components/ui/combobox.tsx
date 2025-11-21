@@ -30,13 +30,13 @@ export function Combobox({
   const [value, setValue] = React.useState(defaultValue || "");
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
-          role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
+          role="combobox"
+          variant="outline"
         >
           {value
             ? items.find((item) => item.value === value)?.label
@@ -69,7 +69,7 @@ export function Combobox({
           </CommandGroup>
         </Command>
       </PopoverContent>
-      <input type="hidden" name={name} value={value} />
+      <input name={name} type="hidden" value={value} />
     </Popover>
   );
 }

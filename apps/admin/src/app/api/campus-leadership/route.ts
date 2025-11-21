@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
   try {
     payload = await request.json();
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { success: false, message: "Invalid JSON payload" },
       { status: 400 }
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     if (raw && typeof raw === "string") {
       try {
         parsed = JSON.parse(raw);
-      } catch (error) {
+      } catch (_error) {
         parsed = null;
       }
     }

@@ -10,7 +10,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 
-interface GlassCardProps {
+type GlassCardProps = {
   title?: string;
   description?: string;
   children: ReactNode;
@@ -18,7 +18,7 @@ interface GlassCardProps {
   contentClassName?: string;
   variant?: "default" | "premium" | "subtle";
   hover?: boolean;
-}
+};
 
 export function GlassCard({
   title,
@@ -51,16 +51,16 @@ export function GlassCard({
     >
       {/* Gradient overlay effect */}
       {variant === "premium" && (
-        <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5" />
       )}
 
       {(title || description) && (
         <CardHeader className="relative z-10">
           {title && (
-            <CardTitle className="text-xl font-semibold">{title}</CardTitle>
+            <CardTitle className="font-semibold text-xl">{title}</CardTitle>
           )}
           {description && (
-            <CardDescription className="text-sm text-muted-foreground">
+            <CardDescription className="text-muted-foreground text-sm">
               {description}
             </CardDescription>
           )}

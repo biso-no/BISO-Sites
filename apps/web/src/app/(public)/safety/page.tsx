@@ -81,7 +81,7 @@ export default function SafetyPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedCampus || !selectedRole || !caseDescription.trim()) {
+    if (!(selectedCampus && selectedRole && caseDescription.trim())) {
       setSubmitStatus({
         type: "error",
         message: t("form.submit.validation.required"),
@@ -132,7 +132,7 @@ export default function SafetyPage() {
           message: result.error || t("form.submit.error"),
         });
       }
-    } catch (error) {
+    } catch (_error) {
       setSubmitStatus({
         type: "error",
         message: t("form.submit.error"),
@@ -143,23 +143,23 @@ export default function SafetyPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12">
+    <div className="mx-auto max-w-6xl space-y-12">
       {/* Header */}
-      <div className="text-center space-y-4">
+      <div className="space-y-4 text-center">
         <div className="flex items-center justify-center gap-3">
           <Shield className="h-8 w-8 text-primary-60" />
-          <h1 className="text-4xl font-bold text-primary-90">{t("title")}</h1>
+          <h1 className="font-bold text-4xl text-primary-90">{t("title")}</h1>
         </div>
-        <h2 className="text-xl font-semibold text-primary-80">
+        <h2 className="font-semibold text-primary-80 text-xl">
           {t("subtitle")}
         </h2>
-        <p className="text-lg text-primary-70 max-w-3xl mx-auto">
+        <p className="mx-auto max-w-3xl text-lg text-primary-70">
           {t("description")}
         </p>
       </div>
 
       {/* Information Cards */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
+      <div className="mb-8 grid gap-6 md:grid-cols-3">
         <Card className="border-orange-200 bg-orange-50">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
@@ -216,15 +216,15 @@ export default function SafetyPage() {
           <CardDescription>{t("form.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Submission Type */}
             <div className="space-y-2">
               <Label>{t("form.fields.submissionType.label")} *</Label>
               <Select
-                value={submissionType}
                 onValueChange={(value: "harassment" | "witness" | "other") =>
                   setSubmissionType(value)
                 }
+                value={submissionType}
               >
                 <SelectTrigger>
                   <SelectValue
@@ -248,7 +248,7 @@ export default function SafetyPage() {
             {/* Campus Selection */}
             <div className="space-y-2">
               <Label>{t("form.fields.campus.label")} *</Label>
-              <Select value={selectedCampus} onValueChange={setSelectedCampus}>
+              <Select onValueChange={setSelectedCampus} value={selectedCampus}>
                 <SelectTrigger>
                   <SelectValue
                     placeholder={t("form.fields.campus.placeholder")}
@@ -268,7 +268,7 @@ export default function SafetyPage() {
             {selectedCampus && (
               <div className="space-y-2">
                 <Label>{t("form.fields.receiver.label")} *</Label>
-                <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <Select onValueChange={setSelectedRole} value={selectedRole}>
                   <SelectTrigger>
                     <SelectValue
                       placeholder={t("form.fields.receiver.placeholder")}
@@ -289,12 +289,12 @@ export default function SafetyPage() {
             <div className="space-y-2">
               <Label>{t("form.fields.email.label")}</Label>
               <Input
-                type="email"
-                value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t("form.fields.email.placeholder")}
+                type="email"
+                value={email}
               />
-              <p className="text-sm text-primary-60">
+              <p className="text-primary-60 text-sm">
                 {t("form.fields.email.description")}
               </p>
             </div>
@@ -303,11 +303,11 @@ export default function SafetyPage() {
             <div className="space-y-2">
               <Label>{t("form.fields.caseDescription.label")} *</Label>
               <Textarea
-                value={caseDescription}
+                className="resize-none"
                 onChange={(e) => setCaseDescription(e.target.value)}
                 placeholder={t("form.fields.caseDescription.placeholder")}
                 rows={6}
-                className="resize-none"
+                value={caseDescription}
               />
             </div>
 
@@ -341,7 +341,6 @@ export default function SafetyPage() {
 
             {/* Submit Button */}
             <Button
-              type="submit"
               className="w-full"
               disabled={
                 isSubmitting ||
@@ -349,6 +348,7 @@ export default function SafetyPage() {
                 !selectedRole ||
                 !caseDescription.trim()
               }
+              type="submit"
             >
               {isSubmitting
                 ? t("form.submit.submitting")
@@ -368,7 +368,7 @@ export default function SafetyPage() {
         </CardHeader>
         <CardContent>
           <div className="prose prose-primary max-w-none">
-            <p className="text-primary-70 leading-relaxed whitespace-pre-line">
+            <p className="whitespace-pre-line text-primary-70 leading-relaxed">
               {t("whatIsWhistleblowing.content")}
             </p>
           </div>
@@ -391,8 +391,8 @@ export default function SafetyPage() {
             <ul className="space-y-2">
               {["rules.0", "rules.1", "rules.2", "rules.3", "rules.4"].map(
                 (key, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                  <li className="flex items-start gap-3" key={index}>
+                    <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
                     <span className="text-primary-70">
                       {t(`codeOfConduct.${key}`)}
                     </span>
@@ -413,7 +413,7 @@ export default function SafetyPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-yellow-800 leading-relaxed whitespace-pre-line">
+          <p className="whitespace-pre-line text-yellow-800 leading-relaxed">
             {t("anonymousReport.content")}
           </p>
         </CardContent>
@@ -428,7 +428,7 @@ export default function SafetyPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-primary-70 leading-relaxed whitespace-pre-line">
+          <p className="whitespace-pre-line text-primary-70 leading-relaxed">
             {t("sendingReport.content")}
           </p>
         </CardContent>
@@ -448,15 +448,15 @@ export default function SafetyPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               {["contacts.0", "contacts.1", "contacts.2"].map((key, index) => (
                 <div
+                  className="rounded-lg border border-primary-20 bg-primary-5 p-4"
                   key={index}
-                  className="p-4 border border-primary-20 rounded-lg bg-primary-5"
                 >
                   <div className="font-semibold text-primary-90">
                     {t(`contact.${key}.role`)}
                   </div>
                   <a
-                    href={`mailto:${t(`contact.${key}.email`)}`}
                     className="text-primary-60 hover:text-primary-80 hover:underline"
+                    href={`mailto:${t(`contact.${key}.email`)}`}
                   >
                     {t(`contact.${key}.email`)}
                   </a>
@@ -470,22 +470,22 @@ export default function SafetyPage() {
       {/* Privacy Notice */}
       <Card className="border-primary-20 bg-primary-5">
         <CardContent className="pt-6">
-          <h3 className="font-semibold text-primary-90 mb-4 flex items-center gap-2">
+          <h3 className="mb-4 flex items-center gap-2 font-semibold text-primary-90">
             <Shield className="h-5 w-5" />
             {t("privacy.title")}
           </h3>
-          <div className="text-sm text-primary-70 space-y-3">
+          <div className="space-y-3 text-primary-70 text-sm">
             {["points.0", "points.1", "points.2", "points.3"].map(
               (key, index) => (
-                <div key={index} className="flex items-start gap-3">
-                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-3" key={index}>
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
                   <p>
                     {index === 3 ? (
                       <>
                         {t(`privacy.${key}`).split("personvernerklæring")[0]}
                         <Link
-                          href={t("privacy.privacyLink")}
                           className="text-primary-60 hover:underline"
+                          href={t("privacy.privacyLink")}
                         >
                           {t(`privacy.${key}`).includes("personvernerklæring")
                             ? "personvernerklæring"

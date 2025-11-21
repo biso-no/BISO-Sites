@@ -14,7 +14,7 @@ import {
   getCartItemsWithDetails,
 } from "@/app/actions/cart-reservations";
 
-export interface CartItem {
+export type CartItem = {
   id: string; // unique cart item id (contentId + options hash)
   contentId: string; // product content_id from database
   productId: string; // product webshop_products id
@@ -34,9 +34,9 @@ export interface CartItem {
     max_per_order?: number;
     sku?: string;
   };
-}
+};
 
-interface CartContextType {
+type CartContextType = {
   items: CartItem[];
   isLoading: boolean;
   addItem: (
@@ -51,7 +51,7 @@ interface CartContextType {
   getTotalSavings: (isMember: boolean) => number;
   refreshCart: () => Promise<void>;
   getEarliestExpiration: () => string | null;
-}
+};
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -79,7 +79,7 @@ function generateCartItemId(
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [_mounted, setMounted] = useState(false);
   const locale = useLocale() as "en" | "no";
 
   // Load cart from database on mount
@@ -116,7 +116,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setMounted(true);
     refreshCart();
-  }, [locale]);
+  }, [refreshCart]);
 
   const addItem = async (
     item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
@@ -234,38 +234,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems([]);
   };
 
-  const getItemCount = () => {
-    return items.reduce((sum, item) => sum + item.quantity, 0);
-  };
+  const getItemCount = () =>
+    items.reduce((sum, item) => sum + item.quantity, 0);
 
-  const getSubtotal = (isMember: boolean) => {
-    return items.reduce((sum, item) => {
+  const getSubtotal = (isMember: boolean) =>
+    items.reduce((sum, item) => {
       const price =
         isMember && item.memberPrice ? item.memberPrice : item.regularPrice;
       return sum + price * item.quantity;
     }, 0);
-  };
 
-  const getRegularSubtotal = () => {
-    return items.reduce(
-      (sum, item) => sum + item.regularPrice * item.quantity,
-      0
-    );
-  };
+  const getRegularSubtotal = () =>
+    items.reduce((sum, item) => sum + item.regularPrice * item.quantity, 0);
 
   const getTotalSavings = (isMember: boolean) => {
-    if (!isMember) return 0;
+    if (!isMember) {
+      return 0;
+    }
     return getRegularSubtotal() - getSubtotal(isMember);
   };
 
   const getEarliestExpiration = (): string | null => {
-    if (items.length === 0) return null;
+    if (items.length === 0) {
+      return null;
+    }
 
     const expirationsWithTime = items
       .filter((item) => item.expiresAt)
       .map((item) => item.expiresAt!);
 
-    if (expirationsWithTime.length === 0) return null;
+    if (expirationsWithTime.length === 0) {
+      return null;
+    }
 
     // Return the earliest expiration time
     return expirationsWithTime.sort()[0] || null;

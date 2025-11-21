@@ -12,9 +12,9 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import type { ElementType } from "react";
 
-interface Param {
+type Param = {
   slug?: string[];
-}
+};
 
 interface MDX extends PageData {
   body: ElementType;
@@ -31,7 +31,9 @@ export default async function Page(props: { params: Promise<Param> }) {
   }
 
   const page = source.getPage(params.slug);
-  if (!page) notFound();
+  if (!page) {
+    notFound();
+  }
 
   const mdxPage = page.data as MDX;
 
@@ -39,13 +41,13 @@ export default async function Page(props: { params: Promise<Param> }) {
 
   return (
     <DocsPage
-      toc={(page.data as MDX).toc}
-      full={(page.data as MDX).full}
       editOnGithub={{
         owner: "biso-no",
         repo: "biso-sites",
         path: `apps/docs/content/docs/${params.slug?.join("/") || "index"}.mdx`,
       }}
+      full={(page.data as MDX).full}
+      toc={(page.data as MDX).toc}
     >
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
@@ -75,7 +77,9 @@ export async function generateMetadata(props: {
   }
 
   const page = source.getPage(params.slug);
-  if (!page) notFound();
+  if (!page) {
+    notFound();
+  }
 
   const image = getPageImage(page);
 

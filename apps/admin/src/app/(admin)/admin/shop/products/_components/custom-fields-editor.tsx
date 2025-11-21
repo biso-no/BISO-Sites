@@ -19,10 +19,10 @@ import type {
   ProductCustomFieldType,
 } from "@/lib/types/product";
 
-interface CustomFieldsEditorProps {
+type CustomFieldsEditorProps = {
   value: ProductCustomField[];
   onChange: (next: ProductCustomField[]) => void;
-}
+};
 
 const customFieldTypes: { value: ProductCustomFieldType; label: string }[] = [
   { value: "text", label: "Single line text" },
@@ -70,42 +70,41 @@ export function CustomFieldsEditor({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">Custom fields</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="font-medium text-lg">Custom fields</h3>
+          <p className="text-muted-foreground text-sm">
             Collect additional information from customers during checkout.
             Responses show up on the order.
           </p>
         </div>
-        <Button type="button" onClick={addField}>
+        <Button onClick={addField} type="button">
           <Plus className="mr-2 h-4 w-4" />
           Add field
         </Button>
       </div>
 
       {fields.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-md border border-dashed p-6 text-center text-muted-foreground text-sm">
           No custom fields configured. Use the button above to add one.
         </div>
       ) : (
         <div className="space-y-4">
           {fields.map((field, index) => (
-            <div key={field.id} className="rounded-lg border p-4">
+            <div className="rounded-lg border p-4" key={field.id}>
               <div className="flex items-center justify-between gap-4">
                 <div className="grid flex-1 gap-4 sm:grid-cols-[1fr_180px]">
                   <div className="space-y-1">
                     <Label>Field label</Label>
                     <Input
-                      value={field.label}
-                      placeholder="E.g. Student ID, Name for engraving"
                       onChange={(event) =>
                         updateField(index, { label: event.target.value })
                       }
+                      placeholder="E.g. Student ID, Name for engraving"
+                      value={field.label}
                     />
                   </div>
                   <div className="space-y-1">
                     <Label>Field type</Label>
                     <Select
-                      value={field.type}
                       onValueChange={(value: ProductCustomFieldType) =>
                         updateField(index, {
                           type: value,
@@ -115,6 +114,7 @@ export function CustomFieldsEditor({
                               : undefined,
                         })
                       }
+                      value={field.type}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Choose a type" />
@@ -130,10 +130,10 @@ export function CustomFieldsEditor({
                   </div>
                 </div>
                 <Button
+                  onClick={() => removeField(index)}
+                  size="icon"
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  onClick={() => removeField(index)}
                 >
                   <Trash2 className="h-4 w-4" />
                   <span className="sr-only">Remove field</span>
@@ -144,11 +144,11 @@ export function CustomFieldsEditor({
                 <div className="space-y-1">
                   <Label>Placeholder (optional)</Label>
                   <Input
-                    value={field.placeholder || ""}
-                    placeholder="Shown inside the input to guide customers"
                     onChange={(event) =>
                       updateField(index, { placeholder: event.target.value })
                     }
+                    placeholder="Shown inside the input to guide customers"
+                    value={field.placeholder || ""}
                   />
                 </div>
                 <div className="flex items-center gap-2 rounded-md border p-3">
@@ -160,7 +160,7 @@ export function CustomFieldsEditor({
                   />
                   <div className="space-y-1">
                     <Label className="text-sm">Required</Label>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Customers must fill this before checkout.
                     </p>
                   </div>
@@ -171,11 +171,6 @@ export function CustomFieldsEditor({
                 <div className="mt-4 space-y-1">
                   <Label>Options</Label>
                   <Textarea
-                    value={(field.options || []).join("\n")}
-                    rows={4}
-                    placeholder={
-                      "Each option on a new line\nLocker A\nLocker B"
-                    }
                     onChange={(event) => {
                       const raw = event.target.value;
                       const options = raw
@@ -184,8 +179,13 @@ export function CustomFieldsEditor({
                         .filter(Boolean);
                       updateField(index, { options });
                     }}
+                    placeholder={
+                      "Each option on a new line\nLocker A\nLocker B"
+                    }
+                    rows={4}
+                    value={(field.options || []).join("\n")}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Customers will pick one option. The first option is selected
                     by default.
                   </p>

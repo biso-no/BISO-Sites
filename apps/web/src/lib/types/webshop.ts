@@ -1,17 +1,17 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 
-export interface ProductOption {
+export type ProductOption = {
   type: "select" | "input";
   label: string;
   required: boolean;
   options?: string[];
   placeholder?: string;
-}
+};
 
-export interface ProductMetadata {
+export type ProductMetadata = {
   product_options?: ProductOption[];
   [key: string]: unknown;
-}
+};
 
 interface ProductWithTranslation extends ContentTranslations {
   product_ref: NonNullable<ContentTranslations["product_ref"]>;
@@ -28,7 +28,9 @@ export type ProductCategory = (typeof productCategories)[number];
 export function parseProductMetadata(
   metadataString: string | null | undefined
 ): ProductMetadata {
-  if (!metadataString) return {};
+  if (!metadataString) {
+    return {};
+  }
 
   try {
     return JSON.parse(metadataString);
@@ -38,11 +40,13 @@ export function parseProductMetadata(
 }
 
 export function formatPrice(price: number | null | undefined): string {
-  if (!price || price === 0) return "Free";
+  if (!price || price === 0) {
+    return "Free";
+  }
   return `${price} NOK`;
 }
 
-function getProductCategory(
+function _getProductCategory(
   category: string | null | undefined
 ): ProductCategory {
   const cat = category as ProductCategory;
@@ -53,7 +57,9 @@ export function calculateSavings(
   regularPrice: number,
   memberPrice: number | null
 ): number {
-  if (!memberPrice) return 0;
+  if (!memberPrice) {
+    return 0;
+  }
   return Math.max(0, regularPrice - memberPrice);
 }
 

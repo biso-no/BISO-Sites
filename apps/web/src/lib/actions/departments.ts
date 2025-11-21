@@ -94,7 +94,9 @@ export async function getDepartmentById(
       ]
     );
 
-    if (!result.rows[0]) return null;
+    if (!result.rows[0]) {
+      return null;
+    }
 
     const deptTranslation = result.rows[0];
 

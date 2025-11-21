@@ -2,10 +2,10 @@
  * Utility functions for document handling and URL generation
  */
 
-export interface DocumentViewerUrlOptions {
+export type DocumentViewerUrlOptions = {
   fileName: string;
   baseUrl?: string;
-}
+};
 
 /**
  * Generate a public document viewer URL for a SharePoint document
@@ -43,7 +43,7 @@ export function getDocumentViewerUrl(
  * @param url - The URL to parse
  * @returns The document ID or null if not found
  */
-function extractDocumentId(url: string): string | null {
+function _extractDocumentId(url: string): string | null {
   // Check if it's already a document viewer URL
   const viewerMatch = url.match(/\/document\/([^/?]+)/);
   if (viewerMatch) {
@@ -71,20 +71,28 @@ function extractDocumentId(url: string): string | null {
  * @param contentType - The MIME type of the document
  * @returns True if the document can be rendered inline
  */
-function canRenderInline(contentType: string): boolean {
+function _canRenderInline(contentType: string): boolean {
   const lowerType = contentType.toLowerCase();
 
   // PDFs can be rendered inline
-  if (lowerType.includes("pdf")) return true;
+  if (lowerType.includes("pdf")) {
+    return true;
+  }
 
   // Images can be rendered inline
-  if (lowerType.includes("image")) return true;
+  if (lowerType.includes("image")) {
+    return true;
+  }
 
   // Text files can be rendered inline
-  if (lowerType.includes("text")) return true;
+  if (lowerType.includes("text")) {
+    return true;
+  }
 
   // HTML can be rendered inline (with caution)
-  if (lowerType.includes("html")) return true;
+  if (lowerType.includes("html")) {
+    return true;
+  }
 
   // Most other types (Office documents, etc.) need to be downloaded
   return false;
@@ -95,33 +103,54 @@ function canRenderInline(contentType: string): boolean {
  * @param contentType - The MIME type
  * @returns A user-friendly type name
  */
-function getDocumentTypeName(contentType: string): string {
+function _getDocumentTypeName(contentType: string): string {
   const lowerType = contentType.toLowerCase();
 
-  if (lowerType.includes("pdf")) return "PDF Document";
-  if (lowerType.includes("word") || lowerType.includes("document"))
+  if (lowerType.includes("pdf")) {
+    return "PDF Document";
+  }
+  if (lowerType.includes("word") || lowerType.includes("document")) {
     return "Word Document";
-  if (lowerType.includes("excel") || lowerType.includes("spreadsheet"))
+  }
+  if (lowerType.includes("excel") || lowerType.includes("spreadsheet")) {
     return "Excel Spreadsheet";
-  if (lowerType.includes("powerpoint") || lowerType.includes("presentation"))
+  }
+  if (lowerType.includes("powerpoint") || lowerType.includes("presentation")) {
     return "PowerPoint Presentation";
+  }
   if (lowerType.includes("image")) {
-    if (lowerType.includes("jpeg") || lowerType.includes("jpg"))
+    if (lowerType.includes("jpeg") || lowerType.includes("jpg")) {
       return "JPEG Image";
-    if (lowerType.includes("png")) return "PNG Image";
-    if (lowerType.includes("gif")) return "GIF Image";
-    if (lowerType.includes("svg")) return "SVG Image";
+    }
+    if (lowerType.includes("png")) {
+      return "PNG Image";
+    }
+    if (lowerType.includes("gif")) {
+      return "GIF Image";
+    }
+    if (lowerType.includes("svg")) {
+      return "SVG Image";
+    }
     return "Image";
   }
   if (lowerType.includes("text")) {
-    if (lowerType.includes("plain")) return "Text File";
-    if (lowerType.includes("csv")) return "CSV File";
+    if (lowerType.includes("plain")) {
+      return "Text File";
+    }
+    if (lowerType.includes("csv")) {
+      return "CSV File";
+    }
     return "Text Document";
   }
-  if (lowerType.includes("video")) return "Video File";
-  if (lowerType.includes("audio")) return "Audio File";
-  if (lowerType.includes("zip") || lowerType.includes("compressed"))
+  if (lowerType.includes("video")) {
+    return "Video File";
+  }
+  if (lowerType.includes("audio")) {
+    return "Audio File";
+  }
+  if (lowerType.includes("zip") || lowerType.includes("compressed")) {
     return "Archive File";
+  }
 
   return "Document";
 }
@@ -131,14 +160,16 @@ function getDocumentTypeName(contentType: string): string {
  * @param bytes - File size in bytes
  * @returns Formatted file size string
  */
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 Bytes";
+function _formatFileSize(bytes: number): string {
+  if (bytes === 0) {
+    return "0 Bytes";
+  }
 
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return Math.round((bytes / k ** i) * 100) / 100 + " " + sizes[i];
+  return `${Math.round((bytes / k ** i) * 100) / 100} ${sizes[i]}`;
 }
 
 /**
@@ -146,7 +177,7 @@ function formatFileSize(bytes: number): string {
  * @param metadata - Raw metadata from vector store
  * @returns Formatted metadata for document viewer
  */
-function formatDocumentMetadata(metadata: Record<string, any>) {
+function _formatDocumentMetadata(metadata: Record<string, any>) {
   return {
     id: metadata.documentId,
     name: metadata.documentName || "Unknown Document",

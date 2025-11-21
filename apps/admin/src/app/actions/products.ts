@@ -121,7 +121,7 @@ export async function getProduct(
   }
 }
 
-async function getProductBySlug(
+async function _getProductBySlug(
   slug: string
 ): Promise<ProductWithTranslations | null> {
   try {
@@ -139,7 +139,9 @@ async function getProductBySlug(
 
     const product = productsResponse.rows[0];
 
-    if (!product) return null;
+    if (!product) {
+      return null;
+    }
 
     return normalizeProductRow(product);
   } catch (error) {
@@ -227,7 +229,9 @@ export async function updateProduct(
     // Build update object
     const updateData: Record<string, unknown> = {};
 
-    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.slug !== undefined) {
+      updateData.slug = data.slug;
+    }
     if (data.status !== undefined) {
       updateData.status =
         data.status === "draft"
@@ -236,24 +240,36 @@ export async function updateProduct(
             ? Status.PUBLISHED
             : Status.ARCHIVED;
     }
-    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
+    if (data.campus_id !== undefined) {
+      updateData.campus_id = data.campus_id;
+    }
 
     // Top-level database fields
-    if (data.category !== undefined) updateData.category = data.category;
-    if (data.regular_price !== undefined)
+    if (data.category !== undefined) {
+      updateData.category = data.category;
+    }
+    if (data.regular_price !== undefined) {
       updateData.regular_price = data.regular_price;
-    if (data.member_price !== undefined)
+    }
+    if (data.member_price !== undefined) {
       updateData.member_price = data.member_price;
-    if (data.member_only !== undefined)
+    }
+    if (data.member_only !== undefined) {
       updateData.member_only = data.member_only;
-    if (data.stock !== undefined) updateData.stock = data.stock;
-    if (data.image !== undefined) updateData.image = data.image;
+    }
+    if (data.stock !== undefined) {
+      updateData.stock = data.stock;
+    }
+    if (data.image !== undefined) {
+      updateData.image = data.image;
+    }
 
     // Metadata JSON
-    if (data.metadata !== undefined)
+    if (data.metadata !== undefined) {
       updateData.metadata = data.metadata
         ? JSON.stringify(data.metadata)
         : null;
+    }
 
     // Build translation_refs array with both translations if provided
     // For updates, we need to fetch existing translation IDs to properly update them
@@ -345,7 +361,7 @@ export async function deleteProduct(
   }
 }
 
-async function updateProductStatus(
+async function _updateProductStatus(
   id: string,
   status: "draft" | "published" | "archived",
   skipRevalidation = false
@@ -551,8 +567,8 @@ export async function translateProductContent(
 }
 
 // Get products for public pages (published only)
-async function getProducts(
-  status: "in-stock" | "all" = "all",
+async function _getProducts(
+  _status: "in-stock" | "all" = "all",
   locale: "en" | "no" = "en"
 ): Promise<ProductWithTranslations[]> {
   return listProducts({
@@ -567,7 +583,7 @@ const PRODUCT_IMAGE_BUCKET =
 
 export async function uploadProductImage(formData: FormData) {
   const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
+  if (!(file && file instanceof File)) {
     throw new Error("No file provided");
   }
 

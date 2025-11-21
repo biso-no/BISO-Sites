@@ -7,9 +7,9 @@ import { Award, Calendar, Heart, Users } from "lucide-react";
 import { motion } from "motion/react";
 import type { DepartmentTranslation } from "@/lib/actions/departments";
 
-interface OverviewTabProps {
+type OverviewTabProps = {
   department: DepartmentTranslation;
-}
+};
 
 export function OverviewTab({ department }: OverviewTabProps) {
   const dept = department.department_ref;
@@ -18,43 +18,43 @@ export function OverviewTab({ department }: OverviewTabProps) {
   return (
     <div className="space-y-12">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 20 }}
       >
-        <Card className="p-8 border-0 shadow-xl bg-linear-to-br from-[#3DA9E0]/5 to-card dark:from-[#3DA9E0]/10">
-          <h2 className="text-3xl font-bold text-foreground mb-6">
+        <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/5 to-card p-8 shadow-xl dark:from-[#3DA9E0]/10">
+          <h2 className="mb-6 font-bold text-3xl text-foreground">
             About {department.title}
           </h2>
-          <p className="text-muted-foreground text-lg leading-relaxed mb-6">
+          <p className="mb-6 text-lg text-muted-foreground leading-relaxed">
             {department.description}
           </p>
 
-          <div className="grid md:grid-cols-3 gap-6 mt-8">
-            <div className="text-center p-6 rounded-lg bg-card border border-[#3DA9E0]/10">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
-                <Award className="w-8 h-8 text-white" />
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            <div className="rounded-lg border border-[#3DA9E0]/10 bg-card p-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+                <Award className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">
+              <h3 className="mb-2 font-bold text-2xl text-foreground">
                 {news.length}+
               </h3>
               <p className="text-muted-foreground">Events Organized</p>
             </div>
 
-            <div className="text-center p-6 rounded-lg bg-card border border-[#3DA9E0]/10">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
-                <Users className="w-8 h-8 text-white" />
+            <div className="rounded-lg border border-[#3DA9E0]/10 bg-card p-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+                <Users className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">
+              <h3 className="mb-2 font-bold text-2xl text-foreground">
                 {dept.boardMembers?.length || 0}
               </h3>
               <p className="text-muted-foreground">Team Members</p>
             </div>
 
-            <div className="text-center p-6 rounded-lg bg-card border border-[#3DA9E0]/10">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
-                <Heart className="w-8 h-8 text-white" />
+            <div className="rounded-lg border border-[#3DA9E0]/10 bg-card p-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+                <Heart className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">1000+</h3>
+              <h3 className="mb-2 font-bold text-2xl text-foreground">1000+</h3>
               <p className="text-muted-foreground">Students Reached</p>
             </div>
           </div>
@@ -64,34 +64,34 @@ export function OverviewTab({ department }: OverviewTabProps) {
       {/* Latest Highlights */}
       {news.length > 0 && (
         <section>
-          <h2 className="text-3xl font-bold text-foreground mb-8">
+          <h2 className="mb-8 font-bold text-3xl text-foreground">
             Recent Highlights
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {news.slice(0, 3).map((newsItem, index) => (
               <motion.div
-                key={newsItem.$id}
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                key={newsItem.$id}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group">
+                <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
                   <div className="relative h-48 overflow-hidden">
                     {newsItem.news_ref?.image && (
                       <ImageWithFallback
-                        src={newsItem.news_ref.image}
                         alt={newsItem.title || "News"}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                         fill
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        src={newsItem.news_ref.image}
                       />
                     )}
-                    <Badge className="absolute top-4 right-4 bg-[#3DA9E0] text-white border-0">
+                    <Badge className="absolute top-4 right-4 border-0 bg-[#3DA9E0] text-white">
                       News
                     </Badge>
                   </div>
                   <div className="p-6">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                      <Calendar className="w-4 h-4 text-[#3DA9E0]" />
+                    <div className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
+                      <Calendar className="h-4 w-4 text-[#3DA9E0]" />
                       {new Date(
                         newsItem.news_ref?.$createdAt || newsItem.$createdAt
                       ).toLocaleDateString("en-US", {
@@ -100,10 +100,10 @@ export function OverviewTab({ department }: OverviewTabProps) {
                         year: "numeric",
                       })}
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-[#3DA9E0] transition-colors">
+                    <h3 className="mb-2 font-semibold text-foreground text-lg transition-colors group-hover:text-[#3DA9E0]">
                       {newsItem.title || "Untitled"}
                     </h3>
-                    <p className="text-muted-foreground text-sm line-clamp-2">
+                    <p className="line-clamp-2 text-muted-foreground text-sm">
                       {newsItem.short_description || newsItem.description || ""}
                     </p>
                   </div>

@@ -6,7 +6,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "biome format --write .",
-    "check": "biome check --write .",
+    "check": "ultracite check",
+    "fix": "ultracite fix --unsafe",
     "check-types": "turbo run check-types"
   },
   "devDependencies": {

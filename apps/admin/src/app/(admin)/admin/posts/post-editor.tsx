@@ -111,7 +111,7 @@ export default function PostEditor({
     async (values: FormValues) => {
       setIsSubmitting(true);
       try {
-        if (post && post.$id) {
+        if (post?.$id) {
           await updatePost(post.$id, {
             title: values.title,
             content: values.content,
@@ -147,7 +147,7 @@ export default function PostEditor({
         setIsSubmitting(false);
       }
     },
-    [post, router]
+    [post, router, t]
   );
 
   const editorConfig = React.useMemo(() => ({ height: 500 }), []);
@@ -157,10 +157,10 @@ export default function PostEditor({
       <div className="flex h-screen overflow-hidden">
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSubmit)}
             className="flex flex-1"
+            onSubmit={form.handleSubmit(handleSubmit)}
           >
-            <div className="flex-1 overflow-auto p-8 space-y-8">
+            <div className="flex-1 space-y-8 overflow-auto p-8">
               <FormField
                 control={form.control}
                 name="title"
@@ -178,19 +178,19 @@ export default function PostEditor({
                 )}
               />
               <Controller
-                name="content"
                 control={form.control}
+                name="content"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("form.content")}</FormLabel>
                     <FormControl>
                       <JoditEditor
-                        value={field.value}
                         config={editorConfig}
                         onBlur={field.onBlur}
                         onChange={(newContent: string) =>
                           field.onChange(newContent)
                         }
+                        value={field.value}
                       />
                     </FormControl>
                     <FormMessage />
@@ -200,7 +200,7 @@ export default function PostEditor({
             </div>
             <Sidebar className="w-80 border-l">
               <SidebarHeader className="px-4 py-2">
-                <h2 className="text-lg font-semibold">
+                <h2 className="font-semibold text-lg">
                   {t("form.settingsTitle")}
                 </h2>
               </SidebarHeader>
@@ -213,8 +213,8 @@ export default function PostEditor({
                       <FormItem>
                         <FormLabel>{t("form.status")}</FormLabel>
                         <Select
-                          value={field.value}
                           onValueChange={field.onChange}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -245,8 +245,8 @@ export default function PostEditor({
                       <FormItem>
                         <FormLabel>{t("form.department")}</FormLabel>
                         <Select
-                          value={field.value}
                           onValueChange={field.onChange}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -278,8 +278,8 @@ export default function PostEditor({
                       <FormItem>
                         <FormLabel>{t("form.campus")}</FormLabel>
                         <Select
-                          value={field.value}
                           onValueChange={field.onChange}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -302,9 +302,9 @@ export default function PostEditor({
                     )}
                   />
                   <Button
-                    type="submit"
                     className="w-full"
                     disabled={isSubmitting}
+                    type="submit"
                   >
                     {isSubmitting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

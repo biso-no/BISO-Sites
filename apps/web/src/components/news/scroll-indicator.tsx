@@ -6,11 +6,11 @@ import { motion } from "motion/react";
 export function ScrollIndicator() {
   return (
     <motion.div
-      className="absolute bottom-8 left-1/2 -translate-x-1/2"
       animate={{ y: [0, 10, 0] }}
-      transition={{ duration: 2, repeat: Infinity }}
+      className="-translate-x-1/2 absolute bottom-8 left-1/2"
+      transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
     >
-      <ChevronDown className="w-8 h-8 text-white/70" />
+      <ChevronDown className="h-8 w-8 text-white/70" />
     </motion.div>
   );
 }

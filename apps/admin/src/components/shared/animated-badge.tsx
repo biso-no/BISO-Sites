@@ -5,7 +5,7 @@ import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-interface AnimatedBadgeProps {
+type AnimatedBadgeProps = {
   children: ReactNode;
   variant?:
     | "default"
@@ -18,7 +18,7 @@ interface AnimatedBadgeProps {
   pulse?: boolean;
   gradient?: boolean;
   className?: string;
-}
+};
 
 export function AnimatedBadge({
   children,
@@ -42,7 +42,6 @@ export function AnimatedBadge({
 
   return (
     <Badge
-      variant={gradient ? undefined : variant}
       className={cn(
         "transition-all duration-300 hover:scale-105",
         pulse && "animate-pulse",
@@ -50,8 +49,9 @@ export function AnimatedBadge({
         "shadow-sm",
         className
       )}
+      variant={gradient ? undefined : variant}
     >
-      {Icon && <Icon className="h-3 w-3 mr-1" />}
+      {Icon && <Icon className="mr-1 h-3 w-3" />}
       {children}
     </Badge>
   );

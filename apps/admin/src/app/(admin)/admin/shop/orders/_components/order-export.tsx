@@ -83,7 +83,9 @@ export function OrderExportPopover() {
   };
 
   const handleExport = () => {
-    if (!canExport) return;
+    if (!canExport) {
+      return;
+    }
 
     const { start, end } = resolveRange(selectedPreset, dateRange);
     startTransition(async () => {
@@ -104,13 +106,13 @@ export function OrderExportPopover() {
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>
         <Button
-          size="sm"
-          variant="outline"
           className="h-7 gap-1 text-sm"
           disabled={isPending}
+          size="sm"
+          variant="outline"
         >
           <File className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only">
@@ -118,20 +120,20 @@ export function OrderExportPopover() {
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 space-y-4" align="end">
+      <PopoverContent align="end" className="w-80 space-y-4">
         <div>
-          <p className="text-sm font-medium">
+          <p className="font-medium text-sm">
             {t("orders.exportDialog.quickRangesTitle")}
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {PRESETS.map((preset) => (
               <Button
+                className="text-xs"
                 key={preset.id}
-                variant={selectedPreset === preset.id ? "default" : "outline"}
+                onClick={() => handlePresetSelect(preset)}
                 size="sm"
                 type="button"
-                className="text-xs"
-                onClick={() => handlePresetSelect(preset)}
+                variant={selectedPreset === preset.id ? "default" : "outline"}
               >
                 {t(`orders.exportDialog.presets.${preset.id}`)}
               </Button>
@@ -140,38 +142,40 @@ export function OrderExportPopover() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="custom-range" className="text-sm font-medium">
+          <Label className="font-medium text-sm" htmlFor="custom-range">
             {t("orders.exportDialog.customRangeLabel")}
           </Label>
           <Calendar
+            defaultMonth={dateRange?.from}
             id="custom-range"
             mode="range"
             numberOfMonths={1}
-            selected={dateRange}
             onSelect={handleRangeChange}
-            defaultMonth={dateRange?.from}
+            selected={dateRange}
           />
-          <p className="text-xs text-muted-foreground">{rangeSummary}</p>
+          <p className="text-muted-foreground text-xs">{rangeSummary}</p>
         </div>
 
         <Button
-          type="button"
-          onClick={handleExport}
-          disabled={isPending || !canExport}
           className="w-full"
+          disabled={isPending || !canExport}
+          onClick={handleExport}
+          type="button"
         >
           {isPending
             ? t("orders.exportDialog.exporting")
             : t("orders.exportDialog.exportCsv")}
         </Button>
-        {message && <p className="text-xs text-muted-foreground">{message}</p>}
+        {message && <p className="text-muted-foreground text-xs">{message}</p>}
       </PopoverContent>
     </Popover>
   );
 }
 
 function createPresetRange(days: number | null): DateRange | undefined {
-  if (days === null) return undefined;
+  if (days === null) {
+    return;
+  }
   const end = new Date();
   const start = new Date();
   start.setDate(start.getDate() - days);

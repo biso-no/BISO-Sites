@@ -132,9 +132,13 @@ export function ProductsTable({
   }, [products]);
 
   const formatPrice = (price: number | null | undefined) => {
-    if (typeof price === "number") return NOK_FORMATTER.format(price);
+    if (typeof price === "number") {
+      return NOK_FORMATTER.format(price);
+    }
     const parsed = Number(price);
-    if (!Number.isFinite(parsed)) return "—";
+    if (!Number.isFinite(parsed)) {
+      return "—";
+    }
     return NOK_FORMATTER.format(parsed);
   };
 
@@ -231,7 +235,7 @@ export function ProductsTable({
       }
       if (stock <= LOW_STOCK_THRESHOLD) {
         return (
-          <Badge variant="outline" className="border-amber-200 text-amber-600">
+          <Badge className="border-amber-200 text-amber-600" variant="outline">
             {t("products.stockStatus.low", { count: stock })}
           </Badge>
         );
@@ -249,9 +253,33 @@ export function ProductsTable({
   return (
     <TabsContent value="all">
       <AdminSummary
-        className="mb-6"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              asChild
+              className="rounded-full bg-primary-40 px-4 font-semibold text-white shadow-[0_15px_35px_-22px_rgba(0,23,49,0.7)] hover:bg-primary-30"
+              size="sm"
+            >
+              <Link
+                className="flex items-center gap-2"
+                href="/admin/shop/products/new"
+              >
+                <Plus className="h-4 w-4" />
+                {t("products.newProduct")}
+              </Link>
+            </Button>
+            <Button
+              className="rounded-full border-primary/20 text-primary-90 hover:bg-primary/5"
+              size="sm"
+              variant="outline"
+            >
+              <TrendingUp className="mr-2 h-4 w-4" />
+              {t("products.reports")}
+            </Button>
+          </div>
+        }
         badge={t("products.badge")}
-        title={t("products.inventoryTitle")}
+        className="mb-6"
         description={t("products.inventoryDescription")}
         metrics={[
           { label: t("products.metrics.total"), value: aggregates.total },
@@ -266,106 +294,82 @@ export function ProductsTable({
           },
           { label: t("products.metrics.lowStock"), value: aggregates.lowStock },
         ]}
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              asChild
-              size="sm"
-              className="rounded-full bg-primary-40 px-4 font-semibold text-white shadow-[0_15px_35px_-22px_rgba(0,23,49,0.7)] hover:bg-primary-30"
-            >
-              <Link
-                href="/admin/shop/products/new"
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t("products.newProduct")}
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full border-primary/20 text-primary-90 hover:bg-primary/5"
-            >
-              <TrendingUp className="mr-2 h-4 w-4" />
-              {t("products.reports")}
-            </Button>
-          </div>
-        }
+        title={t("products.inventoryTitle")}
       />
 
       {selectedIds.length > 0 && (
         <div className="mb-4 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 shadow-inner">
-          <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-primary-90">
+          <div className="flex flex-wrap items-center gap-3 font-medium text-primary-90 text-sm">
             <span>
               {t("products.bulkActions.selected", {
                 count: selectedIds.length,
               })}
             </span>
             <Button
-              variant="ghost"
-              size="sm"
               className="h-7 text-xs"
               onClick={() => setSelectedIds([])}
+              size="sm"
+              variant="ghost"
             >
               {t("products.bulkActions.reset")}
             </Button>
             {bulkFeedback && (
-              <span className="text-xs text-primary-60">{bulkFeedback}</span>
+              <span className="text-primary-60 text-xs">{bulkFeedback}</span>
             )}
           </div>
           <div className="mt-3 grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">
+              <p className="font-semibold text-primary-70 text-xs uppercase tracking-wide">
                 {t("products.bulkActions.status")}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
                   disabled={isBulkPending}
                   onClick={() => runBulkStatusUpdate("published")}
+                  size="sm"
+                  type="button"
+                  variant="outline"
                 >
                   {t("products.bulkActions.publish")}
                 </Button>
                 <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
                   disabled={isBulkPending}
                   onClick={() => runBulkStatusUpdate("draft")}
+                  size="sm"
+                  type="button"
+                  variant="outline"
                 >
                   {t("products.bulkActions.draft")}
                 </Button>
                 <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
                   disabled={isBulkPending}
                   onClick={() => runBulkStatusUpdate("archived")}
+                  size="sm"
+                  type="button"
+                  variant="outline"
                 >
                   {t("products.bulkActions.archive")}
                 </Button>
               </div>
             </div>
             <form className="space-y-2" onSubmit={handlePriceSubmit}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">
+              <p className="font-semibold text-primary-70 text-xs uppercase tracking-wide">
                 {t("products.bulkActions.price")}
               </p>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  step="0.5"
-                  value={priceValue}
-                  onChange={(event) => setPriceValue(event.target.value)}
                   className="h-9"
+                  onChange={(event) => setPriceValue(event.target.value)}
                   placeholder={t("products.bulkActions.priceValue")}
+                  step="0.5"
+                  type="number"
+                  value={priceValue}
                 />
                 <Select
-                  value={priceMode}
                   onValueChange={(value) =>
                     setPriceMode(value as "percent" | "absolute")
                   }
+                  value={priceMode}
                 >
                   <SelectTrigger className="h-9 w-[140px]">
                     <SelectValue
@@ -381,29 +385,29 @@ export function ProductsTable({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <Button type="submit" size="sm" disabled={isBulkPending}>
+                <Button disabled={isBulkPending} size="sm" type="submit">
                   {t("products.bulkActions.update")}
                 </Button>
               </div>
             </form>
             <form className="space-y-2" onSubmit={handleStockSubmit}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-70">
+              <p className="font-semibold text-primary-70 text-xs uppercase tracking-wide">
                 {t("products.bulkActions.stock")}
               </p>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  step="1"
-                  value={stockValue}
-                  onChange={(event) => setStockValue(event.target.value)}
                   className="h-9"
+                  onChange={(event) => setStockValue(event.target.value)}
                   placeholder={t("products.bulkActions.stockValue")}
+                  step="1"
+                  type="number"
+                  value={stockValue}
                 />
                 <Select
-                  value={stockMode}
                   onValueChange={(value) =>
                     setStockMode(value as "adjust" | "set")
                   }
+                  value={stockMode}
                 >
                   <SelectTrigger className="h-9 w-[140px]">
                     <SelectValue
@@ -419,7 +423,7 @@ export function ProductsTable({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <Button type="submit" size="sm" disabled={isBulkPending}>
+                <Button disabled={isBulkPending} size="sm" type="submit">
                   {t("products.bulkActions.update")}
                 </Button>
               </div>
@@ -431,16 +435,16 @@ export function ProductsTable({
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.4)]">
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold text-primary-100">
+            <CardTitle className="font-semibold text-lg text-primary-100">
               {t("products.title")}
             </CardTitle>
-            <CardDescription className="text-sm text-primary-60">
+            <CardDescription className="text-primary-60 text-sm">
               {t("products.manageDescription")}
             </CardDescription>
           </div>
           <Badge
+            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 font-semibold text-primary-80 text-xs uppercase tracking-[0.16em]"
             variant="outline"
-            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-80"
           >
             {aggregates.translationCoverage} {t("products.table.covered")}
           </Badge>
@@ -512,11 +516,11 @@ export function ProductsTable({
 
                   return (
                     <TableRow
-                      key={product.$id}
                       className={cn(
                         "group transition hover:bg-primary/5",
                         isSelected && "bg-primary/5/60"
                       )}
+                      key={product.$id}
                     >
                       <TableCell>
                         <Checkbox
@@ -542,18 +546,18 @@ export function ProductsTable({
                       </TableCell>
                       <TableCell className="font-medium text-primary-100">
                         <Link
-                          href={`/admin/shop/products/${product.$id}`}
                           className="hover:underline"
+                          href={`/admin/shop/products/${product.$id}`}
                         >
                           {title}
                         </Link>
-                        <div className="text-xs text-primary-50">
+                        <div className="text-primary-50 text-xs">
                           {product.slug}
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={`rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide ${statusToken.className}`}
+                          className={`rounded-full px-3 py-0.5 font-semibold text-xs uppercase tracking-wide ${statusToken.className}`}
                         >
                           {statusToken.label}
                         </Badge>
@@ -563,14 +567,14 @@ export function ProductsTable({
                           {uniqueLocales.length > 0 ? (
                             uniqueLocales.map((locale) => (
                               <span
+                                className="inline-flex items-center rounded-full border border-primary/10 bg-primary/5 px-2 py-0.5 font-semibold text-[11px] text-primary-80"
                                 key={`${product.$id}-${locale}`}
-                                className="inline-flex items-center rounded-full border border-primary/10 bg-primary/5 px-2 py-0.5 text-[11px] font-semibold text-primary-80"
                               >
                                 {getLocaleLabel(locale)}
                               </span>
                             ))
                           ) : (
-                            <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                            <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 font-semibold text-[11px] text-destructive">
                               {t("products.table.missingTranslations")}
                             </span>
                           )}
@@ -593,9 +597,9 @@ export function ProductsTable({
                           <DropdownMenuTrigger asChild>
                             <Button
                               aria-haspopup="true"
+                              className="h-8 w-8 rounded-full hover:bg-primary/10"
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 rounded-full hover:bg-primary/10"
                             >
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Toggle menu</span>
@@ -642,7 +646,7 @@ export function ProductsTable({
             </Table>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col items-start justify-between gap-3 border-t border-primary/10 px-6 py-4 text-xs text-primary-60 sm:flex-row sm:items-center sm:text-sm">
+        <CardFooter className="flex flex-col items-start justify-between gap-3 border-primary/10 border-t px-6 py-4 text-primary-60 text-xs sm:flex-row sm:items-center sm:text-sm">
           <span
             dangerouslySetInnerHTML={{
               __html: t("products.table.showing", {
@@ -652,7 +656,7 @@ export function ProductsTable({
               }),
             }}
           />
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary-70">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs uppercase tracking-[0.14em]">
             {t("products.table.updated", {
               date: DATE_FORMATTER.format(new Date()),
             })}

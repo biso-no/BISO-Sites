@@ -9,16 +9,13 @@ import { Textarea } from "@repo/ui/components/ui/textarea";
 import { ArrowLeft, Eye, Sparkles, Upload, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
-import {
-  createExpenseAttachment,
-  uploadExpenseAttachment,
-} from "@/lib/actions/expense";
+import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import {
   generateExpenseDescription,
   processReceipt,
 } from "@/lib/actions/expense-ocr";
 
-interface Attachment {
+type Attachment = {
   id: string;
   fileId: string;
   fileUrl: string;
@@ -28,9 +25,9 @@ interface Attachment {
   date: string;
   amount: number;
   processing: boolean;
-}
+};
 
-interface UploadStepProps {
+type UploadStepProps = {
   onNext: (data: {
     attachments: Array<{
       id: string;
@@ -42,7 +39,7 @@ interface UploadStepProps {
     total: number;
   }) => void;
   onBack: () => void;
-}
+};
 
 export function UploadStep({ onNext, onBack }: UploadStepProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -78,7 +75,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
         formData.append("file", file);
         const uploadResult = await uploadExpenseAttachment(formData);
 
-        if (!uploadResult.success || !uploadResult.file) {
+        if (!(uploadResult.success && uploadResult.file)) {
           throw new Error("Failed to upload file");
         }
 
@@ -92,7 +89,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
             att.id === tempId
               ? {
                   ...att,
-                  fileId: uploadResult.file!.$id,
+                  fileId: uploadResult.file?.$id,
                   fileUrl,
                   description:
                     ocrResult.data?.description || `Receipt from ${file.name}`,
@@ -168,60 +165,60 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
   };
 
   return (
-    <Card className="p-8 border-0 shadow-lg">
-      <h2 className="text-gray-900 mb-6">Upload Receipts & Documents</h2>
+    <Card className="border-0 p-8 shadow-lg">
+      <h2 className="mb-6 text-gray-900">Upload Receipts & Documents</h2>
 
       {/* Upload Area */}
       <div className="mb-8">
         <label className="block">
-          <div className="border-2 border-dashed border-[#3DA9E0]/30 rounded-lg p-12 text-center cursor-pointer hover:border-[#3DA9E0] hover:bg-[#3DA9E0]/5 transition-all">
-            <Upload className="w-12 h-12 text-[#3DA9E0] mx-auto mb-4" />
-            <p className="text-gray-900 mb-2">
+          <div className="cursor-pointer rounded-lg border-2 border-[#3DA9E0]/30 border-dashed p-12 text-center transition-all hover:border-[#3DA9E0] hover:bg-[#3DA9E0]/5">
+            <Upload className="mx-auto mb-4 h-12 w-12 text-[#3DA9E0]" />
+            <p className="mb-2 text-gray-900">
               Click to upload or drag and drop
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-gray-600 text-sm">
               PDF, JPG, PNG up to 10MB each
             </p>
           </div>
           <input
-            type="file"
-            multiple
             accept=".pdf,.jpg,.jpeg,.png"
-            onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
             className="hidden"
+            multiple
+            onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+            type="file"
           />
         </label>
       </div>
 
       {/* Attachments List */}
       {attachments.length > 0 && (
-        <div className="space-y-4 mb-8">
+        <div className="mb-8 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-gray-900">
               Uploaded Receipts ({attachments.length})
             </h3>
             {canProceed && !isGenerating && (
               <Button
-                onClick={handleGenerateDescription}
-                variant="outline"
-                size="sm"
                 className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
+                onClick={handleGenerateDescription}
+                size="sm"
+                variant="outline"
               >
-                <Sparkles className="w-4 h-4 mr-2" />
+                <Sparkles className="mr-2 h-4 w-4" />
                 Generate Description
               </Button>
             )}
           </div>
 
           {attachments.map((attachment) => (
-            <Card key={attachment.id} className="p-4 border-[#3DA9E0]/20">
+            <Card className="border-[#3DA9E0]/20 p-4" key={attachment.id}>
               <div className="flex items-start gap-4">
                 {attachment.preview && (
-                  <div className="w-20 h-20 shrink-0 rounded overflow-hidden bg-gray-100">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded bg-gray-100">
                     <img
-                      src={attachment.preview}
                       alt="Receipt"
-                      className="w-full h-full object-cover"
+                      className="h-full w-full object-cover"
+                      src={attachment.preview}
                     />
                   </div>
                 )}
@@ -230,17 +227,16 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                   {attachment.processing ? (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-[#3DA9E0]">
-                        <Sparkles className="w-4 h-4 animate-pulse" />
+                        <Sparkles className="h-4 w-4 animate-pulse" />
                         <span className="text-sm">Processing with AI...</span>
                       </div>
-                      <Progress value={66} className="h-2" />
+                      <Progress className="h-2" value={66} />
                     </div>
                   ) : (
-                    <div className="grid md:grid-cols-3 gap-4">
+                    <div className="grid gap-4 md:grid-cols-3">
                       <div>
                         <Label>Short Description</Label>
                         <Input
-                          value={attachment.description}
                           onChange={(e) =>
                             setAttachments((prev) =>
                               prev.map((att) =>
@@ -250,13 +246,12 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                               )
                             )
                           }
+                          value={attachment.description}
                         />
                       </div>
                       <div>
                         <Label>Date</Label>
                         <Input
-                          type="date"
-                          value={attachment.date}
                           onChange={(e) =>
                             setAttachments((prev) =>
                               prev.map((att) =>
@@ -266,25 +261,28 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                               )
                             )
                           }
+                          type="date"
+                          value={attachment.date}
                         />
                       </div>
                       <div>
                         <Label>Amount (NOK)</Label>
                         <Input
-                          type="number"
-                          value={attachment.amount}
                           onChange={(e) =>
                             setAttachments((prev) =>
                               prev.map((att) =>
                                 att.id === attachment.id
                                   ? {
                                       ...att,
-                                      amount: parseFloat(e.target.value) || 0,
+                                      amount:
+                                        Number.parseFloat(e.target.value) || 0,
                                     }
                                   : att
                               )
                             )
                           }
+                          type="number"
+                          value={attachment.amount}
                         />
                       </div>
                     </div>
@@ -292,12 +290,12 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                 </div>
 
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  className="text-red-500 hover:bg-red-50 hover:text-red-700"
                   onClick={() => removeAttachment(attachment.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  size="sm"
+                  variant="ghost"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </Card>
@@ -306,36 +304,36 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
           {/* Generated Description */}
           {canProceed && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-6"
+              initial={{ opacity: 0, y: 10 }}
             >
               <Label>Expense Description</Label>
               <Textarea
-                value={generatedDescription}
-                onChange={(e) => setGeneratedDescription(e.target.value)}
-                rows={4}
                 className="mt-2"
+                disabled={isGenerating}
+                onChange={(e) => setGeneratedDescription(e.target.value)}
                 placeholder={
                   isGenerating
                     ? "Generating description..."
                     : "Enter or generate a description for your expense..."
                 }
-                disabled={isGenerating}
+                rows={4}
+                value={generatedDescription}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="mt-1 text-gray-500 text-xs">
                 Edit this description as needed
               </p>
             </motion.div>
           )}
 
           {/* Total */}
-          <Card className="p-4 bg-[#3DA9E0]/5 border-[#3DA9E0]/20">
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold text-gray-900">
+          <Card className="border-[#3DA9E0]/20 bg-[#3DA9E0]/5 p-4">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-gray-900 text-lg">
                 Total Amount:
               </span>
-              <span className="text-2xl font-bold text-[#3DA9E0]">
+              <span className="font-bold text-2xl text-[#3DA9E0]">
                 {totalAmount.toFixed(2)} NOK
               </span>
             </div>
@@ -344,16 +342,16 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
       )}
 
       <div className="mt-8 flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
+        <Button onClick={onBack} variant="outline">
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
         <Button
-          onClick={handleNext}
+          className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
           disabled={!canProceed}
-          className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+          onClick={handleNext}
         >
-          <Eye className="w-4 h-4 mr-2" />
+          <Eye className="mr-2 h-4 w-4" />
           Review & Submit
         </Button>
       </div>

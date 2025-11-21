@@ -1,7 +1,7 @@
 import "server-only";
 import { extractTextFromPdf } from "@/lib/pdf-text-extractor";
 
-export interface ExtractedDocumentData {
+export type ExtractedDocumentData = {
   date: string | null;
   amount: number | null;
   description: string | null;
@@ -9,7 +9,7 @@ export interface ExtractedDocumentData {
   method: "pdf" | "ocr" | "manual";
   currency?: string | null;
   exchangeRate?: number | null;
-}
+};
 
 // Helper function to extract dates using various formats
 function extractDate(text: string): string | null {
@@ -24,10 +24,10 @@ function extractDate(text: string): string | null {
     if (match) {
       try {
         const date = new Date(match[0]);
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
           return date.toISOString().split("T")[0] || null;
         }
-      } catch (e) {}
+      } catch (_e) {}
     }
   }
   return null;
@@ -45,8 +45,8 @@ function extractAmount(text: string): number | null {
   for (const pattern of amountPatterns) {
     const match = text.match(pattern);
     if (match) {
-      const amount = parseFloat(match[1]?.replace(",", ".") || "0");
-      if (!isNaN(amount)) {
+      const amount = Number.parseFloat(match[1]?.replace(",", ".") || "0");
+      if (!Number.isNaN(amount)) {
         return amount;
       }
     }
@@ -88,9 +88,15 @@ async function processPDF(buffer: Buffer): Promise<ExtractedDocumentData> {
 
     // Calculate confidence based on extracted data
     let confidence = 0;
-    if (date) confidence += 0.3;
-    if (amount) confidence += 0.4;
-    if (description) confidence += 0.3;
+    if (date) {
+      confidence += 0.3;
+    }
+    if (amount) {
+      confidence += 0.4;
+    }
+    if (description) {
+      confidence += 0.3;
+    }
 
     return {
       date,
@@ -137,9 +143,15 @@ async function processImage(buffer: Buffer): Promise<ExtractedDocumentData> {
     const description = extractDescription(text);
 
     let dataConfidence = 0;
-    if (date) dataConfidence += 0.3;
-    if (amount) dataConfidence += 0.4;
-    if (description) dataConfidence += 0.3;
+    if (date) {
+      dataConfidence += 0.3;
+    }
+    if (amount) {
+      dataConfidence += 0.4;
+    }
+    if (description) {
+      dataConfidence += 0.3;
+    }
 
     const normalizedConfidence = confidence / 100;
     const finalConfidence = (dataConfidence + normalizedConfidence) / 2;
@@ -172,7 +184,7 @@ export async function processDocument(
         if (pdfResult.confidence > 0.7) {
           return pdfResult;
         }
-      } catch (error) {
+      } catch (_error) {
         console.log("PDF processing failed, falling back to OCR");
       }
     }

@@ -11,7 +11,7 @@ import { Skeleton } from "@repo/ui/components/ui/skeleton";
 export function DepartmentSkeleton() {
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="p-0 overflow-hidden h-36 relative">
+      <CardHeader className="relative h-36 overflow-hidden p-0">
         <Skeleton className="h-full w-full" />
         <div className="absolute bottom-4 left-4 z-20 flex items-center gap-3">
           <Skeleton className="h-12 w-12 rounded-full" />
@@ -33,7 +33,7 @@ export function DepartmentSkeleton() {
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 pt-0 flex justify-between">
+      <CardFooter className="flex justify-between p-4 pt-0">
         <Skeleton className="h-9 w-24" />
         <Skeleton className="h-9 w-16" />
       </CardFooter>
@@ -41,9 +41,9 @@ export function DepartmentSkeleton() {
   );
 }
 
-function DepartmentSkeletonGrid() {
+function _DepartmentSkeletonGrid() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: 8 }).map((_, index) => (
         <DepartmentSkeleton key={index} />
       ))}

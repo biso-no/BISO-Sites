@@ -3,7 +3,6 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
-  Campus,
   type ContentTranslations,
   ContentType,
   Locale,
@@ -11,18 +10,17 @@ import {
   type WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { notFound } from "next/navigation";
 
-export interface ListProductsParams {
+export type ListProductsParams = {
   limit?: number;
   status?: string;
   campus?: string;
   category?: string;
   locale?: "en" | "no";
   memberOnly?: boolean;
-}
+};
 
-export interface CreateProductData {
+export type CreateProductData = {
   slug: string;
   status: "draft" | "published" | "closed";
   campus_id: string;
@@ -53,7 +51,7 @@ export interface CreateProductData {
       short_description?: string;
     };
   };
-}
+};
 
 export async function listProducts(
   params: ListProductsParams = {}
@@ -116,7 +114,7 @@ export async function listProducts(
   }
 }
 
-async function getProduct(
+async function _getProduct(
   id: string,
   locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
@@ -192,7 +190,7 @@ export async function getProductBySlug(
   }
 }
 
-async function createProduct(
+async function _createProduct(
   data: CreateProductData,
   skipRevalidation = false
 ): Promise<WebshopProducts | null> {
@@ -261,7 +259,7 @@ async function createProduct(
   }
 }
 
-async function updateProduct(
+async function _updateProduct(
   id: string,
   data: Partial<CreateProductData>
 ): Promise<WebshopProducts | null> {
@@ -270,7 +268,9 @@ async function updateProduct(
 
     const updateData: Record<string, unknown> = {};
 
-    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.slug !== undefined) {
+      updateData.slug = data.slug;
+    }
     if (data.status !== undefined) {
       updateData.status =
         data.status === "draft"
@@ -279,20 +279,32 @@ async function updateProduct(
             ? Status.PUBLISHED
             : Status.CLOSED;
     }
-    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.category !== undefined) updateData.category = data.category;
-    if (data.regular_price !== undefined)
+    if (data.campus_id !== undefined) {
+      updateData.campus_id = data.campus_id;
+    }
+    if (data.category !== undefined) {
+      updateData.category = data.category;
+    }
+    if (data.regular_price !== undefined) {
       updateData.regular_price = data.regular_price;
-    if (data.member_price !== undefined)
+    }
+    if (data.member_price !== undefined) {
       updateData.member_price = data.member_price;
-    if (data.member_only !== undefined)
+    }
+    if (data.member_only !== undefined) {
       updateData.member_only = data.member_only;
-    if (data.image !== undefined) updateData.image = data.image;
-    if (data.stock !== undefined) updateData.stock = data.stock;
-    if (data.metadata !== undefined)
+    }
+    if (data.image !== undefined) {
+      updateData.image = data.image;
+    }
+    if (data.stock !== undefined) {
+      updateData.stock = data.stock;
+    }
+    if (data.metadata !== undefined) {
       updateData.metadata = data.metadata
         ? JSON.stringify(data.metadata)
         : null;
+    }
 
     if (data.translations) {
       const translationRefs: ContentTranslations[] = [];
@@ -341,7 +353,7 @@ async function updateProduct(
   }
 }
 
-async function deleteProduct(id: string): Promise<boolean> {
+async function _deleteProduct(id: string): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 

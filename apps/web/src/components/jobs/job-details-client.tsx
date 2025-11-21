@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
-  Clock,
   DollarSign,
   Heart,
   Mail,
@@ -21,21 +20,17 @@ import {
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 
-interface JobDetailsClientProps {
+type JobDetailsClientProps = {
   job: ContentTranslations;
-}
-
-const getJobCategory = (metadata: Record<string, any>) => {
-  return metadata.category || "General";
 };
 
-const formatSalary = (salary: number) => {
-  return salary.toLocaleString("no-NO", { style: "currency", currency: "NOK" });
-};
+const getJobCategory = (metadata: Record<string, any>) =>
+  metadata.category || "General";
 
-const parseJobMetadata = (metadata: Record<string, any>) => {
-  return metadata || {};
-};
+const formatSalary = (salary: number) =>
+  salary.toLocaleString("no-NO", { style: "currency", currency: "NOK" });
+
+const _parseJobMetadata = (metadata: Record<string, any>) => metadata || {};
 
 const categoryColors: Record<string, string> = {
   "Academic Associations": "bg-blue-100 text-blue-700 border-blue-200",
@@ -107,47 +102,47 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
       {/* Hero Section */}
       <div className="relative h-[40vh] overflow-hidden">
         <ImageWithFallback
-          src={categoryImage}
           alt={category}
-          fill
           className="object-cover"
+          fill
+          src={categoryImage}
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0">
-          <div className="max-w-5xl mx-auto px-4 h-full flex items-center">
+          <div className="mx-auto flex h-full max-w-5xl items-center px-4">
             <motion.button
-              onClick={() => router.push("/jobs")}
-              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
+              className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-[#3DA9E0]"
+              initial={{ opacity: 0, x: -20 }}
+              onClick={() => router.push("/jobs")}
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
               Back to Positions
             </motion.button>
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-12"
+              initial={{ opacity: 0, y: 20 }}
             >
               <Badge className={`mb-4 ${categoryColors[category]}`}>
                 {category}
               </Badge>
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">
+              <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
                 {job.title}
               </h1>
               <p className="text-white/90 text-xl">{department}</p>
 
-              <div className="flex flex-wrap items-center gap-4 mt-6">
+              <div className="mt-6 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2 text-white/90">
-                  <Users className="w-5 h-5 text-[#3DA9E0]" />
+                  <Users className="h-5 w-5 text-[#3DA9E0]" />
                   <span>
                     {openings} {openings === 1 ? "opening" : "openings"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-white/90">
-                  <Calendar className="w-5 h-5 text-[#3DA9E0]" />
+                  <Calendar className="h-5 w-5 text-[#3DA9E0]" />
                   <span>Deadline: {deadline}</span>
                 </div>
               </div>
@@ -156,26 +151,26 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-8 lg:col-span-2">
             {/* Overview */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="p-8 border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="px-3 py-1 bg-[#3DA9E0]/10 rounded-lg">
-                    <span className="text-sm text-[#001731]">{department}</span>
+              <Card className="border-0 p-8 shadow-lg">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="rounded-lg bg-[#3DA9E0]/10 px-3 py-1">
+                    <span className="text-[#001731] text-sm">{department}</span>
                   </div>
                 </div>
-                <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+                <h2 className="mb-4 font-bold text-2xl text-gray-900">
                   Position Overview
                 </h2>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                <p className="whitespace-pre-line text-gray-700 leading-relaxed">
                   {job.description}
                 </p>
               </Card>
@@ -184,18 +179,18 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
             {/* What You'll Do */}
             {extendedResponsibilities.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.2 }}
               >
-                <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                <Card className="border-0 p-8 shadow-lg">
+                  <h2 className="mb-6 font-bold text-2xl text-gray-900">
                     What You'll Do
                   </h2>
                   <ul className="space-y-4">
                     {extendedResponsibilities.map((item, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
+                      <li className="flex items-start gap-3" key={index}>
+                        <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                         <span className="text-gray-700">{item}</span>
                       </li>
                     ))}
@@ -207,18 +202,18 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
             {/* What We're Looking For */}
             {extendedRequirements.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.3 }}
               >
-                <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                <Card className="border-0 p-8 shadow-lg">
+                  <h2 className="mb-6 font-bold text-2xl text-gray-900">
                     What We're Looking For
                   </h2>
                   <ul className="space-y-4">
                     {extendedRequirements.map((item, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
+                      <li className="flex items-start gap-3" key={index}>
+                        <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                         <span className="text-gray-700">{item}</span>
                       </li>
                     ))}
@@ -229,18 +224,18 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
 
             {/* Benefits */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.4 }}
             >
-              <Card className="p-8 border-0 shadow-lg bg-linear-to-br from-[#3DA9E0]/5 to-[#001731]/5">
-                <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+              <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/5 to-[#001731]/5 p-8 shadow-lg">
+                <h2 className="mb-6 font-bold text-2xl text-gray-900">
                   What You'll Gain
                 </h2>
                 <ul className="space-y-4">
                   {benefits.map((item, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
+                    <li className="flex items-start gap-3" key={index}>
+                      <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                       <span className="text-gray-700">{item}</span>
                     </li>
                   ))}
@@ -250,17 +245,17 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
 
             {/* Application Timeline */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.5 }}
             >
-              <Card className="p-8 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+              <Card className="border-0 p-8 shadow-lg">
+                <h2 className="mb-6 font-bold text-2xl text-gray-900">
                   Application Process
                 </h2>
                 <div className="space-y-6">
                   <div className="flex gap-4">
-                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] font-bold text-white">
                       1
                     </div>
                     <div>
@@ -272,7 +267,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <Separator />
 
                   <div className="flex gap-4">
-                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] font-bold text-white">
                       2
                     </div>
                     <div>
@@ -284,7 +279,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <Separator />
 
                   <div className="flex gap-4">
-                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] font-bold text-white">
                       3
                     </div>
                     <div>
@@ -296,7 +291,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <Separator />
 
                   <div className="flex gap-4">
-                    <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] font-bold text-white">
                       4
                     </div>
                     <div>
@@ -313,37 +308,37 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
           <div className="space-y-6">
             {/* Compensation Card */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.2 }}
             >
               {paid && salary ? (
-                <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-green-50 to-emerald-50">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-                      <DollarSign className="w-6 h-6 text-white" />
+                <Card className="border-0 bg-linear-to-br from-green-50 to-emerald-50 p-6 shadow-lg">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500">
+                      <DollarSign className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-sm text-gray-600">Compensation</div>
-                      <div className="text-gray-900 font-bold">{salary}</div>
+                      <div className="text-gray-600 text-sm">Compensation</div>
+                      <div className="font-bold text-gray-900">{salary}</div>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-gray-600 text-sm">
                     This is a paid position with competitive compensation.
                   </p>
                 </Card>
               ) : (
-                <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-blue-50 to-cyan-50">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-[#3DA9E0] flex items-center justify-center">
-                      <Heart className="w-6 h-6 text-white" />
+                <Card className="border-0 bg-linear-to-br from-blue-50 to-cyan-50 p-6 shadow-lg">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#3DA9E0]">
+                      <Heart className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-sm text-gray-600">Position Type</div>
-                      <div className="text-gray-900 font-bold">Volunteer</div>
+                      <div className="text-gray-600 text-sm">Position Type</div>
+                      <div className="font-bold text-gray-900">Volunteer</div>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-gray-600 text-sm">
                     Make an impact while gaining valuable experience and
                     connections.
                   </p>
@@ -353,25 +348,25 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
 
             {/* Key Details */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="p-6 border-0 shadow-lg">
-                <h3 className="mb-4 text-gray-900 font-bold">Key Details</h3>
+              <Card className="border-0 p-6 shadow-lg">
+                <h3 className="mb-4 font-bold text-gray-900">Key Details</h3>
                 <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Department</div>
+                    <div className="mb-1 text-gray-500 text-sm">Department</div>
                     <div className="text-gray-900">{department}</div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Category</div>
+                    <div className="mb-1 text-gray-500 text-sm">Category</div>
                     <div className="text-gray-900">{category}</div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Openings</div>
+                    <div className="mb-1 text-gray-500 text-sm">Openings</div>
                     <div className="text-gray-900">
                       {openings} {openings === 1 ? "position" : "positions"}{" "}
                       available
@@ -379,7 +374,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   </div>
                   <Separator />
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">
+                    <div className="mb-1 text-gray-500 text-sm">
                       Application Deadline
                     </div>
                     <div className="text-gray-900">{deadline}</div>
@@ -390,25 +385,25 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
 
             {/* Apply Card */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.4 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-[#001731] to-[#3DA9E0]">
-                <h3 className="mb-4 text-white font-bold">Ready to Apply?</h3>
-                <p className="text-white/90 text-sm mb-6">
+              <Card className="border-0 bg-linear-to-br from-[#001731] to-[#3DA9E0] p-6 shadow-lg">
+                <h3 className="mb-4 font-bold text-white">Ready to Apply?</h3>
+                <p className="mb-6 text-sm text-white/90">
                   Submit your application and join our team in creating amazing
                   experiences for students.
                 </p>
-                <Button className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3">
-                  <Send className="w-4 h-4 mr-2" />
+                <Button className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90">
+                  <Send className="mr-2 h-4 w-4" />
                   Submit Application
                 </Button>
                 <Button
-                  variant="outline"
                   className="w-full border-white text-white hover:bg-white/10"
+                  variant="outline"
                 >
-                  <Mail className="w-4 h-4 mr-2" />
+                  <Mail className="mr-2 h-4 w-4" />
                   Ask a Question
                 </Button>
               </Card>
@@ -416,22 +411,22 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
 
             {/* Contact Info */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.5 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-blue-50">
+              <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">
+                    <h4 className="mb-2 font-semibold text-gray-900">
                       Questions?
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-gray-600 text-sm">
                       Contact our recruitment team at{" "}
                       <a
-                        href="mailto:recruitment@biso.no"
                         className="text-[#3DA9E0] hover:underline"
+                        href="mailto:recruitment@biso.no"
                       >
                         recruitment@biso.no
                       </a>

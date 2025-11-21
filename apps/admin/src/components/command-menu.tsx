@@ -14,9 +14,7 @@ import { DialogTitle } from "@repo/ui/components/ui/dialog";
 import {
   Briefcase,
   Building2,
-  Calculator,
   Calendar,
-  CreditCard,
   DollarSign,
   FileText,
   LayoutDashboard,
@@ -24,10 +22,7 @@ import {
   Settings,
   Shield,
   ShoppingCart,
-  Smile,
   Store,
-  TrendingUp,
-  User,
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -192,7 +187,7 @@ export function CommandMenu() {
       if (!groups.has(group)) {
         groups.set(group, []);
       }
-      groups.get(group)!.push(command);
+      groups.get(group)?.push(command);
     });
     return groups;
   }, [commands]);
@@ -200,23 +195,23 @@ export function CommandMenu() {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
         className="relative w-full max-w-sm"
+        onClick={() => setOpen(true)}
       >
         <div className="relative">
           <input
-            type="text"
+            className="w-full rounded-2xl border border-primary/10 bg-white/60 py-2 pr-16 pl-9 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-primary-30 dark:border-primary/20 dark:bg-card/60"
             placeholder={t("commandMenuPlaceholder")}
-            className="w-full rounded-2xl border border-primary/10 dark:border-primary/20 bg-white/60 dark:bg-card/60 pl-9 pr-16 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-primary-30"
             readOnly
+            type="text"
           />
-          <span className="pointer-events-none absolute right-3 top-2 text-[11px] uppercase tracking-[0.18em] text-primary-40">
+          <span className="pointer-events-none absolute top-2 right-3 text-[11px] text-primary-40 uppercase tracking-[0.18em]">
             ⌘K
           </span>
         </div>
       </button>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandDialog onOpenChange={setOpen} open={open}>
         <DialogTitle>{t("commandMenuTitle")}</DialogTitle>
         <CommandInput placeholder={t("commandMenuSearchPlaceholder")} />
         <CommandList>
@@ -231,8 +226,8 @@ export function CommandMenu() {
                     return (
                       <CommandItem
                         key={item.id}
-                        value={`${item.label} ${item.keywords?.join(" ") || ""}`}
                         onSelect={() => runCommand(item.action)}
+                        value={`${item.label} ${item.keywords?.join(" ") || ""}`}
                       >
                         <Icon className="mr-2 h-4 w-4" />
                         <span>{item.label}</span>

@@ -3,9 +3,9 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-interface AnalyticsTrackerProps {
+type AnalyticsTrackerProps = {
   locale: string;
-}
+};
 
 export function AnalyticsTracker({ locale }: AnalyticsTrackerProps) {
   const pathname = usePathname();
@@ -13,7 +13,9 @@ export function AnalyticsTracker({ locale }: AnalyticsTrackerProps) {
   const lastPathRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname) {
+      return;
+    }
 
     const query = searchParams.toString();
     const fullPath = query ? `${pathname}?${query}` : pathname;

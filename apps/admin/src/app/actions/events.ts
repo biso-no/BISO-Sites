@@ -16,7 +16,9 @@ import type { AdminEvent, EventMetadata } from "@/lib/types/event";
 
 // Helper to parse metadata JSON safely
 function parseMetadata(metadata: string | null): EventMetadata {
-  if (!metadata) return {};
+  if (!metadata) {
+    return {};
+  }
   try {
     return JSON.parse(metadata) as EventMetadata;
   } catch {
@@ -54,15 +56,15 @@ function transformEventData(event: Events): AdminEvent {
   } as AdminEvent;
 }
 
-export interface ListEventsParams {
+export type ListEventsParams = {
   limit?: number;
   status?: string;
   campus?: string;
   search?: string;
   locale?: "en" | "no";
-}
+};
 
-export interface CreateEventData {
+export type CreateEventData = {
   slug?: string;
   status: "draft" | "published" | "cancelled";
   campus_id: string;
@@ -92,9 +94,9 @@ export interface CreateEventData {
       description: string;
     };
   };
-}
+};
 
-export interface UpdateEventData {
+export type UpdateEventData = {
   slug?: string;
   status?: "draft" | "published" | "cancelled";
   campus_id?: string;
@@ -124,7 +126,7 @@ export interface UpdateEventData {
       description: string;
     };
   };
-}
+};
 
 export async function listEvents(
   params: ListEventsParams = {}
@@ -210,10 +212,15 @@ export async function createEvent(
 
     // Build metadata JSON with non-schema fields only
     const metadataJson: EventMetadata = {};
-    if (data.metadata?.start_time)
+    if (data.metadata?.start_time) {
       metadataJson.start_time = data.metadata.start_time;
-    if (data.metadata?.end_time) metadataJson.end_time = data.metadata.end_time;
-    if (data.metadata?.units?.length) metadataJson.units = data.metadata.units;
+    }
+    if (data.metadata?.end_time) {
+      metadataJson.end_time = data.metadata.end_time;
+    }
+    if (data.metadata?.units?.length) {
+      metadataJson.units = data.metadata.units;
+    }
 
     // Create event with nested translations in ONE atomic operation
     // Appwrite will automatically create the translation rows when no IDs are provided
@@ -278,34 +285,61 @@ export async function updateEvent(
     // Build update object - same pattern as products
     const updateData: Record<string, unknown> = {};
 
-    if (data.slug !== undefined) updateData.slug = data.slug;
-    if (data.status !== undefined) updateData.status = data.status as Status;
-    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.start_date !== undefined) updateData.start_date = data.start_date;
-    if (data.end_date !== undefined) updateData.end_date = data.end_date;
-    if (data.location !== undefined) updateData.location = data.location;
-    if (data.price !== undefined) updateData.price = data.price;
-    if (data.ticket_url !== undefined) updateData.ticket_url = data.ticket_url;
-    if (data.image !== undefined) updateData.image = data.image;
-    if (data.member_only !== undefined)
+    if (data.slug !== undefined) {
+      updateData.slug = data.slug;
+    }
+    if (data.status !== undefined) {
+      updateData.status = data.status as Status;
+    }
+    if (data.campus_id !== undefined) {
+      updateData.campus_id = data.campus_id;
+    }
+    if (data.start_date !== undefined) {
+      updateData.start_date = data.start_date;
+    }
+    if (data.end_date !== undefined) {
+      updateData.end_date = data.end_date;
+    }
+    if (data.location !== undefined) {
+      updateData.location = data.location;
+    }
+    if (data.price !== undefined) {
+      updateData.price = data.price;
+    }
+    if (data.ticket_url !== undefined) {
+      updateData.ticket_url = data.ticket_url;
+    }
+    if (data.image !== undefined) {
+      updateData.image = data.image;
+    }
+    if (data.member_only !== undefined) {
       updateData.member_only = data.member_only;
-    if (data.collection_id !== undefined)
+    }
+    if (data.collection_id !== undefined) {
       updateData.collection_id = data.collection_id;
-    if (data.is_collection !== undefined)
+    }
+    if (data.is_collection !== undefined) {
       updateData.is_collection = data.is_collection;
-    if (data.collection_pricing !== undefined)
+    }
+    if (data.collection_pricing !== undefined) {
       updateData.collection_pricing = data.collection_pricing;
-    if (data.department_id !== undefined)
+    }
+    if (data.department_id !== undefined) {
       updateData.department_id = data.department_id;
+    }
 
     // Build metadata only if provided
     if (data.metadata !== undefined) {
       const metadataJson: EventMetadata = {};
-      if (data.metadata.start_time)
+      if (data.metadata.start_time) {
         metadataJson.start_time = data.metadata.start_time;
-      if (data.metadata.end_time)
+      }
+      if (data.metadata.end_time) {
         metadataJson.end_time = data.metadata.end_time;
-      if (data.metadata.units?.length) metadataJson.units = data.metadata.units;
+      }
+      if (data.metadata.units?.length) {
+        metadataJson.units = data.metadata.units;
+      }
       updateData.metadata = Object.keys(metadataJson).length
         ? JSON.stringify(metadataJson)
         : null;
@@ -373,7 +407,7 @@ export async function updateEvent(
   }
 }
 
-async function deleteEvent(id: string): Promise<boolean> {
+async function _deleteEvent(id: string): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 
@@ -434,7 +468,7 @@ export async function uploadEventImage(formData: FormData) {
   return { id: uploaded.$id, url };
 }
 
-async function getEventImageViewUrl(fileId: string) {
+async function _getEventImageViewUrl(fileId: string) {
   return getStorageFileUrl("content", fileId);
 }
 
@@ -473,7 +507,7 @@ export async function listCampuses() {
 }
 
 // Helper function to get collection events
-async function getCollectionEvents(
+async function _getCollectionEvents(
   collectionId: string,
   locale: "en" | "no"
 ): Promise<ContentTranslations[]> {

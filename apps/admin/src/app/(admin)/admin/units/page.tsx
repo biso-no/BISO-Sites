@@ -14,14 +14,14 @@ import type { FilterState } from "@/lib/hooks/use-departments-filter";
 
 export const revalidate = 0;
 
-interface PageProps {
+type PageProps = {
   searchParams: Promise<{
     active?: string;
     campus_id?: string;
     type?: string;
     search?: string;
   }>;
-}
+};
 
 const PAGE_SIZE = 20;
 
@@ -63,8 +63,8 @@ export default async function UnitsPage({ searchParams }: PageProps) {
     <div className="space-y-8">
       {/* Premium Hero Section */}
       <UnitsHeroSection
-        totalDepartments={departments.length}
         campusOptions={campusOptions}
+        totalDepartments={departments.length}
       />
 
       {/* Stats cards */}
@@ -74,17 +74,17 @@ export default async function UnitsPage({ searchParams }: PageProps) {
 
       <div className="space-y-6">
         {/* Actions and Filters Row */}
-        <div className="flex flex-col md:flex-row justify-between gap-4">
+        <div className="flex flex-col justify-between gap-4 md:flex-row">
           <DepartmentFiltersWrapper
-            filters={filters}
             campuses={campusOptions}
+            filters={filters}
             types={types}
           />
           <DepartmentActionsHeader campuses={campusOptions} types={types} />
         </div>
 
         {/* Results count */}
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           Showing {departments.length} department
           {departments.length !== 1 ? "s" : ""}
           {hasMore && " (scroll for more)"}
@@ -93,15 +93,15 @@ export default async function UnitsPage({ searchParams }: PageProps) {
         {/* Department List with Infinite Scroll */}
         <Suspense fallback={<DepartmentSkeleton />}>
           <DepartmentsInfiniteList
-            initialDepartments={departments}
-            hasMore={hasMore}
-            pageSize={PAGE_SIZE}
             filters={{
               active: filters.active,
               campus_id: filters.campus_id,
               type: filters.type,
               search: filters.searchTerm,
             }}
+            hasMore={hasMore}
+            initialDepartments={departments}
+            pageSize={PAGE_SIZE}
           />
         </Suspense>
       </div>

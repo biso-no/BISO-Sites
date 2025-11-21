@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
-import { Department } from "../admin/departments";
 
 export type FilterState = {
   active: boolean | undefined;

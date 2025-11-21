@@ -20,11 +20,11 @@ export function ImageWithFallback({
     <Image
       {...props}
       // never force 100x100; use what caller provided
-      src={src}
       onError={(e) => {
         setSrc(fallbackSrc);
         onError?.(e);
       }}
+      src={src}
       // data: URIs and some CDNs don’t benefit from Next optimization
       unoptimized={typeof src === "string" && src.startsWith("data:")}
     />

@@ -31,11 +31,11 @@ export const SelectCampus = ({
 
   return (
     <Select
-      value={selectValue}
-      onValueChange={handleValueChange}
       disabled={loading}
+      onValueChange={handleValueChange}
+      value={selectValue}
     >
-      <SelectTrigger className={className} aria-label="Velg campus">
+      <SelectTrigger aria-label="Velg campus" className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

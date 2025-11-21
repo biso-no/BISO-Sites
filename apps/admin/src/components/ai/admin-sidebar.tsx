@@ -2,7 +2,6 @@
 
 import { domAnimation, LazyMotion, m } from "motion/react";
 import { Thread } from "./admin-thread";
-import { useAssistantUIStore } from "./assistant-ui-store";
 
 export function AssistantSidebar({
   open,
@@ -16,19 +15,19 @@ export function AssistantSidebar({
   return (
     <LazyMotion features={domAnimation}>
       <m.aside
-        initial={false}
         animate={
           docked
             ? { x: 0, opacity: open ? 1 : 0 }
             : { x: open ? 0 : 384, opacity: open ? 1 : 0 }
         }
-        transition={{ type: "spring", stiffness: 240, damping: 28 }}
+        aria-hidden={!open}
         className={
           docked
             ? "aui-root relative z-10 h-full w-full border-l bg-popover"
-            : "aui-root fixed right-0 top-0 z-40 h-dvh w-[384px] border-l bg-popover shadow-lg"
+            : "aui-root fixed top-0 right-0 z-40 h-dvh w-[384px] border-l bg-popover shadow-lg"
         }
-        aria-hidden={!open}
+        initial={false}
+        transition={{ type: "spring", stiffness: 240, damping: 28 }}
       >
         <Thread />
       </m.aside>

@@ -69,7 +69,9 @@ function selectBenefitItems(
   key: BenefitKey,
   locale: Locale
 ): string[] {
-  if (!data) return [];
+  if (!data) {
+    return [];
+  }
   const suffix: BenefitLocaleSuffix = locale === "en" ? "en" : "nb";
   const localizedKey = `${key}_${suffix}` as LocalizedBenefitKey;
   const localized = data[localizedKey as keyof CampusData] as unknown;
@@ -90,7 +92,9 @@ function buildBenefitSections(
   locale: Locale,
   descriptionSelector: (config: BenefitConfig) => string
 ): BenefitSection[] {
-  if (!data) return [];
+  if (!data) {
+    return [];
+  }
   return configs
     .map((config) => {
       const items = selectBenefitItems(data, config.key, locale);
@@ -233,24 +237,28 @@ export const MembershipPageClient = ({
     [t]
   );
 
-  const campusDataById = useMemo(() => {
-    return campusData.reduce<Record<string, CampusData>>((acc, item) => {
-      if (item?.$id) {
-        acc[item.$id] = item;
-      }
-      return acc;
-    }, {});
-  }, [campusData]);
+  const campusDataById = useMemo(
+    () =>
+      campusData.reduce<Record<string, CampusData>>((acc, item) => {
+        if (item?.$id) {
+          acc[item.$id] = item;
+        }
+        return acc;
+      }, {}),
+    [campusData]
+  );
 
-  const campusDataByName = useMemo(() => {
-    return campusData.reduce<Record<string, CampusData>>((acc, item) => {
-      const key = (item?.name ?? "").toLowerCase().trim();
-      if (key) {
-        acc[key] = item;
-      }
-      return acc;
-    }, {});
-  }, [campusData]);
+  const campusDataByName = useMemo(
+    () =>
+      campusData.reduce<Record<string, CampusData>>((acc, item) => {
+        const key = (item?.name ?? "").toLowerCase().trim();
+        if (key) {
+          acc[key] = item;
+        }
+        return acc;
+      }, {}),
+    [campusData]
+  );
 
   const activeCampusData = useMemo(() => {
     if (activeCampusId && campusDataById[activeCampusId]) {
@@ -275,7 +283,9 @@ export const MembershipPageClient = ({
   );
 
   const campusSections = useMemo(() => {
-    if (!activeCampusData || activeCampusData.$id === "5") return [];
+    if (!activeCampusData || activeCampusData.$id === "5") {
+      return [];
+    }
     return buildBenefitSections(
       benefitConfigs,
       activeCampusData,
@@ -301,12 +311,15 @@ export const MembershipPageClient = ({
     activeCampus?.name ??
     t("hero.campusFallback");
 
-  const heroTitle =
-    activeCampusData?.$id === "5"
-      ? t("hero.titleNational")
-      : activeCampusData || activeCampus
-        ? t("hero.title", { campus: campusNameLocalized })
-        : t("hero.titleFallback");
+  const heroTitle = (() => {
+    if (activeCampusData?.$id === "5") {
+      return t("hero.titleNational");
+    }
+    if (activeCampusData || activeCampus) {
+      return t("hero.title", { campus: campusNameLocalized });
+    }
+    return t("hero.titleFallback");
+  })();
 
   const hasCampusBenefits = campusSections.length > 0;
 
@@ -316,11 +329,11 @@ export const MembershipPageClient = ({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.28),transparent_55%)]" />
         <div className="relative grid gap-10 px-6 py-12 md:px-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:py-16">
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1 text-xs uppercase tracking-wide text-white/80">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1 text-white/80 text-xs uppercase tracking-wide">
               <Sparkles className="h-3.5 w-3.5" />
               {t("hero.badge")}
             </div>
-            <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
+            <h1 className="font-semibold text-3xl text-white leading-tight md:text-5xl">
               {heroTitle}
             </h1>
             <p className="max-w-2xl text-base text-white/80 md:text-lg">
@@ -329,8 +342,8 @@ export const MembershipPageClient = ({
             <div className="flex flex-wrap gap-3">
               <Button
                 asChild
-                size="lg"
                 className="bg-white text-primary-100 hover:bg-white/90"
+                size="lg"
               >
                 <Link href="https://biso.no/shop/bli-medlem-i-biso/">
                   {t("hero.ctas.join")}
@@ -338,17 +351,17 @@ export const MembershipPageClient = ({
               </Button>
               <Button
                 asChild
+                className="border-white/40 bg-white/10 text-white hover:bg-white/20"
                 size="lg"
                 variant="glass"
-                className="border-white/40 bg-white/10 text-white hover:bg-white/20"
               >
                 <Link href="/jobs?campus=all">{t("hero.ctas.roles")}</Link>
               </Button>
               <Button
                 asChild
+                className="text-white hover:bg-white/10"
                 size="lg"
                 variant="ghost"
-                className="text-white hover:bg-white/10"
               >
                 <Link href="/partner">{t("hero.ctas.partners")}</Link>
               </Button>
@@ -380,10 +393,10 @@ export const MembershipPageClient = ({
             <CardContent className="space-y-4">
               {onboardingSteps.map((step) => (
                 <div
-                  key={step.number}
                   className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4"
+                  key={step.number}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-base font-semibold">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 font-semibold text-base">
                     {step.number}
                   </div>
                   <div>
@@ -402,16 +415,16 @@ export const MembershipPageClient = ({
       <section className="space-y-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">
+            <h2 className="font-semibold text-2xl text-primary-100">
               {t("global.title")}
             </h2>
             <p className="text-muted-foreground">{t("global.subtitle")}</p>
           </div>
           <Button
             asChild
-            variant="outline"
-            size="sm"
             className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40"
+            size="sm"
+            variant="outline"
           >
             <Link href="https://biso.no/shop/bli-medlem-i-biso/">
               {t("global.cta")}
@@ -425,24 +438,24 @@ export const MembershipPageClient = ({
               const Icon = section.icon;
               return (
                 <Card
-                  key={section.key}
                   className="h-full border-primary/10 bg-white/90 shadow-card"
+                  key={section.key}
                 >
                   <CardHeader className="space-y-3">
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <CardTitle className="text-base font-semibold text-primary-100">
+                    <CardTitle className="font-semibold text-base text-primary-100">
                       {section.title}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                       {section.description}
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
+                    <ul className="space-y-2 text-muted-foreground text-sm">
                       {section.items.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
+                        <li className="flex items-start gap-2" key={item}>
                           <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary-50" />
                           <span>{item}</span>
                         </li>
@@ -454,8 +467,8 @@ export const MembershipPageClient = ({
             })}
           </div>
         ) : (
-          <Card className="border-dashed border-primary/20 bg-white/70">
-            <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-sm text-muted-foreground">
+          <Card className="border-primary/20 border-dashed bg-white/70">
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-muted-foreground text-sm">
               <Sparkles className="h-5 w-5 text-primary-50" />
               {t("global.empty")}
             </CardContent>
@@ -466,15 +479,15 @@ export const MembershipPageClient = ({
       <section className="space-y-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">
+            <h2 className="font-semibold text-2xl text-primary-100">
               {t("local.title", { campus: campusNameLocalized })}
             </h2>
             <p className="text-muted-foreground">{t("local.subtitle")}</p>
           </div>
           {campuses.length > 0 ? (
             <ScrollArea
-              className="max-w-full whitespace-nowrap rounded-full border border-primary/10 bg-white"
               aria-label={t("local.switcherLabel")}
+              className="max-w-full whitespace-nowrap rounded-full border border-primary/10 bg-white"
             >
               <div className="flex gap-2 px-3 py-2">
                 {campuses
@@ -482,22 +495,22 @@ export const MembershipPageClient = ({
                   .map((campus) => {
                     const isActive = campus.$id === activeCampusId;
                     return (
-                      <button
-                        key={campus.$id}
-                        onClick={() => selectCampus(campus.$id)}
+                      <Button
                         className={cn(
-                          "rounded-full px-4 py-2 text-sm font-medium transition",
+                          "rounded-full px-4 py-2 font-medium text-sm transition",
                           isActive
                             ? "bg-primary-100 text-white shadow-sm"
                             : "bg-white text-primary-80 hover:bg-primary-10"
                         )}
+                        key={campus.$id}
+                        onClick={() => selectCampus(campus.$id)}
                       >
                         {campus.name}
-                      </button>
+                      </Button>
                     );
                   })}
               </div>
-              <ScrollBar orientation="horizontal" className="invisible h-2" />
+              <ScrollBar className="invisible h-2" orientation="horizontal" />
             </ScrollArea>
           ) : null}
         </div>
@@ -508,24 +521,24 @@ export const MembershipPageClient = ({
               const Icon = section.icon;
               return (
                 <Card
-                  key={section.key}
                   className="h-full border-primary/10 bg-white/90 shadow-card"
+                  key={section.key}
                 >
                   <CardHeader className="space-y-3">
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <CardTitle className="text-base font-semibold text-primary-100">
+                    <CardTitle className="font-semibold text-base text-primary-100">
                       {section.title}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                       {section.description}
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
+                    <ul className="space-y-2 text-muted-foreground text-sm">
                       {section.items.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
+                        <li className="flex items-start gap-2" key={item}>
                           <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary-50" />
                           <span>{item}</span>
                         </li>
@@ -537,8 +550,8 @@ export const MembershipPageClient = ({
             })}
           </div>
         ) : (
-          <Card className="border-dashed border-primary/20 bg-white/70">
-            <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-sm text-muted-foreground">
+          <Card className="border-primary/20 border-dashed bg-white/70">
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-muted-foreground text-sm">
               <Users className="h-5 w-5 text-primary-50" />
               {t("local.empty")}
             </CardContent>
@@ -549,16 +562,16 @@ export const MembershipPageClient = ({
       <section className="space-y-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">
+            <h2 className="font-semibold text-2xl text-primary-100">
               {t("highlights.title")}
             </h2>
             <p className="text-muted-foreground">{t("highlights.subtitle")}</p>
           </div>
           <Button
             asChild
-            variant="outline"
-            size="sm"
             className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40"
+            size="sm"
+            variant="outline"
           >
             <Link href="/events?campus=all">
               {t("highlights.ctaAll")}
@@ -571,24 +584,24 @@ export const MembershipPageClient = ({
             const Icon = event.icon;
             return (
               <Card
-                key={event.key}
                 className="h-full border-primary/10 bg-white/90 shadow-card"
+                key={event.key}
               >
                 <CardHeader className="space-y-3">
                   <div className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <CardTitle className="text-base font-semibold text-primary-100">
+                  <CardTitle className="font-semibold text-base text-primary-100">
                     {event.title}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     {event.description}
                   </p>
                 </CardHeader>
                 <CardContent>
                   <Button
-                    variant="ghost"
                     className="px-0 text-primary-70 hover:text-primary-40"
+                    variant="ghost"
                   >
                     {event.cta}
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -603,19 +616,19 @@ export const MembershipPageClient = ({
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Card className="border-primary/10 bg-white/90 shadow-card">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-primary-100">
+            <CardTitle className="font-semibold text-primary-100 text-xl">
               {t("faq.title")}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">{t("faq.subtitle")}</p>
+            <p className="text-muted-foreground text-sm">{t("faq.subtitle")}</p>
           </CardHeader>
           <CardContent className="space-y-4">
             {faqs.map((faq) => (
               <div
-                key={faq.key}
                 className="rounded-2xl border border-primary/10 bg-white/80 p-4"
+                key={faq.key}
               >
                 <p className="font-medium text-primary-90">{faq.question}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="mt-2 text-muted-foreground text-sm">
                   {faq.answer}
                 </p>
               </div>
@@ -624,38 +637,38 @@ export const MembershipPageClient = ({
         </Card>
         <Card className="flex flex-col justify-between border-primary/10 bg-linear-to-br from-primary-10 via-white to-white shadow-card">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-primary-100">
+            <CardTitle className="font-semibold text-primary-100 text-xl">
               {t("ctaCard.title")}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {t("ctaCard.subtitle")}
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
               <Badge
-                variant="outline"
                 className="border-primary/20 text-primary-70"
+                variant="outline"
               >
                 {t("ctaCard.badges.annual")}
               </Badge>
               <Badge
-                variant="outline"
                 className="border-primary/20 text-primary-70"
+                variant="outline"
               >
                 {t("ctaCard.badges.semester")}
               </Badge>
               <Badge
-                variant="outline"
                 className="border-primary/20 text-primary-70"
+                variant="outline"
               >
                 {t("ctaCard.badges.digitalCard")}
               </Badge>
             </div>
             <Button
               asChild
-              size="lg"
               className="w-full bg-primary-100 text-white hover:bg-primary-90"
+              size="lg"
             >
               <Link href="https://biso.no/shop/bli-medlem-i-biso/">
                 {t("ctaCard.primary")}
@@ -663,9 +676,9 @@ export const MembershipPageClient = ({
             </Button>
             <Button
               asChild
-              variant="ghost"
-              size="lg"
               className="w-full text-primary-80 hover:text-primary-40"
+              size="lg"
+              variant="ghost"
             >
               <Link href="/contact">{t("ctaCard.secondary")}</Link>
             </Button>

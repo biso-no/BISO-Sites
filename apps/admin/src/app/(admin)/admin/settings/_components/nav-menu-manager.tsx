@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type DragLayerMonitorProps,
   getBackendOptions,
   mutateTreeWithIndex,
   type NodeModel,
@@ -63,18 +62,18 @@ const INDENT_WIDTH = 24;
 
 type NavTreeItem = NodeModel<NavMenuAdminItem>;
 
-interface NavMenuManagerProps {
+type NavMenuManagerProps = {
   items: NavMenuAdminItem[];
-}
+};
 
-interface NavItemFormValues {
+type NavItemFormValues = {
   slug: string;
   parentId: string | null;
   path: string;
   url: string;
   isExternal: boolean;
   translations: Record<Locale, string>;
-}
+};
 
 const localeFlag: Record<Locale, string> = {
   en: "🇬🇧",
@@ -154,7 +153,7 @@ const buildStructurePayload = (
   return acc;
 };
 
-interface FormDialogProps {
+type FormDialogProps = {
   open: boolean;
   title: string;
   submitLabel: string;
@@ -166,7 +165,7 @@ interface FormDialogProps {
   disableSlug?: boolean;
   disableParentSelection?: boolean;
   onOpenChange: (open: boolean) => void;
-}
+};
 
 const NavItemFormDialog = ({
   open,
@@ -214,7 +213,7 @@ const NavItemFormDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -223,21 +222,21 @@ const NavItemFormDialog = ({
           <div className="grid gap-2">
             <Label htmlFor="nav-slug">Slug</Label>
             <Input
-              id="nav-slug"
-              value={values.slug}
               disabled={disableSlug}
+              id="nav-slug"
               onChange={(e) => updateField("slug", e.target.value)}
               placeholder="e.g. for-students"
+              value={values.slug}
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="nav-parent">Parent</Label>
             <Select
               disabled={disableParentSelection}
-              value={values.parentId ?? "root"}
               onValueChange={(value) =>
                 updateField("parentId", value === "root" ? null : value)
               }
+              value={values.parentId ?? "root"}
             >
               <SelectTrigger id="nav-parent">
                 <SelectValue placeholder="Select parent" />
@@ -259,24 +258,24 @@ const NavItemFormDialog = ({
             <Label htmlFor="nav-path">Path (internal)</Label>
             <Input
               id="nav-path"
-              value={values.path}
               onChange={(e) => updateField("path", e.target.value)}
               placeholder="/for-students"
+              value={values.path}
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="nav-url">URL (external)</Label>
             <Input
               id="nav-url"
-              value={values.url}
               onChange={(e) => updateField("url", e.target.value)}
               placeholder="https://example.com"
+              value={values.url}
             />
           </div>
           <div className="flex items-center gap-2">
             <Switch
-              id="nav-external"
               checked={values.isExternal}
+              id="nav-external"
               onCheckedChange={(checked) => updateField("isExternal", checked)}
             />
             <Label htmlFor="nav-external">Open as external link</Label>
@@ -285,16 +284,15 @@ const NavItemFormDialog = ({
             <Label>Translations</Label>
             <div className="grid gap-3">
               {SUPPORTED_LOCALES.map((locale) => (
-                <div key={locale} className="grid gap-1.5">
+                <div className="grid gap-1.5" key={locale}>
                   <Label
+                    className="text-muted-foreground text-xs uppercase"
                     htmlFor={`translation-${locale}`}
-                    className="text-xs uppercase text-muted-foreground"
                   >
                     {localeFlag[locale]} {locale.toUpperCase()}
                   </Label>
                   <Input
                     id={`translation-${locale}`}
-                    value={values.translations[locale] ?? ""}
                     onChange={(e) =>
                       setValues((prev) => ({
                         ...prev,
@@ -305,6 +303,7 @@ const NavItemFormDialog = ({
                       }))
                     }
                     placeholder={`Title (${locale.toUpperCase()})`}
+                    value={values.translations[locale] ?? ""}
                   />
                 </div>
               ))}
@@ -313,20 +312,20 @@ const NavItemFormDialog = ({
         </div>
         <DialogFooter className="mt-4">
           <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
             disabled={isPending}
+            onClick={() => onOpenChange(false)}
+            variant="outline"
           >
             Cancel
           </Button>
           <Button
-            variant="ghost"
-            onClick={() => setValues(initialValues)}
             disabled={isPending}
+            onClick={() => setValues(initialValues)}
+            variant="ghost"
           >
             Reset
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button disabled={isPending} onClick={handleSubmit}>
             {isPending ? "Saving…" : submitLabel}
           </Button>
         </DialogFooter>
@@ -335,12 +334,12 @@ const NavItemFormDialog = ({
   );
 };
 
-interface FormConfig {
+type FormConfig = {
   mode: "create" | "child" | "edit" | null;
   parentId: string | null;
   parentLabel: string;
   item?: NavMenuAdminItem;
-}
+};
 
 const NavMenuManager = ({ items }: NavMenuManagerProps) => {
   const router = useRouter();
@@ -377,16 +376,18 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
   const externalLinks = treeData.filter((node) => node.data?.isExternal).length;
   const translationCoverage = useMemo(() => {
     const localeCount = Number(SUPPORTED_LOCALES.length);
-    if (localeCount === 0 || totalItems === 0) return 0;
-    const filled = treeData.reduce((total, node) => {
-      return (
+    if (localeCount === 0 || totalItems === 0) {
+      return 0;
+    }
+    const filled = treeData.reduce(
+      (total, node) =>
         total +
         SUPPORTED_LOCALES.reduce((acc, locale) => {
           const value = node.data?.translations?.[locale];
           return acc + (value && value.trim().length > 0 ? 1 : 0);
-        }, 0)
-      );
-    }, 0);
+        }, 0),
+      0
+    );
     return Math.round((filled / (totalItems * localeCount)) * 100);
   }, [treeData, totalItems]);
 
@@ -447,7 +448,9 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
       destinationIndex?: number;
     }
   ) => {
-    if (dragSourceId === undefined || dropTargetId === undefined) return;
+    if (dragSourceId === undefined || dropTargetId === undefined) {
+      return;
+    }
     const mutated = mutateTreeWithIndex(
       treeData,
       dragSourceId,
@@ -522,14 +525,16 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
     if (formConfig.mode === "edit" && formConfig.item) {
       return (values: NavItemFormValues) =>
         updateNavMenuItem({
-          id: formConfig.item!.id,
+          id: formConfig.item?.id,
           parentId: values.parentId,
           path: values.path,
           url: values.url,
           isExternal: values.isExternal,
           translations: values.translations,
         }).then((result) => {
-          if (result.success) router.refresh();
+          if (result.success) {
+            router.refresh();
+          }
           return result;
         });
     }
@@ -543,7 +548,9 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
         isExternal: values.isExternal,
         translations: values.translations,
       }).then((result) => {
-        if (result.success) router.refresh();
+        if (result.success) {
+          router.refresh();
+        }
         return result;
       });
   };
@@ -604,20 +611,20 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
     const title = item.translations.no || item.translations.en || item.slug;
     return (
       <motion.div
-        layout
         className={cn(
           "group relative flex items-center justify-between gap-3 rounded-2xl border border-primary/10 bg-white/85 px-3 py-2 text-xs shadow-sm backdrop-blur-sm transition",
           isDropTarget && "ring-2 ring-primary/30",
           isDragging && "scale-[0.99] border-primary/30 shadow-md"
         )}
+        layout
         style={{ marginLeft: indent }}
       >
         <div className="flex flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             {hasChild && (
               <button
-                onClick={onToggle}
                 className="flex h-6 w-6 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary-70 transition hover:border-primary/40 hover:bg-primary/10"
+                onClick={onToggle}
               >
                 <ChevronDown
                   className={cn(
@@ -627,12 +634,12 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
                 />
               </button>
             )}
-            <span className="text-sm font-semibold text-primary-100">
+            <span className="font-semibold text-primary-100 text-sm">
               {title}
             </span>
             <Badge
+              className="bg-primary/5 px-2 py-0 font-semibold text-[10px] text-primary-70 uppercase tracking-wide"
               variant="outline"
-              className="bg-primary/5 px-2 py-0 text-[10px] font-semibold uppercase tracking-wide text-primary-70"
             >
               {item.slug}
             </Badge>
@@ -652,29 +659,29 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <Button
+            className="h-8 rounded-xl border-primary/20 bg-white/70 px-3 font-semibold text-primary-80 text-xs hover:bg-primary/5"
+            onClick={() => handleAddChild(item)}
             size="sm"
             variant="outline"
-            className="h-8 rounded-xl border-primary/20 bg-white/70 px-3 text-xs font-semibold text-primary-80 hover:bg-primary/5"
-            onClick={() => handleAddChild(item)}
           >
             <PlusCircle className="mr-1 h-3.5 w-3.5" />
             Child
           </Button>
           <Button
+            className="h-8 rounded-xl border-primary/20 bg-white/70 px-3 font-semibold text-primary-80 text-xs hover:bg-primary/5"
+            onClick={() => handleEdit(item)}
             size="sm"
             variant="outline"
-            className="h-8 rounded-xl border-primary/20 bg-white/70 px-3 text-xs font-semibold text-primary-80 hover:bg-primary/5"
-            onClick={() => handleEdit(item)}
           >
             <Edit2 className="mr-1 h-3.5 w-3.5" />
             Edit
           </Button>
           <Button
+            className="h-8 rounded-xl bg-destructive/90 px-3 font-semibold text-destructive-foreground text-xs hover:bg-destructive"
+            disabled={item.children.length > 0}
+            onClick={() => handleDelete(item)}
             size="sm"
             variant="destructive"
-            className="h-8 rounded-xl bg-destructive/90 px-3 text-xs font-semibold text-destructive-foreground hover:bg-destructive"
-            onClick={() => handleDelete(item)}
-            disabled={item.children.length > 0}
           >
             <Trash2 className="mr-1 h-3.5 w-3.5" />
             Delete
@@ -690,7 +697,7 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
   ) => (
     <div
       className={cn(
-        "flex h-9 items-center rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 text-xs font-semibold uppercase tracking-wide text-primary-60",
+        "flex h-9 items-center rounded-2xl border-2 border-primary/40 border-dashed bg-primary/5 px-4 font-semibold text-primary-60 text-xs uppercase tracking-wide",
         depth === 0 ? "ml-0" : ""
       )}
       style={{ marginLeft: depth * INDENT_WIDTH }}
@@ -701,43 +708,43 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 bg-white/85 px-6 py-6 sm:px-8">
+      <div className="surface-spotlight glass-panel relative overflow-hidden rounded-3xl border border-primary/10 bg-white/85 px-6 py-6 accent-ring sm:px-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <Badge
+                className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 font-semibold text-[0.65rem] text-primary-80 uppercase tracking-[0.2em]"
                 variant="outline"
-                className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-primary-80"
               >
                 Navigasjon
               </Badge>
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary-70">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs">
                 Live sitemap
               </span>
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold leading-tight text-primary-100 sm:text-3xl">
+              <h2 className="font-semibold text-2xl text-primary-100 leading-tight sm:text-3xl">
                 Navigation tree
               </h2>
-              <p className="max-w-2xl text-sm text-primary-60">
+              <p className="max-w-2xl text-primary-60 text-sm">
                 Administrer hierarki, lenker og språk for hovedmenyen. Dra og
                 slipp for å oppdatere strukturen i sanntid.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button
-                onClick={() => openCreateDialog(null, "")}
                 className="rounded-xl bg-primary-40 px-4 text-white shadow-[0_20px_35px_-28px_rgba(0,71,151,0.8)] hover:bg-primary-30"
+                onClick={() => openCreateDialog(null, "")}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add item
               </Button>
               <Button
-                variant="outline"
-                size="sm"
                 className="rounded-xl border-primary/20 bg-white/70 px-4 text-primary-80 hover:bg-primary/5"
-                onClick={handleManualSync}
                 disabled={isSyncing}
+                onClick={handleManualSync}
+                size="sm"
+                variant="outline"
               >
                 <RefreshCcw
                   className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")}
@@ -749,13 +756,13 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
           <div className="grid w-full max-w-md grid-cols-2 gap-3 sm:grid-cols-4 lg:w-auto">
             {metrics.map((metric) => (
               <div
-                key={metric.label}
                 className="rounded-2xl border border-primary/10 bg-white/70 px-3 py-2"
+                key={metric.label}
               >
-                <span className="text-xs uppercase tracking-[0.18em] text-primary-50">
+                <span className="text-primary-50 text-xs uppercase tracking-[0.18em]">
                   {metric.label}
                 </span>
-                <span className="block text-lg font-semibold text-primary-100">
+                <span className="block font-semibold text-lg text-primary-100">
                   {metric.value}
                 </span>
               </div>
@@ -765,19 +772,19 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
       </div>
 
       <Card
-        variant="glass"
         className="border border-primary/10 bg-white/90 backdrop-blur"
+        variant="glass"
       >
-        <CardHeader className="flex flex-col gap-3 border-b border-primary/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="flex flex-col gap-3 border-primary/10 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-base font-semibold text-primary-100">
+            <CardTitle className="font-semibold text-base text-primary-100">
               Current navigation
             </CardTitle>
-            <p className="text-sm text-primary-60">
+            <p className="text-primary-60 text-sm">
               Hold inne elementer for å flytte dem. Indenter for å endre nivå.
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-full border border-primary/10 bg-white/70 px-3 py-1 text-xs font-medium text-primary-70">
+          <div className="flex items-center gap-3 rounded-full border border-primary/10 bg-white/70 px-3 py-1 font-medium text-primary-70 text-xs">
             <span className="inline-flex h-2 w-2 rounded-full bg-secondary-100" />
             {isSyncing ? "Syncing changes…" : "Live"}
           </div>
@@ -788,30 +795,30 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
             options={getBackendOptions() as any}
           >
             <Tree
-              tree={treeData}
-              rootId={ROOT_ID}
-              render={(node, params) =>
-                renderNode(node as NodeModel<NavMenuAdminItem>, params)
-              }
-              dragPreviewRender={(monitorProps) => (
-                <motion.div className="rounded-xl border border-primary/20 bg-white/90 px-4 py-2 text-sm font-medium text-primary-90 shadow-lg">
-                  Moving:{" "}
-                  {(monitorProps.item as NavTreeItem).data?.translations?.no ??
-                    (monitorProps.item as NavTreeItem).text}
-                </motion.div>
-              )}
-              onDrop={handleDrop}
               canDrop={() => true}
-              insertDroppableFirst
-              dropTargetOffset={8}
-              sort={false}
-              placeholderRender={renderPlaceholder}
               classes={{
                 root: "space-y-2",
                 dropTarget: "ring-2 ring-primary/40 rounded-2xl bg-primary/5",
                 placeholder:
                   "h-9 rounded-2xl border border-dashed border-primary/40 bg-primary/5",
               }}
+              dragPreviewRender={(monitorProps) => (
+                <motion.div className="rounded-xl border border-primary/20 bg-white/90 px-4 py-2 font-medium text-primary-90 text-sm shadow-lg">
+                  Moving:{" "}
+                  {(monitorProps.item as NavTreeItem).data?.translations?.no ??
+                    (monitorProps.item as NavTreeItem).text}
+                </motion.div>
+              )}
+              dropTargetOffset={8}
+              insertDroppableFirst
+              onDrop={handleDrop}
+              placeholderRender={renderPlaceholder}
+              render={(node, params) =>
+                renderNode(node as NodeModel<NavMenuAdminItem>, params)
+              }
+              rootId={ROOT_ID}
+              sort={false}
+              tree={treeData}
             />
           </DndProvider>
         </CardContent>
@@ -820,19 +827,21 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
       <AnimatePresence>
         {formConfig.mode && (
           <NavItemFormDialog
-            open={formConfig.mode !== null}
-            title={dialogTitle}
-            submitLabel={dialogSubmitLabel}
+            disableParentSelection={formConfig.mode === "child"}
+            disableSlug={formConfig.mode === "edit"}
             initialValues={initialValues}
+            onOpenChange={(open) => {
+              if (!open) {
+                closeDialog();
+              }
+            }}
             onSubmit={handleSubmitFactory()}
+            open={formConfig.mode !== null}
             parentOptions={parentOptions.filter(
               (option) => option.value !== formConfig.item?.id
             )}
-            disableSlug={formConfig.mode === "edit"}
-            disableParentSelection={formConfig.mode === "child"}
-            onOpenChange={(open) => {
-              if (!open) closeDialog();
-            }}
+            submitLabel={dialogSubmitLabel}
+            title={dialogTitle}
           />
         )}
       </AnimatePresence>

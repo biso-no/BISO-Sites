@@ -82,42 +82,42 @@ export default async function AdminJobsPage({
   return (
     <div className="space-y-8">
       <AdminSummary
+        action={
+          <Button
+            asChild
+            className="rounded-full bg-primary-40 px-4 py-2 font-semibold text-sm text-white shadow-[0_18px_45px_-30px_rgba(0,23,49,0.65)] hover:bg-primary-30"
+          >
+            <Link href="/admin/jobs/new">{t("createNew")}</Link>
+          </Button>
+        }
         badge={t("badge")}
-        title={t("jobboardTitle")}
         description={t("jobboardDescription")}
         metrics={summaryCards.map((card) => ({
           label: card.label,
           value: card.value,
           hint: card.description,
         }))}
-        action={
-          <Button
-            asChild
-            className="rounded-full bg-primary-40 px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_45px_-30px_rgba(0,23,49,0.65)] hover:bg-primary-30"
-          >
-            <Link href="/admin/jobs/new">{t("createNew")}</Link>
-          </Button>
-        }
+        title={t("jobboardTitle")}
       />
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.5)]">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold text-primary-100">
+          <CardTitle className="font-semibold text-lg text-primary-100">
             {t("filterTitle")}
           </CardTitle>
-          <CardDescription className="text-sm text-primary-60">
+          <CardDescription className="text-primary-60 text-sm">
             {t("filterDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-3 md:grid-cols-5">
             <Input
+              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
               defaultValue={q || ""}
               name="q"
               placeholder={t("searchPlaceholder")}
-              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
-            <Select name="status" defaultValue={status}>
+            <Select defaultValue={status} name="status">
               <SelectTrigger className="rounded-xl border-primary/20">
                 <SelectValue placeholder={t("filters.status")} />
               </SelectTrigger>
@@ -131,14 +131,14 @@ export default async function AdminJobsPage({
               </SelectContent>
             </Select>
             <Input
-              name="campus"
-              defaultValue={campus || ""}
-              placeholder={t("filters.campus")}
               className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40"
+              defaultValue={campus || ""}
+              name="campus"
+              placeholder={t("filters.campus")}
             />
             <Button
+              className="w-full rounded-xl bg-primary-40 font-semibold text-sm text-white shadow"
               type="submit"
-              className="w-full rounded-xl bg-primary-40 text-sm font-semibold text-white shadow"
             >
               {t("filters.filter")}
             </Button>
@@ -146,13 +146,13 @@ export default async function AdminJobsPage({
         </CardContent>
       </Card>
 
-      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10  shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
-        <div className="flex items-center justify-between border-b border-primary/10 px-6 py-4">
+      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
+        <div className="flex items-center justify-between border-primary/10 border-b px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">
+            <h2 className="font-semibold text-lg text-primary-100">
               {t("jobOverview")}
             </h2>
-            <p className="text-sm text-primary-60">
+            <p className="text-primary-60 text-sm">
               {t("positionsAcrossCampuses", {
                 count: totalJobs,
                 campuses: campusCount,
@@ -160,8 +160,8 @@ export default async function AdminJobsPage({
             </p>
           </div>
           <Badge
+            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs uppercase tracking-[0.16em]"
             variant="outline"
-            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70"
           >
             {translationCoverage} {t("metrics.translated")}
           </Badge>
@@ -170,22 +170,22 @@ export default async function AdminJobsPage({
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-primary/5">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                <th className="px-4 py-3 text-left font-semibold text-primary-70 uppercase tracking-wide">
                   {t("table.title")}
                 </th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                <th className="px-4 py-3 text-left font-semibold text-primary-70 uppercase tracking-wide">
                   {t("table.status")}
                 </th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                <th className="px-4 py-3 text-left font-semibold text-primary-70 uppercase tracking-wide">
                   {t("table.language")}
                 </th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                <th className="px-4 py-3 text-left font-semibold text-primary-70 uppercase tracking-wide">
                   {t("table.campus")}
                 </th>
-                <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-primary-70">
+                <th className="px-4 py-3 text-left font-semibold text-primary-70 uppercase tracking-wide">
                   {t("table.deadline")}
                 </th>
-                <th className="px-4 py-3 text-right font-semibold uppercase tracking-wide text-primary-70">
+                <th className="px-4 py-3 text-right font-semibold text-primary-70 uppercase tracking-wide">
                   {t("table.actions")}
                 </th>
               </tr>
@@ -212,16 +212,16 @@ export default async function AdminJobsPage({
                   : null;
 
                 return (
-                  <tr key={job.$id} className="transition hover:bg-primary/5">
+                  <tr className="transition hover:bg-primary/5" key={job.$id}>
                     <td className="px-4 py-3 font-medium text-primary-100">
                       {primaryTitle}
-                      <span className="block text-xs text-primary-50">
+                      <span className="block text-primary-50 text-xs">
                         {job.slug}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <Badge
-                        className={`rounded-full px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusToken.className}`}
+                        className={`rounded-full px-3 py-0.5 font-semibold text-[11px] uppercase tracking-wide ${statusToken.className}`}
                       >
                         {statusLabel}
                       </Badge>
@@ -231,14 +231,14 @@ export default async function AdminJobsPage({
                         {translationLocales.length ? (
                           translationLocales.map((locale) => (
                             <span
+                              className="inline-flex items-center rounded-full border border-primary/10 bg-primary/5 px-2 py-0.5 font-semibold text-[11px] text-primary-70"
                               key={`${job.$id}-${locale}`}
-                              className="inline-flex items-center rounded-full border border-primary/10 bg-primary/5 px-2 py-0.5 text-[11px] font-semibold text-primary-70"
                             >
                               {getLocaleLabel(locale)}
                             </span>
                           ))
                         ) : (
-                          <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                          <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 font-semibold text-[11px] text-destructive">
                             {t("table.missing")}
                           </span>
                         )}
@@ -251,7 +251,7 @@ export default async function AdminJobsPage({
                       {deadline ? (
                         <>
                           {deadline.toLocaleDateString("nb-NO")}
-                          <span className="block text-[11px] uppercase tracking-wide text-primary-50">
+                          <span className="block text-[11px] text-primary-50 uppercase tracking-wide">
                             <Calendar className="mr-1 inline h-3 w-3" />
                             {deadline.toLocaleTimeString("nb-NO", {
                               hour: "2-digit",
@@ -266,9 +266,9 @@ export default async function AdminJobsPage({
                     <td className="px-4 py-3 text-right">
                       <Button
                         asChild
-                        variant="ghost"
+                        className="rounded-full px-3 py-1 font-semibold text-primary-80 text-xs hover:bg-primary/10"
                         size="sm"
-                        className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10"
+                        variant="ghost"
                       >
                         <Link href={`/admin/jobs/${job.$id}`}>
                           {t("table.edit")}
@@ -281,7 +281,7 @@ export default async function AdminJobsPage({
             </tbody>
           </table>
         </div>
-        <div className="border-t border-primary/10 bg-primary/5 px-6 py-3 text-xs uppercase tracking-[0.2em] text-primary-60">
+        <div className="border-primary/10 border-t bg-primary/5 px-6 py-3 text-primary-60 text-xs uppercase tracking-[0.2em]">
           {t("closedInArchive", { count: closedJobs })}
         </div>
       </div>

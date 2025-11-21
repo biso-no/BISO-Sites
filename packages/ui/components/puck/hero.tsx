@@ -15,7 +15,6 @@ import {
   Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
@@ -36,7 +35,7 @@ const IconMap: Record<string, any> = {
   Heart,
 };
 
-export interface HeroButton {
+export type HeroButton = {
   label: string;
   href: string;
   variant?:
@@ -49,28 +48,28 @@ export interface HeroButton {
     | "glass-dark"
     | "gradient"
     | "glow";
-}
+};
 
-export interface HeroStat {
+export type HeroStat = {
   value: string;
   label: string;
-}
+};
 
-export interface HeroHighlight {
+export type HeroHighlight = {
   icon?: string;
   text: string;
-}
+};
 
-export interface HeroSlide {
+export type HeroSlide = {
   title: string;
   subtitle?: string;
   image?: string;
   buttons?: HeroButton[];
   content_id?: string;
   type?: "event" | "news" | "custom";
-}
+};
 
-export interface HeroProps {
+export type HeroProps = {
   layout?: "center" | "left" | "split" | "carousel";
   height?: "full" | "large" | "medium" | "small";
   backgroundImage?: string;
@@ -100,7 +99,7 @@ export interface HeroProps {
 
   // Legacy prop support
   type?: "center" | "left" | "split";
-}
+};
 
 export function Hero({
   layout,
@@ -140,18 +139,23 @@ export function Hero({
 
   // Auto-rotate for carousel
   const nextSlide = useCallback(() => {
-    if (slides.length === 0) return;
+    if (slides.length === 0) {
+      return;
+    }
     setCurrentIndex((prev) => (prev + 1) % slides.length);
   }, [slides.length]);
 
   const prevSlide = () => {
-    if (slides.length === 0) return;
+    if (slides.length === 0) {
+      return;
+    }
     setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
   useEffect(() => {
-    if (effectiveLayout !== "carousel" || isPaused || slides.length <= 1)
+    if (effectiveLayout !== "carousel" || isPaused || slides.length <= 1) {
       return;
+    }
     const interval = setInterval(nextSlide, 6000);
     return () => clearInterval(interval);
   }, [effectiveLayout, isPaused, nextSlide, slides.length]);
@@ -173,21 +177,21 @@ export function Hero({
       >
         <AnimatePresence mode="wait">
           <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.7 }}
             className="absolute inset-0"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key={currentIndex}
+            transition={{ duration: 0.7 }}
           >
             <ImageWithFallback
+              alt={currentSlide.title || "Hero"}
+              className="object-cover"
+              fill
+              priority={currentIndex === 0}
               src={
                 currentSlide.image || backgroundImage || "/images/hero-bg.png"
               }
-              alt={currentSlide.title || "Hero"}
-              fill
-              className="object-cover"
-              priority={currentIndex === 0}
             />
             {showOverlay && (
               <>
@@ -198,18 +202,18 @@ export function Hero({
           </motion.div>
         </AnimatePresence>
 
-        <div className="relative z-10 h-full flex flex-col items-center justify-center px-4 container mx-auto">
+        <div className="container relative z-10 mx-auto flex h-full flex-col items-center justify-center px-4">
           <motion.div
-            key={`content-${currentIndex}`}
-            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
+            className="mx-auto max-w-4xl text-center"
+            initial={{ opacity: 0, y: 30 }}
+            key={`content-${currentIndex}`}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-center max-w-4xl mx-auto"
           >
             {/* Badge */}
             {(badge || currentSlide.type) && (
-              <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-8">
-                <Sparkles className="w-5 h-5 text-[#3DA9E0]" />
+              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-md">
+                <Sparkles className="h-5 w-5 text-[#3DA9E0]" />
                 <span className="text-white/90">
                   {badge ||
                     (currentSlide.type === "event"
@@ -219,35 +223,35 @@ export function Hero({
               </div>
             )}
 
-            <h1 className="mb-6 text-white text-4xl md:text-6xl font-bold">
+            <h1 className="mb-6 font-bold text-4xl text-white md:text-6xl">
               {currentSlide.title || title}
             </h1>
 
             {currentSlide.subtitle && (
-              <p className="mb-10 text-white/80 max-w-2xl mx-auto text-lg">
+              <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
                 {currentSlide.subtitle}
               </p>
             )}
 
             {/* Buttons */}
             {(currentSlide.buttons?.length || 0) > 0 && (
-              <div className="flex flex-wrap gap-4 justify-center">
+              <div className="flex flex-wrap justify-center gap-4">
                 {currentSlide.buttons?.map((btn, i) => (
                   <Button
-                    key={i}
                     asChild
+                    className={cn(
+                      btn.variant === "gradient" &&
+                        "border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white",
+                      btn.variant === "glass" &&
+                        "border-white/30 bg-white/10 text-white backdrop-blur-md hover:bg-white/20"
+                    )}
+                    key={i}
                     size="lg"
                     variant={
                       btn.variant === "glass"
                         ? "outline"
                         : (btn.variant as any) || "default"
                     }
-                    className={cn(
-                      btn.variant === "gradient" &&
-                        "bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white border-0",
-                      btn.variant === "glass" &&
-                        "bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20"
-                    )}
                   >
                     <Link href={btn.href}>{btn.label}</Link>
                   </Button>
@@ -261,27 +265,27 @@ export function Hero({
         {slides.length > 1 && (
           <>
             <button
+              className="-translate-y-1/2 absolute top-1/2 left-4 z-20 cursor-pointer rounded-full border border-white/20 bg-white/10 p-3 text-white backdrop-blur-md hover:bg-white/20"
               onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white cursor-pointer"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="h-6 w-6" />
             </button>
             <button
+              className="-translate-y-1/2 absolute top-1/2 right-4 z-20 cursor-pointer rounded-full border border-white/20 bg-white/10 p-3 text-white backdrop-blur-md hover:bg-white/20"
               onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white cursor-pointer"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="h-6 w-6" />
             </button>
             {/* Dots */}
-            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+            <div className="-translate-x-1/2 absolute bottom-12 left-1/2 z-20 flex gap-2">
               {slides.map((_, idx) => (
                 <button
+                  className={cn(
+                    "h-2 cursor-pointer rounded-full transition-all",
+                    idx === currentIndex ? "w-8 bg-white" : "w-2 bg-white/40"
+                  )}
                   key={idx}
                   onClick={() => setCurrentIndex(idx)}
-                  className={cn(
-                    "h-2 rounded-full transition-all cursor-pointer",
-                    idx === currentIndex ? "bg-white w-8" : "bg-white/40 w-2"
-                  )}
                 />
               ))}
             </div>
@@ -302,7 +306,7 @@ export function Hero({
   return (
     <div
       className={cn(
-        "relative flex flex-col justify-center overflow-hidden w-full",
+        "relative flex w-full flex-col justify-center overflow-hidden",
         heightClasses[height]
       )}
     >
@@ -310,11 +314,11 @@ export function Hero({
       {backgroundImage && (
         <div className="absolute inset-0 z-0">
           <ImageWithFallback
-            src={backgroundImage}
             alt="Hero background"
-            fill
             className="object-cover"
+            fill
             priority
+            src={backgroundImage}
           />
           {showOverlay && (
             <>
@@ -325,13 +329,13 @@ export function Hero({
         </div>
       )}
 
-      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="container relative z-10 mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <div
           className={cn(
-            "flex flex-col gap-8 max-w-4xl mx-auto",
+            "mx-auto flex max-w-4xl flex-col gap-8",
             alignClasses[activeAlign],
             effectiveLayout === "split" &&
-              "lg:grid lg:grid-cols-2 lg:gap-16 lg:items-center lg:max-w-7xl"
+              "lg:grid lg:max-w-7xl lg:grid-cols-2 lg:items-center lg:gap-16"
           )}
         >
           {/* Content Column */}
@@ -344,37 +348,37 @@ export function Hero({
             {/* Badge */}
             {badge && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                className="inline-flex items-center self-start rounded-full border border-white/20 bg-white/10 px-3 py-1 font-medium text-sm text-white backdrop-blur-md"
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ duration: 0.5 }}
-                className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium bg-white/10 text-white backdrop-blur-md border border-white/20 self-start"
               >
-                <MapPin className="w-3 h-3 mr-2" />
+                <MapPin className="mr-2 h-3 w-3" />
                 {badge}
               </motion.div>
             )}
 
             <motion.h1
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.5 }}
               className={cn(
-                "text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight",
+                "font-bold text-4xl tracking-tight md:text-5xl lg:text-6xl",
                 backgroundImage ? "text-white" : "text-foreground"
               )}
+              initial={{ opacity: 0, y: 20 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
             >
               {title}
             </motion.h1>
 
             {subtitle && (
               <motion.p
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
                 className={cn(
-                  "text-lg md:text-xl max-w-2xl",
+                  "max-w-2xl text-lg md:text-xl",
                   backgroundImage ? "text-gray-200" : "text-muted-foreground"
                 )}
+                initial={{ opacity: 0, y: 20 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
               >
                 {subtitle}
               </motion.p>
@@ -384,7 +388,7 @@ export function Hero({
             {highlights.length > 0 && (
               <div
                 className={cn(
-                  "grid gap-3 my-2",
+                  "my-2 grid gap-3",
                   highlights.length > 2 ? "sm:grid-cols-2" : "grid-cols-1"
                 )}
               >
@@ -392,16 +396,16 @@ export function Hero({
                   const Icon = item.icon ? IconMap[item.icon] : Sparkles;
                   return (
                     <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3 + idx * 0.1 }}
                       className={cn(
                         "flex items-center gap-2",
                         backgroundImage ? "text-white/90" : "text-foreground/80"
                       )}
+                      initial={{ opacity: 0, x: -20 }}
+                      key={idx}
+                      transition={{ delay: 0.3 + idx * 0.1 }}
                     >
-                      <Icon className="w-4 h-4 text-[#3DA9E0]" />
+                      <Icon className="h-4 w-4 text-[#3DA9E0]" />
                       <span>{item.text}</span>
                     </motion.div>
                   );
@@ -412,30 +416,30 @@ export function Hero({
             {/* Buttons */}
             {buttons.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
                 className={cn(
-                  "flex flex-wrap gap-4 mt-2",
+                  "mt-2 flex flex-wrap gap-4",
                   activeAlign === "center" && "justify-center"
                 )}
+                initial={{ opacity: 0, y: 20 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
               >
                 {buttons.map((btn, i) => (
                   <Button
-                    key={i}
                     asChild
+                    className={cn(
+                      btn.variant === "gradient" &&
+                        "border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white",
+                      btn.variant === "glass" &&
+                        "border-white/30 bg-white/10 text-white backdrop-blur-md hover:bg-white/20"
+                    )}
+                    key={i}
                     size="lg"
                     variant={
                       btn.variant === "glass"
                         ? "outline"
                         : (btn.variant as any) || "default"
                     }
-                    className={cn(
-                      btn.variant === "gradient" &&
-                        "bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white border-0",
-                      btn.variant === "glass" &&
-                        "bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20"
-                    )}
                   >
                     <Link href={btn.href}>{btn.label}</Link>
                   </Button>
@@ -446,33 +450,33 @@ export function Hero({
             {/* Stats */}
             {stats.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.5 }}
                 className={cn(
-                  "flex flex-wrap gap-3 mt-8",
+                  "mt-8 flex flex-wrap gap-3",
                   activeAlign === "center" && "justify-center"
                 )}
+                initial={{ opacity: 0, y: 20 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
               >
                 {stats.map((stat, idx) =>
                   statsVariant === "pills" ? (
                     <div
-                      key={idx}
                       className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left shadow-glow backdrop-blur-md"
+                      key={idx}
                     >
-                      <div className="text-xl font-semibold text-white">
+                      <div className="font-semibold text-white text-xl">
                         {stat.value}
                       </div>
-                      <div className="text-xs uppercase tracking-wide text-white/70">
+                      <div className="text-white/70 text-xs uppercase tracking-wide">
                         {stat.label}
                       </div>
                     </div>
                   ) : (
-                    <div key={idx} className="text-center px-4">
-                      <div className="text-3xl text-white mb-1 font-bold">
+                    <div className="px-4 text-center" key={idx}>
+                      <div className="mb-1 font-bold text-3xl text-white">
                         {stat.value}
                       </div>
-                      <div className="text-white/80 text-sm">{stat.label}</div>
+                      <div className="text-sm text-white/80">{stat.label}</div>
                     </div>
                   )
                 )}
@@ -483,20 +487,20 @@ export function Hero({
           {/* Right Slot or Image (Split Layout) */}
           {effectiveLayout === "split" && (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              className="relative mt-8 w-full lg:mt-0"
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.3, duration: 0.5 }}
-              className="relative w-full mt-8 lg:mt-0"
             >
               {rightSlot ? (
-                <div className="w-full h-full">{rightSlot}</div>
+                <div className="h-full w-full">{rightSlot}</div>
               ) : image ? (
-                <div className="relative aspect-video w-full rounded-xl overflow-hidden shadow-2xl">
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl shadow-2xl">
                   <ImageWithFallback
-                    src={image}
                     alt={title || "Hero"}
-                    fill
                     className="object-cover"
+                    fill
+                    src={image}
                   />
                 </div>
               ) : null}
@@ -506,16 +510,16 @@ export function Hero({
           {/* Center/Left Layout Image (Bottom) */}
           {effectiveLayout !== "split" && image && (
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
+              className="relative mx-auto mt-12 aspect-video w-full max-w-5xl overflow-hidden rounded-xl shadow-2xl"
+              initial={{ opacity: 0, y: 30 }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              className="relative w-full max-w-5xl mx-auto mt-12 aspect-video rounded-xl overflow-hidden shadow-2xl"
             >
               <ImageWithFallback
-                src={image}
                 alt={title || "Hero"}
-                fill
                 className="object-cover"
+                fill
+                src={image}
               />
             </motion.div>
           )}

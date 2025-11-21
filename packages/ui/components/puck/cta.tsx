@@ -1,24 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 
-export interface CTAButton {
+export type CTAButton = {
   label: string;
   href: string;
   variant?: "default" | "outline" | "secondary" | "ghost" | "white";
-}
+};
 
-export interface CTAProps {
+export type CTAProps = {
   title: string;
   description?: string;
   buttons?: CTAButton[];
   variant?: "default" | "card" | "split" | "brand" | "dark";
   align?: "center" | "left";
-}
+};
 
 export function CTA({
   title,
@@ -35,11 +34,11 @@ export function CTA({
   const content = (
     <div
       className={cn(
-        "flex flex-col gap-6 max-w-3xl mx-auto",
+        "mx-auto flex max-w-3xl flex-col gap-6",
         alignClasses[align]
       )}
     >
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
+      <h2 className="font-bold text-3xl tracking-tight sm:text-4xl">{title}</h2>
       {description && (
         <p
           className={cn(
@@ -53,18 +52,18 @@ export function CTA({
         </p>
       )}
       {buttons.length > 0 && (
-        <div className="flex flex-wrap gap-4 mt-2">
+        <div className="mt-2 flex flex-wrap gap-4">
           {buttons.map((btn, i) => (
             <Button
+              asChild
               key={i}
+              size="lg"
               variant={
                 (btn.variant as any) ||
                 (variant === "brand" || variant === "dark"
                   ? "secondary"
                   : "default")
               }
-              size="lg"
-              asChild
             >
               <Link href={btn.href}>{btn.label}</Link>
             </Button>
@@ -76,8 +75,8 @@ export function CTA({
 
   if (variant === "card") {
     return (
-      <div className="py-12 w-full">
-        <Card className="p-8 md:p-12 bg-gray-50 border-none shadow-sm">
+      <div className="w-full py-12">
+        <Card className="border-none bg-gray-50 p-8 shadow-sm md:p-12">
           {content}
         </Card>
       </div>
@@ -86,7 +85,7 @@ export function CTA({
 
   if (variant === "brand") {
     return (
-      <div className="py-16 w-full bg-primary text-primary-foreground rounded-3xl my-12 px-8">
+      <div className="my-12 w-full rounded-3xl bg-primary px-8 py-16 text-primary-foreground">
         {content}
       </div>
     );
@@ -94,11 +93,11 @@ export function CTA({
 
   if (variant === "dark") {
     return (
-      <div className="py-16 w-full bg-[#001731] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">{content}</div>
+      <div className="w-full bg-[#001731] py-16 text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">{content}</div>
       </div>
     );
   }
 
-  return <div className="py-16 w-full bg-background">{content}</div>;
+  return <div className="w-full bg-background py-16">{content}</div>;
 }

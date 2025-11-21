@@ -5,11 +5,11 @@ import { getCollectionEvents, getEvent } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
 import { EventDetailsClient } from "@/components/events/event-details-client";
 
-interface EventPageProps {
+type EventPageProps = {
   params: {
     id: string;
   };
-}
+};
 
 async function EventDetails({ id }: { id: string }) {
   const locale = await getLocale();
@@ -41,8 +41,8 @@ async function EventDetails({ id }: { id: string }) {
 
   return (
     <EventDetailsClient
-      event={event}
       collectionEvents={collectionEvents || undefined}
+      event={event}
     />
   );
 }
@@ -51,11 +51,11 @@ function EventDetailsSkeleton() {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       <div className="relative h-[50vh]">
-        <Skeleton className="w-full h-full" />
+        <Skeleton className="h-full w-full" />
       </div>
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
             <Skeleton className="h-64 w-full" />
             <Skeleton className="h-48 w-full" />
           </div>

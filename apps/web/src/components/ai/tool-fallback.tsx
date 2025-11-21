@@ -30,7 +30,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 
   return (
     <div className="my-1 inline-flex w-full flex-col gap-1">
-      <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="inline-flex items-center gap-2 text-muted-foreground text-xs">
         {result === undefined ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
         ) : (
@@ -38,10 +38,10 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
         )}
         <span>{label}</span>
         <Button
+          className="ml-auto h-6 px-1 text-[11px]"
+          onClick={() => setIsCollapsed(!isCollapsed)}
           size="sm"
           variant="ghost"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="ml-auto h-6 px-1 text-[11px]"
         >
           {isCollapsed ? (
             <ChevronDownIcon className="h-3.5 w-3.5" />
@@ -52,17 +52,17 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
       </div>
       {!isCollapsed && (
         <div className="rounded-md border bg-white/60 p-2">
-          <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+          <p className="mb-1 font-medium text-[11px] text-muted-foreground">
             Developer details
           </p>
           <div className="grid gap-2">
             <div className="rounded bg-muted/40 p-2">
-              <p className="mb-1 text-[11px] font-medium">Arguments</p>
+              <p className="mb-1 font-medium text-[11px]">Arguments</p>
               <pre className="whitespace-pre-wrap text-[11px]">{argsText}</pre>
             </div>
             {result !== undefined && (
               <div className="rounded bg-muted/40 p-2">
-                <p className="mb-1 text-[11px] font-medium">Result</p>
+                <p className="mb-1 font-medium text-[11px]">Result</p>
                 <pre className="whitespace-pre-wrap text-[11px]">
                   {typeof result === "string"
                     ? result

@@ -68,14 +68,14 @@ export const NotificationTriggers = {
   onNewJobApplication: async (
     jobTitle: string,
     applicantName: string,
-    applicationId: string
+    _applicationId: string
   ) => {
     await createNotification({
       title: "New Job Application",
       description: `${applicantName} applied for ${jobTitle}`,
       color: "green",
       priority: 2,
-      link: `/admin/jobs/applications`,
+      link: "/admin/jobs/applications",
     });
   },
 
@@ -165,7 +165,7 @@ export const NotificationTriggers = {
   /**
    * Varsling (whistleblowing) notifications
    */
-  onNewVarslingReport: async (reportId: string) => {
+  onNewVarslingReport: async (_reportId: string) => {
     await createNotification({
       title: "New Varsling Report",
       description: "A new confidential report has been submitted",

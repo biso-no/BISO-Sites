@@ -3,7 +3,7 @@ import { ConfidentialClientApplication } from "@azure/msal-node";
 import { Client, ResponseType } from "@microsoft/microsoft-graph-client";
 import { z } from "zod";
 
-export interface SharePointConfig {
+export type SharePointConfig = {
   clientId: string;
   clientSecret: string;
   tenantId: string;
@@ -15,9 +15,9 @@ export interface SharePointConfig {
    * When provided, site listing will resolve only these sites instead of attempting to enumerate all sites.
    */
   siteIdentifiers?: string[];
-}
+};
 
-export interface SharePointDocument {
+export type SharePointDocument = {
   id: string;
   name: string;
   webUrl: string;
@@ -31,19 +31,19 @@ export interface SharePointDocument {
   createdBy: string;
   content?: string;
   metadata: Record<string, any>;
-}
+};
 
-export interface SharePointSite {
+export type SharePointSite = {
   id: string;
   name: string;
   displayName: string;
   webUrl: string;
-}
+};
 
 export class SharePointService {
-  private msalClient: ConfidentialClientApplication;
+  private readonly msalClient: ConfidentialClientApplication;
 
-  constructor(private config: SharePointConfig) {
+  constructor(private readonly config: SharePointConfig) {
     this.msalClient = new ConfidentialClientApplication({
       auth: {
         clientId: config.clientId,
@@ -130,7 +130,7 @@ export class SharePointService {
         sites.map((s: SharePointSite) => [s.id, s])
       );
       return Array.from(uniqueSitesMap.values());
-    } catch (error) {
+    } catch (_error) {
       console.warn(
         "Site enumeration failed. Provide SHAREPOINT_SITES to list specific sites."
       );
@@ -140,8 +140,8 @@ export class SharePointService {
 
   async listDocuments(
     siteId: string,
-    folderPath: string = "/",
-    recursive: boolean = false
+    folderPath = "/",
+    recursive = false
   ): Promise<SharePointDocument[]> {
     const client = await this.getAuthenticatedClient();
     const documents: SharePointDocument[] = [];
@@ -276,7 +276,9 @@ export class SharePointService {
       .get();
 
     // Normalize to ArrayBuffer regardless of environment
-    if (data instanceof ArrayBuffer) return data as ArrayBuffer;
+    if (data instanceof ArrayBuffer) {
+      return data as ArrayBuffer;
+    }
     if (Buffer.isBuffer(data)) {
       const buf: Buffer = data;
       const ab = buf.buffer.slice(
@@ -372,7 +374,7 @@ export function getSharePointConfig(): SharePointConfig {
   const clientId = process.env.SHAREPOINT_CLIENT_ID;
   const clientSecret = process.env.SHAREPOINT_CLIENT_SECRET;
 
-  if (!tenantId || !clientId || !clientSecret) {
+  if (!(tenantId && clientId && clientSecret)) {
     throw new Error(
       "Missing required SharePoint configuration. Please ensure SHAREPOINT_TENANT_ID, " +
         "SHAREPOINT_CLIENT_ID, and SHAREPOINT_CLIENT_SECRET environment variables are set."
@@ -395,7 +397,7 @@ export function getSharePointConfig(): SharePointConfig {
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
       }
-    } catch (err) {
+    } catch (_err) {
       console.warn(
         "Failed to parse SHAREPOINT_SITES; expected JSON array or comma-separated list."
       );

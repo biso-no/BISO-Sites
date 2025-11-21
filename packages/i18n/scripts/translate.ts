@@ -14,9 +14,9 @@
  *   --file=name  Translate only a specific file (e.g., --file=admin.json)
  */
 
-import { mkdir, readdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { OpenAI } from "openai";
-import { join } from "path";
 
 // Configuration
 const SOURCE_LANG = "en";
@@ -43,12 +43,12 @@ const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
-interface TranslationStats {
+type TranslationStats = {
   filesProcessed: number;
   keysTranslated: number;
   errors: number;
   startTime: number;
-}
+};
 
 const stats: TranslationStats = {
   filesProcessed: 0,
@@ -85,7 +85,7 @@ ${JSON.stringify(content, null, 2)}
 Norwegian (Bokmål) translation:`;
 
   try {
-    console.log(`  🤖 Sending to OpenAI for translation...`);
+    console.log("  🤖 Sending to OpenAI for translation...");
 
     const response = await openai.chat.completions.create({
       model: "gpt-5.1",
@@ -114,10 +114,10 @@ Norwegian (Bokmål) translation:`;
     // Count translated keys
     stats.keysTranslated += countKeys(parsed);
 
-    console.log(`  ✅ Translation completed`);
+    console.log("  ✅ Translation completed");
     return parsed;
   } catch (error) {
-    console.error(`  ❌ Translation failed:`, error);
+    console.error("  ❌ Translation failed:", error);
     stats.errors++;
     throw error;
   }
@@ -159,9 +159,9 @@ async function translateFile(fileName: string): Promise<void> {
       console.log(
         `  🔍 [DRY RUN] Would write to: ${join(TARGET_DIR, fileName)}`
       );
-      console.log(`  📝 Preview (first 500 chars):`);
+      console.log("  📝 Preview (first 500 chars):");
       console.log(
-        JSON.stringify(translatedJson, null, 2).slice(0, 500) + "...\n"
+        `${JSON.stringify(translatedJson, null, 2).slice(0, 500)}...\n`
       );
     } else {
       // Ensure target directory exists
@@ -171,7 +171,7 @@ async function translateFile(fileName: string): Promise<void> {
       const targetPath = join(TARGET_DIR, fileName);
       await writeFile(
         targetPath,
-        JSON.stringify(translatedJson, null, 2) + "\n",
+        `${JSON.stringify(translatedJson, null, 2)}\n`,
         "utf-8"
       );
 
@@ -225,7 +225,7 @@ async function main() {
 
     // Print summary
     const duration = ((Date.now() - stats.startTime) / 1000).toFixed(2);
-    console.log("\n" + "━".repeat(50));
+    console.log(`\n${"━".repeat(50)}`);
     console.log("📊 Translation Summary");
     console.log("━".repeat(50));
     console.log(`✅ Files processed: ${stats.filesProcessed}/${files.length}`);

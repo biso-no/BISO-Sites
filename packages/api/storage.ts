@@ -50,9 +50,15 @@ export function getStorageFileThumbnailUrl(
 ): string {
   const params = new URLSearchParams({ project: APPWRITE_PROJECT });
 
-  if (options?.width) params.append("width", options.width.toString());
-  if (options?.height) params.append("height", options.height.toString());
-  if (options?.quality) params.append("quality", options.quality.toString());
+  if (options?.width) {
+    params.append("width", options.width.toString());
+  }
+  if (options?.height) {
+    params.append("height", options.height.toString());
+  }
+  if (options?.quality) {
+    params.append("quality", options.quality.toString());
+  }
 
   return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/preview?${params.toString()}`;
 }

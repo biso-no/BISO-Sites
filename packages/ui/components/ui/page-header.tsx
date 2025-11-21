@@ -25,7 +25,7 @@ export function PageHeader({
       <div className="flex items-center justify-between gap-4">
         <h1
           className={cn(
-            "text-3xl font-bold tracking-tight md:text-4xl",
+            "font-bold text-3xl tracking-tight md:text-4xl",
             gradient && "gradient-text",
             golden && "gradient-text-gold"
           )}

@@ -9,10 +9,10 @@ import {
 } from "@repo/ui/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-interface UserStatusProps {
+type UserStatusProps = {
   isActive: boolean;
   compact?: boolean;
-}
+};
 
 export function UserStatus({ isActive, compact = false }: UserStatusProps) {
   return (
@@ -28,26 +28,26 @@ export function UserStatus({ isActive, compact = false }: UserStatusProps) {
             >
               <span
                 className={cn(
-                  "animate-pulse absolute inline-flex h-full w-full rounded-full opacity-75",
+                  "absolute inline-flex h-full w-full animate-pulse rounded-full opacity-75",
                   isActive ? "bg-green-500" : "bg-gray-500"
                 )}
               />
               <span
                 className={cn(
-                  "relative inline-flex rounded-full h-full w-full",
+                  "relative inline-flex h-full w-full rounded-full",
                   isActive ? "bg-green-500" : "bg-gray-500"
                 )}
               />
             </span>
             {!compact && (
               <Badge
-                variant={isActive ? "default" : "secondary"}
                 className={cn(
                   "font-medium",
                   isActive
                     ? "bg-green-100 text-green-800 hover:bg-green-100"
                     : "bg-gray-100 text-gray-800 hover:bg-gray-100"
                 )}
+                variant={isActive ? "default" : "secondary"}
               >
                 {isActive ? "Active" : "Inactive"}
               </Badge>

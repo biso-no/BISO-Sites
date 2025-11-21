@@ -9,14 +9,14 @@ import {
   Locale,
 } from "@repo/api/types/appwrite";
 
-interface GetDepartmentsParams {
+type GetDepartmentsParams = {
   campusId?: string;
   active?: boolean;
   type?: string;
   search?: string;
   limit?: number;
   offset?: number;
-}
+};
 
 export async function getDepartments(params: GetDepartmentsParams = {}) {
   const { db } = await createSessionClient();
@@ -144,7 +144,7 @@ export async function getDepartmentTypes(): Promise<string[]> {
   return Array.from(types).sort();
 }
 
-async function updateDepartment(
+async function _updateDepartment(
   id: string,
   data: {
     Name?: string;
@@ -268,7 +268,7 @@ const DEPARTMENT_HERO_BUCKET = "content";
  */
 export async function uploadDepartmentLogo(formData: FormData) {
   const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
+  if (!(file && file instanceof File)) {
     throw new Error("No file provided");
   }
 
@@ -288,7 +288,7 @@ export async function uploadDepartmentLogo(formData: FormData) {
  */
 export async function uploadDepartmentHero(formData: FormData) {
   const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
+  if (!(file && file instanceof File)) {
     throw new Error("No file provided");
   }
 

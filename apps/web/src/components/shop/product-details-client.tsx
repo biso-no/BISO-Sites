@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  ContentTranslations,
-  WebshopProducts,
-} from "@repo/api/types/appwrite";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -47,11 +44,11 @@ import {
   parseProductMetadata,
 } from "@/lib/types/webshop";
 
-interface ProductDetailsClientProps {
+type ProductDetailsClientProps = {
   product: ContentTranslations;
   isMember?: boolean;
   userId?: string | null;
-}
+};
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",
@@ -236,67 +233,67 @@ export function ProductDetailsClient({
       {/* Hero Section */}
       <div className="relative h-[60vh] overflow-hidden">
         <ImageWithFallback
-          src={imageUrl}
           alt={product.title}
-          fill
           className="object-cover"
+          fill
+          src={imageUrl}
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/90 via-[#3DA9E0]/60 to-[#001731]/85" />
 
         <div className="absolute inset-0">
-          <div className="max-w-6xl mx-auto px-4 h-full flex items-center">
+          <div className="mx-auto flex h-full max-w-6xl items-center px-4">
             <motion.button
-              onClick={() => router.push("/shop")}
-              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
+              className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-[#3DA9E0]"
+              initial={{ opacity: 0, x: -20 }}
+              onClick={() => router.push("/shop")}
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
               Back to Shop
             </motion.button>
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-12"
+              initial={{ opacity: 0, y: 20 }}
             >
-              <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="mb-4 flex flex-wrap items-center gap-2">
                 <Badge className={categoryColors[productRef?.category ?? ""]}>
                   {productRef?.category}
                 </Badge>
                 {productRef?.member_only && (
-                  <Badge className="bg-orange-500 text-white border-0">
-                    <Users className="w-3 h-3 mr-1" />
+                  <Badge className="border-0 bg-orange-500 text-white">
+                    <Users className="mr-1 h-3 w-3" />
                     Members Only
                   </Badge>
                 )}
                 {hasDiscount && savings > 0 && (
-                  <Badge className="bg-green-500 text-white border-0">
-                    <Tag className="w-3 h-3 mr-1" />
+                  <Badge className="border-0 bg-green-500 text-white">
+                    <Tag className="mr-1 h-3 w-3" />
                     Save {savings} NOK
                   </Badge>
                 )}
               </div>
 
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">
+              <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
                 {product.title}
               </h1>
 
               <div className="flex items-baseline gap-3">
                 {hasDiscount ? (
                   <>
-                    <span className="text-3xl text-white font-bold">
+                    <span className="font-bold text-3xl text-white">
                       {formatPrice(displayPrice)}
                     </span>
-                    <span className="text-xl text-white/60 line-through">
+                    <span className="text-white/60 text-xl line-through">
                       {formatPrice(productRef?.regular_price ?? 0)}
                     </span>
-                    <Badge className="bg-green-500 text-white border-0">
+                    <Badge className="border-0 bg-green-500 text-white">
                       Member Discount
                     </Badge>
                   </>
                 ) : (
-                  <span className="text-3xl text-white font-bold">
+                  <span className="font-bold text-3xl text-white">
                     {formatPrice(displayPrice)}
                   </span>
                 )}
@@ -305,7 +302,7 @@ export function ProductDetailsClient({
               {!isMember &&
                 productRef?.member_price &&
                 productRef?.member_price < (productRef?.regular_price ?? 0) && (
-                  <p className="text-white/80 mt-3 text-lg">
+                  <p className="mt-3 text-lg text-white/80">
                     🎉 Members pay only {formatPrice(productRef.member_price)} -
                     Save{" "}
                     {(productRef.regular_price ?? 0) - productRef.member_price}{" "}
@@ -317,21 +314,21 @@ export function ProductDetailsClient({
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-8 lg:col-span-2">
             {/* Description */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="p-8 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+              <Card className="border-0 p-8 shadow-lg">
+                <h2 className="mb-4 font-bold text-2xl text-gray-900">
                   Product Description
                 </h2>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                <p className="whitespace-pre-line text-gray-700 leading-relaxed">
                   {product.description}
                 </p>
               </Card>
@@ -340,12 +337,12 @@ export function ProductDetailsClient({
             {/* Product Options */}
             {productOptions.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.2 }}
               >
-                <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                <Card className="border-0 p-8 shadow-lg">
+                  <h2 className="mb-6 font-bold text-2xl text-gray-900">
                     Product Options
                   </h2>
                   <div className="space-y-6">
@@ -354,16 +351,16 @@ export function ProductDetailsClient({
                         <Label className="mb-2 block font-semibold">
                           {option.label}
                           {option.required && (
-                            <span className="text-red-500 ml-1">*</span>
+                            <span className="ml-1 text-red-500">*</span>
                           )}
                         </Label>
 
                         {option.type === "select" && option.options ? (
                           <Select
-                            value={selectedOptions[`option-${index}`] || ""}
                             onValueChange={(value) =>
                               handleOptionChange(index, value)
                             }
+                            value={selectedOptions[`option-${index}`] || ""}
                           >
                             <SelectTrigger
                               className={`w-full ${errors[`option-${index}`] ? "border-red-500" : ""}`}
@@ -382,20 +379,20 @@ export function ProductDetailsClient({
                           </Select>
                         ) : (
                           <Input
-                            type="text"
-                            placeholder={option.placeholder || option.label}
-                            value={selectedOptions[`option-${index}`] || ""}
-                            onChange={(e) =>
-                              handleOptionChange(index, e.target.value)
-                            }
                             className={
                               errors[`option-${index}`] ? "border-red-500" : ""
                             }
+                            onChange={(e) =>
+                              handleOptionChange(index, e.target.value)
+                            }
+                            placeholder={option.placeholder || option.label}
+                            type="text"
+                            value={selectedOptions[`option-${index}`] || ""}
                           />
                         )}
 
                         {errors[`option-${index}`] && (
-                          <p className="text-red-500 text-sm mt-1">
+                          <p className="mt-1 text-red-500 text-sm">
                             This field is required
                           </p>
                         )}
@@ -408,22 +405,22 @@ export function ProductDetailsClient({
 
             {/* Pickup Information */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-blue-50">
+              <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">
+                    <h4 className="mb-2 font-semibold text-gray-900">
                       Campus Pickup
                     </h4>
-                    <p className="text-sm text-gray-700 mb-2">
+                    <p className="mb-2 text-gray-700 text-sm">
                       All products are available for pickup at the BISO office.
                       No shipping, no hassle!
                     </p>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-gray-600 text-sm">
                       <strong>BISO Office:</strong> Main Building, Ground Floor
                       <br />
                       <strong>Hours:</strong> Monday-Friday, 10:00-16:00
@@ -441,12 +438,12 @@ export function ProductDetailsClient({
             {/* Stock Status */}
             {productRef?.stock !== null && (
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: 20 }}
                 transition={{ delay: 0.2 }}
               >
                 <Card
-                  className={`p-6 border-0 shadow-lg ${
+                  className={`border-0 p-6 shadow-lg ${
                     isLoadingStock
                       ? "bg-gray-50"
                       : availableStock === 0
@@ -458,7 +455,7 @@ export function ProductDetailsClient({
                 >
                   <div className="flex items-center gap-3">
                     <Package
-                      className={`w-5 h-5 ${
+                      className={`h-5 w-5 ${
                         isLoadingStock
                           ? "text-gray-600"
                           : availableStock === 0
@@ -469,7 +466,7 @@ export function ProductDetailsClient({
                       }`}
                     />
                     <div className="flex-1">
-                      <div className="text-gray-900 font-semibold">
+                      <div className="font-semibold text-gray-900">
                         {isLoadingStock
                           ? "Checking availability..."
                           : availableStock === 0
@@ -481,7 +478,7 @@ export function ProductDetailsClient({
                       {!isLoadingStock &&
                         availableStock !== null &&
                         availableStock > 10 && (
-                          <div className="text-sm text-gray-600">
+                          <div className="text-gray-600 text-sm">
                             {availableStock} available
                           </div>
                         )}
@@ -489,7 +486,7 @@ export function ProductDetailsClient({
                         availableStock !== null &&
                         (productRef?.stock ?? 0) > 0 &&
                         availableStock < (productRef?.stock ?? 0) && (
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="mt-1 text-gray-500 text-xs">
                             {(productRef?.stock ?? 0) - availableStock} reserved
                             in carts
                           </div>
@@ -502,26 +499,26 @@ export function ProductDetailsClient({
 
             {/* Add to Cart */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-[#001731] to-[#3DA9E0]">
-                <div className="text-center mb-6">
+              <Card className="border-0 bg-linear-to-br from-[#001731] to-[#3DA9E0] p-6 shadow-lg">
+                <div className="mb-6 text-center">
                   {hasDiscount ? (
                     <>
-                      <div className="text-sm text-white/80 line-through mb-1">
+                      <div className="mb-1 text-sm text-white/80 line-through">
                         {formatPrice(productRef?.regular_price ?? 0)}
                       </div>
-                      <div className="text-4xl text-white font-bold mb-2">
+                      <div className="mb-2 font-bold text-4xl text-white">
                         {formatPrice(displayPrice)}
                       </div>
-                      <Badge className="bg-white/20 text-white border-0">
+                      <Badge className="border-0 bg-white/20 text-white">
                         Save {savings} NOK
                       </Badge>
                     </>
                   ) : (
-                    <div className="text-4xl text-white font-bold">
+                    <div className="font-bold text-4xl text-white">
                       {formatPrice(displayPrice)}
                     </div>
                   )}
@@ -531,9 +528,9 @@ export function ProductDetailsClient({
                   productRef?.member_price &&
                   productRef?.member_price <
                     (productRef?.regular_price ?? 0) && (
-                    <Alert className="mb-4 bg-white/10 border-white/20">
+                    <Alert className="mb-4 border-white/20 bg-white/10">
                       <AlertCircle className="h-4 w-4 text-white" />
-                      <AlertDescription className="text-white text-sm">
+                      <AlertDescription className="text-sm text-white">
                         Become a BISO member to save{" "}
                         {(productRef?.regular_price ?? 0) -
                           productRef.member_price}{" "}
@@ -543,21 +540,21 @@ export function ProductDetailsClient({
                   )}
 
                 <Button
-                  onClick={handleAddToCart}
+                  className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={productRef?.stock === 0}
-                  className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleAddToCart}
                 >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  <ShoppingCart className="mr-2 h-4 w-4" />
                   {productRef?.stock === 0 ? "Out of Stock" : "Add to Cart"}
                 </Button>
 
                 {addedToCart && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-center gap-2 text-white text-sm"
+                    className="flex items-center justify-center gap-2 text-sm text-white"
+                    initial={{ opacity: 0, y: -10 }}
                   >
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="h-4 w-4" />
                     Added to cart!
                   </motion.div>
                 )}
@@ -566,12 +563,12 @@ export function ProductDetailsClient({
 
             {/* Price Breakdown */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.4 }}
             >
-              <Card className="p-6 border-0 shadow-lg">
-                <h3 className="mb-4 text-gray-900 font-bold">Price Details</h3>
+              <Card className="border-0 p-6 shadow-lg">
+                <h3 className="mb-4 font-bold text-gray-900">Price Details</h3>
                 <div className="space-y-3">
                   {!isMember &&
                   productRef?.member_price &&
@@ -613,13 +610,13 @@ export function ProductDetailsClient({
                         <span>-{savings} NOK</span>
                       </div>
                       <Separator />
-                      <div className="flex justify-between text-gray-900 font-semibold">
+                      <div className="flex justify-between font-semibold text-gray-900">
                         <span>Your Price</span>
                         <span>{formatPrice(displayPrice)}</span>
                       </div>
                     </>
                   ) : (
-                    <div className="flex justify-between text-gray-900 font-semibold">
+                    <div className="flex justify-between font-semibold text-gray-900">
                       <span>Price</span>
                       <span>{formatPrice(displayPrice)}</span>
                     </div>
@@ -627,7 +624,7 @@ export function ProductDetailsClient({
                   <Separator />
                   <div className="flex justify-between text-gray-600 text-sm">
                     <span>Shipping</span>
-                    <span className="text-green-600 font-medium">
+                    <span className="font-medium text-green-600">
                       Free (Campus Pickup)
                     </span>
                   </div>
@@ -642,34 +639,34 @@ export function ProductDetailsClient({
             {/* Member Benefits */}
             {!isMember && productRef?.category !== "Membership" && (
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: 20 }}
                 transition={{ delay: 0.5 }}
               >
-                <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-orange-50 to-yellow-50">
+                <Card className="border-0 bg-linear-to-br from-orange-50 to-yellow-50 p-6 shadow-lg">
                   <div className="flex items-start gap-3">
-                    <Users className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+                    <Users className="mt-0.5 h-5 w-5 shrink-0 text-orange-600" />
                     <div>
-                      <h4 className="mb-2 text-gray-900 font-semibold">
+                      <h4 className="mb-2 font-semibold text-gray-900">
                         Not a member yet?
                       </h4>
-                      <p className="text-sm text-gray-700 mb-3">
+                      <p className="mb-3 text-gray-700 text-sm">
                         Join BISO from just 350 NOK/semester and enjoy:
                       </p>
-                      <ul className="text-sm text-gray-600 space-y-1">
+                      <ul className="space-y-1 text-gray-600 text-sm">
                         <li>✓ Discounts on all shop items</li>
                         <li>✓ Member-only events</li>
                         <li>✓ Priority registration</li>
                         <li>✓ Partner discounts</li>
                       </ul>
-                      <p className="text-xs text-gray-500 mt-2 mb-3">
+                      <p className="mt-2 mb-3 text-gray-500 text-xs">
                         💡 Best value: Year membership 550 NOK | 3-year 1200 NOK
                       </p>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-2 border-orange-300 text-orange-700 hover:bg-orange-100"
+                        className="mt-2 w-full border-orange-300 text-orange-700 hover:bg-orange-100"
                         onClick={() => router.push("/shop?category=Membership")}
+                        size="sm"
+                        variant="outline"
                       >
                         Become a Member
                       </Button>

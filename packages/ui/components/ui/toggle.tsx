@@ -3,10 +3,10 @@
 import * as TogglePrimitive from "@radix-ui/react-toggle";
 import { cn } from "@repo/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
-import * as React from "react";
+import type * as React from "react";
 
 const toggleVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",
+  "inline-flex items-center justify-center rounded-md font-medium text-sm transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",
   {
     variants: {
       variant: {
@@ -27,17 +27,22 @@ const toggleVariants = cva(
   }
 );
 
-const Toggle = React.forwardRef<
-  React.ElementRef<typeof TogglePrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof TogglePrimitive.Root> &
-    VariantProps<typeof toggleVariants>
->(({ className, variant, size, ...props }, ref) => (
+const Toggle = ({
+  className,
+  variant,
+  size,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof TogglePrimitive.Root> &
+  VariantProps<typeof toggleVariants> & {
+    ref?: React.RefObject<React.ElementRef<typeof TogglePrimitive.Root> | null>;
+  }) => (
   <TogglePrimitive.Root
-    ref={ref}
     className={cn(toggleVariants({ variant, size, className }))}
+    ref={ref}
     {...props}
   />
-));
+);
 
 Toggle.displayName = TogglePrimitive.Root.displayName;
 

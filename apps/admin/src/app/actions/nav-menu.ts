@@ -26,7 +26,7 @@ type NavMenuTranslationDocument = Models.Row & {
   title: string;
 };
 
-export interface NavMenuAdminItem {
+export type NavMenuAdminItem = {
   id: string;
   slug: string;
   order: number;
@@ -36,23 +36,23 @@ export interface NavMenuAdminItem {
   isExternal: boolean;
   translations: Record<Locale, string>;
   children: NavMenuAdminItem[];
-}
+};
 
-export interface NavMenuAdminTree {
+export type NavMenuAdminTree = {
   tree: NavMenuAdminItem[];
   flat: NavMenuAdminItem[];
-}
+};
 
-export interface NavMenuStructureItem {
+export type NavMenuStructureItem = {
   id: string;
   parentId: string | null;
   order: number;
-}
+};
 
-interface MutationResponse {
+type MutationResponse = {
   success: boolean;
   error?: string;
-}
+};
 
 const normalizeOrderValue = (value: number | null | undefined): number => {
   if (typeof value === "number" && !Number.isNaN(value)) {
@@ -67,7 +67,9 @@ const buildTranslationMap = (
   const map = new Map<string, Record<Locale, string>>();
 
   translations.forEach((translation) => {
-    if (!SUPPORTED_LOCALES.includes(translation.locale)) return;
+    if (!SUPPORTED_LOCALES.includes(translation.locale)) {
+      return;
+    }
 
     if (!map.has(translation.nav_id)) {
       map.set(translation.nav_id, {} as Record<Locale, string>);
@@ -84,7 +86,9 @@ const sortAndAttachChildren = (items: NavMenuAdminItem[], locale: Locale) => {
   items.sort((a, b) => {
     const orderDelta =
       normalizeOrderValue(a.order) - normalizeOrderValue(b.order);
-    if (orderDelta !== 0) return orderDelta;
+    if (orderDelta !== 0) {
+      return orderDelta;
+    }
     return a.slug.localeCompare(b.slug, locale);
   });
 
@@ -111,7 +115,7 @@ const buildNavTree = (
       }
     });
 
-    const fallbackTitle =
+    const _fallbackTitle =
       normalizedTranslations[locale] ||
       normalizedTranslations[DEFAULT_LOCALE] ||
       normalizedTranslations.en ||
@@ -135,7 +139,7 @@ const buildNavTree = (
 
   nodeMap.forEach((node) => {
     if (node.parentId && nodeMap.has(node.parentId)) {
-      nodeMap.get(node.parentId)!.children.push(node);
+      nodeMap.get(node.parentId)?.children.push(node);
     } else {
       roots.push(node);
     }
@@ -176,21 +180,22 @@ const fetchNavData = async (dbClient?: AdminDbClient) => {
   };
 };
 
-const getSiblings = (documents: NavMenuDocument[], parentId: string | null) => {
-  return documents
+const getSiblings = (documents: NavMenuDocument[], parentId: string | null) =>
+  documents
     .filter((doc) => (doc.parent_id ?? null) === parentId)
     .sort(
       (a, b) => normalizeOrderValue(a.order) - normalizeOrderValue(b.order)
     );
-};
 
 const determineNextOrder = (
   documents: NavMenuDocument[],
   parentId: string | null
 ) => {
   const siblings = getSiblings(documents, parentId);
-  if (!siblings.length) return 1;
-  const lastSibling = siblings[siblings.length - 1];
+  if (!siblings.length) {
+    return 1;
+  }
+  const lastSibling = siblings.at(-1);
   return normalizeOrderValue(lastSibling?.order ?? 0) + 1;
 };
 
@@ -221,7 +226,7 @@ const upsertTranslation = async ({
       await db.deleteRow(
         DATABASE_ID,
         NAV_TRANSLATIONS_COLLECTION,
-        existing.rows[0]!.$id
+        existing.rows[0]?.$id
       );
     }
     return;
@@ -231,7 +236,7 @@ const upsertTranslation = async ({
     await db.updateRow(
       DATABASE_ID,
       NAV_TRANSLATIONS_COLLECTION,
-      existing.rows[0]!.$id,
+      existing.rows[0]?.$id,
       {
         title: trimmedTitle,
       }
@@ -256,14 +261,14 @@ export const listNavMenuAdmin = async (): Promise<NavMenuAdminTree> => {
   return buildNavTree(documents, translations, DEFAULT_LOCALE);
 };
 
-interface CreateNavMenuInput {
+type CreateNavMenuInput = {
   slug: string;
   parentId?: string | null;
   path?: string | null;
   url?: string | null;
   isExternal?: boolean;
   translations: Record<Locale, string>;
-}
+};
 
 export const createNavMenuItem = async (
   input: CreateNavMenuInput
@@ -320,14 +325,14 @@ export const createNavMenuItem = async (
   }
 };
 
-interface UpdateNavMenuInput {
+type UpdateNavMenuInput = {
   id: string;
   parentId?: string | null;
   path?: string | null;
   url?: string | null;
   isExternal?: boolean;
   translations: Record<Locale, string>;
-}
+};
 
 export const updateNavMenuItem = async (
   input: UpdateNavMenuInput
@@ -400,7 +405,7 @@ export const deleteNavMenuItem = async (
   }
 };
 
-const moveNavMenuItem = async (
+const _moveNavMenuItem = async (
   navId: string,
   direction: "up" | "down"
 ): Promise<MutationResponse> => {

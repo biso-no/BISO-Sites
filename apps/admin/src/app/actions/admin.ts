@@ -1,17 +1,15 @@
 "use server";
-import { ID, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  type Campus,
-  type ContentTranslations,
-  type Departments,
-  ExpenseAttachments,
-  type Expenses,
-  type News,
-  type Users,
+import type {
+  Campus,
+  ContentTranslations,
+  Departments,
+  Expenses,
+  News,
+  Users,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { attachmentImage } from "@/lib/types/attachmentImage";
 
 export async function getUserRoles() {
   const availableRoles = [
@@ -58,7 +56,9 @@ export async function updatePost(postId: string, post: News) {
   // First we map over the tanslation_refs array, and create an array of all objects with existing and updated values
   const translationRefs = response.translation_refs.map(
     (translation: ContentTranslations) => {
-      if (typeof translation === "string") return translation; // Should not happen in getRow response but safe to handle
+      if (typeof translation === "string") {
+        return translation; // Should not happen in getRow response but safe to handle
+      }
 
       const matchingRef = Array.isArray(post.translation_refs)
         ? (post.translation_refs as ContentTranslations[]).find(
@@ -77,7 +77,9 @@ export async function updatePost(postId: string, post: News) {
 
   await Promise.all(
     translationRefs.map((ref) => {
-      if (typeof ref === "string") return Promise.resolve();
+      if (typeof ref === "string") {
+        return Promise.resolve();
+      }
       return db.updateRow("app", "content_translations", ref.$id, {
         title: ref.title,
         description: ref.description,
@@ -158,7 +160,7 @@ export async function getExpenses(fieldsToSelect?: string[]) {
   return response.rows;
 }
 
-async function getExpensesByLoggedInUser() {
+async function _getExpensesByLoggedInUser() {
   //console.log(user.user.$id)
   //console.log("here")
   const { db, account } = await createSessionClient();

@@ -14,7 +14,7 @@ import {
   TabNavigation,
 } from "@/components/member-portal";
 
-interface MemberPortalTabsProps {
+type MemberPortalTabsProps = {
   membershipType: string;
   benefitsCount: number;
   daysRemaining: number;
@@ -31,7 +31,7 @@ interface MemberPortalTabsProps {
   userName: string;
   studentId: string;
   bankAccount?: string;
-}
+};
 
 export function MemberPortalTabs({
   membershipType,
@@ -59,47 +59,47 @@ export function MemberPortalTabs({
 
   return (
     <TabNavigation
-      defaultTab="overview"
       benefitsCount={benefitsCount}
-      isMember={isMember}
+      defaultTab="overview"
       hasBIIdentity={hasBIIdentity}
+      isMember={isMember}
     >
       <OverviewTab
-        membershipType={membershipType}
+        benefits={benefits}
         benefitsCount={benefitsCount}
         daysRemaining={daysRemaining}
         estimatedSavings={estimatedSavings}
-        startDate={startDate}
         expiryDate={expiryDate}
-        benefits={benefits}
-        revealedBenefits={revealedBenefits}
-        isMember={isMember}
         hasBIIdentity={hasBIIdentity}
+        isMember={isMember}
+        membershipType={membershipType}
         onTabChange={handleTabChange}
+        revealedBenefits={revealedBenefits}
+        startDate={startDate}
       />
 
       <ProfileTab
-        user={profile}
-        publicProfile={publicProfile}
         biEmail={biEmail}
+        publicProfile={publicProfile}
+        user={profile}
       />
 
       <MembershipTab
-        userName={userName}
-        studentId={studentId}
-        currentPlan="year"
-        expiryDate={expiryDate}
-        daysRemaining={daysRemaining}
         autoRenew={false}
-        isMember={isMember}
+        currentPlan="year"
+        daysRemaining={daysRemaining}
+        expiryDate={expiryDate}
         hasBIIdentity={hasBIIdentity}
+        isMember={isMember}
+        studentId={studentId}
+        userName={userName}
       />
 
       <BenefitsTab
         benefits={benefits}
-        revealedBenefits={revealedBenefits}
-        isMember={isMember}
         hasBIIdentity={hasBIIdentity}
+        isMember={isMember}
+        revealedBenefits={revealedBenefits}
       />
 
       <SettingsTab bankAccount={bankAccount} />

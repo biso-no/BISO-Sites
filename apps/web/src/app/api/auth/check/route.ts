@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getAuthStatus } from "@/lib/auth-utils";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const authStatus = await getAuthStatus();
 

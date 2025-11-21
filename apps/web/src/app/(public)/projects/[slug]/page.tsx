@@ -18,7 +18,9 @@ import type { Locale } from "@/i18n/config";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 const parseDateRange = (event: ParsedLargeEvent, locale: Locale) => {
-  if (!event.startDate) return null;
+  if (!event.startDate) {
+    return null;
+  }
   const start = new Date(event.startDate);
   const end = event.endDate ? new Date(event.endDate) : null;
   const formatter = new Intl.DateTimeFormat(
@@ -62,7 +64,7 @@ export default async function ProjectDetailPage({
   const fallbackConfig =
     (t.raw(slug) as Record<string, unknown> | undefined) ?? undefined;
 
-  if (!event && !fallbackConfig) {
+  if (!(event || fallbackConfig)) {
     return notFound();
   }
 
@@ -143,23 +145,23 @@ export default async function ProjectDetailPage({
           <div className="space-y-4">
             {heroTagline ? (
               <Badge
+                className="border-primary/20 text-primary-70 text-xs uppercase tracking-wide"
                 variant="outline"
-                className="border-primary/20 text-xs uppercase tracking-wide text-primary-70"
               >
                 {heroTagline}
               </Badge>
             ) : null}
-            <h1 className="text-3xl font-semibold text-primary-100 md:text-4xl">
+            <h1 className="font-semibold text-3xl text-primary-100 md:text-4xl">
               {heroTitle}
             </h1>
-            <p className="text-base leading-relaxed text-primary-70">
+            <p className="text-base text-primary-70 leading-relaxed">
               {heroDescription}
             </p>
             <div className="flex flex-wrap gap-3">
               {highlights.map((item) => (
                 <span
+                  className="rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-primary-70 text-sm"
                   key={item}
-                  className="rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-sm text-primary-70"
                 >
                   {item}
                 </span>
@@ -170,8 +172,8 @@ export default async function ProjectDetailPage({
                 <Button asChild size="lg">
                   <a
                     href={ctaUrl}
-                    target={ctaUrl.startsWith("http") ? "_blank" : undefined}
                     rel="noreferrer"
+                    target={ctaUrl.startsWith("http") ? "_blank" : undefined}
                   >
                     {ctaLabel}
                   </a>
@@ -185,7 +187,7 @@ export default async function ProjectDetailPage({
                 {t("overview.title")}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-primary-70">
+            <CardContent className="space-y-3 text-primary-70 text-sm">
               {dateRange ? (
                 <div className="flex items-start justify-between gap-3">
                   <span className="font-medium text-primary-90">
@@ -208,10 +210,10 @@ export default async function ProjectDetailPage({
                     {t("overview.external")}
                   </span>
                   <a
-                    href={event.externalUrl}
-                    target="_blank"
-                    rel="noreferrer"
                     className="text-primary-40 underline-offset-2 hover:underline"
+                    href={event.externalUrl}
+                    rel="noreferrer"
+                    target="_blank"
                   >
                     {event.externalUrl.replace(/^https?:\/\//, "")}
                   </a>
@@ -225,14 +227,14 @@ export default async function ProjectDetailPage({
       {sections.length > 0 && (
         <section className="grid gap-6 md:grid-cols-2">
           {sections.map((section) => (
-            <Card key={section.title} className="border-primary/10 bg-white">
+            <Card className="border-primary/10 bg-white" key={section.title}>
               <CardHeader>
                 <CardTitle className="text-primary-100">
                   {section.title}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm leading-6 text-primary-70">
+                <p className="text-primary-70 text-sm leading-6">
                   {section.body}
                 </p>
               </CardContent>
@@ -244,10 +246,10 @@ export default async function ProjectDetailPage({
       {Object.keys(groupedSchedule).length > 0 && (
         <section className="space-y-6">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">
+            <h2 className="font-semibold text-2xl text-primary-100">
               {t("schedule.title")}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {t("schedule.subtitle")}
             </p>
           </div>
@@ -263,13 +265,13 @@ export default async function ProjectDetailPage({
               const campusName =
                 campusMeta?.campus_name ?? campusMeta?.campus_id ?? campusId;
               return (
-                <Card key={campusId} className="border-primary/10 bg-white">
+                <Card className="border-primary/10 bg-white" key={campusId}>
                   <CardHeader>
                     <CardTitle className="text-lg text-primary-100">
                       {campusName}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3 text-sm text-primary-70">
+                  <CardContent className="space-y-3 text-primary-70 text-sm">
                     {items.map((item) => {
                       const day = item.startTime
                         ? new Date(item.startTime).toLocaleString(
@@ -284,26 +286,26 @@ export default async function ProjectDetailPage({
                         : null;
                       return (
                         <div
-                          key={item.$id || `${item.title}-${item.startTime}`}
                           className="rounded-xl border border-primary/10 bg-muted/40 p-3"
+                          key={item.$id || `${item.title}-${item.startTime}`}
                         >
-                          <p className="text-sm font-semibold text-primary-100">
+                          <p className="font-semibold text-primary-100 text-sm">
                             {item.title}
                           </p>
                           {item.subtitle ? (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-muted-foreground text-xs">
                               {item.subtitle}
                             </p>
                           ) : null}
-                          <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                          <div className="mt-2 flex flex-col gap-1 text-muted-foreground text-xs">
                             {day ? <span>{day}</span> : null}
                             {item.location ? (
                               <span>{item.location}</span>
                             ) : null}
                             {item.ticketUrl ? (
                               <Link
-                                href={item.ticketUrl}
                                 className="text-primary-40 underline-offset-2 hover:underline"
+                                href={item.ticketUrl}
                                 target="_blank"
                               >
                                 {t("schedule.ticket")}

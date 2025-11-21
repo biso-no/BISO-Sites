@@ -3,10 +3,8 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
-  Campus,
   type ContentTranslations,
   ContentType,
-  Departments,
   Locale,
   type News,
   type Status,
@@ -14,15 +12,15 @@ import {
 import { revalidatePath } from "next/cache";
 import type { NewsItem } from "@/lib/types/news";
 
-export interface ListNewsParams {
+export type ListNewsParams = {
   limit?: number;
   status?: string;
   campus?: string;
   search?: string;
   locale?: "en" | "no";
-}
+};
 
-export interface CreateNewsData {
+export type CreateNewsData = {
   status: string;
   campus_id: string;
   department_id: string;
@@ -40,7 +38,7 @@ export interface CreateNewsData {
       content: string;
     };
   };
-}
+};
 
 export async function listNews(
   params: ListNewsParams = {}
@@ -130,7 +128,7 @@ export async function getNewsItem(
   }
 }
 
-async function createNewsItem(
+async function _createNewsItem(
   data: CreateNewsData,
   skipRevalidation = false
 ): Promise<News | null> {
@@ -170,7 +168,7 @@ async function createNewsItem(
       url: data.url ?? null,
       image: data.image ?? null,
       metadata: [],
-      sticky: data.sticky || false,
+      sticky: data.sticky,
       translation_refs: translationRefs,
     });
 
@@ -186,10 +184,10 @@ async function createNewsItem(
   }
 }
 
-async function updateNewsItem(
+async function _updateNewsItem(
   id: string,
   data: Partial<CreateNewsData>,
-  skipRevalidation = false
+  _skipRevalidation = false
 ): Promise<NewsItem | null> {
   try {
     const { db } = await createSessionClient();
@@ -197,14 +195,27 @@ async function updateNewsItem(
     // Build update object
     const updateData: Record<string, unknown> = {};
 
-    if (data.status !== undefined) updateData.status = data.status;
-    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.department_id !== undefined)
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+    }
+    if (data.campus_id !== undefined) {
+      updateData.campus_id = data.campus_id;
+    }
+    if (data.department_id !== undefined) {
       updateData.department_id = data.department_id;
-    if (data.slug !== undefined) updateData.slug = data.slug;
-    if (data.url !== undefined) updateData.url = data.url;
-    if (data.image !== undefined) updateData.image = data.image;
-    if (data.sticky !== undefined) updateData.sticky = data.sticky;
+    }
+    if (data.slug !== undefined) {
+      updateData.slug = data.slug;
+    }
+    if (data.url !== undefined) {
+      updateData.url = data.url;
+    }
+    if (data.image !== undefined) {
+      updateData.image = data.image;
+    }
+    if (data.sticky !== undefined) {
+      updateData.sticky = data.sticky;
+    }
 
     // Build translation_refs array from provided translations only
     if (data.translations) {

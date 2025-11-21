@@ -5,14 +5,14 @@ import { createSessionClient } from "@repo/api/server";
 import type { VarslingSettings } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-export interface VarslingSubmission {
+export type VarslingSubmission = {
   campus_id: string;
   role_name: string;
   recipient_email: string;
   submitter_email?: string;
   case_description: string;
   submission_type: "harassment" | "witness" | "other";
-}
+};
 
 // Get varsling settings for a specific campus
 export async function getVarslingSettings(
@@ -44,7 +44,7 @@ export async function getVarslingSettings(
 }
 
 // Get all varsling settings (admin only)
-async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
+async function _getAllVarslingSettings(): Promise<VarslingSettings[]> {
   try {
     const { db } = await createSessionClient();
 
@@ -66,7 +66,7 @@ async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
 }
 
 // Create new varsling settings (admin only)
-async function createVarslingSettings(
+async function _createVarslingSettings(
   data: Omit<VarslingSettings, "$id">
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -88,7 +88,7 @@ async function createVarslingSettings(
 }
 
 // Update varsling settings (admin only)
-async function updateVarslingSettings(
+async function _updateVarslingSettings(
   id: string,
   data: Partial<VarslingSettings>
 ): Promise<{ success: boolean; error?: string }> {
@@ -106,7 +106,7 @@ async function updateVarslingSettings(
 }
 
 // Delete varsling settings (admin only)
-async function deleteVarslingSettings(
+async function _deleteVarslingSettings(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
   try {

@@ -9,7 +9,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
-interface CampusHeroProps {
+type CampusHeroProps = {
   campusName: string | null;
   campusMetadata: CampusMetadata | null;
   stats: {
@@ -18,7 +18,7 @@ interface CampusHeroProps {
     jobs: number;
   };
   locale: Locale;
-}
+};
 
 const StatPill = ({
   label,
@@ -28,8 +28,8 @@ const StatPill = ({
   value: string | number;
 }) => (
   <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left shadow-glow">
-    <div className="text-xl font-semibold text-white">{value}</div>
-    <div className="text-xs uppercase tracking-wide text-white/70">{label}</div>
+    <div className="font-semibold text-white text-xl">{value}</div>
+    <div className="text-white/70 text-xs uppercase tracking-wide">{label}</div>
   </div>
 );
 
@@ -88,49 +88,49 @@ export function CampusHero({
   return (
     <div className="relative h-[70vh] overflow-hidden">
       <ImageWithFallback
-        src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx1bml2ZXJzaXR5JTIwY2FtcHVzfGVufDF8fHx8MTc2MjE2NTE0NXww&ixlib=rb-4.1.0&q=80&w=1080"
         alt={campusName ? `${campusName} Campus` : "BISO Campus"}
+        className="h-full w-full object-cover"
         fill
-        className="w-full h-full object-cover"
+        src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx1bml2ZXJzaXR5JTIwY2FtcHVzfGVufDF8fHx8MTc2MjE2NTE0NXww&ixlib=rb-4.1.0&q=80&w=1080"
       />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
 
       <div className="absolute inset-0">
-        <div className="max-w-7xl mx-auto px-4 h-full flex items-center">
+        <div className="mx-auto flex h-full max-w-7xl items-center px-4">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
             className="max-w-3xl"
+            initial={{ opacity: 0, y: 30 }}
+            transition={{ duration: 0.8 }}
           >
-            <Badge className="mb-4 bg-[#3DA9E0]/20 text-white border-white/30">
-              <MapPin className="w-3 h-3 mr-1" />
+            <Badge className="mb-4 border-white/30 bg-[#3DA9E0]/20 text-white">
+              <MapPin className="mr-1 h-3 w-3" />
               {location}
             </Badge>
-            <h1 className="mb-6 text-white text-5xl font-bold">
+            <h1 className="mb-6 font-bold text-5xl text-white">
               {campusName
                 ? `BISO ${campusName}`
                 : locale === "en"
                   ? "BISO - Student Life"
                   : "BISO - Studentliv"}
             </h1>
-            <p className="text-white/90 mb-8 text-xl">{tagline}</p>
-            <p className="text-white/80 mb-8 text-lg max-w-2xl">
+            <p className="mb-8 text-white/90 text-xl">{tagline}</p>
+            <p className="mb-8 max-w-2xl text-lg text-white/80">
               {description}
             </p>
 
             {/* Highlights */}
             {highlights.length > 0 && (
-              <div className="grid sm:grid-cols-2 gap-3 mb-8">
+              <div className="mb-8 grid gap-3 sm:grid-cols-2">
                 {highlights.map((highlight, index) => (
                   <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + index * 0.1 }}
                     className="flex items-center gap-2 text-white/90"
+                    initial={{ opacity: 0, x: -20 }}
+                    key={index}
+                    transition={{ delay: 0.2 + index * 0.1 }}
                   >
-                    <Sparkles className="w-4 h-4 text-[#3DA9E0]" />
+                    <Sparkles className="h-4 w-4 text-[#3DA9E0]" />
                     <span>{highlight}</span>
                   </motion.div>
                 ))}
@@ -138,11 +138,11 @@ export function CampusHero({
             )}
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="mb-6 flex flex-wrap gap-3">
               <Button
                 asChild
-                size="lg"
                 className="bg-white text-primary-100 hover:bg-white/90"
+                size="lg"
               >
                 <Link href="/membership">
                   {locale === "en" ? "Become a Member" : "Bli medlem"}
@@ -150,9 +150,9 @@ export function CampusHero({
               </Button>
               <Button
                 asChild
+                className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
                 size="lg"
                 variant="outline"
-                className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
               >
                 <Link href="/events">
                   {locale === "en" ? "See Events" : "Se arrangementer"}
@@ -160,9 +160,9 @@ export function CampusHero({
               </Button>
               <Button
                 asChild
+                className="text-white hover:bg-white/10 hover:text-white"
                 size="lg"
                 variant="ghost"
-                className="text-white hover:bg-white/10 hover:text-white"
               >
                 <Link href="/jobs">
                   {locale === "en" ? "Find a Position" : "Finn et verv"}

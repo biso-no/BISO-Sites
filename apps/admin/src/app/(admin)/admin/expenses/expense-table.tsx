@@ -39,19 +39,14 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AdminSummary } from "@/components/admin/admin-summary";
-import {
-  formatPercentage,
-  getStatusToken,
-  getUniqueLocales,
-  parseJSONSafe,
-} from "@/lib/utils/admin";
+import { formatPercentage, getStatusToken } from "@/lib/utils/admin";
 
-const TableSkeleton = () => (
+const _TableSkeleton = () => (
   <div className="space-y-3">
     {Array.from({ length: 6 }).map((_, row) => (
-      <div key={row} className="flex gap-3">
+      <div className="flex gap-3" key={row}>
         {Array.from({ length: 6 }).map((_, cell) => (
-          <Skeleton key={cell} className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 flex-1 rounded-xl" key={cell} />
         ))}
       </div>
     ))}
@@ -86,7 +81,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
   return (
     <Badge
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold uppercase tracking-wide ${token.className}`}
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-0.5 font-semibold text-xs uppercase tracking-wide ${token.className}`}
     >
       <Icon className="h-3 w-3" />
       {token.label}
@@ -130,27 +125,29 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 600);
     return () => clearTimeout(timer);
-  }, [expenses]);
+  }, []);
 
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter((expense) => {
-      const matchesSearch =
-        filters.search === "" ||
-        expense.user?.name
-          ?.toLowerCase()
-          .includes(filters.search.toLowerCase());
-      const matchesDepartment =
-        filters.department === "all" ||
-        expense.department === filters.department;
-      const matchesCampus =
-        filters.campus === "all" || expense.campus === filters.campus;
-      const matchesStatus =
-        filters.status === "all" || expense.status === filters.status;
-      return (
-        matchesSearch && matchesDepartment && matchesCampus && matchesStatus
-      );
-    });
-  }, [expenses, filters]);
+  const filteredExpenses = useMemo(
+    () =>
+      expenses.filter((expense) => {
+        const matchesSearch =
+          filters.search === "" ||
+          expense.user?.name
+            ?.toLowerCase()
+            .includes(filters.search.toLowerCase());
+        const matchesDepartment =
+          filters.department === "all" ||
+          expense.department === filters.department;
+        const matchesCampus =
+          filters.campus === "all" || expense.campus === filters.campus;
+        const matchesStatus =
+          filters.status === "all" || expense.status === filters.status;
+        return (
+          matchesSearch && matchesDepartment && matchesCampus && matchesStatus
+        );
+      }),
+    [expenses, filters]
+  );
 
   const sortedExpenses = useMemo(() => {
     const sorted = [...filteredExpenses];
@@ -166,11 +163,21 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
           bValue = bValue?.name;
         }
 
-        if (aValue === bValue) return 0;
-        if (aValue === undefined || aValue === null) return 1;
-        if (bValue === undefined || bValue === null) return -1;
-        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+        if (aValue === bValue) {
+          return 0;
+        }
+        if (aValue === undefined || aValue === null) {
+          return 1;
+        }
+        if (bValue === undefined || bValue === null) {
+          return -1;
+        }
+        if (aValue < bValue) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
         return 0;
       });
     }
@@ -214,7 +221,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
   };
 
   const getSortIcon = (key: keyof Expenses) => {
-    if (sortConfig.key !== key) return null;
+    if (sortConfig.key !== key) {
+      return null;
+    }
     return sortConfig.direction === "asc" ? (
       <ArrowUpDown className="h-4 w-4 rotate-180" />
     ) : (
@@ -251,41 +260,41 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
     <div className="space-y-8">
       <AdminSummary
         badge="Utlegg"
-        title="Expense intelligence"
         description="Følg status, campus og volum for innsendte utlegg fra hele organisasjonen."
         metrics={summaryMetrics}
         slot={
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs uppercase tracking-[0.16em]">
             Totalsum {formattedTotal}
           </div>
         }
+        title="Expense intelligence"
       />
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.5)]">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold text-primary-100">
+          <CardTitle className="font-semibold text-lg text-primary-100">
             Filtrer utlegg
           </CardTitle>
-          <CardDescription className="text-sm text-primary-60">
+          <CardDescription className="text-primary-60 text-sm">
             Avgrens listen etter søker, avdeling, campus og status.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="grid gap-3 md:grid-cols-5">
+          <form className="grid gap-3 md:grid-cols-5" onSubmit={handleSearch}>
             <Input
-              type="text"
-              placeholder="Søk på navn..."
-              value={searchParams.search}
+              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
               onChange={(e) =>
                 setSearchParams((prev) => ({ ...prev, search: e.target.value }))
               }
-              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
+              placeholder="Søk på navn..."
+              type="text"
+              value={searchParams.search}
             />
             <Select
-              value={searchParams.department}
               onValueChange={(value) =>
                 setSearchParams((prev) => ({ ...prev, department: value }))
               }
+              value={searchParams.department}
             >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle avdelinger" />
@@ -300,10 +309,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
               </SelectContent>
             </Select>
             <Select
-              value={searchParams.campus}
               onValueChange={(value) =>
                 setSearchParams((prev) => ({ ...prev, campus: value }))
               }
+              value={searchParams.campus}
             >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle campuser" />
@@ -318,10 +327,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
               </SelectContent>
             </Select>
             <Select
-              value={searchParams.status}
               onValueChange={(value) =>
                 setSearchParams((prev) => ({ ...prev, status: value }))
               }
+              value={searchParams.status}
             >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle statuser" />
@@ -334,16 +343,16 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
             </Select>
             <div className="flex gap-2">
               <Button
+                className="flex-1 rounded-xl bg-primary-40 font-semibold text-sm text-white shadow hover:bg-primary-30"
                 type="submit"
-                className="flex-1 rounded-xl bg-primary-40 text-sm font-semibold text-white shadow hover:bg-primary-30"
               >
                 Filtrer
               </Button>
               <Button
-                type="button"
-                variant="outline"
                 className="rounded-xl border-primary/20 text-sm"
                 onClick={handleReset}
+                type="button"
+                variant="outline"
               >
                 Nullstill
               </Button>
@@ -353,19 +362,19 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
       </Card>
 
       <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/10 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-primary/10 border-b px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">
+            <h2 className="font-semibold text-lg text-primary-100">
               Utleggsoversikt
             </h2>
-            <p className="text-sm text-primary-60">
+            <p className="text-primary-60 text-sm">
               Viser {filteredExpenses.length} av {expenses.length} registrerte
               utlegg
             </p>
           </div>
           <Badge
+            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs uppercase tracking-[0.16em]"
             variant="outline"
-            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70"
           >
             {approvalRate} godkjent
           </Badge>
@@ -420,21 +429,21 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                 <AnimatePresence>
                   {(isLoading ? [] : sortedExpenses).map((expense) => (
                     <motion.tr
-                      key={expense.$id}
-                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.18 }}
                       className="transition hover:bg-primary/5"
+                      exit={{ opacity: 0, y: -8 }}
+                      initial={{ opacity: 0, y: 8 }}
+                      key={expense.$id}
+                      transition={{ duration: 0.18 }}
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary-80">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary-80 text-sm">
                             {expense.user?.name?.slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex flex-col">
                             <span>{expense.user?.name}</span>
-                            <span className="text-xs text-primary-50">
+                            <span className="text-primary-50 text-xs">
                               {expense.user?.email}
                             </span>
                           </div>
@@ -444,8 +453,8 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                       <TableCell>{expense.campus || "—"}</TableCell>
                       <TableCell>
                         <Badge
+                          className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-primary-80 text-xs"
                           variant="outline"
-                          className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-xs text-primary-80"
                         >
                           {expense.total
                             ? NOK_FORMATTER.format(Number(expense.total))
@@ -457,10 +466,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10"
+                          className="rounded-full px-3 py-1 font-semibold text-primary-80 text-xs hover:bg-primary/10"
                           onClick={() => actionClick(expense.$id)}
+                          size="sm"
+                          variant="ghost"
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Se detalj
@@ -472,8 +481,8 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
               </TableBody>
             </Table>
           </div>
-          {!sortedExpenses.length && !isLoading && (
-            <div className="flex flex-col items-center justify-center gap-2 border-t border-dashed border-primary/10 px-6 py-10 text-sm text-primary-60">
+          {!(sortedExpenses.length || isLoading) && (
+            <div className="flex flex-col items-center justify-center gap-2 border-primary/10 border-t border-dashed px-6 py-10 text-primary-60 text-sm">
               <Search className="h-6 w-6" />
               Ingen utlegg matcher filtrene dine.
             </div>

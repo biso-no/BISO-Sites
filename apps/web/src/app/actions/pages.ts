@@ -6,9 +6,9 @@ import { createSessionClient } from "@repo/api/server";
 import type { Locale, PageTranslations } from "@repo/api/types/appwrite";
 import { cache } from "react";
 
-const resolvePublishedPage = cache(async (slug: string, locale: Locale) => {
-  return getPublishedPage({ slug, locale, preview: false });
-});
+const resolvePublishedPage = cache(async (slug: string, locale: Locale) =>
+  getPublishedPage({ slug, locale, preview: false })
+);
 
 export async function getPublicPage(
   slug: string,

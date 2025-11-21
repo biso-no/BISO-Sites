@@ -14,7 +14,7 @@ import {
   savePageDraft,
 } from "@/app/actions/pages";
 
-interface EditorClientProps {
+type EditorClientProps = {
   pageId: string;
   translationId: string;
   initialData: Data;
@@ -25,7 +25,7 @@ interface EditorClientProps {
   status: PageStatus;
   visibility: PageVisibility;
   pageTranslations: { locale: Locale; id: string }[];
-}
+};
 
 export function EditorClient({
   pageId,
@@ -69,7 +69,9 @@ export function EditorClient({
     newLocale: Locale,
     context: { title: string; slug: string }
   ) => {
-    if (newLocale === locale) return;
+    if (newLocale === locale) {
+      return;
+    }
 
     const existingTranslation = pageTranslations.find(
       (t) => t.locale === newLocale
@@ -96,17 +98,17 @@ export function EditorClient({
 
   return (
     <PageEditor
-      initialData={initialData}
-      title={title}
-      slug={slug}
-      locale={locale}
       availableLocales={availableLocales}
-      status={status}
-      visibility={visibility}
-      onSave={handleSave}
-      onPublish={handlePublish}
-      onLocaleChange={(locale) => handleLocaleChange(locale, { title, slug })}
+      initialData={initialData}
+      locale={locale}
       onBack={() => router.back()}
+      onLocaleChange={(newLocale) => handleLocaleChange(newLocale, { title, slug })}
+      onPublish={handlePublish}
+      onSave={handleSave}
+      slug={slug}
+      status={status}
+      title={title}
+      visibility={visibility}
     />
   );
 }

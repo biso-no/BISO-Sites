@@ -1,13 +1,13 @@
-import React, { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
 
-export interface ColumnsProps {
+export type ColumnsProps = {
   children?: ReactNode;
   layout?: "1:1" | "2:1" | "1:2" | "1:1:1" | "1:1:1:1";
   gap?: "sm" | "md" | "lg";
   verticalAlign?: "top" | "center" | "bottom";
   className?: string;
-}
+};
 
 export function Columns({
   children,

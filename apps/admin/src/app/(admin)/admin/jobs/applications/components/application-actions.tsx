@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ui/components/ui/alert-dialog";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -19,13 +29,14 @@ import {
 import { toast } from "@/lib/hooks/use-toast";
 import type { JobApplication } from "@/lib/types/job-application";
 
-interface ApplicationActionsProps {
+type ApplicationActionsProps = {
   application: JobApplication;
-}
+};
 
 export function ApplicationActions({ application }: ApplicationActionsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const t = useTranslations("adminJobs");
   const mailSubject = encodeURIComponent(t("applications.actions.mailSubject"));
 
@@ -35,7 +46,7 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
       await updateJobApplicationStatus(application.$id, newStatus);
       toast({ title: t("applications.messages.statusUpdated") });
       router.refresh();
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: t("applications.messages.statusUpdateError"),
         variant: "destructive",
@@ -64,7 +75,7 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
 
         toast({ title: t("applications.messages.exportSuccess") });
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: t("applications.messages.exportError"),
         variant: "destructive",
@@ -73,10 +84,6 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
   };
 
   const handleDeleteData = async () => {
-    if (!confirm(t("applications.actions.confirmDelete"))) {
-      return;
-    }
-
     setIsLoading(true);
     try {
       const success = await deleteJobApplicationData(application.$id);
@@ -86,77 +93,105 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
       } else {
         throw new Error("Failed to delete");
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: t("applications.messages.deleteError"),
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      setShowDeleteAlert(false);
     }
   };
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Quick status update buttons */}
-      {application.status === "submitted" && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleStatusUpdate("reviewed")}
-          disabled={isLoading}
-        >
-          {t("applications.actions.markReviewed")}
-        </Button>
-      )}
-
-      {application.status === "reviewed" && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleStatusUpdate("interview")}
-          disabled={isLoading}
-        >
-          {t("applications.actions.scheduleInterview")}
-        </Button>
-      )}
-
-      {/* Contact applicant */}
-      <Button size="sm" variant="outline" asChild>
-        <a
-          href={`mailto:${application.applicant_email}?subject=${mailSubject}`}
-        >
-          <Mail className="h-4 w-4" />
-        </a>
-      </Button>
-
-      {/* More actions menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => handleStatusUpdate("accepted")}>
-            {t("applications.actions.markAccepted")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleStatusUpdate("rejected")}>
-            {t("applications.actions.markRejected")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleExportData}>
-            <Download className="h-4 w-4 mr-2" />
-            {t("applications.actions.exportData")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={handleDeleteData}
-            className="text-destructive focus:text-destructive"
+    <>
+      <div className="flex items-center gap-2">
+        {/* Quick status update buttons */}
+        {application.status === "submitted" && (
+          <Button
+            disabled={isLoading}
+            onClick={() => handleStatusUpdate("reviewed")}
+            size="sm"
+            variant="outline"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            {t("applications.actions.deleteData")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+            {t("applications.actions.markReviewed")}
+          </Button>
+        )}
+
+        {application.status === "reviewed" && (
+          <Button
+            disabled={isLoading}
+            onClick={() => handleStatusUpdate("interview")}
+            size="sm"
+            variant="outline"
+          >
+            {t("applications.actions.scheduleInterview")}
+          </Button>
+        )}
+
+        {/* Contact applicant */}
+        <Button asChild size="sm" variant="outline">
+          <a
+            href={`mailto:${application.applicant_email}?subject=${mailSubject}`}
+          >
+            <Mail className="h-4 w-4" />
+          </a>
+        </Button>
+
+        {/* More actions menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleStatusUpdate("accepted")}>
+              {t("applications.actions.markAccepted")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleStatusUpdate("rejected")}>
+              {t("applications.actions.markRejected")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportData}>
+              <Download className="mr-2 h-4 w-4" />
+              {t("applications.actions.exportData")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setShowDeleteAlert(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t("applications.actions.deleteData")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("applications.actions.deleteData")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("applications.actions.confirmDelete")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("form.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteData();
+              }}
+            >
+              {t("applications.actions.deleteData")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

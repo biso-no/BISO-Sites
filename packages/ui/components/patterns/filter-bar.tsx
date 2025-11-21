@@ -39,18 +39,18 @@ export function FilterBar({
     >
       <div className="flex w-full items-center gap-2 md:max-w-[420px]">
         <Input
-          value={query}
+          className="h-9"
           onChange={(e) => onQueryChange?.(e.target.value)}
           placeholder={placeholder}
-          className="h-9"
+          value={query}
         />
         {hasActive && (
           <Button
+            className="h-9 px-2"
+            onClick={onClearAll}
+            size="sm"
             type="button"
             variant="outline"
-            size="sm"
-            onClick={onClearAll}
-            className="h-9 px-2"
           >
             <XIcon className="h-4 w-4" />
             <span className="sr-only">Clear filters</span>
@@ -69,17 +69,17 @@ export function FilterBar({
             const active = activeFilters.includes(f.key);
             return (
               <Button
-                key={f.key}
-                type="button"
-                variant={active ? "default" : "outline"}
-                size="sm"
-                onClick={() => onToggleFilter?.(f.key)}
                 className={cn(
                   "rounded-full px-3",
                   active
                     ? "bg-secondary text-secondary-foreground"
                     : "bg-background"
                 )}
+                key={f.key}
+                onClick={() => onToggleFilter?.(f.key)}
+                size="sm"
+                type="button"
+                variant={active ? "default" : "outline"}
               >
                 {f.label}
               </Button>

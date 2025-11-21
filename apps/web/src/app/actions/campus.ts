@@ -1,6 +1,6 @@
 "use server";
 
-import { Models, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   Campus,
@@ -32,7 +32,7 @@ export async function getCampusMetadata(): Promise<
   }
 }
 
-async function getCampusMetadataById(
+async function _getCampusMetadataById(
   campusId: string
 ): Promise<CampusMetadata | null> {
   try {
@@ -53,7 +53,7 @@ async function getCampusMetadataById(
   }
 }
 
-async function getCampusMetadataByName(
+async function _getCampusMetadataByName(
   campusName: string
 ): Promise<CampusMetadata | null> {
   try {
@@ -160,7 +160,7 @@ export async function getActiveCampus(): Promise<string | null> {
     const campusId = user.prefs?.campusId;
     // Return null for "all" or if not set
     return campusId === "all" || !campusId ? null : campusId;
-  } catch (error) {
+  } catch (_error) {
     // Not logged in or error - return null (all campuses)
     return null;
   }

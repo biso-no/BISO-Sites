@@ -4,12 +4,12 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { ProductMetadata } from "@/lib/types/webshop";
 
-interface PurchaseLimitResult {
+type PurchaseLimitResult = {
   allowed: boolean;
   reason?: string;
   currentPurchases?: number;
   limit?: number;
-}
+};
 
 /**
  * Check if user has exceeded max_per_user limit for a product
@@ -160,7 +160,7 @@ export async function validatePurchaseLimits(
 /**
  * Get purchase history summary for a user and product
  */
-async function getPurchaseHistory(
+async function _getPurchaseHistory(
   productId: string,
   userId: string
 ): Promise<{

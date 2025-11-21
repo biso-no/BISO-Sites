@@ -92,26 +92,26 @@ export default async function Dashboard() {
           <MetricCard
             icon={DollarSign}
             label={t("dashboard.metrics.totalRevenue")}
-            value={NOK_FORMATTER.format(metrics.revenue.value)}
             trend={metrics.revenue.trend}
+            value={NOK_FORMATTER.format(metrics.revenue.value)}
           />
           <MetricCard
             icon={Users}
             label={t("dashboard.metrics.productCatalog")}
-            value={NUMBER_FORMATTER.format(metrics.catalog.value)}
             trend={metrics.catalog.trend}
+            value={NUMBER_FORMATTER.format(metrics.catalog.value)}
           />
           <MetricCard
             icon={CreditCard}
             label={t("dashboard.metrics.sales")}
-            value={NUMBER_FORMATTER.format(metrics.sales.value)}
             trend={metrics.sales.trend}
+            value={NUMBER_FORMATTER.format(metrics.sales.value)}
           />
           <MetricCard
             icon={Activity}
             label={t("dashboard.metrics.activeNow")}
-            value={NUMBER_FORMATTER.format(metrics.activeCatalog.value)}
             trend={metrics.activeCatalog.trend}
+            value={NUMBER_FORMATTER.format(metrics.activeCatalog.value)}
           />
         </div>
         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
@@ -126,7 +126,7 @@ export default async function Dashboard() {
                   {t("dashboard.transactions.description")}
                 </CardDescription>
               </div>
-              <Button asChild size="sm" className="ml-auto gap-1">
+              <Button asChild className="ml-auto gap-1" size="sm">
                 <Link href="/admin/shop/orders">
                   {t("dashboard.transactions.viewAll")}
                   <ArrowUpRight className="h-4 w-4" />
@@ -171,11 +171,11 @@ export default async function Dashboard() {
                       <TableRow key={order.$id}>
                         <TableCell>
                           <div className="font-medium">{buyerName}</div>
-                          <div className="hidden text-sm text-muted-foreground md:inline">
+                          <div className="hidden text-muted-foreground text-sm md:inline">
                             {buyerEmail}
                           </div>
                         </TableCell>
-                        <TableCell className="hidden xl:table-column text-sm text-muted-foreground">
+                        <TableCell className="hidden text-muted-foreground text-sm xl:table-column">
                           #{order.$id.slice(-6)}
                         </TableCell>
                         <TableCell className="hidden xl:table-column">
@@ -197,8 +197,8 @@ export default async function Dashboard() {
                   {transactions.length === 0 && (
                     <TableRow>
                       <TableCell
+                        className="py-8 text-center text-muted-foreground text-sm"
                         colSpan={5}
-                        className="py-8 text-center text-sm text-muted-foreground"
                       >
                         {t("dashboard.transactions.empty")}
                       </TableCell>
@@ -229,12 +229,12 @@ function MetricCard({
   return (
     <Card className="glass-panel" x-chunk="dashboard-01-chunk-0">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        <CardTitle className="font-medium text-sm">{label}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{formatTrend(trend)}</p>
+        <div className="font-bold text-2xl">{value}</div>
+        <p className="text-muted-foreground text-xs">{formatTrend(trend)}</p>
       </CardContent>
     </Card>
   );
@@ -251,7 +251,7 @@ function RecentSales({ orders, t }: { orders: Orders[]; t: Translator }) {
       </CardHeader>
       <CardContent className="grid gap-8">
         {orders.length === 0 && (
-          <div className="text-sm text-muted-foreground">
+          <div className="text-muted-foreground text-sm">
             {t("dashboard.recentSales.empty")}
           </div>
         )}
@@ -265,17 +265,17 @@ function RecentSales({ orders, t }: { orders: Orders[]; t: Translator }) {
           const initials = getInitials(avatarSource || "BISO");
 
           return (
-            <div key={order.$id} className="flex items-center gap-4">
+            <div className="flex items-center gap-4" key={order.$id}>
               <Avatar className="hidden h-9 w-9 sm:flex">
                 <AvatarImage
-                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`}
                   alt={buyerName}
+                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`}
                 />
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="grid gap-1">
-                <p className="text-sm font-medium leading-none">{buyerName}</p>
-                <p className="text-sm text-muted-foreground">{buyerEmail}</p>
+                <p className="font-medium text-sm leading-none">{buyerName}</p>
+                <p className="text-muted-foreground text-sm">{buyerEmail}</p>
               </div>
               <div className="ml-auto font-medium">{amount}</div>
             </div>
@@ -297,7 +297,5 @@ function getInitials(name: string) {
   if (parts.length === 1) {
     return parts[0]?.[0]?.toUpperCase() ?? "B";
   }
-  return (
-    (parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")
-  ).toUpperCase();
+  return ((parts[0]?.[0] ?? "") + (parts.at(-1)?.[0] ?? "")).toUpperCase();
 }

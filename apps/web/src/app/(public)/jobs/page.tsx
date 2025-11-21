@@ -44,9 +44,9 @@ async function JobsList({ locale }: { locale: "en" | "no" }) {
   return (
     <>
       <JobsHero
-        totalPositions={jobs.length}
-        paidPositions={paidPositions}
         departmentCount={departmentCount}
+        paidPositions={paidPositions}
+        totalPositions={jobs.length}
       />
       <JobsListClient jobs={jobs} />
     </>
@@ -57,12 +57,12 @@ function JobsListSkeleton() {
   return (
     <>
       <div className="relative h-[60vh]">
-        <Skeleton className="w-full h-full" />
+        <Skeleton className="h-full w-full" />
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid md:grid-cols-2 gap-8">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="space-y-4">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid gap-8 md:grid-cols-2">
+          {[...new Array(6)].map((_, i) => (
+            <div className="space-y-4" key={i}>
               <Skeleton className="h-48 w-full" />
               <Skeleton className="h-6 w-3/4" />
               <Skeleton className="h-4 w-full" />

@@ -49,7 +49,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-interface DepartmentFiltersProps {
+type DepartmentFiltersProps = {
   filters: FilterState;
   isPending: boolean;
   updateFilter: (key: keyof FilterState, value: any) => void;
@@ -57,7 +57,7 @@ interface DepartmentFiltersProps {
   setSearchTerm: (term: string) => void;
   campuses: Array<{ id: string; name: string }>;
   types: string[];
-}
+};
 
 export function DepartmentFilters({
   filters,
@@ -106,20 +106,20 @@ export function DepartmentFilters({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row">
         {/* Premium Glass Search Bar */}
-        <div className="relative grow group">
+        <div className="group relative grow">
           <Input
-            value={searchInputValue}
+            className="h-11 border-border/50 bg-card/60 pr-10 pl-11 backdrop-blur-sm transition-all duration-300 focus:border-primary/50 focus:shadow-lg focus:shadow-primary/10"
             onChange={handleSearchInput}
             placeholder="Search departments..."
-            className="pl-11 pr-10 h-11 bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300 focus:shadow-lg focus:shadow-primary/10"
+            value={searchInputValue}
           />
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors duration-300" />
+          <Search className="-translate-y-1/2 absolute top-1/2 left-3.5 h-4 w-4 text-muted-foreground transition-colors duration-300 group-focus-within:text-primary" />
           {searchInputValue && (
             <button
+              className="-translate-y-1/2 absolute top-1/2 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-destructive/20 hover:text-destructive"
               onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-muted/80 backdrop-blur-sm flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-all duration-300 hover:scale-110"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -127,15 +127,15 @@ export function DepartmentFilters({
         </div>
 
         {/* Desktop Filters - Premium Style */}
-        <div className="hidden md:flex gap-3">
+        <div className="hidden gap-3 md:flex">
           {/* Campus Filter */}
           <Select
-            value={filters.campus_id || "all"}
             onValueChange={(value) => {
               updateFilter("campus_id", value === "all" ? undefined : value);
             }}
+            value={filters.campus_id || "all"}
           >
-            <SelectTrigger className="w-[180px] h-11 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all duration-300">
+            <SelectTrigger className="h-11 w-[180px] border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/50">
               <SelectValue placeholder="All Campuses">
                 {filters.campus_id
                   ? campuses.find((c) => c.id === filters.campus_id)?.name ||
@@ -155,12 +155,12 @@ export function DepartmentFilters({
 
           {/* Type Filter */}
           <Select
-            value={filters.type || "all"}
             onValueChange={(value) => {
               updateFilter("type", value === "all" ? undefined : value);
             }}
+            value={filters.type || "all"}
           >
-            <SelectTrigger className="w-[180px] h-11 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all duration-300">
+            <SelectTrigger className="h-11 w-[180px] border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/50">
               <SelectValue placeholder="All Types">
                 {filters.type
                   ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1)
@@ -181,8 +181,8 @@ export function DepartmentFilters({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
+                className="flex h-11 gap-2 border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-card/80"
                 variant="outline"
-                className="flex gap-2 h-11 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 hover:bg-card/80 transition-all duration-300"
               >
                 <Filter size={16} />
                 Status
@@ -190,16 +190,16 @@ export function DepartmentFilters({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="bg-card/95 backdrop-blur-md border-border/50"
+              className="border-border/50 bg-card/95 backdrop-blur-md"
             >
               <DropdownMenuLabel>Status</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="flex gap-2 cursor-pointer"
+                className="flex cursor-pointer gap-2"
                 onClick={() => updateFilter("active", undefined)}
               >
                 {filters.active === undefined && (
-                  <Check size={16} className="text-primary" />
+                  <Check className="text-primary" size={16} />
                 )}
                 <span
                   className={filters.active === undefined ? "font-medium" : ""}
@@ -208,22 +208,22 @@ export function DepartmentFilters({
                 </span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="flex gap-2 cursor-pointer"
+                className="flex cursor-pointer gap-2"
                 onClick={() => updateFilter("active", true)}
               >
                 {filters.active === true && (
-                  <Check size={16} className="text-primary" />
+                  <Check className="text-primary" size={16} />
                 )}
                 <span className={filters.active === true ? "font-medium" : ""}>
                   Active
                 </span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="flex gap-2 cursor-pointer"
+                className="flex cursor-pointer gap-2"
                 onClick={() => updateFilter("active", false)}
               >
                 {filters.active === false && (
-                  <Check size={16} className="text-primary" />
+                  <Check className="text-primary" size={16} />
                 )}
                 <span className={filters.active === false ? "font-medium" : ""}>
                   Inactive
@@ -235,9 +235,9 @@ export function DepartmentFilters({
           {/* Reset Filters Button */}
           {(activeFilterCount > 0 || filters.searchTerm) && (
             <Button
-              variant="ghost"
+              className="h-11 gap-2 transition-all duration-300 hover:bg-destructive/10 hover:text-destructive"
               onClick={resetFilters}
-              className="gap-2 h-11 hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
+              variant="ghost"
             >
               <X size={16} />
               Reset Filters
@@ -246,36 +246,36 @@ export function DepartmentFilters({
         </div>
 
         {/* Mobile Filters Button */}
-        <div className="md:hidden flex justify-end">
-          <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
+        <div className="flex justify-end md:hidden">
+          <Sheet onOpenChange={setShowMobileFilters} open={showMobileFilters}>
             <SheetTrigger asChild>
-              <Button variant="outline" className="gap-2 relative">
+              <Button className="relative gap-2" variant="outline">
                 <SlidersHorizontal size={16} />
                 Filters
                 {activeFilterCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground w-5 h-5 rounded-full text-xs flex items-center justify-center">
+                  <span className="-top-1 -right-1 absolute flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
                     {activeFilterCount}
                   </span>
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:max-w-md">
+            <SheetContent className="w-full sm:max-w-md" side="right">
               <SheetHeader>
                 <SheetTitle>Filters</SheetTitle>
               </SheetHeader>
 
-              <div className="py-6 space-y-6">
+              <div className="space-y-6 py-6">
                 {/* Mobile Status Filter */}
                 <div className="space-y-3">
                   <Label>Status</Label>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="active-filter" className="cursor-pointer">
+                      <Label className="cursor-pointer" htmlFor="active-filter">
                         Show only active departments
                       </Label>
                       <Switch
-                        id="active-filter"
                         checked={filters.active === true}
+                        id="active-filter"
                         onCheckedChange={(checked) =>
                           updateFilter("active", checked ? true : undefined)
                         }
@@ -283,14 +283,14 @@ export function DepartmentFilters({
                     </div>
                     <div className="flex items-center justify-between">
                       <Label
-                        htmlFor="inactive-filter"
                         className="cursor-pointer"
+                        htmlFor="inactive-filter"
                       >
                         Show only inactive departments
                       </Label>
                       <Switch
-                        id="inactive-filter"
                         checked={filters.active === false}
+                        id="inactive-filter"
                         onCheckedChange={(checked) =>
                           updateFilter("active", checked ? false : undefined)
                         }
@@ -303,7 +303,6 @@ export function DepartmentFilters({
                 <div className="space-y-3">
                   <Label>Campus</Label>
                   <Select
-                    value={filters.campus_id || "all"}
                     onValueChange={(value) => {
                       updateFilter(
                         "campus_id",
@@ -311,6 +310,7 @@ export function DepartmentFilters({
                       );
                       setShowMobileFilters(false);
                     }}
+                    value={filters.campus_id || "all"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All Campuses">
@@ -335,11 +335,11 @@ export function DepartmentFilters({
                 <div className="space-y-3">
                   <Label>Department Type</Label>
                   <Select
-                    value={filters.type || "all"}
                     onValueChange={(value) => {
                       updateFilter("type", value === "all" ? undefined : value);
                       setShowMobileFilters(false);
                     }}
+                    value={filters.type || "all"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All Types">
@@ -361,11 +361,11 @@ export function DepartmentFilters({
                 </div>
               </div>
 
-              <SheetFooter className="sm:justify-between gap-4">
+              <SheetFooter className="gap-4 sm:justify-between">
                 <Button
-                  variant="outline"
-                  onClick={resetFilters}
                   className="w-full sm:w-auto"
+                  onClick={resetFilters}
+                  variant="outline"
                 >
                   Reset All
                 </Button>
@@ -380,16 +380,16 @@ export function DepartmentFilters({
 
       {/* Active Filters Display - Premium Pills */}
       {(activeFilterCount > 0 || filters.searchTerm) && (
-        <div className="flex flex-wrap gap-2 animate-in fade-in-50 slide-in-from-top-2">
+        <div className="fade-in-50 slide-in-from-top-2 flex animate-in flex-wrap gap-2">
           {filters.searchTerm && (
-            <div className="bg-linear-to-r from-primary/10 to-accent/10 backdrop-blur-sm border border-primary/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="group flex items-center gap-2 rounded-full border border-primary/20 bg-linear-to-r from-primary/10 to-accent/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
               <span className="font-medium">
                 Search:{" "}
                 <span className="text-primary">{filters.searchTerm}</span>
               </span>
               <button
+                className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={clearSearch}
-                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
               >
                 <X size={14} />
               </button>
@@ -397,7 +397,7 @@ export function DepartmentFilters({
           )}
 
           {filters.campus_id && (
-            <div className="bg-linear-to-r from-blue-500/10 to-blue-600/10 backdrop-blur-sm border border-blue-500/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="group flex items-center gap-2 rounded-full border border-blue-500/20 bg-linear-to-r from-blue-500/10 to-blue-600/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
               <span className="font-medium">
                 Campus:{" "}
                 <span className="text-blue-600">
@@ -405,8 +405,8 @@ export function DepartmentFilters({
                 </span>
               </span>
               <button
+                className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={() => updateFilter("campus_id", undefined)}
-                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
               >
                 <X size={14} />
               </button>
@@ -414,13 +414,13 @@ export function DepartmentFilters({
           )}
 
           {filters.type && (
-            <div className="bg-linear-to-r from-purple-500/10 to-purple-600/10 backdrop-blur-sm border border-purple-500/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="group flex items-center gap-2 rounded-full border border-purple-500/20 bg-linear-to-r from-purple-500/10 to-purple-600/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
               <span className="font-medium">
                 Type: <span className="text-purple-600">{filters.type}</span>
               </span>
               <button
+                className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={() => updateFilter("type", undefined)}
-                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
               >
                 <X size={14} />
               </button>
@@ -428,7 +428,7 @@ export function DepartmentFilters({
           )}
 
           {filters.active !== undefined && filters.active !== true && (
-            <div className="bg-linear-to-r from-amber-500/10 to-amber-600/10 backdrop-blur-sm border border-amber-500/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="group flex items-center gap-2 rounded-full border border-amber-500/20 bg-linear-to-r from-amber-500/10 to-amber-600/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
               <span className="font-medium">
                 Status:{" "}
                 <span className="text-amber-600">
@@ -436,8 +436,8 @@ export function DepartmentFilters({
                 </span>
               </span>
               <button
+                className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={() => updateFilter("active", true)}
-                className="text-muted-foreground hover:text-destructive transition-colors duration-300 hover:scale-110"
               >
                 <X size={14} />
               </button>

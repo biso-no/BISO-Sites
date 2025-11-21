@@ -1,5 +1,7 @@
 export function cleanRagText(input?: string, max = 220): string {
-  if (!input) return "";
+  if (!input) {
+    return "";
+  }
   // Collapse filler dots and spaces produced by PDF table-of-contents extraction
   let t = input
     // Kill long dotted leaders and bullet filler
@@ -28,7 +30,7 @@ export function cleanRagText(input?: string, max = 220): string {
 
   // Truncate nicely
   if (t.length > max) {
-    t = t.slice(0, max - 1).trimEnd() + "…";
+    t = `${t.slice(0, max - 1).trimEnd()}…`;
   }
   return t;
 }

@@ -11,7 +11,7 @@ import { BenefitCard } from "../shared/BenefitCard";
 import { LockedContentOverlay } from "../shared/LockedContentOverlay";
 import { QuickStatsCard } from "../shared/QuickStatsCard";
 
-interface OverviewTabProps {
+type OverviewTabProps = {
   membershipType: string;
   benefitsCount: number;
   daysRemaining: number;
@@ -23,7 +23,7 @@ interface OverviewTabProps {
   isMember: boolean;
   hasBIIdentity: boolean;
   onTabChange: (tab: string) => void;
-}
+};
 
 export function OverviewTab({
   membershipType,
@@ -47,105 +47,105 @@ export function OverviewTab({
   const content = (
     <>
       {/* Quick Stats */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <QuickStatsCard
-          icon={Shield}
-          iconColor="bg-linear-to-br from-[#3DA9E0] to-[#001731]"
-          value={membershipType}
-          label={t("stats.membershipType")}
           badge={{
             text: tCommon("status.active"),
             className: "bg-green-100 text-green-700 border-green-200",
           }}
+          icon={Shield}
+          iconColor="bg-linear-to-br from-[#3DA9E0] to-[#001731]"
+          label={t("stats.membershipType")}
+          value={membershipType}
         />
 
         <QuickStatsCard
           icon={Gift}
           iconColor="bg-linear-to-br from-purple-500 to-purple-700"
-          value={t("stats.benefitsCount", { count: benefitsCount })}
           label={t("stats.benefitsAvailable")}
+          value={t("stats.benefitsCount", { count: benefitsCount })}
         />
 
         <QuickStatsCard
           icon={Clock}
           iconColor="bg-linear-to-br from-orange-500 to-orange-700"
-          value={t("daysRemaining", { days: daysRemaining })}
           label={t("stats.daysUntilRenewal")}
+          value={t("daysRemaining", { days: daysRemaining })}
         />
 
         <QuickStatsCard
           icon={TrendingUp}
           iconColor="bg-linear-to-br from-green-500 to-green-700"
-          value={`~${estimatedSavings} NOK`}
           label={t("stats.estimatedSavings")}
+          value={`~${estimatedSavings} NOK`}
         />
       </div>
 
       {/* Featured Benefits */}
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="font-bold text-2xl text-gray-900 dark:text-gray-100">
             {t("featuredBenefits")}
           </h2>
           <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onTabChange("benefits")}
             className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
+            onClick={() => onTabChange("benefits")}
+            size="sm"
+            variant="outline"
           >
             {t("viewAll")}
           </Button>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {featuredBenefits.map((benefit) => (
             <BenefitCard
-              key={benefit.id}
               benefit={benefit}
               isRevealed={revealedBenefits.has(benefit.id)}
+              key={benefit.id}
             />
           ))}
         </div>
       </div>
 
       {/* Membership Status */}
-      <Card className="p-8 border-0 shadow-lg bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10">
-        <div className="flex items-center justify-between mb-6">
+      <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 p-8 shadow-lg">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h3 className="mb-2 font-bold text-gray-900 text-xl dark:text-gray-100">
               {t("membershipStatus")}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
               {t("statusActive")}
             </p>
           </div>
-          <Badge className="bg-green-100 text-green-700 border-green-200 px-4 py-2">
-            <Check className="w-4 h-4 mr-2" />
+          <Badge className="border-green-200 bg-green-100 px-4 py-2 text-green-700">
+            <Check className="mr-2 h-4 w-4" />
             {tCommon("status.active")}
           </Badge>
         </div>
 
         <div className="space-y-4">
           <div>
-            <div className="flex justify-between text-sm mb-2">
+            <div className="mb-2 flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">
                 {t("timeRemaining")}
               </span>
-              <span className="text-gray-900 dark:text-gray-100 font-medium">
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {t("daysRemaining", { days: daysRemaining })}
               </span>
             </div>
-            <Progress value={progressPercentage} className="h-2" />
+            <Progress className="h-2" value={progressPercentage} />
           </div>
 
           <Separator />
 
-          <div className="grid sm:grid-cols-2 gap-4 text-sm">
+          <div className="grid gap-4 text-sm sm:grid-cols-2">
             <div>
               <span className="text-gray-600 dark:text-gray-400">
                 {t("started")}
               </span>
-              <span className="text-gray-900 dark:text-gray-100 ml-2 font-medium">
+              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
                 {new Date(startDate).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -157,7 +157,7 @@ export function OverviewTab({
               <span className="text-gray-600 dark:text-gray-400">
                 {t("expires")}
               </span>
-              <span className="text-gray-900 dark:text-gray-100 ml-2 font-medium">
+              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
                 {new Date(expiryDate).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -167,7 +167,7 @@ export function OverviewTab({
             </div>
           </div>
 
-          <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white">
+          <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
             {t("renewMembership")}
           </Button>
         </div>
@@ -176,13 +176,13 @@ export function OverviewTab({
   );
 
   return (
-    <TabsContent value="overview" className="space-y-8">
-      {!isMember ? (
+    <TabsContent className="space-y-8" value="overview">
+      {isMember ? (
+        content
+      ) : (
         <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
           {content}
         </LockedContentOverlay>
-      ) : (
-        content
       )}
     </TabsContent>
   );

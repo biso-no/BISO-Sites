@@ -7,7 +7,7 @@ export default async function AdminUsersPage() {
   const users = await getUsers();
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
+    <div className="container mx-auto max-w-7xl px-4 py-8">
       <div className="space-y-6">
         <Suspense fallback={<UserTableSkeleton />}>
           <UserTable initialUsers={users} />

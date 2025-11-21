@@ -1,7 +1,7 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import type { TranslationMap } from "@/lib/utils/content-translations";
 
-export interface EventMetadata {
+export type EventMetadata = {
   start_date?: string;
   end_date?: string;
   start_time?: string;
@@ -18,7 +18,7 @@ export interface EventMetadata {
   highlights?: string[];
   agenda?: { time: string; activity: string }[];
   [key: string]: unknown;
-}
+};
 
 interface EventWithTranslation extends ContentTranslations {
   event_ref: NonNullable<ContentTranslations["event_ref"]>;
@@ -41,10 +41,12 @@ export interface AdminEvent extends Events {
   metadata_parsed: EventMetadata;
 }
 
-function parseEventMetadata(
+function _parseEventMetadata(
   metadataString: string | null | undefined
 ): EventMetadata {
-  if (!metadataString) return {};
+  if (!metadataString) {
+    return {};
+  }
 
   try {
     return JSON.parse(metadataString);
@@ -53,28 +55,30 @@ function parseEventMetadata(
   }
 }
 
-function formatEventPrice(
+function _formatEventPrice(
   price: number | null | undefined,
-  memberPrice?: number | null
+  _memberPrice?: number | null
 ): string {
-  if (!price || price === 0) return "Free";
+  if (!price || price === 0) {
+    return "Free";
+  }
   return `${price} NOK`;
 }
 
-function getEventCategory(metadata: EventMetadata): EventCategory {
+function _getEventCategory(metadata: EventMetadata): EventCategory {
   const category = metadata.category as EventCategory;
   return eventCategories.includes(category) ? category : "Social";
 }
 
-function isCollectionEvent(event: ContentTranslations): boolean {
+function _isCollectionEvent(event: ContentTranslations): boolean {
   return event.event_ref?.is_collection ?? false;
 }
 
-function hasCollectionParent(event: ContentTranslations): boolean {
+function _hasCollectionParent(event: ContentTranslations): boolean {
   return !!event.event_ref?.collection_id;
 }
 
-function getCollectionPricing(
+function _getCollectionPricing(
   event: ContentTranslations
 ): CollectionPricing | null {
   return event.event_ref?.collection_pricing ?? null;

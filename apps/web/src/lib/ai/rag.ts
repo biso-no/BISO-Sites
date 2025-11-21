@@ -15,7 +15,7 @@ export type RagSearchResult = {
 };
 
 // Helper functions for language-aware responses
-function getLanguageInfo(results: any[], queryLanguage: string) {
+function getLanguageInfo(results: any[], _queryLanguage: string) {
   const norwegianDocs = results.filter(
     (r) => r.metadata?.documentLanguage === "norwegian"
   ).length;
@@ -56,20 +56,19 @@ function generateSearchMessage(
     }
     message += " Hver resultat inkluderer en lenke for å se dokumentet.";
     return message;
-  } else {
-    let message = `Found ${resultCount} relevant documents for your query.`;
-    if (norwegianDocs > 0) {
-      message += ` ${norwegianDocs} are in Norwegian (authoritative).`;
-    }
-    if (englishDocs > 0) {
-      message += ` ${englishDocs} are English translations.`;
-    }
-    if (authoritativeDocs > 0) {
-      message += ` ${authoritativeDocs} are current/authoritative documents.`;
-    }
-    message += " Each result includes a link to view the document publicly.";
-    return message;
   }
+  let message = `Found ${resultCount} relevant documents for your query.`;
+  if (norwegianDocs > 0) {
+    message += ` ${norwegianDocs} are in Norwegian (authoritative).`;
+  }
+  if (englishDocs > 0) {
+    message += ` ${englishDocs} are English translations.`;
+  }
+  if (authoritativeDocs > 0) {
+    message += ` ${authoritativeDocs} are current/authoritative documents.`;
+  }
+  message += " Each result includes a link to view the document publicly.";
+  return message;
 }
 
 export const searchSharePoint = tool({

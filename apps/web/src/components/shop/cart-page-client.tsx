@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Clock,
   CreditCard,
-  MapPin,
   Minus,
   Package,
   Plus,
@@ -30,10 +29,10 @@ import { useEffect, useState, useTransition } from "react";
 import { cleanupExpiredReservations } from "@/app/actions/cart-reservations";
 import { useCart } from "@/lib/contexts/cart-context";
 
-interface CartPageClientProps {
+type CartPageClientProps = {
   isMember?: boolean;
   userId?: string | null;
-}
+};
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",
@@ -69,13 +68,13 @@ export function CartPageClient({
 
   const hasUnlockableDiscounts =
     !isMember && items.some((item) => item.memberPrice);
-  const potentialSavings = !isMember
-    ? regularSubtotal -
+  const potentialSavings = isMember
+    ? 0
+    : regularSubtotal -
       items.reduce((sum, item) => {
         const price = item.memberPrice || item.regularPrice;
         return sum + price * item.quantity;
-      }, 0)
-    : 0;
+      }, 0);
 
   // Get error from URL
   const error = searchParams.get("error");
@@ -98,7 +97,7 @@ export function CartPageClient({
         return;
       }
 
-      const now = new Date().getTime();
+      const now = Date.now();
       const expirationTime = new Date(earliestExpiration).getTime();
       const diff = expirationTime - now;
 
@@ -109,8 +108,8 @@ export function CartPageClient({
         return;
       }
 
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
+      const minutes = Math.floor(diff / 60_000);
+      const seconds = Math.floor((diff % 60_000) / 1000);
       setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
     };
 
@@ -121,7 +120,7 @@ export function CartPageClient({
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [items, getEarliestExpiration, refreshCart]);
+  }, [getEarliestExpiration, refreshCart]);
 
   const handleQuantityChange = (itemId: string, change: number) => {
     const item = items.find((i) => i.id === itemId);
@@ -160,37 +159,37 @@ export function CartPageClient({
       {/* Hero Section */}
       <div className="relative h-[40vh] overflow-hidden">
         <ImageWithFallback
-          src="https://images.unsplash.com/photo-1472851294608-062f824d29cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9wcGluZyUyMGNhcnR8ZW58MXx8fHwxNzYyMTY1MTQ1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
           alt="Shopping Cart"
+          className="h-full w-full object-cover"
           fill
-          className="w-full h-full object-cover"
+          src="https://images.unsplash.com/photo-1472851294608-062f824d29cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9wcGluZyUyMGNhcnR8ZW58MXx8fHwxNzYyMTY1MTQ1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="mx-auto max-w-4xl px-4 text-center">
             <motion.button
-              onClick={() => router.push("/shop")}
-              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
+              className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-[#3DA9E0]"
+              initial={{ opacity: 0, x: -20 }}
+              onClick={() => router.push("/shop")}
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
               Back to Shop
             </motion.button>
 
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 30 }}
               transition={{ duration: 0.8 }}
             >
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <ShoppingCart className="w-12 h-12 text-[#3DA9E0]" />
+              <div className="mb-4 flex items-center justify-center gap-2">
+                <ShoppingCart className="h-12 w-12 text-[#3DA9E0]" />
               </div>
-              <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">
+              <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
                 Your Cart
               </h1>
-              <p className="text-white/90 text-lg">
+              <p className="text-lg text-white/90">
                 {items.length} {items.length === 1 ? "item" : "items"} ready for
                 pickup
               </p>
@@ -199,10 +198,10 @@ export function CartPageClient({
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="mx-auto max-w-6xl px-4 py-12">
         {/* Error Messages */}
         {error === "checkout_failed" && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert className="mb-6" variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Failed to create checkout session. Please try again or contact
@@ -212,7 +211,7 @@ export function CartPageClient({
         )}
 
         {error === "payment_failed" && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert className="mb-6" variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Payment failed. Please try again or use a different payment
@@ -233,8 +232,8 @@ export function CartPageClient({
 
         {isLoading ? (
           // Loading State
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-4">
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="space-y-4 lg:col-span-2">
               <Skeleton className="h-48 w-full" />
               <Skeleton className="h-48 w-full" />
             </div>
@@ -246,35 +245,35 @@ export function CartPageClient({
         ) : items.length === 0 ? (
           // Empty Cart
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
+            className="py-16 text-center"
+            initial={{ opacity: 0, y: 20 }}
           >
-            <ShoppingCart className="w-24 h-24 text-gray-300 mx-auto mb-6" />
-            <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+            <ShoppingCart className="mx-auto mb-6 h-24 w-24 text-gray-300" />
+            <h2 className="mb-4 font-bold text-2xl text-gray-900">
               Your cart is empty
             </h2>
-            <p className="text-gray-600 mb-8 text-lg">
+            <p className="mb-8 text-gray-600 text-lg">
               Start adding some amazing BISO products to your cart!
             </p>
             <Button
+              className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
               onClick={() => router.push("/shop")}
-              className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
             >
               Continue Shopping
             </Button>
           </motion.div>
         ) : (
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid gap-8 lg:grid-cols-3">
             {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="space-y-4 lg:col-span-2">
               {/* Countdown Timer */}
               {timeRemaining && (
                 <Alert className="border-blue-200 bg-blue-50">
                   <Clock className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-800 flex items-center gap-2">
+                  <AlertDescription className="flex items-center gap-2 text-blue-800">
                     <span className="font-medium">Items reserved for:</span>
-                    <span className="font-mono font-bold">{timeRemaining}</span>
+                    <span className="font-bold font-mono">{timeRemaining}</span>
                   </AlertDescription>
                 </Alert>
               )}
@@ -297,25 +296,25 @@ export function CartPageClient({
 
                   return (
                     <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -100 }}
-                      transition={{ delay: index * 0.1 }}
+                      initial={{ opacity: 0, y: 20 }}
+                      key={item.id}
                       layout
+                      transition={{ delay: index * 0.1 }}
                     >
-                      <Card className="p-6 border-0 shadow-lg">
+                      <Card className="border-0 p-6 shadow-lg">
                         <div className="flex gap-6">
                           {/* Product Image */}
-                          <div className="relative w-32 h-32 shrink-0 rounded-lg overflow-hidden">
+                          <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-lg">
                             <ImageWithFallback
+                              alt={item.name}
+                              className="object-cover"
+                              fill
                               src={
                                 item.image ||
                                 "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080"
                               }
-                              alt={item.name}
-                              fill
-                              className="object-cover"
                             />
                             <Badge
                               className={`absolute top-2 left-2 ${categoryColors[item.category]}`}
@@ -326,40 +325,40 @@ export function CartPageClient({
 
                           {/* Product Details */}
                           <div className="grow">
-                            <div className="flex items-start justify-between mb-2">
+                            <div className="mb-2 flex items-start justify-between">
                               <div>
-                                <h3 className="text-gray-900 mb-1 font-semibold">
+                                <h3 className="mb-1 font-semibold text-gray-900">
                                   {item.name}
                                 </h3>
                                 {item.memberOnly && (
-                                  <Badge className="bg-orange-500 text-white border-0 mb-2">
-                                    <Users className="w-3 h-3 mr-1" />
+                                  <Badge className="mb-2 border-0 bg-orange-500 text-white">
+                                    <Users className="mr-1 h-3 w-3" />
                                     Members Only
                                   </Badge>
                                 )}
                               </div>
                               <Button
-                                variant="ghost"
-                                size="sm"
+                                className="text-red-500 hover:bg-red-50 hover:text-red-700"
                                 onClick={() => removeItem(item.id)}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                size="sm"
+                                variant="ghost"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
 
                             {/* Selected Options */}
                             {item.selectedOptions &&
                               Object.keys(item.selectedOptions).length > 0 && (
-                                <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                                  <p className="text-sm text-gray-500 mb-1">
+                                <div className="mb-3 rounded-lg bg-gray-50 p-3">
+                                  <p className="mb-1 text-gray-500 text-sm">
                                     Selected options:
                                   </p>
                                   {Object.entries(item.selectedOptions).map(
                                     ([key, value]) => (
                                       <p
+                                        className="text-gray-700 text-sm"
                                         key={key}
-                                        className="text-sm text-gray-700"
                                       >
                                         <strong>{key}:</strong> {value}
                                       </p>
@@ -369,33 +368,29 @@ export function CartPageClient({
                               )}
 
                             {/* Price and Quantity */}
-                            <div className="flex items-center justify-between mt-4">
+                            <div className="mt-4 flex items-center justify-between">
                               {/* Quantity Control */}
                               <div className="flex items-center gap-3">
-                                <span className="text-sm text-gray-600">
+                                <span className="text-gray-600 text-sm">
                                   Quantity:
                                 </span>
-                                <div className="flex items-center gap-2 border border-gray-300 rounded-lg">
+                                <div className="flex items-center gap-2 rounded-lg border border-gray-300">
                                   <Button
-                                    variant="ghost"
-                                    size="sm"
+                                    className="h-8 w-8 p-0 disabled:opacity-50"
+                                    disabled={item.quantity <= 1}
                                     onClick={() =>
                                       handleQuantityChange(item.id, -1)
                                     }
-                                    disabled={item.quantity <= 1}
-                                    className="h-8 w-8 p-0 disabled:opacity-50"
+                                    size="sm"
+                                    variant="ghost"
                                   >
-                                    <Minus className="w-4 h-4 text-gray-900 hover:text-blue-800" />
+                                    <Minus className="h-4 w-4 text-gray-900 hover:text-blue-800" />
                                   </Button>
                                   <span className="w-8 text-center font-medium text-gray-900">
                                     {item.quantity}
                                   </span>
                                   <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleQuantityChange(item.id, 1)
-                                    }
+                                    className="h-8 w-8 p-0 disabled:opacity-50"
                                     disabled={
                                       (item.stock !== null &&
                                         item.quantity >= item.stock) ||
@@ -404,20 +399,24 @@ export function CartPageClient({
                                         item.quantity >=
                                           item.metadata.max_per_order)
                                     }
-                                    className="h-8 w-8 p-0 disabled:opacity-50"
+                                    onClick={() =>
+                                      handleQuantityChange(item.id, 1)
+                                    }
+                                    size="sm"
+                                    variant="ghost"
                                   >
-                                    <Plus className="w-4 h-4 text-gray-900 hover:text-blue-800" />
+                                    <Plus className="h-4 w-4 text-gray-900 hover:text-blue-800" />
                                   </Button>
                                 </div>
                                 {item.stock !== null && item.stock <= 10 && (
-                                  <span className="text-xs text-orange-600">
+                                  <span className="text-orange-600 text-xs">
                                     Only {item.stock} available
                                   </span>
                                 )}
                                 {item.metadata?.max_per_order &&
                                   item.quantity >=
                                     item.metadata.max_per_order && (
-                                    <span className="text-xs text-red-600">
+                                    <span className="text-red-600 text-xs">
                                       Max {item.metadata.max_per_order} per
                                       order
                                     </span>
@@ -428,25 +427,25 @@ export function CartPageClient({
                               <div className="text-right">
                                 {hasDiscount ? (
                                   <div>
-                                    <div className="text-gray-400 line-through text-sm">
+                                    <div className="text-gray-400 text-sm line-through">
                                       {item.regularPrice * item.quantity} NOK
                                     </div>
-                                    <div className="text-[#3DA9E0] font-bold">
+                                    <div className="font-bold text-[#3DA9E0]">
                                       {itemTotal} NOK
                                     </div>
-                                    <div className="text-xs text-green-600">
+                                    <div className="text-green-600 text-xs">
                                       Save {savings} NOK
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-gray-900 font-bold">
+                                  <div className="font-bold text-gray-900">
                                     {itemTotal} NOK
                                   </div>
                                 )}
                                 {!isMember &&
                                   item.memberPrice &&
                                   item.memberPrice < item.regularPrice && (
-                                    <div className="text-xs text-gray-500 mt-1">
+                                    <div className="mt-1 text-gray-500 text-xs">
                                       Members:{" "}
                                       {item.memberPrice * item.quantity} NOK
                                     </div>
@@ -467,23 +466,23 @@ export function CartPageClient({
               {/* Member Benefits Alert */}
               {hasUnlockableDiscounts && potentialSavings > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
                 >
                   <Alert className="border-[#3DA9E0] bg-linear-to-br from-[#3DA9E0]/10 to-cyan-50">
                     <Sparkles className="h-4 w-4 text-[#3DA9E0]" />
                     <AlertDescription>
-                      <p className="text-sm text-gray-900 mb-2">
+                      <p className="mb-2 text-gray-900 text-sm">
                         <strong>Unlock member discounts!</strong>
                       </p>
-                      <p className="text-sm text-gray-600 mb-3">
+                      <p className="mb-3 text-gray-600 text-sm">
                         You could save {potentialSavings} NOK on this order by
                         becoming a BISO member.
                       </p>
                       <Button
-                        size="sm"
+                        className="w-full bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90"
                         onClick={() => router.push("/shop?category=Membership")}
-                        className="w-full bg-[#3DA9E0] hover:bg-[#3DA9E0]/90 text-white"
+                        size="sm"
                       >
                         Join BISO - From 350 NOK
                       </Button>
@@ -494,16 +493,16 @@ export function CartPageClient({
 
               {/* Order Summary Card */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.2 }}
               >
-                <Card className="p-6 border-0 shadow-lg sticky top-24">
-                  <h3 className="text-gray-900 mb-4 text-xl font-bold">
+                <Card className="sticky top-24 border-0 p-6 shadow-lg">
+                  <h3 className="mb-4 font-bold text-gray-900 text-xl">
                     Order Summary
                   </h3>
 
-                  <div className="space-y-3 mb-4">
+                  <div className="mb-4 space-y-3">
                     <div className="flex justify-between text-gray-600">
                       <span>
                         Subtotal (
@@ -518,7 +517,7 @@ export function CartPageClient({
                     {isMember && totalSavings > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span className="flex items-center gap-1">
-                          <Tag className="w-4 h-4" />
+                          <Tag className="h-4 w-4" />
                           Member Discount
                         </span>
                         <span className="font-medium">-{totalSavings} NOK</span>
@@ -528,20 +527,20 @@ export function CartPageClient({
 
                   <Separator className="my-4" />
 
-                  <div className="flex justify-between mb-6">
-                    <span className="text-gray-900 font-bold text-lg">
+                  <div className="mb-6 flex justify-between">
+                    <span className="font-bold text-gray-900 text-lg">
                       Total
                     </span>
                     <div className="text-right">
-                      <div className="text-[#3DA9E0] font-bold text-2xl">
+                      <div className="font-bold text-2xl text-[#3DA9E0]">
                         {subtotal} NOK
                       </div>
                     </div>
                   </div>
 
                   {isMember && totalSavings > 0 && (
-                    <div className="mb-4 p-3 bg-green-50 rounded-lg text-center">
-                      <p className="text-sm text-green-700">
+                    <div className="mb-4 rounded-lg bg-green-50 p-3 text-center">
+                      <p className="text-green-700 text-sm">
                         🎉 You&apos;re saving{" "}
                         <strong>{totalSavings} NOK</strong> with your
                         membership!
@@ -550,18 +549,18 @@ export function CartPageClient({
                   )}
 
                   <Button
-                    onClick={handleCheckout}
+                    className="mb-3 w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 disabled:opacity-70"
                     disabled={isPending}
-                    className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white mb-3 disabled:opacity-70"
+                    onClick={handleCheckout}
                   >
-                    <CreditCard className="w-4 h-4 mr-2" />
+                    <CreditCard className="mr-2 h-4 w-4" />
                     {isPending ? "Processing..." : "Proceed to Checkout"}
                   </Button>
 
                   <Button
-                    variant="outline"
-                    onClick={() => router.push("/shop")}
                     className="w-full border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
+                    onClick={() => router.push("/shop")}
+                    variant="outline"
                   >
                     Continue Shopping
                   </Button>
@@ -570,18 +569,18 @@ export function CartPageClient({
 
               {/* Pickup Information */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.3 }}
               >
-                <Card className="p-6 border-0 shadow-lg bg-blue-50">
+                <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                   <div className="flex items-start gap-3">
-                    <Package className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <Package className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
                     <div>
-                      <h4 className="mb-2 text-gray-900 font-semibold">
+                      <h4 className="mb-2 font-semibold text-gray-900">
                         Campus Pickup
                       </h4>
-                      <p className="text-sm text-gray-700 mb-2">
+                      <p className="mb-2 text-gray-700 text-sm">
                         All items will be available for pickup at the BISO
                         office at your campus.
                       </p>

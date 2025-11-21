@@ -18,7 +18,9 @@ export default async function AdminOrderDetail({
   const { id } = await params;
   const t = await getTranslations("adminShop");
   const order: any = await getOrder(id);
-  if (!order) return notFound();
+  if (!order) {
+    return notFound();
+  }
 
   const items = (() => {
     try {
@@ -29,7 +31,7 @@ export default async function AdminOrderDetail({
   })() as any[];
 
   return (
-    <div className="p-4 grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6 p-4 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>
@@ -44,7 +46,7 @@ export default async function AdminOrderDetail({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               {t("orders.detail.labels.status")}
             </span>
             <Badge>{order.status}</Badge>
@@ -100,8 +102,8 @@ export default async function AdminOrderDetail({
 
             return (
               <div
-                key={`${it.product_id}-${it.variation_id || "base"}`}
                 className="rounded-lg border p-4 text-sm"
+                key={`${it.product_id}-${it.variation_id || "base"}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -109,11 +111,11 @@ export default async function AdminOrderDetail({
                       {it.title || it.product_slug}
                     </div>
                     {it.variation_name ? (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         {t("orders.details.variation")}: {it.variation_name}
                       </div>
                     ) : null}
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {t("orders.details.quantity")}: {it.quantity}
                     </div>
                   </div>
@@ -159,7 +161,7 @@ export default async function AdminOrderDetail({
             );
           })}
           {items.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-muted-foreground text-sm">
               {t("orders.details.noItems")}
             </div>
           ) : null}

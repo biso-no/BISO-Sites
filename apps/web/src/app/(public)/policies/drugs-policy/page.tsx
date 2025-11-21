@@ -13,12 +13,12 @@ export default async function DrugsPolicyPage() {
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title={t("title")}
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Policies" },
           { label: t("title") },
         ]}
+        title={t("title")}
       />
       <div className="prose max-w-none space-y-4">
         <p>{t("intro")}</p>

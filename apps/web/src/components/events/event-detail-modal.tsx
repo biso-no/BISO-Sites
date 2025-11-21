@@ -22,11 +22,11 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-interface EventDetailModalProps {
+type EventDetailModalProps = {
   event: ContentTranslations;
   isMember?: boolean;
   onClose: () => void;
-}
+};
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",
@@ -82,35 +82,35 @@ export function EventDetailModal({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        initial={{ opacity: 0 }}
         onClick={onClose}
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
+          className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          initial={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header Image */}
           <div className="relative h-80 overflow-hidden rounded-t-2xl">
             <ImageWithFallback
-              src={imageUrl}
               alt={event.title}
-              fill
               className="object-cover"
+              fill
+              src={imageUrl}
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/40 to-transparent" />
 
             {/* Close Button */}
             <button
+              className="absolute top-4 right-4 rounded-full bg-white/90 p-2 transition-colors hover:bg-white"
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white transition-colors"
             >
-              <X className="w-6 h-6 text-gray-900" />
+              <X className="h-6 w-6 text-gray-900" />
             </button>
 
             {/* Category Badge */}
@@ -121,34 +121,34 @@ export function EventDetailModal({
                 {category}
               </Badge>
               {memberPrice && !isMember && (
-                <Badge className="bg-green-500 text-white border-0 flex items-center gap-1">
-                  <Tag className="w-3 h-3" />
+                <Badge className="flex items-center gap-1 border-0 bg-green-500 text-white">
+                  <Tag className="h-3 w-3" />
                   Member Discount
                 </Badge>
               )}
             </div>
 
             {/* Title and Price */}
-            <div className="absolute bottom-0 left-0 right-0 p-8">
-              <div className="flex justify-between items-end">
+            <div className="absolute right-0 bottom-0 left-0 p-8">
+              <div className="flex items-end justify-between">
                 <div className="flex-1">
-                  <h2 className="text-white text-4xl font-bold mb-2">
+                  <h2 className="mb-2 font-bold text-4xl text-white">
                     {event.title}
                   </h2>
                 </div>
                 <div className="ml-4">
                   {memberPrice && isMember ? (
                     <div className="text-right">
-                      <div className="text-white/60 line-through text-sm">
+                      <div className="text-sm text-white/60 line-through">
                         {price}
                       </div>
-                      <div className="text-white text-2xl font-bold">
+                      <div className="font-bold text-2xl text-white">
                         {memberPrice}
                       </div>
                       <div className="text-white/80 text-xs">Member Price</div>
                     </div>
                   ) : (
-                    <div className="text-white text-2xl font-bold">{price}</div>
+                    <div className="font-bold text-2xl text-white">{price}</div>
                   )}
                 </div>
               </div>
@@ -158,10 +158,10 @@ export function EventDetailModal({
           {/* Content */}
           <div className="p-8">
             {/* Event Details */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="mb-8 grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <Calendar className="w-5 h-5 text-[#3DA9E0] mt-1" />
+                  <Calendar className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                   <div>
                     <div className="font-medium text-gray-900">Date</div>
                     <div className="text-gray-600">{startDate}</div>
@@ -169,7 +169,7 @@ export function EventDetailModal({
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-[#3DA9E0] mt-1" />
+                  <Clock className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                   <div>
                     <div className="font-medium text-gray-900">Time</div>
                     <div className="text-gray-600">{timeRange}</div>
@@ -179,7 +179,7 @@ export function EventDetailModal({
 
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-[#3DA9E0] mt-1" />
+                  <MapPin className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                   <div>
                     <div className="font-medium text-gray-900">Location</div>
                     <div className="text-gray-600">
@@ -190,7 +190,7 @@ export function EventDetailModal({
 
                 {attendees > 0 && (
                   <div className="flex items-start gap-3">
-                    <Users className="w-5 h-5 text-[#3DA9E0] mt-1" />
+                    <Users className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                     <div>
                       <div className="font-medium text-gray-900">Attendees</div>
                       <div className="text-gray-600">{attendees} attending</div>
@@ -202,9 +202,9 @@ export function EventDetailModal({
 
             {/* Member Price Info */}
             {memberPrice && !isMember && (
-              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
                 <div className="flex items-center gap-2 text-green-800">
-                  <Tag className="w-4 h-4" />
+                  <Tag className="h-4 w-4" />
                   <span className="font-medium">
                     Members get this event for {memberPrice}! Join BISO to save.
                   </span>
@@ -214,11 +214,11 @@ export function EventDetailModal({
 
             {/* Description */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              <h3 className="mb-4 font-bold text-2xl text-gray-900">
                 About This Event
               </h3>
               <div className="prose prose-gray max-w-none">
-                <p className="text-gray-600 whitespace-pre-line">
+                <p className="whitespace-pre-line text-gray-600">
                   {event.description}
                 </p>
               </div>
@@ -227,13 +227,13 @@ export function EventDetailModal({
             {/* Highlights */}
             {highlights.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                <h3 className="mb-4 font-bold text-2xl text-gray-900">
                   Event Highlights
                 </h3>
-                <ul className="grid md:grid-cols-2 gap-3">
+                <ul className="grid gap-3 md:grid-cols-2">
                   {highlights.map((highlight: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#3DA9E0] mt-2 shrink-0" />
+                    <li className="flex items-start gap-2" key={idx}>
+                      <div className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#3DA9E0]" />
                       <span className="text-gray-600">{highlight}</span>
                     </li>
                   ))}
@@ -244,17 +244,17 @@ export function EventDetailModal({
             {/* Agenda */}
             {agenda.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                <h3 className="mb-4 font-bold text-2xl text-gray-900">
                   Agenda
                 </h3>
                 <div className="space-y-4">
                   {agenda.map(
                     (item: { time: string; activity: string }, idx: number) => (
-                      <div key={idx} className="flex gap-4">
-                        <div className="shrink-0 w-20">
+                      <div className="flex gap-4" key={idx}>
+                        <div className="w-20 shrink-0">
                           <Badge
-                            variant="outline"
                             className="border-[#3DA9E0] text-[#3DA9E0]"
+                            variant="outline"
                           >
                             {item.time}
                           </Badge>
@@ -271,21 +271,21 @@ export function EventDetailModal({
             <div className="flex gap-4">
               {eventData?.ticket_url ? (
                 <Button
+                  className="flex-1 border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
                   onClick={() => window.open(eventData.ticket_url!, "_blank")}
-                  className="flex-1 bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0"
                 >
                   Get Tickets on Tickster
-                  <ExternalLink className="w-4 h-4 ml-2" />
+                  <ExternalLink className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
-                <Button className="flex-1 bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0">
+                <Button className="flex-1 border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
                   Register Now
                 </Button>
               )}
               <Button
+                className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
                 onClick={onClose}
                 variant="outline"
-                className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
               >
                 Close
               </Button>

@@ -28,7 +28,9 @@ const parseMetadata = <
   raw: unknown,
   fallback: T = FALLBACK_OBJECT as T
 ): T => {
-  if (!raw) return fallback;
+  if (!raw) {
+    return fallback;
+  }
   if (typeof raw === "string") {
     return parseJSONSafe<T>(raw, fallback);
   }
@@ -94,7 +96,7 @@ export const PRODUCT_SELECT_FIELDS = [
 
 // DEPRECATED: normalizeEventRow has been replaced with transformEventData in events.ts
 // This function is kept for backward compatibility but is no longer used in the codebase
-const normalizeEventRow = (row: WithTranslations<Events>): AdminEvent => {
+const _normalizeEventRow = (row: WithTranslations<Events>): AdminEvent => {
   const translationRefs = ensureTranslationArray(row.translation_refs);
   const metadata = parseMetadata<EventMetadata>(row.metadata);
 
@@ -141,7 +143,7 @@ export const normalizeProductRow = (
   } as ProductWithTranslations;
 };
 
-const normalizeNewsRow = (
+const _normalizeNewsRow = (
   row: WithTranslations<News>
 ): NewsItemWithTranslations => {
   const translationRefs = ensureTranslationArray(row.translation_refs);

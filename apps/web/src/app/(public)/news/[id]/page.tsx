@@ -15,7 +15,9 @@ export default async function PublicNewsDetail({
   const locale = await getLocale();
   const item = await getNewsItem(id, locale);
 
-  if (!item) return notFound();
+  if (!item) {
+    return notFound();
+  }
   if (item.news_ref.status && item.news_ref.status !== "published") {
     return notFound();
   }
@@ -23,7 +25,11 @@ export default async function PublicNewsDetail({
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title={item.title}
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "News", href: "/news" },
+          { label: item.title },
+        ]}
         subtitle={[
           new Date(item.news_ref.$createdAt).toLocaleDateString(),
           item.news_ref.campus?.name,
@@ -31,19 +37,15 @@ export default async function PublicNewsDetail({
         ]
           .filter(Boolean)
           .join(" · ")}
-        breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "News", href: "/news" },
-          { label: item.title },
-        ]}
+        title={item.title}
       />
       {item.news_ref.image && (
-        <div className="relative w-full h-64 rounded-lg overflow-hidden">
+        <div className="relative h-64 w-full overflow-hidden rounded-lg">
           <Image
-            src={item.news_ref.image}
             alt={item.title}
-            fill
             className="object-cover"
+            fill
+            src={item.news_ref.image}
           />
         </div>
       )}

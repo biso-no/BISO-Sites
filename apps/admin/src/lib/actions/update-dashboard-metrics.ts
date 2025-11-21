@@ -18,12 +18,12 @@ export type MetricType =
 /**
  * Stored metric data structure
  */
-export interface StoredMetric {
+export type StoredMetric = {
   metric_type: MetricType;
   metric_data: string; // JSON stringified data
   date_range: DateRange;
   computed_at: string; // ISO datetime
-}
+};
 
 /**
  * Get a cached metric from the dashboard_metrics table
@@ -110,7 +110,7 @@ export async function storeCachedMetric(
  */
 export function isMetricStale(
   metric: StoredMetric | null,
-  maxAgeMinutes: number = 60
+  maxAgeMinutes = 60
 ): boolean {
   if (!metric) {
     return true;
@@ -141,12 +141,12 @@ export async function getOrComputeMetric<T>(
   metricType: MetricType,
   dateRange: DateRange,
   computeFn: () => Promise<T>,
-  maxAgeMinutes: number = 60
+  maxAgeMinutes = 60
 ): Promise<T> {
   const cached = await getCachedMetric(metricType, dateRange);
 
   if (!isMetricStale(cached, maxAgeMinutes)) {
-    return JSON.parse(cached!.metric_data) as T;
+    return JSON.parse(cached?.metric_data) as T;
   }
 
   // Compute fresh data

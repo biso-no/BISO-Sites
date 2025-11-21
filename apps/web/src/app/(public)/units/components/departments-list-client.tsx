@@ -9,13 +9,15 @@ import {
 } from "./departments-filters-client";
 import { DepartmentsGrid } from "./departments-grid";
 
-interface DepartmentsListClientProps {
+type DepartmentsListClientProps = {
   departments: ContentTranslations[];
   availableTypes: string[];
-}
+};
 
 const stripHtml = (html?: string | null) => {
-  if (!html) return "";
+  if (!html) {
+    return "";
+  }
   return html
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
@@ -40,7 +42,9 @@ export function DepartmentsListClient({
   const filteredDepartments = useMemo(() => {
     return departments.filter((dept) => {
       const deptRef = dept.department_ref;
-      if (!deptRef) return false;
+      if (!deptRef) {
+        return false;
+      }
 
       // Campus filter
       if (filters.campusId && deptRef.campus_id !== filters.campusId) {
@@ -74,15 +78,19 @@ export function DepartmentsListClient({
   }, [departments, filters]);
 
   // Sort departments by campus name, then by department name
-  const sortedDepartments = useMemo(() => {
-    return [...filteredDepartments].sort((a, b) => {
-      const campusCompare = (
-        a.department_ref?.campus?.name || ""
-      ).localeCompare(b.department_ref?.campus?.name || "");
-      if (campusCompare !== 0) return campusCompare;
-      return a.title.localeCompare(b.title);
-    });
-  }, [filteredDepartments]);
+  const sortedDepartments = useMemo(
+    () =>
+      [...filteredDepartments].sort((a, b) => {
+        const campusCompare = (
+          a.department_ref?.campus?.name || ""
+        ).localeCompare(b.department_ref?.campus?.name || "");
+        if (campusCompare !== 0) {
+          return campusCompare;
+        }
+        return a.title.localeCompare(b.title);
+      }),
+    [filteredDepartments]
+  );
 
   return (
     <>
@@ -93,9 +101,9 @@ export function DepartmentsListClient({
       />
 
       {/* Results Count */}
-      <div className="flex items-center justify-between mt-8 mb-8">
+      <div className="mt-8 mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">
+          <h2 className="font-semibold text-2xl text-foreground">
             {sortedDepartments.length}{" "}
             {sortedDepartments.length === 1 ? "Enhet" : "Enheter"}
           </h2>
@@ -108,10 +116,10 @@ export function DepartmentsListClient({
       {/* Departments Grid with Animation */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${filters.search}-${filters.campusId}-${filters.type}`}
-          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          initial={{ opacity: 0 }}
+          key={`${filters.search}-${filters.campusId}-${filters.type}`}
           transition={{ duration: 0.3 }}
         >
           <DepartmentsGrid departments={sortedDepartments} />

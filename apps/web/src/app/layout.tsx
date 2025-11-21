@@ -23,7 +23,7 @@ export default async function RootLayout({
   const locale = await getLocale();
   const messages = await getMessages();
   return (
-    <html lang={locale} className={`${museoSans.variable} ${inter.variable}`}>
+    <html className={`${museoSans.variable} ${inter.variable}`} lang={locale}>
       <body>
         <Providers>
           <NextIntlClientProvider locale={locale} messages={messages}>

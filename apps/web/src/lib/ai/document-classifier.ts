@@ -2,7 +2,7 @@
  * Document classifier for language detection, version parsing, and authority ranking
  */
 
-export interface DocumentClassification {
+export type DocumentClassification = {
   language: "norwegian" | "english" | "mixed" | "unknown";
   version: {
     detected: boolean;
@@ -22,7 +22,7 @@ export interface DocumentClassification {
     languageFolder?: "norwegian" | "english";
     category?: string; // 'statutes', 'local-laws', etc.
   };
-}
+};
 
 export class DocumentClassifier {
   /**
@@ -73,7 +73,9 @@ export class DocumentClassifier {
       lastModified?: string;
     }>
   ): { index: number; classification: DocumentClassification } | null {
-    if (documents.length === 0) return null;
+    if (documents.length === 0) {
+      return null;
+    }
 
     const classified = documents.map((doc, index) => ({
       index,
@@ -91,7 +93,9 @@ export class DocumentClassifier {
       const authorityDiff =
         b.classification.authority.priority -
         a.classification.authority.priority;
-      if (authorityDiff !== 0) return authorityDiff;
+      if (authorityDiff !== 0) {
+        return authorityDiff;
+      }
 
       // If same priority, prefer more recent
       if (a.lastModified && b.lastModified) {
@@ -204,9 +208,15 @@ export class DocumentClassifier {
       sampleText.includes(word)
     ).length;
 
-    if (norwegianMatches > englishMatches * 1.5) return "norwegian";
-    if (englishMatches > norwegianMatches * 1.5) return "english";
-    if (norwegianMatches > 0 && englishMatches > 0) return "mixed";
+    if (norwegianMatches > englishMatches * 1.5) {
+      return "norwegian";
+    }
+    if (englishMatches > norwegianMatches * 1.5) {
+      return "english";
+    }
+    if (norwegianMatches > 0 && englishMatches > 0) {
+      return "mixed";
+    }
 
     return "unknown";
   }
@@ -225,9 +235,9 @@ export class DocumentClassifier {
     for (const pattern of versionPatterns) {
       const match = fileName.match(pattern);
       if (match) {
-        const major = parseInt(match[1]);
-        const minor = match[2] ? parseInt(match[2]) : undefined;
-        const patch = match[3] ? parseInt(match[3]) : undefined;
+        const major = Number.parseInt(match[1], 10);
+        const minor = match[2] ? Number.parseInt(match[2], 10) : undefined;
+        const patch = match[3] ? Number.parseInt(match[3], 10) : undefined;
 
         return {
           detected: true,
@@ -307,8 +317,12 @@ export class DocumentClassifier {
     // Version priority (higher versions are more authoritative)
     if (version.detected) {
       priority += version.major * 10;
-      if (version.minor !== undefined) priority += version.minor;
-      if (version.patch !== undefined) priority += version.patch * 0.1;
+      if (version.minor !== undefined) {
+        priority += version.minor;
+      }
+      if (version.patch !== undefined) {
+        priority += version.patch * 0.1;
+      }
     } else {
       // No version detected, might be less authoritative
       priority -= 5;
@@ -417,11 +431,17 @@ export class DocumentClassifier {
       queryLower.includes(word)
     ).length;
 
-    if (norwegianMatches > englishMatches) return "norwegian";
-    if (englishMatches > norwegianMatches) return "english";
+    if (norwegianMatches > englishMatches) {
+      return "norwegian";
+    }
+    if (englishMatches > norwegianMatches) {
+      return "english";
+    }
 
     // Check for specific Norwegian characters
-    if (/[æøå]/.test(queryLower)) return "norwegian";
+    if (/[æøå]/.test(queryLower)) {
+      return "norwegian";
+    }
 
     return "mixed";
   }

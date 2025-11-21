@@ -3,20 +3,20 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
-interface ProcessedReceiptData {
+type ProcessedReceiptData = {
   date: string | null;
   amount: number | null;
   description: string | null;
   confidence: number;
   currency?: string | null;
-}
+};
 
 /**
  * Process a receipt file using OCR to extract data
  * This calls the client-side API route that handles the OCR processing
  */
 export async function processReceipt(
-  fileId: string,
+  _fileId: string,
   fileUrl: string
 ): Promise<{
   success: boolean;
@@ -134,7 +134,7 @@ Generate only the description text, no additional formatting or explanations.`;
 /**
  * Process multiple receipts in parallel
  */
-async function processMultipleReceipts(
+async function _processMultipleReceipts(
   files: Array<{ id: string; url: string }>
 ): Promise<{
   success: boolean;
@@ -160,13 +160,12 @@ async function processMultipleReceipts(
     const processedResults = results.map((result) => {
       if (result.status === "fulfilled") {
         return result.value;
-      } else {
-        return {
-          fileId: "unknown",
-          data: null,
-          error: result.reason?.message || "Processing failed",
-        };
       }
+      return {
+        fileId: "unknown",
+        data: null,
+        error: result.reason?.message || "Processing failed",
+      };
     });
 
     return {
@@ -186,7 +185,7 @@ async function processMultipleReceipts(
 /**
  * Validate and enhance receipt data using AI
  */
-async function validateReceiptData(data: {
+async function _validateReceiptData(data: {
   description: string;
   amount: number;
   date: string;

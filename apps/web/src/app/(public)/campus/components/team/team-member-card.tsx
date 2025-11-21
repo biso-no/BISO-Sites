@@ -8,9 +8,9 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Linkedin, Mail } from "lucide-react";
 
-interface TeamMemberCardProps {
+type TeamMemberCardProps = {
   member: DepartmentBoard;
-}
+};
 
 function getInitials(name: string): string {
   return name
@@ -23,32 +23,32 @@ function getInitials(name: string): string {
 
 export function TeamMemberCard({ member }: TeamMemberCardProps) {
   return (
-    <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all text-center group">
-      <Avatar className="w-32 h-32 mx-auto mb-4 ring-4 ring-[#3DA9E0]/20 group-hover:ring-[#3DA9E0] transition-all">
+    <Card className="group border-0 p-6 text-center shadow-lg transition-all hover:shadow-xl">
+      <Avatar className="mx-auto mb-4 h-32 w-32 ring-4 ring-[#3DA9E0]/20 transition-all group-hover:ring-[#3DA9E0]">
         <AvatarImage
-          src={member.imageUrl || undefined}
           alt={member.name || ""}
+          src={member.imageUrl || undefined}
         />
-        <AvatarFallback className="bg-linear-to-br from-[#3DA9E0] to-[#001731] text-white text-2xl">
+        <AvatarFallback className="bg-linear-to-br from-[#3DA9E0] to-[#001731] text-2xl text-white">
           {member.name ? getInitials(member.name) : "??"}
         </AvatarFallback>
       </Avatar>
-      <h3 className="text-gray-900 mb-1">{member.name}</h3>
-      <p className="text-[#3DA9E0] mb-4">{member.role}</p>
+      <h3 className="mb-1 text-gray-900">{member.name}</h3>
+      <p className="mb-4 text-[#3DA9E0]">{member.role}</p>
       <div className="flex justify-center gap-3">
         <Button
-          variant="outline"
-          size="sm"
           className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
+          size="sm"
+          variant="outline"
         >
-          <Mail className="w-4 h-4" />
+          <Mail className="h-4 w-4" />
         </Button>
         <Button
-          variant="outline"
-          size="sm"
           className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
+          size="sm"
+          variant="outline"
         >
-          <Linkedin className="w-4 h-4" />
+          <Linkedin className="h-4 w-4" />
         </Button>
       </div>
     </Card>

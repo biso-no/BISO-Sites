@@ -146,7 +146,9 @@ export async function updateNotificationPriority(
  * Map notice color to notification type
  */
 function mapColorToType(color?: string | null): NotificationType {
-  if (!color) return "info";
+  if (!color) {
+    return "info";
+  }
 
   const normalized = color.toLowerCase();
 
@@ -178,10 +180,16 @@ function mapColorToType(color?: string | null): NotificationType {
 function mapPriorityToLevel(
   priority?: number | null
 ): "low" | "medium" | "high" {
-  if (!priority) return "low";
+  if (!priority) {
+    return "low";
+  }
 
-  if (priority >= 3) return "high";
-  if (priority >= 2) return "medium";
+  if (priority >= 3) {
+    return "high";
+  }
+  if (priority >= 2) {
+    return "medium";
+  }
   return "low";
 }
 

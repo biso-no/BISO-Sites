@@ -67,9 +67,7 @@ export async function POST(req: Request) {
         inputSchema: z.object({
           city: z.string(),
         }),
-        execute: async ({ city }) => {
-          return `The weather in ${city} is sunny`;
-        },
+        execute: async ({ city }) => `The weather in ${city} is sunny`,
       }),
     },
   });

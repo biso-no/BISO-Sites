@@ -4,7 +4,6 @@ export async function loadMessages(locale: Locale) {
   switch (locale) {
     case "no":
       return (await import("./no")).default;
-    case "en":
     default:
       return (await import("./en")).default;
   }

@@ -41,11 +41,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface RichTextEditorProps {
+type RichTextEditorProps = {
   content: string;
   onChange: (content: string) => void;
   editable?: boolean;
-}
+};
 
 type Level = 1 | 2 | 3;
 
@@ -55,14 +55,8 @@ export function RichTextEditor({
   editable = true,
 }: RichTextEditorProps) {
   // Check if the editor appears empty for placeholder purposes
-  const isEditorEmpty = (html: string) => {
-    return (
-      !html ||
-      html === "<p></p>" ||
-      html === "<p><br></p>" ||
-      html.trim() === ""
-    );
-  };
+  const isEditorEmpty = (html: string) =>
+    !html || html === "<p></p>" || html === "<p><br></p>" || html.trim() === "";
 
   // Used to stop event propagation
   const stopPropagation = (e: React.MouseEvent) => {
@@ -71,7 +65,7 @@ export function RichTextEditor({
 
   const [isHtmlMode, setIsHtmlMode] = useState(false);
   const [htmlContent, setHtmlContent] = useState(content);
-  const [isEmpty, setIsEmpty] = useState(isEditorEmpty(content));
+  const [_isEmpty, setIsEmpty] = useState(isEditorEmpty(content));
 
   // Add a reference to track if we should update parent
   const shouldUpdateParentRef = useRef(true);
@@ -132,7 +126,9 @@ export function RichTextEditor({
   // Safely handle HTML mode toggle
   const handleHtmlModeToggle = useCallback(
     (newMode: boolean) => {
-      if (!editor) return;
+      if (!editor) {
+        return;
+      }
 
       try {
         shouldUpdateParentRef.current = false;
@@ -183,7 +179,9 @@ export function RichTextEditor({
       e.preventDefault();
       e.stopPropagation();
 
-      if (!editor) return;
+      if (!editor) {
+        return;
+      }
 
       try {
         shouldUpdateParentRef.current = false;
@@ -205,7 +203,9 @@ export function RichTextEditor({
       e.preventDefault();
       e.stopPropagation();
 
-      if (!editor) return;
+      if (!editor) {
+        return;
+      }
 
       try {
         shouldUpdateParentRef.current = false;
@@ -227,7 +227,9 @@ export function RichTextEditor({
       e.preventDefault();
       e.stopPropagation();
 
-      if (!editor) return;
+      if (!editor) {
+        return;
+      }
 
       try {
         const previousUrl = editor.getAttributes("link").href;
@@ -264,7 +266,9 @@ export function RichTextEditor({
       e.preventDefault();
       e.stopPropagation();
 
-      if (!editor) return;
+      if (!editor) {
+        return;
+      }
 
       try {
         const url = window.prompt("Image URL");
@@ -286,31 +290,31 @@ export function RichTextEditor({
   return (
     <div className="glass-card overflow-hidden" onClick={stopPropagation}>
       {editable && (
-        <div className="flex justify-between items-center px-3 py-2 border-b border-primary/10 bg-white/50 dark:bg-card/50">
+        <div className="flex items-center justify-between border-primary/10 border-b bg-white/50 px-3 py-2 dark:bg-card/50">
           <div className="flex gap-1">
             <Button
-              variant={isHtmlMode ? "ghost" : "secondary"}
-              size="sm"
+              disabled={!isHtmlMode}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleHtmlModeToggle(false);
               }}
-              disabled={!isHtmlMode}
+              size="sm"
+              variant={isHtmlMode ? "ghost" : "secondary"}
             >
               Visual
             </Button>
             <Button
-              variant={isHtmlMode ? "secondary" : "ghost"}
-              size="sm"
+              disabled={isHtmlMode}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleHtmlModeToggle(true);
               }}
-              disabled={isHtmlMode}
+              size="sm"
+              variant={isHtmlMode ? "secondary" : "ghost"}
             >
-              <FileCode className="h-4 w-4 mr-2" />
+              <FileCode className="mr-2 h-4 w-4" />
               HTML
             </Button>
           </div>
@@ -318,28 +322,28 @@ export function RichTextEditor({
           {!isHtmlMode && (
             <div className="flex gap-1">
               <Button
-                variant="ghost"
-                size="icon"
+                className="h-8 w-8"
+                disabled={!editor.can().undo()}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   editor.chain().focus().undo().run();
                 }}
-                disabled={!editor.can().undo()}
-                className="h-8 w-8"
+                size="icon"
+                variant="ghost"
               >
                 <Undo className="h-4 w-4" />
               </Button>
               <Button
-                variant="ghost"
-                size="icon"
+                className="h-8 w-8"
+                disabled={!editor.can().redo()}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   editor.chain().focus().redo().run();
                 }}
-                disabled={!editor.can().redo()}
-                className="h-8 w-8"
+                size="icon"
+                variant="ghost"
               >
                 <Redo className="h-4 w-4" />
               </Button>
@@ -348,18 +352,29 @@ export function RichTextEditor({
         </div>
       )}
 
-      {!isHtmlMode ? (
+      {isHtmlMode ? (
+        <div>
+          <Textarea
+            className="min-h-[400px] resize-none rounded-none border-0 p-6 font-mono text-sm"
+            disabled={!editable}
+            onChange={(e) => handleHtmlChange(e.target.value)}
+            onClick={stopPropagation}
+            placeholder="Enter HTML content here..."
+            value={htmlContent}
+          />
+        </div>
+      ) : (
         <div>
           {editable && (
-            <div className="flex flex-wrap gap-0.5 p-2 bg-primary/5 dark:bg-primary/10 border-b border-primary/10">
-              <div className="flex items-center border-r pr-1 mr-1">
+            <div className="flex flex-wrap gap-0.5 border-primary/10 border-b bg-primary/5 p-2 dark:bg-primary/10">
+              <div className="mr-1 flex items-center border-r pr-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={stopPropagation}>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-1 text-xs font-normal"
+                      className="h-8 gap-1 font-normal text-xs"
                       onClick={stopPropagation}
+                      size="sm"
+                      variant="ghost"
                     >
                       <Heading2 className="h-4 w-4" />
                       <span>Heading</span>
@@ -367,25 +382,25 @@ export function RichTextEditor({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" onClick={stopPropagation}>
                     <DropdownMenuItem
-                      onClick={(e) => handleHeadingChange(1, e)}
                       className="flex items-center gap-2"
+                      onClick={(e) => handleHeadingChange(1, e)}
                     >
                       <Heading1 className="h-4 w-4" />
-                      <span className="text-lg font-bold">Heading 1</span>
+                      <span className="font-bold text-lg">Heading 1</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={(e) => handleHeadingChange(2, e)}
                       className="flex items-center gap-2"
+                      onClick={(e) => handleHeadingChange(2, e)}
                     >
                       <Heading2 className="h-4 w-4" />
-                      <span className="text-base font-bold">Heading 2</span>
+                      <span className="font-bold text-base">Heading 2</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={(e) => handleHeadingChange(3, e)}
                       className="flex items-center gap-2"
+                      onClick={(e) => handleHeadingChange(3, e)}
                     >
                       <Heading3 className="h-4 w-4" />
-                      <span className="text-sm font-bold">Heading 3</span>
+                      <span className="font-bold text-sm">Heading 3</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -393,187 +408,187 @@ export function RichTextEditor({
 
               <div className="flex gap-0.5">
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("bold")}
-                  onPressedChange={() => {
-                    editor.chain().focus().toggleBold().run();
-                  }}
                   aria-label="Bold"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().toggleBold().run();
+                  }}
+                  pressed={editor.isActive("bold")}
+                  size="sm"
                 >
                   <Bold className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("italic")}
-                  onPressedChange={() => {
-                    editor.chain().focus().toggleItalic().run();
-                  }}
                   aria-label="Italic"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().toggleItalic().run();
+                  }}
+                  pressed={editor.isActive("italic")}
+                  size="sm"
                 >
                   <Italic className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("underline")}
-                  onPressedChange={() => {
-                    editor.chain().focus().toggleUnderline().run();
-                  }}
                   aria-label="Underline"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().toggleUnderline().run();
+                  }}
+                  pressed={editor.isActive("underline")}
+                  size="sm"
                 >
                   <UnderlineIcon className="h-4 w-4" />
                 </Toggle>
               </div>
 
-              <div className="w-px h-8 bg-border mx-1" />
+              <div className="mx-1 h-8 w-px bg-border" />
 
               <div className="flex gap-0.5">
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("bulletList")}
-                  onPressedChange={() => {
-                    editor.chain().focus().toggleBulletList().run();
-                  }}
                   aria-label="Bullet List"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().toggleBulletList().run();
+                  }}
+                  pressed={editor.isActive("bulletList")}
+                  size="sm"
                 >
                   <List className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("orderedList")}
-                  onPressedChange={() => {
-                    editor.chain().focus().toggleOrderedList().run();
-                  }}
                   aria-label="Ordered List"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().toggleOrderedList().run();
+                  }}
+                  pressed={editor.isActive("orderedList")}
+                  size="sm"
                 >
                   <ListOrdered className="h-4 w-4" />
                 </Toggle>
               </div>
 
-              <div className="w-px h-8 bg-border mx-1" />
+              <div className="mx-1 h-8 w-px bg-border" />
 
               <div className="flex gap-0.5">
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("link")}
-                  onPressedChange={(pressed) => {
+                  aria-label="Link"
+                  className="h-8 w-8 p-0"
+                  onClick={stopPropagation}
+                  onPressedChange={(_pressed) => {
                     handleSetLink({
                       preventDefault: () => {},
                       stopPropagation: () => {},
                     } as React.MouseEvent);
                   }}
-                  aria-label="Link"
-                  className="h-8 w-8 p-0"
-                  onClick={stopPropagation}
+                  pressed={editor.isActive("link")}
+                  size="sm"
                 >
                   <LinkIcon className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("image")}
-                  onPressedChange={(pressed) => {
+                  aria-label="Image"
+                  className="h-8 w-8 p-0"
+                  onClick={stopPropagation}
+                  onPressedChange={(_pressed) => {
                     handleAddImage({
                       preventDefault: () => {},
                       stopPropagation: () => {},
                     } as React.MouseEvent);
                   }}
-                  aria-label="Image"
-                  className="h-8 w-8 p-0"
-                  onClick={stopPropagation}
+                  pressed={editor.isActive("image")}
+                  size="sm"
                 >
                   <ImageIcon className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive("codeBlock")}
-                  onPressedChange={() => {
-                    editor.chain().focus().toggleCodeBlock().run();
-                  }}
                   aria-label="Code Block"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().toggleCodeBlock().run();
+                  }}
+                  pressed={editor.isActive("codeBlock")}
+                  size="sm"
                 >
                   <Code className="h-4 w-4" />
                 </Toggle>
               </div>
 
-              <div className="w-px h-8 bg-border mx-1" />
+              <div className="mx-1 h-8 w-px bg-border" />
 
               <div className="flex gap-0.5">
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive({ textAlign: "left" })}
-                  onPressedChange={() => {
-                    editor.chain().focus().setTextAlign("left").run();
-                  }}
                   aria-label="Align Left"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().setTextAlign("left").run();
+                  }}
+                  pressed={editor.isActive({ textAlign: "left" })}
+                  size="sm"
                 >
                   <AlignLeft className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive({ textAlign: "center" })}
-                  onPressedChange={() => {
-                    editor.chain().focus().setTextAlign("center").run();
-                  }}
                   aria-label="Align Center"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().setTextAlign("center").run();
+                  }}
+                  pressed={editor.isActive({ textAlign: "center" })}
+                  size="sm"
                 >
                   <AlignCenter className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive({ textAlign: "right" })}
-                  onPressedChange={() => {
-                    editor.chain().focus().setTextAlign("right").run();
-                  }}
                   aria-label="Align Right"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().setTextAlign("right").run();
+                  }}
+                  pressed={editor.isActive({ textAlign: "right" })}
+                  size="sm"
                 >
                   <AlignRight className="h-4 w-4" />
                 </Toggle>
 
                 <Toggle
-                  size="sm"
-                  pressed={editor.isActive({ textAlign: "justify" })}
-                  onPressedChange={() => {
-                    editor.chain().focus().setTextAlign("justify").run();
-                  }}
                   aria-label="Align Justify"
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
+                  onPressedChange={() => {
+                    editor.chain().focus().setTextAlign("justify").run();
+                  }}
+                  pressed={editor.isActive({ textAlign: "justify" })}
+                  size="sm"
                 >
                   <AlignJustify className="h-4 w-4" />
                 </Toggle>
               </div>
 
-              <div className="w-px h-8 bg-border mx-1" />
+              <div className="mx-1 h-8 w-px bg-border" />
 
               <Button
-                variant="ghost"
-                size="sm"
+                className="h-8 gap-1 font-normal text-xs"
                 onClick={handleClearFormat}
-                className="h-8 gap-1 text-xs font-normal"
+                size="sm"
+                variant="ghost"
               >
                 <Sparkles className="h-4 w-4" />
                 Clear Format
@@ -582,28 +597,17 @@ export function RichTextEditor({
           )}
 
           <div
-            className={`${editable ? "min-h-[300px] p-6 cursor-text relative" : "p-0"}`}
+            className={`${editable ? "relative min-h-[300px] cursor-text p-6" : "p-0"}`}
             onClick={(e) => {
               stopPropagation(e);
               editable && editor.chain().focus().run();
             }}
           >
             <EditorContent
-              editor={editor}
               className="prose prose-sm sm:prose-base lg:prose-lg max-w-none"
+              editor={editor}
             />
           </div>
-        </div>
-      ) : (
-        <div>
-          <Textarea
-            value={htmlContent}
-            onChange={(e) => handleHtmlChange(e.target.value)}
-            className="min-h-[400px] rounded-none border-0 font-mono text-sm resize-none p-6"
-            placeholder="Enter HTML content here..."
-            disabled={!editable}
-            onClick={stopPropagation}
-          />
         </div>
       )}
 

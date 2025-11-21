@@ -74,7 +74,9 @@ function AdminAssistantContext() {
   }, [pathname]);
 
   useEffect(() => {
-    if (!activeConfig) return;
+    if (!activeConfig) {
+      return;
+    }
     const dispose = runtime.registerModelContextProvider({
       getModelContext: () => ({
         instructions: activeConfig.instructions(ctx),
@@ -99,7 +101,9 @@ function AdminAssistantContext() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ expenseId, note }),
       });
-      if (!res.ok) throw new Error(`Approve failed: ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`Approve failed: ${res.status}`);
+      }
       return await res.json();
     },
   });
@@ -111,19 +115,22 @@ function AdminAssistantContext() {
   >({
     toolName: "approveExpense",
     render: ({ args, status, result }) => {
-      if (status.type === "running")
+      if (status.type === "running") {
         return (
           <div className="text-sm">Approving expense {args.expenseId}…</div>
         );
-      if (status.type === "incomplete" && status.reason === "error")
-        return <div className="text-sm text-red-500">Failed to approve.</div>;
-      if (result)
+      }
+      if (status.type === "incomplete" && status.reason === "error") {
+        return <div className="text-red-500 text-sm">Failed to approve.</div>;
+      }
+      if (result) {
         return (
-          <div className="text-sm text-green-600">
+          <div className="text-green-600 text-sm">
             Approved by {result.approvedBy} at{" "}
             {new Date(result.at).toLocaleString()}
           </div>
         );
+      }
       return null;
     },
   });

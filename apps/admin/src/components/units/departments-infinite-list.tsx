@@ -3,12 +3,12 @@
 import type { Departments } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getDepartmentsClient } from "@/lib/actions/departments";
 import { DepartmentCard } from "./department-card";
 
-interface DepartmentsInfiniteListProps {
+type DepartmentsInfiniteListProps = {
   initialDepartments: (Departments & {
     campusName?: string;
     displayTitle?: string;
@@ -24,7 +24,7 @@ interface DepartmentsInfiniteListProps {
     type?: string;
     search?: string;
   };
-}
+};
 
 export function DepartmentsInfiniteList({
   initialDepartments,
@@ -54,14 +54,16 @@ export function DepartmentsInfiniteList({
   }, [filters, initialDepartments, initialHasMore, pageSize]);
 
   const loadMore = useCallback(async () => {
-    if (isLoading || !hasMore) return;
+    if (isLoading || !hasMore) {
+      return;
+    }
 
     setIsLoading(true);
     try {
       const result = await getDepartmentsClient({
         ...filters,
         limit: pageSize,
-        offset: offset,
+        offset,
       });
 
       if (result.departments.length > 0) {
@@ -88,7 +90,9 @@ export function DepartmentsInfiniteList({
   // Intersection Observer for infinite scroll
   useEffect(() => {
     // Don't set up observer until after initial render
-    if (!hasInitialized.current) return;
+    if (!hasInitialized.current) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -117,11 +121,11 @@ export function DepartmentsInfiniteList({
 
   if (departments.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
-        <div className="text-muted-foreground text-lg">
+      <div className="flex flex-col items-center justify-center space-y-4 py-16 text-center">
+        <div className="text-lg text-muted-foreground">
           No departments found
         </div>
-        <p className="text-sm text-muted-foreground max-w-md">
+        <p className="max-w-md text-muted-foreground text-sm">
           {filters.search ||
           filters.campus_id ||
           filters.type ||
@@ -130,9 +134,9 @@ export function DepartmentsInfiniteList({
             : "Get started by creating your first department."}
         </p>
         <Button
-          variant="outline"
+          className="mt-4 gap-2"
           onClick={() => router.push("/admin/units/new")}
-          className="gap-2 mt-4"
+          variant="outline"
         >
           <Plus className="h-4 w-4" />
           Create Department
@@ -143,18 +147,18 @@ export function DepartmentsInfiniteList({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {departments.map((department) => (
           <DepartmentCard
-            key={department.$id}
             department={department}
+            key={department.$id}
             onEdit={handleEditDepartment}
           />
         ))}
       </div>
 
       {/* Infinite scroll trigger */}
-      <div ref={observerTarget} className="flex justify-center py-8">
+      <div className="flex justify-center py-8" ref={observerTarget}>
         {isLoading && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -162,7 +166,7 @@ export function DepartmentsInfiniteList({
           </div>
         )}
         {!hasMore && departments.length > 0 && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             All departments loaded ({departments.length} total)
           </p>
         )}

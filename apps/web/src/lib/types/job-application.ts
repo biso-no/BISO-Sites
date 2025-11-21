@@ -22,11 +22,11 @@ export interface JobApplication extends Models.Row {
   };
 }
 
-export interface JobApplicationFormData {
+export type JobApplicationFormData = {
   applicant_name: string;
   applicant_email: string;
   applicant_phone?: string;
   cover_letter?: string;
   gdpr_consent: boolean;
   resume?: File;
-}
+};

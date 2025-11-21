@@ -11,8 +11,8 @@ const testMode = process.env.VIPPS_TEST_MODE === "true";
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
 
 export const client: ReturnType<typeof Client> = Client({
-  merchantSerialNumber: merchantSerialNumber,
-  subscriptionKey: subscriptionKey,
+  merchantSerialNumber,
+  subscriptionKey,
   useTestMode: testMode,
   retryRequests: false,
 });
@@ -27,7 +27,7 @@ export async function getAccessToken(): Promise<string> {
 
 // ============= Types =============
 
-export interface CheckoutSessionParams {
+export type CheckoutSessionParams = {
   userId: string;
   items: Array<{
     productId: string;
@@ -53,21 +53,21 @@ export interface CheckoutSessionParams {
     postalCode?: string;
     country?: string;
   };
-}
+};
 
-export interface VippsCheckoutResponse {
+export type VippsCheckoutResponse = {
   checkoutUrl: string;
   orderId: string;
   sessionId: string;
-}
+};
 
-export interface VippsPaymentState {
+export type VippsPaymentState = {
   state: "CREATED" | "AUTHORIZED" | "ABORTED" | "EXPIRED" | "TERMINATED";
   amount?: {
     value: number;
     currency: string;
   };
-}
+};
 
 // ============= Order Management =============
 

@@ -16,7 +16,7 @@ export async function getAvailableStock(productId: string): Promise<number> {
 
     // If stock is not tracked (null), return Infinity
     if (product.stock === null || product.stock === undefined) {
-      return Infinity;
+      return Number.POSITIVE_INFINITY;
     }
 
     const totalStock = product.stock as number;
@@ -29,9 +29,10 @@ export async function getAvailableStock(productId: string): Promise<number> {
     ]);
 
     // Sum reserved quantities
-    const reservedQuantity = reservations.rows.reduce((sum, reservation) => {
-      return sum + (reservation.quantity as number);
-    }, 0);
+    const reservedQuantity = reservations.rows.reduce(
+      (sum, reservation) => sum + (reservation.quantity as number),
+      0
+    );
 
     return Math.max(0, totalStock - reservedQuantity);
   } catch (error) {
@@ -124,7 +125,7 @@ export async function deleteReservation(
  * Delete all reservations for current session user
  * RLS automatically filters to current user
  */
-async function deleteUserReservations(): Promise<void> {
+async function _deleteUserReservations(): Promise<void> {
   try {
     const { db } = await createSessionClient();
 
@@ -170,7 +171,7 @@ export async function cleanupExpiredReservations(): Promise<number> {
  * Get current session user's reservation for a product
  * RLS automatically filters to current user
  */
-async function getUserReservation(
+async function _getUserReservation(
   productId: string
 ): Promise<{ quantity: number; expiresAt: string } | null> {
   try {
