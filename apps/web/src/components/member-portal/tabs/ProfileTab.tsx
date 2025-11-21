@@ -74,7 +74,7 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
         <div className="flex items-center gap-6 mb-8">
           <Avatar className="w-24 h-24 border-4 border-[#3DA9E0]/20">
             {user.avatar && <AvatarImage src={user.avatar} alt={user.name || ''} />}
-            <AvatarFallback className="bg-gradient-to-br from-[#3DA9E0] to-[#001731] text-white text-2xl">
+            <AvatarFallback className="bg-linear-to-br from-[#3DA9E0] to-[#001731] text-white text-2xl">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -221,7 +221,7 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="outline">{t('cancel')}</Button>
           <Button 
-            className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+            className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
             onClick={handleSave}
             disabled={isPending}
           >

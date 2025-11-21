@@ -25,7 +25,7 @@ export function GlassCard({
 }: GlassCardProps) {
   const variantStyles = {
     default: "bg-card/60 backdrop-blur-sm border-border/50",
-    premium: "bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-md border-primary/20 shadow-lg",
+    premium: "bg-linear-to-br from-card/80 to-card/40 backdrop-blur-md border-primary/20 shadow-lg",
     subtle: "bg-card/40 backdrop-blur-sm border-border/30"
   };
 
@@ -44,7 +44,7 @@ export function GlassCard({
     >
       {/* Gradient overlay effect */}
       {variant === 'premium' && (
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
       )}
 
       {(title || description) && (

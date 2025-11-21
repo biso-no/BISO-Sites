@@ -125,7 +125,7 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
           >
             <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
-                <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
+                <CheckCircle2 className="w-8 h-8 text-green-600 shrink-0" />
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Thank You for Your Purchase!</h2>
                   <p className="text-gray-700 mb-4">
@@ -160,7 +160,7 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
           >
             <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
-                <XCircle className={`w-8 h-8 ${config.color} flex-shrink-0`} />
+                <XCircle className={`w-8 h-8 ${config.color} shrink-0`} />
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
                     {order.status === 'cancelled' ? 'Order Cancelled' : 'Payment Failed'}
@@ -310,7 +310,7 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
               >
                 <Card className="p-6 border-0 shadow-lg bg-blue-50">
                   <div className="flex items-start gap-3">
-                    <Package className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <Package className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                     <div>
                       <h4 className="mb-2 text-gray-900 font-semibold">Pickup Details</h4>
                       <p className="text-sm text-gray-700 mb-2">

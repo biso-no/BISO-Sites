@@ -3,9 +3,9 @@ import { Skeleton } from '@repo/ui/components/ui/skeleton'
 
 export function MemberPortalSkeleton() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
+    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
       {/* Header Skeleton */}
-      <div className="bg-gradient-to-r from-[#001731] to-[#3DA9E0] text-white py-8">
+      <div className="bg-linear-to-r from-[#001731] to-[#3DA9E0] text-white py-8">
         <div className="max-w-7xl mx-auto px-4">
           <Skeleton className="h-10 w-32 mb-6 bg-white/20" />
           <div className="flex items-center justify-between">

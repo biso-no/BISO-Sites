@@ -208,7 +208,7 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+            className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
           >
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? "Saving..." : "Save Changes"}
@@ -230,7 +230,7 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
         <Button
           onClick={() => onNext(profile)}
           disabled={!canProceed}
-          className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+          className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
         >
           Next: Campus & Department
           <ChevronRight className="w-4 h-4 ml-2" />

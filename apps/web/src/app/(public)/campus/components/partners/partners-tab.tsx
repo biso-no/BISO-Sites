@@ -52,9 +52,9 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
       </motion.div>
 
       <section className="space-y-8">
-        <Card className="p-8 border-0 shadow-xl bg-gradient-to-br from-[#001731]/5 to-white">
+        <Card className="p-8 border-0 shadow-xl bg-linear-to-br from-[#001731]/5 to-white">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#001731] to-[#3DA9E0] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-linear-to-br from-[#001731] to-[#3DA9E0] flex items-center justify-center">
               <Briefcase className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-gray-900">
@@ -78,7 +78,7 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
         </Card>
 
         {/* CTA Card */}
-        <Card className="p-12 text-center border-0 shadow-xl bg-gradient-to-br from-[#3DA9E0]/10 to-[#001731]/10">
+        <Card className="p-12 text-center border-0 shadow-xl bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -95,7 +95,7 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
             </p>
             <Button
               asChild
-              className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+              className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
             >
               <Link href="/contact">
                 {locale === "en"

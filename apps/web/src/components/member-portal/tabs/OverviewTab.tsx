@@ -50,7 +50,7 @@ export function OverviewTab({
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <QuickStatsCard
           icon={Shield}
-          iconColor="bg-gradient-to-br from-[#3DA9E0] to-[#001731]"
+          iconColor="bg-linear-to-br from-[#3DA9E0] to-[#001731]"
           value={membershipType}
           label={t('stats.membershipType')}
           badge={{
@@ -61,21 +61,21 @@ export function OverviewTab({
 
         <QuickStatsCard
           icon={Gift}
-          iconColor="bg-gradient-to-br from-purple-500 to-purple-700"
+          iconColor="bg-linear-to-br from-purple-500 to-purple-700"
           value={t('stats.benefitsCount', { count: benefitsCount })}
           label={t('stats.benefitsAvailable')}
         />
 
         <QuickStatsCard
           icon={Clock}
-          iconColor="bg-gradient-to-br from-orange-500 to-orange-700"
+          iconColor="bg-linear-to-br from-orange-500 to-orange-700"
           value={t('daysRemaining', { days: daysRemaining })}
           label={t('stats.daysUntilRenewal')}
         />
 
         <QuickStatsCard
           icon={TrendingUp}
-          iconColor="bg-gradient-to-br from-green-500 to-green-700"
+          iconColor="bg-linear-to-br from-green-500 to-green-700"
           value={`~${estimatedSavings} NOK`}
           label={t('stats.estimatedSavings')}
         />
@@ -107,7 +107,7 @@ export function OverviewTab({
       </div>
 
       {/* Membership Status */}
-      <Card className="p-8 border-0 shadow-lg bg-gradient-to-br from-[#3DA9E0]/10 to-[#001731]/10">
+      <Card className="p-8 border-0 shadow-lg bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
@@ -157,7 +157,7 @@ export function OverviewTab({
             </div>
           </div>
 
-          <Button className="w-full bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white">
+          <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white">
             {t('renewMembership')}
           </Button>
         </div>

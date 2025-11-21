@@ -46,9 +46,9 @@ export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer bg-gradient-to-br from-white to-[#3DA9E0]/5">
+            <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer bg-linear-to-br from-white to-[#3DA9E0]/5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
                   <Award className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-gray-900">{area}</h3>

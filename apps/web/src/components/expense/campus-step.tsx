@@ -147,7 +147,7 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
         <Button
           onClick={handleNext}
           disabled={!canProceed}
-          className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+          className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
         >
           Next: Upload Receipts
           <ChevronRight className="w-4 h-4 ml-2" />

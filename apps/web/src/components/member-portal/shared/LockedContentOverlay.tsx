@@ -60,7 +60,7 @@ export function LockedContentOverlay({ hasBIIdentity, children }: LockedContentO
           className="max-w-2xl w-full"
         >
           <Card className="p-8 border-2 border-[#3DA9E0]/20 dark:border-[#3DA9E0]/30 shadow-xl dark:bg-gray-900/90 dark:backdrop-blur-sm">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
               <Lock className="w-8 h-8 text-white" />
             </div>
 
@@ -79,7 +79,7 @@ export function LockedContentOverlay({ hasBIIdentity, children }: LockedContentO
                   </AlertDescription>
                 </Alert>
                 <Button 
-                  className="w-full bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+                  className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
                   onClick={handleLinkBIEmail}
                 >
                   <LinkIcon className="w-4 h-4 mr-2" />
@@ -119,7 +119,7 @@ export function LockedContentOverlay({ hasBIIdentity, children }: LockedContentO
                 </div>
 
                 <Button 
-                  className="w-full bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+                  className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
                   onClick={() => handlePurchase('year')}
                   disabled={isPending}
                 >

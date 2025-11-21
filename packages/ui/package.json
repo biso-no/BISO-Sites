@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@repo/eslint-config": "*",
-    "@tailwindcss/postcss": "^4.1.16",
+    "@tailwindcss/postcss": "^4.1.17",
     "@tailwindcss/typography": "^0.5.19",
     "@repo/typescript-config": "*",
     "@types/node": "^22.15.3",
@@ -24,7 +24,7 @@
     "@types/react-dom": "19.2.0",
     "eslint": "^9.38.0",
     "typescript": "5.9.2",
-    "tailwindcss": "^4.1.16"
+    "tailwindcss": "^4.1.17"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

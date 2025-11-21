@@ -112,7 +112,7 @@ export default function PartnerPage() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
-        <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:bg-grid-slate-700/25 dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]" />
+        <div className="absolute inset-0 bg-grid-slate-100 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:bg-grid-slate-700/25 dark:mask-[linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]" />
         <div className="relative">
           <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:flex lg:items-center lg:gap-x-10 lg:px-8 lg:py-40">
             <div className="mx-auto max-w-2xl lg:mx-0 lg:flex-auto">
@@ -139,8 +139,8 @@ export default function PartnerPage() {
                 </Button>
               </div>
             </div>
-            <div className="mt-16 sm:mt-24 lg:mt-0 lg:flex-shrink-0 lg:flex-grow">
-              <div className="mx-auto w-[22.875rem] max-w-full lg:mx-0">
+            <div className="mt-16 sm:mt-24 lg:mt-0 lg:shrink-0 lg:grow">
+              <div className="mx-auto w-91.5 max-w-full lg:mx-0">
                 <Image
                   src="/images/bedrift.png"
                   alt="Partnership illustration"
@@ -301,11 +301,11 @@ export default function PartnerPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <Phone className="h-4 w-4 text-blue-600 shrink-0" />
                     <span className="text-gray-600 dark:text-gray-300">{campus.phone}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <Mail className="h-4 w-4 text-blue-600 shrink-0" />
                     <Link 
                       href={`mailto:${campus.email}`}
                       className="text-blue-600 hover:text-blue-700 underline"
@@ -314,7 +314,7 @@ export default function PartnerPage() {
                     </Link>
                   </div>
                   <div className="flex items-start gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <MapPin className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
                     <span className="text-gray-600 dark:text-gray-300">{campus.address}</span>
                   </div>
                   <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">

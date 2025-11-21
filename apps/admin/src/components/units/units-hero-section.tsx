@@ -14,10 +14,10 @@ export function UnitsHeroSection({ totalDepartments, campusOptions }: UnitsHeroS
   const router = useRouter();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/95 to-accent p-8 md:p-12 shadow-2xl">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary via-primary/95 to-accent p-8 md:p-12 shadow-2xl">
       {/* Gradient overlay with pattern */}
-      <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+      <div className="absolute inset-0 bg-grid-white/[0.05] bg-size-[20px_20px]" />
+      <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
 
       {/* Floating orbs for visual interest */}
       <div className="absolute top-0 right-0 w-72 h-72 bg-accent/30 rounded-full blur-3xl animate-pulse" />
@@ -49,7 +49,7 @@ export function UnitsHeroSection({ totalDepartments, campusOptions }: UnitsHeroS
               "group relative overflow-hidden"
             )}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+            <div className="absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
             <Plus className="h-5 w-5 mr-2 transition-transform group-hover:rotate-90 duration-300" />
             Create New Unit
           </Button>

@@ -124,13 +124,13 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
                   <div className="relative h-3 w-full bg-muted/50 rounded-full overflow-hidden">
                     {/* Animated gradient bar */}
                         <div 
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-1000 ease-out shadow-sm"
+                      className="absolute inset-y-0 left-0 bg-linear-to-r from-primary to-accent rounded-full transition-all duration-1000 ease-out shadow-sm"
                       style={{ 
                         width: `${percentage}%`,
                         transitionDelay: `${index * 100}ms`
                       }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
                     </div>
                       </div>
                     </div>

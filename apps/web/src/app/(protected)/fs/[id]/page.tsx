@@ -194,7 +194,7 @@ export default async function ExpenseViewPage({ params }: ExpenseDetailsProps) {
   const { id } = await params;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       {/* Header */}
       <div className="relative h-[30vh] overflow-hidden">
         <ImageWithFallback
@@ -203,7 +203,7 @@ export default async function ExpenseViewPage({ params }: ExpenseDetailsProps) {
           fill
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
+        <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="max-w-4xl mx-auto px-4 text-center">

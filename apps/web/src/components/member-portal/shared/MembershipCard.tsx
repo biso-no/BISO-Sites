@@ -19,7 +19,7 @@ export function MembershipCard({
   const t = useTranslations('memberPortal.membership')
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-[#001731] to-[#3DA9E0] text-white border-0">
+    <Card className="p-6 bg-linear-to-br from-[#001731] to-[#3DA9E0] text-white border-0">
       <div className="flex justify-between items-start mb-8">
         <div>
           <div className="text-white/70 text-sm mb-1">{t('bisoMember')}</div>
