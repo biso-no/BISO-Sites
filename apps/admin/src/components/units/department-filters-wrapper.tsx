@@ -1,15 +1,15 @@
 "use client";
 
-import { useTransition } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { DepartmentFilters } from './department-filters';
-import { FilterState } from '@/lib/hooks/use-departments-filter';
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTransition } from "react";
+import type { FilterState } from "@/lib/hooks/use-departments-filter";
+import { DepartmentFilters } from "./department-filters";
 
-interface DepartmentFiltersWrapperProps {
+type DepartmentFiltersWrapperProps = {
   filters: FilterState;
   campuses: Array<{ id: string; name: string }>;
   types: string[];
-}
+};
 
 export function DepartmentFiltersWrapper({
   filters,
@@ -23,24 +23,26 @@ export function DepartmentFiltersWrapper({
 
   const updateFilter = (key: keyof FilterState, value: any) => {
     const params = new URLSearchParams(searchParams.toString());
-    
+
     // Map filter keys to URL param names
-    const paramName = key === 'searchTerm' ? 'search' : key;
-    
+    const paramName = key === "searchTerm" ? "search" : key;
+
     // Remove param if value is undefined/null, otherwise set it
-    if (value === undefined || value === null || value === '') {
+    if (value === undefined || value === null || value === "") {
       params.delete(paramName);
     } else {
       params.set(paramName, String(value));
     }
-    
+
     // Only update if URL actually changed
     const newQueryString = params.toString();
     const currentQueryString = searchParams.toString();
-    
+
     if (newQueryString !== currentQueryString) {
       startTransition(() => {
-        const newUrl = newQueryString ? `${pathname}?${newQueryString}` : pathname;
+        const newUrl = newQueryString
+          ? `${pathname}?${newQueryString}`
+          : pathname;
         router.replace(newUrl, { scroll: false });
       });
     }
@@ -53,18 +55,18 @@ export function DepartmentFiltersWrapper({
   };
 
   const setSearchTerm = (term: string) => {
-    updateFilter('searchTerm', term);
+    updateFilter("searchTerm", term);
   };
 
   return (
     <DepartmentFilters
+      campuses={campuses}
       filters={filters}
       isPending={isPending}
-      updateFilter={updateFilter}
       resetFilters={resetFilters}
       setSearchTerm={setSearchTerm}
-      campuses={campuses}
       types={types}
+      updateFilter={updateFilter}
     />
   );
-} 
+}

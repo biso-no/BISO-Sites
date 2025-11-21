@@ -1,104 +1,107 @@
-'use client';
-import { motion } from 'motion/react';
-import { Check, Sparkles, Gift, Crown, Zap } from 'lucide-react';
-import { Card } from '@repo/ui/components/ui/card';
-import { Button } from '@repo/ui/components/ui/button';
-import { useTranslations } from 'next-intl';
+"use client";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
+import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 
 export function JoinUs() {
-  const t = useTranslations('membership');
+  const t = useTranslations("membership");
   const benefits = [
-    { icon: Sparkles, text: t('benefits.categories.social.global') },
-    { icon: Gift, text: t('benefits.categories.career.global') },
-    { icon: Crown, text: t('benefits.categories.student.global') },
-    { icon: Zap, text: t('benefits.categories.safety.global') },
-    { icon: Check, text: t('benefits.categories.business.global') },
+    { icon: Sparkles, text: t("benefits.categories.social.global") },
+    { icon: Gift, text: t("benefits.categories.career.global") },
+    { icon: Crown, text: t("benefits.categories.student.global") },
+    { icon: Zap, text: t("benefits.categories.safety.global") },
+    { icon: Check, text: t("benefits.categories.business.global") },
   ];
 
   const memberFeatures = [
-    t('benefits.categories.social.global'),
-    t('benefits.categories.career.global'),
-    t('benefits.categories.student.global'),
-    t('benefits.categories.safety.global'),
-    t('benefits.categories.business.global'),
+    t("benefits.categories.social.global"),
+    t("benefits.categories.career.global"),
+    t("benefits.categories.student.global"),
+    t("benefits.categories.safety.global"),
+    t("benefits.categories.business.global"),
   ];
 
   const membershipDurations = [
     {
-      name: t('durations.six-months.name'),
-      price: t('durations.six-months.price'),
-      period: t('durations.six-months.period'),
+      name: t("durations.six-months.name"),
+      price: t("durations.six-months.price"),
+      period: t("durations.six-months.period"),
       savings: null,
       popular: false,
-      gradient: 'from-gray-600 to-gray-700',
+      gradient: "from-gray-600 to-gray-700",
     },
     {
-      name: t('durations.one-year.name'),
-      price: t('durations.one-year.price'),
-      period: t('durations.one-year.period'),
-      savings: t('durations.one-year.savings'),
+      name: t("durations.one-year.name"),
+      price: t("durations.one-year.price"),
+      period: t("durations.one-year.period"),
+      savings: t("durations.one-year.savings"),
       popular: true,
-      gradient: 'from-purple-600 to-pink-600',
+      gradient: "from-purple-600 to-pink-600",
     },
     {
-      name: t('durations.three-years.name'),
-      price: t('durations.three-years.price'),
-      period: t('durations.three-years.period'),
-      savings: t('durations.three-years.savings'),
+      name: t("durations.three-years.name"),
+      price: t("durations.three-years.price"),
+      period: t("durations.three-years.period"),
+      savings: t("durations.three-years.savings"),
       popular: false,
-      gradient: 'from-[#3DA9E0] to-[#001731]',
+      gradient: "from-[#3DA9E0] to-[#001731]",
     },
   ];
 
   return (
-    <section id="join" className="py-24 bg-linear-to-b from-gray-50 to-white relative overflow-hidden">
+    <section
+      className="relative overflow-hidden bg-linear-to-b from-gray-50 to-white py-24"
+      id="join"
+    >
       {/* Background Decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full opacity-20 blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-pink-200 rounded-full opacity-20 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-purple-200 opacity-20 blur-3xl" />
+        <div className="absolute right-10 bottom-20 h-96 w-96 rounded-full bg-pink-200 opacity-20 blur-3xl" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
+          className="mb-16 text-center"
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          whileInView={{ opacity: 1, y: 0 }}
         >
-          <div className="inline-block px-4 py-2 rounded-full bg-linear-to-r from-purple-100 to-pink-100 text-purple-700 mb-6">
-            {t('membership')}
+          <div className="mb-6 inline-block rounded-full bg-linear-to-r from-purple-100 to-pink-100 px-4 py-2 text-purple-700">
+            {t("membership")}
           </div>
           <h2 className="mb-6 text-gray-900">
-            {t('joinUs.join')}
+            {t("joinUs.join")}
             <br />
             <span className="bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              {t('joinUs.biso')}
+              {t("joinUs.biso")}
             </span>
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto mb-12">
-            {t('joinUs.subtitle')}
+          <p className="mx-auto mb-12 max-w-2xl text-gray-600">
+            {t("joinUs.subtitle")}
           </p>
         </motion.div>
 
         {/* Benefits Grid */}
         <motion.div
+          className="mb-20 grid gap-6 md:grid-cols-3"
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="grid md:grid-cols-3 gap-6 mb-20"
+          whileInView={{ opacity: 1, y: 0 }}
         >
           {benefits.map((benefit, index) => (
             <motion.div
-              key={index}
+              className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-md transition-shadow hover:shadow-lg"
               initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              key={index}
               transition={{ delay: index * 0.05 }}
-              className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow"
+              viewport={{ once: true }}
+              whileInView={{ opacity: 1, y: 0 }}
             >
-              <div className="w-12 h-12 rounded-lg bg-linear-to-br from-purple-600 to-pink-600 flex items-center justify-center shrink-0">
-                <benefit.icon className="w-6 h-6 text-white" />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-purple-600 to-pink-600">
+                <benefit.icon className="h-6 w-6 text-white" />
               </div>
               <span className="text-gray-700">{benefit.text}</span>
             </motion.div>
@@ -107,31 +110,35 @@ export function JoinUs() {
 
         {/* Membership Description */}
         <motion.div
+          className="mb-12 text-center"
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-12"
+          whileInView={{ opacity: 1, y: 0 }}
         >
-          <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('hero.badge')}</h3>
-          <p className="text-gray-600 max-w-3xl mx-auto mb-8">
-            {t('hero.subtitle')}
+          <h3 className="mb-6 font-bold text-2xl text-gray-900">
+            {t("hero.badge")}
+          </h3>
+          <p className="mx-auto mb-8 max-w-3xl text-gray-600">
+            {t("hero.subtitle")}
           </p>
         </motion.div>
 
         {/* Common Features */}
         <motion.div
+          className="mx-auto mb-16 max-w-3xl"
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-3xl mx-auto mb-16"
+          whileInView={{ opacity: 1, y: 0 }}
         >
-          <Card className="p-8 border-0 shadow-xl bg-white">
-            <h4 className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('onboarding.memberships-include')}</h4>
-            <div className="grid md:grid-cols-2 gap-4">
+          <Card className="border-0 bg-white p-8 shadow-xl">
+            <h4 className="mb-6 text-center font-semibold text-gray-900 text-xl">
+              {t("onboarding.memberships-include")}
+            </h4>
+            <div className="grid gap-4 md:grid-cols-2">
               {memberFeatures.map((feature, idx) => (
-                <div key={idx} className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-linear-to-br from-purple-600 to-pink-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-4 h-4 text-white" />
+                <div className="flex items-start gap-3" key={idx}>
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-purple-600 to-pink-600">
+                    <Check className="h-4 w-4 text-white" />
                   </div>
                   <span className="text-gray-600">{feature}</span>
                 </div>
@@ -141,42 +148,52 @@ export function JoinUs() {
         </motion.div>
 
         {/* Duration Options */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
+        <div className="mb-16 grid gap-8 md:grid-cols-3">
           {membershipDurations.map((duration, index) => (
             <motion.div
-              key={duration.name}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
               className="relative"
+              initial={{ opacity: 0, y: 20 }}
+              key={duration.name}
+              transition={{ delay: index * 0.1 }}
+              viewport={{ once: true }}
+              whileInView={{ opacity: 1, y: 0 }}
             >
               {duration.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                  <div className="bg-linear-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full shadow-lg text-sm font-medium">
+                <div className="-top-4 -translate-x-1/2 absolute left-1/2 z-10">
+                  <div className="rounded-full bg-linear-to-r from-purple-600 to-pink-600 px-6 py-2 font-medium text-sm text-white shadow-lg">
                     Most Popular
                   </div>
                 </div>
               )}
-              <Card className={`p-8 border-0 shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col ${
-                duration.popular ? 'ring-2 ring-purple-600 transform scale-105' : ''
-              }`}>
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold mb-4 text-gray-900">{duration.name}</h3>
+              <Card
+                className={`flex h-full flex-col border-0 p-8 shadow-xl transition-all duration-300 hover:shadow-2xl ${
+                  duration.popular
+                    ? "scale-105 transform ring-2 ring-purple-600"
+                    : ""
+                }`}
+              >
+                <div className="mb-8 text-center">
+                  <h3 className="mb-4 font-bold text-2xl text-gray-900">
+                    {duration.name}
+                  </h3>
                   <div className="mb-2">
-                    <span className="text-4xl font-bold text-gray-900">{duration.price}</span>
+                    <span className="font-bold text-4xl text-gray-900">
+                      {duration.price}
+                    </span>
                   </div>
                   <p className="text-gray-600">{duration.period}</p>
                   {duration.savings && (
                     <div className="mt-3">
-                      <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">
+                      <span className="inline-block rounded-full bg-green-100 px-3 py-1 font-medium text-green-700 text-sm">
                         {duration.savings}
                       </span>
                     </div>
                   )}
                 </div>
 
-                <Button className={`w-full bg-linear-to-r ${duration.gradient} hover:opacity-90 text-white border-0 shadow-lg mt-auto`}>
+                <Button
+                  className={`w-full bg-linear-to-r ${duration.gradient} mt-auto border-0 text-white shadow-lg hover:opacity-90`}
+                >
                   Choose {duration.name}
                 </Button>
               </Card>
@@ -186,18 +203,21 @@ export function JoinUs() {
 
         {/* CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
           className="text-center"
+          initial={{ opacity: 0, y: 20 }}
+          viewport={{ once: true }}
+          whileInView={{ opacity: 1, y: 0 }}
         >
-          <Card className="p-12 border-0 shadow-2xl bg-linear-to-br from-blue-600 to-primary-80 text-white">
-            <h3 className="mb-4 text-white">{t('onboarding.notSure.title')}</h3>
-            <p className="mb-8 text-white/90 max-w-2xl mx-auto">
-              {t('onboarding.notSure.subtitle')}
+          <Card className="border-0 bg-linear-to-br from-blue-600 to-primary-80 p-12 text-white shadow-2xl">
+            <h3 className="mb-4 text-white">{t("onboarding.notSure.title")}</h3>
+            <p className="mx-auto mb-8 max-w-2xl text-white/90">
+              {t("onboarding.notSure.subtitle")}
             </p>
-            <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 border-0">
-              {t('onboarding.notSure.cta')}
+            <Button
+              className="border-0 bg-white text-purple-600 hover:bg-gray-100"
+              size="lg"
+            >
+              {t("onboarding.notSure.cta")}
             </Button>
           </Card>
         </motion.div>

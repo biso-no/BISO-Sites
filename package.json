@@ -5,13 +5,19 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "format": "biome format --write .",
+    "check": "ultracite check",
+    "fix": "ultracite fix --unsafe",
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "turbo": "^2.6.0",
-    "typescript": "5.9.2"
+    "@biomejs/biome": "2.3.7",
+    "@turbo/gen": "^2.5.8",
+    "lefthook": "^2.0.4",
+    "lint-staged": "^16.2.7",
+    "tsup": "^8.5.0",
+    "turbo": "^2.6.1",
+    "ultracite": "6.3.4"
   },
   "engines": {
     "node": ">=18"
@@ -20,5 +26,10 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
+      "bun x ultracite fix"
+    ]
+  }
 }

@@ -1,10 +1,10 @@
+import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
-import { listNews } from "@/app/actions/news";
-import { getDepartments } from "@/lib/actions/departments";
-import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
+import { listNews } from "@/app/actions/news";
 import type { Locale } from "@/i18n/config";
+import { getDepartments } from "@/lib/actions/departments";
 import { CampusPageClient } from "./components/campus-page-client";
 
 export const revalidate = 0;
@@ -24,13 +24,13 @@ export default async function CampusPage() {
 
   return (
     <CampusPageClient
-      events={events}
-      jobs={jobs}
-      news={news}
-      departments={departments}
       campusData={campusData}
       campusMetadata={campusMetadata}
+      departments={departments}
+      events={events}
+      jobs={jobs}
       locale={locale}
+      news={news}
     />
   );
 }

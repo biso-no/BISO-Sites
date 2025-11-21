@@ -1,7 +1,7 @@
-"use server"
+"use server";
 
-import { createSessionClient } from "@repo/api/server"
-import { Query } from "@repo/api"
+import { Query } from "@repo/api";
+import { createSessionClient } from "@repo/api/server";
 
 /**
  * Get available stock for a product, accounting for active reservations
@@ -9,39 +9,36 @@ import { Query } from "@repo/api"
  */
 export async function getAvailableStock(productId: string): Promise<number> {
   try {
-    const { db } = await createSessionClient()
-    
+    const { db } = await createSessionClient();
+
     // Get product stock
-    const product = await db.getRow('app', 'webshop_products', productId)
-    
+    const product = await db.getRow("app", "webshop_products", productId);
+
     // If stock is not tracked (null), return Infinity
     if (product.stock === null || product.stock === undefined) {
-      return Infinity
+      return Number.POSITIVE_INFINITY;
     }
-    
-    const totalStock = product.stock as number
-    
+
+    const totalStock = product.stock as number;
+
     // Get active reservations (not expired)
-    const now = new Date().toISOString()
-    const reservations = await db.listRows(
-      'app',
-      'cart_reservations',
-      [
-        Query.equal('product_id', productId),
-        Query.greaterThan('expires_at', now),
-      ]
-    )
-    
+    const now = new Date().toISOString();
+    const reservations = await db.listRows("app", "cart_reservations", [
+      Query.equal("product_id", productId),
+      Query.greaterThan("expires_at", now),
+    ]);
+
     // Sum reserved quantities
-    const reservedQuantity = reservations.rows.reduce((sum, reservation) => {
-      return sum + (reservation.quantity as number)
-    }, 0)
-    
-    return Math.max(0, totalStock - reservedQuantity)
+    const reservedQuantity = reservations.rows.reduce(
+      (sum, reservation) => sum + (reservation.quantity as number),
+      0
+    );
+
+    return Math.max(0, totalStock - reservedQuantity);
   } catch (error) {
-    console.error('Error getting available stock:', error)
+    console.error("Error getting available stock:", error);
     // Return 0 on error to be safe
-    return 0
+    return 0;
   }
 }
 
@@ -55,48 +52,46 @@ export async function createOrUpdateReservation(
   quantity: number
 ): Promise<{ success: boolean; message?: string }> {
   try {
-    const { db, account } = await createSessionClient()
-    
+    const { db, account } = await createSessionClient();
+
     // Get session user ID (works for both authenticated and anonymous sessions)
-    const session = await account.get()
-    const userId = session.$id
-    
+    const session = await account.get();
+    const userId = session.$id;
+
     // Set expiration to 10 minutes from now
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
-    
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
     // Check if user already has a reservation for this product (RLS filters by user automatically)
-    const existingReservations = await db.listRows(
-      'app',
-      'cart_reservations',
-      [Query.equal('product_id', productId)]
-    )
-    
+    const existingReservations = await db.listRows("app", "cart_reservations", [
+      Query.equal("product_id", productId),
+    ]);
+
     if (existingReservations.rows.length > 0) {
       // Update existing reservation
-      const reservation = existingReservations.rows[0]
+      const reservation = existingReservations.rows[0];
       if (reservation) {
-        await db.updateRow('app', 'cart_reservations', reservation.$id, {
+        await db.updateRow("app", "cart_reservations", reservation.$id, {
           quantity,
           expires_at: expiresAt,
-        })
+        });
       }
     } else {
       // Create new reservation (user_id from session)
-      await db.createRow('app', 'cart_reservations', 'unique()', {
+      await db.createRow("app", "cart_reservations", "unique()", {
         product_id: productId,
         user_id: userId,
         quantity,
         expires_at: expiresAt,
-      })
+      });
     }
-    
-    return { success: true }
+
+    return { success: true };
   } catch (error) {
-    console.error('Error creating/updating reservation:', error)
-    return { 
-      success: false, 
-      message: 'Failed to reserve stock' 
-    }
+    console.error("Error creating/updating reservation:", error);
+    return {
+      success: false,
+      message: "Failed to reserve stock",
+    };
   }
 }
 
@@ -108,23 +103,21 @@ export async function deleteReservation(
   productId: string
 ): Promise<{ success: boolean }> {
   try {
-    const { db } = await createSessionClient()
-    
+    const { db } = await createSessionClient();
+
     // RLS automatically filters to current user's reservations
-    const reservations = await db.listRows(
-      'app',
-      'cart_reservations',
-      [Query.equal('product_id', productId)]
-    )
-    
+    const reservations = await db.listRows("app", "cart_reservations", [
+      Query.equal("product_id", productId),
+    ]);
+
     for (const reservation of reservations.rows) {
-      await db.deleteRow('app', 'cart_reservations', reservation.$id)
+      await db.deleteRow("app", "cart_reservations", reservation.$id);
     }
-    
-    return { success: true }
+
+    return { success: true };
   } catch (error) {
-    console.error('Error deleting reservation:', error)
-    return { success: false }
+    console.error("Error deleting reservation:", error);
+    return { success: false };
   }
 }
 
@@ -132,22 +125,18 @@ export async function deleteReservation(
  * Delete all reservations for current session user
  * RLS automatically filters to current user
  */
-async function deleteUserReservations(): Promise<void> {
+async function _deleteUserReservations(): Promise<void> {
   try {
-    const { db } = await createSessionClient()
-    
+    const { db } = await createSessionClient();
+
     // RLS ensures we only see/delete current user's reservations
-    const reservations = await db.listRows(
-      'app',
-      'cart_reservations',
-      []
-    )
-    
+    const reservations = await db.listRows("app", "cart_reservations", []);
+
     for (const reservation of reservations.rows) {
-      await db.deleteRow('app', 'cart_reservations', reservation.$id)
+      await db.deleteRow("app", "cart_reservations", reservation.$id);
     }
   } catch (error) {
-    console.error('Error deleting user reservations:', error)
+    console.error("Error deleting user reservations:", error);
   }
 }
 
@@ -157,26 +146,24 @@ async function deleteUserReservations(): Promise<void> {
  */
 export async function cleanupExpiredReservations(): Promise<number> {
   try {
-    const { db } = await createSessionClient()
-    
-    const now = new Date().toISOString()
+    const { db } = await createSessionClient();
+
+    const now = new Date().toISOString();
     // RLS ensures we only see current user's expired reservations
-    const expiredReservations = await db.listRows(
-      'app',
-      'cart_reservations',
-      [Query.lessThan('expires_at', now)]
-    )
-    
-    let deletedCount = 0
+    const expiredReservations = await db.listRows("app", "cart_reservations", [
+      Query.lessThan("expires_at", now),
+    ]);
+
+    let deletedCount = 0;
     for (const reservation of expiredReservations.rows) {
-      await db.deleteRow('app', 'cart_reservations', reservation.$id)
-      deletedCount++
+      await db.deleteRow("app", "cart_reservations", reservation.$id);
+      deletedCount += 1;
     }
-    
-    return deletedCount
+
+    return deletedCount;
   } catch (error) {
-    console.error('Error cleaning up expired reservations:', error)
-    return 0
+    console.error("Error cleaning up expired reservations:", error);
+    return 0;
   }
 }
 
@@ -184,39 +171,35 @@ export async function cleanupExpiredReservations(): Promise<number> {
  * Get current session user's reservation for a product
  * RLS automatically filters to current user
  */
-async function getUserReservation(
+async function _getUserReservation(
   productId: string
 ): Promise<{ quantity: number; expiresAt: string } | null> {
   try {
-    const { db } = await createSessionClient()
-    
-    const now = new Date().toISOString()
+    const { db } = await createSessionClient();
+
+    const now = new Date().toISOString();
     // RLS filters to current user automatically
-    const reservations = await db.listRows(
-      'app',
-      'cart_reservations',
-      [
-        Query.equal('product_id', productId),
-        Query.greaterThan('expires_at', now),
-      ]
-    )
-    
+    const reservations = await db.listRows("app", "cart_reservations", [
+      Query.equal("product_id", productId),
+      Query.greaterThan("expires_at", now),
+    ]);
+
     if (reservations.rows.length === 0) {
-      return null
+      return null;
     }
-    
-    const reservation = reservations.rows[0]
+
+    const reservation = reservations.rows[0];
     if (!reservation) {
-      return null
+      return null;
     }
-    
+
     return {
       quantity: reservation.quantity as number,
       expiresAt: reservation.expires_at as string,
-    }
+    };
   } catch (error) {
-    console.error('Error getting user reservation:', error)
-    return null
+    console.error("Error getting user reservation:", error);
+    return null;
   }
 }
 
@@ -227,20 +210,18 @@ async function getUserReservation(
  */
 export async function getUserCartReservations(): Promise<any[]> {
   try {
-    const { db } = await createSessionClient()
-    
-    const now = new Date().toISOString()
+    const { db } = await createSessionClient();
+
+    const now = new Date().toISOString();
     // RLS filters to current user's reservations automatically
-    const reservations = await db.listRows(
-      'app',
-      'cart_reservations',
-      [Query.greaterThan('expires_at', now)]
-    )
-    
-    return reservations.rows
+    const reservations = await db.listRows("app", "cart_reservations", [
+      Query.greaterThan("expires_at", now),
+    ]);
+
+    return reservations.rows;
   } catch (error) {
-    console.error('Error getting user cart reservations:', error)
-    return []
+    console.error("Error getting user cart reservations:", error);
+    return [];
   }
 }
 
@@ -248,30 +229,32 @@ export async function getUserCartReservations(): Promise<any[]> {
  * Get cart items with full product details
  * Returns enriched cart data ready for display
  */
-export async function getCartItemsWithDetails(locale: 'en' | 'no' = 'en'): Promise<any[]> {
+export async function getCartItemsWithDetails(
+  locale: "en" | "no" = "en"
+): Promise<any[]> {
   try {
-    const reservations = await getUserCartReservations()
-    const { db } = await createSessionClient()
-    
-    const cartItems = []
-    
+    const reservations = await getUserCartReservations();
+    const { db } = await createSessionClient();
+
+    const cartItems: any[] = [];
+
     for (const reservation of reservations) {
       try {
         // Fetch product details
-        const product = await db.getRow('app', 'webshop_products', reservation.product_id)
-        
+        const product = await db.getRow(
+          "app",
+          "webshop_products",
+          reservation.product_id
+        );
+
         // Get translation for the specified locale
-        const translations = await db.listRows(
-          'app',
-          'content_translations',
-          [
-            Query.equal('content_id', product.$id),
-            Query.equal('locale', locale),
-          ]
-        )
-        
-        const translation = translations.rows[0]
-        
+        const translations = await db.listRows("app", "content_translations", [
+          Query.equal("content_id", product.$id),
+          Query.equal("locale", locale),
+        ]);
+
+        const translation = translations.rows[0];
+
         cartItems.push({
           reservationId: reservation.$id,
           productId: product.$id,
@@ -286,17 +269,19 @@ export async function getCartItemsWithDetails(locale: 'en' | 'no' = 'en'): Promi
           stock: product.stock,
           expiresAt: reservation.expires_at,
           metadata: product.metadata ? JSON.parse(product.metadata) : null,
-        })
+        });
       } catch (error) {
-        console.error(`Error fetching product ${reservation.product_id}:`, error)
+        console.error(
+          `Error fetching product ${reservation.product_id}:`,
+          error
+        );
         // Skip products that can't be loaded
       }
     }
-    
-    return cartItems
+
+    return cartItems;
   } catch (error) {
-    console.error('Error getting cart items with details:', error)
-    return []
+    console.error("Error getting cart items with details:", error);
+    return [];
   }
 }
-

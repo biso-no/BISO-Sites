@@ -1,6 +1,5 @@
-import { Models } from "@repo/api";
-import { LargeEvent } from "@repo/api/types/appwrite";
-
+import type { Models } from "@repo/api";
+import type { LargeEvent } from "@repo/api/types/appwrite";
 
 export interface LargeEventItem extends Models.Row {
   eventId?: string;
@@ -18,6 +17,6 @@ export interface LargeEventItem extends Models.Row {
 export interface ParsedLargeEvent extends LargeEvent {
   gradient?: string[];
   parsedMetadata?: Record<string, unknown>;
-  parsedCampusConfigs?: Array<Record<string, unknown>>;
+  parsedCampusConfigs?: Record<string, unknown>[];
   items?: LargeEventItem[];
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Card, CardContent } from '@repo/ui/components/ui/card';
-import { LucideIcon } from 'lucide-react';
-import { cn } from '@repo/ui/lib/utils';
+import { Card, CardContent } from "@repo/ui/components/ui/card";
+import { cn } from "@repo/ui/lib/utils";
+import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
-interface MetricCardProps {
+type MetricCardProps = {
   title: string;
   value: number;
   icon: LucideIcon;
@@ -17,7 +17,7 @@ interface MetricCardProps {
   };
   className?: string;
   animate?: boolean;
-}
+};
 
 export function MetricCard({
   title,
@@ -27,7 +27,7 @@ export function MetricCard({
   iconBgColor = "bg-primary/10",
   trend,
   className,
-  animate = true
+  animate = true,
 }: MetricCardProps) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -58,26 +58,26 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl",
+        "hover:-translate-y-1 relative transform overflow-hidden transition-all duration-300 hover:shadow-xl",
         "border-border/50 bg-card/60 backdrop-blur-sm",
-        "before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+        "before:absolute before:inset-0 before:bg-linear-to-br before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity hover:before:opacity-100",
         className
       )}
     >
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-1 flex-1">
-            <p className="text-sm font-medium text-muted-foreground tracking-wide uppercase">
+          <div className="flex-1 space-y-1">
+            <p className="font-medium text-muted-foreground text-sm uppercase tracking-wide">
               {title}
             </p>
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold tracking-tight">
+              <p className="font-bold text-3xl tracking-tight">
                 {displayValue.toLocaleString()}
               </p>
               {trend && (
                 <span
                   className={cn(
-                    "text-sm font-medium",
+                    "font-medium text-sm",
                     trend.isPositive ? "text-green-600" : "text-red-600"
                   )}
                 >
@@ -89,7 +89,7 @@ export function MetricCard({
           </div>
           <div
             className={cn(
-              "p-3 rounded-xl transition-all duration-300 group-hover:scale-110",
+              "rounded-xl p-3 transition-all duration-300 group-hover:scale-110",
               iconBgColor
             )}
           >
@@ -100,4 +100,3 @@ export function MetricCard({
     </Card>
   );
 }
-

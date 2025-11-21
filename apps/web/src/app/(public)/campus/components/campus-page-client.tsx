@@ -1,27 +1,26 @@
 "use client";
 
-import { useMemo } from "react";
-import { useCampus } from "@/components/context/campus";
-import { CampusHero } from "./campus-hero";
-import { CampusTabs } from "./campus-tabs";
-import { FocusAreas } from "./overview/focus-areas";
-import { UpcomingEvents } from "./overview/upcoming-events";
-import { LatestNews } from "./overview/latest-news";
-import { JobPostings } from "./overview/job-postings";
-import { DepartmentsGrid } from "./overview/departments-grid";
-import { StudentsTab } from "./students/students-tab";
-import { PartnersTab } from "./partners/partners-tab";
-import { TeamTab } from "./team/team-tab";
 import type {
-  ContentTranslations,
-  Departments,
   CampusData,
   CampusMetadata,
+  ContentTranslations,
   DepartmentBoard,
 } from "@repo/api/types/appwrite";
+import { useMemo } from "react";
+import { useCampus } from "@/components/context/campus";
 import type { Locale } from "@/i18n/config";
+import { CampusHero } from "./campus-hero";
+import { CampusTabs } from "./campus-tabs";
+import { DepartmentsGrid } from "./overview/departments-grid";
+import { FocusAreas } from "./overview/focus-areas";
+import { JobPostings } from "./overview/job-postings";
+import { LatestNews } from "./overview/latest-news";
+import { UpcomingEvents } from "./overview/upcoming-events";
+import { PartnersTab } from "./partners/partners-tab";
+import { StudentsTab } from "./students/students-tab";
+import { TeamTab } from "./team/team-tab";
 
-interface CampusPageClientProps {
+type CampusPageClientProps = {
   events: ContentTranslations[];
   jobs: ContentTranslations[];
   news: ContentTranslations[];
@@ -29,7 +28,7 @@ interface CampusPageClientProps {
   campusData: CampusData[];
   campusMetadata: Record<string, CampusMetadata>;
   locale: Locale;
-}
+};
 
 export function CampusPageClient({
   events,
@@ -44,11 +43,14 @@ export function CampusPageClient({
 
   // Get campus-specific metadata
   const activeCampusMetadata = useMemo(() => {
-    if (!activeCampusId) return null;
+    if (!activeCampusId) {
+      return null;
+    }
     return (
       campusMetadata[activeCampusId] ||
       Object.values(campusMetadata).find(
-        (m) => m.campus_name?.toLowerCase() === activeCampus?.name?.toLowerCase()
+        (m) =>
+          m.campus_name?.toLowerCase() === activeCampus?.name?.toLowerCase()
       ) ||
       null
     );
@@ -56,7 +58,9 @@ export function CampusPageClient({
 
   // Get campus-specific data
   const activeCampusData = useMemo(() => {
-    if (!activeCampus) return null;
+    if (!activeCampus) {
+      return null;
+    }
     return (
       campusData.find(
         (cd) =>
@@ -68,25 +72,35 @@ export function CampusPageClient({
 
   // Filter content by campus
   const campusSpecificEvents = useMemo(() => {
-    if (!activeCampusId) return events;
+    if (!activeCampusId) {
+      return events;
+    }
     return events.filter(
       (event) => event.event_ref?.campus_id === activeCampusId
     );
   }, [events, activeCampusId]);
 
   const campusSpecificJobs = useMemo(() => {
-    if (!activeCampusId) return jobs;
+    if (!activeCampusId) {
+      return jobs;
+    }
     return jobs.filter((job) => job.job_ref?.campus_id === activeCampusId);
   }, [jobs, activeCampusId]);
 
   const campusSpecificNews = useMemo(() => {
-    if (!activeCampusId) return news;
+    if (!activeCampusId) {
+      return news;
+    }
     return news.filter((item) => item.news_ref?.campus_id === activeCampusId);
   }, [news, activeCampusId]);
 
   const campusSpecificDepartments = useMemo(() => {
-    if (!activeCampusId) return departments;
-    return departments.filter((dept) => dept.department_ref?.campus_id === activeCampusId);
+    if (!activeCampusId) {
+      return departments;
+    }
+    return departments.filter(
+      (dept) => dept.department_ref?.campus_id === activeCampusId
+    );
   }, [departments, activeCampusId]);
 
   // Calculate stats
@@ -105,7 +119,9 @@ export function CampusPageClient({
 
   // Get fallback team from campus data
   const fallbackTeam = useMemo(() => {
-    if (!activeCampusData?.departmentBoard) return [];
+    if (!activeCampusData?.departmentBoard) {
+      return [];
+    }
     return activeCampusData.departmentBoard.filter(
       (member): member is DepartmentBoard => !!member?.name
     );
@@ -115,16 +131,15 @@ export function CampusPageClient({
     <div className="min-h-screen bg-background">
       {/* Hero Section - Full width, no container */}
       <CampusHero
-        campusName={activeCampus?.name || null}
         campusMetadata={activeCampusMetadata}
-        stats={stats}
+        campusName={activeCampus?.name || null}
         locale={locale}
+        stats={stats}
       />
 
       {/* Tabbed Content - Inside container */}
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="mx-auto max-w-7xl px-4">
         <CampusTabs
-          locale={locale}
           children={{
             overview: (
               <div className="space-y-12 py-12">
@@ -133,14 +148,14 @@ export function CampusPageClient({
                   locale={locale}
                 />
                 <UpcomingEvents events={campusSpecificEvents} locale={locale} />
-                <div className="grid lg:grid-cols-2 gap-8">
-                  <LatestNews news={campusSpecificNews} locale={locale} />
+                <div className="grid gap-8 lg:grid-cols-2">
+                  <LatestNews locale={locale} news={campusSpecificNews} />
                   <JobPostings jobs={campusSpecificJobs} locale={locale} />
                 </div>
                 <DepartmentsGrid
+                  activeCampusId={activeCampusId}
                   departments={campusSpecificDepartments}
                   locale={locale}
-                  activeCampusId={activeCampusId}
                 />
               </div>
             ),
@@ -161,14 +176,15 @@ export function CampusPageClient({
             team: (
               <div className="py-12">
                 <TeamTab
-                  fallbackTeam={fallbackTeam}
                   campusId={activeCampusId}
                   campusName={activeCampus?.name || null}
+                  fallbackTeam={fallbackTeam}
                   locale={locale}
                 />
               </div>
             ),
           }}
+          locale={locale}
         />
       </div>
     </div>

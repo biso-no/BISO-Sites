@@ -1,7 +1,7 @@
-import { clsx } from 'clsx';
-import type { ClassValue } from 'clsx';
-import { toast } from 'sonner';
-import { twMerge } from 'tailwind-merge';
+import type { ClassValue } from "clsx";
+import { clsx } from "clsx";
+import { toast } from "sonner";
+import { twMerge } from "tailwind-merge";
 
 export const cn = (...inputs: ClassValue[]): string => twMerge(clsx(inputs));
 
@@ -14,10 +14,9 @@ export const handleError = (error: unknown): void => {
   toast.error(message);
 };
 
-export const formatDateReadable = (date: Date): string => {
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+export const formatDateReadable = (date: Date): string =>
+  date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
-};

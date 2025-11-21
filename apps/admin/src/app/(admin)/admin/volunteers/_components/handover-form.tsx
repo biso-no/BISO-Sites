@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useState } from "react";
 
 export default function HandoverForm() {
@@ -22,34 +22,37 @@ export default function HandoverForm() {
 
   return (
     <div className="p-4">
-      <form onSubmit={handleSubmit} className="space-y-2">
+      <form className="space-y-2" onSubmit={handleSubmit}>
         <input
-          type="text"
-          placeholder="Role mailbox (e.g. controller.oslo@biso.no)"
-          value={roleMailbox}
+          className="w-full rounded border p-2"
           onChange={(e) => setRoleMailbox(e.target.value)}
-          className="border p-2 rounded w-full"
+          placeholder="Role mailbox (e.g. controller.oslo@biso.no)"
+          type="text"
+          value={roleMailbox}
         />
         <input
-          type="text"
-          placeholder="New delegate (firstname.lastname@biso.no)"
-          value={newDelegate}
+          className="w-full rounded border p-2"
           onChange={(e) => setNewDelegate(e.target.value)}
-          className="border p-2 rounded w-full"
+          placeholder="New delegate (firstname.lastname@biso.no)"
+          type="text"
+          value={newDelegate}
         />
         <input
-          type="text"
-          placeholder="Old delegate (optional)"
-          value={oldDelegate}
+          className="w-full rounded border p-2"
           onChange={(e) => setOldDelegate(e.target.value)}
-          className="border p-2 rounded w-full"
+          placeholder="Old delegate (optional)"
+          type="text"
+          value={oldDelegate}
         />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+        <button
+          className="rounded bg-blue-600 px-4 py-2 text-white"
+          type="submit"
+        >
           Handover
         </button>
       </form>
       {result && (
-        <pre className="mt-4 p-2 bg-gray-100 border rounded">{result}</pre>
+        <pre className="mt-4 rounded border bg-gray-100 p-2">{result}</pre>
       )}
     </div>
   );

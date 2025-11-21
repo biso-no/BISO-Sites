@@ -1,25 +1,28 @@
-import { Card } from '@repo/ui/components/ui/card';
+import { Card } from "@repo/ui/components/ui/card";
 
 export function NewsGridSkeleton() {
   return (
     <div className="animate-pulse">
       {/* Featured Articles Skeleton */}
       <div className="mb-16">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-1 h-8 bg-gray-200 rounded-full" />
-          <div className="h-8 w-48 bg-gray-200 rounded" />
+        <div className="mb-8 flex items-center gap-3">
+          <div className="h-8 w-1 rounded-full bg-gray-200" />
+          <div className="h-8 w-48 rounded bg-gray-200" />
         </div>
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid gap-8 md:grid-cols-2">
           {[1, 2].map((i) => (
-            <Card key={i} className="overflow-hidden border-0 shadow-2xl h-full flex flex-col">
+            <Card
+              className="flex h-full flex-col overflow-hidden border-0 shadow-2xl"
+              key={i}
+            >
               <div className="h-80 bg-gray-200" />
-              <div className="p-6 space-y-4 flex-1 flex flex-col">
-                <div className="h-6 bg-gray-200 rounded w-3/4" />
-                <div className="h-4 bg-gray-200 rounded w-full flex-1" />
-                <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="flex flex-1 flex-col space-y-4 p-6">
+                <div className="h-6 w-3/4 rounded bg-gray-200" />
+                <div className="h-4 w-full flex-1 rounded bg-gray-200" />
+                <div className="h-4 w-full rounded bg-gray-200" />
                 <div className="flex items-center justify-between pt-4">
-                  <div className="h-4 w-20 bg-gray-200 rounded" />
-                  <div className="h-10 w-32 bg-gray-200 rounded" />
+                  <div className="h-4 w-20 rounded bg-gray-200" />
+                  <div className="h-10 w-32 rounded bg-gray-200" />
                 </div>
               </div>
             </Card>
@@ -29,24 +32,27 @@ export function NewsGridSkeleton() {
 
       {/* Regular Articles Skeleton */}
       <div>
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-1 h-8 bg-gray-200 rounded-full" />
-          <div className="h-8 w-40 bg-gray-200 rounded" />
+        <div className="mb-8 flex items-center gap-3">
+          <div className="h-8 w-1 rounded-full bg-gray-200" />
+          <div className="h-8 w-40 rounded bg-gray-200" />
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="overflow-hidden border-0 shadow-lg h-full flex flex-col">
+            <Card
+              className="flex h-full flex-col overflow-hidden border-0 shadow-lg"
+              key={i}
+            >
               <div className="h-56 bg-gray-200" />
-              <div className="p-6 space-y-3 flex-1 flex flex-col">
-                <div className="h-5 bg-gray-200 rounded w-3/4" />
-                <div className="h-4 bg-gray-200 rounded w-full flex-1" />
-                <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="flex flex-1 flex-col space-y-3 p-6">
+                <div className="h-5 w-3/4 rounded bg-gray-200" />
+                <div className="h-4 w-full flex-1 rounded bg-gray-200" />
+                <div className="h-4 w-full rounded bg-gray-200" />
                 <div className="space-y-2 pt-2">
-                  <div className="h-4 bg-gray-200 rounded w-32" />
-                  <div className="h-4 bg-gray-200 rounded w-28" />
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                    <div className="h-4 w-16 bg-gray-200 rounded" />
-                    <div className="h-8 w-24 bg-gray-200 rounded" />
+                  <div className="h-4 w-32 rounded bg-gray-200" />
+                  <div className="h-4 w-28 rounded bg-gray-200" />
+                  <div className="flex items-center justify-between border-gray-100 border-t pt-2">
+                    <div className="h-4 w-16 rounded bg-gray-200" />
+                    <div className="h-8 w-24 rounded bg-gray-200" />
                   </div>
                 </div>
               </div>

@@ -34,7 +34,17 @@ export const searchSiteContent = tool({
       .optional()
       .describe("Optional locale for titles/snippets"),
   }),
-  execute: async ({ query, indices, limit, locale }: { query: string; indices?: ValidIndex[]; limit: number; locale?: "en" | "no" }) => {
+  execute: async ({
+    query,
+    indices,
+    limit,
+    locale,
+  }: {
+    query: string;
+    indices?: ValidIndex[];
+    limit: number;
+    locale?: "en" | "no";
+  }) => {
     try {
       const res = await fetch(`${resolveBaseUrl()}/api/search`, {
         method: "POST",
@@ -44,9 +54,20 @@ export const searchSiteContent = tool({
         cache: "no-store",
       });
       if (!res.ok) {
-        return { results: [], message: `Search failed with status ${res.status}` };
+        return {
+          results: [],
+          message: `Search failed with status ${res.status}`,
+        };
       }
-      const data = (await res.json()) as { results: Array<{ title?: string; name?: string; description?: string; href?: string; index?: string }> };
+      const data = (await res.json()) as {
+        results: Array<{
+          title?: string;
+          name?: string;
+          description?: string;
+          href?: string;
+          index?: string;
+        }>;
+      };
       const items = (data.results || []).map((r) => ({
         title: r.title || r.name || "Untitled",
         description: r.description || undefined,
@@ -55,9 +76,14 @@ export const searchSiteContent = tool({
       }));
 
       const count = items.length;
-      const msg = locale === "no"
-        ? (count > 0 ? `Fant ${count} relevante treff på nettsiden.` : "Fant ingen relevante treff på nettsiden.")
-        : (count > 0 ? `Found ${count} relevant results on the site.` : "No relevant site results found.");
+      const msg =
+        locale === "no"
+          ? count > 0
+            ? `Fant ${count} relevante treff på nettsiden.`
+            : "Fant ingen relevante treff på nettsiden."
+          : count > 0
+            ? `Found ${count} relevant results on the site.`
+            : "No relevant site results found.";
 
       return { results: items, totalResults: count, message: msg };
     } catch (error) {

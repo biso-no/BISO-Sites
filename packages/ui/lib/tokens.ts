@@ -1,49 +1,60 @@
 export type ColorToken =
-  | 'background'
-  | 'foreground'
-  | 'card'
-  | 'card-foreground'
-  | 'popover'
-  | 'popover-foreground'
-  | 'primary'
-  | 'primary-foreground'
-  | 'secondary'
-  | 'secondary-foreground'
-  | 'muted'
-  | 'muted-foreground'
-  | 'accent'
-  | 'accent-foreground'
-  | 'destructive'
-  | 'destructive-foreground'
-  | 'border'
-  | 'input'
-  | 'ring'
-  | 'surface'
-  | 'surface-strong'
-  | 'surface-card'
-  | 'surface-hover';
+  | "background"
+  | "foreground"
+  | "card"
+  | "card-foreground"
+  | "popover"
+  | "popover-foreground"
+  | "primary"
+  | "primary-foreground"
+  | "secondary"
+  | "secondary-foreground"
+  | "muted"
+  | "muted-foreground"
+  | "accent"
+  | "accent-foreground"
+  | "destructive"
+  | "destructive-foreground"
+  | "border"
+  | "input"
+  | "ring"
+  | "surface"
+  | "surface-strong"
+  | "surface-card"
+  | "surface-hover";
 
-export type RadiusToken = 'radius-xs' | 'radius-sm' | 'radius' | 'radius-lg' | 'radius-xl';
+export type RadiusToken =
+  | "radius-xs"
+  | "radius-sm"
+  | "radius"
+  | "radius-lg"
+  | "radius-xl";
 
 export type FontSizeToken =
-  | 'font-size-xs'
-  | 'font-size-sm'
-  | 'font-size-md'
-  | 'font-size-lg'
-  | 'font-size-xl'
-  | 'font-size-2xl'
-  | 'font-size-3xl'
-  | 'font-size-4xl';
+  | "font-size-xs"
+  | "font-size-sm"
+  | "font-size-md"
+  | "font-size-lg"
+  | "font-size-xl"
+  | "font-size-2xl"
+  | "font-size-3xl"
+  | "font-size-4xl";
 
-export type LineHeightToken = 'leading-tight' | 'leading-normal' | 'leading-relaxed';
+export type LineHeightToken =
+  | "leading-tight"
+  | "leading-normal"
+  | "leading-relaxed";
 
-export type MotionDurationToken = 'duration-100' | 'duration-200' | 'duration-300';
+export type MotionDurationToken =
+  | "duration-100"
+  | "duration-200"
+  | "duration-300";
 
 export type MotionEaseToken =
-  | 'ease-standard'
-  | 'ease-emphasized'
-  | 'ease-decelerate'
-  | 'ease-accelerate';
+  | "ease-standard"
+  | "ease-emphasized"
+  | "ease-decelerate"
+  | "ease-accelerate";
 
 const cssVar = (name: string) => `var(--${name})` as const;
 const hslVar = (name: string) => `hsl(var(--${name}))` as const;
@@ -73,12 +84,11 @@ export type Tokens = typeof tokens;
 
 export const motion = {
   transition(
-    props: string | string[] = 'all',
-    duration: MotionDurationToken = 'duration-200',
-    ease: MotionEaseToken = 'ease-standard'
+    props: string | string[] = "all",
+    duration: MotionDurationToken = "duration-200",
+    ease: MotionEaseToken = "ease-standard"
   ) {
-    const p = Array.isArray(props) ? props.join(',') : props;
+    const p = Array.isArray(props) ? props.join(",") : props;
     return `${p} ${tokens.duration[duration]} ${tokens.ease[ease]}`;
   },
 } as const;
-

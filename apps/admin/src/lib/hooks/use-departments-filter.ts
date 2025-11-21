@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useCallback, useTransition } from 'react';
-import { Department } from '../admin/departments';
+import { useCallback, useState, useTransition } from "react";
 
 export type FilterState = {
   active: boolean | undefined;
@@ -17,18 +16,18 @@ export default function useDepartmentsFilter() {
     type: undefined,
     searchTerm: undefined,
   });
-  
+
   const [isPending, startTransition] = useTransition();
-  
+
   const updateFilter = useCallback((key: keyof FilterState, value: any) => {
     startTransition(() => {
-      setFilters(prev => ({
+      setFilters((prev) => ({
         ...prev,
-        [key]: value
+        [key]: value,
       }));
     });
   }, []);
-  
+
   const resetFilters = useCallback(() => {
     startTransition(() => {
       setFilters({
@@ -39,16 +38,19 @@ export default function useDepartmentsFilter() {
       });
     });
   }, []);
-  
-  const setSearchTerm = useCallback((term: string) => {
-    // Debounced search term update
-    const timeoutId = setTimeout(() => {
-      updateFilter('searchTerm', term.trim() || undefined);
-    }, 300);
-    
-    return () => clearTimeout(timeoutId);
-  }, [updateFilter]);
-  
+
+  const setSearchTerm = useCallback(
+    (term: string) => {
+      // Debounced search term update
+      const timeoutId = setTimeout(() => {
+        updateFilter("searchTerm", term.trim() || undefined);
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    },
+    [updateFilter]
+  );
+
   return {
     filters,
     isPending,
@@ -56,4 +58,4 @@ export default function useDepartmentsFilter() {
     resetFilters,
     setSearchTerm,
   };
-} 
+}

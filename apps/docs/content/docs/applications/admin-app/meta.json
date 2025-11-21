@@ -4,4 +4,3 @@
   "icon": "Lock",
   "pages": ["index", "auth", "user-management"]
 }
-

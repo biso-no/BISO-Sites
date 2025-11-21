@@ -2,7 +2,13 @@
 import { createSessionClient } from "@repo/api/server";
 
 export type MembershipCheckResult =
-  | { ok: true; active: boolean; membership?: any; studentId?: number; categories?: number[] }
+  | {
+      ok: true;
+      active: boolean;
+      membership?: any;
+      studentId?: number;
+      categories?: number[];
+    }
   | { ok: false; error: string };
 
 export async function checkMembership(): Promise<MembershipCheckResult> {
@@ -12,12 +18,17 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
     // Only verify if BI Student identity is linked
     try {
       const identities = await account.listIdentities();
-      const hasBI = (identities?.identities || []).some((i: any) => String(i?.provider || "").toLowerCase() === "oidc");
+      const hasBI = (identities?.identities || []).some(
+        (i: any) => String(i?.provider || "").toLowerCase() === "oidc"
+      );
       if (!hasBI) {
         return { ok: true, active: false };
       }
     } catch (e: any) {
-      return { ok: false, error: `Failed to inspect identities: ${String(e?.message || e)}` };
+      return {
+        ok: false,
+        error: `Failed to inspect identities: ${String(e?.message || e)}`,
+      };
     }
     const exec: any = await functions.createExecution(
       "verify_biso_membership",
@@ -40,8 +51,11 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
 
     const active: boolean = Boolean(data?.active || data?.membership?.status);
     const membership = data?.membership;
-    const studentId = typeof data?.studentId === "number" ? data.studentId : undefined;
-    const categories = Array.isArray(data?.categories) ? data.categories : undefined;
+    const studentId =
+      typeof data?.studentId === "number" ? data.studentId : undefined;
+    const categories = Array.isArray(data?.categories)
+      ? data.categories
+      : undefined;
 
     return { ok: true, active, membership, studentId, categories };
   } catch (err: any) {

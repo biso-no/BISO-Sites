@@ -1,42 +1,45 @@
 "use client";
 
-import { useState } from "react";
 import { Card } from "@repo/ui/components/ui/card";
 import { CheckCircle } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
-interface Step {
+type Step = {
   id: number;
   title: string;
   description: string;
-}
+};
 
-interface ExpenseWizardProps {
+type ExpenseWizardProps = {
   steps: Step[];
   currentStep: number;
   onStepChange: (step: number) => void;
   children: React.ReactNode;
-}
+};
 
-export function ExpenseWizard({ steps, currentStep, children }: ExpenseWizardProps) {
+export function ExpenseWizard({
+  steps,
+  currentStep,
+  children,
+}: ExpenseWizardProps) {
   return (
-    <div className="max-w-4xl mx-auto px-4 -mt-8 relative z-10">
-      <Card className="p-6 border-0 shadow-xl">
-        <div className="flex items-center justify-between mb-2">
+    <div className="-mt-8 relative z-10 mx-auto max-w-4xl px-4">
+      <Card className="border-0 p-6 shadow-xl">
+        <div className="mb-2 flex items-center justify-between">
           {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center flex-1">
+            <div className="flex flex-1 items-center" key={step.id}>
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                     currentStep > step.id
                       ? "bg-green-500 text-white"
                       : currentStep === step.id
-                      ? "bg-[#3DA9E0] text-white"
-                      : "bg-gray-200 text-gray-500"
+                        ? "bg-[#3DA9E0] text-white"
+                        : "bg-gray-200 text-gray-500"
                   }`}
                 >
                   {currentStep > step.id ? (
-                    <CheckCircle className="w-5 h-5" />
+                    <CheckCircle className="h-5 w-5" />
                   ) : (
                     <span>{step.id}</span>
                   )}
@@ -51,7 +54,7 @@ export function ExpenseWizard({ steps, currentStep, children }: ExpenseWizardPro
               </div>
               {index < steps.length - 1 && (
                 <div
-                  className={`flex-1 h-1 mx-4 rounded ${
+                  className={`mx-4 h-1 flex-1 rounded ${
                     currentStep > step.id ? "bg-green-500" : "bg-gray-200"
                   }`}
                 />
@@ -68,22 +71,21 @@ export function ExpenseWizard({ steps, currentStep, children }: ExpenseWizardPro
   );
 }
 
-interface StepContainerProps {
+type StepContainerProps = {
   stepId: number;
   children: React.ReactNode;
-}
+};
 
 export function StepContainer({ stepId, children }: StepContainerProps) {
   return (
     <motion.div
-      key={`step-${stepId}`}
-      initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, x: 20 }}
+      key={`step-${stepId}`}
       transition={{ duration: 0.3 }}
     >
       {children}
     </motion.div>
   );
 }
-

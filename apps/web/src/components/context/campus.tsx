@@ -1,7 +1,14 @@
 "use client";
-import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
+import type { Campus } from "@repo/api/types/appwrite";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { getCampuses, setActiveCampus } from "@/app/actions/campus";
-import { Campus } from "@repo/api/types/appwrite";
 import { useHydration } from "@/lib/hooks/use-hydration";
 
 type CampusContextValue = {
@@ -24,7 +31,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Hydrate initial selection from localStorage so the choice persists between visits.
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       // Handle "all" selection
@@ -41,7 +50,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     const loadCampuses = async () => {
       try {
         const response = (await getCampuses()) as Campus[];
-        if (!isMounted) return;
+        if (!isMounted) {
+          return;
+        }
         setCampuses(response);
         setLoading(false);
 
@@ -68,7 +79,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
     if (activeCampusId) {
       window.localStorage.setItem(STORAGE_KEY, activeCampusId);
     } else {
@@ -81,7 +94,7 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     // Handle "all" selection by setting to null
     const normalizedCampusId = campusId === "all" ? null : campusId;
     setActiveCampusId(normalizedCampusId);
-    
+
     // Persist to server (user preferences) - fails silently if not logged in
     try {
       await setActiveCampus(normalizedCampusId);
@@ -91,7 +104,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const value = useMemo<CampusContextValue>(() => {
-    const activeCampus = campuses.find((campus) => campus.$id === activeCampusId);
+    const activeCampus = campuses.find(
+      (campus) => campus.$id === activeCampusId
+    );
     return {
       campuses,
       activeCampusId,
@@ -101,7 +116,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [campuses, activeCampusId, loading, selectCampus]);
 
-  return <CampusContext.Provider value={value}>{children}</CampusContext.Provider>;
+  return (
+    <CampusContext.Provider value={value}>{children}</CampusContext.Provider>
+  );
 };
 
 export const useCampus = () => {

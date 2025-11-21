@@ -1,54 +1,60 @@
-import { useTranslations } from 'next-intl'
-import { TabsContent } from '@repo/ui/components/ui/tabs'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { BenefitCard } from '../shared/BenefitCard'
-import { LockedContentOverlay } from '../shared/LockedContentOverlay'
-import type { MemberBenefit } from '@repo/api/types/appwrite'
+import type { MemberBenefit } from "@repo/api/types/appwrite";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { TabsContent } from "@repo/ui/components/ui/tabs";
+import { useTranslations } from "next-intl";
+import { BenefitCard } from "../shared/BenefitCard";
+import { LockedContentOverlay } from "../shared/LockedContentOverlay";
 
-interface BenefitsTabProps {
-  benefits: MemberBenefit[]
-  revealedBenefits: Set<string>
-  isMember: boolean
-  hasBIIdentity: boolean
-}
+type BenefitsTabProps = {
+  benefits: MemberBenefit[];
+  revealedBenefits: Set<string>;
+  isMember: boolean;
+  hasBIIdentity: boolean;
+};
 
-export function BenefitsTab({ benefits, revealedBenefits, isMember, hasBIIdentity }: BenefitsTabProps) {
-  const t = useTranslations('memberPortal.benefits')
+export function BenefitsTab({
+  benefits,
+  revealedBenefits,
+  isMember,
+  hasBIIdentity,
+}: BenefitsTabProps) {
+  const t = useTranslations("memberPortal.benefits");
 
   const content = (
     <>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t('title')}</h2>
-          <p className="text-gray-600 dark:text-gray-400">{t('description')}</p>
+          <h2 className="mb-2 font-bold text-2xl text-gray-900 dark:text-gray-100">
+            {t("title")}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">{t("description")}</p>
         </div>
-        <Badge className="bg-[#3DA9E0]/10 text-[#3DA9E0] border-[#3DA9E0]/30 px-4 py-2">
-          {t('available', { count: benefits.length })}
+        <Badge className="border-[#3DA9E0]/30 bg-[#3DA9E0]/10 px-4 py-2 text-[#3DA9E0]">
+          {t("available", { count: benefits.length })}
         </Badge>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
         {benefits.map((benefit) => (
           <BenefitCard
-            key={benefit.id}
             benefit={benefit}
             isRevealed={revealedBenefits.has(benefit.id)}
+            key={benefit.id}
           />
         ))}
       </div>
     </>
-  )
+  );
 
   return (
-    <TabsContent value="benefits" className="space-y-8">
-      {!isMember ? (
+    <TabsContent className="space-y-8" value="benefits">
+      {isMember ? (
+        content
+      ) : (
         <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
           {content}
         </LockedContentOverlay>
-      ) : (
-        content
       )}
     </TabsContent>
-  )
+  );
 }
-

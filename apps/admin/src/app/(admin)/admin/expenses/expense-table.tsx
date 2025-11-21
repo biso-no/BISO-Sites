@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
-import { ArrowUpDown, CheckCircle2, Clock, Edit, Loader2, Search } from "lucide-react";
-
-import { Expense } from "@/lib/types/expense";
-import { Button } from "@repo/ui/components/ui/button";
+import type { Expenses } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import {
   Select,
@@ -16,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -24,22 +27,26 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import {
-  formatPercentage,
-  getStatusToken,
-  getUniqueLocales,
-  parseJSONSafe,
-} from "@/lib/utils/admin";
+  ArrowUpDown,
+  CheckCircle2,
+  Clock,
+  Edit,
+  Loader2,
+  Search,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { AdminSummary } from "@/components/admin/admin-summary";
+import { formatPercentage, getStatusToken } from "@/lib/utils/admin";
 
-const TableSkeleton = () => (
+const _TableSkeleton = () => (
   <div className="space-y-3">
     {Array.from({ length: 6 }).map((_, row) => (
-      <div key={row} className="flex gap-3">
+      <div className="flex gap-3" key={row}>
         {Array.from({ length: 6 }).map((_, cell) => (
-          <Skeleton key={cell} className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 flex-1 rounded-xl" key={cell} />
         ))}
       </div>
     ))}
@@ -47,8 +54,14 @@ const TableSkeleton = () => (
 );
 
 const EXPENSE_STATUS_TOKENS = {
-  pending: { label: "Pending", className: "bg-amber-100 text-amber-800 border-amber-200" },
-  submitted: { label: "Submitted", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  pending: {
+    label: "Pending",
+    className: "bg-amber-100 text-amber-800 border-amber-200",
+  },
+  submitted: {
+    label: "Submitted",
+    className: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  },
 };
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
@@ -67,14 +80,16 @@ const StatusBadge = ({ status }: { status: string }) => {
   const Icon = STATUS_ICONS[status] ?? CheckCircle2;
 
   return (
-    <Badge className={`flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold uppercase tracking-wide ${token.className}`}>
+    <Badge
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-0.5 font-semibold text-xs uppercase tracking-wide ${token.className}`}
+    >
       <Icon className="h-3 w-3" />
       {token.label}
     </Badge>
   );
 };
 
-export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
+export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [searchParams, setSearchParams] = useState({
@@ -84,77 +99,136 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
     status: "all",
   });
   const [filters, setFilters] = useState(searchParams);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Expense | null; direction: "asc" | "desc" }>({ key: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Expenses | null;
+    direction: "asc" | "desc";
+  }>({
+    key: null,
+    direction: "asc",
+  });
 
   const uniqueDepartments = useMemo(
-    () => Array.from(new Set(expenses.map((expense) => expense.department).filter(Boolean))) as string[],
+    () =>
+      Array.from(
+        new Set(expenses.map((expense) => expense.department).filter(Boolean))
+      ) as string[],
     [expenses]
   );
   const uniqueCampuses = useMemo(
-    () => Array.from(new Set(expenses.map((expense) => expense.campus).filter(Boolean))) as string[],
+    () =>
+      Array.from(
+        new Set(expenses.map((expense) => expense.campus).filter(Boolean))
+      ) as string[],
     [expenses]
   );
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 600);
     return () => clearTimeout(timer);
-  }, [expenses]);
+  }, []);
 
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter((expense) => {
-      const matchesSearch =
-        filters.search === "" || expense.user?.name?.toLowerCase().includes(filters.search.toLowerCase());
-      const matchesDepartment = filters.department === "all" || expense.department === filters.department;
-      const matchesCampus = filters.campus === "all" || expense.campus === filters.campus;
-      const matchesStatus = filters.status === "all" || expense.status === filters.status;
-      return matchesSearch && matchesDepartment && matchesCampus && matchesStatus;
-    });
-  }, [expenses, filters]);
+  const filteredExpenses = useMemo(
+    () =>
+      expenses.filter((expense) => {
+        const matchesSearch =
+          filters.search === "" ||
+          expense.user?.name
+            ?.toLowerCase()
+            .includes(filters.search.toLowerCase());
+        const matchesDepartment =
+          filters.department === "all" ||
+          expense.department === filters.department;
+        const matchesCampus =
+          filters.campus === "all" || expense.campus === filters.campus;
+        const matchesStatus =
+          filters.status === "all" || expense.status === filters.status;
+        return (
+          matchesSearch && matchesDepartment && matchesCampus && matchesStatus
+        );
+      }),
+    [expenses, filters]
+  );
 
   const sortedExpenses = useMemo(() => {
     const sorted = [...filteredExpenses];
     if (sortConfig.key) {
       sorted.sort((a, b) => {
-        const aValue = a[sortConfig.key!];
-        const bValue = b[sortConfig.key!];
-        if (aValue === bValue) return 0;
-        if (aValue === undefined || aValue === null) return 1;
-        if (bValue === undefined || bValue === null) return -1;
-        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+        let aValue = a[sortConfig.key!];
+        let bValue = b[sortConfig.key!];
+
+        if (sortConfig.key === "user") {
+          // @ts-expect-error
+          aValue = aValue?.name;
+          // @ts-expect-error
+          bValue = bValue?.name;
+        }
+
+        if (aValue === bValue) {
+          return 0;
+        }
+        if (aValue === undefined || aValue === null) {
+          return 1;
+        }
+        if (bValue === undefined || bValue === null) {
+          return -1;
+        }
+        if (aValue < bValue) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
         return 0;
       });
     }
     return sorted;
   }, [filteredExpenses, sortConfig]);
 
-  const stats = useMemo(() => ({
-    pending: expenses.filter((expense) => expense.status === "pending").length,
-    submitted: expenses.filter((expense) => expense.status === "submitted").length,
-    totalAmount: expenses.reduce((sum, expense) => sum + Number(expense.total ?? 0), 0),
-    campuses: new Set(expenses.map((expense) => expense.campus)).size,
-    departments: new Set(expenses.map((expense) => expense.department)).size,
-  }), [expenses]);
+  const stats = useMemo(
+    () => ({
+      pending: expenses.filter((expense) => expense.status === "pending")
+        .length,
+      submitted: expenses.filter((expense) => expense.status === "submitted")
+        .length,
+      totalAmount: expenses.reduce(
+        (sum, expense) => sum + Number(expense.total ?? 0),
+        0
+      ),
+      campuses: new Set(expenses.map((expense) => expense.campus)).size,
+      departments: new Set(expenses.map((expense) => expense.department)).size,
+    }),
+    [expenses]
+  );
 
   const approvalRate = formatPercentage(stats.submitted, expenses.length);
   const summaryMetrics = [
     { label: "Totalt", value: expenses.length.toLocaleString() },
     { label: "Pending", value: stats.pending.toLocaleString() },
-    { label: "Submitted", value: stats.submitted.toLocaleString(), hint: `${approvalRate} godkjent` },
+    {
+      label: "Submitted",
+      value: stats.submitted.toLocaleString(),
+      hint: `${approvalRate} godkjent`,
+    },
     { label: "Campuser", value: stats.campuses.toString() },
-  ]
+  ];
   const formattedTotal = NOK_FORMATTER.format(stats.totalAmount);
 
-  const handleSort = (key: keyof Expense) => {
+  const handleSort = (key: keyof Expenses) => {
     setSortConfig((prev) => ({
       key,
       direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   };
 
-  const getSortIcon = (key: keyof Expense) => {
-    if (sortConfig.key !== key) return null;
-    return sortConfig.direction === "asc" ? <ArrowUpDown className="h-4 w-4 rotate-180" /> : <ArrowUpDown className="h-4 w-4" />;
+  const getSortIcon = (key: keyof Expenses) => {
+    if (sortConfig.key !== key) {
+      return null;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUpDown className="h-4 w-4 rotate-180" />
+    ) : (
+      <ArrowUpDown className="h-4 w-4" />
+    );
   };
 
   const handleSearch = (event: React.FormEvent) => {
@@ -163,7 +237,12 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
   };
 
   const handleReset = () => {
-    const cleared = { search: "", department: "all", campus: "all", status: "all" };
+    const cleared = {
+      search: "",
+      department: "all",
+      campus: "all",
+      status: "all",
+    };
     setSearchParams(cleared);
     setFilters(cleared);
   };
@@ -181,34 +260,43 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
     <div className="space-y-8">
       <AdminSummary
         badge="Utlegg"
-        title="Expense intelligence"
         description="Følg status, campus og volum for innsendte utlegg fra hele organisasjonen."
         metrics={summaryMetrics}
         slot={
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs uppercase tracking-[0.16em]">
             Totalsum {formattedTotal}
           </div>
         }
+        title="Expense intelligence"
       />
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.5)]">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold text-primary-100">Filtrer utlegg</CardTitle>
-          <CardDescription className="text-sm text-primary-60">
+          <CardTitle className="font-semibold text-lg text-primary-100">
+            Filtrer utlegg
+          </CardTitle>
+          <CardDescription className="text-primary-60 text-sm">
             Avgrens listen etter søker, avdeling, campus og status.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="grid gap-3 md:grid-cols-5">
+          <form className="grid gap-3 md:grid-cols-5" onSubmit={handleSearch}>
             <Input
-              type="text"
+              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
+              onChange={(e) =>
+                setSearchParams((prev) => ({ ...prev, search: e.target.value }))
+              }
               placeholder="Søk på navn..."
+              type="text"
               value={searchParams.search}
-              onChange={(e) => setSearchParams((prev) => ({ ...prev, search: e.target.value }))}
-              className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
-            <Select value={searchParams.department} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, department: value }))}>
-              <SelectTrigger className="rounded-xl border-primary/20 bg-white/70 text-sm">
+            <Select
+              onValueChange={(value) =>
+                setSearchParams((prev) => ({ ...prev, department: value }))
+              }
+              value={searchParams.department}
+            >
+              <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle avdelinger" />
               </SelectTrigger>
               <SelectContent>
@@ -220,8 +308,13 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={searchParams.campus} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, campus: value }))}>
-              <SelectTrigger className="rounded-xl border-primary/20 bg-white/70 text-sm">
+            <Select
+              onValueChange={(value) =>
+                setSearchParams((prev) => ({ ...prev, campus: value }))
+              }
+              value={searchParams.campus}
+            >
+              <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle campuser" />
               </SelectTrigger>
               <SelectContent>
@@ -233,8 +326,13 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={searchParams.status} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, status: value }))}>
-              <SelectTrigger className="rounded-xl border-primary/20 bg-white/70 text-sm">
+            <Select
+              onValueChange={(value) =>
+                setSearchParams((prev) => ({ ...prev, status: value }))
+              }
+              value={searchParams.status}
+            >
+              <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle statuser" />
               </SelectTrigger>
               <SelectContent>
@@ -244,10 +342,18 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
               </SelectContent>
             </Select>
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1 rounded-xl bg-primary-40 text-sm font-semibold text-white shadow hover:bg-primary-30">
+              <Button
+                className="flex-1 rounded-xl bg-primary-40 font-semibold text-sm text-white shadow hover:bg-primary-30"
+                type="submit"
+              >
                 Filtrer
               </Button>
-              <Button type="button" variant="outline" className="rounded-xl border-primary/20 bg-white/70 text-sm" onClick={handleReset}>
+              <Button
+                className="rounded-xl border-primary/20 text-sm"
+                onClick={handleReset}
+                type="button"
+                variant="outline"
+              >
                 Nullstill
               </Button>
             </div>
@@ -255,21 +361,27 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
         </CardContent>
       </Card>
 
-      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 bg-white/85 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/10 px-6 py-4">
+      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-primary/10 border-b px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">Utleggsoversikt</h2>
-            <p className="text-sm text-primary-60">
-              Viser {filteredExpenses.length} av {expenses.length} registrerte utlegg
+            <h2 className="font-semibold text-lg text-primary-100">
+              Utleggsoversikt
+            </h2>
+            <p className="text-primary-60 text-sm">
+              Viser {filteredExpenses.length} av {expenses.length} registrerte
+              utlegg
             </p>
           </div>
-          <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70">
+          <Badge
+            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs uppercase tracking-[0.16em]"
+            variant="outline"
+          >
             {approvalRate} godkjent
           </Badge>
         </div>
         <div className="relative">
           {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur">
+            <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur">
               <Loader2 className="h-6 w-6 animate-spin text-primary-80" />
             </div>
           )}
@@ -277,25 +389,37 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
             <Table className="min-w-[760px] text-sm">
               <TableHeader>
                 <TableRow className="bg-primary/5">
-                  <TableHead className="w-[200px] cursor-pointer" onClick={() => handleSort("user")}>
+                  <TableHead
+                    className="w-[200px] cursor-pointer"
+                    onClick={() => handleSort("user")}
+                  >
                     <div className="flex items-center gap-2">
                       Navn
                       {getSortIcon("user")}
                     </div>
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("department")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("department")}
+                  >
                     Avdeling
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("campus")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("campus")}
+                  >
                     Campus
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("category")}>
-                    Kategori
-                  </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("total")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("total")}
+                  >
                     Beløp
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("status")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("status")}
+                  >
                     Status
                   </TableHead>
                   <TableHead className="text-right">Handlinger</TableHead>
@@ -305,30 +429,36 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                 <AnimatePresence>
                   {(isLoading ? [] : sortedExpenses).map((expense) => (
                     <motion.tr
-                      key={expense.id}
-                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
+                      className="transition hover:bg-primary/5"
                       exit={{ opacity: 0, y: -8 }}
+                      initial={{ opacity: 0, y: 8 }}
+                      key={expense.$id}
                       transition={{ duration: 0.18 }}
-                      className="bg-white/70 transition hover:bg-primary/5"
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary-80">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary-80 text-sm">
                             {expense.user?.name?.slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex flex-col">
                             <span>{expense.user?.name}</span>
-                            <span className="text-xs text-primary-50">{expense.user?.email}</span>
+                            <span className="text-primary-50 text-xs">
+                              {expense.user?.email}
+                            </span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>{expense.department || "—"}</TableCell>
                       <TableCell>{expense.campus || "—"}</TableCell>
-                      <TableCell>{expense.category || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-xs text-primary-80">
-                          {expense.total ? NOK_FORMATTER.format(Number(expense.total)) : "N/A"}
+                        <Badge
+                          className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-primary-80 text-xs"
+                          variant="outline"
+                        >
+                          {expense.total
+                            ? NOK_FORMATTER.format(Number(expense.total))
+                            : "N/A"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -336,10 +466,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
-                          variant="ghost"
+                          className="rounded-full px-3 py-1 font-semibold text-primary-80 text-xs hover:bg-primary/10"
+                          onClick={() => actionClick(expense.$id)}
                           size="sm"
-                          className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10"
-                          onClick={() => actionClick(expense.id)}
+                          variant="ghost"
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Se detalj
@@ -351,8 +481,8 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
               </TableBody>
             </Table>
           </div>
-          {!sortedExpenses.length && !isLoading && (
-            <div className="flex flex-col items-center justify-center gap-2 border-t border-dashed border-primary/10 px-6 py-10 text-sm text-primary-60">
+          {!(sortedExpenses.length || isLoading) && (
+            <div className="flex flex-col items-center justify-center gap-2 border-primary/10 border-t border-dashed px-6 py-10 text-primary-60 text-sm">
               <Search className="h-6 w-6" />
               Ingen utlegg matcher filtrene dine.
             </div>

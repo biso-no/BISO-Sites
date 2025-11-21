@@ -1,43 +1,42 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
-
-import { cn } from '@repo/ui/lib/utils'
-import { Button } from '@repo/ui/components/ui/button'
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-} from '@repo/ui/components/ui/command'
+} from "@repo/ui/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@repo/ui/components/ui/popover'
+} from "@repo/ui/components/ui/popover";
+import { cn } from "@repo/ui/lib/utils";
+import { Check, ChevronsUpDown } from "lucide-react";
+import * as React from "react";
 
 export function Combobox({
   items,
   name,
   defaultValue,
 }: {
-  items: { value: string; label: string }[]
-  name: string
-  defaultValue?: string
+  items: { value: string; label: string }[];
+  name: string;
+  defaultValue?: string;
 }) {
-  const [open, setOpen] = React.useState(false)
-  const [value, setValue] = React.useState(defaultValue || '')
+  const [open, setOpen] = React.useState(false);
+  const [value, setValue] = React.useState(defaultValue || "");
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
-          role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
+          role="combobox"
+          variant="outline"
         >
           {value
             ? items.find((item) => item.value === value)?.label
@@ -54,8 +53,8 @@ export function Combobox({
               <CommandItem
                 key={item.value}
                 onSelect={() => {
-                  setValue(item.value)
-                  setOpen(false)
+                  setValue(item.value);
+                  setOpen(false);
                 }}
               >
                 <Check
@@ -70,7 +69,7 @@ export function Combobox({
           </CommandGroup>
         </Command>
       </PopoverContent>
-      <input type="hidden" name={name} value={value} />
+      <input name={name} type="hidden" value={value} />
     </Popover>
-  )
+  );
 }

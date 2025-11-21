@@ -5,4 +5,3 @@
   "icon": "Share2",
   "pages": ["overview", "apps", "packages", "data-flow", "dependency-injection"]
 }
-

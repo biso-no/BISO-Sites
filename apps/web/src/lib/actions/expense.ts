@@ -2,22 +2,35 @@
 
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { Expenses, ExpenseAttachments, ExpenseStatus } from "@repo/api/types/appwrite";
+import {
+  type ExpenseAttachments,
+  ExpenseStatus,
+  type Expenses,
+} from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
 // Type for creating an expense - omits relational fields that are populated by the database
-type CreateExpenseInput = Omit<Expenses, keyof import("@repo/api").Models.Row | "user" | "departmentRel" | "expenseAttachments"> & {
+type CreateExpenseInput = Omit<
+  Expenses,
+  | keyof import("@repo/api").Models.Row
+  | "user"
+  | "departmentRel"
+  | "expenseAttachments"
+> & {
   expenseAttachments: string[];
 };
 
 // Type for creating an expense attachment
-type CreateExpenseAttachmentInput = Omit<ExpenseAttachments, keyof import("@repo/api").Models.Row>;
+type CreateExpenseAttachmentInput = Omit<
+  ExpenseAttachments,
+  keyof import("@repo/api").Models.Row
+>;
 
 /**
  * Get all expenses for the current user with optional filters
  */
-export async function getExpenses(filters?: { 
-  status?: ExpenseStatus; 
+export async function getExpenses(filters?: {
+  status?: ExpenseStatus;
   campus?: string;
 }) {
   try {
@@ -37,11 +50,7 @@ export async function getExpenses(filters?: {
       queries.push(Query.equal("campus", filters.campus));
     }
 
-    const response = await db.listRows<Expenses>(
-      "app",
-      "expense",
-      queries
-    );
+    const response = await db.listRows<Expenses>("app", "expense", queries);
 
     return {
       success: true,
@@ -54,7 +63,8 @@ export async function getExpenses(filters?: {
       success: false,
       expenses: [],
       total: 0,
-      error: error instanceof Error ? error.message : "Failed to fetch expenses",
+      error:
+        error instanceof Error ? error.message : "Failed to fetch expenses",
     };
   }
 }
@@ -67,32 +77,27 @@ export async function getExpenseById(expenseId: string) {
     const { db, account } = await createSessionClient();
     const user = await account.get();
 
-    const expense = await db.getRow<Expenses>(
-      "app",
-      "expense",
-      expenseId,
-      [
-        Query.select([
-          "$id",
-          "$createdAt",
-          "$updatedAt",
-          "campus",
-          "department",
-          "bank_account",
-          "description",
-          "total",
-          "prepayment_amount",
-          "status",
-          "invoice_id",
-          "userId",
-          "eventName",
-          "expenseAttachments.*",
-          "user.name",
-          "user.email",
-          "departmentRel.Name",
-        ]),
-      ]
-    );
+    const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "campus",
+        "department",
+        "bank_account",
+        "description",
+        "total",
+        "prepayment_amount",
+        "status",
+        "invoice_id",
+        "userId",
+        "eventName",
+        "expenseAttachments.*",
+        "user.name",
+        "user.email",
+        "departmentRel.Name",
+      ]),
+    ]);
 
     // Verify the expense belongs to the current user
     if (expense.userId !== user.$id) {
@@ -156,7 +161,7 @@ export async function createExpense(data: {
     );
 
     revalidatePath("/fs");
-    
+
     return {
       success: true,
       expense,
@@ -166,7 +171,8 @@ export async function createExpense(data: {
     return {
       success: false,
       expense: null,
-      error: error instanceof Error ? error.message : "Failed to create expense",
+      error:
+        error instanceof Error ? error.message : "Failed to create expense",
     };
   }
 }
@@ -200,7 +206,8 @@ export async function uploadExpenseAttachment(formData: FormData) {
     console.error("Error uploading attachment:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to upload attachment",
+      error:
+        error instanceof Error ? error.message : "Failed to upload attachment",
     };
   }
 }
@@ -242,7 +249,10 @@ export async function createExpenseAttachment(data: {
     return {
       success: false,
       attachment: null,
-      error: error instanceof Error ? error.message : "Failed to create attachment record",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create attachment record",
     };
   }
 }
@@ -250,7 +260,7 @@ export async function createExpenseAttachment(data: {
 /**
  * Update an existing expense
  */
-async function updateExpense(
+async function _updateExpense(
   expenseId: string,
   data: Partial<CreateExpenseInput>
 ) {
@@ -259,8 +269,12 @@ async function updateExpense(
     const user = await account.get();
 
     // Verify ownership
-    const existingExpense = await db.getRow<Expenses>("app", "expense", expenseId);
-    
+    const existingExpense = await db.getRow<Expenses>(
+      "app",
+      "expense",
+      expenseId
+    );
+
     if (existingExpense.userId !== user.$id) {
       return {
         success: false,
@@ -286,7 +300,8 @@ async function updateExpense(
     console.error("Error updating expense:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update expense",
+      error:
+        error instanceof Error ? error.message : "Failed to update expense",
     };
   }
 }
@@ -294,14 +309,18 @@ async function updateExpense(
 /**
  * Delete an expense
  */
-async function deleteExpense(expenseId: string) {
+async function _deleteExpense(expenseId: string) {
   try {
     const { db, account } = await createSessionClient();
     const user = await account.get();
 
     // Verify ownership
-    const existingExpense = await db.getRow<Expenses>("app", "expense", expenseId);
-    
+    const existingExpense = await db.getRow<Expenses>(
+      "app",
+      "expense",
+      expenseId
+    );
+
     if (existingExpense.userId !== user.$id) {
       return {
         success: false,
@@ -320,7 +339,8 @@ async function deleteExpense(expenseId: string) {
     console.error("Error deleting expense:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete expense",
+      error:
+        error instanceof Error ? error.message : "Failed to delete expense",
     };
   }
 }

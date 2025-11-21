@@ -1,4 +1,4 @@
-import { Models } from "@repo/api";
+import type { Models } from "@repo/api";
 
 export interface FundingProgram extends Models.Row {
   slug: string;

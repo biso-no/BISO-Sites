@@ -1,14 +1,14 @@
-import { motion } from "motion/react";
-import { CheckCircle, type LucideIcon } from "lucide-react";
 import { Card } from "@repo/ui/components/ui/card";
+import { CheckCircle, type LucideIcon } from "lucide-react";
+import { motion } from "motion/react";
 
-interface BenefitsSectionProps {
+type BenefitsSectionProps = {
   title: string;
   description: string;
   icon: LucideIcon;
   items: string[];
   colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
-}
+};
 
 const colorSchemes = {
   blue: {
@@ -49,28 +49,32 @@ export function BenefitsSection({
 
   return (
     <section>
-      <Card className={`p-8 border-0 shadow-xl bg-gradient-to-br ${colors.gradient}`}>
-        <div className="flex items-center gap-3 mb-6">
+      <Card
+        className={`border-0 bg-linear-to-br p-8 shadow-xl ${colors.gradient}`}
+      >
+        <div className="mb-6 flex items-center gap-3">
           <div
-            className={`w-12 h-12 rounded-full bg-gradient-to-br ${colors.iconGradient} flex items-center justify-center`}
+            className={`h-12 w-12 rounded-full bg-linear-to-br ${colors.iconGradient} flex items-center justify-center`}
           >
-            <Icon className="w-6 h-6 text-white" />
+            <Icon className="h-6 w-6 text-white" />
           </div>
           <div>
             <h3 className="text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-600">{description}</p>
+            <p className="text-gray-600 text-sm">{description}</p>
           </div>
         </div>
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           {items.map((item, index) => (
             <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
+              className="flex items-start gap-3 rounded-lg bg-white p-4"
+              initial={{ opacity: 0, x: -20 }}
+              key={index}
               transition={{ delay: index * 0.05 }}
-              className="flex items-start gap-3 p-4 bg-white rounded-lg"
             >
-              <CheckCircle className={`w-5 h-5 ${colors.checkColor} shrink-0 mt-0.5`} />
+              <CheckCircle
+                className={`h-5 w-5 ${colors.checkColor} mt-0.5 shrink-0`}
+              />
               <span className="text-gray-700">{item}</span>
             </motion.div>
           ))}
@@ -79,4 +83,3 @@ export function BenefitsSection({
     </section>
   );
 }
-

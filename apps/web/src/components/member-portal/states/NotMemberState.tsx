@@ -1,31 +1,31 @@
-'use client'
+"use client";
 
-import { useTranslations } from 'next-intl'
-import { motion } from 'motion/react'
-import { Award, ArrowLeft, CreditCard, CheckCircle } from 'lucide-react'
-import Link from 'next/link'
-import { Card } from '@repo/ui/components/ui/card'
-import { Button } from '@repo/ui/components/ui/button'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { useState, useTransition } from 'react'
-import { initiateVippsCheckout } from '@repo/payment/actions'
+import { initiateVippsCheckout } from "@repo/payment/actions";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { ArrowLeft, Award, CheckCircle, CreditCard } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useState, useTransition } from "react";
 
-type MembershipDuration = 'semester' | 'year' | 'three-year'
+type MembershipDuration = "semester" | "year" | "three-year";
 
 const MEMBERSHIP_PRICES = {
   semester: 350,
   year: 550,
-  'three-year': 1400,
-}
+  "three-year": 1400,
+};
 
-interface NotMemberStateProps {
-  benefitsCount?: number
-}
+type NotMemberStateProps = {
+  benefitsCount?: number;
+};
 
 export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
-  const t = useTranslations('memberPortal')
-  const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>('year')
-  const [isPending, startTransition] = useTransition()
+  const t = useTranslations("memberPortal");
+  const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
+  const [isPending, startTransition] = useTransition();
 
   const handlePurchase = () => {
     startTransition(async () => {
@@ -37,55 +37,58 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
           returnUrl: `${window.location.origin}/member?purchase=success`,
           customerInfo: {
             // Will be filled by Vipps from session
-          }
-        })
+          },
+        });
       } catch (error) {
-        console.error('Failed to initiate checkout:', error)
+        console.error("Failed to initiate checkout:", error);
       }
-    })
-  }
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-gray-50 to-white p-4 dark:from-gray-950 dark:to-gray-900">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-2xl w-full"
+        className="w-full max-w-2xl"
+        initial={{ opacity: 0, y: 20 }}
       >
-        <Card className="p-8 border-0 shadow-xl dark:bg-gray-900/50 dark:backdrop-blur-sm">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
-            <Award className="w-8 h-8 text-white" />
+        <Card className="border-0 p-8 shadow-xl dark:bg-gray-900/50 dark:backdrop-blur-sm">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+            <Award className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-center">
-            {t('states.notMember.title')}
+          <h2 className="mb-4 text-center font-bold text-3xl text-gray-900 dark:text-gray-100">
+            {t("states.notMember.title")}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-8 text-center max-w-xl mx-auto">
-            {t('states.notMember.description')}
+          <p className="mx-auto mb-8 max-w-xl text-center text-gray-600 dark:text-gray-400">
+            {t("states.notMember.description")}
           </p>
 
           {/* Membership Options */}
-          <div className="grid sm:grid-cols-3 gap-4 mb-8">
+          <div className="mb-8 grid gap-4 sm:grid-cols-3">
             {Object.entries(MEMBERSHIP_PRICES).map(([type, price]) => (
-              <Card 
-                key={type} 
-                className={`p-6 border-2 cursor-pointer transition-colors ${
-                  selectedPlan === type 
-                    ? 'border-[#3DA9E0] bg-[#3DA9E0]/5 dark:bg-[#3DA9E0]/10' 
-                    : 'border-gray-200 dark:border-gray-700 hover:border-[#3DA9E0]/50 dark:hover:border-[#3DA9E0]/50'
+              <Card
+                className={`cursor-pointer border-2 p-6 transition-colors ${
+                  selectedPlan === type
+                    ? "border-[#3DA9E0] bg-[#3DA9E0]/5 dark:bg-[#3DA9E0]/10"
+                    : "border-gray-200 hover:border-[#3DA9E0]/50 dark:border-gray-700 dark:hover:border-[#3DA9E0]/50"
                 }`}
+                key={type}
                 onClick={() => setSelectedPlan(type as MembershipDuration)}
               >
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  <h3 className="mb-2 font-semibold text-gray-900 text-lg dark:text-gray-100">
                     {t(`states.notMember.pricing.${type}`)}
                   </h3>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                  <div className="mb-4 font-bold text-2xl text-gray-900 dark:text-gray-100">
                     {price} NOK
                   </div>
-                  <Badge variant="outline" className="border-[#3DA9E0]/20 text-[#3DA9E0] dark:border-[#3DA9E0]/30">
-                    {type === 'three-year' 
-                      ? t('states.notMember.pricing.bestValue')
-                      : t('states.notMember.pricing.popular')}
+                  <Badge
+                    className="border-[#3DA9E0]/20 text-[#3DA9E0] dark:border-[#3DA9E0]/30"
+                    variant="outline"
+                  >
+                    {type === "three-year"
+                      ? t("states.notMember.pricing.bestValue")
+                      : t("states.notMember.pricing.popular")}
                   </Badge>
                 </div>
               </Card>
@@ -93,54 +96,58 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
           </div>
 
           {/* Benefits Preview */}
-          <div className="bg-gradient-to-br from-[#3DA9E0]/10 to-[#001731]/10 dark:from-[#3DA9E0]/20 dark:to-[#001731]/20 rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              {t('states.notMember.whatYouGet')}
+          <div className="mb-6 rounded-lg bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 p-6 dark:from-[#3DA9E0]/20 dark:to-[#001731]/20">
+            <h3 className="mb-4 font-semibold text-gray-900 text-lg dark:text-gray-100">
+              {t("states.notMember.whatYouGet")}
             </h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-[#3DA9E0] mt-0.5 flex-shrink-0" />
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                 <span className="text-gray-700 dark:text-gray-300">
-                  {t('states.notMember.benefits.discounts', { count: benefitsCount })}
+                  {t("states.notMember.benefits.discounts", {
+                    count: benefitsCount,
+                  })}
                 </span>
               </li>
               <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-[#3DA9E0] mt-0.5 flex-shrink-0" />
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                 <span className="text-gray-700 dark:text-gray-300">
-                  {t('states.notMember.benefits.memberPricing')}
+                  {t("states.notMember.benefits.memberPricing")}
                 </span>
               </li>
               <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-[#3DA9E0] mt-0.5 flex-shrink-0" />
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                 <span className="text-gray-700 dark:text-gray-300">
-                  {t('states.notMember.benefits.priorityAccess')}
+                  {t("states.notMember.benefits.priorityAccess")}
                 </span>
               </li>
               <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-[#3DA9E0] mt-0.5 flex-shrink-0" />
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                 <span className="text-gray-700 dark:text-gray-300">
-                  {t('states.notMember.benefits.community')}
+                  {t("states.notMember.benefits.community")}
                 </span>
               </li>
             </ul>
           </div>
 
-          <Button 
-            className="w-full bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white mb-4"
-            onClick={handlePurchase}
+          <Button
+            className="mb-4 w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
             disabled={isPending}
+            onClick={handlePurchase}
           >
-            <CreditCard className="w-4 h-4 mr-2" />
-            {isPending ? 'Processing...' : t('states.notMember.purchaseMembership')}
+            <CreditCard className="mr-2 h-4 w-4" />
+            {isPending
+              ? "Processing..."
+              : t("states.notMember.purchaseMembership")}
           </Button>
           <Link href="/">
-            <Button variant="outline" className="w-full">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {t('backToHome')}
+            <Button className="w-full" variant="outline">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {t("backToHome")}
             </Button>
           </Link>
         </Card>
       </motion.div>
     </div>
-  )
+  );
 }

@@ -1,33 +1,35 @@
-'use client'
+"use client";
 
-import {
-  TabNavigation,
-  OverviewTab,
-  ProfileTab,
-  MembershipTab,
-  BenefitsTab,
-  SettingsTab
-} from '@/components/member-portal'
-import type { Users, PublicProfiles, MemberBenefit } from '@repo/api/types/appwrite'
+import type {
+  MemberBenefit,
+  PublicProfiles,
+  Users,
+} from "@repo/api/types/appwrite";
+import { TabNavigation } from "./shared/TabNavigation";
+import { BenefitsTab } from "./tabs/BenefitsTab";
+import { MembershipTab } from "./tabs/MembershipTab";
+import { OverviewTab } from "./tabs/OverviewTab";
+import { ProfileTab } from "./tabs/ProfileTab";
+import { SettingsTab } from "./tabs/SettingsTab";
 
-interface MemberPortalTabsProps {
-  membershipType: string
-  benefitsCount: number
-  daysRemaining: number
-  estimatedSavings: number
-  startDate: string
-  expiryDate: string
-  benefits: MemberBenefit[]
-  revealedBenefits: Set<string>
-  isMember: boolean
-  hasBIIdentity: boolean
-  profile: Users
-  publicProfile: PublicProfiles | null
-  biEmail: string
-  userName: string
-  studentId: string
-  bankAccount?: string
-}
+type MemberPortalTabsProps = {
+  membershipType: string;
+  benefitsCount: number;
+  daysRemaining: number;
+  estimatedSavings: number;
+  startDate: string;
+  expiryDate: string;
+  benefits: MemberBenefit[];
+  revealedBenefits: Set<string>;
+  isMember: boolean;
+  hasBIIdentity: boolean;
+  profile: Users;
+  publicProfile: PublicProfiles | null;
+  biEmail: string;
+  userName: string;
+  studentId: string;
+  bankAccount?: string;
+};
 
 export function MemberPortalTabs({
   membershipType,
@@ -45,63 +47,60 @@ export function MemberPortalTabs({
   biEmail,
   userName,
   studentId,
-  bankAccount
+  bankAccount,
 }: MemberPortalTabsProps) {
   const handleTabChange = (tab: string) => {
-    if (typeof window !== 'undefined') {
-      window.location.hash = tab
+    if (typeof window !== "undefined") {
+      window.location.hash = tab;
     }
-  }
+  };
 
   return (
-    <TabNavigation 
-      defaultTab="overview" 
+    <TabNavigation
       benefitsCount={benefitsCount}
-      isMember={isMember}
+      defaultTab="overview"
       hasBIIdentity={hasBIIdentity}
+      isMember={isMember}
     >
       <OverviewTab
-        membershipType={membershipType}
+        benefits={benefits}
         benefitsCount={benefitsCount}
         daysRemaining={daysRemaining}
         estimatedSavings={estimatedSavings}
-        startDate={startDate}
         expiryDate={expiryDate}
-        benefits={benefits}
-        revealedBenefits={revealedBenefits}
-        isMember={isMember}
         hasBIIdentity={hasBIIdentity}
+        isMember={isMember}
+        membershipType={membershipType}
         onTabChange={handleTabChange}
+        revealedBenefits={revealedBenefits}
+        startDate={startDate}
       />
 
       <ProfileTab
-        user={profile}
-        publicProfile={publicProfile}
         biEmail={biEmail}
+        publicProfile={publicProfile}
+        user={profile}
       />
 
       <MembershipTab
-        userName={userName}
-        studentId={studentId}
-        currentPlan="year"
-        expiryDate={expiryDate}
-        daysRemaining={daysRemaining}
         autoRenew={false}
-        isMember={isMember}
+        currentPlan="year"
+        daysRemaining={daysRemaining}
+        expiryDate={expiryDate}
         hasBIIdentity={hasBIIdentity}
+        isMember={isMember}
+        studentId={studentId}
+        userName={userName}
       />
 
       <BenefitsTab
         benefits={benefits}
-        revealedBenefits={revealedBenefits}
-        isMember={isMember}
         hasBIIdentity={hasBIIdentity}
+        isMember={isMember}
+        revealedBenefits={revealedBenefits}
       />
 
-      <SettingsTab
-        bankAccount={bankAccount}
-      />
+      <SettingsTab bankAccount={bankAccount} />
     </TabNavigation>
-  )
+  );
 }
-

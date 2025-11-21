@@ -1,7 +1,13 @@
-"use client"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select";
+"use client";
+import type { Campus } from "@repo/api/types/appwrite";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
 import { useCampus } from "./context/campus";
-import { Campus } from "@repo/api/types/appwrite";
 
 type SelectCampusProps = {
   campuses: Campus[];
@@ -9,7 +15,10 @@ type SelectCampusProps = {
   className?: string;
 };
 
-export const SelectCampus = ({ placeholder = "Velg campus", className }: SelectCampusProps) => {
+export const SelectCampus = ({
+  placeholder = "Velg campus",
+  className,
+}: SelectCampusProps) => {
   const { campuses, activeCampusId, selectCampus, loading } = useCampus();
 
   const handleValueChange = async (value: string) => {
@@ -21,8 +30,12 @@ export const SelectCampus = ({ placeholder = "Velg campus", className }: SelectC
   const selectValue = activeCampusId ?? "all";
 
   return (
-    <Select value={selectValue} onValueChange={handleValueChange} disabled={loading}>
-      <SelectTrigger className={className} aria-label="Velg campus">
+    <Select
+      disabled={loading}
+      onValueChange={handleValueChange}
+      value={selectValue}
+    >
+      <SelectTrigger aria-label="Velg campus" className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

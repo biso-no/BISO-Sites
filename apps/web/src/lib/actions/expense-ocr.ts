@@ -3,19 +3,22 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
-interface ProcessedReceiptData {
+type ProcessedReceiptData = {
   date: string | null;
   amount: number | null;
   description: string | null;
   confidence: number;
   currency?: string | null;
-}
+};
 
 /**
  * Process a receipt file using OCR to extract data
  * This calls the client-side API route that handles the OCR processing
  */
-export async function processReceipt(fileId: string, fileUrl: string): Promise<{
+export async function processReceipt(
+  _fileId: string,
+  fileUrl: string
+): Promise<{
   success: boolean;
   data?: ProcessedReceiptData;
   error?: string;
@@ -23,7 +26,7 @@ export async function processReceipt(fileId: string, fileUrl: string): Promise<{
   try {
     // Fetch the file from Appwrite storage
     const response = await fetch(fileUrl);
-    
+
     if (!response.ok) {
       throw new Error("Failed to fetch file from storage");
     }
@@ -33,8 +36,10 @@ export async function processReceipt(fileId: string, fileUrl: string): Promise<{
     const buffer = Buffer.from(arrayBuffer);
 
     // Import the processing function server-side
-    const { processDocument } = await import("@/lib/services/document-processing");
-    
+    const { processDocument } = await import(
+      "@/lib/services/document-processing"
+    );
+
     const result = await processDocument(buffer, blob.type);
 
     return {
@@ -51,7 +56,8 @@ export async function processReceipt(fileId: string, fileUrl: string): Promise<{
     console.error("Error processing receipt:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to process receipt",
+      error:
+        error instanceof Error ? error.message : "Failed to process receipt",
     };
   }
 }
@@ -59,11 +65,13 @@ export async function processReceipt(fileId: string, fileUrl: string): Promise<{
 /**
  * Generate an AI description for the expense based on attachment data
  */
-export async function generateExpenseDescription(attachments: Array<{
-  description: string;
-  amount: number;
-  date: string;
-}>): Promise<{
+export async function generateExpenseDescription(
+  attachments: Array<{
+    description: string;
+    amount: number;
+    date: string;
+  }>
+): Promise<{
   success: boolean;
   description?: string;
   error?: string;
@@ -77,10 +85,13 @@ export async function generateExpenseDescription(attachments: Array<{
     }
 
     const totalAmount = attachments.reduce((sum, att) => sum + att.amount, 0);
-    
-    const attachmentDetails = attachments.map((att, index) => 
-      `${index + 1}. ${att.description} - ${att.amount} NOK (${att.date})`
-    ).join("\n");
+
+    const attachmentDetails = attachments
+      .map(
+        (att, index) =>
+          `${index + 1}. ${att.description} - ${att.amount} NOK (${att.date})`
+      )
+      .join("\n");
 
     const prompt = `You are an assistant helping to create concise expense reimbursement descriptions for a student organization (BISO - BI Student Organisation).
 
@@ -112,7 +123,10 @@ Generate only the description text, no additional formatting or explanations.`;
     console.error("Error generating description:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to generate description",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate description",
     };
   }
 }
@@ -120,11 +134,15 @@ Generate only the description text, no additional formatting or explanations.`;
 /**
  * Process multiple receipts in parallel
  */
-async function processMultipleReceipts(
+async function _processMultipleReceipts(
   files: Array<{ id: string; url: string }>
 ): Promise<{
   success: boolean;
-  results?: Array<{ fileId: string; data: ProcessedReceiptData | null; error?: string }>;
+  results?: Array<{
+    fileId: string;
+    data: ProcessedReceiptData | null;
+    error?: string;
+  }>;
   error?: string;
 }> {
   try {
@@ -142,13 +160,12 @@ async function processMultipleReceipts(
     const processedResults = results.map((result) => {
       if (result.status === "fulfilled") {
         return result.value;
-      } else {
-        return {
-          fileId: "unknown",
-          data: null,
-          error: result.reason?.message || "Processing failed",
-        };
       }
+      return {
+        fileId: "unknown",
+        data: null,
+        error: result.reason?.message || "Processing failed",
+      };
     });
 
     return {
@@ -159,7 +176,8 @@ async function processMultipleReceipts(
     console.error("Error processing multiple receipts:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to process receipts",
+      error:
+        error instanceof Error ? error.message : "Failed to process receipts",
     };
   }
 }
@@ -167,7 +185,7 @@ async function processMultipleReceipts(
 /**
  * Validate and enhance receipt data using AI
  */
-async function validateReceiptData(data: {
+async function _validateReceiptData(data: {
   description: string;
   amount: number;
   date: string;
@@ -216,8 +234,8 @@ Respond with ONLY a JSON object in this format:
     return {
       success: false,
       isValid: true, // Default to valid if validation fails
-      error: error instanceof Error ? error.message : "Failed to validate receipt",
+      error:
+        error instanceof Error ? error.message : "Failed to validate receipt",
     };
   }
 }
-

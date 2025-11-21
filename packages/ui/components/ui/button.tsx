@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@repo/ui/lib/utils";
+import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
+  "inline-flex items-center justify-center rounded-md font-medium text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
@@ -18,19 +18,23 @@ const buttonVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/90",
         ghost: "text-foreground hover:bg-muted/30",
-        link: "underline-offset-4 hover:underline text-accent",
-        glass: "glass text-foreground hover:brightness-110 backdrop-blur-sm border border-white/10 shadow-md",
-        "glass-dark": "glass-dark text-white hover:brightness-110 shadow-md",
-        gradient: "relative overflow-hidden bg-primary text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 before:absolute before:inset-0 before:bg-linear-to-r before:from-blue-accent before:to-secondary-100 before:opacity-0 before:transition-opacity hover:before:opacity-100 before:-z-10",
-        glow: "bg-primary-80 text-white shadow-glow hover:shadow-glow-blue transition-all duration-300 hover:-translate-y-0.5",
-        "golden-gradient": "relative text-primary-100 bg-linear-to-r from-gold-default to-gold-accent shadow-card-gold hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300",
-        animated: "bg-primary-90 text-white hover:bg-primary-80 transition-colors duration-300 relative overflow-hidden",
+        link: "text-accent underline-offset-4 hover:underline",
+        glass:
+          "glass border border-white/10 text-foreground shadow-md backdrop-blur-sm hover:brightness-110",
+        "glass-dark": "glass-dark text-white shadow-md hover:brightness-110",
+        gradient:
+          "hover:-translate-y-0.5 before:-z-10 relative overflow-hidden bg-primary text-white shadow-md transition-all duration-300 before:absolute before:inset-0 before:bg-linear-to-r before:from-blue-accent before:to-secondary-100 before:opacity-0 before:transition-opacity hover:shadow-lg hover:before:opacity-100",
+        glow: "hover:-translate-y-0.5 bg-primary-80 text-white shadow-glow transition-all duration-300 hover:shadow-glow-blue",
+        "golden-gradient":
+          "hover:-translate-y-0.5 relative bg-linear-to-r from-gold-default to-gold-accent text-primary-100 shadow-card-gold transition-all duration-300 hover:shadow-xl",
+        animated:
+          "relative overflow-hidden bg-primary-90 text-white transition-colors duration-300 hover:bg-primary-80",
       },
       size: {
-        default: "h-10 py-2 px-4",
-        sm: "h-9 px-3 rounded-md",
-        lg: "h-11 px-8 rounded-md",
-        xl: "h-12 px-10 rounded-lg text-base",
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        xl: "h-12 rounded-lg px-10 text-base",
         icon: "h-10 w-10",
       },
     },
@@ -39,26 +43,31 @@ const buttonVariants = cva(
       size: "default",
     },
   }
-)
+);
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  asChild?: boolean
+  asChild?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+const Button = ({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ref,
+  ...props
+}: ButtonProps & { ref?: React.RefObject<HTMLButtonElement | null> }) => {
+  const Comp = asChild ? Slot : "button";
+  return (
+    <Comp
+      className={cn(buttonVariants({ variant, size, className }))}
+      ref={ref}
+      {...props}
+    />
+  );
+};
+Button.displayName = "Button";
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

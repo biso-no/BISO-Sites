@@ -1,5 +1,3 @@
-@config "../../tailwind.config.cjs";
-
 @plugin "tailwindcss-animate";
 @plugin "@tailwindcss/typography";
 @import "tailwindcss";
@@ -26,7 +24,7 @@
 .tiptap pre {
   background-color: #1e293b;
   color: #e2e8f0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   padding: 0.75em 1em;
   border-radius: 0.5em;
 }
@@ -37,7 +35,7 @@
   font-weight: 600;
   padding: 0.2em 0.4em;
   border-radius: 0.25em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.9em;
 }
 
@@ -163,8 +161,12 @@
 
 /* Add smooth animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .tiptap .ProseMirror-selectednode {
@@ -173,11 +175,11 @@
 }
 
 /* Bubble menu animation */
-.tippy-box[data-animation=fade][data-state=hidden] {
+.tippy-box[data-animation="fade"][data-state="hidden"] {
   opacity: 0;
 }
 
-.tippy-box[data-animation=fade][data-state=visible] {
+.tippy-box[data-animation="fade"][data-state="visible"] {
   opacity: 1;
   transition: opacity 0.2s ease-out;
 }
@@ -252,7 +254,7 @@
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Light mode gradient background */
   body:not(.dark) {
     background: linear-gradient(
@@ -264,7 +266,7 @@
       rgb(221 245 248) 100%
     );
   }
-  
+
   /* Dark mode gradient background */
   .dark body {
     background: linear-gradient(
@@ -280,30 +282,16 @@
 
 @layer utilities {
   .bg-grid-primary {
-    background-image: linear-gradient(
-        to right,
-        rgba(0, 23, 49, 0.08) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        rgba(0, 23, 49, 0.08) 1px,
-        transparent 1px
-      );
+    background-image:
+      linear-gradient(to right, rgba(0, 23, 49, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 23, 49, 0.08) 1px, transparent 1px);
     background-size: 32px 32px;
   }
 
   .bg-grid-primary-soft {
-    background-image: linear-gradient(
-        to right,
-        rgba(0, 23, 49, 0.04) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        rgba(0, 23, 49, 0.04) 1px,
-        transparent 1px
-      );
+    background-image:
+      linear-gradient(to right, rgba(0, 23, 49, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 23, 49, 0.04) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
@@ -319,9 +307,11 @@
     width: clamp(320px, 40vw, 520px);
     aspect-ratio: 1 / 1;
     border-radius: 999px;
-    background: radial-gradient(circle at center,
-        rgba(61, 169, 224, 0.28),
-        rgba(0, 23, 49, 0));
+    background: radial-gradient(
+      circle at center,
+      rgba(61, 169, 224, 0.28),
+      rgba(0, 23, 49, 0)
+    );
     filter: blur(4px);
     opacity: 0.85;
     z-index: -2;
@@ -334,9 +324,11 @@
     width: clamp(280px, 32vw, 420px);
     aspect-ratio: 1 / 1;
     border-radius: 999px;
-    background: radial-gradient(circle at center,
-        rgba(247, 214, 74, 0.18),
-        rgba(0, 23, 49, 0));
+    background: radial-gradient(
+      circle at center,
+      rgba(247, 214, 74, 0.18),
+      rgba(0, 23, 49, 0)
+    );
     filter: blur(6px);
     opacity: 0.8;
     z-index: -2;
@@ -344,22 +336,24 @@
 
   .glass-panel {
     @apply relative overflow-hidden rounded-3xl border backdrop-blur-xl;
-    
+
     /* Light mode */
     border-color: rgba(0, 95, 202, 0.12);
     background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 1px 3px rgba(0, 23, 49, 0.06),
-                0 8px 24px rgba(0, 95, 202, 0.08),
-                0 20px 48px rgba(61, 169, 224, 0.06);
+    box-shadow:
+      0 1px 3px rgba(0, 23, 49, 0.06),
+      0 8px 24px rgba(0, 95, 202, 0.08),
+      0 20px 48px rgba(61, 169, 224, 0.06);
   }
-  
+
   .dark .glass-panel {
     /* Dark mode */
     border-color: rgba(61, 169, 224, 0.15);
     background: rgba(21, 29, 40, 0.85);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3),
-                0 8px 24px rgba(61, 169, 224, 0.1),
-                0 20px 48px rgba(0, 95, 202, 0.08);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.3),
+      0 8px 24px rgba(61, 169, 224, 0.1),
+      0 20px 48px rgba(0, 95, 202, 0.08);
   }
 
   /* Enhanced glassmorphism utilities */
@@ -368,27 +362,31 @@
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(61, 169, 224, 0.15);
-    box-shadow: 0 8px 32px rgba(0, 23, 49, 0.08),
-                0 2px 8px rgba(61, 169, 224, 0.05);
+    box-shadow:
+      0 8px 32px rgba(0, 23, 49, 0.08),
+      0 2px 8px rgba(61, 169, 224, 0.05);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .glass-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 48px rgba(0, 23, 49, 0.12),
-                0 4px 12px rgba(61, 169, 224, 0.08);
+    box-shadow:
+      0 12px 48px rgba(0, 23, 49, 0.12),
+      0 4px 12px rgba(61, 169, 224, 0.08);
   }
 
   .dark .glass-card {
     background: rgba(21, 29, 40, 0.85);
     border-color: rgba(61, 169, 224, 0.15);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                0 2px 8px rgba(61, 169, 224, 0.08);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      0 2px 8px rgba(61, 169, 224, 0.08);
   }
 
   .dark .glass-card:hover {
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4),
-                0 4px 12px rgba(61, 169, 224, 0.12);
+    box-shadow:
+      0 12px 48px rgba(0, 0, 0, 0.4),
+      0 4px 12px rgba(61, 169, 224, 0.12);
   }
 
   .glass-input {
@@ -440,11 +438,18 @@
   }
 
   .accent-ring {
-    box-shadow: 0 0 0 1px rgba(0, 23, 49, 0.08), 0 30px 60px -40px rgba(0, 23, 49, 0.45);
+    box-shadow:
+      0 0 0 1px rgba(0, 23, 49, 0.08),
+      0 30px 60px -40px rgba(0, 23, 49, 0.45);
   }
 
   .gradient-divider {
     height: 1px;
-    background: linear-gradient(to right, transparent, rgba(0, 23, 49, 0.2), transparent);
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(0, 23, 49, 0.2),
+      transparent
+    );
   }
 }
