@@ -1,10 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { type UseFormReturn, type WatchObserver, useFormContext } from "react-hook-form";
-import { useTranslations } from "next-intl";
-import { Check, Edit2, Eye, X } from "lucide-react";
-import type { Campus } from "@/lib/types/post";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -29,11 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import { Check, Edit2, Eye, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@repo/ui/components/ui/tabs";
+  type UseFormReturn,
+  useFormContext,
+  type WatchObserver,
+} from "react-hook-form";
+import type { Campus } from "@/lib/types/post";
 import { EventPreview } from "./event-preview";
 import ImageUploadCard from "./image-upload-card";
 import { type FormValues, slugify } from "./schema";
@@ -52,7 +52,11 @@ type TitleWatchValue = {
   };
 };
 
-const determineSlugUpdate = (enTitle: string, noTitle: string, currentSource: SlugSource) => {
+const determineSlugUpdate = (
+  enTitle: string,
+  noTitle: string,
+  currentSource: SlugSource
+) => {
   let newSource = currentSource;
   let newSlug = "";
 
@@ -91,7 +95,10 @@ const getDepartmentPlaceholder = (
   return t?.("editor.placeholders.selectCampusFirst") ?? "";
 };
 
-const getSlugSourceLabel = (slugSource: SlugSource, t: ReturnType<typeof useTranslations>) => {
+const getSlugSourceLabel = (
+  slugSource: SlugSource,
+  t: ReturnType<typeof useTranslations>
+) => {
   if (!slugSource) {
     return t("editor.title");
   }
@@ -110,7 +117,8 @@ const getSlugDescription = (
 };
 
 const shouldHandleTitleChange = (name?: string) =>
-  Boolean(name?.startsWith("translations.")) && Boolean(name?.endsWith(".title"));
+  Boolean(name?.startsWith("translations.")) &&
+  Boolean(name?.endsWith(".title"));
 
 const applySlugUpdateFromTitles = (
   value: TitleWatchValue,
@@ -130,7 +138,11 @@ const applySlugUpdateFromTitles = (
     return;
   }
 
-  const { newSource, newSlug } = determineSlugUpdate(enTitle, noTitle, slugSource);
+  const { newSource, newSlug } = determineSlugUpdate(
+    enTitle,
+    noTitle,
+    slugSource
+  );
 
   if (newSource !== slugSource) {
     setSlugSource(newSource);
@@ -163,7 +175,11 @@ const useSlugAutoUpdate = (
   }, [form, isEditingSlug, setSlugSource, slugSource]);
 };
 
-export function EventSidebar({ campuses, departments, loadingDepartments }: EventSidebarProps) {
+export function EventSidebar({
+  campuses,
+  departments,
+  loadingDepartments,
+}: EventSidebarProps) {
   const t = useTranslations("adminEvents");
   const form = useFormContext<FormValues>();
   const [previewLocale, setPreviewLocale] = useState<"en" | "no">("en");
@@ -281,7 +297,9 @@ export function EventSidebar({ campuses, departments, loadingDepartments }: Even
                         variant="ghost"
                       >
                         <X className="h-4 w-4" />
-                        <span className="sr-only">{t("editor.cancelSlug")}</span>
+                        <span className="sr-only">
+                          {t("editor.cancelSlug")}
+                        </span>
                       </Button>
                     </div>
                   ) : (
@@ -449,7 +467,9 @@ export function EventSidebar({ campuses, departments, loadingDepartments }: Even
               </TabsList>
             </Tabs>
           </div>
-          <CardDescription>{t("editor.livePreviewDescription")}</CardDescription>
+          <CardDescription>
+            {t("editor.livePreviewDescription")}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <EventPreview

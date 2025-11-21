@@ -30,11 +30,11 @@ import { useFormContext } from "react-hook-form";
 import type { Campus } from "@/lib/types/post";
 import type { FormValues } from "./schema";
 
-interface EventScheduleProps {
+type EventScheduleProps = {
   campuses: Campus[];
   departments: Array<{ $id: string; Name: string }>;
   loadingDepartments: boolean;
-}
+};
 
 export function EventSchedule({
   campuses,

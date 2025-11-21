@@ -16,7 +16,7 @@ import {
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import {
   getSitePageTranslation,
   translateSitePageContent,
@@ -40,7 +40,7 @@ export function PolicyPagesManager() {
   const [body, setBody] = useState("");
   const [pending, startTransition] = useTransition();
 
-  const load = async (slug: PageSlug, locale: LocaleString) => {
+  const load = useCallback(async (slug: PageSlug, locale: LocaleString) => {
     try {
       const localeEnum = locale === "en" ? Locale.EN : Locale.NO;
       const res = await getSitePageTranslation(slug, localeEnum);
@@ -50,20 +50,23 @@ export function PolicyPagesManager() {
       setTitle("");
       setBody("");
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void load(activePage, activeLocale);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    load(activePage, activeLocale);
   }, [activePage, activeLocale, load]);
 
   const handleChangePage = (slug: PageSlug) => {
     setActivePage(slug);
-    startTransition(() => void load(slug, activeLocale));
+    startTransition(async () => {
+      await load(slug, activeLocale);
+    });
   };
   const handleChangeLocale = (locale: LocaleString) => {
     setActiveLocale(locale);
-    startTransition(() => void load(activePage, locale));
+    startTransition(async () => {
+      await load(activePage, locale);
+    });
   };
 
   const handleSave = () => {
@@ -105,7 +108,7 @@ export function PolicyPagesManager() {
       });
       // Switch to target locale and reload fields
       setActiveLocale(to);
-      void load(activePage, to);
+      await load(activePage, to);
     });
   };
 

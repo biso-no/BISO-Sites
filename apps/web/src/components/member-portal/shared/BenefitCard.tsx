@@ -13,10 +13,10 @@ import {
   Store,
   Ticket,
 } from "lucide-react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/memberPortal";
-import Image from "next/image";
 
 type BenefitCardProps = {
   benefit: MemberBenefit;

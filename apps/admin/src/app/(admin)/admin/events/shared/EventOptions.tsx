@@ -18,11 +18,11 @@ import {
 } from "@repo/ui/components/ui/select";
 import { DollarSign, Ticket, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import type { AdminEvent } from "@/lib/types/event";
 import type { FormValues } from "./schema";
 import { ToggleSection } from "./toggle-section";
-import { useState } from "react";
 
 type EventOptionsProps = {
   event?: AdminEvent | null;
@@ -102,7 +102,9 @@ export function EventOptions({ event }: EventOptionsProps) {
                     value={field.value ?? ""}
                   />
                 </FormControl>
-                <FormDescription>{t("editor.priceDescription")}</FormDescription>
+                <FormDescription>
+                  {t("editor.priceDescription")}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

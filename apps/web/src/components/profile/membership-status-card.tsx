@@ -7,8 +7,8 @@ import { Card, CardContent } from "@repo/ui/components/ui/card";
 import {
   CheckCircle2,
   CircleAlert,
-  RefreshCw,
   type LucideIcon,
+  RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -167,20 +167,23 @@ export function MembershipStatusCard({
     toast.error(`Verification failed: ${message}`);
   }, []);
 
-  const handleVerificationSuccess = useCallback((payload: MembershipPayload) => {
-    const active =
-      Boolean(payload.membership?.status) || payload.active === true;
-    setState({
-      ok: true,
-      active,
-      membership: payload.membership,
-      studentId: payload.studentId,
-      categories: payload.categories,
-    });
-    toast.success(active ? "Membership verified" : "No active membership", {
-      description: active ? "Enjoy your benefits across BISO." : undefined,
-    });
-  }, []);
+  const handleVerificationSuccess = useCallback(
+    (payload: MembershipPayload) => {
+      const active =
+        Boolean(payload.membership?.status) || payload.active === true;
+      setState({
+        ok: true,
+        active,
+        membership: payload.membership,
+        studentId: payload.studentId,
+        categories: payload.categories,
+      });
+      toast.success(active ? "Membership verified" : "No active membership", {
+        description: active ? "Enjoy your benefits across BISO." : undefined,
+      });
+    },
+    []
+  );
 
   const onRefresh = useCallback(() => {
     if (!hasBIIdentity) {
@@ -292,9 +295,7 @@ export function MembershipStatusCard({
               <Link href={MEMBERSHIP_ROUTE}>{statusVisuals.actionLabel}</Link>
             </Button>
           </div>
-          <p className="text-primary-60 text-xs">
-            {infoText}
-          </p>
+          <p className="text-primary-60 text-xs">{infoText}</p>
         </div>
       </CardContent>
     </Card>
