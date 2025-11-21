@@ -1,18 +1,25 @@
-import { remarkMdxFiles, remarkMdxMermaid, remarkStructure, remarkHeading,remarkNpm, remarkSteps } from 'fumadocs-core/mdx-plugins';
 import {
+  remarkHeading,
+  remarkMdxFiles,
+  remarkMdxMermaid,
+  remarkNpm,
+  remarkSteps,
+  remarkStructure,
+} from "fumadocs-core/mdx-plugins";
+import {
+  type DocsCollection,
   defineConfig,
   defineDocs,
   frontmatterSchema,
-  metaSchema,
-  type DocsCollection,
   type GlobalConfig,
-} from 'fumadocs-mdx/config';
+  metaSchema,
+} from "fumadocs-mdx/config";
 
 // Define a single documentation source that includes all content
 // Root folders will be automatically detected from meta.json files with "root": true
 
 export const docs = defineDocs({
-  dir: 'content/docs',
+  dir: "content/docs",
   docs: {
     schema: frontmatterSchema,
     postprocess: {
@@ -26,7 +33,14 @@ export const docs = defineDocs({
 
 const config: GlobalConfig = defineConfig({
   mdxOptions: {
-    remarkPlugins: [remarkMdxMermaid, remarkMdxFiles, remarkStructure, remarkHeading, remarkNpm, remarkSteps]
+    remarkPlugins: [
+      remarkMdxMermaid,
+      remarkMdxFiles,
+      remarkStructure,
+      remarkHeading,
+      remarkNpm,
+      remarkSteps,
+    ],
   },
 });
 

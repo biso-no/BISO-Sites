@@ -1,29 +1,29 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react'
-import { ChevronDown, Heart } from 'lucide-react'
-import { ImageWithFallback } from '@repo/ui/components/image'
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { ChevronDown, Heart } from "lucide-react";
+import { motion } from "motion/react";
 
 interface JobsHeroProps {
-  totalPositions: number
-  paidPositions: number
-  departmentCount: number
+  totalPositions: number;
+  paidPositions: number;
+  departmentCount: number;
 }
 
 export function JobsHero({ totalPositions, paidPositions, departmentCount }: JobsHeroProps) {
   return (
     <div className="relative h-[60vh] overflow-hidden">
-            <ImageWithFallback
-              src="/images/logo-home.png"
-              alt="BISO logo"
-              width={140}               // pick the intrinsic pixel width
-              height={40}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 120px, 140px"
-              priority                   // above-the-fold
-              className="h-10 w-auto"    // control display size via CSS
-            />
+      <ImageWithFallback
+        src="/images/logo-home.png"
+        alt="BISO logo"
+        width={140} // pick the intrinsic pixel width
+        height={40} // and height that matches your asset ratio
+        sizes="(max-width: 768px) 120px, 140px"
+        priority // above-the-fold
+        className="h-10 w-auto" // control display size via CSS
+      />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-      
+
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <motion.div
@@ -43,7 +43,8 @@ export function JobsHero({ totalPositions, paidPositions, departmentCount }: Job
               </span>
             </h1>
             <p className="text-white/90 max-w-2xl mx-auto text-lg">
-              Join BISO and be part of creating exceptional experiences for thousands of students. Find your perfect role and make an impact.
+              Join BISO and be part of creating exceptional experiences for thousands of students.
+              Find your perfect role and make an impact.
             </p>
 
             <div className="flex items-center justify-center gap-8 mt-8">
@@ -74,6 +75,5 @@ export function JobsHero({ totalPositions, paidPositions, departmentCount }: Job
         <ChevronDown className="w-8 h-8 text-white/70" />
       </motion.div>
     </div>
-  )
+  );
 }
-

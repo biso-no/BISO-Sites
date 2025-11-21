@@ -1,8 +1,8 @@
 "use server";
 
+import { Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { Query, Models } from "@repo/api";
-import { Partners } from "@repo/api/types/appwrite";
+import type { Partners } from "@repo/api/types/appwrite";
 
 export async function listPartners(level?: "national" | "campus") {
   const { db } = await createSessionClient();
@@ -17,7 +17,7 @@ export async function createPartner(formData: FormData) {
   const data = {
     name: String(formData.get("name") || "").trim(),
     url: (formData.get("url") ? String(formData.get("url")) : undefined) as string | undefined,
-    level: (String(formData.get("level") || "national") as "national" | "campus"),
+    level: String(formData.get("level") || "national") as "national" | "campus",
     image_bucket: String(formData.get("image_bucket") || "partners").trim(),
     image_file_id: String(formData.get("image_file_id") || "").trim(),
     campus: undefined as any,
@@ -42,5 +42,3 @@ export async function deletePartner(formData: FormData) {
   if (!id) throw new Error("Missing id");
   await db.deleteRow("app", "partners", id);
 }
-
-

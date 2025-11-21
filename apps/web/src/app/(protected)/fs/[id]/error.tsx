@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Card } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { useEffect } from "react";
 
 export default function Error({
   error,
@@ -39,4 +39,3 @@ export default function Error({
     </div>
   );
 }
-

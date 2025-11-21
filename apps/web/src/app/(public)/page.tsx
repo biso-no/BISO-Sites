@@ -1,15 +1,15 @@
-import { Suspense } from 'react'
-import { HeroSection } from '@/components/home/hero-section'
-import { AboutSection } from '@/components/home/about-section'
-import { EventsSection } from '@/components/home/events-section'
-import { NewsSection } from '@/components/home/news-section'
-import { JoinUs } from '@/components/home/join-us'
-import { 
-  HeroSkeleton, 
-  AboutSkeleton, 
-  EventsSkeleton, 
-  NewsSkeleton 
-} from '@/components/home/skeletons'
+import { Suspense } from "react";
+import { AboutSection } from "@/components/home/about-section";
+import { EventsSection } from "@/components/home/events-section";
+import { HeroSection } from "@/components/home/hero-section";
+import { JoinUs } from "@/components/home/join-us";
+import { NewsSection } from "@/components/home/news-section";
+import {
+  AboutSkeleton,
+  EventsSkeleton,
+  HeroSkeleton,
+  NewsSkeleton,
+} from "@/components/home/skeletons";
 
 export default async function HomePage() {
   return (
@@ -17,7 +17,6 @@ export default async function HomePage() {
       <Suspense fallback={<HeroSkeleton />}>
         <HeroSection />
       </Suspense>
-      
 
       <Suspense fallback={<AboutSkeleton />}>
         <AboutSection />
@@ -30,8 +29,8 @@ export default async function HomePage() {
       <Suspense fallback={<NewsSkeleton />}>
         <NewsSection />
       </Suspense>
-      
+
       <JoinUs />
     </div>
-  )
+  );
 }

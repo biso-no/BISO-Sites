@@ -1,16 +1,28 @@
-import { getOrder } from '@/app/actions/orders'
-import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@repo/ui/components/ui/card'
-import { Badge } from '@repo/ui/components/ui/badge'
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import { getOrder } from "@/app/actions/orders";
 
 export default async function AdminOrderDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const t = await getTranslations("adminShop")
-  const order: any = await getOrder(id)
-  if (!order) return notFound()
+  const { id } = await params;
+  const t = await getTranslations("adminShop");
+  const order: any = await getOrder(id);
+  if (!order) return notFound();
 
-  const items = (() => { try { return JSON.parse(order.items_json || '[]') } catch { return [] } })() as any[]
+  const items = (() => {
+    try {
+      return JSON.parse(order.items_json || "[]");
+    } catch {
+      return [];
+    }
+  })() as any[];
 
   return (
     <div className="p-4 grid gap-6 md:grid-cols-2">
@@ -33,8 +45,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
           </div>
           <div className="text-sm">
             <div>
-              {t("orders.detail.labels.buyer")}:{" "}
-              {order.buyer_name || t("orders.detail.guest")}
+              {t("orders.detail.labels.buyer")}: {order.buyer_name || t("orders.detail.guest")}
             </div>
             <div>
               {t("orders.detail.labels.email")}: {order.buyer_email || "-"}
@@ -45,12 +56,10 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
           </div>
           <div className="text-sm">
             <div>
-              {t("orders.detail.subtotal")}:{" "}
-              {Number(order.subtotal || 0).toFixed(2)} NOK
+              {t("orders.detail.subtotal")}: {Number(order.subtotal || 0).toFixed(2)} NOK
             </div>
             <div>
-              {t("orders.detail.discount")}:{" "}
-              {Number(order.discount_total || 0).toFixed(2)} NOK
+              {t("orders.detail.discount")}: {Number(order.discount_total || 0).toFixed(2)} NOK
             </div>
             <div className="font-medium">
               {t("orders.detail.total")}: {Number(order.total || 0).toFixed(2)} NOK
@@ -65,15 +74,17 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         </CardHeader>
         <CardContent className="space-y-3">
           {items.map((it) => {
-            const customFields = Array.isArray(it.custom_fields) ? it.custom_fields : []
+            const customFields = Array.isArray(it.custom_fields) ? it.custom_fields : [];
             const fallbackFields =
               !customFields.length && it.custom_field_responses
-                ? Object.entries(it.custom_field_responses as Record<string, string>).map(([key, value]) => ({
-                    id: key,
-                    label: key,
-                    value,
-                  }))
-                : []
+                ? Object.entries(it.custom_field_responses as Record<string, string>).map(
+                    ([key, value]) => ({
+                      id: key,
+                      label: key,
+                      value,
+                    }),
+                  )
+                : [];
 
             return (
               <div
@@ -82,9 +93,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-medium">
-                      {it.title || it.product_slug}
-                    </div>
+                    <div className="font-medium">{it.title || it.product_slug}</div>
                     {it.variation_name ? (
                       <div className="text-xs text-muted-foreground">
                         {t("orders.details.variation")}: {it.variation_name}
@@ -106,9 +115,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                     <ul className="space-y-1">
                       {customFields.map((field) => (
                         <li key={field.id}>
-                          <span className="font-medium text-foreground">
-                            {field.label}:
-                          </span>{" "}
+                          <span className="font-medium text-foreground">{field.label}:</span>{" "}
                           {field.value}
                         </li>
                       ))}
@@ -123,9 +130,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                     <ul className="space-y-1">
                       {fallbackFields.map((field) => (
                         <li key={field.id}>
-                          <span className="font-medium text-foreground">
-                            {field.label}:
-                          </span>{" "}
+                          <span className="font-medium text-foreground">{field.label}:</span>{" "}
                           {field.value}
                         </li>
                       ))}
@@ -133,16 +138,13 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                   </div>
                 ) : null}
               </div>
-            )
+            );
           })}
           {items.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              {t("orders.details.noItems")}
-            </div>
+            <div className="text-sm text-muted-foreground">{t("orders.details.noItems")}</div>
           ) : null}
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

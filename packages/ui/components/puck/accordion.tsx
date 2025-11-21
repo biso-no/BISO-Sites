@@ -2,9 +2,9 @@
 
 import React from "react";
 import {
-  Accordion as AccordionRoot,
   AccordionContent,
   AccordionItem,
+  Accordion as AccordionRoot,
   AccordionTrigger,
 } from "../ui/accordion";
 
@@ -18,10 +18,7 @@ export interface AccordionBlockProps {
   type?: "single" | "multiple";
 }
 
-export function AccordionBlock({
-  items = [],
-  type = "single",
-}: AccordionBlockProps) {
+export function AccordionBlock({ items = [], type = "single" }: AccordionBlockProps) {
   return (
     <div className="w-full max-w-3xl mx-auto">
       <AccordionRoot type={type === "single" ? "single" : "multiple"} collapsible>
@@ -29,9 +26,7 @@ export function AccordionBlock({
           <AccordionItem key={index} value={`item-${index}`}>
             <AccordionTrigger>{item.title}</AccordionTrigger>
             <AccordionContent>
-              <div className="prose prose-sm max-w-none text-muted-foreground">
-                {item.content}
-              </div>
+              <div className="prose prose-sm max-w-none text-muted-foreground">{item.content}</div>
             </AccordionContent>
           </AccordionItem>
         ))}

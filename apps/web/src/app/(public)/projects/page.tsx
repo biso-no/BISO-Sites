@@ -1,38 +1,37 @@
-import Link from "next/link"
-import { getTranslations } from "next-intl/server"
-
-import { listLargeEvents } from "@/app/actions/large-events"
-import { getLocale } from "@/app/actions/locale"
-import { Badge } from "@repo/ui/components/ui/badge"
-import { Button } from "@repo/ui/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card"
-import type { ParsedLargeEvent } from "@/lib/types/large-event"
-import type { Locale } from "@/i18n/config"
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { listLargeEvents } from "@/app/actions/large-events";
+import { getLocale } from "@/app/actions/locale";
+import type { Locale } from "@/i18n/config";
+import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 const pickEventBySlug = (events: ParsedLargeEvent[], slug: string) =>
-  events.find((event) => event.slug === slug)
+  events.find((event) => event.slug === slug);
 
 const deriveAccent = (event?: ParsedLargeEvent, fallback?: string[]) => {
-  if (event?.gradient && event.gradient.length >= 2) return event.gradient
+  if (event?.gradient && event.gradient.length >= 2) return event.gradient;
   if (event?.primaryColorHex && event?.secondaryColorHex) {
-    return [event.primaryColorHex, event.secondaryColorHex]
+    return [event.primaryColorHex, event.secondaryColorHex];
   }
-  return fallback ?? ["#14355B", "#1E3A8A"]
-}
+  return fallback ?? ["#14355B", "#1E3A8A"];
+};
 
 export default async function ProjectsPage() {
-  const locale = (await getLocale()) as Locale
-  const t = await getTranslations("projects")
+  const locale = (await getLocale()) as Locale;
+  const t = await getTranslations("projects");
 
-  const events = await listLargeEvents({ activeOnly: false, limit: 100 })
+  const events = await listLargeEvents({ activeOnly: false, limit: 100 });
 
   const featuredConfig = (t.raw("featured") ?? {}) as Record<
     string,
     { slug: string; title: string; description: string; cta: string; highlight?: string }
-  >
+  >;
 
   const featuredProjects = Object.entries(featuredConfig).map(([key, config]) => {
-    const event = pickEventBySlug(events, config.slug)
+    const event = pickEventBySlug(events, config.slug);
     return {
       key,
       slug: config.slug,
@@ -41,13 +40,13 @@ export default async function ProjectsPage() {
       highlight: config.highlight,
       gradient: deriveAccent(event, key === "winterGames" ? ["#0F172A", "#1E3A8A"] : undefined),
       href: `/projects/${config.slug}`,
-      cta: config.cta
-    }
-  })
+      cta: config.cta,
+    };
+  });
 
   const otherEvents = events.filter(
-    (event) => !featuredProjects.some((item) => item.slug === event.slug)
-  )
+    (event) => !featuredProjects.some((item) => item.slug === event.slug),
+  );
 
   return (
     <div className="space-y-16">
@@ -66,7 +65,12 @@ export default async function ProjectsPage() {
               <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
                 <Link href="#featured">{t("hero.ctaPrimary")}</Link>
               </Button>
-              <Button asChild size="lg" variant="secondary" className="border-white/60 bg-transparent text-white hover:bg-white/10">
+              <Button
+                asChild
+                size="lg"
+                variant="secondary"
+                className="border-white/60 bg-transparent text-white hover:bg-white/10"
+              >
                 <Link href="#calendar">{t("hero.ctaSecondary")}</Link>
               </Button>
             </div>
@@ -100,12 +104,13 @@ export default async function ProjectsPage() {
               <div
                 className="h-2 w-full"
                 style={{
-                  background: `linear-gradient(90deg, ${project.gradient.join(", ")})`
+                  background: `linear-gradient(90deg, ${project.gradient.join(", ")})`,
                 }}
               />
               <CardHeader className="space-y-3">
                 <Badge variant="secondary" className="w-fit uppercase">
-                  {project.highlight ?? t(`featuredLabels.${project.key}`, { default: project.key })}
+                  {project.highlight ??
+                    t(`featuredLabels.${project.key}`, { default: project.key })}
                 </Badge>
                 <CardTitle className="text-2xl text-primary-100">{project.title}</CardTitle>
                 <p className="text-sm text-muted-foreground">{project.description}</p>
@@ -146,10 +151,15 @@ export default async function ProjectsPage() {
                 <CardContent className="flex justify-between text-xs text-muted-foreground">
                   <span>
                     {event.startDate
-                      ? new Date(event.startDate).toLocaleDateString(locale === "en" ? "en-GB" : "nb-NO")
+                      ? new Date(event.startDate).toLocaleDateString(
+                          locale === "en" ? "en-GB" : "nb-NO",
+                        )
                       : "—"}
                   </span>
-                  <Link href={`/projects/${event.slug}`} className="underline-offset-2 hover:underline">
+                  <Link
+                    href={`/projects/${event.slug}`}
+                    className="underline-offset-2 hover:underline"
+                  >
                     {t("schedule.more")}
                   </Link>
                 </CardContent>
@@ -159,5 +169,5 @@ export default async function ProjectsPage() {
         )}
       </section>
     </div>
-  )
+  );
 }

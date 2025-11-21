@@ -1,17 +1,24 @@
 "use client";
 
-import React, { Suspense } from 'react';
-import { motion } from 'motion/react';
-import { 
-  CalendarIcon, Receipt, Building2, 
-  BanknoteIcon as Bank, FileText, User,
-  CheckCircle2, Clock, AlertCircle
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
+import type { Expenses } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import {
+  AlertCircle,
+  BanknoteIcon as Bank,
+  Building2,
+  CalendarIcon,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Receipt,
+  User,
+} from "lucide-react";
+import { motion } from "motion/react";
+import type React from "react";
+import { Suspense } from "react";
 import { cn } from "@/lib/utils";
-import { Expenses } from '@repo/api/types/appwrite';
 
 // Loading skeleton component for the expense details
 const ExpenseDetailsSkeleton = () => (
@@ -52,11 +59,11 @@ const StatusBadge = ({ status }: { status: string }) => {
   const Icon = config.icon;
 
   return (
-    <Badge 
-      variant="secondary" 
+    <Badge
+      variant="secondary"
       className={cn(
         "px-3 py-1 capitalize flex items-center gap-1.5 text-sm font-medium",
-        config.className
+        config.className,
       )}
     >
       <Icon className="h-4 w-4" />
@@ -65,16 +72,16 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const InfoItem = ({ 
-  icon: Icon, 
-  label, 
-  value 
-}: { 
-  icon: React.ElementType; 
-  label: string; 
+const InfoItem = ({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
   value: string | number | null;
 }) => (
-  <motion.div 
+  <motion.div
     className="space-y-2"
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -84,18 +91,14 @@ const InfoItem = ({
       <Icon className="h-4 w-4" />
       <span className="text-sm font-medium">{label}</span>
     </div>
-    <div className="font-medium text-lg">{value || 'N/A'}</div>
+    <div className="font-medium text-lg">{value || "N/A"}</div>
   </motion.div>
 );
 
-export function AdminExpenseDetails({
-  expenseData,
-}: {
-  expenseData: Expenses;
-}) {
+export function AdminExpenseDetails({ expenseData }: { expenseData: Expenses }) {
   return (
     <Suspense fallback={<ExpenseDetailsSkeleton />}>
-      <motion.div 
+      <motion.div
         className="container mx-auto py-6 max-w-4xl"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -115,7 +118,7 @@ export function AdminExpenseDetails({
           </CardHeader>
           <CardContent className="space-y-8 pt-6">
             {/* Basic Information */}
-            <motion.div 
+            <motion.div
               className="grid gap-6 md:grid-cols-2"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -128,7 +131,7 @@ export function AdminExpenseDetails({
             </motion.div>
 
             {/* Financial Details */}
-            <motion.div 
+            <motion.div
               className="grid gap-6 md:grid-cols-2 p-6 bg-linear-to-br from-muted/30 to-muted/10 rounded-xl shadow-sm"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -137,34 +140,34 @@ export function AdminExpenseDetails({
               <div className="space-y-2">
                 <span className="text-sm font-medium text-muted-foreground">Total Amount</span>
                 <div className="text-3xl font-bold text-primary">
-                  {new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' })
-                    .format(Number(expenseData.total))}
+                  {new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK" }).format(
+                    Number(expenseData.total),
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
                 <span className="text-sm font-medium text-muted-foreground">Prepayment Amount</span>
                 <div className="text-3xl font-bold text-muted-foreground">
-                  {new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' })
-                    .format(Number(expenseData.prepayment_amount))}
+                  {new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK" }).format(
+                    Number(expenseData.prepayment_amount),
+                  )}
                 </div>
               </div>
             </motion.div>
 
             {/* Description */}
-            <motion.div 
+            <motion.div
               className="space-y-2"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.6 }}
             >
               <span className="text-sm font-medium text-muted-foreground">Description</span>
-              <div className="p-4 bg-muted/30 rounded-lg text-lg">
-                {expenseData.description}
-              </div>
+              <div className="p-4 bg-muted/30 rounded-lg text-lg">{expenseData.description}</div>
             </motion.div>
 
             {/* User Information */}
-            <motion.div 
+            <motion.div
               className="p-4 bg-muted/30 rounded-lg"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -175,30 +178,31 @@ export function AdminExpenseDetails({
                 <span className="font-medium">Submitted By</span>
               </div>
               <div className="space-y-1">
-                <div className="text-lg font-medium">
-                  {expenseData.user?.name || 'N/A'}
-                </div>
+                <div className="text-lg font-medium">{expenseData.user?.name || "N/A"}</div>
                 <div className="text-sm text-muted-foreground">
-                  {expenseData.user?.$id || 'N/A'}
+                  {expenseData.user?.$id || "N/A"}
                 </div>
               </div>
             </motion.div>
 
             {/* Submission Date */}
-            <motion.div 
+            <motion.div
               className="flex items-center gap-2 text-sm text-muted-foreground"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3, delay: 1 }}
             >
               <CalendarIcon className="h-4 w-4" />
-              <span>Submitted on {new Date(expenseData.$createdAt).toLocaleDateString('sv-SE', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}</span>
+              <span>
+                Submitted on{" "}
+                {new Date(expenseData.$createdAt).toLocaleDateString("sv-SE", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
             </motion.div>
           </CardContent>
         </Card>

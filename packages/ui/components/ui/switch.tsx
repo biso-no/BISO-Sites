@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as SwitchPrimitives from "@radix-ui/react-switch"
+import * as SwitchPrimitives from "@radix-ui/react-switch";
 import { cn } from "@repo/ui/lib/utils";
+import * as React from "react";
 
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,
@@ -16,12 +16,12 @@ const Switch = React.forwardRef<
       "disabled:cursor-not-allowed disabled:opacity-50",
       "shadow-inner",
       "hover:shadow-md",
-      className
+      className,
     )}
     style={{
-      backgroundColor: props.checked 
-        ? 'rgba(61, 169, 224, 1)'  // Your brand blue (secondary-100)
-        : 'rgba(203, 213, 225, 1)' // Light gray (slate-300)
+      backgroundColor: props.checked
+        ? "rgba(61, 169, 224, 1)" // Your brand blue (secondary-100)
+        : "rgba(203, 213, 225, 1)", // Light gray (slate-300)
     }}
     {...props}
     ref={ref}
@@ -30,17 +30,17 @@ const Switch = React.forwardRef<
       className={cn(
         "pointer-events-none block h-5 w-5 rounded-full shadow-lg ring-0",
         "transition-all duration-200 ease-in-out",
-        "bg-white"
+        "bg-white",
       )}
       style={{
-        transform: props.checked ? 'translateX(20px)' : 'translateX(0)',
-        boxShadow: props.checked 
-          ? '0 2px 8px rgba(0, 23, 49, 0.2)' 
-          : '0 2px 4px rgba(0, 0, 0, 0.1)'
+        transform: props.checked ? "translateX(20px)" : "translateX(0)",
+        boxShadow: props.checked
+          ? "0 2px 8px rgba(0, 23, 49, 0.2)"
+          : "0 2px 4px rgba(0, 0, 0, 0.1)",
       }}
     />
   </SwitchPrimitives.Root>
-))
-Switch.displayName = SwitchPrimitives.Root.displayName
+));
+Switch.displayName = SwitchPrimitives.Root.displayName;
 
-export { Switch }
+export { Switch };

@@ -1,9 +1,9 @@
 "use server";
 
-import { Departments } from "@repo/api/types/appwrite";
+import type { Departments } from "@repo/api/types/appwrite";
 
 // Extended Department type with computed fields for display
-export interface Department extends Omit<Departments, 'Name'> {
+export interface Department extends Omit<Departments, "Name"> {
   name: string;
   campusName?: string;
   userCount?: number;
@@ -18,9 +18,9 @@ async function getDepartmentTypes(): Promise<string[]> {
 async function updateDepartment({ id, data }: { id: string; data: any }) {
   const { createSessionClient } = await import("@repo/api/server");
   const { db } = await createSessionClient();
-  
+
   try {
-    await db.updateRow('app', 'departments', id, data);
+    await db.updateRow("app", "departments", id, data);
     return { success: true };
   } catch (error) {
     console.error("Error updating department:", error);
@@ -30,4 +30,3 @@ async function updateDepartment({ id, data }: { id: string; data: any }) {
     };
   }
 }
-

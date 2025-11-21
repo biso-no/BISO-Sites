@@ -1,109 +1,115 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, Users, DollarSign, Heart, Calendar, CheckCircle2, AlertCircle, Mail, Send } from 'lucide-react'
-import { Card } from '@repo/ui/components/ui/card'
-import { Button } from '@repo/ui/components/ui/button'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { Separator } from '@repo/ui/components/ui/separator'
-import { ImageWithFallback } from '@repo/ui/components/image'
-import type { ContentTranslations } from '@repo/api/types/appwrite'
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Separator } from "@repo/ui/components/ui/separator";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+  Heart,
+  Mail,
+  Send,
+  Users,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 
 interface JobDetailsClientProps {
-  job: ContentTranslations
+  job: ContentTranslations;
 }
 
 const getJobCategory = (metadata: Record<string, any>) => {
-  return metadata.category || 'General'
-}
+  return metadata.category || "General";
+};
 
 const formatSalary = (salary: number) => {
-  return salary.toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })
-}
+  return salary.toLocaleString("no-NO", { style: "currency", currency: "NOK" });
+};
 
 const parseJobMetadata = (metadata: Record<string, any>) => {
-  return metadata || {}
-}
+  return metadata || {};
+};
 
 const categoryColors: Record<string, string> = {
-  'Academic Associations': 'bg-blue-100 text-blue-700 border-blue-200',
-  'Societies': 'bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20',
-  'Staff Functions': 'bg-slate-100 text-slate-700 border-slate-200',
-  'Projects': 'bg-purple-100 text-purple-700 border-purple-200',
-}
+  "Academic Associations": "bg-blue-100 text-blue-700 border-blue-200",
+  Societies: "bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20",
+  "Staff Functions": "bg-slate-100 text-slate-700 border-slate-200",
+  Projects: "bg-purple-100 text-purple-700 border-purple-200",
+};
 
 const categoryImages: Record<string, string> = {
-  'Academic Associations': 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1080',
-  'Societies': 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1080',
-  'Staff Functions': 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1080',
-  'Projects': 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1080',
-}
+  "Academic Associations": "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1080",
+  Societies: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1080",
+  "Staff Functions": "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1080",
+  Projects: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1080",
+};
 
 export function JobDetailsClient({ job }: JobDetailsClientProps) {
-  const router = useRouter()
-  const jobData = job.job_ref
-  const metadata = jobData?.metadata as Record<string, any>
-  const category = getJobCategory(metadata)
-  
+  const router = useRouter();
+  const jobData = job.job_ref;
+  const metadata = jobData?.metadata as Record<string, any>;
+  const category = getJobCategory(metadata);
+
   // Extract data
-  const paid = metadata.paid ?? false
-  const salary = formatSalary(metadata.salary)
-  const openings = metadata.openings || 1
-  const responsibilities = metadata.responsibilities || []
-  const requirements = metadata.requirements || []
-  const deadline = metadata.deadline || 'Rolling basis'
-  const department = jobData?.department?.Name || 'General'
-  const categoryImage = metadata.image || categoryImages[category]
+  const paid = metadata.paid ?? false;
+  const salary = formatSalary(metadata.salary);
+  const openings = metadata.openings || 1;
+  const responsibilities = metadata.responsibilities || [];
+  const requirements = metadata.requirements || [];
+  const deadline = metadata.deadline || "Rolling basis";
+  const department = jobData?.department?.Name || "General";
+  const categoryImage = metadata.image || categoryImages[category];
 
   // Extended information
   const extendedResponsibilities = [
     ...responsibilities,
-    'Collaborate with other BISO team members',
-    'Attend regular team meetings and planning sessions',
-    'Contribute to strategic planning and decision-making',
-  ]
+    "Collaborate with other BISO team members",
+    "Attend regular team meetings and planning sessions",
+    "Contribute to strategic planning and decision-making",
+  ];
 
   const extendedRequirements = [
     ...requirements,
-    'Passion for improving student life',
-    'Team player with excellent interpersonal skills',
-    'Ability to work independently and take initiative',
-  ]
+    "Passion for improving student life",
+    "Team player with excellent interpersonal skills",
+    "Ability to work independently and take initiative",
+  ];
 
   const benefits = [
-    ...(paid ? ['Competitive compensation package'] : []),
-    'Gain valuable leadership and organizational experience',
-    'Build an extensive professional network',
-    'Access to exclusive BISO events and activities',
-    'Professional development workshops and training',
-    'Certificate of participation for your CV',
-    'Letter of recommendation upon successful completion',
-  ]
+    ...(paid ? ["Competitive compensation package"] : []),
+    "Gain valuable leadership and organizational experience",
+    "Build an extensive professional network",
+    "Access to exclusive BISO events and activities",
+    "Professional development workshops and training",
+    "Certificate of participation for your CV",
+    "Letter of recommendation upon successful completion",
+  ];
 
   const timeline = {
-    application: 'Applications reviewed on a rolling basis',
-    interviews: 'Interviews scheduled within 1 week of application',
-    decision: 'Final decisions communicated within 2 weeks',
-    start: 'Position starts immediately after acceptance',
-  }
+    application: "Applications reviewed on a rolling basis",
+    interviews: "Interviews scheduled within 1 week of application",
+    decision: "Final decisions communicated within 2 weeks",
+    start: "Position starts immediately after acceptance",
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       {/* Hero Section */}
       <div className="relative h-[40vh] overflow-hidden">
-        <ImageWithFallback
-          src={categoryImage}
-          alt={category}
-          fill
-          className="object-cover"
-        />
+        <ImageWithFallback src={categoryImage} alt={category} fill className="object-cover" />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-        
+
         <div className="absolute inset-0">
           <div className="max-w-5xl mx-auto px-4 h-full flex items-center">
             <motion.button
-              onClick={() => router.push('/jobs')}
+              onClick={() => router.push("/jobs")}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
@@ -117,16 +123,16 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               animate={{ opacity: 1, y: 0 }}
               className="mt-12"
             >
-              <Badge className={`mb-4 ${categoryColors[category]}`}>
-                {category}
-              </Badge>
+              <Badge className={`mb-4 ${categoryColors[category]}`}>{category}</Badge>
               <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{job.title}</h1>
               <p className="text-white/90 text-xl">{department}</p>
 
               <div className="flex flex-wrap items-center gap-4 mt-6">
                 <div className="flex items-center gap-2 text-white/90">
                   <Users className="w-5 h-5 text-[#3DA9E0]" />
-                  <span>{openings} {openings === 1 ? 'opening' : 'openings'}</span>
+                  <span>
+                    {openings} {openings === 1 ? "opening" : "openings"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-white/90">
                   <Calendar className="w-5 h-5 text-[#3DA9E0]" />
@@ -155,7 +161,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   </div>
                 </div>
                 <h2 className="text-gray-900 mb-4 text-2xl font-bold">Position Overview</h2>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">{job.description}</p>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                  {job.description}
+                </p>
               </Card>
             </motion.div>
 
@@ -298,7 +306,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                       <div className="text-gray-900 font-bold">{salary}</div>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">This is a paid position with competitive compensation.</p>
+                  <p className="text-sm text-gray-600">
+                    This is a paid position with competitive compensation.
+                  </p>
                 </Card>
               ) : (
                 <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-blue-50 to-cyan-50">
@@ -311,7 +321,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                       <div className="text-gray-900 font-bold">Volunteer</div>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">Make an impact while gaining valuable experience and connections.</p>
+                  <p className="text-sm text-gray-600">
+                    Make an impact while gaining valuable experience and connections.
+                  </p>
                 </Card>
               )}
             </motion.div>
@@ -337,7 +349,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <Separator />
                   <div>
                     <div className="text-sm text-gray-500 mb-1">Openings</div>
-                    <div className="text-gray-900">{openings} {openings === 1 ? 'position' : 'positions'} available</div>
+                    <div className="text-gray-900">
+                      {openings} {openings === 1 ? "position" : "positions"} available
+                    </div>
                   </div>
                   <Separator />
                   <div>
@@ -357,13 +371,17 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-[#001731] to-[#3DA9E0]">
                 <h3 className="mb-4 text-white font-bold">Ready to Apply?</h3>
                 <p className="text-white/90 text-sm mb-6">
-                  Submit your application and join our team in creating amazing experiences for students.
+                  Submit your application and join our team in creating amazing experiences for
+                  students.
                 </p>
                 <Button className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3">
                   <Send className="w-4 h-4 mr-2" />
                   Submit Application
                 </Button>
-                <Button variant="outline" className="w-full border-white text-white hover:bg-white/10">
+                <Button
+                  variant="outline"
+                  className="w-full border-white text-white hover:bg-white/10"
+                >
                   <Mail className="w-4 h-4 mr-2" />
                   Ask a Question
                 </Button>
@@ -382,8 +400,11 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <div>
                     <h4 className="mb-2 text-gray-900 font-semibold">Questions?</h4>
                     <p className="text-sm text-gray-600">
-                      Contact our recruitment team at{' '}
-                      <a href="mailto:recruitment@biso.no" className="text-[#3DA9E0] hover:underline">
+                      Contact our recruitment team at{" "}
+                      <a
+                        href="mailto:recruitment@biso.no"
+                        className="text-[#3DA9E0] hover:underline"
+                      >
                         recruitment@biso.no
                       </a>
                     </p>
@@ -395,6 +416,5 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
-

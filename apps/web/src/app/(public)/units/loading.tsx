@@ -3,7 +3,7 @@ export default function UnitsLoading() {
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       {/* Hero Skeleton */}
       <div className="relative h-[50vh] overflow-hidden bg-muted/50 animate-pulse isolate" />
-      
+
       {/* Filters Skeleton with overlap */}
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-10 mb-12">
         <div className="p-6 border-0 shadow-xl bg-card rounded-lg relative z-10">
@@ -35,4 +35,3 @@ export default function UnitsLoading() {
     </div>
   );
 }
-

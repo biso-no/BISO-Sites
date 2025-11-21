@@ -1,5 +1,5 @@
-import { Card } from '@repo/ui/components/ui/card'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
+import { Card } from "@repo/ui/components/ui/card";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 
 export function MemberPortalSkeleton() {
   return (
@@ -47,5 +47,5 @@ export function MemberPortalSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }

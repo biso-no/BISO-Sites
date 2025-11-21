@@ -1,12 +1,12 @@
 "use client";
 
-import { Card } from "@repo/ui/components/ui/card";
+import { ExpenseStatus } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Building2, Calendar, Paperclip, Eye, Clock, CheckCircle, XCircle } from "lucide-react";
-import { ExpenseStatus } from "@repo/api/types/appwrite";
-import Link from "next/link";
+import { Card } from "@repo/ui/components/ui/card";
+import { Building2, Calendar, CheckCircle, Clock, Eye, Paperclip, XCircle } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 
 interface ExpenseCardProps {
   expense: {
@@ -70,9 +70,7 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
         <div className="flex items-start justify-between mb-4">
           <div className="grow">
             <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-gray-900">
-                {expense.description || "Expense Reimbursement"}
-              </h3>
+              <h3 className="text-gray-900">{expense.description || "Expense Reimbursement"}</h3>
               <Badge className={config.color}>
                 <StatusIcon className="w-3 h-3 mr-1" />
                 {config.label}
@@ -93,7 +91,9 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
               {attachmentCount > 0 && (
                 <div className="flex items-center gap-2">
                   <Paperclip className="w-4 h-4 text-[#3DA9E0]" />
-                  <span>{attachmentCount} attachment{attachmentCount !== 1 ? 's' : ''}</span>
+                  <span>
+                    {attachmentCount} attachment{attachmentCount !== 1 ? "s" : ""}
+                  </span>
                 </div>
               )}
             </div>
@@ -120,4 +120,3 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
     </motion.div>
   );
 }
-

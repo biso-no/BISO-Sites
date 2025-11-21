@@ -1,11 +1,11 @@
 "use client";
+import { Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
 import { motion } from "motion/react";
-import { Check, Sparkles, Gift, Crown, Zap } from "lucide-react";
-import { Card } from "../ui/card";
 import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 
 export interface JoinUsBenefit {
-  iconName: 'Sparkles' | 'Gift' | 'Crown' | 'Zap' | 'Check';
+  iconName: "Sparkles" | "Gift" | "Crown" | "Zap" | "Check";
   text: string;
 }
 
@@ -41,10 +41,10 @@ const IconMap = {
   Gift,
   Crown,
   Zap,
-  Check
+  Check,
 };
 
-export function JoinUs({ 
+export function JoinUs({
   tag,
   titleLine1,
   titleLine2,
@@ -55,10 +55,13 @@ export function JoinUs({
   memberFeaturesHeader,
   memberFeatures,
   durations,
-  cta
+  cta,
 }: JoinUsProps) {
   return (
-    <section id="join" className="py-24 bg-linear-to-b from-gray-50 to-white relative overflow-hidden">
+    <section
+      id="join"
+      className="py-24 bg-linear-to-b from-gray-50 to-white relative overflow-hidden"
+    >
       {/* Background Decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full opacity-20 blur-3xl" />
@@ -83,9 +86,7 @@ export function JoinUs({
               {titleLine2}
             </span>
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto mb-12">
-            {subtitle}
-          </p>
+          <p className="text-gray-600 max-w-2xl mx-auto mb-12">{subtitle}</p>
         </motion.div>
 
         {/* Benefits Grid */}
@@ -123,9 +124,7 @@ export function JoinUs({
           className="text-center mb-12"
         >
           <h3 className="text-2xl font-bold text-gray-900 mb-6">{heroBadge}</h3>
-          <p className="text-gray-600 max-w-3xl mx-auto mb-8">
-            {heroSubtitle}
-          </p>
+          <p className="text-gray-600 max-w-3xl mx-auto mb-8">{heroSubtitle}</p>
         </motion.div>
 
         {/* Common Features */}
@@ -136,7 +135,9 @@ export function JoinUs({
           className="max-w-3xl mx-auto mb-16"
         >
           <Card className="p-8 border-0 shadow-xl bg-white">
-            <h4 className="text-xl font-semibold text-gray-900 mb-6 text-center">{memberFeaturesHeader}</h4>
+            <h4 className="text-xl font-semibold text-gray-900 mb-6 text-center">
+              {memberFeaturesHeader}
+            </h4>
             <div className="grid md:grid-cols-2 gap-4">
               {memberFeatures.map((feature, idx) => (
                 <div key={idx} className="flex items-start gap-3">
@@ -168,9 +169,11 @@ export function JoinUs({
                   </div>
                 </div>
               )}
-              <Card className={`p-8 border-0 shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col ${
-                duration.popular ? 'ring-2 ring-purple-600 transform scale-105' : ''
-              }`}>
+              <Card
+                className={`p-8 border-0 shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col ${
+                  duration.popular ? "ring-2 ring-purple-600 transform scale-105" : ""
+                }`}
+              >
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold mb-4 text-gray-900">{duration.name}</h3>
                   <div className="mb-2">
@@ -186,7 +189,9 @@ export function JoinUs({
                   )}
                 </div>
 
-                <Button className={`w-full bg-linear-to-r ${duration.gradient} hover:opacity-90 text-white border-0 shadow-lg mt-auto`}>
+                <Button
+                  className={`w-full bg-linear-to-r ${duration.gradient} hover:opacity-90 text-white border-0 shadow-lg mt-auto`}
+                >
                   Choose {duration.name}
                 </Button>
               </Card>
@@ -203,9 +208,7 @@ export function JoinUs({
         >
           <Card className="p-12 border-0 shadow-2xl bg-linear-to-br from-blue-600 to-primary-80 text-white">
             <h3 className="mb-4 text-white">{cta.title}</h3>
-            <p className="mb-8 text-white/90 max-w-2xl mx-auto">
-              {cta.subtitle}
-            </p>
+            <p className="mb-8 text-white/90 max-w-2xl mx-auto">{cta.subtitle}</p>
             <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 border-0">
               {cta.buttonText}
             </Button>

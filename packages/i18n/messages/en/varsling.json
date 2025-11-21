@@ -122,7 +122,7 @@
       "description": "Overview of all configured contact persons for whistleblowing cases",
       "headers": {
         "campus": "Campus",
-        "role": "Role", 
+        "role": "Role",
         "email": "Email",
         "sorting": "Sorting",
         "status": "Status",
@@ -143,7 +143,7 @@
         "description": "Add a new contact person for whistleblowing cases."
       },
       "edit": {
-        "title": "Edit whistleblowing contact", 
+        "title": "Edit whistleblowing contact",
         "description": "Update the information for the whistleblowing contact."
       },
       "fields": {

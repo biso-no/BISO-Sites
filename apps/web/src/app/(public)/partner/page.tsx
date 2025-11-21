@@ -1,112 +1,141 @@
-import { useTranslations } from 'next-intl'
-import { getTranslations } from 'next-intl/server'
-import Image from 'next/image'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
-import { Button } from '@repo/ui/components/ui/button'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { Mail, Phone, MapPin, Users, Target, Handshake, Calendar, Presentation, MessageSquare, Building2, Heart, Briefcase } from 'lucide-react'
-import type { Metadata } from 'next'
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Briefcase,
+  Building2,
+  Calendar,
+  Handshake,
+  Heart,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Phone,
+  Presentation,
+  Target,
+  Users,
+} from "lucide-react";
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('partner.meta')
-  
+  const t = await getTranslations("partner.meta");
+
   return {
-    title: t('title'),
-    description: t('description'),
-  }
+    title: t("title"),
+    description: t("description"),
+  };
 }
 
 export default function PartnerPage() {
-  const t = useTranslations('partner')
+  const t = useTranslations("partner");
 
   const benefits = [
     {
-      key: 'colleagues',
+      key: "colleagues",
       icon: Users,
-      title: t('benefits.items.colleagues.title'),
-      description: t('benefits.items.colleagues.description')
+      title: t("benefits.items.colleagues.title"),
+      description: t("benefits.items.colleagues.description"),
     },
     {
-      key: 'values',
+      key: "values",
       icon: Heart,
-      title: t('benefits.items.values.title'),
-      description: t('benefits.items.values.description')
+      title: t("benefits.items.values.title"),
+      description: t("benefits.items.values.description"),
     },
     {
-      key: 'match',
+      key: "match",
       icon: Target,
-      title: t('benefits.items.match.title'),
-      description: t('benefits.items.match.description')
-    }
-  ]
+      title: t("benefits.items.match.title"),
+      description: t("benefits.items.match.description"),
+    },
+  ];
 
   const careerDays = [
     {
-      key: 'oslo',
-      city: 'Oslo',
-      title: t('careerDays.cities.oslo.title'),
-      action: t('careerDays.cities.oslo.action')
+      key: "oslo",
+      city: "Oslo",
+      title: t("careerDays.cities.oslo.title"),
+      action: t("careerDays.cities.oslo.action"),
     },
     {
-      key: 'bergen',
-      city: 'Bergen',
-      title: t('careerDays.cities.bergen.title'),
-      action: t('careerDays.cities.bergen.action')
+      key: "bergen",
+      city: "Bergen",
+      title: t("careerDays.cities.bergen.title"),
+      action: t("careerDays.cities.bergen.action"),
     },
     {
-      key: 'trondheim',
-      city: 'Trondheim',
-      title: t('careerDays.cities.trondheim.title'),
-      action: t('careerDays.cities.trondheim.action')
+      key: "trondheim",
+      city: "Trondheim",
+      title: t("careerDays.cities.trondheim.title"),
+      action: t("careerDays.cities.trondheim.action"),
     },
     {
-      key: 'stavanger',
-      city: 'Stavanger',
-      title: t('careerDays.cities.stavanger.title'),
-      action: t('careerDays.cities.stavanger.action')
-    }
-  ]
+      key: "stavanger",
+      city: "Stavanger",
+      title: t("careerDays.cities.stavanger.title"),
+      action: t("careerDays.cities.stavanger.action"),
+    },
+  ];
 
   const campuses = [
     {
-      key: 'oslo',
-      title: t('contact.campuses.oslo.title'),
-      phone: t('contact.campuses.oslo.phone'),
-      email: t('contact.campuses.oslo.email'),
-      address: t('contact.campuses.oslo.address')
+      key: "oslo",
+      title: t("contact.campuses.oslo.title"),
+      phone: t("contact.campuses.oslo.phone"),
+      email: t("contact.campuses.oslo.email"),
+      address: t("contact.campuses.oslo.address"),
     },
     {
-      key: 'bergen',
-      title: t('contact.campuses.bergen.title'),
-      phone: t('contact.campuses.bergen.phone'),
-      email: t('contact.campuses.bergen.email'),
-      address: t('contact.campuses.bergen.address')
+      key: "bergen",
+      title: t("contact.campuses.bergen.title"),
+      phone: t("contact.campuses.bergen.phone"),
+      email: t("contact.campuses.bergen.email"),
+      address: t("contact.campuses.bergen.address"),
     },
     {
-      key: 'trondheim',
-      title: t('contact.campuses.trondheim.title'),
-      phone: t('contact.campuses.trondheim.phone'),
-      email: t('contact.campuses.trondheim.email'),
-      address: t('contact.campuses.trondheim.address')
+      key: "trondheim",
+      title: t("contact.campuses.trondheim.title"),
+      phone: t("contact.campuses.trondheim.phone"),
+      email: t("contact.campuses.trondheim.email"),
+      address: t("contact.campuses.trondheim.address"),
     },
     {
-      key: 'stavanger',
-      title: t('contact.campuses.stavanger.title'),
-      phone: t('contact.campuses.stavanger.phone'),
-      email: t('contact.campuses.stavanger.email'),
-      address: t('contact.campuses.stavanger.address')
-    }
-  ]
+      key: "stavanger",
+      title: t("contact.campuses.stavanger.title"),
+      phone: t("contact.campuses.stavanger.phone"),
+      email: t("contact.campuses.stavanger.email"),
+      address: t("contact.campuses.stavanger.address"),
+    },
+  ];
 
   const businessHotspotFeatures = [
-    { key: 'present', icon: Presentation, text: t('opportunities.businessHotspot.features.present') },
-    { key: 'presentations', icon: Building2, text: t('opportunities.businessHotspot.features.presentations') },
-    { key: 'talk', icon: MessageSquare, text: t('opportunities.businessHotspot.features.talk') },
-    { key: 'stand', icon: Building2, text: t('opportunities.businessHotspot.features.stand') },
-    { key: 'relationship', icon: Heart, text: t('opportunities.businessHotspot.features.relationship') },
-    { key: 'agreements', icon: Handshake, text: t('opportunities.businessHotspot.features.agreements') }
-  ]
+    {
+      key: "present",
+      icon: Presentation,
+      text: t("opportunities.businessHotspot.features.present"),
+    },
+    {
+      key: "presentations",
+      icon: Building2,
+      text: t("opportunities.businessHotspot.features.presentations"),
+    },
+    { key: "talk", icon: MessageSquare, text: t("opportunities.businessHotspot.features.talk") },
+    { key: "stand", icon: Building2, text: t("opportunities.businessHotspot.features.stand") },
+    {
+      key: "relationship",
+      icon: Heart,
+      text: t("opportunities.businessHotspot.features.relationship"),
+    },
+    {
+      key: "agreements",
+      icon: Handshake,
+      text: t("opportunities.businessHotspot.features.agreements"),
+    },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -118,24 +147,24 @@ export default function PartnerPage() {
             <div className="mx-auto max-w-2xl lg:mx-0 lg:flex-auto">
               <div className="flex">
                 <Badge variant="secondary" className="mb-6 text-sm font-medium">
-                  {t('hero.subtitle')}
+                  {t("hero.subtitle")}
                 </Badge>
               </div>
               <h1 className="mt-10 max-w-lg text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-6xl">
-                {t('hero.title')}
+                {t("hero.title")}
               </h1>
               <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-                {t('hero.description')}
+                {t("hero.description")}
               </p>
               <div className="mt-10 flex items-center gap-x-6">
                 <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
                   <Link href="/contact">
                     <Mail className="mr-2 h-4 w-4" />
-                    {t('buttons.contact')}
+                    {t("buttons.contact")}
                   </Link>
                 </Button>
                 <Button variant="outline" size="lg" asChild>
-                  <Link href="#benefits">{t('buttons.readMore')}</Link>
+                  <Link href="#benefits">{t("buttons.readMore")}</Link>
                 </Button>
               </div>
             </div>
@@ -160,16 +189,16 @@ export default function PartnerPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-              {t('benefits.title')}
+              {t("benefits.title")}
             </h2>
             <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-              {t('benefits.subtitle')}
+              {t("benefits.subtitle")}
             </p>
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
             <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
               {benefits.map((benefit) => {
-                const Icon = benefit.icon
+                const Icon = benefit.icon;
                 return (
                   <div key={benefit.key} className="flex flex-col">
                     <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900 dark:text-white">
@@ -180,7 +209,7 @@ export default function PartnerPage() {
                       <p className="flex-auto">{benefit.description}</p>
                     </dd>
                   </div>
-                )
+                );
               })}
             </dl>
           </div>
@@ -192,10 +221,10 @@ export default function PartnerPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-              {t('careerDays.title')}
+              {t("careerDays.title")}
             </h2>
             <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-              {t('careerDays.description')}
+              {t("careerDays.description")}
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 xl:grid-cols-4">
@@ -208,9 +237,7 @@ export default function PartnerPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                    {career.action}
-                  </Button>
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700">{career.action}</Button>
                 </CardContent>
               </Card>
             ))}
@@ -223,41 +250,44 @@ export default function PartnerPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <Badge variant="secondary" className="mb-4">
-              {t('opportunities.title')}
+              {t("opportunities.title")}
             </Badge>
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-              {t('opportunities.businessHotspot.title')}
+              {t("opportunities.businessHotspot.title")}
             </h2>
             <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-              {t('opportunities.businessHotspot.description')}
+              {t("opportunities.businessHotspot.description")}
             </p>
           </div>
-          
+
           <div className="mx-auto mt-16 lg:mx-0 lg:max-w-none">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                   {businessHotspotFeatures.map((feature) => {
-                    const Icon = feature.icon
+                    const Icon = feature.icon;
                     return (
-                      <div key={feature.key} className="flex items-center gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                      <div
+                        key={feature.key}
+                        className="flex items-center gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20"
+                      >
                         <Icon className="h-5 w-5 text-blue-600" />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
                           {feature.text}
                         </span>
                       </div>
-                    )
+                    );
                   })}
                 </div>
                 <div className="text-center lg:text-left">
                   <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                    {t('opportunities.businessHotspot.concept.title')}
+                    {t("opportunities.businessHotspot.concept.title")}
                   </h3>
                   <p className="text-xl text-blue-600 font-semibold mb-6">
-                    {t('opportunities.businessHotspot.concept.subtitle')}
+                    {t("opportunities.businessHotspot.concept.subtitle")}
                   </p>
                   <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-                    {t('buttons.readMore')}
+                    {t("buttons.readMore")}
                   </Button>
                 </div>
               </div>
@@ -270,9 +300,7 @@ export default function PartnerPage() {
                   className="w-full rounded-2xl shadow-2xl"
                 />
                 <div className="absolute top-4 right-4">
-                  <Badge className="bg-orange-500 hover:bg-orange-600">
-                    Oslo Only
-                  </Badge>
+                  <Badge className="bg-orange-500 hover:bg-orange-600">Oslo Only</Badge>
                 </div>
               </div>
             </div>
@@ -285,19 +313,17 @@ export default function PartnerPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-              {t('contact.title')}
+              {t("contact.title")}
             </h2>
             <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-              {t('contact.description')}
+              {t("contact.description")}
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 xl:grid-cols-4">
             {campuses.map((campus) => (
               <Card key={campus.key} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-center">
-                    {campus.title}
-                  </CardTitle>
+                  <CardTitle className="text-center">{campus.title}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">
@@ -306,7 +332,7 @@ export default function PartnerPage() {
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Mail className="h-4 w-4 text-blue-600 shrink-0" />
-                    <Link 
+                    <Link
                       href={`mailto:${campus.email}`}
                       className="text-blue-600 hover:text-blue-700 underline"
                     >
@@ -319,7 +345,7 @@ export default function PartnerPage() {
                   </div>
                   <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
                     <Mail className="mr-2 h-4 w-4" />
-                    {t('buttons.contact')}
+                    {t("buttons.contact")}
                   </Button>
                 </CardContent>
               </Card>
@@ -328,5 +354,5 @@ export default function PartnerPage() {
         </div>
       </section>
     </div>
-  )
+  );
 }

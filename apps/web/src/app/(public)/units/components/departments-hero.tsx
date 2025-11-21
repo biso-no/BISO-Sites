@@ -1,5 +1,5 @@
-import { Building2 } from "lucide-react";
 import { ImageWithFallback } from "@repo/ui/components/image";
+import { Building2 } from "lucide-react";
 
 interface DepartmentsHeroProps {
   stats: {
@@ -34,22 +34,20 @@ export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
         className="w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-      
+
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="w-16 h-16 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
               <Building2 className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-white text-5xl font-bold mb-0">
-              Våre enheter
-            </h1>
+            <h1 className="text-white text-5xl font-bold mb-0">Våre enheter</h1>
           </div>
           <p className="text-white/90 max-w-2xl mx-auto mb-8 text-lg">
-            Utforsk studentdrevne enheter innen alt fra festivaler og finans til politikk og velferd. 
-            Finn enheten som matcher dine ambisjoner!
+            Utforsk studentdrevne enheter innen alt fra festivaler og finans til politikk og
+            velferd. Finn enheten som matcher dine ambisjoner!
           </p>
-          
+
           {/* Stats */}
           <div className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
             {statsData.map((stat) => (
@@ -67,4 +65,3 @@ export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
     </div>
   );
 }
-

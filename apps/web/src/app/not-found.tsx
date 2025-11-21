@@ -1,8 +1,7 @@
-import Link from "next/link"
-import { ArrowLeft, Home, SearchX } from "lucide-react"
-
-import { Button } from "@repo/ui/components/ui/button"
-import { cn } from '@repo/ui/lib/utils'
+import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
+import { ArrowLeft, Home, SearchX } from "lucide-react";
+import Link from "next/link";
 
 export default function NotFound() {
   return (
@@ -26,7 +25,8 @@ export default function NotFound() {
             Vi fant ikke siden du lette etter.
           </h1>
           <p className="max-w-2xl text-base text-white/80 md:text-lg">
-            Kanskje ble innholdet flyttet, eller kanskje det er skrevet feil adresse. La oss hjelpe deg tilbake til noe relevant.
+            Kanskje ble innholdet flyttet, eller kanskje det er skrevet feil adresse. La oss hjelpe
+            deg tilbake til noe relevant.
           </p>
         </div>
 
@@ -52,17 +52,17 @@ export default function NotFound() {
 
         <div className="rounded-3xl border border-white/15 bg-white/10 px-6 py-4 text-sm text-white/80 shadow-lg">
           <p>
-            Trenger du hjelp? Kontakt oss på{' '}
+            Trenger du hjelp? Kontakt oss på{" "}
             <a
               href="mailto:contact@biso.no"
               className="font-semibold underline-offset-4 hover:underline"
             >
               contact@biso.no
-            </a>{' '}
+            </a>{" "}
             så følger vi deg opp.
           </p>
         </div>
       </div>
     </main>
-  )
+  );
 }

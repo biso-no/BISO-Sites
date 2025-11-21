@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import type { Departments } from '@repo/api/types/appwrite';
-import { DepartmentCard } from './department-card';
-import { Button } from '@repo/ui/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
-import { getDepartmentsClient } from '@/lib/actions/departments';
+import type { Departments } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Loader2, Plus } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getDepartmentsClient } from "@/lib/actions/departments";
+import { DepartmentCard } from "./department-card";
 
 interface DepartmentsInfiniteListProps {
   initialDepartments: (Departments & {
@@ -30,7 +30,7 @@ export function DepartmentsInfiniteList({
   initialDepartments,
   hasMore: initialHasMore,
   pageSize,
-  filters
+  filters,
 }: DepartmentsInfiniteListProps) {
   const router = useRouter();
   const [departments, setDepartments] = useState(initialDepartments);
@@ -43,7 +43,7 @@ export function DepartmentsInfiniteList({
   // Reset when filters change (using JSON.stringify for deep comparison)
   useEffect(() => {
     const filtersChanged = JSON.stringify(filtersRef.current) !== JSON.stringify(filters);
-    
+
     if (filtersChanged) {
       filtersRef.current = filters;
       setDepartments(initialDepartments);
@@ -60,18 +60,18 @@ export function DepartmentsInfiniteList({
       const result = await getDepartmentsClient({
         ...filters,
         limit: pageSize,
-        offset: offset
+        offset: offset,
       });
 
       if (result.departments.length > 0) {
-        setDepartments(prev => [...prev, ...result.departments]);
-        setOffset(prev => prev + pageSize);
+        setDepartments((prev) => [...prev, ...result.departments]);
+        setOffset((prev) => prev + pageSize);
         setHasMore(result.departments.length === pageSize);
       } else {
         setHasMore(false);
       }
     } catch (error) {
-      console.error('Error loading more departments:', error);
+      console.error("Error loading more departments:", error);
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -88,14 +88,14 @@ export function DepartmentsInfiniteList({
   useEffect(() => {
     // Don't set up observer until after initial render
     if (!hasInitialized.current) return;
-    
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoading) {
           loadMore();
         }
       },
-      { threshold: 0.1, rootMargin: '100px' }
+      { threshold: 0.1, rootMargin: "100px" },
     );
 
     const currentTarget = observerTarget.current;
@@ -123,9 +123,9 @@ export function DepartmentsInfiniteList({
             ? "Try adjusting your filters to see more results."
             : "Get started by creating your first department."}
         </p>
-        <Button 
-          variant="outline" 
-          onClick={() => router.push('/admin/units/new')}
+        <Button
+          variant="outline"
+          onClick={() => router.push("/admin/units/new")}
           className="gap-2 mt-4"
         >
           <Plus className="h-4 w-4" />
@@ -164,4 +164,3 @@ export function DepartmentsInfiniteList({
     </div>
   );
 }
-

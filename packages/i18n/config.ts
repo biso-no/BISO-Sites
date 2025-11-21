@@ -8,4 +8,3 @@ export function isLocale(value: string | null | undefined): value is Locale {
   if (!value) return false;
   return (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }
-

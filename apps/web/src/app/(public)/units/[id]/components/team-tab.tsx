@@ -1,11 +1,11 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Users, Mail, Linkedin, ChevronRight } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
-import { DepartmentTranslation } from "@/lib/actions/departments";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { ChevronRight, Linkedin, Mail, Users } from "lucide-react";
+import { motion } from "motion/react";
+import type { DepartmentTranslation } from "@/lib/actions/departments";
 
 interface TeamTabProps {
   department: DepartmentTranslation;
@@ -39,24 +39,27 @@ export function TeamTab({ department }: TeamTabProps) {
             >
               <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all text-center group">
                 <Avatar className="w-32 h-32 mx-auto mb-4 ring-4 ring-[#3DA9E0]/20 group-hover:ring-[#3DA9E0] transition-all">
-                  <AvatarImage src={member.imageUrl || undefined} alt={member.name || ''} />
+                  <AvatarImage src={member.imageUrl || undefined} alt={member.name || ""} />
                   <AvatarFallback className="bg-linear-to-br from-[#3DA9E0] to-[#001731] text-white text-2xl">
-                    {member.name?.split(' ').map(n => n[0]).join('') || '?'}
+                    {member.name
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("") || "?"}
                   </AvatarFallback>
                 </Avatar>
                 <h3 className="text-lg font-semibold text-foreground mb-1">{member.name}</h3>
                 <p className="text-[#3DA9E0] mb-4">{member.role}</p>
                 <div className="flex justify-center gap-3">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
                   >
                     <Mail className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
                   >
                     <Linkedin className="w-4 h-4" />
@@ -70,9 +73,7 @@ export function TeamTab({ department }: TeamTabProps) {
         <Card className="p-12 text-center border-0 shadow-lg">
           <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">No Team Members Yet</h3>
-          <p className="text-muted-foreground">
-            Team information will be available soon.
-          </p>
+          <p className="text-muted-foreground">Team information will be available soon.</p>
         </Card>
       )}
 
@@ -81,7 +82,8 @@ export function TeamTab({ department }: TeamTabProps) {
         <Users className="w-16 h-16 text-[#3DA9E0] mx-auto mb-6" />
         <h3 className="text-2xl font-bold text-foreground mb-4">Want to Join Our Team?</h3>
         <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-          We're always looking for passionate students to join {department.title}. Check out our open positions and be part of something amazing!
+          We're always looking for passionate students to join {department.title}. Check out our
+          open positions and be part of something amazing!
         </p>
         <Button className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white">
           View Open Positions

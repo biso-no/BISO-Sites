@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { FileX } from "lucide-react";
+import Link from "next/link";
 
 export default function NotFound() {
   return (
@@ -21,4 +21,3 @@ export default function NotFound() {
     </div>
   );
 }
-

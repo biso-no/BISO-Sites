@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useMemo, useState } from "react";
 import { DepartmentsFiltersClient, type FilterState } from "./departments-filters-client";
 import { DepartmentsGrid } from "./departments-grid";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
 
 interface DepartmentsListClientProps {
   departments: ContentTranslations[];
@@ -13,13 +13,13 @@ interface DepartmentsListClientProps {
 
 const stripHtml = (html?: string | null) => {
   if (!html) return "";
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 };
 
-export function DepartmentsListClient({ 
-  departments, 
-  availableTypes 
-}: DepartmentsListClientProps) {
+export function DepartmentsListClient({ departments, availableTypes }: DepartmentsListClientProps) {
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     campusId: null,
@@ -53,7 +53,7 @@ export function DepartmentsListClient({
           dept.title,
           deptRef.type,
           deptRef.campus?.name,
-          stripHtml(dept.short_description || dept.description)
+          stripHtml(dept.short_description || dept.description),
         ]
           .join(" ")
           .toLowerCase();
@@ -71,7 +71,7 @@ export function DepartmentsListClient({
   const sortedDepartments = useMemo(() => {
     return [...filteredDepartments].sort((a, b) => {
       const campusCompare = (a.department_ref?.campus?.name || "").localeCompare(
-        b.department_ref?.campus?.name || ""
+        b.department_ref?.campus?.name || "",
       );
       if (campusCompare !== 0) return campusCompare;
       return a.title.localeCompare(b.title);
@@ -81,7 +81,7 @@ export function DepartmentsListClient({
   return (
     <>
       {/* Filters */}
-      <DepartmentsFiltersClient 
+      <DepartmentsFiltersClient
         availableTypes={availableTypes}
         onFilterChange={handleFilterChange}
       />

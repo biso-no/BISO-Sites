@@ -1,14 +1,6 @@
-"use client"
-import * as React from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Controller, useForm } from "react-hook-form"
-import { z } from "zod"
-import { Loader2 } from "lucide-react"
-import dynamic from "next/dynamic"
-import { useTranslations } from "next-intl"
-
-import { Button } from "@repo/ui/components/ui/button"
+"use client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,26 +8,33 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@repo/ui/components/ui/form"
-import { Input } from "@repo/ui/components/ui/input"
+} from "@repo/ui/components/ui/form";
+import { Input } from "@repo/ui/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui/components/ui/select"
+} from "@repo/ui/components/ui/select";
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarProvider,
-} from "@repo/ui/components/ui/sidebar"
-import { toast } from "@/lib/hooks/use-toast"
-import { createPost, updatePost } from "@/app/actions/admin"
-import { Campus, Department } from "@/lib/types/post"
+} from "@repo/ui/components/ui/sidebar";
+import { Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
+import { createPost, updatePost } from "@/app/actions/admin";
+import { toast } from "@/lib/hooks/use-toast";
+import type { Campus, Department } from "@/lib/types/post";
 
-const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false })
+const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false });
 
 const baseFormSchema = z.object({
   title: z.string(),
@@ -43,29 +42,29 @@ const baseFormSchema = z.object({
   status: z.enum(["publish", "draft"]),
   department: z.string(),
   campus: z.string(),
-})
+});
 
-type FormValues = z.infer<typeof baseFormSchema>
+type FormValues = z.infer<typeof baseFormSchema>;
 
 type Post = {
-  $id?: string
-  title: string
-  content: string
-  status: "publish" | "draft"
-  department: Department
-  campus: Campus
-}
+  $id?: string;
+  title: string;
+  content: string;
+  status: "publish" | "draft";
+  department: Department;
+  campus: Campus;
+};
 
 type PostEditorProps = {
-  post?: Post
-  departments: Department[]
-  campuses: Campus[]
-}
+  post?: Post;
+  departments: Department[];
+  campuses: Campus[];
+};
 
 export default function PostEditor({ post, departments, campuses }: PostEditorProps) {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const t = useTranslations("adminPosts")
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const t = useTranslations("adminPosts");
 
   const formSchema = React.useMemo(
     () =>
@@ -76,8 +75,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
         department: z.string().min(1, t("formValidation.departmentRequired")),
         campus: z.string().min(1, t("formValidation.campusRequired")),
       }),
-    [t]
-  )
+    [t],
+  );
 
   const getInitialValues = React.useMemo((): FormValues => {
     if (!post) {
@@ -87,7 +86,7 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
         status: "draft" as const,
         department: "",
         campus: "",
-      }
+      };
     }
 
     return {
@@ -96,55 +95,56 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
       status: post.status as "publish" | "draft",
       department: post.department?.$id || "",
       campus: post.campus?.$id || "",
-    }
-  }, [post])
+    };
+  }, [post]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: getInitialValues,
-  })
+  });
 
-  const handleSubmit = React.useCallback(async (values: FormValues) => {
-    setIsSubmitting(true)
-    try {
-      if (post && post.$id) {
-        await updatePost(post.$id, {
-          title: values.title,
-          content: values.content,
-          status: values.status,
-          // The underlying action expects richer types; we pass identifiers here.
-          department: values.department as unknown as any,
-          campus: values.campus as unknown as any,
-        } as any)
-      } else {
-        await createPost({
-          title: values.title,
-          content: values.content,
-          status: values.status,
-          department: values.department as unknown as any,
-          campus: values.campus as unknown as any,
-        } as any)
+  const handleSubmit = React.useCallback(
+    async (values: FormValues) => {
+      setIsSubmitting(true);
+      try {
+        if (post && post.$id) {
+          await updatePost(post.$id, {
+            title: values.title,
+            content: values.content,
+            status: values.status,
+            // The underlying action expects richer types; we pass identifiers here.
+            department: values.department as unknown as any,
+            campus: values.campus as unknown as any,
+          } as any);
+        } else {
+          await createPost({
+            title: values.title,
+            content: values.content,
+            status: values.status,
+            department: values.department as unknown as any,
+            campus: values.campus as unknown as any,
+          } as any);
+        }
+        toast({
+          title: t("messages.successTitle"),
+          description: post ? t("messages.updateSuccess") : t("messages.createSuccess"),
+        });
+        router.push("/admin/posts");
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: t("messages.errorTitle"),
+          description: t("messages.saveError"),
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
       }
-      toast({
-        title: t("messages.successTitle"),
-        description: post
-          ? t("messages.updateSuccess")
-          : t("messages.createSuccess"),
-      })
-      router.push("/admin/posts")
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: t("messages.errorTitle"),
-        description: t("messages.saveError"),
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [post, router])
+    },
+    [post, router],
+  );
 
-  const editorConfig = React.useMemo(() => ({ height: 500 }), [])
+  const editorConfig = React.useMemo(() => ({ height: 500 }), []);
 
   return (
     <SidebarProvider side="right">
@@ -159,39 +159,34 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                   <FormItem>
                     <FormLabel>{t("form.title")}</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder={t("form.titlePlaceholder")}
-                        {...field}
+                      <Input placeholder={t("form.titlePlaceholder")} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Controller
+                name="content"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("form.content")}</FormLabel>
+                    <FormControl>
+                      <JoditEditor
+                        value={field.value}
+                        config={editorConfig}
+                        onBlur={field.onBlur}
+                        onChange={(newContent: string) => field.onChange(newContent)}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-                <Controller
-                  name="content"
-                  control={form.control}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("form.content")}</FormLabel>
-                      <FormControl>
-                        <JoditEditor
-                          value={field.value}
-                          config={editorConfig}
-                          onBlur={field.onBlur}
-                          onChange={(newContent: string) => field.onChange(newContent)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
             </div>
             <Sidebar className="w-80 border-l">
               <SidebarHeader className="px-4 py-2">
-                <h2 className="text-lg font-semibold">
-                  {t("form.settingsTitle")}
-                </h2>
+                <h2 className="text-lg font-semibold">{t("form.settingsTitle")}</h2>
               </SidebarHeader>
               <SidebarContent>
                 <div className="space-y-4 px-4">
@@ -201,15 +196,10 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t("form.status")}</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
+                        <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue
-                                placeholder={t("form.selectStatus")}
-                              >
+                              <SelectValue placeholder={t("form.selectStatus")}>
                                 {field.value === "publish"
                                   ? t("status.published")
                                   : t("status.draft")}
@@ -217,12 +207,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="publish">
-                              {t("status.published")}
-                            </SelectItem>
-                            <SelectItem value="draft">
-                              {t("status.draft")}
-                            </SelectItem>
+                            <SelectItem value="publish">{t("status.published")}</SelectItem>
+                            <SelectItem value="draft">{t("status.draft")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -235,18 +221,12 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t("form.department")}</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
+                        <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue
-                                placeholder={t("form.selectDepartment")}
-                              >
-                                {departments.find(
-                                  (dep) => dep.$id === field.value
-                                )?.Name || t("form.selectDepartment")}
+                              <SelectValue placeholder={t("form.selectDepartment")}>
+                                {departments.find((dep) => dep.$id === field.value)?.Name ||
+                                  t("form.selectDepartment")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
@@ -268,16 +248,12 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t("form.campus")}</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
+                        <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder={t("form.selectCampus")}>
-                                {campuses.find(
-                                  (c) => c.$id === field.value
-                                )?.name || t("form.selectCampus")}
+                                {campuses.find((c) => c.$id === field.value)?.name ||
+                                  t("form.selectCampus")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
@@ -293,14 +269,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                       </FormItem>
                     )}
                   />
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {t("form.save")}
                   </Button>
                 </div>
@@ -310,5 +280,5 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
         </Form>
       </div>
     </SidebarProvider>
-  )
+  );
 }

@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Card } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
-import { Textarea } from "@repo/ui/components/ui/textarea";
 import { Progress } from "@repo/ui/components/ui/progress";
-import { ArrowLeft, Upload, X, Sparkles, Eye } from "lucide-react";
+import { Textarea } from "@repo/ui/components/ui/textarea";
+import { ArrowLeft, Eye, Sparkles, Upload, X } from "lucide-react";
 import { motion } from "motion/react";
-import { uploadExpenseAttachment, createExpenseAttachment } from "@/lib/actions/expense";
-import { processReceipt, generateExpenseDescription } from "@/lib/actions/expense-ocr";
+import { useState } from "react";
+import { createExpenseAttachment, uploadExpenseAttachment } from "@/lib/actions/expense";
+import { generateExpenseDescription, processReceipt } from "@/lib/actions/expense-ocr";
 
 interface Attachment {
   id: string;
@@ -48,9 +48,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
 
     for (const file of fileArray) {
       const tempId = Math.random().toString();
-      const preview = file.type.startsWith("image/")
-        ? URL.createObjectURL(file)
-        : undefined;
+      const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
 
       const newAttachment: Attachment = {
         id: tempId,
@@ -88,14 +86,13 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                   ...att,
                   fileId: uploadResult.file!.$id,
                   fileUrl,
-                  description:
-                    ocrResult.data?.description || `Receipt from ${file.name}`,
+                  description: ocrResult.data?.description || `Receipt from ${file.name}`,
                   date: ocrResult.data?.date || att.date,
                   amount: ocrResult.data?.amount || 0,
                   processing: false,
                 }
-              : att
-          )
+              : att,
+          ),
         );
       } catch (error) {
         console.error("Error processing file:", error);
@@ -107,8 +104,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                   description: `Receipt from ${file.name}`,
                   processing: false,
                 }
-              : att
-          )
+              : att,
+          ),
         );
       }
     }
@@ -116,7 +113,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
 
   const handleGenerateDescription = async () => {
     const processedAttachments = attachments.filter((att) => !att.processing);
-    
+
     if (processedAttachments.length === 0) {
       return;
     }
@@ -143,8 +140,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
   };
 
   const totalAmount = attachments.reduce((sum, att) => sum + att.amount, 0);
-  const canProceed =
-    attachments.length > 0 && attachments.every((att) => !att.processing);
+  const canProceed = attachments.length > 0 && attachments.every((att) => !att.processing);
 
   const handleNext = () => {
     if (canProceed) {
@@ -187,9 +183,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
       {attachments.length > 0 && (
         <div className="space-y-4 mb-8">
           <div className="flex items-center justify-between">
-            <h3 className="text-gray-900">
-              Uploaded Receipts ({attachments.length})
-            </h3>
+            <h3 className="text-gray-900">Uploaded Receipts ({attachments.length})</h3>
             {canProceed && !isGenerating && (
               <Button
                 onClick={handleGenerateDescription}
@@ -236,8 +230,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                               prev.map((att) =>
                                 att.id === attachment.id
                                   ? { ...att, description: e.target.value }
-                                  : att
-                              )
+                                  : att,
+                              ),
                             )
                           }
                         />
@@ -250,10 +244,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                           onChange={(e) =>
                             setAttachments((prev) =>
                               prev.map((att) =>
-                                att.id === attachment.id
-                                  ? { ...att, date: e.target.value }
-                                  : att
-                              )
+                                att.id === attachment.id ? { ...att, date: e.target.value } : att,
+                              ),
                             )
                           }
                         />
@@ -271,8 +263,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                                       ...att,
                                       amount: parseFloat(e.target.value) || 0,
                                     }
-                                  : att
-                              )
+                                  : att,
+                              ),
                             )
                           }
                         />
@@ -313,9 +305,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                 }
                 disabled={isGenerating}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Edit this description as needed
-              </p>
+              <p className="text-xs text-gray-500 mt-1">Edit this description as needed</p>
             </motion.div>
           )}
 
@@ -348,4 +338,3 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
     </Card>
   );
 }
-

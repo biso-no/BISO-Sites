@@ -3,7 +3,7 @@
  * These functions can be called after important admin actions to notify users
  */
 
-import { createNotification } from '@/lib/actions/notifications'
+import { createNotification } from "@/lib/actions/notifications";
 
 export const NotificationTriggers = {
   /**
@@ -11,32 +11,32 @@ export const NotificationTriggers = {
    */
   onNewOrder: async (orderId: string, amount: number) => {
     await createNotification({
-      title: 'New Order Received',
+      title: "New Order Received",
       description: `Order #${orderId.slice(-6)} for ${amount} NOK has been placed`,
-      color: 'green',
+      color: "green",
       priority: 2,
       link: `/admin/shop/orders/${orderId}`,
-    })
+    });
   },
 
   onOrderCancelled: async (orderId: string) => {
     await createNotification({
-      title: 'Order Cancelled',
+      title: "Order Cancelled",
       description: `Order #${orderId.slice(-6)} has been cancelled`,
-      color: 'orange',
+      color: "orange",
       priority: 2,
       link: `/admin/shop/orders/${orderId}`,
-    })
+    });
   },
 
   onLowStock: async (productName: string, quantity: number) => {
     await createNotification({
-      title: 'Low Stock Alert',
+      title: "Low Stock Alert",
       description: `${productName} has only ${quantity} items left in stock`,
-      color: 'orange',
+      color: "orange",
       priority: 2,
-      link: '/admin/shop/products',
-    })
+      link: "/admin/shop/products",
+    });
   },
 
   /**
@@ -44,22 +44,22 @@ export const NotificationTriggers = {
    */
   onNewUserRegistration: async (userName: string, userId: string) => {
     await createNotification({
-      title: 'New User Registered',
+      title: "New User Registered",
       description: `${userName} has joined the platform`,
-      color: 'blue',
+      color: "blue",
       priority: 1,
       link: `/admin/users/${userId}`,
-    })
+    });
   },
 
   onUserRoleChanged: async (userName: string, newRole: string) => {
     await createNotification({
-      title: 'User Role Updated',
+      title: "User Role Updated",
       description: `${userName}'s role has been changed to ${newRole}`,
-      color: 'blue',
+      color: "blue",
       priority: 1,
-      link: '/admin/users',
-    })
+      link: "/admin/users",
+    });
   },
 
   /**
@@ -67,12 +67,12 @@ export const NotificationTriggers = {
    */
   onNewJobApplication: async (jobTitle: string, applicantName: string, applicationId: string) => {
     await createNotification({
-      title: 'New Job Application',
+      title: "New Job Application",
       description: `${applicantName} applied for ${jobTitle}`,
-      color: 'green',
+      color: "green",
       priority: 2,
       link: `/admin/jobs/applications`,
-    })
+    });
   },
 
   /**
@@ -80,32 +80,32 @@ export const NotificationTriggers = {
    */
   onExpenseNeedsApproval: async (expenseId: string, amount: number, submitter: string) => {
     await createNotification({
-      title: 'Expense Awaiting Approval',
+      title: "Expense Awaiting Approval",
       description: `${submitter} submitted an expense of ${amount} NOK for review`,
-      color: 'orange',
+      color: "orange",
       priority: 3,
       link: `/admin/expenses/${expenseId}`,
-    })
+    });
   },
 
   onExpenseApproved: async (expenseId: string) => {
     await createNotification({
-      title: 'Expense Approved',
+      title: "Expense Approved",
       description: `Expense #${expenseId.slice(-6)} has been approved`,
-      color: 'green',
+      color: "green",
       priority: 1,
       link: `/admin/expenses/${expenseId}`,
-    })
+    });
   },
 
   onExpenseRejected: async (expenseId: string, reason: string) => {
     await createNotification({
-      title: 'Expense Rejected',
+      title: "Expense Rejected",
       description: `Expense #${expenseId.slice(-6)} was rejected: ${reason}`,
-      color: 'red',
+      color: "red",
       priority: 2,
       link: `/admin/expenses/${expenseId}`,
-    })
+    });
   },
 
   /**
@@ -115,20 +115,20 @@ export const NotificationTriggers = {
     await createNotification({
       title: `System Error: ${errorType}`,
       description: message,
-      color: 'red',
+      color: "red",
       priority: 3,
-      link: '/admin',
-    })
+      link: "/admin",
+    });
   },
 
   onSystemMaintenance: async (scheduledTime: string) => {
     await createNotification({
-      title: 'Scheduled Maintenance',
+      title: "Scheduled Maintenance",
       description: `System maintenance is scheduled for ${scheduledTime}`,
-      color: 'orange',
+      color: "orange",
       priority: 2,
-      link: '/admin',
-    })
+      link: "/admin",
+    });
   },
 
   /**
@@ -136,22 +136,22 @@ export const NotificationTriggers = {
    */
   onEventPublished: async (eventTitle: string, eventId: string) => {
     await createNotification({
-      title: 'Event Published',
+      title: "Event Published",
       description: `"${eventTitle}" is now live`,
-      color: 'green',
+      color: "green",
       priority: 1,
       link: `/admin/events/${eventId}`,
-    })
+    });
   },
 
   onEventCancelled: async (eventTitle: string) => {
     await createNotification({
-      title: 'Event Cancelled',
+      title: "Event Cancelled",
       description: `"${eventTitle}" has been cancelled`,
-      color: 'red',
+      color: "red",
       priority: 2,
-      link: '/admin/events',
-    })
+      link: "/admin/events",
+    });
   },
 
   /**
@@ -159,29 +159,32 @@ export const NotificationTriggers = {
    */
   onNewVarslingReport: async (reportId: string) => {
     await createNotification({
-      title: 'New Varsling Report',
-      description: 'A new confidential report has been submitted',
-      color: 'red',
+      title: "New Varsling Report",
+      description: "A new confidential report has been submitted",
+      color: "red",
       priority: 3,
-      link: '/admin/varsling',
-    })
+      link: "/admin/varsling",
+    });
   },
 
   /**
    * Custom notification
    */
-  custom: async (title: string, description: string, options?: {
-    color?: string
-    priority?: number
-    link?: string
-  }) => {
+  custom: async (
+    title: string,
+    description: string,
+    options?: {
+      color?: string;
+      priority?: number;
+      link?: string;
+    },
+  ) => {
     await createNotification({
       title,
       description,
-      color: options?.color || 'blue',
+      color: options?.color || "blue",
       priority: options?.priority || 1,
       link: options?.link,
-    })
+    });
   },
-}
-
+};

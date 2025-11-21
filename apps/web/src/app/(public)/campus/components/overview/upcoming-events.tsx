@@ -1,11 +1,11 @@
-import { motion } from "motion/react";
-import { Calendar, ChevronRight } from "lucide-react";
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { ImageWithFallback } from "@repo/ui/components/image";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Calendar, ChevronRight } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
 interface UpcomingEventsProps {
@@ -104,4 +104,3 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
     </section>
   );
 }
-

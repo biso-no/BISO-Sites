@@ -1,26 +1,26 @@
-import { Suspense } from 'react'
-import { listEvents } from '@/app/actions/events'
-import { getLocale } from '@/app/actions/locale'
-import { EventsListClient } from '@/components/events/events-list-client'
-import { EventsHero } from '@/components/events/events-hero'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { Suspense } from "react";
+import { listEvents } from "@/app/actions/events";
+import { getLocale } from "@/app/actions/locale";
+import { EventsHero } from "@/components/events/events-hero";
+import { EventsListClient } from "@/components/events/events-list-client";
 
 // This is a server component
 export const metadata = {
-  title: 'Events | BISO',
-  description: 'Discover amazing events and experiences at BI Norwegian Business School',
-}
+  title: "Events | BISO",
+  description: "Discover amazing events and experiences at BI Norwegian Business School",
+};
 
-async function EventsList({ locale }: { locale: 'en' | 'no' }) {
+async function EventsList({ locale }: { locale: "en" | "no" }) {
   // Fetch events on the server
   const events = await listEvents({
     locale,
-    status: 'published',
+    status: "published",
     limit: 50,
-  })
+  });
   console.log("Events: ", events);
 
-  return <EventsListClient events={events} />
+  return <EventsListClient events={events} />;
 }
 
 function EventsListSkeleton() {
@@ -38,19 +38,19 @@ function EventsListSkeleton() {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 export default async function EventsPage() {
-  const locale = await getLocale()
+  const locale = await getLocale();
 
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       <EventsHero />
-      
+
       <Suspense fallback={<EventsListSkeleton />}>
         <EventsList locale={locale} />
       </Suspense>
     </div>
-  )
+  );
 }

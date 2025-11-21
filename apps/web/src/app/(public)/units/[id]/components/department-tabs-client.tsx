@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Target, Users, Newspaper, ShoppingBag } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
-import { DepartmentTranslation } from "@/lib/actions/departments";
-import { OverviewTab } from "./overview-tab";
-import { TeamTab } from "./team-tab";
+import { Newspaper, ShoppingBag, Target, Users } from "lucide-react";
+import { useState } from "react";
+import type { DepartmentTranslation } from "@/lib/actions/departments";
 import { NewsTab } from "./news-tab";
+import { OverviewTab } from "./overview-tab";
 import { ProductsTab } from "./products-tab";
+import { TeamTab } from "./team-tab";
 
 interface DepartmentTabsClientProps {
   department: DepartmentTranslation;

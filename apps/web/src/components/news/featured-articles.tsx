@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react';
-import { ContentTranslations } from '@repo/api/types/appwrite';
-import { ArticleCard } from './article-card';
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { motion } from "motion/react";
+import { ArticleCard } from "./article-card";
 
 interface FeaturedArticlesProps {
   articles: ContentTranslations[];
@@ -13,7 +13,7 @@ export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
 
   return (
     <div className="mb-16">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -30,12 +30,12 @@ export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
           </span>
         </h2>
       </motion.div>
-      
+
       <div className="space-y-8">
         {articles.map((article, index) => (
-          <ArticleCard 
-            key={article.news_ref?.$id || article.$id} 
-            article={article} 
+          <ArticleCard
+            key={article.news_ref?.$id || article.$id}
+            article={article}
             variant="featured"
             index={index}
           />

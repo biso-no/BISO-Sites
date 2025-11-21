@@ -1,10 +1,14 @@
-import { getTranslations } from 'next-intl/server'
-import { listJobApplications } from '@/app/actions/jobs'
+import { getTranslations } from "next-intl/server";
+import { listJobApplications } from "@/app/actions/jobs";
 
-export default async function AdminJobApplications({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const apps = await listJobApplications(id)
-  const t = await getTranslations("adminJobs")
+export default async function AdminJobApplications({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const apps = await listJobApplications(id);
+  const t = await getTranslations("adminJobs");
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
@@ -28,9 +32,7 @@ export default async function AdminJobApplications({ params }: { params: Promise
               <th className="p-3 text-left">{t("table.name")}</th>
               <th className="p-3 text-left">{t("table.email")}</th>
               <th className="p-3 text-left">{t("table.phone")}</th>
-              <th className="p-3 text-left">
-                {t("labels.appliedAt") || t("table.appliedAt")}
-              </th>
+              <th className="p-3 text-left">{t("labels.appliedAt") || t("table.appliedAt")}</th>
             </tr>
           </thead>
           <tbody>
@@ -38,7 +40,7 @@ export default async function AdminJobApplications({ params }: { params: Promise
               <tr key={a.$id} className="border-t">
                 <td className="p-3">{a.applicant_name}</td>
                 <td className="p-3">{a.applicant_email}</td>
-                <td className="p-3">{a.applicant_phone || '-'}</td>
+                <td className="p-3">{a.applicant_phone || "-"}</td>
                 <td className="p-3">{a.applied_at}</td>
               </tr>
             ))}
@@ -46,5 +48,5 @@ export default async function AdminJobApplications({ params }: { params: Promise
         </table>
       </div>
     </div>
-  )
+  );
 }

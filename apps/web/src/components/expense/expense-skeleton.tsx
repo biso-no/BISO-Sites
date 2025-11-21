@@ -12,7 +12,7 @@ export function ExpenseCardSkeleton() {
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-6 w-20" />
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-4">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-4 w-32" />
@@ -43,7 +43,7 @@ export function ExpenseDetailSkeleton() {
     <div className="space-y-6">
       <Card className="p-8 border-0 shadow-lg">
         <Skeleton className="h-8 w-64 mb-6" />
-        
+
         <div className="space-y-4">
           <div>
             <Skeleton className="h-4 w-24 mb-2" />
@@ -70,4 +70,3 @@ export function ExpenseDetailSkeleton() {
     </div>
   );
 }
-

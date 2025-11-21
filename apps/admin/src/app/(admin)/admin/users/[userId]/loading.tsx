@@ -1,5 +1,5 @@
-import { Skeleton } from "@repo/ui/components/ui/skeleton"
-import { Card, CardContent, CardHeader } from "@repo/ui/components/ui/card"
+import { Card, CardContent, CardHeader } from "@repo/ui/components/ui/card";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 
 export default function UserDetailsLoading() {
   return (
@@ -17,7 +17,7 @@ export default function UserDetailsLoading() {
             <Skeleton className="h-9 w-28" />
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-8 pb-6">
           <div className="flex flex-col md:flex-row gap-6 items-start">
             <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-background/50">
@@ -28,7 +28,7 @@ export default function UserDetailsLoading() {
               </div>
               <Skeleton className="h-6 w-20" />
             </div>
-            
+
             <div className="flex-1">
               <div className="space-y-2 w-full">
                 <Skeleton className="h-10 w-full" />
@@ -48,5 +48,5 @@ export default function UserDetailsLoading() {
         </CardContent>
       </Card>
     </div>
-  )
-} 
+  );
+}

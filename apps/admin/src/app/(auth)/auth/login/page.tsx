@@ -1,16 +1,18 @@
+import { redirect } from "next/navigation";
 import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
-import { redirect } from "next/navigation";
 
-export default async function Page({ searchParams }: { 
-  searchParams: Promise<{ redirectTo?: string, error?: string }> 
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirectTo?: string; error?: string }>;
 }) {
   // Check if user is already authenticated (not anonymous)
   const authStatus = await getAuthStatus();
   const { error, redirectTo } = await searchParams;
   if (authStatus.isAuthenticated) {
     // User is already authenticated, redirect them
-    const target = redirectTo ? decodeURIComponent(redirectTo) : '/admin';
+    const target = redirectTo ? decodeURIComponent(redirectTo) : "/admin";
     return redirect(target);
   }
   return (
@@ -27,11 +29,11 @@ export default async function Page({ searchParams }: {
         </div>
       )}
       <Login />
-      
+
       {/* Footer text */}
       <div className="absolute bottom-4 text-center w-full text-xs text-gray-400">
         &copy; {new Date().getFullYear()} BISO. All rights reserved.
       </div>
     </div>
-  )
+  );
 }

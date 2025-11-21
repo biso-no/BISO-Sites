@@ -3,7 +3,7 @@ export default function DepartmentLoading() {
     <div className="min-h-screen bg-background">
       {/* Hero Skeleton */}
       <div className="relative h-[60vh] overflow-hidden bg-muted/50 animate-pulse" />
-      
+
       {/* Tabs Skeleton */}
       <div className="sticky top-0 z-40 bg-background border-b border-border">
         <div className="max-w-7xl mx-auto px-4">

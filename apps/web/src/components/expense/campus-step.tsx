@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card } from "@repo/ui/components/ui/card";
+import { Campus, type Departments } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { Label } from "@repo/ui/components/ui/label";
 import {
   Select,
@@ -11,10 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
-import { ArrowLeft, ChevronRight, CheckCircle, Building2 } from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 import { getCampusWithDepartments } from "@/app/actions/campus";
-import { Campus, Departments } from "@repo/api/types/appwrite";
 
 interface CampusStepProps {
   campuses: Array<{ $id: string; name: string }>;
@@ -32,7 +32,7 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
     if (selectedCampus) {
       setLoading(true);
       setSelectedDepartment("");
-      
+
       getCampusWithDepartments(selectedCampus)
         .then((result) => {
           if (result.success && result.campus) {
@@ -55,9 +55,7 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
   };
 
   const selectedCampusName = campuses.find((c) => c.$id === selectedCampus)?.name;
-  const selectedDepartmentName = departments.find(
-    (d) => d.$id === selectedDepartment
-  )?.Name;
+  const selectedDepartmentName = departments.find((d) => d.$id === selectedDepartment)?.Name;
 
   return (
     <Card className="p-8 border-0 shadow-lg">
@@ -66,10 +64,7 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
       <div className="space-y-6">
         <div>
           <Label>Campus *</Label>
-          <Select
-            value={selectedCampus}
-            onValueChange={(value) => setSelectedCampus(value)}
-          >
+          <Select value={selectedCampus} onValueChange={(value) => setSelectedCampus(value)}>
             <SelectTrigger>
               <SelectValue placeholder="Select your campus" />
             </SelectTrigger>
@@ -156,4 +151,3 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
     </Card>
   );
 }
-

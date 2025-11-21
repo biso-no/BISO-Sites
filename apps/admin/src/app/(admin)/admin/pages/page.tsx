@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Plus, Edit, Eye, Trash } from "lucide-react";
+import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Table,
@@ -9,8 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { listManagedPages, deletePage } from "@/app/actions/pages";
+import { Edit, Eye, Plus, Trash } from "lucide-react";
+import Link from "next/link";
+import { deletePage, listManagedPages } from "@/app/actions/pages";
 import { CreatePageDialog } from "./create-page-dialog";
 import { DeletePageButton } from "./delete-page-button";
 
@@ -59,9 +59,7 @@ export default async function PagesList() {
                       {page.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    {new Date(page.updatedAt).toLocaleDateString()}
-                  </TableCell>
+                  <TableCell>{new Date(page.updatedAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" asChild>

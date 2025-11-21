@@ -1,13 +1,8 @@
-import { PostTable } from "./posts-table";
 import { getPosts } from "@/app/actions/admin";
-
-
+import { PostTable } from "./posts-table";
 
 export default async function AdminPostsPage() {
-  const posts = await getPosts()
+  const posts = await getPosts();
 
-
-  return (
-    <PostTable posts={posts} />
-  )
+  return <PostTable posts={posts} />;
 }

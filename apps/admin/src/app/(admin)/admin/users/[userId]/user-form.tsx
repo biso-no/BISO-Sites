@@ -1,114 +1,139 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { updateProfile } from '@/lib/actions/user'
-import { Users } from "@repo/api/types/appwrite"
-import { Button } from "@repo/ui/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@repo/ui/components/ui/card"
-import { Checkbox } from "@repo/ui/components/ui/checkbox"
-import { Input } from "@repo/ui/components/ui/input"
-import { Label } from "@repo/ui/components/ui/label"
-import { Switch } from "@repo/ui/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select"
-import { Badge } from "@repo/ui/components/ui/badge"
-import { toast } from "@/lib/hooks/use-toast"
-import { 
-  Avatar, 
-  AvatarFallback, 
-  AvatarImage 
-} from "@repo/ui/components/ui/avatar"
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@repo/ui/components/ui/tabs"
+import type { Campus, Users } from "@repo/api/types/appwrite";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { Checkbox } from "@repo/ui/components/ui/checkbox";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
+import { Switch } from "@repo/ui/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@repo/ui/components/ui/tooltip"
-import { ArrowLeft, Save, RefreshCw, UserCog, Shield, Building, Mail, AlertTriangle } from "lucide-react"
-import { Campus } from "@repo/api/types/appwrite"
-import { useTranslations } from "next-intl"
+} from "@repo/ui/components/ui/tooltip";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building,
+  Mail,
+  RefreshCw,
+  Save,
+  Shield,
+  UserCog,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { updateProfile } from "@/lib/actions/user";
+import { toast } from "@/lib/hooks/use-toast";
 
 export interface UserFormProps {
-  user: Users
-  campuses: Campus[]
+  user: Users;
+  campuses: Campus[];
 }
 
 export function UserForm({ user: initialUser, campuses }: UserFormProps) {
-  const [user, setUser] = useState<Users>(initialUser)
-  const [isSaving, setIsSaving] = useState(false)
-  const router = useRouter()
-  const t = useTranslations("adminUsers")
+  const [user, setUser] = useState<Users>(initialUser);
+  const [isSaving, setIsSaving] = useState(false);
+  const router = useRouter();
+  const t = useTranslations("adminUsers");
 
   const handleRoleChange = (role: string) => {
-    if (!user) return
+    if (!user) return;
 
-    const currentRoles = user.roles || []
+    const currentRoles = user.roles || [];
     const newRoles = currentRoles.includes(role)
       ? currentRoles.filter((r) => r !== role)
-      : [...currentRoles, role]
+      : [...currentRoles, role];
 
-    setUser({ ...user, roles: newRoles })
-  }
-  
+    setUser({ ...user, roles: newRoles });
+  };
+
   const handleSave = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
     try {
-      await updateProfile(user)
+      await updateProfile(user);
       toast({
         title: t("messages.saveTitleSuccess"),
         description: t("messages.saveDescriptionSuccess"),
         variant: "default",
-      })
-      router.refresh() // Refresh server components
+      });
+      router.refresh(); // Refresh server components
     } catch (error) {
-      console.error("Error updating user:", error)
+      console.error("Error updating user:", error);
       toast({
         title: t("messages.saveTitleError"),
         description: t("messages.saveDescriptionError"),
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
-  
+  };
+
   const handleGoBack = () => {
-    router.push('/admin/users')
-  }
-  
+    router.push("/admin/users");
+  };
+
   // Generate user's initials for avatar
   const initials = (user.name || "")
     .split(" ")
-    .map(part => part[0])
+    .map((part) => part[0])
     .slice(0, 2)
     .join("")
-    .toUpperCase()
-  
+    .toUpperCase();
+
   // Generate color for avatar based on user name
-  const nameHash = (user.name || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const nameHash = (user.name || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colors = [
-    "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500", 
-    "bg-lime-500", "bg-green-500", "bg-emerald-500", "bg-teal-500", 
-    "bg-cyan-500", "bg-sky-500", "bg-blue-500", "bg-indigo-500", 
-    "bg-violet-500", "bg-purple-500", "bg-fuchsia-500", "bg-pink-500", "bg-rose-500",
-  ]
-  const bgColor = colors[nameHash % colors.length]
+    "bg-red-500",
+    "bg-orange-500",
+    "bg-amber-500",
+    "bg-yellow-500",
+    "bg-lime-500",
+    "bg-green-500",
+    "bg-emerald-500",
+    "bg-teal-500",
+    "bg-cyan-500",
+    "bg-sky-500",
+    "bg-blue-500",
+    "bg-indigo-500",
+    "bg-violet-500",
+    "bg-purple-500",
+    "bg-fuchsia-500",
+    "bg-pink-500",
+    "bg-rose-500",
+  ];
+  const bgColor = colors[nameHash % colors.length];
 
   return (
     <Card className="shadow-sm max-w-4xl mx-auto">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleGoBack} 
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleGoBack}
               className="rounded-full h-8 w-8"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -118,15 +143,11 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
               <CardDescription>{t("editor.userDetailsDescription")}</CardDescription>
             </div>
           </div>
-          
+
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  onClick={handleSave} 
-                  className="gap-2"
-                  disabled={isSaving}
-                >
+                <Button onClick={handleSave} className="gap-2" disabled={isSaving}>
                   {isSaving ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
@@ -142,7 +163,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
           </TooltipProvider>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-8 pb-6">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-background/50">
@@ -158,18 +179,19 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
             </div>
             <Badge
               variant={user.isActive ? "default" : "secondary"}
-              className={user.isActive 
-                ? "bg-green-100 text-green-800 hover:bg-green-100" 
-                : "bg-gray-100 text-gray-800 hover:bg-gray-100"
+              className={
+                user.isActive
+                  ? "bg-green-100 text-green-800 hover:bg-green-100"
+                  : "bg-gray-100 text-gray-800 hover:bg-gray-100"
               }
             >
               {user.isActive ? t("status.active") : t("status.inactive")}
             </Badge>
           </div>
-          
+
           <div className="flex-1">
             <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid grid-cols-3 mb-4">
+              <TabsList className="grid grid-cols-3 mb-4">
                 <TabsTrigger value="profile" className="gap-2">
                   <UserCog className="h-4 w-4" />
                   <span>{t("editor.profileTab")}</span>
@@ -183,7 +205,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   <span>{t("editor.securityTab")}</span>
                 </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="profile" className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
@@ -195,20 +217,15 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                       className="mt-1"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="email">{t("form.email")}</Label>
                     <div className="relative mt-1">
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        value={user.email || ""}
-                        disabled
-                        className="pl-10"
-                      />
+                      <Input id="email" value={user.email || ""} disabled className="pl-10" />
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="campus">{t("editor.campus")}</Label>
                     <Select
@@ -216,7 +233,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                       onValueChange={(value) => setUser({ ...user, campus_id: value })}
                     >
                       <SelectTrigger className="mt-1">
-                      <SelectValue placeholder={t("editor.selectCampus")} />
+                        <SelectValue placeholder={t("editor.selectCampus")} />
                       </SelectTrigger>
                       <SelectContent>
                         {campuses.map((campus) => (
@@ -227,7 +244,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="account-status">{t("editor.accountStatus")}</Label>
                     <div className="flex items-center space-x-2 mt-3">
@@ -243,25 +260,27 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="roles" className="space-y-4">
                 <div className="bg-muted/40 p-4 rounded-lg">
                   <h3 className="font-medium mb-1">{t("editor.userRolesTitle")}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {t("editor.userRolesDescription")}
                   </p>
-                  
+
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                     {["User", "HR", "PR", "KK", "Finance", "Admin"].map((role) => {
-                      const currentRoles = user.roles || []
+                      const currentRoles = user.roles || [];
                       return (
-                        <div 
-                          key={role} 
+                        <div
+                          key={role}
                           className={`
                             flex items-center gap-2 p-2 rounded-md transition-colors
-                            ${currentRoles.includes(role) 
-                              ? "bg-primary/10 border border-primary/30" 
-                              : "bg-muted border border-transparent"}
+                            ${
+                              currentRoles.includes(role)
+                                ? "bg-primary/10 border border-primary/30"
+                                : "bg-muted border border-transparent"
+                            }
                           `}
                           onClick={() => handleRoleChange(role)}
                         >
@@ -278,28 +297,28 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                             {role}
                           </label>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="security" className="space-y-4">
                 <div className="bg-muted/40 p-4 rounded-lg">
                   <h3 className="font-medium mb-1">{t("editor.accountSecurityTitle")}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {t("editor.accountSecurityDescription")}
                   </p>
-                  
+
                   <div className="space-y-2">
-                    <Button 
+                    <Button
                       variant="outline"
                       className="w-full sm:w-auto"
                       onClick={() => {
                         toast({
                           title: t("messages.passwordResetTitle"),
                           description: t("messages.passwordResetDescription"),
-                        })
+                        });
                       }}
                     >
                       {t("editor.passwordReset")}
@@ -312,5 +331,5 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

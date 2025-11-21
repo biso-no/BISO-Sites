@@ -1,79 +1,88 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react'
-import { useRouter } from 'next/navigation'
-import { CheckCircle2, XCircle, Clock, Package, Receipt, ArrowLeft, ExternalLink, MapPin } from 'lucide-react'
-import { Card } from '@repo/ui/components/ui/card'
-import { Button } from '@repo/ui/components/ui/button'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { Separator } from '@repo/ui/components/ui/separator'
-import { ImageWithFallback } from '@repo/ui/components/image'
-import type { Orders } from '@repo/api/types/appwrite'
-import { format } from 'date-fns'
+import type { Orders } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Separator } from "@repo/ui/components/ui/separator";
+import { format } from "date-fns";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  MapPin,
+  Package,
+  Receipt,
+  XCircle,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 
 interface OrderDetailsClientProps {
-  order: Orders
-  isSuccess: boolean
+  order: Orders;
+  isSuccess: boolean;
 }
 
 const statusConfig = {
   pending: {
     icon: Clock,
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-    border: 'border-orange-200',
-    label: 'Pending',
-    description: 'Awaiting payment confirmation',
+    color: "text-orange-600",
+    bg: "bg-orange-50",
+    border: "border-orange-200",
+    label: "Pending",
+    description: "Awaiting payment confirmation",
   },
   authorized: {
     icon: Clock,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    label: 'Authorized',
-    description: 'Payment authorized, processing order',
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    label: "Authorized",
+    description: "Payment authorized, processing order",
   },
   paid: {
     icon: CheckCircle2,
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    label: 'Paid',
-    description: 'Payment successful',
+    color: "text-green-600",
+    bg: "bg-green-50",
+    border: "border-green-200",
+    label: "Paid",
+    description: "Payment successful",
   },
   cancelled: {
     icon: XCircle,
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
-    border: 'border-gray-200',
-    label: 'Cancelled',
-    description: 'Order cancelled',
+    color: "text-gray-600",
+    bg: "bg-gray-50",
+    border: "border-gray-200",
+    label: "Cancelled",
+    description: "Order cancelled",
   },
   failed: {
     icon: XCircle,
-    color: 'text-red-600',
-    bg: 'bg-red-50',
-    border: 'border-red-200',
-    label: 'Failed',
-    description: 'Payment failed',
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    label: "Failed",
+    description: "Payment failed",
   },
   refunded: {
     icon: XCircle,
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-    border: 'border-purple-200',
-    label: 'Refunded',
-    description: 'Payment refunded',
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    label: "Refunded",
+    description: "Payment refunded",
   },
-}
+};
 
 export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps) {
-  const router = useRouter()
-  const config = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending
-  const StatusIcon = config.icon
+  const router = useRouter();
+  const config = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
+  const StatusIcon = config.icon;
 
-  const items = order.items_json ? JSON.parse(order.items_json) : []
-  const orderDate = format(new Date(order.$createdAt), 'MMMM d, yyyy \'at\' HH:mm')
+  const items = order.items_json ? JSON.parse(order.items_json) : [];
+  const orderDate = format(new Date(order.$createdAt), "MMMM d, yyyy 'at' HH:mm");
 
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
@@ -86,11 +95,11 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
           className="object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-        
+
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <motion.button
-              onClick={() => router.push('/shop')}
+              onClick={() => router.push("/shop")}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
@@ -106,11 +115,9 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
             >
               <StatusIcon className={`w-20 h-20 mx-auto mb-4 ${config.color}`} />
               <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">
-                {isSuccess && order.status === 'paid' ? 'Order Confirmed!' : 'Order Details'}
+                {isSuccess && order.status === "paid" ? "Order Confirmed!" : "Order Details"}
               </h1>
-              <p className="text-white/90 text-lg">
-                Order #{order.$id.slice(-8).toUpperCase()}
-              </p>
+              <p className="text-white/90 text-lg">Order #{order.$id.slice(-8).toUpperCase()}</p>
             </motion.div>
           </div>
         </div>
@@ -118,26 +125,25 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
 
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Success Message */}
-        {isSuccess && order.status === 'paid' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+        {isSuccess && order.status === "paid" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
                 <CheckCircle2 className="w-8 h-8 text-green-600 shrink-0" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Thank You for Your Purchase!</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Thank You for Your Purchase!
+                  </h2>
                   <p className="text-gray-700 mb-4">
-                    Your payment has been confirmed and your order is being processed. 
-                    You&apos;ll receive a confirmation email shortly with pickup details.
+                    Your payment has been confirmed and your order is being processed. You&apos;ll
+                    receive a confirmation email shortly with pickup details.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {order.vipps_receipt_url && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(order.vipps_receipt_url!, '_blank')}
+                        onClick={() => window.open(order.vipps_receipt_url!, "_blank")}
                         className="border-green-300 text-green-700 hover:bg-green-100"
                       >
                         <Receipt className="w-4 h-4 mr-2" />
@@ -153,25 +159,22 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
         )}
 
         {/* Failed/Cancelled Message */}
-        {(order.status === 'failed' || order.status === 'cancelled') && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+        {(order.status === "failed" || order.status === "cancelled") && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
                 <XCircle className={`w-8 h-8 ${config.color} shrink-0`} />
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    {order.status === 'cancelled' ? 'Order Cancelled' : 'Payment Failed'}
+                    {order.status === "cancelled" ? "Order Cancelled" : "Payment Failed"}
                   </h2>
                   <p className="text-gray-700 mb-4">
-                    {order.status === 'cancelled' 
-                      ? 'This order was cancelled. Your items are still in your cart if you\'d like to try again.'
-                      : 'The payment for this order failed. Please try again or contact support if the problem persists.'}
+                    {order.status === "cancelled"
+                      ? "This order was cancelled. Your items are still in your cart if you'd like to try again."
+                      : "The payment for this order failed. Please try again or contact support if the problem persists."}
                   </p>
                   <Button
-                    onClick={() => router.push('/shop/cart')}
+                    onClick={() => router.push("/shop/cart")}
                     className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
                   >
                     Return to Cart
@@ -200,9 +203,13 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                   <span className="text-gray-600">{config.description}</span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  <div><strong>Order Date:</strong> {orderDate}</div>
+                  <div>
+                    <strong>Order Date:</strong> {orderDate}
+                  </div>
                   {order.vipps_order_id && (
-                    <div className="mt-2"><strong>Vipps Order ID:</strong> {order.vipps_order_id}</div>
+                    <div className="mt-2">
+                      <strong>Vipps Order ID:</strong> {order.vipps_order_id}
+                    </div>
                   )}
                 </div>
               </Card>
@@ -221,9 +228,7 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                     <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                        <div className="text-sm text-gray-600 mt-1">
-                          Quantity: {item.quantity}
-                        </div>
+                        <div className="text-sm text-gray-600 mt-1">Quantity: {item.quantity}</div>
                       </div>
                       <div className="text-right">
                         <div className="font-semibold text-gray-900">
@@ -242,12 +247,16 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                 <div className="space-y-2">
                   <div className="flex justify-between text-gray-700">
                     <span>Subtotal</span>
-                    <span>{order.subtotal.toFixed(2)} {order.currency}</span>
+                    <span>
+                      {order.subtotal.toFixed(2)} {order.currency}
+                    </span>
                   </div>
                   {order.discount_total && order.discount_total > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
-                      <span>-{order.discount_total.toFixed(2)} {order.currency}</span>
+                      <span>
+                        -{order.discount_total.toFixed(2)} {order.currency}
+                      </span>
                     </div>
                   )}
                   {order.membership_applied && (
@@ -262,7 +271,9 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                   <Separator className="my-2" />
                   <div className="flex justify-between text-xl font-bold text-gray-900">
                     <span>Total</span>
-                    <span>{order.total.toFixed(2)} {order.currency}</span>
+                    <span>
+                      {order.total.toFixed(2)} {order.currency}
+                    </span>
                   </div>
                 </div>
               </Card>
@@ -302,7 +313,7 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
             )}
 
             {/* Pickup Information */}
-            {order.status === 'paid' && (
+            {order.status === "paid" && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -321,7 +332,8 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                           <MapPin className="w-4 h-4 text-blue-600" />
                           <span>Main Building, Ground Floor</span>
                         </div>
-                        <strong>Hours:</strong> Monday-Friday, 10:00-16:00<br />
+                        <strong>Hours:</strong> Monday-Friday, 10:00-16:00
+                        <br />
                         <strong>Pickup:</strong> Within 5 working days
                       </div>
                       <p className="text-xs text-gray-500 mt-3">
@@ -341,7 +353,7 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
             >
               <div className="space-y-3">
                 <Button
-                  onClick={() => router.push('/shop')}
+                  onClick={() => router.push("/shop")}
                   className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
                 >
                   Continue Shopping
@@ -360,6 +372,5 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
         </div>
       </div>
     </div>
-  )
+  );
 }
-

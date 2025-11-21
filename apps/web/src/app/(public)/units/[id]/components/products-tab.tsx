@@ -1,13 +1,13 @@
 "use client";
 
-import { motion } from "motion/react";
-import { ShoppingBag, Tag, ChevronRight } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { ContentTranslations } from "@repo/api/types/appwrite";
+import { ChevronRight, ShoppingBag, Tag } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 
 interface ProductsTabProps {
@@ -33,7 +33,7 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {products.map((product, index) => {
             const productRef = product.product_ref;
-            
+
             return (
               <motion.div
                 key={product.$id}
@@ -42,14 +42,12 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
                 transition={{ delay: index * 0.1 }}
               >
                 <Link href={`/shop/${productRef?.slug || product.content_id}`}>
-                  <Card 
-                    className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all group cursor-pointer"
-                  >
+                  <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all group cursor-pointer">
                     <div className="relative h-64 overflow-hidden bg-muted">
                       {productRef?.image && (
                         <ImageWithFallback
                           src={productRef.image}
-                          alt={product.title || 'Product'}
+                          alt={product.title || "Product"}
                           fill
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
@@ -65,26 +63,31 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
                           {productRef.category}
                         </Badge>
                       )}
-                      
-                      {productRef?.stock !== null && productRef?.stock !== undefined && productRef.stock < 20 && productRef.stock > 0 && (
-                        <Badge className="absolute bottom-4 right-4 bg-orange-500 text-white border-0">
-                          Only {productRef.stock} left!
-                        </Badge>
-                      )}
-                      
-                      {productRef?.stock !== null && productRef?.stock !== undefined && productRef.stock === 0 && (
-                        <Badge className="absolute bottom-4 right-4 bg-red-500 text-white border-0">
-                          Sold Out
-                        </Badge>
-                      )}
+
+                      {productRef?.stock !== null &&
+                        productRef?.stock !== undefined &&
+                        productRef.stock < 20 &&
+                        productRef.stock > 0 && (
+                          <Badge className="absolute bottom-4 right-4 bg-orange-500 text-white border-0">
+                            Only {productRef.stock} left!
+                          </Badge>
+                        )}
+
+                      {productRef?.stock !== null &&
+                        productRef?.stock !== undefined &&
+                        productRef.stock === 0 && (
+                          <Badge className="absolute bottom-4 right-4 bg-red-500 text-white border-0">
+                            Sold Out
+                          </Badge>
+                        )}
                     </div>
 
                     <div className="p-6">
                       <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-[#3DA9E0] transition-colors">
-                        {product.title || 'Untitled Product'}
+                        {product.title || "Untitled Product"}
                       </h3>
                       <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-                        {product.short_description || product.description || ''}
+                        {product.short_description || product.description || ""}
                       </p>
 
                       <Separator className="my-4" />
@@ -97,8 +100,8 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
                                 <span className="text-xl font-bold text-foreground">
                                   {productRef.member_price} NOK
                                 </span>
-                                <Badge 
-                                  variant="outline" 
+                                <Badge
+                                  variant="outline"
                                   className="text-xs border-green-200 text-green-700 bg-green-50 dark:border-green-800 dark:text-green-400 dark:bg-green-950"
                                 >
                                   Member
@@ -122,12 +125,12 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
                           )}
                         </div>
 
-                        <Button 
+                        <Button
                           size="sm"
                           disabled={productRef?.stock === 0}
                           className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {productRef?.stock === 0 ? 'Sold Out' : 'View'}
+                          {productRef?.stock === 0 ? "Sold Out" : "View"}
                           {productRef?.stock !== 0 && <ChevronRight className="w-4 h-4 ml-1" />}
                         </Button>
                       </div>

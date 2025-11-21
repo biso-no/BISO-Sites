@@ -1,12 +1,12 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Calendar, ExternalLink, Newspaper } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { ContentTranslations } from "@repo/api/types/appwrite";
+import { Card } from "@repo/ui/components/ui/card";
+import { Calendar, ExternalLink, Newspaper } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 
 interface NewsTabProps {
@@ -37,15 +37,13 @@ export function NewsTab({ news }: NewsTabProps) {
               transition={{ delay: index * 0.1 }}
             >
               <Link href={`/news/${newsItem.news_ref?.$id || newsItem.content_id}`}>
-                <Card 
-                  className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
-                >
+                <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group">
                   <div className="md:flex">
                     <div className="md:w-1/3 h-64 md:h-auto relative overflow-hidden">
                       {newsItem.news_ref?.image && (
                         <ImageWithFallback
                           src={newsItem.news_ref.image}
-                          alt={newsItem.title || 'News'}
+                          alt={newsItem.title || "News"}
                           fill
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
@@ -57,20 +55,22 @@ export function NewsTab({ news }: NewsTabProps) {
                     <div className="md:w-2/3 p-8">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                         <Calendar className="w-4 h-4 text-[#3DA9E0]" />
-                        {new Date(newsItem.news_ref?.$createdAt || newsItem.$createdAt).toLocaleDateString('en-US', { 
-                          month: 'long', 
-                          day: 'numeric', 
-                          year: 'numeric' 
+                        {new Date(
+                          newsItem.news_ref?.$createdAt || newsItem.$createdAt,
+                        ).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
                         })}
                       </div>
                       <h3 className="text-2xl font-bold text-foreground mb-4 group-hover:text-[#3DA9E0] transition-colors">
-                        {newsItem.title || 'Untitled'}
+                        {newsItem.title || "Untitled"}
                       </h3>
                       <p className="text-muted-foreground mb-6 line-clamp-3">
-                        {newsItem.description || newsItem.short_description || ''}
+                        {newsItem.description || newsItem.short_description || ""}
                       </p>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
                       >
                         Read More
@@ -87,9 +87,7 @@ export function NewsTab({ news }: NewsTabProps) {
         <Card className="p-12 text-center border-0 shadow-lg">
           <Newspaper className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">No News Available</h3>
-          <p className="text-muted-foreground">
-            Check back soon for news and updates!
-          </p>
+          <p className="text-muted-foreground">Check back soon for news and updates!</p>
         </Card>
       )}
     </div>

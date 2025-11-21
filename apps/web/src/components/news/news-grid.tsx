@@ -1,7 +1,7 @@
-import { listNews, filterArticles } from '@/app/actions/news';
-import { FeaturedArticles } from './featured-articles';
-import { RegularArticles } from './regular-articles';
-import { NoResults } from './no-results';
+import { filterArticles, listNews } from "@/app/actions/news";
+import { FeaturedArticles } from "./featured-articles";
+import { NoResults } from "./no-results";
+import { RegularArticles } from "./regular-articles";
 
 interface NewsGridProps {
   selectedCategory: string;
@@ -13,8 +13,8 @@ export async function NewsGrid({ selectedCategory, searchQuery }: NewsGridProps)
   const allArticles = await listNews();
   const filteredArticles = await filterArticles(allArticles, selectedCategory, searchQuery);
 
-  const featuredArticles = filteredArticles.filter(article => article.news_ref?.sticky);
-  const regularArticles = filteredArticles.filter(article => !article.news_ref?.sticky);
+  const featuredArticles = filteredArticles.filter((article) => article.news_ref?.sticky);
+  const regularArticles = filteredArticles.filter((article) => !article.news_ref?.sticky);
 
   if (filteredArticles.length === 0) {
     return <NoResults />;
@@ -23,16 +23,11 @@ export async function NewsGrid({ selectedCategory, searchQuery }: NewsGridProps)
   return (
     <div>
       {/* Featured Articles */}
-      {featuredArticles.length > 0 && (
-        <FeaturedArticles articles={featuredArticles} />
-      )}
+      {featuredArticles.length > 0 && <FeaturedArticles articles={featuredArticles} />}
 
       {/* Regular Articles */}
       {regularArticles.length > 0 && (
-        <RegularArticles 
-          articles={regularArticles} 
-          showHeader={featuredArticles.length > 0}
-        />
+        <RegularArticles articles={regularArticles} showHeader={featuredArticles.length > 0} />
       )}
     </div>
   );

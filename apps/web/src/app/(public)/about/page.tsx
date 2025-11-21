@@ -1,14 +1,30 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import {
+  BookOpen,
+  Building2,
+  Gavel,
+  GraduationCap,
+  HeartHandshake,
+  History,
+  Landmark,
+  ShieldAlert,
+  Users,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
+import { getOrgChartUrl, getPartners, type Partner } from "@/app/actions/about";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
-import { BookOpen, Landmark, Gavel, History, GraduationCap, Building2, Users, HeartHandshake, ShieldAlert } from "lucide-react";
-import { getOrgChartUrl, getPartners, Partner } from "@/app/actions/about";
 
 const tiles: Array<{
   key: keyof typeof import("../../../../messages/en/about.json")["links"]; // type hint only
@@ -28,22 +44,22 @@ const tiles: Array<{
 
 export default function AboutPage() {
   const t = useTranslations("about");
-  const [partners, setPartners] = useState<Array<Partner>>([])
-  const [orgChartUrl, setOrgChartUrl] = useState<string | null>(null)
+  const [partners, setPartners] = useState<Array<Partner>>([]);
+  const [orgChartUrl, setOrgChartUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await getPartners()
-        const orgChartUrl = await getOrgChartUrl()
-        setPartners(res)
-        setOrgChartUrl(orgChartUrl)
+        const res = await getPartners();
+        const orgChartUrl = await getOrgChartUrl();
+        setPartners(res);
+        setOrgChartUrl(orgChartUrl);
       } catch {
         // ignore
       }
-    }
-    load()
-  }, [])
+    };
+    load();
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -57,57 +73,94 @@ export default function AboutPage() {
       <div className="prose prose-primary max-w-none space-y-6">
         <p className="text-primary-70">{t("hub.description")}</p>
         <div>
-          <h3 className="text-xl font-semibold text-primary-90">{t('general.strategy.title', { default: 'Strategi' })}</h3>
-          <p className="text-primary-70">{t('general.strategy.subtitle', { default: 'Vi jobber aktivt mot våre strategiske mål' })}</p>
+          <h3 className="text-xl font-semibold text-primary-90">
+            {t("general.strategy.title", { default: "Strategi" })}
+          </h3>
+          <p className="text-primary-70">
+            {t("general.strategy.subtitle", {
+              default: "Vi jobber aktivt mot våre strategiske mål",
+            })}
+          </p>
           <div className="grid gap-4 sm:grid-cols-3 mt-3">
             <Card>
               <CardHeader>
-                <CardTitle>{t('general.strategy.items.impact.title', { default: 'Påvirkning' })}</CardTitle>
-                <CardDescription>{t('general.strategy.items.impact.desc', { default: 'Gi studenter en stemme på BI, i studentpolitikken og i samfunnet.' })}</CardDescription>
+                <CardTitle>
+                  {t("general.strategy.items.impact.title", { default: "Påvirkning" })}
+                </CardTitle>
+                <CardDescription>
+                  {t("general.strategy.items.impact.desc", {
+                    default: "Gi studenter en stemme på BI, i studentpolitikken og i samfunnet.",
+                  })}
+                </CardDescription>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>{t('general.strategy.items.connected.title', { default: 'Påkoblet' })}</CardTitle>
-                <CardDescription>{t('general.strategy.items.connected.desc', { default: 'Forene studenter på tvers av campus og knytte dem til næringslivet.' })}</CardDescription>
+                <CardTitle>
+                  {t("general.strategy.items.connected.title", { default: "Påkoblet" })}
+                </CardTitle>
+                <CardDescription>
+                  {t("general.strategy.items.connected.desc", {
+                    default: "Forene studenter på tvers av campus og knytte dem til næringslivet.",
+                  })}
+                </CardDescription>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>{t('general.strategy.items.engaged.title', { default: 'Engasjert' })}</CardTitle>
-                <CardDescription>{t('general.strategy.items.engaged.desc', { default: 'Et inkluderende, sosialt og givende miljø som beriker BI-opplevelsen.' })}</CardDescription>
+                <CardTitle>
+                  {t("general.strategy.items.engaged.title", { default: "Engasjert" })}
+                </CardTitle>
+                <CardDescription>
+                  {t("general.strategy.items.engaged.desc", {
+                    default:
+                      "Et inkluderende, sosialt og givende miljø som beriker BI-opplevelsen.",
+                  })}
+                </CardDescription>
               </CardHeader>
             </Card>
           </div>
         </div>
 
         <div>
-          <h3 className="text-xl font-semibold text-primary-90">{t('general.whatWeDo.title', { default: 'Hva gjør vi' })}</h3>
-          <p className="text-primary-70">{t('general.whatWeDo.lead', { default: 'Alle midler i BISO skal gå tilbake til studentvelferd...' })}</p>
+          <h3 className="text-xl font-semibold text-primary-90">
+            {t("general.whatWeDo.title", { default: "Hva gjør vi" })}
+          </h3>
+          <p className="text-primary-70">
+            {t("general.whatWeDo.lead", {
+              default: "Alle midler i BISO skal gå tilbake til studentvelferd...",
+            })}
+          </p>
           <ul className="grid gap-2 sm:grid-cols-2 mt-3">
-            {[0,1,2,3,4].map((i) => (
-              <li key={i} className="text-primary-70">{t(`general.whatWeDo.items.${i}`, { default: '' })}</li>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <li key={i} className="text-primary-70">
+                {t(`general.whatWeDo.items.${i}`, { default: "" })}
+              </li>
             ))}
           </ul>
         </div>
 
         <div>
-          <h3 className="text-xl font-semibold text-primary-90">{t('general.academics.title', { default: 'Academics' })}</h3>
-          <p className="text-primary-70">{t('general.academics.lead')}</p>
+          <h3 className="text-xl font-semibold text-primary-90">
+            {t("general.academics.title", { default: "Academics" })}
+          </h3>
+          <p className="text-primary-70">{t("general.academics.lead")}</p>
           <ul className="grid gap-2 sm:grid-cols-2 mt-3">
-            {[0,1,2,3,4].map((i) => (
-              <li key={i} className="text-primary-70">{t(`general.academics.items.${i}`)}</li>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <li key={i} className="text-primary-70">
+                {t(`general.academics.items.${i}`)}
+              </li>
             ))}
           </ul>
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-semibold text-primary-90">{t('general.politics.title')}</h3>
-            <p className="text-primary-70">{t('general.politics.lead')}</p>
+            <h3 className="text-xl font-semibold text-primary-90">{t("general.politics.title")}</h3>
+            <p className="text-primary-70">{t("general.politics.lead")}</p>
           </div>
           <Button asChild variant="secondary">
-            <Link href="/about/politics">{t('general.politics.cta')}</Link>
+            <Link href="/about/politics">{t("general.politics.cta")}</Link>
           </Button>
         </div>
       </div>
@@ -138,9 +191,17 @@ export default function AboutPage() {
       {/* Org chart */}
       {orgChartUrl && (
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-primary-90">{t('general.orgChart.title', { default: 'Organisasjonsstruktur' })}</h3>
+          <h3 className="text-xl font-semibold text-primary-90">
+            {t("general.orgChart.title", { default: "Organisasjonsstruktur" })}
+          </h3>
           <div className="relative w-full overflow-hidden rounded-md border border-primary-10">
-            <Image src={orgChartUrl} alt="BISO org chart" width={1600} height={900} className="w-full h-auto" />
+            <Image
+              src={orgChartUrl}
+              alt="BISO org chart"
+              width={1600}
+              height={900}
+              className="w-full h-auto"
+            />
           </div>
         </div>
       )}
@@ -148,16 +209,33 @@ export default function AboutPage() {
       {/* National partners */}
       {partners.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-primary-90">{t('general.partners.title', { default: 'Våre nasjonale partnere' })}</h3>
+          <h3 className="text-xl font-semibold text-primary-90">
+            {t("general.partners.title", { default: "Våre nasjonale partnere" })}
+          </h3>
           <div className="grid gap-6 sm:grid-cols-3 items-center">
             {partners.map((p) => (
-              <div key={p.name} className="flex items-center justify-center p-6 rounded-lg border border-primary-10 bg-white">
+              <div
+                key={p.name}
+                className="flex items-center justify-center p-6 rounded-lg border border-primary-10 bg-white"
+              >
                 {p.url ? (
                   <a href={p.url} target="_blank" rel="noreferrer">
-                    <Image src={p.image_url} alt={p.name} width={300} height={120} className="h-20 w-auto object-contain" />
+                    <Image
+                      src={p.image_url}
+                      alt={p.name}
+                      width={300}
+                      height={120}
+                      className="h-20 w-auto object-contain"
+                    />
                   </a>
                 ) : (
-                  <Image src={p.image_url} alt={p.name} width={300} height={120} className="h-20 w-auto object-contain" />
+                  <Image
+                    src={p.image_url}
+                    alt={p.name}
+                    width={300}
+                    height={120}
+                    className="h-20 w-auto object-contain"
+                  />
                 )}
               </div>
             ))}
@@ -167,5 +245,3 @@ export default function AboutPage() {
     </div>
   );
 }
-
-

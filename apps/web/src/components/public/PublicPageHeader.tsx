@@ -1,6 +1,4 @@
-import { Fragment } from "react"
-import Link from "next/link"
-
+import { Badge } from "@repo/ui/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,43 +6,44 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@repo/ui/components/ui/breadcrumb"
-import { Badge } from "@repo/ui/components/ui/badge"
-import { cn } from '@repo/ui/lib/utils'
+} from "@repo/ui/components/ui/breadcrumb";
+import { cn } from "@repo/ui/lib/utils";
+import Link from "next/link";
+import { Fragment } from "react";
 
-type BreadcrumbEntry = { label: string; href?: string }
+type BreadcrumbEntry = { label: string; href?: string };
 
 interface PublicPageHeaderProps {
-  title: string
-  subtitle?: string
-  breadcrumbs: BreadcrumbEntry[]
+  title: string;
+  subtitle?: string;
+  breadcrumbs: BreadcrumbEntry[];
 }
 
 export function PublicPageHeader({ title, subtitle, breadcrumbs }: PublicPageHeaderProps) {
-  const eyebrowLabel = breadcrumbs[0]?.label ?? "BISO"
-  const currentPage = breadcrumbs[breadcrumbs.length - 1]?.label ?? title
-  const parentLabel = breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2]?.label : null
+  const eyebrowLabel = breadcrumbs[0]?.label ?? "BISO";
+  const currentPage = breadcrumbs[breadcrumbs.length - 1]?.label ?? title;
+  const parentLabel = breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2]?.label : null;
 
-  const renderedBreadcrumbs = breadcrumbs.length
-    ? breadcrumbs.map((bc, idx) => (
-        <Fragment key={`${bc.label}-${idx}`}>
-          <BreadcrumbItem>
-            {bc.href ? (
-              <BreadcrumbLink asChild className="text-primary-60 hover:text-primary-40">
-                <Link href={bc.href}>{bc.label}</Link>
-              </BreadcrumbLink>
-            ) : (
-              <BreadcrumbPage className="text-primary-40">{bc.label}</BreadcrumbPage>
-            )}
-          </BreadcrumbItem>
-          {idx < breadcrumbs.length - 1 && <BreadcrumbSeparator className="text-primary-60/80" />}
-        </Fragment>
-      ))
-    : (
+  const renderedBreadcrumbs = breadcrumbs.length ? (
+    breadcrumbs.map((bc, idx) => (
+      <Fragment key={`${bc.label}-${idx}`}>
         <BreadcrumbItem>
-          <BreadcrumbPage>{title}</BreadcrumbPage>
+          {bc.href ? (
+            <BreadcrumbLink asChild className="text-primary-60 hover:text-primary-40">
+              <Link href={bc.href}>{bc.label}</Link>
+            </BreadcrumbLink>
+          ) : (
+            <BreadcrumbPage className="text-primary-40">{bc.label}</BreadcrumbPage>
+          )}
         </BreadcrumbItem>
-      )
+        {idx < breadcrumbs.length - 1 && <BreadcrumbSeparator className="text-primary-60/80" />}
+      </Fragment>
+    ))
+  ) : (
+    <BreadcrumbItem>
+      <BreadcrumbPage>{title}</BreadcrumbPage>
+    </BreadcrumbItem>
+  );
 
   return (
     <section className="surface-spotlight glass-panel accent-ring relative overflow-hidden px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-12">
@@ -52,7 +51,10 @@ export function PublicPageHeader({ title, subtitle, breadcrumbs }: PublicPageHea
       <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-60" />
       <div className="relative z-10 flex flex-col gap-6">
         <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.18em] text-primary-40">
-          <Badge variant="outline" className="border-primary/15 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-primary-80 shadow-sm">
+          <Badge
+            variant="outline"
+            className="border-primary/15 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-primary-80 shadow-sm"
+          >
             {eyebrowLabel}
           </Badge>
           <span className="inline-flex h-6 items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 font-semibold text-primary-70">
@@ -87,7 +89,7 @@ export function PublicPageHeader({ title, subtitle, breadcrumbs }: PublicPageHea
             <BreadcrumbList
               className={cn(
                 "flex flex-wrap gap-1.5 text-[0.85rem] font-medium text-primary-60",
-                "sm:gap-2.5"
+                "sm:gap-2.5",
               )}
             >
               {renderedBreadcrumbs}
@@ -96,5 +98,5 @@ export function PublicPageHeader({ title, subtitle, breadcrumbs }: PublicPageHea
         </div>
       </div>
     </section>
-  )
+  );
 }

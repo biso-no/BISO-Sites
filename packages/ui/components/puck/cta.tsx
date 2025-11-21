@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
-import Link from "next/link";
 import { Card } from "../ui/card";
 
 export interface CTAButton {
@@ -34,11 +34,16 @@ export function CTA({
 
   const content = (
     <div className={cn("flex flex-col gap-6 max-w-3xl mx-auto", alignClasses[align])}>
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-        {title}
-      </h2>
+      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
       {description && (
-        <p className={cn("text-lg", (variant === "brand" || variant === "dark") ? "text-primary-foreground/90" : "text-muted-foreground")}>
+        <p
+          className={cn(
+            "text-lg",
+            variant === "brand" || variant === "dark"
+              ? "text-primary-foreground/90"
+              : "text-muted-foreground",
+          )}
+        >
           {description}
         </p>
       )}
@@ -47,7 +52,10 @@ export function CTA({
           {buttons.map((btn, i) => (
             <Button
               key={i}
-              variant={btn.variant as any || ((variant === "brand" || variant === "dark") ? "secondary" : "default")}
+              variant={
+                (btn.variant as any) ||
+                (variant === "brand" || variant === "dark" ? "secondary" : "default")
+              }
               size="lg"
               asChild
             >
@@ -62,9 +70,7 @@ export function CTA({
   if (variant === "card") {
     return (
       <div className="py-12 w-full">
-        <Card className="p-8 md:p-12 bg-gray-50 border-none shadow-sm">
-          {content}
-        </Card>
+        <Card className="p-8 md:p-12 bg-gray-50 border-none shadow-sm">{content}</Card>
       </div>
     );
   }
@@ -80,16 +86,10 @@ export function CTA({
   if (variant === "dark") {
     return (
       <div className="py-16 w-full bg-[#001731] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {content}
-        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">{content}</div>
       </div>
     );
   }
 
-  return (
-    <div className="py-16 w-full bg-background">
-      {content}
-    </div>
-  );
+  return <div className="py-16 w-full bg-background">{content}</div>;
 }

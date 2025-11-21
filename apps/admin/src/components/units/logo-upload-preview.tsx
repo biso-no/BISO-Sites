@@ -1,14 +1,20 @@
 "use client";
 
-import { useRef, useState } from 'react';
-import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
-import { Button } from '@repo/ui/components/ui/button';
-import { Input } from '@repo/ui/components/ui/input';
-import { Label } from '@repo/ui/components/ui/label';
-import Image from 'next/image';
-import { toast } from 'sonner';
-import { uploadDepartmentLogo } from '@/lib/actions/departments';
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
+import { Image as ImageIcon, Loader2, Upload, X } from "lucide-react";
+import Image from "next/image";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { uploadDepartmentLogo } from "@/lib/actions/departments";
 
 interface LogoUploadPreviewProps {
   logoUrl?: string;
@@ -20,27 +26,27 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
-  const [urlInput, setUrlInput] = useState(logoUrl || '');
+  const [urlInput, setUrlInput] = useState(logoUrl || "");
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
-    
+
     setIsUploading(true);
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     try {
       const result = await uploadDepartmentLogo(formData);
       onChange(result.url);
-      toast.success('Logo uploaded successfully');
+      toast.success("Logo uploaded successfully");
     } catch (error) {
-      console.error('Failed to upload logo', error);
-      toast.error('Failed to upload logo');
+      console.error("Failed to upload logo", error);
+      toast.error("Failed to upload logo");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -55,14 +61,14 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
   const handleUrlSave = () => {
     onChange(urlInput);
     setIsEditingUrl(false);
-    toast.success('Logo URL updated');
+    toast.success("Logo URL updated");
   };
 
   const handleClear = () => {
-    onChange('');
-    setUrlInput('');
+    onChange("");
+    setUrlInput("");
     setIsEditingUrl(false);
-    toast.info('Logo removed');
+    toast.info("Logo removed");
   };
 
   const initials = departmentName.substring(0, 2).toUpperCase();
@@ -97,12 +103,7 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
             </div>
           ) : logoUrl ? (
             <>
-              <Image
-                src={logoUrl}
-                alt={departmentName}
-                fill
-                className="object-cover"
-              />
+              <Image src={logoUrl} alt={departmentName} fill className="object-cover" />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex items-center justify-center gap-2">
                 <Button
                   size="sm"
@@ -159,7 +160,9 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
         {isEditingUrl && !logoUrl && (
           <div className="space-y-3 animate-in fade-in-50 slide-in-from-top-2">
             <div className="space-y-2">
-              <Label htmlFor="logo-url" className="text-xs">Or paste logo URL</Label>
+              <Label htmlFor="logo-url" className="text-xs">
+                Or paste logo URL
+              </Label>
               <Input
                 id="logo-url"
                 type="url"
@@ -170,19 +173,14 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
               />
             </div>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleUrlSave}
-                className="flex-1"
-                disabled={!urlInput}
-              >
+              <Button size="sm" onClick={handleUrlSave} className="flex-1" disabled={!urlInput}>
                 Save URL
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  setUrlInput('');
+                  setUrlInput("");
                   setIsEditingUrl(false);
                 }}
               >

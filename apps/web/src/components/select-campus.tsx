@@ -1,7 +1,13 @@
-"use client"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select";
+"use client";
+import type { Campus } from "@repo/api/types/appwrite";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
 import { useCampus } from "./context/campus";
-import { Campus } from "@repo/api/types/appwrite";
 
 type SelectCampusProps = {
   campuses: Campus[];

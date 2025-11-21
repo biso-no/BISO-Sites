@@ -1,25 +1,24 @@
-import { Suspense } from 'react'
-import { notFound } from 'next/navigation'
-import { getProductBySlug } from '@/app/actions/webshop'
-import { getLocale } from '@/app/actions/locale'
-import { ProductDetailsClient } from '@/components/shop/product-details-client'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
-
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { getLocale } from "@/app/actions/locale";
+import { getProductBySlug } from "@/app/actions/webshop";
+import { ProductDetailsClient } from "@/components/shop/product-details-client";
 
 async function ProductDetails({ slug }: { slug: string }) {
-  const locale = await getLocale()
-  
+  const locale = await getLocale();
+
   // Fetch the product
-  const product = await getProductBySlug(slug, locale)
-  
+  const product = await getProductBySlug(slug, locale);
+
   if (!product) {
-    notFound()
+    notFound();
   }
-  
+
   // TODO: Get actual member status from auth
-  const isMember = false
-  
-  return <ProductDetailsClient product={product} isMember={isMember} />
+  const isMember = false;
+
+  return <ProductDetailsClient product={product} isMember={isMember} />;
 }
 
 function ProductDetailsSkeleton() {
@@ -43,37 +42,37 @@ function ProductDetailsSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug?: string }> }) {
-  const { slug } = await params
+  const { slug } = await params;
   if (!slug) {
-    notFound()
+    notFound();
   }
   return (
     <Suspense fallback={<ProductDetailsSkeleton />}>
       <ProductDetails slug={slug} />
     </Suspense>
-  )
+  );
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: { params: Promise<{ slug: string[] }> }) {
-  const { slug } = await params
-  const locale = await getLocale()
-  const product = await getProductBySlug(slug?.[0] ?? '', locale)
+  const { slug } = await params;
+  const locale = await getLocale();
+  const product = await getProductBySlug(slug?.[0] ?? "", locale);
   if (!slug?.[0]) {
-    notFound()
+    notFound();
   }
   if (!product) {
     return {
-      title: 'Product Not Found | BISO Shop',
-    }
+      title: "Product Not Found | BISO Shop",
+    };
   }
-  
+
   return {
     title: `${product.title} | BISO Shop`,
     description: product.short_description || product.description,
-  }
+  };
 }

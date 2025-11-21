@@ -1,21 +1,25 @@
 "use client";
 import "@assistant-ui/styles/index.css";
 import "@assistant-ui/styles/markdown.css";
-import { AssistantRuntimeProvider, useAssistantRuntime, useAssistantTool, makeAssistantToolUI } from "@assistant-ui/react";
-import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { useEffect, useMemo } from "react";
+import {
+  AssistantRuntimeProvider,
+  makeAssistantToolUI,
+  useAssistantRuntime,
+  useAssistantTool,
+} from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import { z } from "zod";
-import { NotificationsProvider } from "@/components/notifications/notifications-provider";
 import type { Notification } from "@/components/notifications/notifications-dropdown";
+import { NotificationsProvider } from "@/components/notifications/notifications-provider";
 
-export const AdminProviders = ({ 
-  children, 
-  initialNotifications = [] 
-}: { 
-  children: React.ReactNode
-  initialNotifications?: Notification[]
+export const AdminProviders = ({
+  children,
+  initialNotifications = [],
+}: {
+  children: React.ReactNode;
+  initialNotifications?: Notification[];
 }) => {
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
@@ -41,11 +45,12 @@ function AdminAssistantContext() {
   const activeConfig = useMemo(() => {
     const mapping: Record<string, { instructions: (c: typeof ctx) => string; tools: string[] }> = {
       "/admin/shop/products": {
-        instructions: (c) => `You are the Products copilot. Role=${c.role}.` ,
+        instructions: (c) => `You are the Products copilot. Role=${c.role}.`,
         tools: ["createProduct", "editProduct", "deleteProduct", "bulkUpdateProducts"],
       },
       "/admin/expenses": {
-        instructions: (c) => `You are the Expenses copilot. Role=${c.role}. Pending=${c.counts.pendingExpenses}.`,
+        instructions: (c) =>
+          `You are the Expenses copilot. Role=${c.role}. Pending=${c.counts.pendingExpenses}.`,
         tools: ["approveExpense", "rejectExpense", "viewReceipt"],
       },
       "/admin/jobs": {
@@ -73,7 +78,7 @@ function AdminAssistantContext() {
     toolName: "approveExpense",
     description: "Approve an expense by ID",
     parameters: z.object({ expenseId: z.string(), note: z.string().optional() }),
-    disabled: !Boolean(activeConfig?.tools.includes("approveExpense")),
+    disabled: !activeConfig?.tools.includes("approveExpense"),
     execute: async ({ expenseId, note }) => {
       const res = await fetch("/api/expense/approve", {
         method: "POST",
@@ -86,12 +91,22 @@ function AdminAssistantContext() {
   });
 
   // Minimal Tool UI example
-  makeAssistantToolUI<{ expenseId: string; note?: string }, { status: string; approvedBy: string; at: string}>({
+  makeAssistantToolUI<
+    { expenseId: string; note?: string },
+    { status: string; approvedBy: string; at: string }
+  >({
     toolName: "approveExpense",
     render: ({ args, status, result }) => {
-      if (status.type === "running") return <div className="text-sm">Approving expense {args.expenseId}…</div>;
-      if (status.type === "incomplete" && status.reason === "error") return <div className="text-sm text-red-500">Failed to approve.</div>;
-      if (result) return <div className="text-sm text-green-600">Approved by {result.approvedBy} at {new Date(result.at).toLocaleString()}</div>;
+      if (status.type === "running")
+        return <div className="text-sm">Approving expense {args.expenseId}…</div>;
+      if (status.type === "incomplete" && status.reason === "error")
+        return <div className="text-sm text-red-500">Failed to approve.</div>;
+      if (result)
+        return (
+          <div className="text-sm text-green-600">
+            Approved by {result.approvedBy} at {new Date(result.at).toLocaleString()}
+          </div>
+        );
       return null;
     },
   });

@@ -1,8 +1,5 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { Globe, Check, ChevronDown } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -10,9 +7,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
-import { cn } from '@repo/ui/lib/utils';
+import { cn } from "@repo/ui/lib/utils";
+import { Check, ChevronDown, Globe } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useState, useTransition } from "react";
 import { setLocale } from "@/app/actions/locale";
-import { SUPPORTED_LOCALES, type Locale } from "@/i18n/config";
+import { type Locale, SUPPORTED_LOCALES } from "@/i18n/config";
 
 // Language configuration with display names and flag emojis
 const LANGUAGE_CONFIG = {
@@ -25,7 +25,7 @@ const LANGUAGE_CONFIG = {
   no: {
     name: "Norwegian",
     nativeName: "Norsk",
-    flag: "🇳🇴", 
+    flag: "🇳🇴",
     code: "no",
   },
 } as const;
@@ -54,7 +54,7 @@ export function LocaleSwitcher({
 
   const handleLocaleChange = (newLocale: Locale) => {
     if (newLocale === currentLocale) return;
-    
+
     startTransition(async () => {
       try {
         await setLocale(newLocale);
@@ -82,7 +82,7 @@ export function LocaleSwitcher({
             "data-[state=open]:bg-accent/70",
             "focus:ring-2 focus:ring-primary focus:ring-offset-2",
             isPending && "opacity-50 cursor-not-allowed",
-            className
+            className,
           )}
         >
           {showFlag && (
@@ -90,24 +90,15 @@ export function LocaleSwitcher({
               {currentLanguage.flag}
             </span>
           )}
-          
-          {showText && (
-            <span className="font-medium">
-              {currentLanguage.nativeName}
-            </span>
-          )}
-          
-          {!showText && !showFlag && (
-            <Globe className="h-4 w-4" />
-          )}
-          
-          <ChevronDown 
-            className={cn(
-              "h-3 w-3 transition-transform duration-200",
-              isOpen && "rotate-180"
-            )} 
+
+          {showText && <span className="font-medium">{currentLanguage.nativeName}</span>}
+
+          {!showText && !showFlag && <Globe className="h-4 w-4" />}
+
+          <ChevronDown
+            className={cn("h-3 w-3 transition-transform duration-200", isOpen && "rotate-180")}
           />
-          
+
           {isPending && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-md">
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -115,21 +106,21 @@ export function LocaleSwitcher({
           )}
         </Button>
       </DropdownMenuTrigger>
-      
-      <DropdownMenuContent 
-        align="end" 
+
+      <DropdownMenuContent
+        align="end"
         role="menu"
         aria-label={t("locale.switcher.label")}
         className={cn(
           "min-w-[180px] p-2",
           "animate-in fade-in-0 zoom-in-95 duration-200",
-          "border shadow-lg backdrop-blur-sm"
+          "border shadow-lg backdrop-blur-sm",
         )}
       >
         {SUPPORTED_LOCALES.map((locale) => {
           const language = LANGUAGE_CONFIG[locale];
           const isSelected = locale === currentLocale;
-          
+
           return (
             <DropdownMenuItem
               key={locale}
@@ -144,26 +135,18 @@ export function LocaleSwitcher({
                 "rounded-md",
                 "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset",
                 isSelected && "bg-accent/30 text-accent-foreground font-medium",
-                isPending && "opacity-50 cursor-not-allowed"
+                isPending && "opacity-50 cursor-not-allowed",
               )}
             >
-              <span 
-                className="text-lg leading-none" 
-                role="img" 
-                aria-label={language.name}
-              >
+              <span className="text-lg leading-none" role="img" aria-label={language.name}>
                 {language.flag}
               </span>
-              
+
               <div className="flex flex-col gap-0.5 flex-1">
-                <span className="text-sm font-medium">
-                  {language.nativeName}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {language.name}
-                </span>
+                <span className="text-sm font-medium">{language.nativeName}</span>
+                <span className="text-xs text-muted-foreground">{language.name}</span>
               </div>
-              
+
               {isSelected && (
                 <Check className="h-4 w-4 text-primary animate-in zoom-in-50 duration-200" />
               )}

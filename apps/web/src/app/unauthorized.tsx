@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { ArrowLeft, Home, ShieldAlert, LogIn } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
 import { cn } from "@repo/ui/lib/utils";
-import { Metadata } from "next";
+import { ArrowLeft, Home, LogIn, ShieldAlert } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Unauthorized | BISO",
@@ -14,12 +14,12 @@ export default function Unauthorized() {
     <main
       className={cn(
         "relative flex min-h-screen flex-col items-center justify-center overflow-hidden",
-        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white"
+        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white",
       )}
     >
       {/* Animated background decorations */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(247,214,74,0.15),transparent_55%)]" />
-      
+
       {/* Subtle animated grid */}
       <div className="absolute inset-0 opacity-[0.03]">
         <div className="h-full w-full bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
@@ -37,23 +37,24 @@ export default function Unauthorized() {
           <div className="inline-flex rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
             <ShieldAlert className="h-12 w-12 text-white" />
           </div>
-          
+
           <div className="space-y-4">
             <p className="text-sm font-medium uppercase tracking-[0.25em] text-white/70">401</p>
             <h1 className="max-w-xl text-4xl font-semibold leading-tight text-white md:text-5xl">
               Du må være logget inn for å se denne siden
             </h1>
             <p className="max-w-2xl text-base text-white/80 md:text-lg">
-              Dette området krever at du er autentisert. Logg inn med din konto for å få tilgang til innholdet.
+              Dette området krever at du er autentisert. Logg inn med din konto for å få tilgang til
+              innholdet.
             </p>
           </div>
         </div>
 
         {/* Action buttons */}
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button 
-            asChild 
-            size="lg" 
+          <Button
+            asChild
+            size="lg"
             className="bg-white text-primary-100 hover:bg-white/90 shadow-lg shadow-black/10"
           >
             <Link href="/auth/login">

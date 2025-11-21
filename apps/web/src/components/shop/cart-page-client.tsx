@@ -1,109 +1,136 @@
-'use client'
+"use client";
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useTransition, useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
-import { ShoppingCart, ArrowLeft, Trash2, Plus, Minus, Tag, Users, MapPin, CreditCard, Package, Sparkles, AlertCircle, Clock } from 'lucide-react'
-import { Card } from '@repo/ui/components/ui/card'
-import { Button } from '@repo/ui/components/ui/button'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { Separator } from '@repo/ui/components/ui/separator'
-import { ImageWithFallback } from '@repo/ui/components/image'
-import { Alert, AlertDescription } from '@repo/ui/components/ui/alert'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
-import { useCart } from '@/lib/contexts/cart-context'
-import { initiateVippsCheckout } from '@repo/payment/actions'
-import { Currency } from '@repo/api/types/appwrite'
-import { cleanupExpiredReservations } from '@/app/actions/cart-reservations'
+import { Currency } from "@repo/api/types/appwrite";
+import { initiateVippsCheckout } from "@repo/payment/actions";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Separator } from "@repo/ui/components/ui/separator";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Clock,
+  CreditCard,
+  MapPin,
+  Minus,
+  Package,
+  Plus,
+  ShoppingCart,
+  Sparkles,
+  Tag,
+  Trash2,
+  Users,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { cleanupExpiredReservations } from "@/app/actions/cart-reservations";
+import { useCart } from "@/lib/contexts/cart-context";
 
 interface CartPageClientProps {
-  isMember?: boolean
-  userId?: string | null
+  isMember?: boolean;
+  userId?: string | null;
 }
 
 const categoryColors: Record<string, string> = {
-  Merch: 'bg-purple-100 text-purple-700 border-purple-200',
-  Trips: 'bg-blue-100 text-blue-700 border-blue-200',
-  Lockers: 'bg-green-100 text-green-700 border-green-200',
-  Membership: 'bg-orange-100 text-orange-700 border-orange-200',
-}
+  Merch: "bg-purple-100 text-purple-700 border-purple-200",
+  Trips: "bg-blue-100 text-blue-700 border-blue-200",
+  Lockers: "bg-green-100 text-green-700 border-green-200",
+  Membership: "bg-orange-100 text-orange-700 border-orange-200",
+};
 
 export function CartPageClient({ isMember = false, userId = null }: CartPageClientProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
-  const { items, isLoading, updateQuantity, removeItem, getSubtotal, getRegularSubtotal, getTotalSavings, getEarliestExpiration, refreshCart } = useCart()
-  const [timeRemaining, setTimeRemaining] = useState<string | null>(null)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+  const {
+    items,
+    isLoading,
+    updateQuantity,
+    removeItem,
+    getSubtotal,
+    getRegularSubtotal,
+    getTotalSavings,
+    getEarliestExpiration,
+    refreshCart,
+  } = useCart();
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
 
-  const subtotal = getSubtotal(isMember)
-  const regularSubtotal = getRegularSubtotal()
-  const totalSavings = getTotalSavings(isMember)
-  const discountTotal = isMember ? totalSavings : 0
+  const subtotal = getSubtotal(isMember);
+  const regularSubtotal = getRegularSubtotal();
+  const totalSavings = getTotalSavings(isMember);
+  const discountTotal = isMember ? totalSavings : 0;
 
-  const hasUnlockableDiscounts = !isMember && items.some(item => item.memberPrice)
-  const potentialSavings = !isMember ? regularSubtotal - items.reduce((sum, item) => {
-    const price = item.memberPrice || item.regularPrice
-    return sum + price * item.quantity
-  }, 0) : 0
+  const hasUnlockableDiscounts = !isMember && items.some((item) => item.memberPrice);
+  const potentialSavings = !isMember
+    ? regularSubtotal -
+      items.reduce((sum, item) => {
+        const price = item.memberPrice || item.regularPrice;
+        return sum + price * item.quantity;
+      }, 0)
+    : 0;
 
   // Get error from URL
-  const error = searchParams.get('error')
-  const cancelled = searchParams.get('cancelled')
+  const error = searchParams.get("error");
+  const cancelled = searchParams.get("cancelled");
 
   // Cleanup expired reservations on cart page load
   useEffect(() => {
-    cleanupExpiredReservations().catch(err => {
-      console.error('Failed to cleanup expired reservations:', err)
-    })
-  }, [])
+    cleanupExpiredReservations().catch((err) => {
+      console.error("Failed to cleanup expired reservations:", err);
+    });
+  }, []);
 
   // Countdown timer for cart expiration
   useEffect(() => {
     const updateCountdown = () => {
-      const earliestExpiration = getEarliestExpiration()
-      
+      const earliestExpiration = getEarliestExpiration();
+
       if (!earliestExpiration) {
-        setTimeRemaining(null)
-        return
+        setTimeRemaining(null);
+        return;
       }
-      
-      const now = new Date().getTime()
-      const expirationTime = new Date(earliestExpiration).getTime()
-      const diff = expirationTime - now
-      
+
+      const now = new Date().getTime();
+      const expirationTime = new Date(earliestExpiration).getTime();
+      const diff = expirationTime - now;
+
       if (diff <= 0) {
-        setTimeRemaining('Expired')
+        setTimeRemaining("Expired");
         // Refresh cart to remove expired items
-        refreshCart()
-        return
+        refreshCart();
+        return;
       }
-      
-      const minutes = Math.floor(diff / 60000)
-      const seconds = Math.floor((diff % 60000) / 1000)
-      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, '0')}`)
-    }
-    
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+    };
+
     // Update immediately
-    updateCountdown()
-    
+    updateCountdown();
+
     // Update every second
-    const interval = setInterval(updateCountdown, 1000)
-    
-    return () => clearInterval(interval)
-  }, [items, getEarliestExpiration, refreshCart])
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [items, getEarliestExpiration, refreshCart]);
 
   const handleQuantityChange = (itemId: string, change: number) => {
-    const item = items.find(i => i.id === itemId)
+    const item = items.find((i) => i.id === itemId);
     if (item) {
-      updateQuantity(itemId, item.quantity + change)
+      updateQuantity(itemId, item.quantity + change);
     }
-  }
+  };
 
   const handleCheckout = () => {
     startTransition(async () => {
       await initiateVippsCheckout({
-        userId: userId || 'guest', // TODO: Get from auth session
-        items: items.map(item => ({
+        userId: userId || "guest", // TODO: Get from auth session
+        items: items.map((item) => ({
           productId: item.productId,
           name: item.name,
           price: isMember && item.memberPrice ? item.memberPrice : item.regularPrice,
@@ -114,11 +141,14 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
         total: subtotal,
         currency: Currency.NOK,
         membershipApplied: isMember,
-        memberDiscountPercent: isMember && totalSavings > 0 ? Math.round((totalSavings / regularSubtotal) * 100) : undefined,
+        memberDiscountPercent:
+          isMember && totalSavings > 0
+            ? Math.round((totalSavings / regularSubtotal) * 100)
+            : undefined,
         // TODO: Add customer info from user profile
-      })
-    })
-  }
+      });
+    });
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
@@ -131,11 +161,11 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-        
+
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <motion.button
-              onClick={() => router.push('/shop')}
+              onClick={() => router.push("/shop")}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
@@ -152,11 +182,9 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
               <div className="flex items-center justify-center gap-2 mb-4">
                 <ShoppingCart className="w-12 h-12 text-[#3DA9E0]" />
               </div>
-              <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">
-                Your Cart
-              </h1>
+              <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">Your Cart</h1>
               <p className="text-white/90 text-lg">
-                {items.length} {items.length === 1 ? 'item' : 'items'} ready for pickup
+                {items.length} {items.length === 1 ? "item" : "items"} ready for pickup
               </p>
             </motion.div>
           </div>
@@ -165,16 +193,17 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
 
       <div className="max-w-6xl mx-auto px-4 py-12">
         {/* Error Messages */}
-        {error === 'checkout_failed' && (
+        {error === "checkout_failed" && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Failed to create checkout session. Please try again or contact support if the problem persists.
+              Failed to create checkout session. Please try again or contact support if the problem
+              persists.
             </AlertDescription>
           </Alert>
         )}
-        
-        {error === 'payment_failed' && (
+
+        {error === "payment_failed" && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -182,12 +211,13 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
             </AlertDescription>
           </Alert>
         )}
-        
-        {cancelled === 'true' && (
+
+        {cancelled === "true" && (
           <Alert className="mb-6 border-orange-200 bg-orange-50">
             <AlertCircle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800">
-              Payment was cancelled. Your cart items are still here when you&apos;re ready to checkout.
+              Payment was cancelled. Your cart items are still here when you&apos;re ready to
+              checkout.
             </AlertDescription>
           </Alert>
         )}
@@ -217,7 +247,7 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
               Start adding some amazing BISO products to your cart!
             </p>
             <Button
-              onClick={() => router.push('/shop')}
+              onClick={() => router.push("/shop")}
               className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
             >
               Continue Shopping
@@ -240,10 +270,14 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
 
               <AnimatePresence mode="popLayout">
                 {items.map((item, index) => {
-                  const itemPrice = isMember && item.memberPrice ? item.memberPrice : item.regularPrice
-                  const itemTotal = itemPrice * item.quantity
-                  const hasDiscount = isMember && item.memberPrice && item.memberPrice < item.regularPrice
-                  const savings = hasDiscount ? (item.regularPrice - (item.memberPrice ?? 0)) * item.quantity : 0
+                  const itemPrice =
+                    isMember && item.memberPrice ? item.memberPrice : item.regularPrice;
+                  const itemTotal = itemPrice * item.quantity;
+                  const hasDiscount =
+                    isMember && item.memberPrice && item.memberPrice < item.regularPrice;
+                  const savings = hasDiscount
+                    ? (item.regularPrice - (item.memberPrice ?? 0)) * item.quantity
+                    : 0;
 
                   return (
                     <motion.div
@@ -259,12 +293,17 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                           {/* Product Image */}
                           <div className="relative w-32 h-32 shrink-0 rounded-lg overflow-hidden">
                             <ImageWithFallback
-                              src={item.image || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080'}
+                              src={
+                                item.image ||
+                                "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080"
+                              }
                               alt={item.name}
                               fill
                               className="object-cover"
                             />
-                            <Badge className={`absolute top-2 left-2 ${categoryColors[item.category]}`}>
+                            <Badge
+                              className={`absolute top-2 left-2 ${categoryColors[item.category]}`}
+                            >
                               {item.category}
                             </Badge>
                           </div>
@@ -292,16 +331,17 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                             </div>
 
                             {/* Selected Options */}
-                            {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
-                              <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                                <p className="text-sm text-gray-500 mb-1">Selected options:</p>
-                                {Object.entries(item.selectedOptions).map(([key, value]) => (
-                                  <p key={key} className="text-sm text-gray-700">
-                                    <strong>{key}:</strong> {value}
-                                  </p>
-                                ))}
-                              </div>
-                            )}
+                            {item.selectedOptions &&
+                              Object.keys(item.selectedOptions).length > 0 && (
+                                <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                                  <p className="text-sm text-gray-500 mb-1">Selected options:</p>
+                                  {Object.entries(item.selectedOptions).map(([key, value]) => (
+                                    <p key={key} className="text-sm text-gray-700">
+                                      <strong>{key}:</strong> {value}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
 
                             {/* Price and Quantity */}
                             <div className="flex items-center justify-between mt-4">
@@ -318,14 +358,17 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                                   >
                                     <Minus className="w-4 h-4 text-gray-900 hover:text-blue-800" />
                                   </Button>
-                                  <span className="w-8 text-center font-medium text-gray-900">{item.quantity}</span>
+                                  <span className="w-8 text-center font-medium text-gray-900">
+                                    {item.quantity}
+                                  </span>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleQuantityChange(item.id, 1)}
                                     disabled={
                                       (item.stock !== null && item.quantity >= item.stock) ||
-                                      (item.metadata?.max_per_order !== undefined && item.quantity >= item.metadata.max_per_order)
+                                      (item.metadata?.max_per_order !== undefined &&
+                                        item.quantity >= item.metadata.max_per_order)
                                     }
                                     className="h-8 w-8 p-0 disabled:opacity-50"
                                   >
@@ -337,11 +380,12 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                                     Only {item.stock} available
                                   </span>
                                 )}
-                                {item.metadata?.max_per_order && item.quantity >= item.metadata.max_per_order && (
-                                  <span className="text-xs text-red-600">
-                                    Max {item.metadata.max_per_order} per order
-                                  </span>
-                                )}
+                                {item.metadata?.max_per_order &&
+                                  item.quantity >= item.metadata.max_per_order && (
+                                    <span className="text-xs text-red-600">
+                                      Max {item.metadata.max_per_order} per order
+                                    </span>
+                                  )}
                               </div>
 
                               {/* Price */}
@@ -351,30 +395,26 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                                     <div className="text-gray-400 line-through text-sm">
                                       {item.regularPrice * item.quantity} NOK
                                     </div>
-                                    <div className="text-[#3DA9E0] font-bold">
-                                      {itemTotal} NOK
-                                    </div>
-                                    <div className="text-xs text-green-600">
-                                      Save {savings} NOK
-                                    </div>
+                                    <div className="text-[#3DA9E0] font-bold">{itemTotal} NOK</div>
+                                    <div className="text-xs text-green-600">Save {savings} NOK</div>
                                   </div>
                                 ) : (
-                                  <div className="text-gray-900 font-bold">
-                                    {itemTotal} NOK
-                                  </div>
+                                  <div className="text-gray-900 font-bold">{itemTotal} NOK</div>
                                 )}
-                                {!isMember && item.memberPrice && item.memberPrice < item.regularPrice && (
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    Members: {item.memberPrice * item.quantity} NOK
-                                  </div>
-                                )}
+                                {!isMember &&
+                                  item.memberPrice &&
+                                  item.memberPrice < item.regularPrice && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Members: {item.memberPrice * item.quantity} NOK
+                                    </div>
+                                  )}
                               </div>
                             </div>
                           </div>
                         </div>
                       </Card>
                     </motion.div>
-                  )
+                  );
                 })}
               </AnimatePresence>
             </div>
@@ -383,10 +423,7 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
             <div className="space-y-6">
               {/* Member Benefits Alert */}
               {hasUnlockableDiscounts && potentialSavings > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                   <Alert className="border-[#3DA9E0] bg-linear-to-br from-[#3DA9E0]/10 to-cyan-50">
                     <Sparkles className="h-4 w-4 text-[#3DA9E0]" />
                     <AlertDescription>
@@ -394,11 +431,12 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                         <strong>Unlock member discounts!</strong>
                       </p>
                       <p className="text-sm text-gray-600 mb-3">
-                        You could save {potentialSavings} NOK on this order by becoming a BISO member.
+                        You could save {potentialSavings} NOK on this order by becoming a BISO
+                        member.
                       </p>
                       <Button
                         size="sm"
-                        onClick={() => router.push('/shop?category=Membership')}
+                        onClick={() => router.push("/shop?category=Membership")}
                         className="w-full bg-[#3DA9E0] hover:bg-[#3DA9E0]/90 text-white"
                       >
                         Join BISO - From 350 NOK
@@ -419,8 +457,12 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
 
                   <div className="space-y-3 mb-4">
                     <div className="flex justify-between text-gray-600">
-                      <span>Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                      <span className="font-medium">{isMember ? subtotal : regularSubtotal} NOK</span>
+                      <span>
+                        Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)} items)
+                      </span>
+                      <span className="font-medium">
+                        {isMember ? subtotal : regularSubtotal} NOK
+                      </span>
                     </div>
 
                     {isMember && totalSavings > 0 && (
@@ -432,7 +474,6 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                         <span className="font-medium">-{totalSavings} NOK</span>
                       </div>
                     )}
-
                   </div>
 
                   <Separator className="my-4" />
@@ -447,23 +488,24 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                   {isMember && totalSavings > 0 && (
                     <div className="mb-4 p-3 bg-green-50 rounded-lg text-center">
                       <p className="text-sm text-green-700">
-                        🎉 You&apos;re saving <strong>{totalSavings} NOK</strong> with your membership!
+                        🎉 You&apos;re saving <strong>{totalSavings} NOK</strong> with your
+                        membership!
                       </p>
                     </div>
                   )}
 
-                  <Button 
+                  <Button
                     onClick={handleCheckout}
                     disabled={isPending}
                     className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white mb-3 disabled:opacity-70"
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
-                    {isPending ? 'Processing...' : 'Proceed to Checkout'}
+                    {isPending ? "Processing..." : "Proceed to Checkout"}
                   </Button>
 
                   <Button
                     variant="outline"
-                    onClick={() => router.push('/shop')}
+                    onClick={() => router.push("/shop")}
                     className="w-full border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
                   >
                     Continue Shopping
@@ -494,6 +536,5 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
         )}
       </div>
     </div>
-  )
+  );
 }
-

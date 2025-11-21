@@ -1,31 +1,41 @@
-import { IVectorStore, VectorDocument, SearchOptions, SearchResult } from './vector-store.types';
-import { Pinecone, RecordMetadata, QueryResponse, ScoredPineconeRecord } from '@pinecone-database/pinecone';
-import { embed, embedMany } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { v5 as uuidv5 } from 'uuid';
-import { encode } from 'gpt-tokenizer';
+import { openai } from "@ai-sdk/openai";
+import {
+  Pinecone,
+  type QueryResponse,
+  type RecordMetadata,
+  ScoredPineconeRecord,
+} from "@pinecone-database/pinecone";
+import { embed, embedMany } from "ai";
+import { encode } from "gpt-tokenizer";
+import { v5 as uuidv5 } from "uuid";
+import type {
+  IVectorStore,
+  SearchOptions,
+  SearchResult,
+  VectorDocument,
+} from "./vector-store.types";
 
 // Embedding model configurations
 const EMBEDDING_MODELS = {
-  'text-embedding-3-small': {
+  "text-embedding-3-small": {
     vectorSize: 1536,
     maxTokens: 8191,
     costPer1kTokens: 0.00002,
-    description: 'Fast and cost-effective for most use cases'
+    description: "Fast and cost-effective for most use cases",
   },
-  'text-embedding-3-large': {
+  "text-embedding-3-large": {
     vectorSize: 3072,
     maxTokens: 8191,
     costPer1kTokens: 0.00013,
-    description: 'Higher quality embeddings for complex documents'
-  }
+    description: "Higher quality embeddings for complex documents",
+  },
 } as const;
 
 type EmbeddingModelName = keyof typeof EMBEDDING_MODELS;
 
 const CONFIG = {
   EMBEDDING: {
-    DEFAULT_MODEL: 'text-embedding-3-large' as EmbeddingModelName,
+    DEFAULT_MODEL: "text-embedding-3-large" as EmbeddingModelName,
     MAX_TOKENS_PER_REQUEST: 7000,
     MAX_TOKENS_PER_INPUT: 2000,
     MAX_ITEMS_PER_BATCH: 100, // Pinecone supports up to 100 vectors per batch
@@ -39,10 +49,10 @@ const CONFIG = {
     MAX_ATTEMPTS: 3,
     INITIAL_DELAY: 1000,
     BACKOFF_MULTIPLIER: 2,
-  }
+  },
 } as const;
 
-const SHAREPOINT_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+const SHAREPOINT_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
 interface BatchItem {
   doc: VectorDocument;
@@ -76,22 +86,22 @@ export class PineconeVectorStore implements IVectorStore {
   private indexName: string;
   private namespace: string;
   private embeddingModel: any;
-  private modelConfig: typeof EMBEDDING_MODELS[EmbeddingModelName];
+  private modelConfig: (typeof EMBEDDING_MODELS)[EmbeddingModelName];
   private isInitialized = false;
   private stats: ModelStats;
   private index: any;
 
   constructor(
     indexName?: string,
-    namespace: string = 'default',
-    modelName: EmbeddingModelName = CONFIG.EMBEDDING.DEFAULT_MODEL
+    namespace: string = "default",
+    modelName: EmbeddingModelName = CONFIG.EMBEDDING.DEFAULT_MODEL,
   ) {
     // Get index name from environment or use default
-    this.indexName = indexName || process.env.PINECONE_INDEX_NAME || 'sharepoint-documents';
+    this.indexName = indexName || process.env.PINECONE_INDEX_NAME || "sharepoint-documents";
     this.namespace = namespace;
     this.modelConfig = EMBEDDING_MODELS[modelName];
     this.embeddingModel = openai.textEmbeddingModel(modelName);
-    
+
     this.stats = {
       model: modelName,
       vectorSize: this.modelConfig.vectorSize,
@@ -99,18 +109,20 @@ export class PineconeVectorStore implements IVectorStore {
       totalTokensProcessed: 0,
       estimatedCost: 0,
     };
-    
+
     // Initialize Pinecone client with API key
     const apiKey = process.env.PINECONE_API_KEY;
     if (!apiKey) {
-      throw new Error('PINECONE_API_KEY is required');
+      throw new Error("PINECONE_API_KEY is required");
     }
-    
+
     this.client = new Pinecone({
       apiKey,
     });
 
-    console.log(`🚀 PineconeVectorStore: ${modelName} (${this.modelConfig.vectorSize}D) - Index: ${this.indexName}`);
+    console.log(
+      `🚀 PineconeVectorStore: ${modelName} (${this.modelConfig.vectorSize}D) - Index: ${this.indexName}`,
+    );
   }
 
   private countTokens(text: string): number {
@@ -119,26 +131,27 @@ export class PineconeVectorStore implements IVectorStore {
 
   private updateStats(tokenCount: number): void {
     this.stats.totalTokensProcessed += tokenCount;
-    this.stats.estimatedCost = (this.stats.totalTokensProcessed / 1000) * this.stats.estimatedCostPer1kTokens;
+    this.stats.estimatedCost =
+      (this.stats.totalTokensProcessed / 1000) * this.stats.estimatedCostPer1kTokens;
   }
 
   private async withRetry<T>(operation: () => Promise<T>, context: string): Promise<T> {
     let lastError: any;
-    
+
     for (let attempt = 1; attempt <= CONFIG.RETRY.MAX_ATTEMPTS; attempt++) {
       try {
         return await operation();
       } catch (error: any) {
         lastError = error;
         console.error(`${context} - Attempt ${attempt} failed:`, error.message);
-        
+
         if (attempt === CONFIG.RETRY.MAX_ATTEMPTS) break;
-        
-        const delay = CONFIG.RETRY.INITIAL_DELAY * Math.pow(CONFIG.RETRY.BACKOFF_MULTIPLIER, attempt - 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
+
+        const delay = CONFIG.RETRY.INITIAL_DELAY * CONFIG.RETRY.BACKOFF_MULTIPLIER ** (attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
-    
+
     throw lastError;
   }
 
@@ -148,44 +161,45 @@ export class PineconeVectorStore implements IVectorStore {
     await this.withRetry(async () => {
       // List existing indexes
       const existingIndexes = await this.client.listIndexes();
-      const indexExists = existingIndexes.indexes?.some(idx => idx.name === this.indexName);
-      
+      const indexExists = existingIndexes.indexes?.some((idx) => idx.name === this.indexName);
+
       if (!indexExists) {
         console.log(`Creating Pinecone index: ${this.indexName}`);
-        
+
         // Create the index with serverless spec (recommended for Vercel)
         await this.client.createIndex({
           name: this.indexName,
           dimension: this.modelConfig.vectorSize,
-          metric: 'cosine',
+          metric: "cosine",
           spec: {
             serverless: {
-              cloud: 'aws',
-              region: process.env.PINECONE_REGION || 'us-east-1',
-            }
-          }
+              cloud: "aws",
+              region: process.env.PINECONE_REGION || "us-east-1",
+            },
+          },
         });
-        
+
         // Wait for index to be ready
-        console.log('Waiting for index to be ready...');
+        console.log("Waiting for index to be ready...");
         let retries = 0;
-        while (retries < 60) { // Wait up to 60 seconds
+        while (retries < 60) {
+          // Wait up to 60 seconds
           const description = await this.client.describeIndex(this.indexName);
           if (description.status?.ready) {
             console.log(`✅ Index ${this.indexName} is ready`);
             break;
           }
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           retries++;
         }
       }
-      
+
       // Get index reference
       this.index = this.client.index(this.indexName);
-      
+
       console.log(`✅ Connected to Pinecone index: ${this.indexName}`);
-    }, 'Initializing Pinecone index');
-    
+    }, "Initializing Pinecone index");
+
     this.isInitialized = true;
   }
 
@@ -196,18 +210,19 @@ export class PineconeVectorStore implements IVectorStore {
     // Prepare documents
     const items = documents
       .map((doc, originalIndex) => {
-        const text = String(doc.content || '').trim();
+        const text = String(doc.content || "").trim();
         if (!text) return null;
-        
-        const truncated = text.length > CONFIG.EMBEDDING.MAX_TOKENS_PER_INPUT * 4 
-          ? text.slice(0, CONFIG.EMBEDDING.MAX_TOKENS_PER_INPUT * 4)
-          : text;
-        
+
+        const truncated =
+          text.length > CONFIG.EMBEDDING.MAX_TOKENS_PER_INPUT * 4
+            ? text.slice(0, CONFIG.EMBEDDING.MAX_TOKENS_PER_INPUT * 4)
+            : text;
+
         return {
           doc,
           text: truncated,
           originalIndex,
-          tokenCount: this.countTokens(truncated)
+          tokenCount: this.countTokens(truncated),
         };
       })
       .filter((item): item is BatchItem => item !== null);
@@ -219,36 +234,38 @@ export class PineconeVectorStore implements IVectorStore {
     let current: ProcessingBatch = { indices: [], texts: [], tokenSum: 0 };
 
     for (const [idx, item] of Array.from(items.entries())) {
-      if (current.indices.length >= CONFIG.EMBEDDING.MAX_ITEMS_PER_BATCH ||
-          current.tokenSum + item.tokenCount > CONFIG.EMBEDDING.MAX_TOKENS_PER_REQUEST) {
+      if (
+        current.indices.length >= CONFIG.EMBEDDING.MAX_ITEMS_PER_BATCH ||
+        current.tokenSum + item.tokenCount > CONFIG.EMBEDDING.MAX_TOKENS_PER_REQUEST
+      ) {
         if (current.indices.length > 0) {
           batches.push(current);
           current = { indices: [], texts: [], tokenSum: 0 };
         }
       }
-      
+
       current.indices.push(idx);
       current.texts.push(item.text);
       current.tokenSum += item.tokenCount;
     }
-    
+
     if (current.indices.length > 0) {
       batches.push(current);
     }
 
     // Generate embeddings
     const allEmbeddings: number[][] = new Array(items.length);
-    
+
     for (const batch of batches) {
       const { embeddings } = await this.withRetry(
         () => embedMany({ model: this.embeddingModel, values: batch.texts }),
-        'Generating embeddings'
+        "Generating embeddings",
       );
-      
+
       embeddings.forEach((emb, i) => {
         allEmbeddings[batch.indices[i]] = emb as number[];
       });
-      
+
       this.updateStats(batch.tokenSum);
     }
 
@@ -271,7 +288,7 @@ export class PineconeVectorStore implements IVectorStore {
       const batch = vectors.slice(i, i + BATCH_SIZE);
       await this.withRetry(
         () => this.index.namespace(this.namespace).upsert(batch),
-        `Upserting batch ${i / BATCH_SIZE + 1}`
+        `Upserting batch ${i / BATCH_SIZE + 1}`,
       );
     }
 
@@ -281,40 +298,43 @@ export class PineconeVectorStore implements IVectorStore {
   async search(options: SearchOptions): Promise<SearchResult[]> {
     await this.initialize();
     const { query, k = CONFIG.SEARCH.DEFAULT_LIMIT, filter, includeMetadata = true } = options;
-    
+
     // For metadata-only search (no query)
     if (!query && filter) {
       // Pinecone doesn't support metadata-only queries without a vector
       // We need to provide a zero vector or random vector for this case
       const zeroVector = new Array(this.modelConfig.vectorSize).fill(0);
-      
-      const results = await this.withRetry(
-        () => this.index.namespace(this.namespace).query({
-          vector: zeroVector,
-          topK: k,
-          includeMetadata,
-          filter,
-        }),
-        'Performing metadata-only search'
-      ) as QueryResponse;
-      
-      return results.matches?.map((match) => ({
-        id: String(match.metadata?.originalId || match.id),
-        content: String(match.metadata?.text || ''),
-        metadata: includeMetadata ? (match.metadata || {}) : {},
-        score: match.score || 0,
-        distance: 1 - (match.score || 0),
-      })) || [];
+
+      const results = (await this.withRetry(
+        () =>
+          this.index.namespace(this.namespace).query({
+            vector: zeroVector,
+            topK: k,
+            includeMetadata,
+            filter,
+          }),
+        "Performing metadata-only search",
+      )) as QueryResponse;
+
+      return (
+        results.matches?.map((match) => ({
+          id: String(match.metadata?.originalId || match.id),
+          content: String(match.metadata?.text || ""),
+          metadata: includeMetadata ? match.metadata || {} : {},
+          score: match.score || 0,
+          distance: 1 - (match.score || 0),
+        })) || []
+      );
     }
 
-    if (!query) throw new Error('Query required for semantic search');
+    if (!query) throw new Error("Query required for semantic search");
 
     const queryTokens = this.countTokens(query);
     this.updateStats(queryTokens);
 
     const { embedding: vector } = await this.withRetry(
       () => embed({ model: this.embeddingModel, value: query }),
-      'Generating query embedding'
+      "Generating query embedding",
     );
 
     const queryRequest: any = {
@@ -327,104 +347,114 @@ export class PineconeVectorStore implements IVectorStore {
       queryRequest.filter = filter;
     }
 
-    const results = await this.withRetry(
+    const results = (await this.withRetry(
       () => this.index.namespace(this.namespace).query(queryRequest),
-      'Performing search'
-    ) as QueryResponse;
+      "Performing search",
+    )) as QueryResponse;
 
-    return results.matches?.map((match) => ({
-      id: String(match.metadata?.originalId || match.id),
-      content: String(match.metadata?.text || ''),
-      metadata: includeMetadata ? (match.metadata || {}) : {},
-      score: match.score || 0,
-      distance: 1 - (match.score || 0),
-    })) || [];
+    return (
+      results.matches?.map((match) => ({
+        id: String(match.metadata?.originalId || match.id),
+        content: String(match.metadata?.text || ""),
+        metadata: includeMetadata ? match.metadata || {} : {},
+        score: match.score || 0,
+        distance: 1 - (match.score || 0),
+      })) || []
+    );
   }
 
   async searchBroad(query: string, limit: number): Promise<SearchResult[]> {
     const cappedLimit = Math.min(limit, CONFIG.SEARCH.MAX_BROAD_SEARCH_LIMIT);
     const queryTokens = this.countTokens(query);
     this.updateStats(queryTokens);
-    
+
     const { embedding: vector } = await this.withRetry(
       () => embed({ model: this.embeddingModel, value: query }),
-      'Generating query embedding'
+      "Generating query embedding",
     );
 
-    const results = await this.withRetry(
-      () => this.index.namespace(this.namespace).query({
-        vector,
-        topK: cappedLimit,
-        includeMetadata: true,
-      }),
-      'Performing broad search'
-    ) as QueryResponse;
+    const results = (await this.withRetry(
+      () =>
+        this.index.namespace(this.namespace).query({
+          vector,
+          topK: cappedLimit,
+          includeMetadata: true,
+        }),
+      "Performing broad search",
+    )) as QueryResponse;
 
-    return results.matches?.map((match) => ({
-      id: String(match.metadata?.originalId || match.id),
-      content: String(match.metadata?.text || ''),
-      metadata: match.metadata || {},
-      score: match.score || 0,
-      distance: 1 - (match.score || 0),
-    })).filter((result) => result.score >= CONFIG.SEARCH.MIN_SCORE_THRESHOLD) || [];
+    return (
+      results.matches
+        ?.map((match) => ({
+          id: String(match.metadata?.originalId || match.id),
+          content: String(match.metadata?.text || ""),
+          metadata: match.metadata || {},
+          score: match.score || 0,
+          distance: 1 - (match.score || 0),
+        }))
+        .filter((result) => result.score >= CONFIG.SEARCH.MIN_SCORE_THRESHOLD) || []
+    );
   }
 
   async deleteDocuments(ids: string[]): Promise<void> {
     if (!ids.length) return;
     await this.initialize();
-    
-    const convertedIds = ids.map(id => uuidv5(id, SHAREPOINT_NAMESPACE));
-    
+
+    const convertedIds = ids.map((id) => uuidv5(id, SHAREPOINT_NAMESPACE));
+
     await this.withRetry(
       () => this.index.namespace(this.namespace).deleteMany(convertedIds),
-      'Deleting documents'
+      "Deleting documents",
     );
-    
+
     console.log(`🗑️ Deleted ${ids.length} documents from Pinecone`);
   }
 
   async updateDocument(id: string, content: string, metadata: Record<string, any>): Promise<void> {
     await this.initialize();
-    
+
     const pointId = uuidv5(id, SHAREPOINT_NAMESPACE);
     const tokenCount = this.countTokens(content);
     this.updateStats(tokenCount);
-    
+
     const { embedding } = await this.withRetry(
       () => embed({ model: this.embeddingModel, value: content }),
-      'Generating embedding for update'
+      "Generating embedding for update",
     );
 
     await this.withRetry(
-      () => this.index.namespace(this.namespace).upsert([{
-        id: pointId,
-        values: embedding as number[],
-        metadata: { 
-          ...metadata, 
-          text: content, 
-          originalId: id, 
-          tokenCount,
-          processingTime: new Date().toISOString(),
-        }
-      }]),
-      'Updating document'
+      () =>
+        this.index.namespace(this.namespace).upsert([
+          {
+            id: pointId,
+            values: embedding as number[],
+            metadata: {
+              ...metadata,
+              text: content,
+              originalId: id,
+              tokenCount,
+              processingTime: new Date().toISOString(),
+            },
+          },
+        ]),
+      "Updating document",
     );
-    
+
     console.log(`📝 Updated document ${id} in Pinecone`);
   }
 
   async getCollectionStats(): Promise<{ count: number; modelStats?: ModelStats }> {
     await this.initialize();
-    
-    const stats = await this.withRetry(
+
+    const stats = (await this.withRetry(
       () => this.index.describeIndexStats(),
-      'Getting collection stats'
-    ) as any;
+      "Getting collection stats",
+    )) as any;
 
     const namespaceStats = stats.namespaces?.[this.namespace];
     const count = namespaceStats?.recordCount || 0;
 
-    return { 
+    return {
       count,
       modelStats: { ...this.stats },
     };
@@ -432,16 +462,16 @@ export class PineconeVectorStore implements IVectorStore {
 
   async clearCollection(): Promise<void> {
     await this.initialize();
-    
+
     // Delete all vectors in the namespace
     await this.withRetry(
       () => this.index.namespace(this.namespace).deleteAll(),
-      'Clearing collection'
+      "Clearing collection",
     );
-    
+
     this.stats.totalTokensProcessed = 0;
     this.stats.estimatedCost = 0;
-    
+
     console.log(`🧹 Cleared namespace: ${this.namespace} in index: ${this.indexName}`);
   }
 

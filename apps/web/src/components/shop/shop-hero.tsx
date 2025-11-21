@@ -1,28 +1,28 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react'
-import { ChevronDown, ShoppingBag, Sparkles, Users } from 'lucide-react'
-import { ImageWithFallback } from '@repo/ui/components/image'
-import { Badge } from '@repo/ui/components/ui/badge'
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { ChevronDown, ShoppingBag, Sparkles, Users } from "lucide-react";
+import { motion } from "motion/react";
 
 interface ShopHeroProps {
-  isMember?: boolean
+  isMember?: boolean;
 }
 
 export function ShopHero({ isMember = false }: ShopHeroProps) {
   return (
     <div className="relative h-[50vh] overflow-hidden">
-            <ImageWithFallback
-              src="/images/logo-home.png"
-              alt="BISO logo"
-              width={140}               // pick the intrinsic pixel width
-              height={40}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 120px, 140px"
-              priority                   // above-the-fold
-              className="h-10 w-auto"    // control display size via CSS
-            />
+      <ImageWithFallback
+        src="/images/logo-home.png"
+        alt="BISO logo"
+        width={140} // pick the intrinsic pixel width
+        height={40} // and height that matches your asset ratio
+        sizes="(max-width: 768px) 120px, 140px"
+        priority // above-the-fold
+        className="h-10 w-auto" // control display size via CSS
+      />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-      
+
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <motion.div
@@ -41,9 +41,10 @@ export function ShopHero({ isMember = false }: ShopHeroProps) {
               </span>
             </h1>
             <p className="text-white/90 max-w-2xl mx-auto">
-              From exclusive merch to trip deductibles and campus lockers - all available for pickup at BISO office.
+              From exclusive merch to trip deductibles and campus lockers - all available for pickup
+              at BISO office.
             </p>
-            
+
             {!isMember && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -57,7 +58,7 @@ export function ShopHero({ isMember = false }: ShopHeroProps) {
                 </Badge>
               </motion.div>
             )}
-            
+
             {isMember && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -83,6 +84,5 @@ export function ShopHero({ isMember = false }: ShopHeroProps) {
         <ChevronDown className="w-8 h-8 text-white/70" />
       </motion.div>
     </div>
-  )
+  );
 }
-

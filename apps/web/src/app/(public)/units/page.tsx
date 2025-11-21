@@ -1,15 +1,15 @@
 import { Suspense } from "react";
-import { getDepartments } from "@/lib/actions/departments";
 import { getLocale } from "@/app/actions/locale";
+import { getDepartments } from "@/lib/actions/departments";
+import { DepartmentsCTA } from "./components/departments-cta";
 import { DepartmentsHero } from "./components/departments-hero";
 import { DepartmentsListClient } from "./components/departments-list-client";
-import { DepartmentsCTA } from "./components/departments-cta";
 
 export const revalidate = 0;
 
 async function DepartmentsContent() {
   const locale = await getLocale();
-  
+
   // Fetch all active departments with relationships
   const departments = await getDepartments({ isActive: true, locale });
 
@@ -17,20 +17,20 @@ async function DepartmentsContent() {
   const availableTypes = [
     ...new Set(
       departments
-        .map(d => d.department_ref?.type)
-        .filter((type): type is string => Boolean(type))
-    )
+        .map((d) => d.department_ref?.type)
+        .filter((type): type is string => Boolean(type)),
+    ),
   ].sort();
 
   // Calculate stats
   const stats = {
     totalDepartments: departments.length,
-    totalMembers: departments.reduce((sum, dept) => 
-      sum + (dept.department_ref?.boardMembers?.length || 0), 0
+    totalMembers: departments.reduce(
+      (sum, dept) => sum + (dept.department_ref?.boardMembers?.length || 0),
+      0,
     ),
-    totalCampuses: new Set(
-      departments.map(d => d.department_ref?.campus_id).filter(Boolean)
-    ).size,
+    totalCampuses: new Set(departments.map((d) => d.department_ref?.campus_id).filter(Boolean))
+      .size,
   };
 
   return (
@@ -40,10 +40,7 @@ async function DepartmentsContent() {
 
       {/* Filters with overlap */}
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-10 mb-12">
-        <DepartmentsListClient 
-          departments={departments}
-          availableTypes={availableTypes}
-        />
+        <DepartmentsListClient departments={departments} availableTypes={availableTypes} />
       </div>
 
       {/* Call to Action */}
@@ -69,7 +66,7 @@ function UnitsPageSkeleton() {
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       {/* Hero Skeleton */}
       <div className="relative h-[50vh] overflow-hidden bg-muted/50 animate-pulse isolate" />
-      
+
       {/* Filters Skeleton with overlap */}
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-10 mb-12">
         <div className="p-6 border-0 shadow-xl bg-card rounded-lg relative z-10">

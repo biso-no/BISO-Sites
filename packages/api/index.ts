@@ -1,4 +1,21 @@
-export { Client, Account, Teams, Storage, Users, Functions, Messaging, TablesDB, Query, ID, OAuthProvider, Permission } from "node-appwrite";
 export type { Models } from "node-appwrite";
-export { getStorageFileUrl, getStorageFileDownloadUrl, getStorageFileThumbnailUrl } from "./storage";
+export {
+  Account,
+  Client,
+  Functions,
+  ID,
+  Messaging,
+  OAuthProvider,
+  Permission,
+  Query,
+  Storage,
+  TablesDB,
+  Teams,
+  Users,
+} from "node-appwrite";
 export { InputFile } from "node-appwrite/file";
+export {
+  getStorageFileDownloadUrl,
+  getStorageFileThumbnailUrl,
+  getStorageFileUrl,
+} from "./storage";

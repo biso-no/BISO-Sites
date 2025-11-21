@@ -1,7 +1,7 @@
-import { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { Button } from "@repo/ui/components/ui/button";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@repo/ui/components/ui/button";
 
 const friendlyName: Record<string, string> = {
   searchSharePoint: "Searching documents",
@@ -28,8 +28,17 @@ export const ToolFallback: ToolCallMessagePartComponent = ({ toolName, argsText,
           <CheckIcon className="h-3.5 w-3.5 text-primary" />
         )}
         <span>{label}</span>
-        <Button size="sm" variant="ghost" onClick={() => setIsCollapsed(!isCollapsed)} className="ml-auto h-6 px-1 text-[11px]">
-          {isCollapsed ? <ChevronDownIcon className="h-3.5 w-3.5" /> : <ChevronUpIcon className="h-3.5 w-3.5" />}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="ml-auto h-6 px-1 text-[11px]"
+        >
+          {isCollapsed ? (
+            <ChevronDownIcon className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronUpIcon className="h-3.5 w-3.5" />
+          )}
         </Button>
       </div>
       {!isCollapsed && (

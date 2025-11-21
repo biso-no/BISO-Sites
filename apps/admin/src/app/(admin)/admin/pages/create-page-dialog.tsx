@@ -1,10 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
@@ -24,13 +21,19 @@ import {
   FormMessage,
 } from "@repo/ui/components/ui/form";
 import { Input } from "@repo/ui/components/ui/input";
-import { createManagedPage } from "@/app/actions/pages";
-import { PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import * as z from "zod";
+import { createManagedPage } from "@/app/actions/pages";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
 });
 
 export function CreatePageDialog({ children }: { children: React.ReactNode }) {
@@ -72,9 +75,7 @@ export function CreatePageDialog({ children }: { children: React.ReactNode }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create New Page</DialogTitle>
@@ -91,13 +92,23 @@ export function CreatePageDialog({ children }: { children: React.ReactNode }) {
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="About Us" {...field} onChange={(e) => {
-                      field.onChange(e);
-                      // Auto-generate slug from title if slug hasn't been manually edited
-                      if (!form.formState.dirtyFields.slug) {
-                        form.setValue("slug", e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""));
-                      }
-                    }} />
+                    <Input
+                      placeholder="About Us"
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Auto-generate slug from title if slug hasn't been manually edited
+                        if (!form.formState.dirtyFields.slug) {
+                          form.setValue(
+                            "slug",
+                            e.target.value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")
+                              .replace(/^-+|-+$/g, ""),
+                          );
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

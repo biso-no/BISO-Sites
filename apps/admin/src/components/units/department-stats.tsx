@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Department } from '@/lib/admin/departments';
-import { Building2, Users, Check, AlertTriangle, ChevronsUpDown, TrendingUp } from 'lucide-react';
-import { MetricCard } from '@/components/shared/metric-card';
-import { GlassCard } from '@/components/shared/glass-card';
-import { Button } from '@repo/ui/components/ui/button';
+import { Button } from "@repo/ui/components/ui/button";
+import { AlertTriangle, Building2, Check, ChevronsUpDown, TrendingUp, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GlassCard } from "@/components/shared/glass-card";
+import { MetricCard } from "@/components/shared/metric-card";
+import type { Department } from "@/lib/admin/departments";
 
 interface DepartmentStatsProps {
   departments: Department[];
@@ -18,36 +18,35 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
   const [totalUsers, setTotalUsers] = useState(0);
   const [campusCounts, setCampusCounts] = useState<Record<string, number>>({});
   const [showMoreCampuses, setShowMoreCampuses] = useState(false);
-  
+
   useEffect(() => {
     if (!departments.length) return;
-    
+
     // Calculate stats
-    const active = departments.filter(d => d.active).length;
+    const active = departments.filter((d) => d.active).length;
     setActiveCount(active);
     setInactiveCount(departments.length - active);
-    
+
     const users = departments.reduce((sum, dept) => sum + (dept.userCount || 0), 0);
     setTotalUsers(users);
-    
+
     // Count departments per campus
     const campusStats: Record<string, number> = {};
-    departments.forEach(dept => {
-      const campusName = dept.campusName || 'Unassigned';
+    departments.forEach((dept) => {
+      const campusName = dept.campusName || "Unassigned";
       campusStats[campusName] = (campusStats[campusName] || 0) + 1;
     });
     setCampusCounts(campusStats);
   }, [departments]);
-  
+
   // Sort campuses by count (descending)
-  const sortedCampuses = Object.entries(campusCounts)
-    .sort(([, countA], [, countB]) => countB - countA);
-  
+  const sortedCampuses = Object.entries(campusCounts).sort(
+    ([, countA], [, countB]) => countB - countA,
+  );
+
   // Limit to top 3 by default
-  const displayCampuses = showMoreCampuses 
-    ? sortedCampuses 
-    : sortedCampuses.slice(0, 3);
-  
+  const displayCampuses = showMoreCampuses ? sortedCampuses : sortedCampuses.slice(0, 3);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -59,7 +58,7 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-8">
       {/* Metric Cards */}
@@ -71,7 +70,7 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
           iconColor="text-primary"
           iconBgColor="bg-primary/10"
         />
-        
+
         <MetricCard
           title="Total Members"
           value={totalUsers}
@@ -79,7 +78,7 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
           iconColor="text-blue-600"
           iconBgColor="bg-blue-500/10"
         />
-        
+
         <MetricCard
           title="Active Units"
           value={activeCount}
@@ -87,7 +86,7 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
           iconColor="text-green-600"
           iconBgColor="bg-green-500/10"
         />
-        
+
         <MetricCard
           title="Inactive Units"
           value={inactiveCount}
@@ -96,7 +95,7 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
           iconBgColor="bg-amber-500/10"
         />
       </div>
-      
+
       {/* Campus Distribution */}
       {departments.length > 0 && sortedCampuses.length > 0 && (
         <GlassCard
@@ -107,10 +106,10 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
         >
           <div className="space-y-4">
             {displayCampuses.map(([campusName, count], index) => {
-                  const percentage = Math.round((count / departments.length) * 100);
-                  return (
-                <div 
-                  key={campusName} 
+              const percentage = Math.round((count / departments.length) * 100);
+              return (
+                <div
+                  key={campusName}
                   className="space-y-2 animate-in fade-in-50 slide-in-from-left-4"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
@@ -120,23 +119,23 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
                       <span className="text-muted-foreground">{count} units</span>
                       <span className="font-semibold text-primary">{percentage}%</span>
                     </div>
-                      </div>
+                  </div>
                   <div className="relative h-3 w-full bg-muted/50 rounded-full overflow-hidden">
                     {/* Animated gradient bar */}
-                        <div 
+                    <div
                       className="absolute inset-y-0 left-0 bg-linear-to-r from-primary to-accent rounded-full transition-all duration-1000 ease-out shadow-sm"
-                      style={{ 
+                      style={{
                         width: `${percentage}%`,
-                        transitionDelay: `${index * 100}ms`
+                        transitionDelay: `${index * 100}ms`,
                       }}
                     >
                       <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
                     </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            
+                  </div>
+                </div>
+              );
+            })}
+
             {sortedCampuses.length > 3 && (
               <div className="pt-2 flex justify-center">
                 <Button
@@ -150,9 +149,9 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
                 </Button>
               </div>
             )}
-        </div>
+          </div>
         </GlassCard>
       )}
     </div>
   );
-} 
+}

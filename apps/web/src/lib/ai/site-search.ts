@@ -6,11 +6,7 @@ type ValidIndex = (typeof VALID_INDICES)[number];
 
 function resolveBaseUrl() {
   // Prefer explicit base URL for server-side fetches
-  return (
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    process.env.NEXTAUTH_URL ||
-    "http://localhost:3000"
-  );
+  return process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
 }
 
 export const searchSiteContent = tool({
@@ -22,19 +18,20 @@ export const searchSiteContent = tool({
       .array(z.enum(VALID_INDICES))
       .optional()
       .describe("Optional indices to restrict search: jobs, events, news"),
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(25)
-      .default(5)
-      .describe("Max number of items to return"),
-    locale: z
-      .enum(["en", "no"])
-      .optional()
-      .describe("Optional locale for titles/snippets"),
+    limit: z.number().int().min(1).max(25).default(5).describe("Max number of items to return"),
+    locale: z.enum(["en", "no"]).optional().describe("Optional locale for titles/snippets"),
   }),
-  execute: async ({ query, indices, limit, locale }: { query: string; indices?: ValidIndex[]; limit: number; locale?: "en" | "no" }) => {
+  execute: async ({
+    query,
+    indices,
+    limit,
+    locale,
+  }: {
+    query: string;
+    indices?: ValidIndex[];
+    limit: number;
+    locale?: "en" | "no";
+  }) => {
     try {
       const res = await fetch(`${resolveBaseUrl()}/api/search`, {
         method: "POST",
@@ -46,7 +43,15 @@ export const searchSiteContent = tool({
       if (!res.ok) {
         return { results: [], message: `Search failed with status ${res.status}` };
       }
-      const data = (await res.json()) as { results: Array<{ title?: string; name?: string; description?: string; href?: string; index?: string }> };
+      const data = (await res.json()) as {
+        results: Array<{
+          title?: string;
+          name?: string;
+          description?: string;
+          href?: string;
+          index?: string;
+        }>;
+      };
       const items = (data.results || []).map((r) => ({
         title: r.title || r.name || "Untitled",
         description: r.description || undefined,
@@ -55,9 +60,14 @@ export const searchSiteContent = tool({
       }));
 
       const count = items.length;
-      const msg = locale === "no"
-        ? (count > 0 ? `Fant ${count} relevante treff på nettsiden.` : "Fant ingen relevante treff på nettsiden.")
-        : (count > 0 ? `Found ${count} relevant results on the site.` : "No relevant site results found.");
+      const msg =
+        locale === "no"
+          ? count > 0
+            ? `Fant ${count} relevante treff på nettsiden.`
+            : "Fant ingen relevante treff på nettsiden."
+          : count > 0
+            ? `Found ${count} relevant results on the site.`
+            : "No relevant site results found.";
 
       return { results: items, totalResults: count, message: msg };
     } catch (error) {

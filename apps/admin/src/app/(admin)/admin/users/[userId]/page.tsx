@@ -1,33 +1,28 @@
-import { Suspense } from "react"
-import { createSessionClient } from "@repo/api/server"
-import { getUserById } from "@/lib/actions/user"
-import { getCampuses } from "@/app/actions/campus"
-import { UserForm } from "./user-form"
-import { notFound } from "next/navigation"
+import { createSessionClient } from "@repo/api/server";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { getCampuses } from "@/app/actions/campus";
+import { getUserById } from "@/lib/actions/user";
+import { UserForm } from "./user-form";
 
-export const dynamic = "force-dynamic"
-export const fetchCache = "force-no-store"
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 async function UserDetails({ userId }: { userId: string }) {
   try {
     // Fetch user and campuses data in parallel
-    const [userData, campusesData] = await Promise.all([
-      getUserById(userId),
-      getCampuses()
-    ])
-    
-    const user = userData
-    
+    const [userData, campusesData] = await Promise.all([getUserById(userId), getCampuses()]);
+
+    const user = userData;
+
     if (!user) {
-      notFound()
+      notFound();
     }
-    
-    return (
-      <UserForm user={user} campuses={campusesData} />
-    )
+
+    return <UserForm user={user} campuses={campusesData} />;
   } catch (error) {
-    console.error("Error fetching user data:", error)
-    notFound()
+    console.error("Error fetching user data:", error);
+    notFound();
   }
 }
 
@@ -38,5 +33,5 @@ export default async function UserDetailsPage({ params }: { params: { userId: st
         <UserDetails userId={params.userId} />
       </Suspense>
     </div>
-  )
+  );
 }

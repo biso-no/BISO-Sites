@@ -1,11 +1,11 @@
 "use client";
 
-import { motion } from "motion/react";
-import { MapPin, Users, Sparkles, ChevronRight, Target, Heart } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
-import { ContentTranslations } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { ChevronRight, Heart, MapPin, Sparkles, Target, Users } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 
 interface DepartmentCardProps {
@@ -27,7 +27,10 @@ const typeIcons: Record<string, any> = {
 
 const stripHtml = (html?: string | null) => {
   if (!html) return "";
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 };
 
 export function DepartmentCard({ department, index }: DepartmentCardProps) {
@@ -45,33 +48,27 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
     >
-      <Card 
-        className="h-full border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group overflow-hidden"
-      >
+      <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group overflow-hidden">
         {/* Card Header */}
         <div className="relative h-32 bg-linear-to-br from-[#3DA9E0] to-[#001731] p-6">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
           </div>
-          
+
           <div className="relative flex items-start justify-between">
             <div className="w-16 h-16 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center group-hover:scale-110 transition-transform">
               {dept?.logo ? (
-                <img 
-                  src={dept.logo} 
-                  alt={department.title} 
-                  className="w-10 h-10 object-contain" 
-                />
+                <img src={dept.logo} alt={department.title} className="w-10 h-10 object-contain" />
               ) : (
                 <TypeIcon className="w-8 h-8 text-white" />
               )}
             </div>
-            
+
             {dept?.type && (
-            <Badge className={typeColor}>
+              <Badge className={typeColor}>
                 {dept.type.charAt(0).toUpperCase() + dept.type.slice(1)}
-            </Badge>
+              </Badge>
             )}
           </div>
         </div>
@@ -81,9 +78,10 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
           <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
             {department.title}
           </h3>
-          
+
           <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-            {plainDescription || "Denne enheten oppdaterer sin profil. Ta kontakt med campusstyret for å høre hvordan du kan bidra."}
+            {plainDescription ||
+              "Denne enheten oppdaterer sin profil. Ta kontakt med campusstyret for å høre hvordan du kan bidra."}
           </p>
 
           {/* Meta Info */}
@@ -102,7 +100,9 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
           {socialsCount > 0 && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span>Aktiv på {socialsCount} plattform{socialsCount !== 1 ? "er" : ""}</span>
+              <span>
+                Aktiv på {socialsCount} plattform{socialsCount !== 1 ? "er" : ""}
+              </span>
             </div>
           )}
         </div>
@@ -110,12 +110,10 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
         {/* Card Footer */}
         <div className="px-6 pb-6">
           <Link href={`/units/${dept?.$id || department.content_id}`} className="block">
-          <Button 
-              className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white group"
-          >
-            Les mer
-            <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
+            <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white group">
+              Les mer
+              <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
           </Link>
         </div>
       </Card>

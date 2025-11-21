@@ -1,38 +1,38 @@
-'use client';
-import { motion } from 'motion/react';
-import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from 'lucide-react';
-import Link from 'next/link';
-import { useTranslations } from 'next-intl';
-import Image from 'next/image';
-  
+"use client";
+import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from "lucide-react";
+import { motion } from "motion/react";
+import Image from "next/image";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+
 export function Footer() {
-  const t = useTranslations('common.footer');
+  const t = useTranslations("common.footer");
   const footerLinks = {
     About: [
-      { label: t('about.ourStory'), href: '#' },
-      { label: t('about.team'), href: '#' },
-      { label: t('about.careers'), href: '#' },
-      { label: t('about.contact'), href: '#' },
+      { label: t("about.ourStory"), href: "#" },
+      { label: t("about.team"), href: "#" },
+      { label: t("about.careers"), href: "#" },
+      { label: t("about.contact"), href: "#" },
     ],
     Students: [
-      { label: t('students.membership'), href: '#join' },
-      { label: t('students.events'), href: '#events' },
-      { label: t('students.news'), href: '#news' },
-      { label: t('students.resources'), href: '#' },
+      { label: t("students.membership"), href: "#join" },
+      { label: t("students.events"), href: "#events" },
+      { label: t("students.news"), href: "#news" },
+      { label: t("students.resources"), href: "#" },
     ],
     Support: [
-      { label: t('support.faq'), href: '#' },
-      { label: t('support.helpCenter'), href: '#' },
-      { label: t('support.privacyPolicy'), href: '#' },
-      { label: t('support.termsOfService'), href: '#' },
+      { label: t("support.faq"), href: "#" },
+      { label: t("support.helpCenter"), href: "#" },
+      { label: t("support.privacyPolicy"), href: "#" },
+      { label: t("support.termsOfService"), href: "#" },
     ],
   };
 
   const socialLinks = [
-    { icon: Facebook, href: '#', label: 'Facebook' },
-    { icon: Instagram, href: '#', label: 'Instagram' },
-    { icon: Twitter, href: '#', label: 'Twitter' },
-    { icon: Linkedin, href: '#', label: 'LinkedIn' },
+    { icon: Facebook, href: "#", label: "Facebook" },
+    { icon: Instagram, href: "#", label: "Instagram" },
+    { icon: Twitter, href: "#", label: "Twitter" },
+    { icon: Linkedin, href: "#", label: "LinkedIn" },
   ];
 
   return (
@@ -48,21 +48,14 @@ export function Footer() {
               className="mb-6"
             >
               <div className="flex items-center gap-3 mb-4">
-                  <Image
-                    src="/images/logo-dark.png"
-                    alt="BISO"
-                    width={48}
-                    height={48}
-                  />
+                <Image src="/images/logo-dark.png" alt="BISO" width={48} height={48} />
                 <div>
                   <div>BISO</div>
                   <div className="text-sm text-gray-400">BI Student Organisation</div>
                 </div>
               </div>
-              <p className="text-gray-400 mb-6">
-                {t('about.description')}
-              </p>
-              
+              <p className="text-gray-400 mb-6">{t("about.description")}</p>
+
               {/* Contact Info */}
               <div className="space-y-3">
                 <div className="flex items-start gap-3 text-gray-400">
@@ -113,7 +106,7 @@ export function Footer() {
           <p className="text-gray-400 mb-4 md:mb-0">
             © {new Date().getFullYear()} BI Student Organisation. All rights reserved.
           </p>
-          
+
           <div className="flex gap-4">
             {socialLinks.map((social) => (
               <Link

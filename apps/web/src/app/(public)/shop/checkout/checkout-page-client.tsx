@@ -1,37 +1,36 @@
-"use client"
+"use client";
 
-import { FormEvent, useState, useTransition } from "react"
-import Link from "next/link"
-import { toast } from "sonner"
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
+import Link from "next/link";
+import { type FormEvent, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { startCartCheckout } from "@/app/actions/orders";
+import { cartSelectors, useCartStore } from "@/lib/stores/cart";
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@repo/ui/components/ui/card"
-import { Input } from "@repo/ui/components/ui/input"
-import { Button } from "@repo/ui/components/ui/button"
-import { useCartStore, cartSelectors } from "@/lib/stores/cart"
-import { startCartCheckout } from "@/app/actions/orders"
-
-const NOK = new Intl.NumberFormat("nb-NO", { style: "currency", currency: "NOK" })
+const NOK = new Intl.NumberFormat("nb-NO", { style: "currency", currency: "NOK" });
 
 export function CheckoutPageClient() {
-  const items = useCartStore((state) => state.items)
-  const subtotal = useCartStore((state) => cartSelectors.subTotal(state))
-  const clear = useCartStore((state) => state.clear)
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
-  const [isPending, startTransition] = useTransition()
+  const items = useCartStore((state) => state.items);
+  const subtotal = useCartStore((state) => cartSelectors.subTotal(state));
+  const clear = useCartStore((state) => state.clear);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+    event.preventDefault();
 
     if (items.length === 0) {
-      toast.error("Your cart is empty")
-      return
+      toast.error("Your cart is empty");
+      return;
     }
 
     if (!name.trim() || !email.trim()) {
-      toast.error("Name and email are required")
-      return
+      toast.error("Name and email are required");
+      return;
     }
 
     startTransition(async () => {
@@ -47,26 +46,26 @@ export function CheckoutPageClient() {
             variationId: item.variation?.id,
             customFields: item.customFieldResponses || {},
             customFieldLabels: item.customFields?.reduce<Record<string, string>>((acc, field) => {
-              acc[field.id] = field.label
-              return acc
-            }, {})
+              acc[field.id] = field.label;
+              return acc;
+            }, {}),
           })),
-        }
+        };
 
-        const result = await startCartCheckout(payload)
+        const result = await startCartCheckout(payload);
         if (!result?.success || !result.paymentUrl) {
-          toast.error(result?.error || "Could not start checkout")
-          return
+          toast.error(result?.error || "Could not start checkout");
+          return;
         }
 
-        clear()
-        window.location.href = result.paymentUrl
+        clear();
+        window.location.href = result.paymentUrl;
       } catch (error) {
-        console.error("Checkout error", error)
-        toast.error("Unable to start checkout. Please try again.")
+        console.error("Checkout error", error);
+        toast.error("Unable to start checkout. Please try again.");
       }
-    })
-  }
+    });
+  };
 
   if (items.length === 0) {
     return (
@@ -81,7 +80,7 @@ export function CheckoutPageClient() {
           </Button>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -154,7 +153,8 @@ export function CheckoutPageClient() {
                       <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                         {item.customFields.map((field) => (
                           <li key={field.id}>
-                            <span className="font-medium text-foreground">{field.label}:</span> {field.value}
+                            <span className="font-medium text-foreground">{field.label}:</span>{" "}
+                            {field.value}
                           </li>
                         ))}
                       </ul>
@@ -181,8 +181,8 @@ export function CheckoutPageClient() {
             <span>{NOK.format(subtotal)}</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Discounts and membership benefits will apply automatically if eligible. You will be redirected to Vipps to
-            complete the payment.
+            Discounts and membership benefits will apply automatically if eligible. You will be
+            redirected to Vipps to complete the payment.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
@@ -192,5 +192,5 @@ export function CheckoutPageClient() {
         </CardFooter>
       </Card>
     </form>
-  )
+  );
 }

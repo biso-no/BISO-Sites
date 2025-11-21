@@ -1,63 +1,63 @@
-'use client'
+"use client";
 
-import { motion, AnimatePresence } from 'motion/react'
-import { X, Calendar, MapPin, Clock, Users, ExternalLink, Tag } from 'lucide-react'
-import { Button } from '@repo/ui/components/ui/button'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { ImageWithFallback } from '@repo/ui/components/image'
-import type { ContentTranslations } from '@repo/api/types/appwrite'
-import { format } from 'date-fns'
-import { parseEventMetadata, formatEventPrice, getEventCategory, type EventCategory } from '@/lib/types/event'
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { format } from "date-fns";
+import { Calendar, Clock, ExternalLink, MapPin, Tag, Users, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  type EventCategory,
+  formatEventPrice,
+  getEventCategory,
+  parseEventMetadata,
+} from "@/lib/types/event";
 
 interface EventDetailModalProps {
-  event: ContentTranslations
-  isMember?: boolean
-  onClose: () => void
+  event: ContentTranslations;
+  isMember?: boolean;
+  onClose: () => void;
 }
 
 const categoryColors: Record<EventCategory, string> = {
-  Social: 'bg-purple-100 text-purple-700 border-purple-200',
-  Career: 'bg-blue-100 text-blue-700 border-blue-200',
-  Academic: 'bg-green-100 text-green-700 border-green-200',
-  Sports: 'bg-orange-100 text-orange-700 border-orange-200',
-  Culture: 'bg-pink-100 text-pink-700 border-pink-200',
-}
+  Social: "bg-purple-100 text-purple-700 border-purple-200",
+  Career: "bg-blue-100 text-blue-700 border-blue-200",
+  Academic: "bg-green-100 text-green-700 border-green-200",
+  Sports: "bg-orange-100 text-orange-700 border-orange-200",
+  Culture: "bg-pink-100 text-pink-700 border-pink-200",
+};
 
 export function EventDetailModal({ event, isMember = false, onClose }: EventDetailModalProps) {
-  const eventData = event.event_ref
-  
+  const eventData = event.event_ref;
+
   // Parse metadata if available
-  const metadata = parseEventMetadata(eventData?.metadata)
-  const category = getEventCategory(metadata)
-  
+  const metadata = parseEventMetadata(eventData?.metadata);
+  const category = getEventCategory(metadata);
+
   // Format dates
-  const startDate = eventData?.start_date 
-    ? format(new Date(eventData.start_date), 'MMMM d, yyyy')
-    : 'TBA'
-  
-  const startTime = eventData?.start_date 
-    ? format(new Date(eventData.start_date), 'HH:mm')
-    : ''
-  
-  const endTime = eventData?.end_date 
-    ? format(new Date(eventData.end_date), 'HH:mm')
-    : ''
-  
-  const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : startTime || 'TBA'
-  
+  const startDate = eventData?.start_date
+    ? format(new Date(eventData.start_date), "MMMM d, yyyy")
+    : "TBA";
+
+  const startTime = eventData?.start_date ? format(new Date(eventData.start_date), "HH:mm") : "";
+
+  const endTime = eventData?.end_date ? format(new Date(eventData.end_date), "HH:mm") : "";
+
+  const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
+
   // Format price
-  const price = formatEventPrice(eventData?.price)
-  const memberPrice = metadata.member_price 
-    ? formatEventPrice(metadata.member_price)
-    : null
-  
+  const price = formatEventPrice(eventData?.price);
+  const memberPrice = metadata.member_price ? formatEventPrice(metadata.member_price) : null;
+
   // Get attendees and other metadata
-  const attendees = metadata.attendees || 0
-  const highlights = metadata.highlights || []
-  const agenda = metadata.agenda || []
-  
+  const attendees = metadata.attendees || 0;
+  const highlights = metadata.highlights || [];
+  const agenda = metadata.agenda || [];
+
   // Get image URL
-  const imageUrl = eventData?.image || 'https://images.unsplash.com/photo-1758270705657-f28eec1a5694'
+  const imageUrl =
+    eventData?.image || "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
 
   return (
     <AnimatePresence>
@@ -77,14 +77,9 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
         >
           {/* Header Image */}
           <div className="relative h-80 overflow-hidden rounded-t-2xl">
-            <ImageWithFallback
-              src={imageUrl}
-              alt={event.title}
-              fill
-              className="object-cover"
-            />
+            <ImageWithFallback src={imageUrl} alt={event.title} fill className="object-cover" />
             <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/40 to-transparent" />
-            
+
             {/* Close Button */}
             <button
               onClick={onClose}
@@ -116,9 +111,7 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
                   {memberPrice && isMember ? (
                     <div className="text-right">
                       <div className="text-white/60 line-through text-sm">{price}</div>
-                      <div className="text-white text-2xl font-bold">
-                        {memberPrice}
-                      </div>
+                      <div className="text-white text-2xl font-bold">{memberPrice}</div>
                       <div className="text-white/80 text-xs">Member Price</div>
                     </div>
                   ) : (
@@ -141,7 +134,7 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
                     <div className="text-gray-600">{startDate}</div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3">
                   <Clock className="w-5 h-5 text-[#3DA9E0] mt-1" />
                   <div>
@@ -156,10 +149,10 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
                   <MapPin className="w-5 h-5 text-[#3DA9E0] mt-1" />
                   <div>
                     <div className="font-medium text-gray-900">Location</div>
-                    <div className="text-gray-600">{eventData?.location || 'Location TBA'}</div>
+                    <div className="text-gray-600">{eventData?.location || "Location TBA"}</div>
                   </div>
                 </div>
-                
+
                 {attendees > 0 && (
                   <div className="flex items-start gap-3">
                     <Users className="w-5 h-5 text-[#3DA9E0] mt-1" />
@@ -230,16 +223,14 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
             <div className="flex gap-4">
               {eventData?.ticket_url ? (
                 <Button
-                  onClick={() => window.open(eventData.ticket_url!, '_blank')}
+                  onClick={() => window.open(eventData.ticket_url!, "_blank")}
                   className="flex-1 bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0"
                 >
                   Get Tickets on Tickster
                   <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
               ) : (
-                <Button
-                  className="flex-1 bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0"
-                >
+                <Button className="flex-1 bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0">
                   Register Now
                 </Button>
               )}
@@ -255,6 +246,5 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  )
+  );
 }
-

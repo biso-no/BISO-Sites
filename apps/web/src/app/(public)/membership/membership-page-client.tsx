@@ -1,8 +1,11 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import Link from "next/link"
-import type { LucideIcon } from "lucide-react"
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area";
+import { cn } from "@repo/ui/lib/utils";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -13,91 +16,91 @@ import {
   ShieldCheck,
   Sparkles,
   Ticket,
-  Users
-} from "lucide-react"
-import { useTranslations } from "next-intl"
-
-import { useCampus } from "@/components/context/campus"
-import { Button } from "@repo/ui/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card"
-import { Badge } from "@repo/ui/components/ui/badge"
-import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area"
-import type { CampusData } from "@/lib/types/campus-data"
-import type { Locale } from "@/i18n/config"
-import { cn } from '@repo/ui/lib/utils'
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useMemo } from "react";
+import { useCampus } from "@/components/context/campus";
+import type { Locale } from "@/i18n/config";
+import type { CampusData } from "@/lib/types/campus-data";
 
 type BenefitKey = keyof Pick<
   CampusData,
   "studentBenefits" | "careerAdvantages" | "socialNetwork" | "safety" | "businessBenefits"
->
+>;
 
 type BenefitConfig = {
-  key: BenefitKey
-  title: string
-  globalDescription: string
-  localDescription: string
-  icon: LucideIcon
-}
+  key: BenefitKey;
+  title: string;
+  globalDescription: string;
+  localDescription: string;
+  icon: LucideIcon;
+};
 
 type BenefitSection = {
-  key: BenefitKey
-  title: string
-  description: string
-  icon: LucideIcon
-  items: string[]
-}
+  key: BenefitKey;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  items: string[];
+};
 
-type BenefitLocaleSuffix = "nb" | "en"
-type LocalizedBenefitKey = `${BenefitKey}_${BenefitLocaleSuffix}`
+type BenefitLocaleSuffix = "nb" | "en";
+type LocalizedBenefitKey = `${BenefitKey}_${BenefitLocaleSuffix}`;
 
 export type MembershipPageClientProps = {
-  campusData: CampusData[]
-  globalBenefits: CampusData | null
-  locale: Locale
-}
+  campusData: CampusData[];
+  globalBenefits: CampusData | null;
+  locale: Locale;
+};
 
 function selectBenefitItems(
   data: CampusData | null | undefined,
   key: BenefitKey,
-  locale: Locale
+  locale: Locale,
 ): string[] {
-  if (!data) return []
-  const suffix: BenefitLocaleSuffix = locale === "en" ? "en" : "nb"
-  const localizedKey = `${key}_${suffix}` as LocalizedBenefitKey
-  const localized = data[localizedKey as keyof CampusData] as unknown
-  const fallback = data[key] as unknown
+  if (!data) return [];
+  const suffix: BenefitLocaleSuffix = locale === "en" ? "en" : "nb";
+  const localizedKey = `${key}_${suffix}` as LocalizedBenefitKey;
+  const localized = data[localizedKey as keyof CampusData] as unknown;
+  const fallback = data[key] as unknown;
   const raw = Array.isArray(localized)
     ? (localized as string[])
     : Array.isArray(fallback)
       ? (fallback as string[])
-      : []
-  return raw.map((item) => item?.trim()).filter((item): item is string => Boolean(item))
+      : [];
+  return raw.map((item) => item?.trim()).filter((item): item is string => Boolean(item));
 }
 
 function buildBenefitSections(
   configs: BenefitConfig[],
   data: CampusData | null | undefined,
   locale: Locale,
-  descriptionSelector: (config: BenefitConfig) => string
+  descriptionSelector: (config: BenefitConfig) => string,
 ): BenefitSection[] {
-  if (!data) return []
+  if (!data) return [];
   return configs
     .map((config) => {
-      const items = selectBenefitItems(data, config.key, locale)
+      const items = selectBenefitItems(data, config.key, locale);
       return {
         key: config.key,
         title: config.title,
         description: descriptionSelector(config),
         icon: config.icon,
-        items
-      }
+        items,
+      };
     })
-    .filter((section) => section.items.length > 0)
+    .filter((section) => section.items.length > 0);
 }
 
-export const MembershipPageClient = ({ campusData, globalBenefits, locale }: MembershipPageClientProps) => {
-  const t = useTranslations("membership")
-  const { campuses, activeCampusId, activeCampus, selectCampus } = useCampus()
+export const MembershipPageClient = ({
+  campusData,
+  globalBenefits,
+  locale,
+}: MembershipPageClientProps) => {
+  const t = useTranslations("membership");
+  const { campuses, activeCampusId, activeCampus, selectCampus } = useCampus();
 
   const benefitConfigs = useMemo<BenefitConfig[]>(
     () => [
@@ -106,65 +109,65 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
         title: t("benefits.categories.student.title"),
         globalDescription: t("benefits.categories.student.global"),
         localDescription: t("benefits.categories.student.local"),
-        icon: GraduationCap
+        icon: GraduationCap,
       },
       {
         key: "careerAdvantages",
         title: t("benefits.categories.career.title"),
         globalDescription: t("benefits.categories.career.global"),
         localDescription: t("benefits.categories.career.local"),
-        icon: BriefcaseBusiness
+        icon: BriefcaseBusiness,
       },
       {
         key: "socialNetwork",
         title: t("benefits.categories.social.title"),
         globalDescription: t("benefits.categories.social.global"),
         localDescription: t("benefits.categories.social.local"),
-        icon: Users
+        icon: Users,
       },
       {
         key: "safety",
         title: t("benefits.categories.safety.title"),
         globalDescription: t("benefits.categories.safety.global"),
         localDescription: t("benefits.categories.safety.local"),
-        icon: ShieldCheck
+        icon: ShieldCheck,
       },
       {
         key: "businessBenefits",
         title: t("benefits.categories.business.title"),
         globalDescription: t("benefits.categories.business.global"),
         localDescription: t("benefits.categories.business.local"),
-        icon: Compass
-      }
+        icon: Compass,
+      },
     ],
-    [t]
-  )
+    [t],
+  );
 
   const onboardingSteps = useMemo(
     () => [
       {
         number: "1",
         title: t("onboarding.steps.1.title"),
-        description: t("onboarding.steps.1.description")
+        description: t("onboarding.steps.1.description"),
       },
       {
         number: "2",
         title: t("onboarding.steps.2.title"),
-        description: t("onboarding.steps.2.description")
+        description: t("onboarding.steps.2.description"),
       },
       {
         number: "3",
         title: t("onboarding.steps.3.title"),
-        description: t("onboarding.steps.3.description")
+        description: t("onboarding.steps.3.description"),
       },
       {
         number: "4",
         title: t("onboarding.steps.4.title"),
-        description: t("onboarding.steps.4.description")
-      }
+        description: t("onboarding.steps.4.description"),
+      },
     ],
-    [t]
-  )
+    [t],
+  );
 
   const highlightEvents = useMemo(
     () => [
@@ -173,111 +176,128 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
         title: t("highlights.items.fadderullan.title"),
         description: t("highlights.items.fadderullan.description"),
         icon: Sparkles,
-        cta: t("highlights.items.fadderullan.cta")
+        cta: t("highlights.items.fadderullan.cta"),
       },
       {
         key: "careerDays",
         title: t("highlights.items.careerDays.title"),
         description: t("highlights.items.careerDays.description"),
         icon: BriefcaseBusiness,
-        cta: t("highlights.items.careerDays.cta")
+        cta: t("highlights.items.careerDays.cta"),
       },
       {
         key: "winterGames",
         title: t("highlights.items.winterGames.title"),
         description: t("highlights.items.winterGames.description"),
         icon: CalendarDays,
-        cta: t("highlights.items.winterGames.cta")
-      }
+        cta: t("highlights.items.winterGames.cta"),
+      },
     ],
-    [t]
-  )
+    [t],
+  );
 
   const faqs = useMemo(
     () => [
       {
         key: "cost",
         question: t("faq.items.cost.question"),
-        answer: t("faq.items.cost.answer")
+        answer: t("faq.items.cost.answer"),
       },
       {
         key: "discounts",
         question: t("faq.items.discounts.question"),
-        answer: t("faq.items.discounts.answer")
+        answer: t("faq.items.discounts.answer"),
       },
       {
         key: "switchCampus",
         question: t("faq.items.switchCampus.question"),
-        answer: t("faq.items.switchCampus.answer")
+        answer: t("faq.items.switchCampus.answer"),
       },
       {
         key: "engagement",
         question: t("faq.items.engagement.question"),
-        answer: t("faq.items.engagement.answer")
-      }
+        answer: t("faq.items.engagement.answer"),
+      },
     ],
-    [t]
-  )
+    [t],
+  );
 
   const campusDataById = useMemo(() => {
     return campusData.reduce<Record<string, CampusData>>((acc, item) => {
       if (item?.$id) {
-        acc[item.$id] = item
+        acc[item.$id] = item;
       }
-      return acc
-    }, {})
-  }, [campusData])
+      return acc;
+    }, {});
+  }, [campusData]);
 
   const campusDataByName = useMemo(() => {
     return campusData.reduce<Record<string, CampusData>>((acc, item) => {
-      const key = (item?.name ?? "").toLowerCase().trim()
+      const key = (item?.name ?? "").toLowerCase().trim();
       if (key) {
-        acc[key] = item
+        acc[key] = item;
       }
-      return acc
-    }, {})
-  }, [campusData])
+      return acc;
+    }, {});
+  }, [campusData]);
 
   const activeCampusData = useMemo(() => {
     if (activeCampusId && campusDataById[activeCampusId]) {
-      return campusDataById[activeCampusId]
+      return campusDataById[activeCampusId];
     }
     if (activeCampus?.name) {
-      const key = activeCampus.name.toLowerCase()
-      return campusDataByName[key] ?? null
+      const key = activeCampus.name.toLowerCase();
+      return campusDataByName[key] ?? null;
     }
-    return null
-  }, [activeCampusId, campusDataById, activeCampus, campusDataByName])
+    return null;
+  }, [activeCampusId, campusDataById, activeCampus, campusDataByName]);
 
   const globalSections = useMemo(
-    () => buildBenefitSections(benefitConfigs, globalBenefits, locale, (config) => config.globalDescription),
-    [benefitConfigs, globalBenefits, locale]
-  )
+    () =>
+      buildBenefitSections(
+        benefitConfigs,
+        globalBenefits,
+        locale,
+        (config) => config.globalDescription,
+      ),
+    [benefitConfigs, globalBenefits, locale],
+  );
 
   const campusSections = useMemo(() => {
-    if (!activeCampusData || activeCampusData.$id === "5") return []
-    return buildBenefitSections(benefitConfigs, activeCampusData, locale, (config) => config.localDescription)
-  }, [activeCampusData, benefitConfigs, locale])
+    if (!activeCampusData || activeCampusData.$id === "5") return [];
+    return buildBenefitSections(
+      benefitConfigs,
+      activeCampusData,
+      locale,
+      (config) => config.localDescription,
+    );
+  }, [activeCampusData, benefitConfigs, locale]);
 
-  const campusDescription = locale === "en"
-    ? activeCampusData?.description_en ?? activeCampusData?.description ?? activeCampusData?.description_nb
-    : activeCampusData?.description_nb ?? activeCampusData?.description ?? activeCampusData?.description_en
-
-  const heroSubtitle = campusDescription ?? t("hero.subtitleFallback")
-
-  const campusNameLocalized = (
+  const campusDescription =
     locale === "en"
-      ? activeCampusData?.name_en
-      : activeCampusData?.name_nb
-  ) ?? activeCampusData?.name ?? activeCampus?.name ?? t("hero.campusFallback")
+      ? (activeCampusData?.description_en ??
+        activeCampusData?.description ??
+        activeCampusData?.description_nb)
+      : (activeCampusData?.description_nb ??
+        activeCampusData?.description ??
+        activeCampusData?.description_en);
 
-  const heroTitle = activeCampusData?.$id === "5"
-    ? t("hero.titleNational")
-    : activeCampusData || activeCampus
-      ? t("hero.title", { campus: campusNameLocalized })
-      : t("hero.titleFallback")
+  const heroSubtitle = campusDescription ?? t("hero.subtitleFallback");
 
-  const hasCampusBenefits = campusSections.length > 0
+  const campusNameLocalized =
+    (locale === "en" ? activeCampusData?.name_en : activeCampusData?.name_nb) ??
+    activeCampusData?.name ??
+    activeCampus?.name ??
+    t("hero.campusFallback");
+
+  const heroTitle =
+    activeCampusData?.$id === "5"
+      ? t("hero.titleNational")
+      : activeCampusData || activeCampus
+        ? t("hero.title", { campus: campusNameLocalized })
+        : t("hero.titleFallback");
+
+  const hasCampusBenefits = campusSections.length > 0;
 
   return (
     <div className="space-y-16 pb-12">
@@ -289,13 +309,13 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
               <Sparkles className="h-3.5 w-3.5" />
               {t("hero.badge")}
             </div>
-            <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">{heroTitle}</h1>
+            <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
+              {heroTitle}
+            </h1>
             <p className="max-w-2xl text-base text-white/80 md:text-lg">{heroSubtitle}</p>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
-                <Link href="https://biso.no/shop/bli-medlem-i-biso/">
-                  {t("hero.ctas.join")}
-                </Link>
+                <Link href="https://biso.no/shop/bli-medlem-i-biso/">{t("hero.ctas.join")}</Link>
               </Button>
               <Button
                 asChild
@@ -305,12 +325,7 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
               >
                 <Link href="/jobs?campus=all">{t("hero.ctas.roles")}</Link>
               </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="ghost"
-                className="text-white hover:bg-white/10"
-              >
+              <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10">
                 <Link href="/partner">{t("hero.ctas.partners")}</Link>
               </Button>
             </div>
@@ -360,7 +375,12 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
             <h2 className="text-2xl font-semibold text-primary-100">{t("global.title")}</h2>
             <p className="text-muted-foreground">{t("global.subtitle")}</p>
           </div>
-          <Button asChild variant="outline" size="sm" className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40"
+          >
             <Link href="https://biso.no/shop/bli-medlem-i-biso/">
               {t("global.cta")}
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -370,9 +390,12 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
         {globalSections.length ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {globalSections.map((section) => {
-              const Icon = section.icon
+              const Icon = section.icon;
               return (
-                <Card key={section.key} className="h-full border-primary/10 bg-white/90 shadow-card">
+                <Card
+                  key={section.key}
+                  className="h-full border-primary/10 bg-white/90 shadow-card"
+                >
                   <CardHeader className="space-y-3">
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
                       <Icon className="h-5 w-5" />
@@ -393,7 +416,7 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
                     </ul>
                   </CardContent>
                 </Card>
-              )
+              );
             })}
           </div>
         ) : (
@@ -423,7 +446,7 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
                 {campuses
                   .filter((campus) => campus.name?.toLowerCase() !== "national")
                   .map((campus) => {
-                    const isActive = campus.$id === activeCampusId
+                    const isActive = campus.$id === activeCampusId;
                     return (
                       <button
                         key={campus.$id}
@@ -432,12 +455,12 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
                           "rounded-full px-4 py-2 text-sm font-medium transition",
                           isActive
                             ? "bg-primary-100 text-white shadow-sm"
-                            : "bg-white text-primary-80 hover:bg-primary-10"
+                            : "bg-white text-primary-80 hover:bg-primary-10",
                         )}
                       >
                         {campus.name}
                       </button>
-                    )
+                    );
                   })}
               </div>
               <ScrollBar orientation="horizontal" className="invisible h-2" />
@@ -448,9 +471,12 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
         {hasCampusBenefits ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {campusSections.map((section) => {
-              const Icon = section.icon
+              const Icon = section.icon;
               return (
-                <Card key={section.key} className="h-full border-primary/10 bg-white/90 shadow-card">
+                <Card
+                  key={section.key}
+                  className="h-full border-primary/10 bg-white/90 shadow-card"
+                >
                   <CardHeader className="space-y-3">
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
                       <Icon className="h-5 w-5" />
@@ -471,7 +497,7 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
                     </ul>
                   </CardContent>
                 </Card>
-              )
+              );
             })}
           </div>
         ) : (
@@ -490,7 +516,12 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
             <h2 className="text-2xl font-semibold text-primary-100">{t("highlights.title")}</h2>
             <p className="text-muted-foreground">{t("highlights.subtitle")}</p>
           </div>
-          <Button asChild variant="outline" size="sm" className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40"
+          >
             <Link href="/events?campus=all">
               {t("highlights.ctaAll")}
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -499,7 +530,7 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {highlightEvents.map((event) => {
-            const Icon = event.icon
+            const Icon = event.icon;
             return (
               <Card key={event.key} className="h-full border-primary/10 bg-white/90 shadow-card">
                 <CardHeader className="space-y-3">
@@ -518,7 +549,7 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
                   </Button>
                 </CardContent>
               </Card>
-            )
+            );
           })}
         </div>
       </section>
@@ -559,19 +590,24 @@ export const MembershipPageClient = ({ campusData, globalBenefits, locale }: Mem
                 {t("ctaCard.badges.digitalCard")}
               </Badge>
             </div>
-            <Button asChild size="lg" className="w-full bg-primary-100 text-white hover:bg-primary-90">
-              <Link href="https://biso.no/shop/bli-medlem-i-biso/">
-                {t("ctaCard.primary")}
-              </Link>
+            <Button
+              asChild
+              size="lg"
+              className="w-full bg-primary-100 text-white hover:bg-primary-90"
+            >
+              <Link href="https://biso.no/shop/bli-medlem-i-biso/">{t("ctaCard.primary")}</Link>
             </Button>
-            <Button asChild variant="ghost" size="lg" className="w-full text-primary-80 hover:text-primary-40">
-              <Link href="/contact">
-                {t("ctaCard.secondary")}
-              </Link>
+            <Button
+              asChild
+              variant="ghost"
+              size="lg"
+              className="w-full text-primary-80 hover:text-primary-40"
+            >
+              <Link href="/contact">{t("ctaCard.secondary")}</Link>
             </Button>
           </CardContent>
         </Card>
       </section>
     </div>
-  )
-}
+  );
+};

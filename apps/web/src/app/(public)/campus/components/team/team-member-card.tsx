@@ -1,8 +1,8 @@
-import { Mail, Linkedin } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
 import type { DepartmentBoard } from "@repo/api/types/appwrite";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Linkedin, Mail } from "lucide-react";
 
 interface TeamMemberCardProps {
   member: DepartmentBoard;
@@ -47,4 +47,3 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
     </Card>
   );
 }
-

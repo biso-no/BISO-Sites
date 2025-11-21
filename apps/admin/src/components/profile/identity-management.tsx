@@ -1,14 +1,19 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { clientAccount } from "@repo/api/client";
-import { removeIdentity } from "@/lib/actions/user";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import { clientAccount, OAuthProvider } from "@repo/api/client";
 import { Badge } from "@repo/ui/components/ui/badge";
-import { toast } from "sonner";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Link2, Trash2 } from "lucide-react";
-import { OAuthProvider } from "@repo/api/client";
+import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { removeIdentity } from "@/lib/actions/user";
 
 type Identity = {
   $id: string;
@@ -16,7 +21,11 @@ type Identity = {
   providerUid?: string;
 };
 
-export function IdentityManagement({ initialIdentities }: { initialIdentities: Identity[] | undefined }) {
+export function IdentityManagement({
+  initialIdentities,
+}: {
+  initialIdentities: Identity[] | undefined;
+}) {
   const [identities, setIdentities] = useState<Identity[] | undefined>(initialIdentities);
   const [isLinking, startLinkTransition] = useTransition();
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -52,14 +61,17 @@ export function IdentityManagement({ initialIdentities }: { initialIdentities: I
   const linkProvider = (provider: OAuthProvider) => {
     startLinkTransition(async () => {
       try {
-        await clientAccount.createOAuth2Session(provider, successUrl, failureUrl, ["openid", "email", "profile"]);
+        await clientAccount.createOAuth2Session(provider, successUrl, failureUrl, [
+          "openid",
+          "email",
+          "profile",
+        ]);
         // Browser will redirect; no-op here
       } catch (err: any) {
         toast.error("Linking failed: " + String(err?.message || err));
       }
     });
   };
-
 
   const onRemove = async (identity: Identity) => {
     if (!canRemove(identity)) return;
@@ -85,20 +97,31 @@ export function IdentityManagement({ initialIdentities }: { initialIdentities: I
         <CardHeader>
           <CardTitle>Linked Accounts</CardTitle>
           <CardDescription>
-            Link your BISO account and your BI Student account. Linking your BI Student account lets us verify your paid
-            semester membership for benefits and discounts.
+            Link your BISO account and your BI Student account. Linking your BI Student account lets
+            us verify your paid semester membership for benefits and discounts.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => linkProvider(OAuthProvider.Microsoft)} disabled={isLinking} className="rounded-lg">
+            <Button
+              onClick={() => linkProvider(OAuthProvider.Microsoft)}
+              disabled={isLinking}
+              className="rounded-lg"
+            >
               <Link2 className="mr-2 h-4 w-4" /> Link BISO
             </Button>
-            <Button variant="outline" onClick={() => linkProvider(OAuthProvider.Oidc)} disabled={isLinking} className="rounded-lg">
+            <Button
+              variant="outline"
+              onClick={() => linkProvider(OAuthProvider.Oidc)}
+              disabled={isLinking}
+              className="rounded-lg"
+            >
               <Link2 className="mr-2 h-4 w-4" /> Link BI Student
             </Button>
           </div>
-          <p className="text-xs text-primary-60">When linking, you will be redirected to complete the OAuth flow.</p>
+          <p className="text-xs text-primary-60">
+            When linking, you will be redirected to complete the OAuth flow.
+          </p>
         </CardContent>
       </Card>
 
@@ -112,10 +135,16 @@ export function IdentityManagement({ initialIdentities }: { initialIdentities: I
             <div className="text-sm text-primary-60">No identities linked yet.</div>
           ) : (
             identities!.map((id) => (
-              <div key={id.$id} className="flex items-center justify-between rounded-lg border border-primary/10 bg-white px-3 py-2">
+              <div
+                key={id.$id}
+                className="flex items-center justify-between rounded-lg border border-primary/10 bg-white px-3 py-2"
+              >
                 <div className="flex items-center gap-3">
                   <Badge variant="secondary">{providerLabel(id.provider)}</Badge>
-                  <div className="text-sm text-primary-80 truncate max-w-[28ch]" title={id.providerUid || id.$id}>
+                  <div
+                    className="text-sm text-primary-80 truncate max-w-[28ch]"
+                    title={id.providerUid || id.$id}
+                  >
                     {id.providerUid || id.$id}
                   </div>
                 </div>

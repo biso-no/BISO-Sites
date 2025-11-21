@@ -1,7 +1,7 @@
-import * as React from "react";
-import { cn } from "@repo/ui/lib/utils";
-import { Card, CardContent } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent } from "@repo/ui/components/ui/card";
+import { cn } from "@repo/ui/lib/utils";
+import type * as React from "react";
 
 export interface ResourceMeta {
   label: string;
@@ -33,13 +33,9 @@ export function ResourceCard({
     <Card className={cn("group transition-colors", className)} {...props}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold leading-tight tracking-tight">
-            {title}
-          </h3>
+          <h3 className="text-lg font-semibold leading-tight tracking-tight">{title}</h3>
         </div>
-        {excerpt && (
-          <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{excerpt}</p>
-        )}
+        {excerpt && <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{excerpt}</p>}
         {tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {tags.map((t) => (

@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react';
-import { ContentTranslations } from '@repo/api/types/appwrite';
-import { ArticleCard } from './article-card';
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { motion } from "motion/react";
+import { ArticleCard } from "./article-card";
 
 interface RegularArticlesProps {
   articles: ContentTranslations[];
@@ -15,7 +15,7 @@ export function RegularArticles({ articles, showHeader }: RegularArticlesProps) 
   return (
     <div>
       {showHeader && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -29,9 +29,9 @@ export function RegularArticles({ articles, showHeader }: RegularArticlesProps) 
       )}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         {articles.map((article, index) => (
-          <ArticleCard 
-            key={article.news_ref?.$id || article.$id} 
-            article={article} 
+          <ArticleCard
+            key={article.news_ref?.$id || article.$id}
+            article={article}
             variant="regular"
             index={index}
           />

@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Card } from "@repo/ui/components/ui/card";
+import type { Users } from "@repo/api/types/appwrite";
+import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import { Separator } from "@repo/ui/components/ui/separator";
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
-import { Edit, Save, ChevronRight, AlertCircle } from "lucide-react";
-import { Users } from "@repo/api/types/appwrite";
+import { AlertCircle, ChevronRight, Edit, Save } from "lucide-react";
+import { useState } from "react";
 
 interface ProfileStepProps {
   profile: Partial<Users>;
@@ -16,7 +16,11 @@ interface ProfileStepProps {
   onUpdateProfile?: (profile: Partial<Users>) => Promise<void>;
 }
 
-export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }: ProfileStepProps) {
+export function ProfileStep({
+  profile: initialProfile,
+  onNext,
+  onUpdateProfile,
+}: ProfileStepProps) {
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState(initialProfile);
   const [isSaving, setIsSaving] = useState(false);
@@ -97,9 +101,7 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
                 placeholder="+47 123 45 678"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
-                {profile.phone}
-              </div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.phone}</div>
             )}
           </div>
 
@@ -112,9 +114,7 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
                 placeholder="Street name and number"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
-                {profile.address}
-              </div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.address}</div>
             )}
           </div>
 
@@ -127,9 +127,7 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
                 placeholder="0123"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
-                {profile.zip}
-              </div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.zip}</div>
             )}
           </div>
 
@@ -142,9 +140,7 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
                 placeholder="Oslo"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
-                {profile.city}
-              </div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.city}</div>
             )}
           </div>
         </div>
@@ -159,28 +155,18 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div
-            className={
-              isIBAN(profile.bank_account || "") ? "md:col-span-1" : "md:col-span-2"
-            }
-          >
+          <div className={isIBAN(profile.bank_account || "") ? "md:col-span-1" : "md:col-span-2"}>
             <Label>Bank Account / IBAN *</Label>
             {editing || !canProceed ? (
               <Input
                 value={profile.bank_account || ""}
-                onChange={(e) =>
-                  setProfile({ ...profile, bank_account: e.target.value })
-                }
+                onChange={(e) => setProfile({ ...profile, bank_account: e.target.value })}
                 placeholder="1234 56 78901 or NO93 8601 1117 947"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
-                {profile.bank_account}
-              </div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.bank_account}</div>
             )}
-            <p className="text-xs text-gray-500 mt-1">
-              Norwegian account number or IBAN
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Norwegian account number or IBAN</p>
           </div>
 
           {isIBAN(profile.bank_account || "") && (
@@ -193,9 +179,7 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
                   placeholder="DABANO22"
                 />
               ) : (
-                <div className="p-3 bg-gray-50 rounded-md text-gray-700">
-                  {profile.swift}
-                </div>
+                <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.swift}</div>
               )}
               <p className="text-xs text-gray-500 mt-1">Required for IBAN accounts</p>
             </div>
@@ -239,4 +223,3 @@ export function ProfileStep({ profile: initialProfile, onNext, onUpdateProfile }
     </Card>
   );
 }
-

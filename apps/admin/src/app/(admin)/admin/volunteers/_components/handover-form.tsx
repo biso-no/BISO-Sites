@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useState } from "react";
 
 export default function HandoverForm() {
@@ -48,9 +48,7 @@ export default function HandoverForm() {
           Handover
         </button>
       </form>
-      {result && (
-        <pre className="mt-4 p-2 bg-gray-100 border rounded">{result}</pre>
-      )}
+      {result && <pre className="mt-4 p-2 bg-gray-100 border rounded">{result}</pre>}
     </div>
   );
 }

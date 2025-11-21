@@ -1,8 +1,8 @@
 "use client";
 
+import type { DepartmentSocials } from "@repo/api/types/appwrite";
+import { Facebook, Globe, Instagram, Linkedin, Twitter } from "lucide-react";
 import { motion } from "motion/react";
-import { Instagram, Facebook, Linkedin, Twitter, Globe } from "lucide-react";
-import { DepartmentSocials } from "@repo/api/types/appwrite";
 
 interface SocialLinksProps {
   socials: DepartmentSocials[];
@@ -11,10 +11,10 @@ interface SocialLinksProps {
 export function SocialLinks({ socials }: SocialLinksProps) {
   const getSocialIcon = (platform: string) => {
     const platformLower = platform.toLowerCase();
-    if (platformLower.includes('instagram')) return Instagram;
-    if (platformLower.includes('facebook')) return Facebook;
-    if (platformLower.includes('linkedin')) return Linkedin;
-    if (platformLower.includes('twitter') || platformLower.includes('x')) return Twitter;
+    if (platformLower.includes("instagram")) return Instagram;
+    if (platformLower.includes("facebook")) return Facebook;
+    if (platformLower.includes("linkedin")) return Linkedin;
+    if (platformLower.includes("twitter") || platformLower.includes("x")) return Twitter;
     return Globe;
   };
 
@@ -22,11 +22,11 @@ export function SocialLinks({ socials }: SocialLinksProps) {
     <div className="flex items-center gap-3">
       <span className="text-white/70 text-sm">Follow us:</span>
       {socials.map((social, index) => {
-        const SocialIcon = getSocialIcon(social.platform || '');
+        const SocialIcon = getSocialIcon(social.platform || "");
         return (
           <motion.a
             key={index}
-            href={social.url || '#'}
+            href={social.url || "#"}
             target="_blank"
             rel="noopener noreferrer"
             initial={{ opacity: 0, scale: 0.8 }}
@@ -41,4 +41,3 @@ export function SocialLinks({ socials }: SocialLinksProps) {
     </div>
   );
 }
-

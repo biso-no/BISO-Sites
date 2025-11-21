@@ -3,7 +3,7 @@ export function cleanRagText(input?: string, max = 220): string {
   // Collapse filler dots and spaces produced by PDF table-of-contents extraction
   let t = input
     // Kill long dotted leaders and bullet filler
-    .replace(/[\.·•]{2,}/g, " ")
+    .replace(/[.·•]{2,}/g, " ")
     // Remove common TOC page numbers like '.... 12'
     .replace(/\s+\d{1,3}(?=\s|$)/g, " ")
     // Normalize headings like '## 10. 3 Oppløsning' -> '10.3 Oppløsning'
@@ -34,8 +34,13 @@ export function cleanRagText(input?: string, max = 220): string {
 }
 
 export function summarizeSharePointResults(result: any, limit = 2) {
-  const results: Array<{ title?: string; documentViewerUrl?: string; site?: string; lastModified?: string; text?: string }> =
-    Array.isArray(result?.results) ? result.results : [];
+  const results: Array<{
+    title?: string;
+    documentViewerUrl?: string;
+    site?: string;
+    lastModified?: string;
+    text?: string;
+  }> = Array.isArray(result?.results) ? result.results : [];
   return results.slice(0, limit).map((r) => ({
     title: r.title || "Document",
     href: r.documentViewerUrl,

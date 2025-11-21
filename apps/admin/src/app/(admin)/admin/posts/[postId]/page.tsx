@@ -1,31 +1,24 @@
-import { notFound } from "next/navigation"
-import { getPost, getPosts } from "@/app/actions/admin"
-import PostEditor from "../post-editor"
-import { getDepartments } from "@/app/actions/admin"
-import { getCampuses } from "../actions"
+import { notFound } from "next/navigation";
+import { getDepartments, getPost, getPosts } from "@/app/actions/admin";
+import { getCampuses } from "../actions";
+import PostEditor from "../post-editor";
 
 export default async function AdminPostPage({ params }: { params: { postId: string } }) {
-  const posts = await getPosts()
-  
-  const departments = await getDepartments()
+  const posts = await getPosts();
+
+  const departments = await getDepartments();
 
   const campuses = await getCampuses();
 
-  let post = null
+  let post = null;
   if (params.postId !== "new") {
-    post = await getPost(params.postId)
+    post = await getPost(params.postId);
     if (!post) {
-      notFound()
+      notFound();
     }
   }
 
-  console.log("POST: ", JSON.stringify(post))
+  console.log("POST: ", JSON.stringify(post));
 
-  return (
-    <PostEditor
-      post={post}
-      departments={departments}
-      campuses={campuses}
-    />
-  )
+  return <PostEditor post={post} departments={departments} campuses={campuses} />;
 }

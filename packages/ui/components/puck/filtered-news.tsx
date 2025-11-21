@@ -1,7 +1,7 @@
 "use client";
 
-import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import React, { Suspense } from "react";
 import { News, type NewsProps } from "../sections/news";
 
 function FilteredNewsContent({ news = [], labels }: NewsProps) {
@@ -9,11 +9,12 @@ function FilteredNewsContent({ news = [], labels }: NewsProps) {
   const query = searchParams.get("q")?.toLowerCase();
 
   const filteredNews = news.filter((item) => {
-    const matchesSearch = !query || 
-      item.title.toLowerCase().includes(query) || 
-      item.description?.toLowerCase().includes(query) || 
+    const matchesSearch =
+      !query ||
+      item.title.toLowerCase().includes(query) ||
+      item.description?.toLowerCase().includes(query) ||
       false;
-    
+
     return matchesSearch;
   });
 

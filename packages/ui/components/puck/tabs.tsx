@@ -1,6 +1,6 @@
-import React from "react";
-import { Tabs as TabsRoot, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import type React from "react";
 import { cn } from "../../lib/utils";
+import { TabsContent, TabsList, Tabs as TabsRoot, TabsTrigger } from "../ui/tabs";
 
 export interface TabsProps {
   tabs: { label: string; value: string }[];
@@ -41,7 +41,7 @@ export function Tabs({ tabs = [], tab0, tab1, tab2, tab3, ref }: TabsProps) {
             ))}
           </TabsList>
         </div>
-        
+
         {validTabs.map((tab, index) => (
           <TabsContent key={tab.value} value={tab.value} className="mt-0">
             {contentMap[index]}

@@ -1,26 +1,26 @@
-"use client"
+"use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar"
-import { cn } from "@/lib/utils"
-import { User } from "@/lib/types/user"
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import type { User } from "@/lib/types/user";
+import { cn } from "@/lib/utils";
 
 interface UserAvatarProps {
-  user: User
-  className?: string
-  size?: "sm" | "md" | "lg"
+  user: User;
+  className?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
   // Generate initials from name
   const initials = user.name
     .split(" ")
-    .map(part => part[0])
+    .map((part) => part[0])
     .slice(0, 2)
     .join("")
-    .toUpperCase()
-  
+    .toUpperCase();
+
   // Determine avatar background color based on user name (consistent for each user)
-  const nameHash = user.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const nameHash = user.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colors = [
     "bg-red-500",
     "bg-orange-500",
@@ -39,22 +39,20 @@ export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
     "bg-fuchsia-500",
     "bg-pink-500",
     "bg-rose-500",
-  ]
-  const bgColor = colors[nameHash % colors.length]
-  
+  ];
+  const bgColor = colors[nameHash % colors.length];
+
   // Determine size class
   const sizeClass = {
     sm: "h-8 w-8 text-xs",
     md: "h-10 w-10 text-sm",
     lg: "h-16 w-16 text-lg",
-  }[size]
-  
+  }[size];
+
   return (
     <Avatar className={cn(sizeClass, className)}>
       <AvatarImage src={user.avatarUrl} alt={user.name} />
-      <AvatarFallback className={cn("font-medium text-white", bgColor)}>
-        {initials}
-      </AvatarFallback>
+      <AvatarFallback className={cn("font-medium text-white", bgColor)}>{initials}</AvatarFallback>
     </Avatar>
-  )
-} 
+  );
+}

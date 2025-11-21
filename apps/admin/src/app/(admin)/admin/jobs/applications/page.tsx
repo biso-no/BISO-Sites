@@ -1,21 +1,25 @@
-import { listJobApplications, listJobs } from '@/app/actions/jobs'
-import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/components/ui/card'
-import { Badge } from '@repo/ui/components/ui/badge'
-import { Button } from '@repo/ui/components/ui/button'
-import Link from 'next/link'
-import { ApplicationStatusBadge } from './components/application-status-badge'
-import { ApplicationActions } from './components/application-actions'
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import Link from "next/link";
+import { listJobApplications, listJobs } from "@/app/actions/jobs";
+import { ApplicationActions } from "./components/application-actions";
+import { ApplicationStatusBadge } from "./components/application-status-badge";
 
-export default async function JobApplicationsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const params = await searchParams
-  const jobId = params.job_id
-  
+export default async function JobApplicationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const jobId = params.job_id;
+
   const [applications, jobs] = await Promise.all([
     listJobApplications(jobId),
-    listJobs({ limit: 100 })
-  ])
-  
-  const jobsMap = new Map(jobs.map(job => [job.$id, job]))
+    listJobs({ limit: 100 }),
+  ]);
+
+  const jobsMap = new Map(jobs.map((job) => [job.$id, job]));
 
   return (
     <div className="space-y-6">
@@ -23,7 +27,7 @@ export default async function JobApplicationsPage({ searchParams }: { searchPara
         <div>
           <h1 className="text-2xl font-bold">Job Applications</h1>
           <p className="text-muted-foreground">
-            {applications.length} application{applications.length !== 1 ? 's' : ''} total
+            {applications.length} application{applications.length !== 1 ? "s" : ""} total
           </p>
         </div>
         <Button asChild>
@@ -32,8 +36,8 @@ export default async function JobApplicationsPage({ searchParams }: { searchPara
       </header>
 
       <div className="space-y-4">
-        {applications.map(application => {
-          const job = jobsMap.get(application.job_id)
+        {applications.map((application) => {
+          const job = jobsMap.get(application.job_id);
           return (
             <Card key={application.$id}>
               <CardContent className="p-6">
@@ -52,29 +56,34 @@ export default async function JobApplicationsPage({ searchParams }: { searchPara
                       {job && <span>• Position: {job.translations[0].title}</span>}
                     </div>
                   </div>
-                  
+
                   <ApplicationActions application={application} />
                 </div>
-                
+
                 {application.cover_letter && (
                   <div className="mt-4 pt-4 border-t">
                     <h4 className="font-medium mb-2">Cover Letter</h4>
                     <p className="text-sm whitespace-pre-wrap">{application.cover_letter}</p>
                   </div>
                 )}
-                
+
                 {/* GDPR Information */}
                 <div className="mt-4 pt-4 border-t bg-muted/30 -mx-6 -mb-6 px-6 py-4">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Data retention until: {new Date(application.data_retention_until).toLocaleDateString()}</span>
-                    <span>Consent given: {new Date(application.consent_date).toLocaleDateString()}</span>
+                    <span>
+                      Data retention until:{" "}
+                      {new Date(application.data_retention_until).toLocaleDateString()}
+                    </span>
+                    <span>
+                      Consent given: {new Date(application.consent_date).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          )
+          );
         })}
-        
+
         {applications.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
@@ -84,5 +93,5 @@ export default async function JobApplicationsPage({ searchParams }: { searchPara
         )}
       </div>
     </div>
-  )
+  );
 }

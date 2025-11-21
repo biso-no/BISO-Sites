@@ -1,11 +1,11 @@
-import { Suspense } from 'react'
-import { CartPageClient } from '@/components/shop/cart-page-client'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { Suspense } from "react";
+import { CartPageClient } from "@/components/shop/cart-page-client";
 
 export const metadata = {
-  title: 'Shopping Cart | BISO Shop',
-  description: 'Review your items and proceed to checkout',
-}
+  title: "Shopping Cart | BISO Shop",
+  description: "Review your items and proceed to checkout",
+};
 
 function CartSkeleton() {
   return (
@@ -26,16 +26,16 @@ function CartSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function CartPage() {
   // TODO: Get actual member status from auth
-  const isMember = false
+  const isMember = false;
 
   return (
     <Suspense fallback={<CartSkeleton />}>
       <CartPageClient isMember={isMember} />
     </Suspense>
-  )
+  );
 }

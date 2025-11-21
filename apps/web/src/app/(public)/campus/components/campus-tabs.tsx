@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Target, GraduationCap, Briefcase, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import { Briefcase, GraduationCap, Target, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/config";
 
 interface CampusTabsProps {
@@ -93,21 +93,13 @@ export function CampusTabs({ locale, children }: CampusTabsProps) {
 
       {/* Tab Content */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsContent value="overview">
-          {children.overview}
-        </TabsContent>
+        <TabsContent value="overview">{children.overview}</TabsContent>
 
-        <TabsContent value="students">
-          {children.students}
-        </TabsContent>
+        <TabsContent value="students">{children.students}</TabsContent>
 
-        <TabsContent value="partners">
-          {children.partners}
-        </TabsContent>
+        <TabsContent value="partners">{children.partners}</TabsContent>
 
-        <TabsContent value="team">
-          {children.team}
-        </TabsContent>
+        <TabsContent value="team">{children.team}</TabsContent>
       </Tabs>
     </>
   );
