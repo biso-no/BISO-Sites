@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowUpDown, CheckCircle2, Clock, Edit, Loader2, Search } from "lucide-react";
 
-import { Expense } from "@/lib/types/expense";
 import { Button } from "@repo/ui/components/ui/button";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Input } from "@repo/ui/components/ui/input";
@@ -33,6 +32,7 @@ import {
   parseJSONSafe,
 } from "@/lib/utils/admin";
 import { AdminSummary } from "@/components/admin/admin-summary";
+import { Expenses } from "@repo/api/types/appwrite";
 
 const TableSkeleton = () => (
   <div className="space-y-3">
@@ -74,7 +74,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
+export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [searchParams, setSearchParams] = useState({
@@ -84,7 +84,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
     status: "all",
   });
   const [filters, setFilters] = useState(searchParams);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Expense | null; direction: "asc" | "desc" }>({ key: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Expenses | null; direction: "asc" | "desc" }>({
+    key: null,
+    direction: "asc",
+  });
 
   const uniqueDepartments = useMemo(
     () => Array.from(new Set(expenses.map((expense) => expense.department).filter(Boolean))) as string[],
@@ -115,8 +118,16 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
     const sorted = [...filteredExpenses];
     if (sortConfig.key) {
       sorted.sort((a, b) => {
-        const aValue = a[sortConfig.key!];
-        const bValue = b[sortConfig.key!];
+        let aValue = a[sortConfig.key!];
+        let bValue = b[sortConfig.key!];
+
+        if (sortConfig.key === "user") {
+          // @ts-ignore
+          aValue = aValue?.name;
+          // @ts-ignore
+          bValue = bValue?.name;
+        }
+
         if (aValue === bValue) return 0;
         if (aValue === undefined || aValue === null) return 1;
         if (bValue === undefined || bValue === null) return -1;
@@ -145,14 +156,14 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
   ]
   const formattedTotal = NOK_FORMATTER.format(stats.totalAmount);
 
-  const handleSort = (key: keyof Expense) => {
+  const handleSort = (key: keyof Expenses) => {
     setSortConfig((prev) => ({
       key,
       direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   };
 
-  const getSortIcon = (key: keyof Expense) => {
+  const getSortIcon = (key: keyof Expenses) => {
     if (sortConfig.key !== key) return null;
     return sortConfig.direction === "asc" ? <ArrowUpDown className="h-4 w-4 rotate-180" /> : <ArrowUpDown className="h-4 w-4" />;
   };
@@ -205,10 +216,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
               placeholder="Søk på navn..."
               value={searchParams.search}
               onChange={(e) => setSearchParams((prev) => ({ ...prev, search: e.target.value }))}
-              className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40 md:col-span-2"
+              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
             <Select value={searchParams.department} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, department: value }))}>
-              <SelectTrigger className="rounded-xl border-primary/20 bg-white/70 text-sm">
+              <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle avdelinger" />
               </SelectTrigger>
               <SelectContent>
@@ -221,7 +232,7 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
               </SelectContent>
             </Select>
             <Select value={searchParams.campus} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, campus: value }))}>
-              <SelectTrigger className="rounded-xl border-primary/20 bg-white/70 text-sm">
+              <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle campuser" />
               </SelectTrigger>
               <SelectContent>
@@ -234,7 +245,7 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
               </SelectContent>
             </Select>
             <Select value={searchParams.status} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, status: value }))}>
-              <SelectTrigger className="rounded-xl border-primary/20 bg-white/70 text-sm">
+              <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle statuser" />
               </SelectTrigger>
               <SelectContent>
@@ -247,7 +258,7 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
               <Button type="submit" className="flex-1 rounded-xl bg-primary-40 text-sm font-semibold text-white shadow hover:bg-primary-30">
                 Filtrer
               </Button>
-              <Button type="button" variant="outline" className="rounded-xl border-primary/20 bg-white/70 text-sm" onClick={handleReset}>
+              <Button type="button" variant="outline" className="rounded-xl border-primary/20 text-sm" onClick={handleReset}>
                 Nullstill
               </Button>
             </div>
@@ -255,7 +266,7 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
         </CardContent>
       </Card>
 
-      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 bg-white/85 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
+      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold text-primary-100">Utleggsoversikt</h2>
@@ -269,7 +280,7 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
         </div>
         <div className="relative">
           {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur">
+            <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur">
               <Loader2 className="h-6 w-6 animate-spin text-primary-80" />
             </div>
           )}
@@ -289,9 +300,6 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                   <TableHead className="cursor-pointer" onClick={() => handleSort("campus")}>
                     Campus
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("category")}>
-                    Kategori
-                  </TableHead>
                   <TableHead className="cursor-pointer" onClick={() => handleSort("total")}>
                     Beløp
                   </TableHead>
@@ -305,12 +313,12 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                 <AnimatePresence>
                   {(isLoading ? [] : sortedExpenses).map((expense) => (
                     <motion.tr
-                      key={expense.id}
+                      key={expense.$id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.18 }}
-                      className="bg-white/70 transition hover:bg-primary/5"
+                      className="transition hover:bg-primary/5"
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
@@ -325,7 +333,6 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                       </TableCell>
                       <TableCell>{expense.department || "—"}</TableCell>
                       <TableCell>{expense.campus || "—"}</TableCell>
-                      <TableCell>{expense.category || "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-xs text-primary-80">
                           {expense.total ? NOK_FORMATTER.format(Number(expense.total)) : "N/A"}
@@ -339,7 +346,7 @@ export function AdminExpenseTable({ expenses }: { expenses: Expense[] }) {
                           variant="ghost"
                           size="sm"
                           className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10"
-                          onClick={() => actionClick(expense.id)}
+                          onClick={() => actionClick(expense.$id)}
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Se detalj

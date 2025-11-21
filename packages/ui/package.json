@@ -10,7 +10,7 @@
     "./components/file-upload": "./components/file-upload.tsx"
   },
   "scripts": {
-    "lint": "eslint . --max-warnings 0",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate:component": "turbo gen react-component",
     "check-types": "tsc --noEmit"
   },

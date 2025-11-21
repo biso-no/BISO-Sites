@@ -72,7 +72,6 @@ const SidebarItem = ({
       initial={false}
       animate={{
         scale: isActive ? 1.01 : 1,
-        backgroundColor: isActive ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0)",
       }}
       className="group relative mb-1 rounded-2xl px-2 py-1"
     >
@@ -80,21 +79,21 @@ const SidebarItem = ({
         className={cn(
           "flex items-center gap-2 rounded-2xl px-2 py-2 transition-all duration-200 ease-out",
           isActive
-            ? "bg-white/15 text-white shadow-[0_15px_35px_-25px_rgba(0,0,0,0.8)] backdrop-blur"
-            : "text-white/70 hover:bg-white/5 hover:text-white"
+            ? "bg-primary/10 text-primary shadow-sm dark:bg-white/15 dark:text-white dark:shadow-[0_15px_35px_-25px_rgba(0,0,0,0.8)] dark:backdrop-blur"
+            : "text-muted-foreground hover:bg-primary/5 hover:text-primary dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
         )}
       >
         <Link href={item.href} className="flex flex-1 items-center gap-3">
-          <motion.span
-            initial={false}
-            animate={{
-              backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.08)",
-              color: isActive ? "rgba(255,255,255,0.98)" : "rgba(255,255,255,0.75)",
-            }}
-            className="flex h-8 w-8 items-center justify-center rounded-xl text-sm font-medium"
+          <span
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-xl text-sm font-medium transition-colors",
+              isActive
+                ? "bg-white text-primary shadow-sm dark:bg-white/25 dark:text-white/95"
+                : "bg-transparent text-muted-foreground dark:bg-white/5 dark:text-white/75"
+            )}
           >
             <item.icon className="h-4 w-4" />
-          </motion.span>
+          </span>
           {isExpanded && (
             <motion.span
               initial={{ opacity: 0, x: -12 }}
@@ -113,7 +112,7 @@ const SidebarItem = ({
               e.stopPropagation();
               setIsOpen(!isOpen);
             }}
-            className="rounded-lg p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-primary/5 hover:text-primary dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
           >
             <ChevronRight
               className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")}
@@ -128,7 +127,7 @@ const SidebarItem = ({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="ml-7 mt-2 space-y-1 border-l border-white/10 pl-4"
+              className="ml-7 mt-2 space-y-1 border-l border-primary/10 pl-4 dark:border-white/10"
             >
               {item.subItems.map((subItem) => {
                 const isSubActive = pathname === subItem.href;
@@ -139,8 +138,8 @@ const SidebarItem = ({
                       className={cn(
                         "flex items-center rounded-xl px-3 py-2 text-xs font-medium transition-colors",
                         isSubActive
-                          ? "bg-white/15 text-white shadow-inner"
-                          : "text-white/60 hover:bg-white/5 hover:text-white"
+                          ? "bg-primary/10 text-primary dark:bg-white/15 dark:text-white dark:shadow-inner"
+                          : "text-muted-foreground hover:bg-primary/5 hover:text-primary dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white"
                       )}
                     >
                       {subItem.label}
@@ -256,9 +255,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       <motion.nav
         initial={false}
         animate={{ width: isSidebarExpanded ? 268 : 88 }}
-        className="relative z-10 m-4 flex shrink-0 flex-col overflow-hidden rounded-[26px] border border-primary-100/30 bg-primary-100/95 text-white shadow-[0_45px_80px_-45px_rgba(0,23,49,0.9)]"
+        className="relative z-10 m-4 flex shrink-0 flex-col overflow-hidden rounded-[26px] border border-primary/10 bg-white/80 text-foreground shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-[#001731]/95 dark:text-white dark:shadow-[0_45px_80px_-45px_rgba(0,23,49,0.9)]"
       >
-        <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,169,224,0.25),transparent_60%)]" />
+        <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,169,224,0.15),transparent_60%)] dark:bg-[radial-gradient(circle_at_top,rgba(61,169,224,0.25),transparent_60%)]" />
         
         {/* Sidebar Header */}
         <motion.div
@@ -266,22 +265,22 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           initial={false}
           animate={{ justifyContent: isSidebarExpanded ? "flex-start" : "center" }}
         >
-          <Link href="/admin" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-lg font-semibold tracking-tight text-white">
+          <Link href="/admin" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold tracking-tight text-primary dark:bg-white/10 dark:text-white">
             B
           </Link>
           {isSidebarExpanded && (
             <div className="space-y-0.5">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/60">{t('title')}</span>
-              <span className="text-base font-semibold leading-none text-white">{t('subtitle')}</span>
+              <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground dark:text-white/60">{t('title')}</span>
+              <span className="text-base font-semibold leading-none text-foreground dark:text-white">{t('subtitle')}</span>
             </div>
           )}
         </motion.div>
 
         {/* Role Badge */}
         <div className="px-4">
-          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-            <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/60">{t('activeRole')}</p>
-            <p className="text-sm font-medium text-white">{selectedRole}</p>
+          <div className="rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 dark:border-white/10 dark:bg-white/10">
+            <p className="text-[0.65rem] uppercase tracking-[0.24em] text-muted-foreground dark:text-white/60">{t('activeRole')}</p>
+            <p className="text-sm font-medium text-foreground dark:text-white">{selectedRole}</p>
           </div>
         </div>
 
@@ -309,13 +308,13 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
 
         {/* Sidebar Footer */}
         <div className="space-y-3 px-4 pb-4">
-          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-xs text-white/70">
-            <p className="font-semibold text-white">{t('supportLine')}</p>
-            <p className="mt-1 text-white/70">it@biso.no</p>
+          <div className="rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 text-xs text-muted-foreground dark:border-white/10 dark:bg-white/10 dark:text-white/70">
+            <p className="font-semibold text-foreground dark:text-white">{t('supportLine')}</p>
+            <p className="mt-1 text-muted-foreground dark:text-white/70">it@biso.no</p>
           </div>
           <button
             onClick={toggleSidebar}
-            className="flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-sm font-medium text-white/80 transition hover:bg-white/20"
+            className="flex h-11 w-full items-center justify-center rounded-2xl border border-primary/10 bg-white/50 text-sm font-medium text-foreground/80 transition hover:bg-white/80 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/20"
           >
             <motion.div animate={{ rotate: isSidebarExpanded ? 0 : 180 }} transition={{ duration: 0.25 }}>
               <ChevronLeft className="h-5 w-5" />

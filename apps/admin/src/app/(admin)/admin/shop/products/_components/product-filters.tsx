@@ -83,7 +83,7 @@ export function ProductFilters({ initialValues, options }: ProductFiltersProps) 
   }
 
   return (
-    <div className="mb-6 rounded-2xl border border-primary/15 bg-white/70 p-4 shadow-sm">
+    <div className="mb-6 rounded-2xl border border-primary/15 bg-white/70 p-4 shadow-sm glass-panel">
       <div className="grid gap-3 lg:grid-cols-4">
         <Input
           placeholder={t('products.searchPlaceholder')}

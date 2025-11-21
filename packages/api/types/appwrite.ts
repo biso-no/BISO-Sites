@@ -171,6 +171,7 @@ export type Expenses = Models.Row & {
     userId: string;
     eventName: string | null;
     departmentRel: Departments;
+    campusRel: Campus;
 }
 
 export type TwentyFourSevenOfficeAuthTokens = Models.Row & {
@@ -566,11 +567,11 @@ export type News = Models.Row & {
     campus_id: string;
     department_id: string | null;
     sticky: boolean | null;
-    campus: Campus;
+    campus: Campus | string;
     translation_refs: ContentTranslations[];
     url: string | null;
     image: string | null;
-    department: Departments;
+    department: Departments | string;
     metadata: string[] | null;
     author?: string | null;
 }
