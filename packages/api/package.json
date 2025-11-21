@@ -10,7 +10,6 @@
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {
-    "@repo/editor": "*",
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*"
   },
