@@ -3,10 +3,6 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
-const withBundleAnalyzer = require("@next/bundle-analyzer")({
-  enabled: true
-});
-
 const baseConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
@@ -42,4 +38,4 @@ const baseConfig: NextConfig = {
   },
 };
 
-export default withBundleAnalyzer(withNextIntl(baseConfig));
+export default withNextIntl(baseConfig);
