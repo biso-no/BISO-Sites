@@ -1,4 +1,4 @@
-import { type Config, DropZone } from "@measured/puck";
+import { type Config, type Slot } from "@measured/puck";
 import { Hero, type HeroProps } from "@repo/ui/components/sections/hero";
 import { About, type AboutProps } from "@repo/ui/components/sections/about";
 import { JoinUs, type JoinUsProps } from "@repo/ui/components/sections/join-us";
@@ -16,6 +16,12 @@ type EditorJoinUsProps = Omit<JoinUsProps, 'memberFeatures'> & {
   memberFeatures: { feature: string }[];
 };
 
+type SectionPropsWithSlot = SectionProps & { content?: Slot };
+type ColumnsPropsWithSlots = ColumnsProps & { 
+    "col-0"?: Slot; 
+    "col-1"?: Slot; 
+    "col-2"?: Slot; 
+};
 
 type Props = {
   Hero: HeroProps;
@@ -23,11 +29,11 @@ type Props = {
   JoinUs: EditorJoinUsProps;
   News: NewsProps;
   Events: EventsProps;
-  Section: SectionProps;
+  Section: SectionPropsWithSlot;
   GenericHero: GenericHeroProps;
   FeatureGrid: FeatureGridProps;
   CTA: CTAProps;
-  Columns: ColumnsProps;
+  Columns: ColumnsPropsWithSlots;
   Accordion: AccordionBlockProps;
 };
 
@@ -86,15 +92,24 @@ export const config: Config<Props> = {
                     { label: "Center", value: "center" },
                     { label: "Bottom", value: "bottom" },
                 ]
-            }
+            },
+            "col-0": { type: "slot" },
+            "col-1": { type: "slot" },
+            "col-2": { type: "slot" }
         },
-        render: ({ layout = "1:1", ...props }) => {
+        render: ({ 
+            "col-0": Col0, 
+            "col-1": Col1, 
+            "col-2": Col2, 
+            layout = "1:1", 
+            ...props 
+        }) => {
             const colCount = layout.split(":").length;
             return (
                 <Columns layout={layout} {...props}>
-                    {Array.from({ length: colCount }).map((_, i) => (
-                        <DropZone key={i} zone={`col-${i}`} />
-                    ))}
+                    {Col0 && <Col0 />}
+                    {Col1 && <Col1 />}
+                    {colCount > 2 && Col2 && <Col2 />}
                 </Columns>
             );
         },
@@ -248,10 +263,11 @@ export const config: Config<Props> = {
           ],
         },
         id: { type: "text" },
+        content: { type: "slot" },
       },
-      render: ({ children, ...props }) => (
+      render: ({ content: Content, ...props }) => (
         <Section {...props}>
-          <DropZone zone="content" />
+          {Content && <Content />}
         </Section>
       ),
       defaultProps: {
