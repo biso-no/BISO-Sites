@@ -3,7 +3,10 @@
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
 import { cn } from "@repo/ui/lib/utils";
 import type { FC } from "react";
-import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
+import dynamic from "next/dynamic";
+import type { ShikiHighlighterProps } from "react-shiki";
+
+const ShikiHighlighter = dynamic(() => import("react-shiki"), { ssr: false });
 
 /**
  * Props for the SyntaxHighlighter component
