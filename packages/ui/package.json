@@ -6,7 +6,8 @@
     "./*": "./*.tsx",
     "./components/*": "./components/*",
     "./lib/*": "./lib/*.ts",
-    "./styles/globals.css": "./styles/globals.css"
+    "./styles/globals.css": "./styles/globals.css",
+    "./components/file-upload": "./components/file-upload.tsx"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
