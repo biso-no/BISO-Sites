@@ -101,7 +101,9 @@ export const useUserStore = create<UserTableState>((set) => ({
 
   selectAllUsers: (select) => {
     set((state) => {
-      const selectedUsers = select ? state.filteredUsers.map((user) => user.$id) : [];
+      const selectedUsers = select
+        ? state.filteredUsers.map((user) => user.$id)
+        : [];
 
       return { selectedUsers };
     });
@@ -125,16 +127,24 @@ export const useUserStore = create<UserTableState>((set) => ({
 }));
 
 // Helper functions
-function filterUsers(users: User[], searchTerm: string, filterRole: string): User[] {
+function filterUsers(
+  users: User[],
+  searchTerm: string,
+  filterRole: string
+): User[] {
   return users.filter(
     (user) =>
       (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (filterRole === "all" || user.roles.includes(filterRole)),
+      (filterRole === "all" || user.roles.includes(filterRole))
   );
 }
 
-function sortUsers(users: User[], field: keyof User, direction: "asc" | "desc"): User[] {
+function sortUsers(
+  users: User[],
+  field: keyof User,
+  direction: "asc" | "desc"
+): User[] {
   return [...users].sort((a, b) => {
     let aValue = a[field];
     let bValue = b[field];

@@ -27,14 +27,16 @@ export function PageHeader({
           className={cn(
             "text-3xl font-bold tracking-tight md:text-4xl",
             gradient && "gradient-text",
-            golden && "gradient-text-gold",
+            golden && "gradient-text-gold"
           )}
         >
           {heading}
         </h1>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
-      {subheading && <p className="text-muted-foreground md:text-lg">{subheading}</p>}
+      {subheading && (
+        <p className="text-muted-foreground md:text-lg">{subheading}</p>
+      )}
     </div>
   );
 }

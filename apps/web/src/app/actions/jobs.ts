@@ -13,7 +13,10 @@ import {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import type { ContentTranslation } from "@/lib/types/content-translation";
-import type { JobApplication, JobApplicationFormData } from "@/lib/types/job-application";
+import type {
+  JobApplication,
+  JobApplicationFormData,
+} from "@/lib/types/job-application";
 
 export interface ListJobsParams {
   limit?: number;
@@ -51,7 +54,9 @@ export interface CreateJobData {
   };
 }
 
-export async function listJobs(params: ListJobsParams = {}): Promise<ContentTranslations[]> {
+export async function listJobs(
+  params: ListJobsParams = {}
+): Promise<ContentTranslations[]> {
   const { limit = 25, status = "published", campus, locale } = params;
 
   try {
@@ -90,7 +95,7 @@ export async function listJobs(params: ListJobsParams = {}): Promise<ContentTran
     const jobsResponse = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
-      queries,
+      queries
     );
     const jobs = jobsResponse.rows;
 
@@ -101,7 +106,10 @@ export async function listJobs(params: ListJobsParams = {}): Promise<ContentTran
   }
 }
 
-async function getJob(id: string, locale: "en" | "no"): Promise<ContentTranslations | null> {
+async function getJob(
+  id: string,
+  locale: "en" | "no"
+): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -124,7 +132,7 @@ async function getJob(id: string, locale: "en" | "no"): Promise<ContentTranslati
           "job_ref.department.*",
         ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) {
@@ -140,7 +148,7 @@ async function getJob(id: string, locale: "en" | "no"): Promise<ContentTranslati
 
 export async function getJobBySlug(
   slug: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
@@ -174,7 +182,7 @@ export async function getJobBySlug(
           "job_ref.department.*",
         ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) return null;
@@ -186,7 +194,10 @@ export async function getJobBySlug(
   }
 }
 
-async function createJob(data: CreateJobData, skipRevalidation = false): Promise<Jobs | null> {
+async function createJob(
+  data: CreateJobData,
+  skipRevalidation = false
+): Promise<Jobs | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -244,7 +255,10 @@ async function createJob(data: CreateJobData, skipRevalidation = false): Promise
   }
 }
 
-async function updateJob(id: string, data: Partial<CreateJobData>): Promise<Jobs | null> {
+async function updateJob(
+  id: string,
+  data: Partial<CreateJobData>
+): Promise<Jobs | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -261,9 +275,12 @@ async function updateJob(id: string, data: Partial<CreateJobData>): Promise<Jobs
             : Status.CLOSED;
     }
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.department_id !== undefined) updateData.department_id = data.department_id;
+    if (data.department_id !== undefined)
+      updateData.department_id = data.department_id;
     if (data.metadata !== undefined)
-      updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null;
+      updateData.metadata = data.metadata
+        ? JSON.stringify(data.metadata)
+        : null;
 
     // Build translation_refs array from provided translations only
     if (data.translations) {
@@ -313,13 +330,15 @@ async function deleteJob(id: string): Promise<boolean> {
     const { db } = await createSessionClient();
 
     // Delete translations first
-    const translationsResponse = await db.listRows("app", "content_translations", [
-      Query.equal("content_type", "job"),
-      Query.equal("content_id", id),
-    ]);
+    const translationsResponse = await db.listRows(
+      "app",
+      "content_translations",
+      [Query.equal("content_type", "job"), Query.equal("content_id", id)]
+    );
 
-    const deleteTranslationPromises = translationsResponse.rows.map((translation) =>
-      db.deleteRow("app", "content_translations", translation.$id),
+    const deleteTranslationPromises = translationsResponse.rows.map(
+      (translation) =>
+        db.deleteRow("app", "content_translations", translation.$id)
     );
 
     await Promise.all(deleteTranslationPromises);
@@ -341,17 +360,21 @@ async function deleteJob(id: string): Promise<boolean> {
 async function translateJobContent(
   jobId: string,
   fromLocale: "en" | "no",
-  toLocale: "en" | "no",
+  toLocale: "en" | "no"
 ): Promise<ContentTranslation | null> {
   try {
     const { db } = await createSessionClient();
 
     // Get existing translation
-    const existingResponse = await db.listRows<ContentTranslations>("app", "content_translations", [
-      Query.equal("content_type", "job"),
-      Query.equal("content_id", jobId),
-      Query.equal("locale", fromLocale),
-    ]);
+    const existingResponse = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "job"),
+        Query.equal("content_id", jobId),
+        Query.equal("locale", fromLocale),
+      ]
+    );
 
     if (existingResponse.rows.length === 0) {
       throw new Error("Source translation not found");
@@ -383,11 +406,15 @@ Please respond with a JSON object containing the translated title and descriptio
     const translated = JSON.parse(result.text);
 
     // Check if translation already exists
-    const existingTranslationResponse = await db.listRows("app", "content_translations", [
-      Query.equal("content_type", "job"),
-      Query.equal("content_id", jobId),
-      Query.equal("locale", toLocale),
-    ]);
+    const existingTranslationResponse = await db.listRows(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "job"),
+        Query.equal("content_id", jobId),
+        Query.equal("locale", toLocale),
+      ]
+    );
 
     let translationRecord: ContentTranslation;
 
@@ -400,17 +427,22 @@ Please respond with a JSON object containing the translated title and descriptio
         {
           title: translated.title,
           description: translated.description,
-        },
+        }
       )) as ContentTranslation;
     } else {
       // Create new translation
-      translationRecord = (await db.createRow("app", "content_translations", "unique()", {
-        content_type: "job",
-        content_id: jobId,
-        locale: toLocale,
-        title: translated.title,
-        description: translated.description,
-      })) as ContentTranslation;
+      translationRecord = (await db.createRow(
+        "app",
+        "content_translations",
+        "unique()",
+        {
+          content_type: "job",
+          content_id: jobId,
+          locale: toLocale,
+          title: translated.title,
+          description: translated.description,
+        }
+      )) as ContentTranslation;
     }
 
     revalidatePath("/admin/jobs");
@@ -452,7 +484,7 @@ async function listCampuses() {
 
 // Job application functions remain the same but reference the new job structure
 async function createJobApplication(
-  data: JobApplicationFormData & { job_id: string },
+  data: JobApplicationFormData & { job_id: string }
 ): Promise<JobApplication | null> {
   try {
     const { db, storage } = await createSessionClient();
@@ -464,7 +496,11 @@ async function createJobApplication(
 
     if (data.resume) {
       try {
-        const uploadedFile = await storage.createFile("resumes", "unique()", data.resume);
+        const uploadedFile = await storage.createFile(
+          "resumes",
+          "unique()",
+          data.resume
+        );
         resumeFileId = uploadedFile.$id;
       } catch (uploadError) {
         console.error("Error uploading resume:", uploadError);
@@ -480,7 +516,8 @@ async function createJobApplication(
       status: "submitted" as const,
       gdpr_consent: data.gdpr_consent,
       consent_date: new Date().toISOString(),
-      data_processing_purpose: "Job application processing and recruitment evaluation",
+      data_processing_purpose:
+        "Job application processing and recruitment evaluation",
       data_retention_until: retentionDate.toISOString(),
       resume_file_id: resumeFileId,
     };
@@ -489,7 +526,7 @@ async function createJobApplication(
       "app",
       "job_applications",
       "unique()",
-      applicationData,
+      applicationData
     );
     revalidatePath("/admin/jobs");
 
@@ -509,7 +546,11 @@ async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
       queries.push(Query.equal("job_id", jobId));
     }
 
-    const response = await db.listRows<JobApplication>("app", "job_applications", queries);
+    const response = await db.listRows<JobApplication>(
+      "app",
+      "job_applications",
+      queries
+    );
     return response.rows;
   } catch (error) {
     console.error("Error fetching job applications:", error);
@@ -519,7 +560,7 @@ async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
 
 async function updateJobApplicationStatus(
   applicationId: string,
-  status: JobApplication["status"],
+  status: JobApplication["status"]
 ): Promise<JobApplication | null> {
   try {
     const { db } = await createSessionClient();
@@ -527,7 +568,7 @@ async function updateJobApplicationStatus(
       "app",
       "job_applications",
       applicationId,
-      { status },
+      { status }
     );
     revalidatePath("/admin/jobs");
     return application;
@@ -537,10 +578,16 @@ async function updateJobApplicationStatus(
   }
 }
 
-async function exportJobApplicationData(applicationId: string): Promise<JobApplication | null> {
+async function exportJobApplicationData(
+  applicationId: string
+): Promise<JobApplication | null> {
   try {
     const { db } = await createSessionClient();
-    const application = await db.getRow<JobApplication>("app", "job_applications", applicationId);
+    const application = await db.getRow<JobApplication>(
+      "app",
+      "job_applications",
+      applicationId
+    );
     return application;
   } catch (error) {
     console.error("Error exporting application data:", error);
@@ -548,11 +595,17 @@ async function exportJobApplicationData(applicationId: string): Promise<JobAppli
   }
 }
 
-async function deleteJobApplicationData(applicationId: string): Promise<boolean> {
+async function deleteJobApplicationData(
+  applicationId: string
+): Promise<boolean> {
   try {
     const { db, storage } = await createSessionClient();
 
-    const application = await db.getRow<JobApplication>("app", "job_applications", applicationId);
+    const application = await db.getRow<JobApplication>(
+      "app",
+      "job_applications",
+      applicationId
+    );
 
     if (application.resume_file_id) {
       try {

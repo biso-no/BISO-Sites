@@ -11,7 +11,9 @@ interface FocusAreasProps {
 
 export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
   const focusAreas = campusMetadata
-    ? (locale === "en" ? campusMetadata.focusAreas_en : campusMetadata.focusAreas_nb) ||
+    ? (locale === "en"
+        ? campusMetadata.focusAreas_en
+        : campusMetadata.focusAreas_nb) ||
       campusMetadata.focusAreas_en ||
       campusMetadata.focusAreas_nb ||
       []

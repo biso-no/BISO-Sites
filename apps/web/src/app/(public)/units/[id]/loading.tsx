@@ -26,7 +26,10 @@ export default function DepartmentLoading() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-[400px] bg-muted animate-pulse rounded-lg" />
+              <div
+                key={i}
+                className="h-[400px] bg-muted animate-pulse rounded-lg"
+              />
             ))}
           </div>
         </div>

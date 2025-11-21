@@ -8,7 +8,10 @@ import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
 /**
  * Props for the SyntaxHighlighter component
  */
-export type HighlighterProps = Omit<ShikiHighlighterProps, "children" | "theme"> & {
+export type HighlighterProps = Omit<
+  ShikiHighlighterProps,
+  "children" | "theme"
+> & {
   theme?: ShikiHighlighterProps["theme"];
 } & Pick<AUIProps, "node" | "components" | "language" | "code">;
 

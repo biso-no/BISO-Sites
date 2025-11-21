@@ -1,6 +1,11 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { Briefcase, GraduationCap, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/config";

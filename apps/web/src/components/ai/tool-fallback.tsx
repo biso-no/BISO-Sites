@@ -1,6 +1,11 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { Button } from "@repo/ui/components/ui/button";
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon, Loader2 } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  Loader2,
+} from "lucide-react";
 import { useState } from "react";
 
 const friendlyName: Record<string, string> = {
@@ -10,7 +15,11 @@ const friendlyName: Record<string, string> = {
   listSharePointSites: "Listing SharePoint sites",
 };
 
-export const ToolFallback: ToolCallMessagePartComponent = ({ toolName, argsText, result }) => {
+export const ToolFallback: ToolCallMessagePartComponent = ({
+  toolName,
+  argsText,
+  result,
+}) => {
   // Hooks must be called unconditionally
   const [isCollapsed, setIsCollapsed] = useState(true);
   // Hide fallback entirely for tools with dedicated UIs to avoid duplicate/raw output
@@ -43,7 +52,9 @@ export const ToolFallback: ToolCallMessagePartComponent = ({ toolName, argsText,
       </div>
       {!isCollapsed && (
         <div className="rounded-md border bg-white/60 p-2">
-          <p className="mb-1 text-[11px] font-medium text-muted-foreground">Developer details</p>
+          <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+            Developer details
+          </p>
           <div className="grid gap-2">
             <div className="rounded bg-muted/40 p-2">
               <p className="mb-1 text-[11px] font-medium">Arguments</p>
@@ -53,7 +64,9 @@ export const ToolFallback: ToolCallMessagePartComponent = ({ toolName, argsText,
               <div className="rounded bg-muted/40 p-2">
                 <p className="mb-1 text-[11px] font-medium">Result</p>
                 <pre className="whitespace-pre-wrap text-[11px]">
-                  {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+                  {typeof result === "string"
+                    ? result
+                    : JSON.stringify(result, null, 2)}
                 </pre>
               </div>
             )}

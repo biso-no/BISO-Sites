@@ -41,8 +41,8 @@ export function ShopHero({ isMember = false }: ShopHeroProps) {
               </span>
             </h1>
             <p className="text-white/90 max-w-2xl mx-auto">
-              From exclusive merch to trip deductibles and campus lockers - all available for pickup
-              at BISO office.
+              From exclusive merch to trip deductibles and campus lockers - all
+              available for pickup at BISO office.
             </p>
 
             {!isMember && (
@@ -54,7 +54,8 @@ export function ShopHero({ isMember = false }: ShopHeroProps) {
               >
                 <Badge className="bg-[#3DA9E0] text-white border-0 px-4 py-2 text-base">
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Join BISO from just 350 NOK/semester - unlock exclusive discounts!
+                  Join BISO from just 350 NOK/semester - unlock exclusive
+                  discounts!
                 </Badge>
               </motion.div>
             )}

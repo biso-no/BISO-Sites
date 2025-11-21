@@ -17,9 +17,14 @@ export function OverviewTab({ department }: OverviewTabProps) {
 
   return (
     <div className="space-y-12">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
         <Card className="p-8 border-0 shadow-xl bg-linear-to-br from-[#3DA9E0]/5 to-card dark:from-[#3DA9E0]/10">
-          <h2 className="text-3xl font-bold text-foreground mb-6">About {department.title}</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-6">
+            About {department.title}
+          </h2>
           <p className="text-muted-foreground text-lg leading-relaxed mb-6">
             {department.description}
           </p>
@@ -29,7 +34,9 @@ export function OverviewTab({ department }: OverviewTabProps) {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
                 <Award className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">{news.length}+</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-2">
+                {news.length}+
+              </h3>
               <p className="text-muted-foreground">Events Organized</p>
             </div>
 
@@ -57,7 +64,9 @@ export function OverviewTab({ department }: OverviewTabProps) {
       {/* Latest Highlights */}
       {news.length > 0 && (
         <section>
-          <h2 className="text-3xl font-bold text-foreground mb-8">Recent Highlights</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-8">
+            Recent Highlights
+          </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {news.slice(0, 3).map((newsItem, index) => (
               <motion.div
@@ -84,7 +93,7 @@ export function OverviewTab({ department }: OverviewTabProps) {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                       <Calendar className="w-4 h-4 text-[#3DA9E0]" />
                       {new Date(
-                        newsItem.news_ref?.$createdAt || newsItem.$createdAt,
+                        newsItem.news_ref?.$createdAt || newsItem.$createdAt
                       ).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",

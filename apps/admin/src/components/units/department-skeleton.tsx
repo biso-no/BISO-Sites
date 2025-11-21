@@ -1,6 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardFooter, CardHeader } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@repo/ui/components/ui/card";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 
 export function DepartmentSkeleton() {

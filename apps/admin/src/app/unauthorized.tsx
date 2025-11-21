@@ -14,7 +14,7 @@ export default function Unauthorized() {
     <main
       className={cn(
         "relative flex min-h-screen flex-col items-center justify-center overflow-hidden",
-        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white",
+        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white"
       )}
     >
       {/* Animated background decorations */}
@@ -39,13 +39,15 @@ export default function Unauthorized() {
           </div>
 
           <div className="space-y-4">
-            <p className="text-sm font-medium uppercase tracking-[0.25em] text-white/70">401</p>
+            <p className="text-sm font-medium uppercase tracking-[0.25em] text-white/70">
+              401
+            </p>
             <h1 className="max-w-xl text-4xl font-semibold leading-tight text-white md:text-5xl">
               Du må være logget inn for å se denne siden
             </h1>
             <p className="max-w-2xl text-base text-white/80 md:text-lg">
-              Dette området krever at du er autentisert. Logg inn med din konto for å få tilgang til
-              innholdet.
+              Dette området krever at du er autentisert. Logg inn med din konto
+              for å få tilgang til innholdet.
             </p>
           </div>
         </div>

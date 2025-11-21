@@ -46,7 +46,9 @@ export async function POST() {
     ];
 
     const results = await Promise.all(
-      sampleNotifications.map((notification) => createNotification(notification)),
+      sampleNotifications.map((notification) =>
+        createNotification(notification)
+      )
     );
 
     const successful = results.filter((r) => r.success).length;
@@ -56,8 +58,14 @@ export async function POST() {
       message: `Created ${successful} out of ${sampleNotifications.length} sample notifications`,
     });
   } catch (error) {
-    console.error("[api/notifications/demo] Failed to create sample notifications:", error);
-    return NextResponse.json({ error: "Failed to create sample notifications" }, { status: 500 });
+    console.error(
+      "[api/notifications/demo] Failed to create sample notifications:",
+      error
+    );
+    return NextResponse.json(
+      { error: "Failed to create sample notifications" },
+      { status: 500 }
+    );
   }
 }
 

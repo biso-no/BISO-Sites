@@ -52,13 +52,17 @@ export function SummaryDialog({
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Review Your Reimbursement</DialogTitle>
-          <DialogDescription>Please review all details before submitting</DialogDescription>
+          <DialogDescription>
+            Please review all details before submitting
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Contact Info */}
           <div>
-            <h4 className="mb-3 text-gray-900 font-semibold">Contact Information</h4>
+            <h4 className="mb-3 text-gray-900 font-semibold">
+              Contact Information
+            </h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-gray-500">Name:</span>
@@ -121,7 +125,9 @@ export function SummaryDialog({
                     <p className="text-gray-900">{att.description}</p>
                     <p className="text-gray-500 text-xs">{att.date}</p>
                   </div>
-                  <span className="text-gray-900 font-medium">{att.amount.toFixed(2)} NOK</span>
+                  <span className="text-gray-900 font-medium">
+                    {att.amount.toFixed(2)} NOK
+                  </span>
                 </div>
               ))}
             </div>
@@ -133,7 +139,9 @@ export function SummaryDialog({
           {data.description && (
             <>
               <div>
-                <h4 className="mb-3 text-gray-900 font-semibold">Description</h4>
+                <h4 className="mb-3 text-gray-900 font-semibold">
+                  Description
+                </h4>
                 <p className="text-sm text-gray-700">{data.description}</p>
               </div>
               <Separator />
@@ -142,13 +150,21 @@ export function SummaryDialog({
 
           {/* Total */}
           <div className="flex justify-between items-center p-4 bg-[#3DA9E0]/10 rounded-lg">
-            <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
-            <span className="text-2xl font-bold text-[#3DA9E0]">{data.total.toFixed(2)} NOK</span>
+            <span className="text-lg font-semibold text-gray-900">
+              Total Amount:
+            </span>
+            <span className="text-2xl font-bold text-[#3DA9E0]">
+              {data.total.toFixed(2)} NOK
+            </span>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Go Back
           </Button>
           <Button

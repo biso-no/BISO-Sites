@@ -115,7 +115,9 @@ export function OverviewTab({
             <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               {t("membershipStatus")}
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">{t("statusActive")}</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              {t("statusActive")}
+            </p>
           </div>
           <Badge className="bg-green-100 text-green-700 border-green-200 px-4 py-2">
             <Check className="w-4 h-4 mr-2" />
@@ -126,7 +128,9 @@ export function OverviewTab({
         <div className="space-y-4">
           <div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-600 dark:text-gray-400">{t("timeRemaining")}</span>
+              <span className="text-gray-600 dark:text-gray-400">
+                {t("timeRemaining")}
+              </span>
               <span className="text-gray-900 dark:text-gray-100 font-medium">
                 {t("daysRemaining", { days: daysRemaining })}
               </span>
@@ -138,7 +142,9 @@ export function OverviewTab({
 
           <div className="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-gray-600 dark:text-gray-400">{t("started")}</span>
+              <span className="text-gray-600 dark:text-gray-400">
+                {t("started")}
+              </span>
               <span className="text-gray-900 dark:text-gray-100 ml-2 font-medium">
                 {new Date(startDate).toLocaleDateString("en-US", {
                   month: "short",
@@ -148,7 +154,9 @@ export function OverviewTab({
               </span>
             </div>
             <div>
-              <span className="text-gray-600 dark:text-gray-400">{t("expires")}</span>
+              <span className="text-gray-600 dark:text-gray-400">
+                {t("expires")}
+              </span>
               <span className="text-gray-900 dark:text-gray-100 ml-2 font-medium">
                 {new Date(expiryDate).toLocaleDateString("en-US", {
                   month: "short",
@@ -170,7 +178,9 @@ export function OverviewTab({
   return (
     <TabsContent value="overview" className="space-y-8">
       {!isMember ? (
-        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>{content}</LockedContentOverlay>
+        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
+          {content}
+        </LockedContentOverlay>
       ) : (
         content
       )}

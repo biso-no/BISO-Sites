@@ -4,7 +4,11 @@ import { listCampuses, listDepartments } from "@/app/actions/events";
 import { getJob } from "@/app/actions/jobs";
 import JobEditor from "../shared/JobEditor";
 
-export default async function EditJobPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditJobPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const [job, campuses, departments] = await Promise.all([
     getJob(id),
@@ -25,7 +29,11 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
           {t("applications.title")}
         </Link>
       </div>
-      <JobEditor job={job as any} campuses={campuses as any} departments={departments as any} />
+      <JobEditor
+        job={job as any}
+        campuses={campuses as any}
+        departments={departments as any}
+      />
     </div>
   );
 }

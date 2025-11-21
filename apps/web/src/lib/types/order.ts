@@ -1,6 +1,12 @@
 import type { Models } from "@repo/api";
 
-export type OrderStatus = "pending" | "authorized" | "paid" | "cancelled" | "failed" | "refunded";
+export type OrderStatus =
+  | "pending"
+  | "authorized"
+  | "paid"
+  | "cancelled"
+  | "failed"
+  | "refunded";
 
 export interface OrderItem {
   product_id: string;

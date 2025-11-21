@@ -23,7 +23,11 @@ import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
 import * as m from "motion/react-m";
 import type { FC } from "react";
 
-import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "./attachment";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "./attachment";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 import { TooltipIconButton } from "./tooltip-icon-button";
@@ -340,13 +344,16 @@ const EditComposer: FC = () => {
   );
 };
 
-const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => {
+const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
+  className,
+  ...rest
+}) => {
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
         "aui-branch-picker-root mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground",
-        className,
+        className
       )}
       {...rest}
     >

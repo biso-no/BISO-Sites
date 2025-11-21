@@ -3,7 +3,10 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
-import { DepartmentsFiltersClient, type FilterState } from "./departments-filters-client";
+import {
+  DepartmentsFiltersClient,
+  type FilterState,
+} from "./departments-filters-client";
 import { DepartmentsGrid } from "./departments-grid";
 
 interface DepartmentsListClientProps {
@@ -19,7 +22,10 @@ const stripHtml = (html?: string | null) => {
     .trim();
 };
 
-export function DepartmentsListClient({ departments, availableTypes }: DepartmentsListClientProps) {
+export function DepartmentsListClient({
+  departments,
+  availableTypes,
+}: DepartmentsListClientProps) {
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     campusId: null,
@@ -70,9 +76,9 @@ export function DepartmentsListClient({ departments, availableTypes }: Departmen
   // Sort departments by campus name, then by department name
   const sortedDepartments = useMemo(() => {
     return [...filteredDepartments].sort((a, b) => {
-      const campusCompare = (a.department_ref?.campus?.name || "").localeCompare(
-        b.department_ref?.campus?.name || "",
-      );
+      const campusCompare = (
+        a.department_ref?.campus?.name || ""
+      ).localeCompare(b.department_ref?.campus?.name || "");
       if (campusCompare !== 0) return campusCompare;
       return a.title.localeCompare(b.title);
     });
@@ -90,7 +96,8 @@ export function DepartmentsListClient({ departments, availableTypes }: Departmen
       <div className="flex items-center justify-between mt-8 mb-8">
         <div>
           <h2 className="text-2xl font-semibold text-foreground">
-            {sortedDepartments.length} {sortedDepartments.length === 1 ? "Enhet" : "Enheter"}
+            {sortedDepartments.length}{" "}
+            {sortedDepartments.length === 1 ? "Enhet" : "Enheter"}
           </h2>
           <p className="text-muted-foreground">
             Klikk på en enhet for å lære mer om deres arbeid og team

@@ -1,6 +1,13 @@
 "use client";
 import type { Campus } from "@repo/api/types/appwrite";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { getCampuses, setActiveCampus } from "@/app/actions/campus";
 import { useHydration } from "@/lib/hooks/use-hydration";
 
@@ -91,7 +98,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const value = useMemo<CampusContextValue>(() => {
-    const activeCampus = campuses.find((campus) => campus.$id === activeCampusId);
+    const activeCampus = campuses.find(
+      (campus) => campus.$id === activeCampusId
+    );
     return {
       campuses,
       activeCampusId,
@@ -101,7 +110,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [campuses, activeCampusId, loading, selectCampus]);
 
-  return <CampusContext.Provider value={value}>{children}</CampusContext.Provider>;
+  return (
+    <CampusContext.Provider value={value}>{children}</CampusContext.Provider>
+  );
 };
 
 export const useCampus = () => {

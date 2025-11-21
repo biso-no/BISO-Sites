@@ -43,7 +43,10 @@ export default async function PagesList() {
           <TableBody>
             {pages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                <TableCell
+                  colSpan={5}
+                  className="text-center h-24 text-muted-foreground"
+                >
                   No pages found. Create one to get started.
                 </TableCell>
               </TableRow>
@@ -55,11 +58,17 @@ export default async function PagesList() {
                     /{page.slug}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={page.status === "published" ? "default" : "secondary"}>
+                    <Badge
+                      variant={
+                        page.status === "published" ? "default" : "secondary"
+                      }
+                    >
                       {page.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{new Date(page.updatedAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {new Date(page.updatedAt).toLocaleDateString()}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" asChild>
@@ -69,7 +78,10 @@ export default async function PagesList() {
                       </Button>
                       {page.status === "published" && (
                         <Button variant="ghost" size="icon" asChild>
-                          <Link href={`https://biso.no/${page.slug}`} target="_blank">
+                          <Link
+                            href={`https://biso.no/${page.slug}`}
+                            target="_blank"
+                          >
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>

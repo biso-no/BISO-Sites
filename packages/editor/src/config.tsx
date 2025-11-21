@@ -1,24 +1,45 @@
 "use client";
 import { type Config, registerOverlayPortal, type Slot } from "@measured/puck";
 import { FileUpload } from "@repo/ui/components/file-upload";
-import { AccordionBlock, type AccordionBlockProps } from "@repo/ui/components/puck/accordion";
+import {
+  AccordionBlock,
+  type AccordionBlockProps,
+} from "@repo/ui/components/puck/accordion";
 import { Columns, type ColumnsProps } from "@repo/ui/components/puck/columns";
 import { CTA, type CTAProps } from "@repo/ui/components/puck/cta";
-import { FeatureGrid, type FeatureGridProps } from "@repo/ui/components/puck/feature-grid";
-import { FilterBar, type FilterBarProps } from "@repo/ui/components/puck/filter-bar";
+import {
+  FeatureGrid,
+  type FeatureGridProps,
+} from "@repo/ui/components/puck/feature-grid";
+import {
+  FilterBar,
+  type FilterBarProps,
+} from "@repo/ui/components/puck/filter-bar";
 import { FilteredEvents } from "@repo/ui/components/puck/filtered-events";
 import { FilteredNews } from "@repo/ui/components/puck/filtered-news";
 import {
   Hero as GenericHero,
   type HeroProps as GenericHeroProps,
 } from "@repo/ui/components/puck/hero";
-import { JobsList, type JobsListProps } from "@repo/ui/components/puck/jobs-list";
-import { LogoGrid, type LogoGridProps } from "@repo/ui/components/puck/logo-grid";
+import {
+  JobsList,
+  type JobsListProps,
+} from "@repo/ui/components/puck/jobs-list";
+import {
+  LogoGrid,
+  type LogoGridProps,
+} from "@repo/ui/components/puck/logo-grid";
 import { Section, type SectionProps } from "@repo/ui/components/puck/section";
 import { Spacer, type SpacerProps } from "@repo/ui/components/puck/spacer";
-import { StatsGrid, type StatsGridProps } from "@repo/ui/components/puck/stats-grid";
+import {
+  StatsGrid,
+  type StatsGridProps,
+} from "@repo/ui/components/puck/stats-grid";
 import { Tabs, type TabsProps } from "@repo/ui/components/puck/tabs";
-import { TeamGrid, type TeamGridProps } from "@repo/ui/components/puck/team-grid";
+import {
+  TeamGrid,
+  type TeamGridProps,
+} from "@repo/ui/components/puck/team-grid";
 import { About, type AboutProps } from "@repo/ui/components/sections/about";
 import { Events, type EventsProps } from "@repo/ui/components/sections/events";
 import { Hero, type HeroProps } from "@repo/ui/components/sections/hero";
@@ -130,7 +151,14 @@ export const config: Config<Props> = {
         tab2: { type: "slot" },
         tab3: { type: "slot" },
       },
-      render: ({ tab0: Tab0, tab1: Tab1, tab2: Tab2, tab3: Tab3, tabs, ...props }) => {
+      render: ({
+        tab0: Tab0,
+        tab1: Tab1,
+        tab2: Tab2,
+        tab3: Tab3,
+        tabs,
+        ...props
+      }) => {
         const ref = useRef<HTMLDivElement>(null);
         useEffect(() => registerOverlayPortal(ref.current), [ref.current]);
         return (
@@ -183,7 +211,13 @@ export const config: Config<Props> = {
         "col-1": { type: "slot" },
         "col-2": { type: "slot" },
       },
-      render: ({ "col-0": Col0, "col-1": Col1, "col-2": Col2, layout = "1:1", ...props }) => {
+      render: ({
+        "col-0": Col0,
+        "col-1": Col1,
+        "col-2": Col2,
+        layout = "1:1",
+        ...props
+      }) => {
         const colCount = layout.split(":").length;
         return (
           <Columns layout={layout} {...props}>
@@ -270,7 +304,11 @@ export const config: Config<Props> = {
         variant: "card",
         align: "center",
         items: [
-          { title: "Feature 1", description: "Description 1", icon: "Sparkles" },
+          {
+            title: "Feature 1",
+            description: "Description 1",
+            icon: "Sparkles",
+          },
           { title: "Feature 2", description: "Description 2", icon: "Zap" },
           { title: "Feature 3", description: "Description 3", icon: "Crown" },
         ],
@@ -375,17 +413,20 @@ export const config: Config<Props> = {
           {
             name: "John Doe",
             role: "President",
-            image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400",
+            image:
+              "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400",
           },
           {
             name: "Jane Smith",
             role: "VP",
-            image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400",
+            image:
+              "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400",
           },
           {
             name: "Bob Johnson",
             role: "Treasurer",
-            image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400",
+            image:
+              "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400",
           },
         ],
       },
@@ -432,10 +473,22 @@ export const config: Config<Props> = {
         variant: "bordered",
         grayscale: true,
         items: [
-          { alt: "Partner 1", image: "https://via.placeholder.com/150x80?text=Logo+1" },
-          { alt: "Partner 2", image: "https://via.placeholder.com/150x80?text=Logo+2" },
-          { alt: "Partner 3", image: "https://via.placeholder.com/150x80?text=Logo+3" },
-          { alt: "Partner 4", image: "https://via.placeholder.com/150x80?text=Logo+4" },
+          {
+            alt: "Partner 1",
+            image: "https://via.placeholder.com/150x80?text=Logo+1",
+          },
+          {
+            alt: "Partner 2",
+            image: "https://via.placeholder.com/150x80?text=Logo+2",
+          },
+          {
+            alt: "Partner 3",
+            image: "https://via.placeholder.com/150x80?text=Logo+3",
+          },
+          {
+            alt: "Partner 4",
+            image: "https://via.placeholder.com/150x80?text=Logo+4",
+          },
         ],
       },
     },
@@ -701,7 +754,8 @@ export const config: Config<Props> = {
         featuredContent: [
           {
             title: "Welcome to BISO",
-            description: "The student organisation for BI Norwegian Business School",
+            description:
+              "The student organisation for BI Norwegian Business School",
             type: "custom",
           },
         ],

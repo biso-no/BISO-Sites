@@ -7,7 +7,16 @@ import { Label } from "@repo/ui/components/ui/label";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { Switch } from "@repo/ui/components/ui/switch";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
-import { AlertCircle, Bell, Calendar, Gift, Mail, Newspaper, Shield, X } from "lucide-react";
+import {
+  AlertCircle,
+  Bell,
+  Calendar,
+  Gift,
+  Mail,
+  Newspaper,
+  Shield,
+  X,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -15,7 +24,9 @@ interface SettingsTabProps {
   bankAccount?: string;
 }
 
-export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProps) {
+export function SettingsTab({
+  bankAccount: initialBankAccount,
+}: SettingsTabProps) {
   const t = useTranslations("memberPortal.settings");
 
   const [notifications, setNotifications] = useState({
@@ -41,12 +52,16 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
               <Mail className="w-5 h-5 text-gray-400" />
               <div>
                 <Label className="text-base">{t("emailNotifications")}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t("emailDescription")}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t("emailDescription")}
+                </p>
               </div>
             </div>
             <Switch
               checked={notifications.email}
-              onCheckedChange={(checked) => setNotifications({ ...notifications, email: checked })}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, email: checked })
+              }
             />
           </div>
 
@@ -57,12 +72,16 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
               <Bell className="w-5 h-5 text-gray-400" />
               <div>
                 <Label className="text-base">{t("pushNotifications")}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t("pushDescription")}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t("pushDescription")}
+                </p>
               </div>
             </div>
             <Switch
               checked={notifications.push}
-              onCheckedChange={(checked) => setNotifications({ ...notifications, push: checked })}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, push: checked })
+              }
             />
           </div>
 
@@ -73,12 +92,16 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
               <Calendar className="w-5 h-5 text-gray-400" />
               <div>
                 <Label className="text-base">{t("eventUpdates")}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t("eventDescription")}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t("eventDescription")}
+                </p>
               </div>
             </div>
             <Switch
               checked={notifications.events}
-              onCheckedChange={(checked) => setNotifications({ ...notifications, events: checked })}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, events: checked })
+              }
             />
           </div>
 
@@ -89,12 +112,16 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
               <Newspaper className="w-5 h-5 text-gray-400" />
               <div>
                 <Label className="text-base">{t("newsUpdates")}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t("newsDescription")}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t("newsDescription")}
+                </p>
               </div>
             </div>
             <Switch
               checked={notifications.news}
-              onCheckedChange={(checked) => setNotifications({ ...notifications, news: checked })}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, news: checked })
+              }
             />
           </div>
 
@@ -124,7 +151,9 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
           {t("paymentInformation")}
         </h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{t("paymentDescription")}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
+          {t("paymentDescription")}
+        </p>
 
         <div className="space-y-4">
           <div>
@@ -135,12 +164,16 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
               placeholder={t("bankAccountPlaceholder")}
               className="mt-2"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{t("bankAccountNote")}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              {t("bankAccountNote")}
+            </p>
           </div>
 
           <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             <Shield className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
-            <p className="text-sm text-green-700 dark:text-green-300">{t("securePayment")}</p>
+            <p className="text-sm text-green-700 dark:text-green-300">
+              {t("securePayment")}
+            </p>
           </div>
         </div>
       </Card>
@@ -149,7 +182,9 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
           {t("dangerZone")}
         </h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{t("dangerDescription")}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
+          {t("dangerDescription")}
+        </p>
 
         <div className="space-y-3">
           <Button

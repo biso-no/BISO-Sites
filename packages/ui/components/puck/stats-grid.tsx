@@ -98,10 +98,16 @@ export function StatsGrid({
                       <Icon className="w-6 h-6" />
                     </div>
                   )}
-                  <div className="text-3xl md:text-4xl font-bold text-primary">{item.value}</div>
-                  <div className="font-medium text-muted-foreground">{item.label}</div>
+                  <div className="text-3xl md:text-4xl font-bold text-primary">
+                    {item.value}
+                  </div>
+                  <div className="font-medium text-muted-foreground">
+                    {item.label}
+                  </div>
                   {item.description && (
-                    <div className="text-sm text-muted-foreground mt-1">{item.description}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {item.description}
+                    </div>
                   )}
                 </div>
               </Card>
@@ -114,20 +120,25 @@ export function StatsGrid({
                 key={index}
                 className={cn(
                   "relative flex flex-col p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm shadow-xl",
-                  alignClasses[align],
+                  alignClasses[align]
                 )}
               >
                 <div className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-linear-to-r from-primary to-primary/60 mb-2">
                   {item.value}
                 </div>
-                <div className="text-lg font-medium text-foreground/80">{item.label}</div>
+                <div className="text-lg font-medium text-foreground/80">
+                  {item.label}
+                </div>
               </div>
             );
           }
 
           // Simple variant
           return (
-            <div key={index} className={cn("flex flex-col gap-2", alignClasses[align])}>
+            <div
+              key={index}
+              className={cn("flex flex-col gap-2", alignClasses[align])}
+            >
               {Icon && (
                 <div className="mb-2 text-primary/80">
                   <Icon className="w-8 h-8" />

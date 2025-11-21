@@ -37,7 +37,9 @@ export default async function CustomersPage() {
     });
   }
 
-  const customers = Array.from(customersMap.values()).sort((a, b) => b.total - a.total);
+  const customers = Array.from(customersMap.values()).sort(
+    (a, b) => b.total - a.total
+  );
 
   return (
     <div className="flex w-full flex-col">
@@ -52,22 +54,34 @@ export default async function CustomersPage() {
               <TableRow>
                 <TableHead>{t("customers.table.name")}</TableHead>
                 <TableHead>{t("customers.table.email")}</TableHead>
-                <TableHead className="text-right">{t("customers.table.orders")}</TableHead>
-                <TableHead className="text-right">{t("customers.table.totalSpent")}</TableHead>
+                <TableHead className="text-right">
+                  {t("customers.table.orders")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("customers.table.totalSpent")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {customers.map((c) => (
-                <TableRow key={(c.email || c.name) + c.orders} className="hover:bg-muted/50">
+                <TableRow
+                  key={(c.email || c.name) + c.orders}
+                  className="hover:bg-muted/50"
+                >
                   <TableCell>{c.name}</TableCell>
                   <TableCell>{c.email || "-"}</TableCell>
                   <TableCell className="text-right">{c.orders}</TableCell>
-                  <TableCell className="text-right">{c.total.toFixed(2)} NOK</TableCell>
+                  <TableCell className="text-right">
+                    {c.total.toFixed(2)} NOK
+                  </TableCell>
                 </TableRow>
               ))}
               {customers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={4}
+                    className="text-center text-sm text-muted-foreground"
+                  >
                     {t("customers.empty")}
                   </TableCell>
                 </TableRow>

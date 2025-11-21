@@ -6,7 +6,8 @@ export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
     const file = form.get("file");
-    const mimeType = (form.get("mimeType") as string) || (file as File)?.type || "";
+    const mimeType =
+      (form.get("mimeType") as string) || (file as File)?.type || "";
 
     if (!file || !(file instanceof File)) {
       return new Response(JSON.stringify({ error: "File is required" }), {

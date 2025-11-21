@@ -14,7 +14,10 @@ import {
 import { Switch } from "@repo/ui/components/ui/switch";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
-import type { ProductCustomField, ProductCustomFieldType } from "@/lib/types/product";
+import type {
+  ProductCustomField,
+  ProductCustomFieldType,
+} from "@/lib/types/product";
 
 interface CustomFieldsEditorProps {
   value: ProductCustomField[];
@@ -40,11 +43,16 @@ const createField = (): ProductCustomField => ({
   options: [],
 });
 
-export function CustomFieldsEditor({ value = [], onChange }: CustomFieldsEditorProps) {
+export function CustomFieldsEditor({
+  value = [],
+  onChange,
+}: CustomFieldsEditorProps) {
   const fields = value || [];
 
   const updateField = (index: number, patch: Partial<ProductCustomField>) => {
-    const next = fields.map((field, idx) => (idx === index ? { ...field, ...patch } : field));
+    const next = fields.map((field, idx) =>
+      idx === index ? { ...field, ...patch } : field
+    );
     onChange(next);
   };
 
@@ -64,8 +72,8 @@ export function CustomFieldsEditor({ value = [], onChange }: CustomFieldsEditorP
         <div>
           <h3 className="text-lg font-medium">Custom fields</h3>
           <p className="text-sm text-muted-foreground">
-            Collect additional information from customers during checkout. Responses show up on the
-            order.
+            Collect additional information from customers during checkout.
+            Responses show up on the order.
           </p>
         </div>
         <Button type="button" onClick={addField}>
@@ -89,7 +97,9 @@ export function CustomFieldsEditor({ value = [], onChange }: CustomFieldsEditorP
                     <Input
                       value={field.label}
                       placeholder="E.g. Student ID, Name for engraving"
-                      onChange={(event) => updateField(index, { label: event.target.value })}
+                      onChange={(event) =>
+                        updateField(index, { label: event.target.value })
+                      }
                     />
                   </div>
                   <div className="space-y-1">
@@ -99,7 +109,10 @@ export function CustomFieldsEditor({ value = [], onChange }: CustomFieldsEditorP
                       onValueChange={(value: ProductCustomFieldType) =>
                         updateField(index, {
                           type: value,
-                          options: value === "select" ? (field.options ?? []) : undefined,
+                          options:
+                            value === "select"
+                              ? (field.options ?? [])
+                              : undefined,
                         })
                       }
                     >
@@ -133,13 +146,17 @@ export function CustomFieldsEditor({ value = [], onChange }: CustomFieldsEditorP
                   <Input
                     value={field.placeholder || ""}
                     placeholder="Shown inside the input to guide customers"
-                    onChange={(event) => updateField(index, { placeholder: event.target.value })}
+                    onChange={(event) =>
+                      updateField(index, { placeholder: event.target.value })
+                    }
                   />
                 </div>
                 <div className="flex items-center gap-2 rounded-md border p-3">
                   <Switch
                     checked={!!field.required}
-                    onCheckedChange={(checked) => updateField(index, { required: checked })}
+                    onCheckedChange={(checked) =>
+                      updateField(index, { required: checked })
+                    }
                   />
                   <div className="space-y-1">
                     <Label className="text-sm">Required</Label>
@@ -156,7 +173,9 @@ export function CustomFieldsEditor({ value = [], onChange }: CustomFieldsEditorP
                   <Textarea
                     value={(field.options || []).join("\n")}
                     rows={4}
-                    placeholder={"Each option on a new line\nLocker A\nLocker B"}
+                    placeholder={
+                      "Each option on a new line\nLocker A\nLocker B"
+                    }
                     onChange={(event) => {
                       const raw = event.target.value;
                       const options = raw
@@ -167,7 +186,8 @@ export function CustomFieldsEditor({ value = [], onChange }: CustomFieldsEditorP
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Customers will pick one option. The first option is selected by default.
+                    Customers will pick one option. The first option is selected
+                    by default.
                   </p>
                 </div>
               ) : null}

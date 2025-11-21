@@ -82,21 +82,30 @@ export function LocaleSwitcher({
             "data-[state=open]:bg-accent/70",
             "focus:ring-2 focus:ring-primary focus:ring-offset-2",
             isPending && "opacity-50 cursor-not-allowed",
-            className,
+            className
           )}
         >
           {showFlag && (
-            <span className="text-lg leading-none" role="img" aria-label={currentLanguage.name}>
+            <span
+              className="text-lg leading-none"
+              role="img"
+              aria-label={currentLanguage.name}
+            >
               {currentLanguage.flag}
             </span>
           )}
 
-          {showText && <span className="font-medium">{currentLanguage.nativeName}</span>}
+          {showText && (
+            <span className="font-medium">{currentLanguage.nativeName}</span>
+          )}
 
           {!showText && !showFlag && <Globe className="h-4 w-4" />}
 
           <ChevronDown
-            className={cn("h-3 w-3 transition-transform duration-200", isOpen && "rotate-180")}
+            className={cn(
+              "h-3 w-3 transition-transform duration-200",
+              isOpen && "rotate-180"
+            )}
           />
 
           {isPending && (
@@ -114,7 +123,7 @@ export function LocaleSwitcher({
         className={cn(
           "min-w-[180px] p-2",
           "animate-in fade-in-0 zoom-in-95 duration-200",
-          "border shadow-lg backdrop-blur-sm",
+          "border shadow-lg backdrop-blur-sm"
         )}
       >
         {SUPPORTED_LOCALES.map((locale) => {
@@ -135,16 +144,24 @@ export function LocaleSwitcher({
                 "rounded-md",
                 "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset",
                 isSelected && "bg-accent/30 text-accent-foreground font-medium",
-                isPending && "opacity-50 cursor-not-allowed",
+                isPending && "opacity-50 cursor-not-allowed"
               )}
             >
-              <span className="text-lg leading-none" role="img" aria-label={language.name}>
+              <span
+                className="text-lg leading-none"
+                role="img"
+                aria-label={language.name}
+              >
                 {language.flag}
               </span>
 
               <div className="flex flex-col gap-0.5 flex-1">
-                <span className="text-sm font-medium">{language.nativeName}</span>
-                <span className="text-xs text-muted-foreground">{language.name}</span>
+                <span className="text-sm font-medium">
+                  {language.nativeName}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {language.name}
+                </span>
               </div>
 
               {isSelected && (

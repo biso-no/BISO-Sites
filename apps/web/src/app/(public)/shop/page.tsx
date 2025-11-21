@@ -8,10 +8,17 @@ import { ShopListClient } from "@/components/shop/shop-list-client";
 
 export const metadata = {
   title: "Shop | BISO",
-  description: "Browse our selection of merch, trip deductibles, campus lockers, and memberships",
+  description:
+    "Browse our selection of merch, trip deductibles, campus lockers, and memberships",
 };
 
-async function ShopList({ locale, campus }: { locale: "en" | "no"; campus: string | null }) {
+async function ShopList({
+  locale,
+  campus,
+}: {
+  locale: "en" | "no";
+  campus: string | null;
+}) {
   const products = await listProducts({
     locale,
     status: "published",

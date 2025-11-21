@@ -47,18 +47,25 @@ export function correctMimeType(mimeType: string, filename: string): string {
   if (!mimeType || genericTypes.includes(mimeType.toLowerCase())) {
     const correctedType = getMimeTypeFromExtension(filename);
     if (correctedType) {
-      console.log(`Corrected MIME type for ${filename}: ${mimeType} → ${correctedType}`);
+      console.log(
+        `Corrected MIME type for ${filename}: ${mimeType} → ${correctedType}`
+      );
       return correctedType;
     }
   }
 
   // Special case: DOCX/XLSX/PPTX sometimes identified as zip
-  if (mimeType === "application/zip" || mimeType === "application/x-zip-compressed") {
+  if (
+    mimeType === "application/zip" ||
+    mimeType === "application/x-zip-compressed"
+  ) {
     const ext = filename.split(".").pop()?.toLowerCase();
     if (ext === "docx" || ext === "xlsx" || ext === "pptx") {
       const correctedType = getMimeTypeFromExtension(filename);
       if (correctedType) {
-        console.log(`Corrected MIME type for ${filename}: ${mimeType} → ${correctedType}`);
+        console.log(
+          `Corrected MIME type for ${filename}: ${mimeType} → ${correctedType}`
+        );
         return correctedType;
       }
     }

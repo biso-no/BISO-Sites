@@ -65,7 +65,7 @@ export function RoleBadge({ role, className }: RoleBadgeProps) {
         colors.bg,
         colors.text,
         colors.border,
-        className,
+        className
       )}
     >
       {role}
@@ -79,7 +79,11 @@ interface RoleBadgeListProps {
   className?: string;
 }
 
-export function RoleBadgeList({ roles, limit = 3, className }: RoleBadgeListProps) {
+export function RoleBadgeList({
+  roles,
+  limit = 3,
+  className,
+}: RoleBadgeListProps) {
   const displayRoles = roles.slice(0, limit);
   const extraCount = roles.length - limit;
 

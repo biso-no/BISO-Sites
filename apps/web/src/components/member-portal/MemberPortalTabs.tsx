@@ -1,6 +1,10 @@
 "use client";
 
-import type { MemberBenefit, PublicProfiles, Users } from "@repo/api/types/appwrite";
+import type {
+  MemberBenefit,
+  PublicProfiles,
+  Users,
+} from "@repo/api/types/appwrite";
 import {
   BenefitsTab,
   MembershipTab,
@@ -74,7 +78,11 @@ export function MemberPortalTabs({
         onTabChange={handleTabChange}
       />
 
-      <ProfileTab user={profile} publicProfile={publicProfile} biEmail={biEmail} />
+      <ProfileTab
+        user={profile}
+        publicProfile={publicProfile}
+        biEmail={biEmail}
+      />
 
       <MembershipTab
         userName={userName}

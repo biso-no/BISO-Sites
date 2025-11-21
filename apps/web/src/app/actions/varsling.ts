@@ -15,7 +15,9 @@ export interface VarslingSubmission {
 }
 
 // Get varsling settings for a specific campus
-export async function getVarslingSettings(campusId?: string): Promise<VarslingSettings[]> {
+export async function getVarslingSettings(
+  campusId?: string
+): Promise<VarslingSettings[]> {
   try {
     const { db } = await createSessionClient();
 
@@ -29,7 +31,11 @@ export async function getVarslingSettings(campusId?: string): Promise<VarslingSe
       queries.unshift(Query.equal("campus_id", campusId));
     }
 
-    const response = await db.listRows<VarslingSettings>("app", "varsling_settings", queries);
+    const response = await db.listRows<VarslingSettings>(
+      "app",
+      "varsling_settings",
+      queries
+    );
     return response.rows;
   } catch (error) {
     console.error("Failed to fetch varsling settings:", error);
@@ -42,11 +48,15 @@ async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
   try {
     const { db } = await createSessionClient();
 
-    const response = await db.listRows<VarslingSettings>("app", "varsling_settings", [
-      Query.orderAsc("campus_id"),
-      Query.orderAsc("sort_order"),
-      Query.orderAsc("role_name"),
-    ]);
+    const response = await db.listRows<VarslingSettings>(
+      "app",
+      "varsling_settings",
+      [
+        Query.orderAsc("campus_id"),
+        Query.orderAsc("sort_order"),
+        Query.orderAsc("role_name"),
+      ]
+    );
 
     return response.rows;
   } catch (error) {
@@ -57,12 +67,17 @@ async function getAllVarslingSettings(): Promise<VarslingSettings[]> {
 
 // Create new varsling settings (admin only)
 async function createVarslingSettings(
-  data: Omit<VarslingSettings, "$id">,
+  data: Omit<VarslingSettings, "$id">
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createSessionClient();
 
-    await db.createRow<VarslingSettings>("app", "varsling_settings", ID.unique(), data);
+    await db.createRow<VarslingSettings>(
+      "app",
+      "varsling_settings",
+      ID.unique(),
+      data
+    );
 
     revalidatePath("/admin/varsling");
     return { success: true };
@@ -75,7 +90,7 @@ async function createVarslingSettings(
 // Update varsling settings (admin only)
 async function updateVarslingSettings(
   id: string,
-  data: Partial<VarslingSettings>,
+  data: Partial<VarslingSettings>
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createSessionClient();
@@ -91,7 +106,9 @@ async function updateVarslingSettings(
 }
 
 // Delete varsling settings (admin only)
-async function deleteVarslingSettings(id: string): Promise<{ success: boolean; error?: string }> {
+async function deleteVarslingSettings(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createSessionClient();
 
@@ -107,7 +124,7 @@ async function deleteVarslingSettings(id: string): Promise<{ success: boolean; e
 
 // Submit varsling case (public)
 export async function submitVarslingCase(
-  data: VarslingSubmission,
+  data: VarslingSubmission
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { messaging } = await createSessionClient();
@@ -145,12 +162,15 @@ export async function submitVarslingCase(
       [], // attachments
       false, // draft
       true, // html content
-      new Date(Date.now() + 5 * 60 * 1000).toISOString(), // schedule 5 minutes from now
+      new Date(Date.now() + 5 * 60 * 1000).toISOString() // schedule 5 minutes from now
     );
 
     return { success: true };
   } catch (error) {
     console.error("Failed to submit varsling case:", error);
-    return { success: false, error: "Failed to submit varsling case. Please try again." };
+    return {
+      success: false,
+      error: "Failed to submit varsling case. Please try again.",
+    };
   }
 }

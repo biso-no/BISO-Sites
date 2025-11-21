@@ -53,9 +53,24 @@ export function Navigation({
   const navItems = useMemo(
     () => [
       { icon: Users, label: t("campus"), href: "/campus", onClick: undefined },
-      { icon: Calendar, label: t("events"), href: "/events", onClick: onEventsClick },
-      { icon: Newspaper, label: t("news"), href: "/news", onClick: onNewsClick },
-      { icon: ShoppingBag, label: t("shop"), href: "/shop", onClick: onShopClick },
+      {
+        icon: Calendar,
+        label: t("events"),
+        href: "/events",
+        onClick: onEventsClick,
+      },
+      {
+        icon: Newspaper,
+        label: t("news"),
+        href: "/news",
+        onClick: onNewsClick,
+      },
+      {
+        icon: ShoppingBag,
+        label: t("shop"),
+        href: "/shop",
+        onClick: onShopClick,
+      },
       {
         icon: Briefcase,
         label: t("applyHere"),
@@ -66,7 +81,7 @@ export function Navigation({
       //{ icon: Mail, label: 'Contact', href: '#contact', onClick: undefined },
       { icon: Info, label: t("about"), href: "#about", onClick: undefined },
     ],
-    [pathname],
+    [pathname]
   );
 
   return (
@@ -82,7 +97,10 @@ export function Navigation({
       <div className="w-full max-w-[min(1400px,100%)] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4 h-20">
           {/* Logo */}
-          <motion.div whileHover={{ scale: 1.05 }} className="flex items-center gap-3">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="flex items-center gap-3"
+          >
             <Link href="/">
               <ImageWithFallback
                 src="/images/home-logo.png"
@@ -136,7 +154,11 @@ export function Navigation({
               isScrolled ? "text-white" : "text-white"
             }`}
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
           </button>
         </div>
       </div>

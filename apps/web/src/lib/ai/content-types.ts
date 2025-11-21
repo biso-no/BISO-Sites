@@ -1,7 +1,10 @@
 import { isSupportedFileExtension } from "./mime-utils";
 
 // Centralized helper to determine if a MIME type is supported for text extraction
-export function isSupportedContentType(contentType: string, filename?: string): boolean {
+export function isSupportedContentType(
+  contentType: string,
+  filename?: string
+): boolean {
   const ct = (contentType || "").toLowerCase();
 
   // Check MIME type

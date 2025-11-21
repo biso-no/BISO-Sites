@@ -42,7 +42,10 @@ const categoryColors: Record<string, string> = {
   Membership: "bg-orange-100 text-orange-700 border-orange-200",
 };
 
-export function CartPageClient({ isMember = false, userId = null }: CartPageClientProps) {
+export function CartPageClient({
+  isMember = false,
+  userId = null,
+}: CartPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -64,7 +67,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
   const totalSavings = getTotalSavings(isMember);
   const discountTotal = isMember ? totalSavings : 0;
 
-  const hasUnlockableDiscounts = !isMember && items.some((item) => item.memberPrice);
+  const hasUnlockableDiscounts =
+    !isMember && items.some((item) => item.memberPrice);
   const potentialSavings = !isMember
     ? regularSubtotal -
       items.reduce((sum, item) => {
@@ -133,7 +137,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
         items: items.map((item) => ({
           productId: item.productId,
           name: item.name,
-          price: isMember && item.memberPrice ? item.memberPrice : item.regularPrice,
+          price:
+            isMember && item.memberPrice ? item.memberPrice : item.regularPrice,
           quantity: item.quantity,
         })),
         subtotal: regularSubtotal,
@@ -182,9 +187,12 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
               <div className="flex items-center justify-center gap-2 mb-4">
                 <ShoppingCart className="w-12 h-12 text-[#3DA9E0]" />
               </div>
-              <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">Your Cart</h1>
+              <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">
+                Your Cart
+              </h1>
               <p className="text-white/90 text-lg">
-                {items.length} {items.length === 1 ? "item" : "items"} ready for pickup
+                {items.length} {items.length === 1 ? "item" : "items"} ready for
+                pickup
               </p>
             </motion.div>
           </div>
@@ -197,8 +205,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Failed to create checkout session. Please try again or contact support if the problem
-              persists.
+              Failed to create checkout session. Please try again or contact
+              support if the problem persists.
             </AlertDescription>
           </Alert>
         )}
@@ -207,7 +215,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Payment failed. Please try again or use a different payment method.
+              Payment failed. Please try again or use a different payment
+              method.
             </AlertDescription>
           </Alert>
         )}
@@ -216,8 +225,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
           <Alert className="mb-6 border-orange-200 bg-orange-50">
             <AlertCircle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800">
-              Payment was cancelled. Your cart items are still here when you&apos;re ready to
-              checkout.
+              Payment was cancelled. Your cart items are still here when
+              you&apos;re ready to checkout.
             </AlertDescription>
           </Alert>
         )}
@@ -242,7 +251,9 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
             className="text-center py-16"
           >
             <ShoppingCart className="w-24 h-24 text-gray-300 mx-auto mb-6" />
-            <h2 className="text-gray-900 mb-4 text-2xl font-bold">Your cart is empty</h2>
+            <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+              Your cart is empty
+            </h2>
             <p className="text-gray-600 mb-8 text-lg">
               Start adding some amazing BISO products to your cart!
             </p>
@@ -271,12 +282,17 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
               <AnimatePresence mode="popLayout">
                 {items.map((item, index) => {
                   const itemPrice =
-                    isMember && item.memberPrice ? item.memberPrice : item.regularPrice;
+                    isMember && item.memberPrice
+                      ? item.memberPrice
+                      : item.regularPrice;
                   const itemTotal = itemPrice * item.quantity;
                   const hasDiscount =
-                    isMember && item.memberPrice && item.memberPrice < item.regularPrice;
+                    isMember &&
+                    item.memberPrice &&
+                    item.memberPrice < item.regularPrice;
                   const savings = hasDiscount
-                    ? (item.regularPrice - (item.memberPrice ?? 0)) * item.quantity
+                    ? (item.regularPrice - (item.memberPrice ?? 0)) *
+                      item.quantity
                     : 0;
 
                   return (
@@ -312,7 +328,9 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                           <div className="grow">
                             <div className="flex items-start justify-between mb-2">
                               <div>
-                                <h3 className="text-gray-900 mb-1 font-semibold">{item.name}</h3>
+                                <h3 className="text-gray-900 mb-1 font-semibold">
+                                  {item.name}
+                                </h3>
                                 {item.memberOnly && (
                                   <Badge className="bg-orange-500 text-white border-0 mb-2">
                                     <Users className="w-3 h-3 mr-1" />
@@ -334,12 +352,19 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                             {item.selectedOptions &&
                               Object.keys(item.selectedOptions).length > 0 && (
                                 <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                                  <p className="text-sm text-gray-500 mb-1">Selected options:</p>
-                                  {Object.entries(item.selectedOptions).map(([key, value]) => (
-                                    <p key={key} className="text-sm text-gray-700">
-                                      <strong>{key}:</strong> {value}
-                                    </p>
-                                  ))}
+                                  <p className="text-sm text-gray-500 mb-1">
+                                    Selected options:
+                                  </p>
+                                  {Object.entries(item.selectedOptions).map(
+                                    ([key, value]) => (
+                                      <p
+                                        key={key}
+                                        className="text-sm text-gray-700"
+                                      >
+                                        <strong>{key}:</strong> {value}
+                                      </p>
+                                    )
+                                  )}
                                 </div>
                               )}
 
@@ -347,12 +372,16 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                             <div className="flex items-center justify-between mt-4">
                               {/* Quantity Control */}
                               <div className="flex items-center gap-3">
-                                <span className="text-sm text-gray-600">Quantity:</span>
+                                <span className="text-sm text-gray-600">
+                                  Quantity:
+                                </span>
                                 <div className="flex items-center gap-2 border border-gray-300 rounded-lg">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleQuantityChange(item.id, -1)}
+                                    onClick={() =>
+                                      handleQuantityChange(item.id, -1)
+                                    }
                                     disabled={item.quantity <= 1}
                                     className="h-8 w-8 p-0 disabled:opacity-50"
                                   >
@@ -364,11 +393,16 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleQuantityChange(item.id, 1)}
+                                    onClick={() =>
+                                      handleQuantityChange(item.id, 1)
+                                    }
                                     disabled={
-                                      (item.stock !== null && item.quantity >= item.stock) ||
-                                      (item.metadata?.max_per_order !== undefined &&
-                                        item.quantity >= item.metadata.max_per_order)
+                                      (item.stock !== null &&
+                                        item.quantity >= item.stock) ||
+                                      (item.metadata?.max_per_order !==
+                                        undefined &&
+                                        item.quantity >=
+                                          item.metadata.max_per_order)
                                     }
                                     className="h-8 w-8 p-0 disabled:opacity-50"
                                   >
@@ -381,9 +415,11 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                                   </span>
                                 )}
                                 {item.metadata?.max_per_order &&
-                                  item.quantity >= item.metadata.max_per_order && (
+                                  item.quantity >=
+                                    item.metadata.max_per_order && (
                                     <span className="text-xs text-red-600">
-                                      Max {item.metadata.max_per_order} per order
+                                      Max {item.metadata.max_per_order} per
+                                      order
                                     </span>
                                   )}
                               </div>
@@ -395,17 +431,24 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                                     <div className="text-gray-400 line-through text-sm">
                                       {item.regularPrice * item.quantity} NOK
                                     </div>
-                                    <div className="text-[#3DA9E0] font-bold">{itemTotal} NOK</div>
-                                    <div className="text-xs text-green-600">Save {savings} NOK</div>
+                                    <div className="text-[#3DA9E0] font-bold">
+                                      {itemTotal} NOK
+                                    </div>
+                                    <div className="text-xs text-green-600">
+                                      Save {savings} NOK
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div className="text-gray-900 font-bold">{itemTotal} NOK</div>
+                                  <div className="text-gray-900 font-bold">
+                                    {itemTotal} NOK
+                                  </div>
                                 )}
                                 {!isMember &&
                                   item.memberPrice &&
                                   item.memberPrice < item.regularPrice && (
                                     <div className="text-xs text-gray-500 mt-1">
-                                      Members: {item.memberPrice * item.quantity} NOK
+                                      Members:{" "}
+                                      {item.memberPrice * item.quantity} NOK
                                     </div>
                                   )}
                               </div>
@@ -423,7 +466,10 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
             <div className="space-y-6">
               {/* Member Benefits Alert */}
               {hasUnlockableDiscounts && potentialSavings > 0 && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
                   <Alert className="border-[#3DA9E0] bg-linear-to-br from-[#3DA9E0]/10 to-cyan-50">
                     <Sparkles className="h-4 w-4 text-[#3DA9E0]" />
                     <AlertDescription>
@@ -431,8 +477,8 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                         <strong>Unlock member discounts!</strong>
                       </p>
                       <p className="text-sm text-gray-600 mb-3">
-                        You could save {potentialSavings} NOK on this order by becoming a BISO
-                        member.
+                        You could save {potentialSavings} NOK on this order by
+                        becoming a BISO member.
                       </p>
                       <Button
                         size="sm"
@@ -453,12 +499,16 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                 transition={{ delay: 0.2 }}
               >
                 <Card className="p-6 border-0 shadow-lg sticky top-24">
-                  <h3 className="text-gray-900 mb-4 text-xl font-bold">Order Summary</h3>
+                  <h3 className="text-gray-900 mb-4 text-xl font-bold">
+                    Order Summary
+                  </h3>
 
                   <div className="space-y-3 mb-4">
                     <div className="flex justify-between text-gray-600">
                       <span>
-                        Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)} items)
+                        Subtotal (
+                        {items.reduce((sum, item) => sum + item.quantity, 0)}{" "}
+                        items)
                       </span>
                       <span className="font-medium">
                         {isMember ? subtotal : regularSubtotal} NOK
@@ -479,16 +529,21 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                   <Separator className="my-4" />
 
                   <div className="flex justify-between mb-6">
-                    <span className="text-gray-900 font-bold text-lg">Total</span>
+                    <span className="text-gray-900 font-bold text-lg">
+                      Total
+                    </span>
                     <div className="text-right">
-                      <div className="text-[#3DA9E0] font-bold text-2xl">{subtotal} NOK</div>
+                      <div className="text-[#3DA9E0] font-bold text-2xl">
+                        {subtotal} NOK
+                      </div>
                     </div>
                   </div>
 
                   {isMember && totalSavings > 0 && (
                     <div className="mb-4 p-3 bg-green-50 rounded-lg text-center">
                       <p className="text-sm text-green-700">
-                        🎉 You&apos;re saving <strong>{totalSavings} NOK</strong> with your
+                        🎉 You&apos;re saving{" "}
+                        <strong>{totalSavings} NOK</strong> with your
                         membership!
                       </p>
                     </div>
@@ -523,9 +578,12 @@ export function CartPageClient({ isMember = false, userId = null }: CartPageClie
                   <div className="flex items-start gap-3">
                     <Package className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="mb-2 text-gray-900 font-semibold">Campus Pickup</h4>
+                      <h4 className="mb-2 text-gray-900 font-semibold">
+                        Campus Pickup
+                      </h4>
                       <p className="text-sm text-gray-700 mb-2">
-                        All items will be available for pickup at the BISO office at your campus.
+                        All items will be available for pickup at the BISO
+                        office at your campus.
                       </p>
                     </div>
                   </div>

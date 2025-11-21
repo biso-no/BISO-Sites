@@ -10,7 +10,10 @@ interface DepartmentActionsHeaderProps {
   types: string[];
 }
 
-export function DepartmentActionsHeader({ campuses, types }: DepartmentActionsHeaderProps) {
+export function DepartmentActionsHeader({
+  campuses,
+  types,
+}: DepartmentActionsHeaderProps) {
   const router = useRouter();
 
   return (

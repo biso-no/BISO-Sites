@@ -1,4 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -15,9 +20,21 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PressPage() {
   const t = await getTranslations("press");
   const assets = [
-    { key: "logoLight", label: t("assets.logoLight"), href: "/images/logo-light.png" },
-    { key: "logoDark", label: t("assets.logoDark"), href: "/images/logo-dark.png" },
-    { key: "orgChart", label: t("assets.orgChart"), href: "/images/org-chart.png" },
+    {
+      key: "logoLight",
+      label: t("assets.logoLight"),
+      href: "/images/logo-light.png",
+    },
+    {
+      key: "logoDark",
+      label: t("assets.logoDark"),
+      href: "/images/logo-dark.png",
+    },
+    {
+      key: "orgChart",
+      label: t("assets.orgChart"),
+      href: "/images/org-chart.png",
+    },
   ];
   return (
     <div className="space-y-6">

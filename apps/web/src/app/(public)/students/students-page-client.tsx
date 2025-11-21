@@ -1,9 +1,17 @@
 "use client";
 
-import type { ContentTranslations, Departments } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  Departments,
+} from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area";
 import { formatDateReadable } from "@repo/ui/lib/utils";
 import { GraduationCap, Handshake, Star, Users } from "lucide-react";
@@ -38,7 +46,10 @@ const benefitKeys: BenefitKey[] = [
   "businessBenefits",
 ];
 
-const benefitIconMap: Record<BenefitKey, React.ComponentType<{ className?: string }>> = {
+const benefitIconMap: Record<
+  BenefitKey,
+  React.ComponentType<{ className?: string }>
+> = {
   studentBenefits: GraduationCap,
   careerAdvantages: Star,
   socialNetwork: Users,
@@ -49,18 +60,26 @@ const benefitIconMap: Record<BenefitKey, React.ComponentType<{ className?: strin
 const selectBenefitItems = (
   data: CampusData | null | undefined,
   key: BenefitKey,
-  locale: Locale,
+  locale: Locale
 ) => {
   if (!data) return [];
   const suffix = locale === "en" ? "_en" : "_nb";
   const localizedKey = `${key}${suffix}` as keyof CampusData;
   const localized = data[localizedKey];
   const fallback = data[key];
-  const list = Array.isArray(localized) ? localized : Array.isArray(fallback) ? fallback : [];
+  const list = Array.isArray(localized)
+    ? localized
+    : Array.isArray(fallback)
+      ? fallback
+      : [];
   return list.map((item) => (item ? String(item).trim() : "")).filter(Boolean);
 };
 
-const pickCampusData = (dataset: CampusData[], campusId?: string | null, campusName?: string) => {
+const pickCampusData = (
+  dataset: CampusData[],
+  campusId?: string | null,
+  campusName?: string
+) => {
   if (!dataset.length) return null;
   if (campusId) {
     const matchById = dataset.find((item) => item.$id === campusId);
@@ -70,7 +89,8 @@ const pickCampusData = (dataset: CampusData[], campusId?: string | null, campusN
     const normalized = campusName.toLowerCase();
     return dataset.find(
       (item) =>
-        item.name?.toLowerCase() === normalized || item.name_nb?.toLowerCase() === normalized,
+        item.name?.toLowerCase() === normalized ||
+        item.name_nb?.toLowerCase() === normalized
     );
   }
   return null;
@@ -89,22 +109,28 @@ export const StudentsPageClient = ({
 
   const currentCampusData = useMemo(
     () => pickCampusData(campusData, activeCampusId, activeCampus?.name),
-    [campusData, activeCampusId, activeCampus],
+    [campusData, activeCampusId, activeCampus]
   );
 
   const filteredEvents = useMemo(() => {
     if (!activeCampusId) return events.slice(0, 6);
-    return events.filter((event) => event.event_ref?.campus_id === activeCampusId).slice(0, 6);
+    return events
+      .filter((event) => event.event_ref?.campus_id === activeCampusId)
+      .slice(0, 6);
   }, [events, activeCampusId]);
 
   const filteredJobs = useMemo(() => {
     if (!activeCampusId) return jobs.slice(0, 6);
-    return jobs.filter((job) => job.job_ref?.campus_id === activeCampusId).slice(0, 6);
+    return jobs
+      .filter((job) => job.job_ref?.campus_id === activeCampusId)
+      .slice(0, 6);
   }, [jobs, activeCampusId]);
 
   const featuredDepartments = useMemo(() => {
     if (!activeCampusId) return departments.slice(0, 6);
-    return departments.filter((dept) => dept.campus_id === activeCampusId).slice(0, 6);
+    return departments
+      .filter((dept) => dept.campus_id === activeCampusId)
+      .slice(0, 6);
   }, [departments, activeCampusId]);
 
   const campusLabel = activeCampus?.name ?? t("hero.globalCampus");
@@ -120,9 +146,15 @@ export const StudentsPageClient = ({
           <h1 className="mt-6 max-w-2xl text-3xl font-semibold leading-tight text-white sm:text-5xl">
             {t("hero.title", { campus: campusLabel })}
           </h1>
-          <p className="mt-4 max-w-2xl text-base text-white/80 sm:text-lg">{t("hero.subtitle")}</p>
+          <p className="mt-4 max-w-2xl text-base text-white/80 sm:text-lg">
+            {t("hero.subtitle")}
+          </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
+            <Button
+              asChild
+              size="lg"
+              className="bg-white text-primary-100 hover:bg-white/90"
+            >
               <Link href="/membership">{t("hero.ctaPrimary")}</Link>
             </Button>
             <Button
@@ -131,12 +163,21 @@ export const StudentsPageClient = ({
               variant="secondary"
               className="border-white/60 bg-transparent text-white hover:bg-white/10"
             >
-              <Link href={`/units${activeCampusId ? `?campus_id=${activeCampusId}` : ""}`}>
+              <Link
+                href={`/units${activeCampusId ? `?campus_id=${activeCampusId}` : ""}`}
+              >
                 {t("hero.ctaSecondary")}
               </Link>
             </Button>
-            <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10">
-              <Link href={`/jobs${activeCampusId ? `?campus=${activeCampusId}` : ""}`}>
+            <Button
+              asChild
+              size="lg"
+              variant="ghost"
+              className="text-white hover:bg-white/10"
+            >
+              <Link
+                href={`/jobs${activeCampusId ? `?campus=${activeCampusId}` : ""}`}
+              >
                 {t("hero.ctaTertiary")}
               </Link>
             </Button>
@@ -147,7 +188,9 @@ export const StudentsPageClient = ({
       <section className="space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">{t("benefits.title")}</h2>
+            <h2 className="text-2xl font-semibold text-primary-100">
+              {t("benefits.title")}
+            </h2>
             <p className="text-sm text-muted-foreground">
               {t("benefits.subtitle", { campus: campusLabel })}
             </p>
@@ -164,13 +207,19 @@ export const StudentsPageClient = ({
               const items = selectBenefitItems(
                 currentCampusData ?? globalBenefits,
                 key,
-                locale,
+                locale
               ).slice(0, 4);
               if (!items.length) return null;
               return (
-                <Card key={key} className="min-w-[280px] max-w-xs border-primary/10 bg-white">
+                <Card
+                  key={key}
+                  className="min-w-[280px] max-w-xs border-primary/10 bg-white"
+                >
                   <CardHeader className="space-y-2">
-                    <Badge variant="secondary" className="w-fit text-xs uppercase">
+                    <Badge
+                      variant="secondary"
+                      className="w-fit text-xs uppercase"
+                    >
                       {t(`benefits.badges.${key}`)}
                     </Badge>
                     <div className="flex items-center gap-2">
@@ -206,10 +255,14 @@ export const StudentsPageClient = ({
                 <Users className="h-5 w-5 text-primary-40" />
                 {t("units.title", { campus: campusLabel })}
               </CardTitle>
-              <p className="text-sm text-muted-foreground">{t("units.subtitle")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("units.subtitle")}
+              </p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link href={`/units${activeCampusId ? `?campus_id=${activeCampusId}` : ""}`}>
+              <Link
+                href={`/units${activeCampusId ? `?campus_id=${activeCampusId}` : ""}`}
+              >
                 {t("units.cta")}
               </Link>
             </Button>
@@ -217,21 +270,30 @@ export const StudentsPageClient = ({
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
               {featuredDepartments.map((dept) => (
-                <div key={dept.$id} className="rounded-lg border border-primary/10 bg-muted/40 p-4">
-                  <h3 className="text-base font-semibold text-primary-100">{dept.Name}</h3>
+                <div
+                  key={dept.$id}
+                  className="rounded-lg border border-primary/10 bg-muted/40 p-4"
+                >
+                  <h3 className="text-base font-semibold text-primary-100">
+                    {dept.Name}
+                  </h3>
                   <p className="mt-2 text-sm text-muted-foreground line-clamp-3">
                     {dept.description}
                   </p>
                   <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{dept.type || t("units.unknownType")}</span>
                     {dept.users?.length ? (
-                      <span>{t("units.members", { count: dept.users?.length })}</span>
+                      <span>
+                        {t("units.members", { count: dept.users?.length })}
+                      </span>
                     ) : null}
                   </div>
                 </div>
               ))}
               {!featuredDepartments.length && (
-                <p className="text-sm text-muted-foreground">{t("units.empty")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("units.empty")}
+                </p>
               )}
             </div>
           </CardContent>
@@ -239,8 +301,12 @@ export const StudentsPageClient = ({
 
         <Card className="border-primary/10 bg-white">
           <CardHeader>
-            <CardTitle className="text-primary-100">{t("funding.title")}</CardTitle>
-            <p className="text-sm text-muted-foreground">{t("funding.subtitle")}</p>
+            <CardTitle className="text-primary-100">
+              {t("funding.title")}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {t("funding.subtitle")}
+            </p>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
             <p>{t("funding.body")}</p>
@@ -257,10 +323,14 @@ export const StudentsPageClient = ({
             <h2 className="text-2xl font-semibold text-primary-100">
               {t("events.title", { campus: campusLabel })}
             </h2>
-            <p className="text-sm text-muted-foreground">{t("events.subtitle")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("events.subtitle")}
+            </p>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/events${activeCampusId ? `?campus=${activeCampusId}` : ""}`}>
+            <Link
+              href={`/events${activeCampusId ? `?campus=${activeCampusId}` : ""}`}
+            >
               {t("events.cta")}
             </Link>
           </Button>
@@ -270,9 +340,13 @@ export const StudentsPageClient = ({
             <Card key={event.$id} className="border-primary/10 bg-white">
               <CardHeader>
                 <Badge variant="secondary" className="w-fit text-xs uppercase">
-                  {formatDateReadable(new Date(event.event_ref?.start_date || ""))}
+                  {formatDateReadable(
+                    new Date(event.event_ref?.start_date || "")
+                  )}
                 </Badge>
-                <CardTitle className="text-lg text-primary-100">{event.title}</CardTitle>
+                <CardTitle className="text-lg text-primary-100">
+                  {event.title}
+                </CardTitle>
                 <p
                   className="text-sm text-muted-foreground line-clamp-3"
                   dangerouslySetInnerHTML={{ __html: event.description || "" }}
@@ -284,7 +358,10 @@ export const StudentsPageClient = ({
                     event.event_ref?.campus?.name ||
                     event.event_ref?.campus_id}
                 </span>
-                <Link href={`/events/${event.$id}`} className="underline-offset-2 hover:underline">
+                <Link
+                  href={`/events/${event.$id}`}
+                  className="underline-offset-2 hover:underline"
+                >
                   {t("events.more")}
                 </Link>
               </CardContent>
@@ -303,11 +380,17 @@ export const StudentsPageClient = ({
       <section className="space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">{t("jobs.title")}</h2>
-            <p className="text-sm text-muted-foreground">{t("jobs.subtitle")}</p>
+            <h2 className="text-2xl font-semibold text-primary-100">
+              {t("jobs.title")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t("jobs.subtitle")}
+            </p>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/jobs${activeCampusId ? `?campus=${activeCampusId}` : ""}`}>
+            <Link
+              href={`/jobs${activeCampusId ? `?campus=${activeCampusId}` : ""}`}
+            >
               {t("jobs.cta")}
             </Link>
           </Button>
@@ -319,7 +402,9 @@ export const StudentsPageClient = ({
                 <Badge variant="secondary" className="w-fit text-xs uppercase">
                   {job.job_ref?.department?.Name || t("jobs.unknownDepartment")}
                 </Badge>
-                <CardTitle className="text-lg text-primary-100">{job.title}</CardTitle>
+                <CardTitle className="text-lg text-primary-100">
+                  {job.title}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
                 <p
@@ -327,18 +412,29 @@ export const StudentsPageClient = ({
                   dangerouslySetInnerHTML={{ __html: job.description || "" }}
                 />
                 <div className="flex items-center justify-between text-xs">
-                  <span>{job.job_ref?.campus?.name || job.job_ref?.campus_id}</span>
+                  <span>
+                    {job.job_ref?.campus?.name || job.job_ref?.campus_id}
+                  </span>
                   <span>
                     {job.job_ref?.metadata?.application_deadline
                       ? formatDateReadable(
-                          new Date(job.job_ref?.metadata?.application_deadline || ""),
+                          new Date(
+                            job.job_ref?.metadata?.application_deadline || ""
+                          )
                         )
                       : t("jobs.rolling")}
                   </span>
                 </div>
                 <div className="flex justify-end">
-                  <Button asChild variant="ghost" size="sm" className="px-0 text-primary-40">
-                    <Link href={`/jobs/${job.job_ref?.slug}`}>{t("jobs.more")}</Link>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="px-0 text-primary-40"
+                  >
+                    <Link href={`/jobs/${job.job_ref?.slug}`}>
+                      {t("jobs.more")}
+                    </Link>
                   </Button>
                 </div>
               </CardContent>
@@ -355,7 +451,9 @@ export const StudentsPageClient = ({
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-primary-100">{t("resources.title")}</h2>
+        <h2 className="text-2xl font-semibold text-primary-100">
+          {t("resources.title")}
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { href: "/membership", label: t("resources.membership") },
@@ -371,8 +469,14 @@ export const StudentsPageClient = ({
           ].map((link) => (
             <Card key={link.href} className="border-primary/10 bg-white">
               <CardContent className="flex h-full flex-col justify-between gap-4 py-6">
-                <p className="text-sm font-semibold text-primary-100">{link.label}</p>
-                <Button asChild variant="ghost" className="justify-start px-0 text-primary-40">
+                <p className="text-sm font-semibold text-primary-100">
+                  {link.label}
+                </p>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="justify-start px-0 text-primary-40"
+                >
                   <Link href={link.href}>{t("resources.view")}</Link>
                 </Button>
               </CardContent>

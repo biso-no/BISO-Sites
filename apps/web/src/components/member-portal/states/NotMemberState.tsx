@@ -104,7 +104,9 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
               <li className="flex items-start gap-3">
                 <CheckCircle className="w-5 h-5 text-[#3DA9E0] mt-0.5 shrink-0" />
                 <span className="text-gray-700 dark:text-gray-300">
-                  {t("states.notMember.benefits.discounts", { count: benefitsCount })}
+                  {t("states.notMember.benefits.discounts", {
+                    count: benefitsCount,
+                  })}
                 </span>
               </li>
               <li className="flex items-start gap-3">
@@ -134,7 +136,9 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
             disabled={isPending}
           >
             <CreditCard className="w-4 h-4 mr-2" />
-            {isPending ? "Processing..." : t("states.notMember.purchaseMembership")}
+            {isPending
+              ? "Processing..."
+              : t("states.notMember.purchaseMembership")}
           </Button>
           <Link href="/">
             <Button variant="outline" className="w-full">

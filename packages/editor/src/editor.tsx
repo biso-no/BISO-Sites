@@ -1,12 +1,21 @@
 "use client";
 
-import { type Config, type Data, Puck, usePuck as usePuckOriginal } from "@measured/puck";
+import {
+  type Config,
+  type Data,
+  Puck,
+  usePuck as usePuckOriginal,
+} from "@measured/puck";
 import { Button } from "@repo/ui/components/ui/button";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
 import "@measured/puck/puck.css";
-import { type Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import {
+  type Locale,
+  PageStatus,
+  PageVisibility,
+} from "@repo/api/types/appwrite";
 import { FileUpload } from "@repo/ui/components/file-upload";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
@@ -39,8 +48,14 @@ export interface PageEditorProps {
   availableLocales: Locale[];
   status: PageStatus;
   visibility: PageVisibility;
-  onSave: (data: Data, metadata: { title: string; slug: string }) => Promise<void>;
-  onPublish: (data: Data, metadata: { title: string; slug: string }) => Promise<void>;
+  onSave: (
+    data: Data,
+    metadata: { title: string; slug: string }
+  ) => Promise<void>;
+  onPublish: (
+    data: Data,
+    metadata: { title: string; slug: string }
+  ) => Promise<void>;
   onLocaleChange: (locale: Locale) => void;
   onBack: () => void;
 }
@@ -134,7 +149,10 @@ export function PageEditor({
               <>
                 <div className="flex items-center gap-2">
                   {/* Locale Switcher */}
-                  <Select value={locale} onValueChange={(v) => onLocaleChange(v as Locale)}>
+                  <Select
+                    value={locale}
+                    onValueChange={(v) => onLocaleChange(v as Locale)}
+                  >
                     <SelectTrigger className="w-[140px] h-9 bg-white/10 border-white/20 text-white">
                       <Globe className="w-4 h-4 mr-2" />
                       <SelectValue />
@@ -150,14 +168,20 @@ export function PageEditor({
 
                   <Sheet>
                     <SheetTrigger asChild>
-                      <Button variant="outline" size="icon" className="ml-2 h-9 w-9">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="ml-2 h-9 w-9"
+                      >
                         <Settings className="h-4 w-4" />
                       </Button>
                     </SheetTrigger>
                     <SheetContent>
                       <SheetHeader>
                         <SheetTitle>Page Settings</SheetTitle>
-                        <SheetDescription>Configure page properties and metadata.</SheetDescription>
+                        <SheetDescription>
+                          Configure page properties and metadata.
+                        </SheetDescription>
                       </SheetHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
@@ -170,7 +194,11 @@ export function PageEditor({
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="slug">Slug</Label>
-                          <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} />
+                          <Input
+                            id="slug"
+                            value={slug}
+                            onChange={(e) => setSlug(e.target.value)}
+                          />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="status">Status</Label>
@@ -179,8 +207,12 @@ export function PageEditor({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={PageStatus.DRAFT}>Draft</SelectItem>
-                              <SelectItem value={PageStatus.PUBLISHED}>Published</SelectItem>
+                              <SelectItem value={PageStatus.DRAFT}>
+                                Draft
+                              </SelectItem>
+                              <SelectItem value={PageStatus.PUBLISHED}>
+                                Published
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -191,7 +223,9 @@ export function PageEditor({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={PageVisibility.PUBLIC}>Public</SelectItem>
+                              <SelectItem value={PageVisibility.PUBLIC}>
+                                Public
+                              </SelectItem>
                               <SelectItem value={PageVisibility.AUTHENTICATED}>
                                 Authenticated
                               </SelectItem>

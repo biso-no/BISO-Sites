@@ -1,6 +1,11 @@
 import type React from "react";
 import { cn } from "../../lib/utils";
-import { TabsContent, TabsList, Tabs as TabsRoot, TabsTrigger } from "../ui/tabs";
+import {
+  TabsContent,
+  TabsList,
+  Tabs as TabsRoot,
+  TabsTrigger,
+} from "../ui/tabs";
 
 export interface TabsProps {
   tabs: { label: string; value: string }[];

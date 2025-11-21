@@ -10,7 +10,11 @@ interface DeletePageButtonProps {
 
 export function DeletePageButton({ pageId }: DeletePageButtonProps) {
   return (
-    <Button variant="ghost" size="icon" onClick={async () => await deletePage(pageId)}>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={async () => await deletePage(pageId)}
+    >
       <Trash className="h-4 w-4" />
     </Button>
   );

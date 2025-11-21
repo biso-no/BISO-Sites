@@ -49,7 +49,9 @@ export function BenefitsSection({
 
   return (
     <section>
-      <Card className={`p-8 border-0 shadow-xl bg-linear-to-br ${colors.gradient}`}>
+      <Card
+        className={`p-8 border-0 shadow-xl bg-linear-to-br ${colors.gradient}`}
+      >
         <div className="flex items-center gap-3 mb-6">
           <div
             className={`w-12 h-12 rounded-full bg-linear-to-br ${colors.iconGradient} flex items-center justify-center`}
@@ -70,7 +72,9 @@ export function BenefitsSection({
               transition={{ delay: index * 0.05 }}
               className="flex items-start gap-3 p-4 bg-white rounded-lg"
             >
-              <CheckCircle className={`w-5 h-5 ${colors.checkColor} shrink-0 mt-0.5`} />
+              <CheckCircle
+                className={`w-5 h-5 ${colors.checkColor} shrink-0 mt-0.5`}
+              />
               <span className="text-gray-700">{item}</span>
             </motion.div>
           ))}

@@ -18,7 +18,11 @@ interface ExpenseWizardProps {
   children: React.ReactNode;
 }
 
-export function ExpenseWizard({ steps, currentStep, children }: ExpenseWizardProps) {
+export function ExpenseWizard({
+  steps,
+  currentStep,
+  children,
+}: ExpenseWizardProps) {
   return (
     <div className="max-w-4xl mx-auto px-4 -mt-8 relative z-10">
       <Card className="p-6 border-0 shadow-xl">

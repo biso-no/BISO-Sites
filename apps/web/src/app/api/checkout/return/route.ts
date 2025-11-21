@@ -17,7 +17,9 @@ export async function GET(request: Request) {
 
     if (!orderId) {
       console.error("[Checkout Return] No orderId provided");
-      return NextResponse.redirect(new URL("/shop", process.env.NEXT_PUBLIC_BASE_URL));
+      return NextResponse.redirect(
+        new URL("/shop", process.env.NEXT_PUBLIC_BASE_URL)
+      );
     }
 
     console.log(`[Checkout Return] Verifying order status for: ${orderId}`);
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
     if (!order) {
       console.error(`[Checkout Return] Order not found: ${orderId}`);
       return NextResponse.redirect(
-        new URL("/shop?error=order_not_found", process.env.NEXT_PUBLIC_BASE_URL),
+        new URL("/shop?error=order_not_found", process.env.NEXT_PUBLIC_BASE_URL)
       );
     }
 
@@ -43,26 +45,34 @@ export async function GET(request: Request) {
       case "authorized":
         // Success - redirect to success page
         return NextResponse.redirect(
-          new URL(`/shop/order/${orderId}?success=true`, process.env.NEXT_PUBLIC_BASE_URL),
+          new URL(
+            `/shop/order/${orderId}?success=true`,
+            process.env.NEXT_PUBLIC_BASE_URL
+          )
         );
       case "cancelled":
         // User cancelled - redirect back to cart
         return NextResponse.redirect(
-          new URL("/shop/cart?cancelled=true", process.env.NEXT_PUBLIC_BASE_URL),
+          new URL("/shop/cart?cancelled=true", process.env.NEXT_PUBLIC_BASE_URL)
         );
       case "failed":
         // Payment failed - redirect with error
         return NextResponse.redirect(
-          new URL("/shop/cart?error=payment_failed", process.env.NEXT_PUBLIC_BASE_URL),
+          new URL(
+            "/shop/cart?error=payment_failed",
+            process.env.NEXT_PUBLIC_BASE_URL
+          )
         );
       default:
         // Still pending or unknown - redirect to order page
         return NextResponse.redirect(
-          new URL(`/shop/order/${orderId}`, process.env.NEXT_PUBLIC_BASE_URL),
+          new URL(`/shop/order/${orderId}`, process.env.NEXT_PUBLIC_BASE_URL)
         );
     }
   } catch (error) {
     console.error("[Checkout Return] Error:", error);
-    return NextResponse.redirect(new URL("/shop?error=unknown", process.env.NEXT_PUBLIC_BASE_URL));
+    return NextResponse.redirect(
+      new URL("/shop?error=unknown", process.env.NEXT_PUBLIC_BASE_URL)
+    );
   }
 }

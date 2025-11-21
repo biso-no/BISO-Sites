@@ -62,7 +62,7 @@ const stats: TranslationStats = {
  */
 async function translateWithOpenAI(
   content: Record<string, any>,
-  fileName: string,
+  fileName: string
 ): Promise<Record<string, any>> {
   const prompt = `You are a professional Norwegian translator specializing in technical and business content.
 
@@ -156,16 +156,24 @@ async function translateFile(fileName: string): Promise<void> {
     const translatedJson = await translateWithOpenAI(sourceJson, fileName);
 
     if (isDryRun) {
-      console.log(`  🔍 [DRY RUN] Would write to: ${join(TARGET_DIR, fileName)}`);
+      console.log(
+        `  🔍 [DRY RUN] Would write to: ${join(TARGET_DIR, fileName)}`
+      );
       console.log(`  📝 Preview (first 500 chars):`);
-      console.log(JSON.stringify(translatedJson, null, 2).slice(0, 500) + "...\n");
+      console.log(
+        JSON.stringify(translatedJson, null, 2).slice(0, 500) + "...\n"
+      );
     } else {
       // Ensure target directory exists
       await mkdir(TARGET_DIR, { recursive: true });
 
       // Write translated file
       const targetPath = join(TARGET_DIR, fileName);
-      await writeFile(targetPath, JSON.stringify(translatedJson, null, 2) + "\n", "utf-8");
+      await writeFile(
+        targetPath,
+        JSON.stringify(translatedJson, null, 2) + "\n",
+        "utf-8"
+      );
 
       console.log(`  💾 Saved to: ${targetPath}`);
     }

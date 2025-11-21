@@ -16,7 +16,7 @@ const Switch = React.forwardRef<
       "disabled:cursor-not-allowed disabled:opacity-50",
       "shadow-inner",
       "hover:shadow-md",
-      className,
+      className
     )}
     style={{
       backgroundColor: props.checked
@@ -30,7 +30,7 @@ const Switch = React.forwardRef<
       className={cn(
         "pointer-events-none block h-5 w-5 rounded-full shadow-lg ring-0",
         "transition-all duration-200 ease-in-out",
-        "bg-white",
+        "bg-white"
       )}
       style={{
         transform: props.checked ? "translateX(20px)" : "translateX(0)",

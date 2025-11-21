@@ -8,7 +8,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "job_id is required" }, { status: 400 });
   }
   const apps = await listJobApplications(jobId);
-  const headers = ["job_id", "applicant_name", "applicant_email", "applicant_phone", "applied_at"];
+  const headers = [
+    "job_id",
+    "applicant_name",
+    "applicant_email",
+    "applicant_phone",
+    "applied_at",
+  ];
   const rows = apps.map((a: any) => headers.map((h) => a?.[h] ?? "").join(","));
   const csv = [headers.join(","), ...rows].join("\n");
   return new NextResponse(csv, {

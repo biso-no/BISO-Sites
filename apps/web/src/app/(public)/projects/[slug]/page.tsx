@@ -2,7 +2,12 @@
 
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -16,21 +21,35 @@ const parseDateRange = (event: ParsedLargeEvent, locale: Locale) => {
   if (!event.startDate) return null;
   const start = new Date(event.startDate);
   const end = event.endDate ? new Date(event.endDate) : null;
-  const formatter = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "nb-NO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const formatter = new Intl.DateTimeFormat(
+    locale === "en" ? "en-GB" : "nb-NO",
+    {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
+  );
   if (!end) {
     return formatter.format(start);
   }
   return `${formatter.format(start)} – ${formatter.format(end)}`;
 };
 
-const pickValue = <T,>(locale: Locale, nbValue?: T, enValue?: T, fallback?: T) =>
-  locale === "en" ? (enValue ?? nbValue ?? fallback) : (nbValue ?? enValue ?? fallback);
+const pickValue = <T,>(
+  locale: Locale,
+  nbValue?: T,
+  enValue?: T,
+  fallback?: T
+) =>
+  locale === "en"
+    ? (enValue ?? nbValue ?? fallback)
+    : (nbValue ?? enValue ?? fallback);
 
-export default async function ProjectDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations("projectDetail");
@@ -40,7 +59,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     getCampusMetadata(),
   ]);
 
-  const fallbackConfig = (t.raw(slug) as Record<string, unknown> | undefined) ?? undefined;
+  const fallbackConfig =
+    (t.raw(slug) as Record<string, unknown> | undefined) ?? undefined;
 
   if (!event && !fallbackConfig) {
     return notFound();
@@ -50,7 +70,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const meta = <T,>(key: string) => metadata[key] as T | undefined;
 
   const heroTitle =
-    (event?.name as string | undefined) ?? (fallbackConfig?.title as string | undefined) ?? slug;
+    (event?.name as string | undefined) ??
+    (fallbackConfig?.title as string | undefined) ??
+    slug;
   const heroDescription =
     (event?.description as string | undefined) ??
     (fallbackConfig?.description as string | undefined) ??
@@ -68,12 +90,20 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     (fallbackConfig?.ctaUrl as string | undefined) ??
     null;
   const ctaLabel =
-    pickValue(locale, meta<string>("cta_label_nb"), meta<string>("cta_label_en")) ??
+    pickValue(
+      locale,
+      meta<string>("cta_label_nb"),
+      meta<string>("cta_label_en")
+    ) ??
     (fallbackConfig?.ctaLabel as string | undefined) ??
     t("fallback.cta");
 
   const highlights =
-    pickValue<string[]>(locale, meta<string[]>("highlights_nb"), meta<string[]>("highlights_en")) ??
+    pickValue<string[]>(
+      locale,
+      meta<string[]>("highlights_nb"),
+      meta<string[]>("highlights_en")
+    ) ??
     (fallbackConfig?.highlights as string[] | undefined) ??
     [];
 
@@ -81,17 +111,22 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     pickValue(
       locale,
       meta<Array<{ title: string; body: string }>>("sections_nb"),
-      meta<Array<{ title: string; body: string }>>("sections_en"),
+      meta<Array<{ title: string; body: string }>>("sections_en")
     ) ??
-    (fallbackConfig?.sections as Array<{ title: string; body: string }> | undefined) ??
+    (fallbackConfig?.sections as
+      | Array<{ title: string; body: string }>
+      | undefined) ??
     [];
 
   const schedule = event?.items ?? [];
-  const groupedSchedule = schedule.reduce<Record<string, typeof schedule>>((acc, item) => {
-    const key = item.campusId ?? "other";
-    acc[key] = acc[key] ? [...acc[key], item] : [item];
-    return acc;
-  }, {});
+  const groupedSchedule = schedule.reduce<Record<string, typeof schedule>>(
+    (acc, item) => {
+      const key = item.campusId ?? "other";
+      acc[key] = acc[key] ? [...acc[key], item] : [item];
+      return acc;
+    },
+    {}
+  );
 
   const dateRange = event ? parseDateRange(event, locale) : undefined;
 
@@ -114,8 +149,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 {heroTagline}
               </Badge>
             ) : null}
-            <h1 className="text-3xl font-semibold text-primary-100 md:text-4xl">{heroTitle}</h1>
-            <p className="text-base leading-relaxed text-primary-70">{heroDescription}</p>
+            <h1 className="text-3xl font-semibold text-primary-100 md:text-4xl">
+              {heroTitle}
+            </h1>
+            <p className="text-base leading-relaxed text-primary-70">
+              {heroDescription}
+            </p>
             <div className="flex flex-wrap gap-3">
               {highlights.map((item) => (
                 <span
@@ -142,24 +181,32 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </div>
           <Card className="border-primary/10 bg-primary/5">
             <CardHeader>
-              <CardTitle className="text-primary-100">{t("overview.title")}</CardTitle>
+              <CardTitle className="text-primary-100">
+                {t("overview.title")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-primary-70">
               {dateRange ? (
                 <div className="flex items-start justify-between gap-3">
-                  <span className="font-medium text-primary-90">{t("overview.dates")}</span>
+                  <span className="font-medium text-primary-90">
+                    {t("overview.dates")}
+                  </span>
                   <span>{dateRange}</span>
                 </div>
               ) : null}
               {event?.showcaseType ? (
                 <div className="flex items-start justify-between gap-3">
-                  <span className="font-medium text-primary-90">{t("overview.type")}</span>
+                  <span className="font-medium text-primary-90">
+                    {t("overview.type")}
+                  </span>
                   <span>{event.showcaseType}</span>
                 </div>
               ) : null}
               {event?.externalUrl ? (
                 <div className="flex items-start justify-between gap-3">
-                  <span className="font-medium text-primary-90">{t("overview.external")}</span>
+                  <span className="font-medium text-primary-90">
+                    {t("overview.external")}
+                  </span>
                   <a
                     href={event.externalUrl}
                     target="_blank"
@@ -180,10 +227,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           {sections.map((section) => (
             <Card key={section.title} className="border-primary/10 bg-white">
               <CardHeader>
-                <CardTitle className="text-primary-100">{section.title}</CardTitle>
+                <CardTitle className="text-primary-100">
+                  {section.title}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm leading-6 text-primary-70">{section.body}</p>
+                <p className="text-sm leading-6 text-primary-70">
+                  {section.body}
+                </p>
               </CardContent>
             </Card>
           ))}
@@ -193,20 +244,30 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       {Object.keys(groupedSchedule).length > 0 && (
         <section className="space-y-6">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">{t("schedule.title")}</h2>
-            <p className="text-sm text-muted-foreground">{t("schedule.subtitle")}</p>
+            <h2 className="text-2xl font-semibold text-primary-100">
+              {t("schedule.title")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t("schedule.subtitle")}
+            </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {Object.entries(groupedSchedule).map(([campusId, items]) => {
               const normalizedKey =
-                typeof campusId === "string" ? campusId.toLowerCase() : campusId;
+                typeof campusId === "string"
+                  ? campusId.toLowerCase()
+                  : campusId;
               const campusMeta =
-                campusMetadata[campusId] || campusMetadata[normalizedKey as string];
-              const campusName = campusMeta?.campus_name ?? campusMeta?.campus_id ?? campusId;
+                campusMetadata[campusId] ||
+                campusMetadata[normalizedKey as string];
+              const campusName =
+                campusMeta?.campus_name ?? campusMeta?.campus_id ?? campusId;
               return (
                 <Card key={campusId} className="border-primary/10 bg-white">
                   <CardHeader>
-                    <CardTitle className="text-lg text-primary-100">{campusName}</CardTitle>
+                    <CardTitle className="text-lg text-primary-100">
+                      {campusName}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-primary-70">
                     {items.map((item) => {
@@ -218,7 +279,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                               month: "short",
                               hour: "2-digit",
                               minute: "2-digit",
-                            },
+                            }
                           )
                         : null;
                       return (
@@ -226,13 +287,19 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                           key={item.$id || `${item.title}-${item.startTime}`}
                           className="rounded-xl border border-primary/10 bg-muted/40 p-3"
                         >
-                          <p className="text-sm font-semibold text-primary-100">{item.title}</p>
+                          <p className="text-sm font-semibold text-primary-100">
+                            {item.title}
+                          </p>
                           {item.subtitle ? (
-                            <p className="text-xs text-muted-foreground">{item.subtitle}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.subtitle}
+                            </p>
                           ) : null}
                           <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
                             {day ? <span>{day}</span> : null}
-                            {item.location ? <span>{item.location}</span> : null}
+                            {item.location ? (
+                              <span>{item.location}</span>
+                            ) : null}
                             {item.ticketUrl ? (
                               <Link
                                 href={item.ticketUrl}

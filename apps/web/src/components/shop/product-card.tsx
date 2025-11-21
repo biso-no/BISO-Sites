@@ -7,7 +7,11 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Tag, Users } from "lucide-react";
 import { motion } from "motion/react";
-import { calculateSavings, formatPrice, getDisplayPrice } from "@/lib/types/webshop";
+import {
+  calculateSavings,
+  formatPrice,
+  getDisplayPrice,
+} from "@/lib/types/webshop";
 
 interface ProductCardProps {
   product: ContentTranslations;
@@ -23,7 +27,12 @@ const categoryColors: Record<string, string> = {
   Membership: "bg-orange-100 text-orange-700 border-orange-200",
 };
 
-export function ProductCard({ product, index, isMember = false, onViewDetails }: ProductCardProps) {
+export function ProductCard({
+  product,
+  index,
+  isMember = false,
+  onViewDetails,
+}: ProductCardProps) {
   const productData = product.product_ref;
 
   if (!productData) return null;
@@ -31,11 +40,16 @@ export function ProductCard({ product, index, isMember = false, onViewDetails }:
   const displayPrice = getDisplayPrice(
     productData.regular_price,
     productData.member_price,
-    isMember,
+    isMember
   );
   const hasDiscount =
-    isMember && productData.member_price && productData.member_price < productData.regular_price;
-  const savings = calculateSavings(productData.regular_price, productData.member_price);
+    isMember &&
+    productData.member_price &&
+    productData.member_price < productData.regular_price;
+  const savings = calculateSavings(
+    productData.regular_price,
+    productData.member_price
+  );
 
   const shortDescription =
     product.short_description ||
@@ -64,7 +78,9 @@ export function ProductCard({ product, index, isMember = false, onViewDetails }:
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
 
           <div className="absolute top-4 left-4 flex flex-col gap-2">
-            <Badge className={`${categoryColors[productData.category] || categoryColors.Merch}`}>
+            <Badge
+              className={`${categoryColors[productData.category] || categoryColors.Merch}`}
+            >
               {productData.category}
             </Badge>
             {productData.member_only && (
@@ -81,23 +97,33 @@ export function ProductCard({ product, index, isMember = false, onViewDetails }:
             )}
           </div>
 
-          {productData.stock !== null && productData.stock <= 10 && productData.stock > 0 && (
-            <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-red-500/90 backdrop-blur-sm">
-              <span className="text-white text-sm font-medium">Only {productData.stock} left!</span>
-            </div>
-          )}
+          {productData.stock !== null &&
+            productData.stock <= 10 &&
+            productData.stock > 0 && (
+              <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-red-500/90 backdrop-blur-sm">
+                <span className="text-white text-sm font-medium">
+                  Only {productData.stock} left!
+                </span>
+              </div>
+            )}
 
           {productData.stock === 0 && (
             <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-gray-900/90 backdrop-blur-sm">
-              <span className="text-white text-sm font-medium">Out of Stock</span>
+              <span className="text-white text-sm font-medium">
+                Out of Stock
+              </span>
             </div>
           )}
         </div>
 
         {/* Content */}
         <div className="p-6 flex flex-col grow">
-          <h3 className="mb-3 text-gray-900 text-xl font-semibold">{product.title}</h3>
-          <p className="text-gray-600 mb-4 grow line-clamp-2 text-sm">{shortDescription}</p>
+          <h3 className="mb-3 text-gray-900 text-xl font-semibold">
+            {product.title}
+          </h3>
+          <p className="text-gray-600 mb-4 grow line-clamp-2 text-sm">
+            {shortDescription}
+          </p>
 
           {/* Price */}
           <div className="mb-6">
@@ -111,7 +137,9 @@ export function ProductCard({ product, index, isMember = false, onViewDetails }:
                 </span>
               </div>
             ) : (
-              <div className="text-gray-900 text-xl font-bold">{formatPrice(displayPrice)}</div>
+              <div className="text-gray-900 text-xl font-bold">
+                {formatPrice(displayPrice)}
+              </div>
             )}
 
             {!isMember &&

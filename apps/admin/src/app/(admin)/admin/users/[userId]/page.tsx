@@ -11,7 +11,10 @@ export const fetchCache = "force-no-store";
 async function UserDetails({ userId }: { userId: string }) {
   try {
     // Fetch user and campuses data in parallel
-    const [userData, campusesData] = await Promise.all([getUserById(userId), getCampuses()]);
+    const [userData, campusesData] = await Promise.all([
+      getUserById(userId),
+      getCampuses(),
+    ]);
 
     const user = userData;
 
@@ -26,7 +29,11 @@ async function UserDetails({ userId }: { userId: string }) {
   }
 }
 
-export default async function UserDetailsPage({ params }: { params: { userId: string } }) {
+export default async function UserDetailsPage({
+  params,
+}: {
+  params: { userId: string };
+}) {
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       <Suspense fallback={<div>Loading user details...</div>}>

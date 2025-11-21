@@ -61,15 +61,22 @@ export function EventDetailsClient({
     ? format(new Date(eventData.start_date), "MMMM d, yyyy")
     : "TBA";
 
-  const startTime = eventData?.start_date ? format(new Date(eventData.start_date), "HH:mm") : "";
+  const startTime = eventData?.start_date
+    ? format(new Date(eventData.start_date), "HH:mm")
+    : "";
 
-  const endTime = eventData?.end_date ? format(new Date(eventData.end_date), "HH:mm") : "";
+  const endTime = eventData?.end_date
+    ? format(new Date(eventData.end_date), "HH:mm")
+    : "";
 
-  const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
+  const timeRange =
+    startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
 
   // Format price
   const price = formatEventPrice(eventData?.price);
-  const memberPrice = metadata.member_price ? formatEventPrice(metadata.member_price) : null;
+  const memberPrice = metadata.member_price
+    ? formatEventPrice(metadata.member_price)
+    : null;
 
   // Get metadata
   const attendees = metadata.attendees || 0;
@@ -78,7 +85,8 @@ export function EventDetailsClient({
 
   // Get image URL
   const imageUrl =
-    eventData?.image || "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
+    eventData?.image ||
+    "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
 
   // Display price logic
   const displayPrice = isMember && memberPrice ? memberPrice : price;
@@ -105,7 +113,12 @@ export function EventDetailsClient({
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       {/* Hero Section */}
       <div className="relative h-[50vh] overflow-hidden">
-        <ImageWithFallback src={imageUrl} alt={event.title} fill className="object-cover" />
+        <ImageWithFallback
+          src={imageUrl}
+          alt={event.title}
+          fill
+          className="object-cover"
+        />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0">
@@ -125,8 +138,12 @@ export function EventDetailsClient({
               animate={{ opacity: 1, y: 0 }}
               className="mt-12"
             >
-              <Badge className={`mb-4 ${categoryColors[category]}`}>{category}</Badge>
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{event.title}</h1>
+              <Badge className={`mb-4 ${categoryColors[category]}`}>
+                {category}
+              </Badge>
+              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">
+                {event.title}
+              </h1>
 
               <div className="flex flex-wrap items-center gap-4 mt-6">
                 <div className="flex items-center gap-2 text-white/90">
@@ -164,7 +181,9 @@ export function EventDetailsClient({
               transition={{ delay: 0.1 }}
             >
               <Card className="p-8 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-4 text-2xl font-bold">About This Event</h2>
+                <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+                  About This Event
+                </h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                   {event.description}
                 </p>
@@ -179,7 +198,9 @@ export function EventDetailsClient({
                 transition={{ delay: 0.2 }}
               >
                 <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">What to Expect</h2>
+                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                    What to Expect
+                  </h2>
                   <ul className="space-y-4">
                     {highlights.map((highlight: string, index: number) => (
                       <li key={index} className="flex items-start gap-3">
@@ -200,21 +221,30 @@ export function EventDetailsClient({
                 transition={{ delay: 0.3 }}
               >
                 <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">Event Schedule</h2>
+                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                    Event Schedule
+                  </h2>
                   <div className="space-y-6">
-                    {agenda.map((item: { time: string; activity: string }, index: number) => (
-                      <div key={index}>
-                        <div className="flex gap-4">
-                          <div className="shrink-0 w-20 text-[#3DA9E0] font-semibold">
-                            {item.time}
+                    {agenda.map(
+                      (
+                        item: { time: string; activity: string },
+                        index: number
+                      ) => (
+                        <div key={index}>
+                          <div className="flex gap-4">
+                            <div className="shrink-0 w-20 text-[#3DA9E0] font-semibold">
+                              {item.time}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-gray-700">{item.activity}</p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <p className="text-gray-700">{item.activity}</p>
-                          </div>
+                          {index < agenda.length - 1 && (
+                            <Separator className="my-4" />
+                          )}
                         </div>
-                        {index < agenda.length - 1 && <Separator className="my-4" />}
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 </Card>
               </motion.div>
@@ -234,35 +264,41 @@ export function EventDetailsClient({
                         ? "Events in This Collection"
                         : "Other Events in This Collection"}
                     </h2>
-                    {eventData?.is_collection && eventData.collection_pricing === "bundle" && (
-                      <Badge className="bg-green-100 text-green-700 border-green-200">
-                        Bundle Pricing
-                      </Badge>
-                    )}
-                    {eventData?.is_collection && eventData.collection_pricing === "individual" && (
-                      <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                        Individual Pricing
-                      </Badge>
-                    )}
+                    {eventData?.is_collection &&
+                      eventData.collection_pricing === "bundle" && (
+                        <Badge className="bg-green-100 text-green-700 border-green-200">
+                          Bundle Pricing
+                        </Badge>
+                      )}
+                    {eventData?.is_collection &&
+                      eventData.collection_pricing === "individual" && (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                          Individual Pricing
+                        </Badge>
+                      )}
                   </div>
 
-                  {eventData?.is_collection && eventData.collection_pricing === "bundle" && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm text-gray-700">
-                        <strong>Bundle Pricing:</strong> Pay {price} once to get access to all{" "}
-                        {collectionEvents.length} events in this collection.
-                      </p>
-                    </div>
-                  )}
+                  {eventData?.is_collection &&
+                    eventData.collection_pricing === "bundle" && (
+                      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-gray-700">
+                          <strong>Bundle Pricing:</strong> Pay {price} once to
+                          get access to all {collectionEvents.length} events in
+                          this collection.
+                        </p>
+                      </div>
+                    )}
 
-                  {eventData?.is_collection && eventData.collection_pricing === "individual" && (
-                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-gray-700">
-                        <strong>Individual Pricing:</strong> Each event can be registered for
-                        separately. Choose the events that interest you most!
-                      </p>
-                    </div>
-                  )}
+                  {eventData?.is_collection &&
+                    eventData.collection_pricing === "individual" && (
+                      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-gray-700">
+                          <strong>Individual Pricing:</strong> Each event can be
+                          registered for separately. Choose the events that
+                          interest you most!
+                        </p>
+                      </div>
+                    )}
 
                   <div className="space-y-4">
                     {collectionEvents
@@ -270,7 +306,10 @@ export function EventDetailsClient({
                       .map((collectionEvent) => {
                         const colEventData = collectionEvent.event_ref;
                         const colStartDate = colEventData?.start_date
-                          ? format(new Date(colEventData.start_date), "MMMM d, yyyy")
+                          ? format(
+                              new Date(colEventData.start_date),
+                              "MMMM d, yyyy"
+                            )
                           : "TBA";
                         const colStartTime = colEventData?.start_date
                           ? format(new Date(colEventData.start_date), "HH:mm")
@@ -291,7 +330,11 @@ export function EventDetailsClient({
                           <Card
                             key={collectionEvent.$id}
                             className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() => router.push(`/events/${collectionEvent.content_id}`)}
+                            onClick={() =>
+                              router.push(
+                                `/events/${collectionEvent.content_id}`
+                              )
+                            }
                           >
                             <div className="flex items-start gap-4">
                               <div className="relative w-20 h-20 shrink-0">
@@ -307,7 +350,8 @@ export function EventDetailsClient({
                                   <h3 className="text-gray-900 font-semibold">
                                     {collectionEvent.title}
                                   </h3>
-                                  {eventData?.collection_pricing === "individual" && (
+                                  {eventData?.collection_pricing ===
+                                    "individual" && (
                                     <span className="text-sm text-[#3DA9E0] whitespace-nowrap font-medium">
                                       {colPrice}
                                     </span>
@@ -343,13 +387,21 @@ export function EventDetailsClient({
                 <div className="flex items-start gap-3">
                   <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">Important Information</h4>
+                    <h4 className="mb-2 text-gray-900 font-semibold">
+                      Important Information
+                    </h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• Please arrive 15 minutes before the event starts</li>
+                      <li>
+                        • Please arrive 15 minutes before the event starts
+                      </li>
                       <li>• Valid student ID required for entry</li>
-                      <li>• Registration confirmation will be sent via email</li>
+                      <li>
+                        • Registration confirmation will be sent via email
+                      </li>
                       {price !== "Free" && (
-                        <li>• Refunds available up to 48 hours before the event</li>
+                        <li>
+                          • Refunds available up to 48 hours before the event
+                        </li>
                       )}
                     </ul>
                   </div>
@@ -373,35 +425,49 @@ export function EventDetailsClient({
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">
-                      {eventData?.is_collection && eventData.collection_pricing === "bundle"
+                      {eventData?.is_collection &&
+                      eventData.collection_pricing === "bundle"
                         ? "Bundle Price"
-                        : eventData?.is_collection && eventData.collection_pricing === "individual"
+                        : eventData?.is_collection &&
+                            eventData.collection_pricing === "individual"
                           ? "Pricing"
                           : "Price"}
                     </div>
-                    <div className="text-gray-900 font-bold text-xl">{displayPrice}</div>
+                    <div className="text-gray-900 font-bold text-xl">
+                      {displayPrice}
+                    </div>
                     {showMemberDiscount && (
-                      <div className="text-xs text-green-600">Members: {memberPrice}</div>
+                      <div className="text-xs text-green-600">
+                        Members: {memberPrice}
+                      </div>
                     )}
                   </div>
                 </div>
                 {price === "Free" ? (
-                  <p className="text-sm text-gray-600">This event is free for all students!</p>
-                ) : eventData?.is_collection && eventData.collection_pricing === "bundle" ? (
                   <p className="text-sm text-gray-600">
-                    One payment gives you access to all {collectionEvents?.length || 0} events in
-                    this collection!
+                    This event is free for all students!
                   </p>
-                ) : eventData?.is_collection && eventData.collection_pricing === "individual" ? (
+                ) : eventData?.is_collection &&
+                  eventData.collection_pricing === "bundle" ? (
                   <p className="text-sm text-gray-600">
-                    Register for individual events separately based on your interests.
+                    One payment gives you access to all{" "}
+                    {collectionEvents?.length || 0} events in this collection!
+                  </p>
+                ) : eventData?.is_collection &&
+                  eventData.collection_pricing === "individual" ? (
+                  <p className="text-sm text-gray-600">
+                    Register for individual events separately based on your
+                    interests.
                   </p>
                 ) : eventData?.collection_id ? (
                   <p className="text-sm text-gray-600">
-                    This event is part of a collection. Check collection details for bundle pricing.
+                    This event is part of a collection. Check collection details
+                    for bundle pricing.
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-600">Secure your spot with online payment.</p>
+                  <p className="text-sm text-gray-600">
+                    Secure your spot with online payment.
+                  </p>
                 )}
               </Card>
             </motion.div>
@@ -468,7 +534,9 @@ export function EventDetailsClient({
                   <Separator />
                   <div>
                     <div className="text-sm text-gray-500 mb-1">Location</div>
-                    <div className="text-gray-900">{eventData?.location || "Location TBA"}</div>
+                    <div className="text-gray-900">
+                      {eventData?.location || "Location TBA"}
+                    </div>
                   </div>
                   <Separator />
                   <div>
@@ -479,8 +547,12 @@ export function EventDetailsClient({
                     <>
                       <Separator />
                       <div>
-                        <div className="text-sm text-gray-500 mb-1">Expected Attendance</div>
-                        <div className="text-gray-900">{attendees} students</div>
+                        <div className="text-sm text-gray-500 mb-1">
+                          Expected Attendance
+                        </div>
+                        <div className="text-gray-900">
+                          {attendees} students
+                        </div>
                       </div>
                     </>
                   )}
@@ -498,10 +570,15 @@ export function EventDetailsClient({
                 <div className="flex items-start gap-3">
                   <Mail className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">Questions?</h4>
+                    <h4 className="mb-2 text-gray-900 font-semibold">
+                      Questions?
+                    </h4>
                     <p className="text-sm text-gray-600">
                       Contact our events team at{" "}
-                      <a href="mailto:events@biso.no" className="text-[#3DA9E0] hover:underline">
+                      <a
+                        href="mailto:events@biso.no"
+                        className="text-[#3DA9E0] hover:underline"
+                      >
                         events@biso.no
                       </a>
                     </p>

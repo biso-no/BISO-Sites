@@ -14,7 +14,11 @@ interface RoleSwitcherProps {
   setSelectedRole: (role: string) => void;
 }
 
-export function RoleSwitcher({ roles, selectedRole, setSelectedRole }: RoleSwitcherProps) {
+export function RoleSwitcher({
+  roles,
+  selectedRole,
+  setSelectedRole,
+}: RoleSwitcherProps) {
   if (!roles.includes("Admin")) return null; // Only show to Admins
 
   const availableRoles = ["Admin", "pr", "finance", "Control Committee", "hr"]; // Define all possible roles

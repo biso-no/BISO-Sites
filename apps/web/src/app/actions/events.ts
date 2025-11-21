@@ -20,7 +20,9 @@ export interface ListEventsParams {
   locale?: "en" | "no";
 }
 
-export async function listEvents(params: ListEventsParams = {}): Promise<ContentTranslations[]> {
+export async function listEvents(
+  params: ListEventsParams = {}
+): Promise<ContentTranslations[]> {
   const { limit = 25, status = "published", campus, locale } = params;
 
   try {
@@ -28,7 +30,14 @@ export async function listEvents(params: ListEventsParams = {}): Promise<Content
 
     const queries = [
       Query.equal("content_type", "event"),
-      Query.select(["content_id", "$id", "locale", "title", "description", "event_ref.*"]),
+      Query.select([
+        "content_id",
+        "$id",
+        "locale",
+        "title",
+        "description",
+        "event_ref.*",
+      ]),
       Query.equal("locale", locale as Locale),
       Query.orderDesc("$createdAt"),
     ];
@@ -37,7 +46,7 @@ export async function listEvents(params: ListEventsParams = {}): Promise<Content
     const eventsResponse = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
-      queries,
+      queries
     );
     console.log("Events response: ", eventsResponse);
 
@@ -65,7 +74,7 @@ export async function listEvents(params: ListEventsParams = {}): Promise<Content
 
 export async function getEvent(
   id: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations[] | null> {
   try {
     const { db } = await createSessionClient();
@@ -78,9 +87,16 @@ export async function getEvent(
         Query.equal("content_type", ContentType.EVENT),
         Query.equal("content_id", id),
         Query.equal("locale", locale),
-        Query.select(["content_id", "$id", "locale", "title", "description", "event_ref.*"]),
+        Query.select([
+          "content_id",
+          "$id",
+          "locale",
+          "title",
+          "description",
+          "event_ref.*",
+        ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) {
@@ -110,7 +126,11 @@ async function listDepartments(campusId?: string) {
 
   try {
     const { db } = await createSessionClient();
-    const response = await db.listRows<Departments>("app", "departments", queries);
+    const response = await db.listRows<Departments>(
+      "app",
+      "departments",
+      queries
+    );
     return response.rows;
   } catch (error) {
     console.error("Error fetching departments:", error);
@@ -133,19 +153,30 @@ async function listCampuses() {
 // Helper function to get collection events
 export async function getCollectionEvents(
   collectionId: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations[]> {
   try {
     const { db } = await createSessionClient();
 
     // Get all events with this collection_id
-    const response = await db.listRows<ContentTranslations>("app", "content_translations", [
-      Query.equal("content_type", ContentType.EVENT),
-      Query.equal("locale", locale),
-      Query.equal("event_ref.collection_id", collectionId),
-      Query.select(["content_id", "$id", "locale", "title", "description", "event_ref.*"]),
-      Query.orderAsc("event_ref.start_date"),
-    ]);
+    const response = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", ContentType.EVENT),
+        Query.equal("locale", locale),
+        Query.equal("event_ref.collection_id", collectionId),
+        Query.select([
+          "content_id",
+          "$id",
+          "locale",
+          "title",
+          "description",
+          "event_ref.*",
+        ]),
+        Query.orderAsc("event_ref.start_date"),
+      ]
+    );
 
     return response.rows;
   } catch (error) {

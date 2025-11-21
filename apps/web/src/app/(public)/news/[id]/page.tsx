@@ -4,7 +4,11 @@ import { getLocale } from "@/app/actions/locale";
 import { getNewsItem } from "@/app/actions/news";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 
-export default async function PublicNewsDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function PublicNewsDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
   // Get user's preferred locale from their account preferences
@@ -35,7 +39,12 @@ export default async function PublicNewsDetail({ params }: { params: Promise<{ i
       />
       {item.news_ref.image && (
         <div className="relative w-full h-64 rounded-lg overflow-hidden">
-          <Image src={item.news_ref.image} alt={item.title} fill className="object-cover" />
+          <Image
+            src={item.news_ref.image}
+            alt={item.title}
+            fill
+            className="object-cover"
+          />
         </div>
       )}
       <article

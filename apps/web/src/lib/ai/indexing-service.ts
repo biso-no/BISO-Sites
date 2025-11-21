@@ -1,8 +1,14 @@
 import "server-only";
 import { type SharePointDocument, SharePointService } from "@/lib/sharepoint";
 import { isSupportedContentType } from "./content-types";
-import { DocumentClassification, documentClassifier } from "./document-classifier";
-import { DocumentProcessor, type ProcessedDocument } from "./document-processor";
+import {
+  DocumentClassification,
+  documentClassifier,
+} from "./document-classifier";
+import {
+  DocumentProcessor,
+  type ProcessedDocument,
+} from "./document-processor";
 import { getDocumentViewerUrl } from "./document-utils";
 import { correctMimeType } from "./mime-utils";
 import type { VectorDocument } from "./vector-store.types";
@@ -61,7 +67,7 @@ export class IndexingService {
 
   constructor(
     sharePointService: SharePointService,
-    vectorStore: import("./vector-store.types").IVectorStore,
+    vectorStore: import("./vector-store.types").IVectorStore
   ) {
     this.sharePointService = sharePointService;
     this.documentProcessor = new DocumentProcessor();
@@ -111,7 +117,10 @@ export class IndexingService {
     return jobId;
   }
 
-  private async processIndexingJob(jobId: string, options: IndexingOptions): Promise<void> {
+  private async processIndexingJob(
+    jobId: string,
+    options: IndexingOptions
+  ): Promise<void> {
     const job = this.jobs.get(jobId);
     if (!job) throw new Error("Job not found");
 
@@ -136,7 +145,7 @@ export class IndexingService {
       const allDocuments = await this.sharePointService.listDocuments(
         options.siteId,
         options.folderPath || "/",
-        options.recursive || false,
+        options.recursive || false
       );
 
       console.log(`📂 Found ${allDocuments.length} total documents`);
@@ -147,14 +156,16 @@ export class IndexingService {
 
       console.log(`✅ ${supportedDocuments.length} supported documents`);
       console.log(
-        `❌ ${allDocuments.length - supportedDocuments.length} unsupported/filtered documents`,
+        `❌ ${allDocuments.length - supportedDocuments.length} unsupported/filtered documents`
       );
 
       // Apply intelligent document prioritization
       const prioritizedDocuments = this.prioritizeDocuments(supportedDocuments);
 
       job.totalDocuments = prioritizedDocuments.length;
-      console.log(`🎯 Processing ${prioritizedDocuments.length} prioritized documents`);
+      console.log(
+        `🎯 Processing ${prioritizedDocuments.length} prioritized documents`
+      );
 
       // Process documents in batches with enhanced monitoring
       const batchSize = options.batchSize || 5; // Reduced for better quality control
@@ -165,12 +176,12 @@ export class IndexingService {
       for (let i = 0; i < prioritizedDocuments.length; i += batchSize) {
         const batch = prioritizedDocuments.slice(i, i + batchSize);
         console.log(
-          `📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(prioritizedDocuments.length / batchSize)}`,
+          `📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(prioritizedDocuments.length / batchSize)}`
         );
 
         // Process batch with concurrency limit
         const promises = batch.map((doc) =>
-          this.processDocumentWithValidation(doc, jobId, options),
+          this.processDocumentWithValidation(doc, jobId, options)
         );
         const results = await Promise.allSettled(promises);
 
@@ -191,18 +202,19 @@ export class IndexingService {
 
               // Update processing statistics
               job.processingDetails.chunksCreated += docResult.chunksCreated;
-              job.processingDetails.tokenCounts.total += docResult.tokensProcessed;
+              job.processingDetails.tokenCounts.total +=
+                docResult.tokensProcessed;
               job.processingDetails.tokenCounts.min = Math.min(
                 job.processingDetails.tokenCounts.min,
-                docResult.tokensProcessed,
+                docResult.tokensProcessed
               );
               job.processingDetails.tokenCounts.max = Math.max(
                 job.processingDetails.tokenCounts.max,
-                docResult.tokensProcessed,
+                docResult.tokensProcessed
               );
 
               console.log(
-                `✅ Processed: ${docResult.chunksCreated} chunks, ${docResult.tokensProcessed} tokens, ${docResult.processingTimeMs}ms`,
+                `✅ Processed: ${docResult.chunksCreated} chunks, ${docResult.tokensProcessed} tokens, ${docResult.processingTimeMs}ms`
               );
             }
           } else {
@@ -220,9 +232,15 @@ export class IndexingService {
         }
 
         // Progress update
-        const totalProcessed = job.processedDocuments + job.failedDocuments + job.skippedDocuments;
-        const progressPercent = ((totalProcessed / job.totalDocuments) * 100).toFixed(1);
-        console.log(`📊 Progress: ${progressPercent}% (${totalProcessed}/${job.totalDocuments})`);
+        const totalProcessed =
+          job.processedDocuments + job.failedDocuments + job.skippedDocuments;
+        const progressPercent = (
+          (totalProcessed / job.totalDocuments) *
+          100
+        ).toFixed(1);
+        console.log(
+          `📊 Progress: ${progressPercent}% (${totalProcessed}/${job.totalDocuments})`
+        );
 
         // Add delay between batches to avoid overwhelming services
         if (i + batchSize < prioritizedDocuments.length) {
@@ -239,12 +257,14 @@ export class IndexingService {
       job.endTime = new Date();
 
       const duration = (job.endTime.getTime() - job.startTime.getTime()) / 1000;
-      console.log(`🎉 Indexing job ${jobId} completed in ${duration.toFixed(1)}s`);
       console.log(
-        `📊 Final stats: ${job.processedDocuments} processed, ${job.failedDocuments} failed, ${job.skippedDocuments} skipped`,
+        `🎉 Indexing job ${jobId} completed in ${duration.toFixed(1)}s`
       );
       console.log(
-        `📦 Chunks created: ${job.processingDetails.chunksCreated} (avg: ${job.processingDetails.avgChunksPerDocument.toFixed(1)} per doc)`,
+        `📊 Final stats: ${job.processedDocuments} processed, ${job.failedDocuments} failed, ${job.skippedDocuments} skipped`
+      );
+      console.log(
+        `📦 Chunks created: ${job.processingDetails.chunksCreated} (avg: ${job.processingDetails.avgChunksPerDocument.toFixed(1)} per doc)`
       );
     } catch (error) {
       job.status = "failed";
@@ -267,7 +287,7 @@ export class IndexingService {
       if (doc.size > 50 * 1024 * 1024) {
         // 50MB limit
         console.log(
-          `⚠️ Skipping large file: ${doc.name} (${(doc.size / 1024 / 1024).toFixed(1)}MB)`,
+          `⚠️ Skipping large file: ${doc.name} (${(doc.size / 1024 / 1024).toFixed(1)}MB)`
         );
         filteredDocuments.push(doc);
         continue;
@@ -276,7 +296,9 @@ export class IndexingService {
       // Content type validation
       const correctedType = correctMimeType(doc.contentType, doc.name);
       if (!isSupportedContentType(correctedType, doc.name)) {
-        console.log(`⚠️ Skipping unsupported file: ${doc.name} (${correctedType})`);
+        console.log(
+          `⚠️ Skipping unsupported file: ${doc.name} (${correctedType})`
+        );
         filteredDocuments.push(doc);
         continue;
       }
@@ -308,7 +330,9 @@ export class IndexingService {
     return systemPatterns.some((pattern) => pattern.test(fileName));
   }
 
-  private prioritizeDocuments(documents: SharePointDocument[]): SharePointDocument[] {
+  private prioritizeDocuments(
+    documents: SharePointDocument[]
+  ): SharePointDocument[] {
     // Group documents by base name to find versions
     const documentGroups = new Map<string, SharePointDocument[]>();
 
@@ -332,12 +356,18 @@ export class IndexingService {
         // Multiple documents - apply prioritization
         const classified = groupDocs.map((doc) => ({
           doc,
-          classification: documentClassifier.classifyDocument(doc.name, doc.folderPath || "/"),
+          classification: documentClassifier.classifyDocument(
+            doc.name,
+            doc.folderPath || "/"
+          ),
         }));
 
         // Sort by authority
         classified.sort((a, b) =>
-          documentClassifier.compareAuthority(a.classification, b.classification),
+          documentClassifier.compareAuthority(
+            a.classification,
+            b.classification
+          )
         );
 
         // Include the most authoritative
@@ -347,7 +377,8 @@ export class IndexingService {
         if (classified[0].classification.language === "norwegian") {
           const englishVersion = classified.find(
             (c) =>
-              c.classification.language === "english" && c.classification.authority.isTranslation,
+              c.classification.language === "english" &&
+              c.classification.authority.isTranslation
           );
           if (englishVersion) {
             prioritizedDocuments.push(englishVersion.doc);
@@ -356,7 +387,7 @@ export class IndexingService {
 
         if (groupDocs.length > 2) {
           console.log(
-            `📋 Group ${groupKey}: Selected ${classified[0].doc.name} from ${groupDocs.length} versions`,
+            `📋 Group ${groupKey}: Selected ${classified[0].doc.name} from ${groupDocs.length} versions`
           );
         }
       }
@@ -377,13 +408,16 @@ export class IndexingService {
   private async processDocumentWithValidation(
     document: SharePointDocument,
     jobId: string,
-    options: IndexingOptions,
+    options: IndexingOptions
   ): Promise<ProcessedDocumentResult> {
     const startTime = Date.now();
 
     try {
       // Enhanced content type detection
-      const correctedContentType = correctMimeType(document.contentType, document.name);
+      const correctedContentType = correctMimeType(
+        document.contentType,
+        document.name
+      );
 
       // Final validation at processing time
       if (!isSupportedContentType(correctedContentType, document.name)) {
@@ -399,17 +433,27 @@ export class IndexingService {
       }
 
       // Download document content
-      const buffer = await this.sharePointService.downloadDocument(document.driveId, document.id);
+      const buffer = await this.sharePointService.downloadDocument(
+        document.driveId,
+        document.id
+      );
 
       // Process document with enhanced error handling
-      const processed = await this.documentProcessor.processDocument(buffer, correctedContentType, {
-        ...document.metadata,
-        originalContentType: document.contentType,
+      const processed = await this.documentProcessor.processDocument(
+        buffer,
         correctedContentType,
-      });
+        {
+          ...document.metadata,
+          originalContentType: document.contentType,
+          correctedContentType,
+        }
+      );
 
       // Validate processing results
-      const validationResult = this.validateProcessedDocument(processed, document.name);
+      const validationResult = this.validateProcessedDocument(
+        processed,
+        document.name
+      );
       if (!validationResult.isValid) {
         return {
           documentId: document.id,
@@ -425,7 +469,7 @@ export class IndexingService {
       const classification = documentClassifier.classifyDocument(
         document.name,
         document.folderPath || "/",
-        processed.content.substring(0, 5000),
+        processed.content.substring(0, 5000)
       );
 
       // Generate document viewer URL
@@ -435,52 +479,54 @@ export class IndexingService {
       });
 
       // Prepare vector documents with enhanced metadata
-      const vectorDocuments: VectorDocument[] = processed.chunks.map((chunk) => ({
-        id: `${document.id}_chunk_${chunk.chunkIndex}`,
-        content: chunk.content,
-        metadata: {
-          ...chunk.metadata,
-          // Core document metadata
-          documentId: document.id,
-          documentName: document.name,
-          fileName: document.name,
-          siteId: document.siteId,
-          siteName: document.siteName,
-          driveId: document.driveId,
-          webUrl: document.webUrl,
-          documentViewerUrl,
-          contentType: correctedContentType,
-          originalContentType: document.contentType,
-          fileSize: document.size,
-          lastModified: document.lastModified,
-          createdBy: document.createdBy,
-          jobId,
+      const vectorDocuments: VectorDocument[] = processed.chunks.map(
+        (chunk) => ({
+          id: `${document.id}_chunk_${chunk.chunkIndex}`,
+          content: chunk.content,
+          metadata: {
+            ...chunk.metadata,
+            // Core document metadata
+            documentId: document.id,
+            documentName: document.name,
+            fileName: document.name,
+            siteId: document.siteId,
+            siteName: document.siteName,
+            driveId: document.driveId,
+            webUrl: document.webUrl,
+            documentViewerUrl,
+            contentType: correctedContentType,
+            originalContentType: document.contentType,
+            fileSize: document.size,
+            lastModified: document.lastModified,
+            createdBy: document.createdBy,
+            jobId,
 
-          // Enhanced metadata from classification
-          documentLanguage: classification.language,
-          documentVersion: classification.version.version,
-          versionMajor: classification.version.major,
-          versionMinor: classification.version.minor,
-          isAuthoritative: classification.authority.isAuthoritative,
-          isLatest: classification.authority.isLatest,
-          isTranslation: classification.authority.isTranslation,
-          authorityPriority: classification.authority.priority,
-          documentCategory: classification.path.category,
-          isInLanguageFolder: classification.path.isInLanguageFolder,
-          languageFolder: classification.path.languageFolder,
+            // Enhanced metadata from classification
+            documentLanguage: classification.language,
+            documentVersion: classification.version.version,
+            versionMajor: classification.version.major,
+            versionMinor: classification.version.minor,
+            isAuthoritative: classification.authority.isAuthoritative,
+            isLatest: classification.authority.isLatest,
+            isTranslation: classification.authority.isTranslation,
+            authorityPriority: classification.authority.priority,
+            documentCategory: classification.path.category,
+            isInLanguageFolder: classification.path.isInLanguageFolder,
+            languageFolder: classification.path.languageFolder,
 
-          // Processing metadata
-          processingTimestamp: new Date().toISOString(),
-          processingTimeMs: Date.now() - startTime,
-        },
-      }));
+            // Processing metadata
+            processingTimestamp: new Date().toISOString(),
+            processingTimeMs: Date.now() - startTime,
+          },
+        })
+      );
 
       // Add to vector store
       await this.vectorStore.addDocuments(vectorDocuments);
 
       const tokensProcessed = processed.chunks.reduce(
         (sum, chunk) => sum + (chunk.metadata.tokenCount || 0),
-        0,
+        0
       );
 
       return {
@@ -505,7 +551,7 @@ export class IndexingService {
 
   private validateProcessedDocument(
     processed: ProcessedDocument,
-    fileName: string,
+    fileName: string
   ): {
     isValid: boolean;
     error?: string;
@@ -535,7 +581,7 @@ export class IndexingService {
 
     // Check for reasonable chunk content
     const emptyChunks = processed.chunks.filter(
-      (chunk) => !chunk.content || chunk.content.trim().length < 10,
+      (chunk) => !chunk.content || chunk.content.trim().length < 10
     );
     if (emptyChunks.length > processed.chunks.length * 0.5) {
       return {
@@ -546,7 +592,7 @@ export class IndexingService {
 
     // Check for duplicate content (suggests processing loop)
     const uniqueContents = new Set(
-      processed.chunks.map((chunk) => chunk.content.substring(0, 100)),
+      processed.chunks.map((chunk) => chunk.content.substring(0, 100))
     );
     if (uniqueContents.size < processed.chunks.length * 0.5) {
       return {
@@ -565,7 +611,7 @@ export class IndexingService {
 
   async listJobs(): Promise<IndexingJob[]> {
     return Array.from(this.jobs.values()).sort(
-      (a, b) => b.startTime.getTime() - a.startTime.getTime(),
+      (a, b) => b.startTime.getTime() - a.startTime.getTime()
     );
   }
 
@@ -576,7 +622,7 @@ export class IndexingService {
       k?: number;
       filter?: Record<string, any>;
       includeMetadata?: boolean;
-    } = {},
+    } = {}
   ): Promise<any[]> {
     const k = options.k || 5;
 
@@ -588,7 +634,11 @@ export class IndexingService {
       // Enhanced context detection
       const isStatutes = /(vedtekt|vedtektene|statute|statutes)/i.test(query);
       const isLocalLaws = /(lokal(e)?\s+lov(er)?|local\s+law(s)?)/i.test(query);
-      const detectedCategory = isStatutes ? "statutes" : isLocalLaws ? "local-laws" : undefined;
+      const detectedCategory = isStatutes
+        ? "statutes"
+        : isLocalLaws
+          ? "local-laws"
+          : undefined;
 
       // Campus detection
       const campusCandidates = [
@@ -649,7 +699,7 @@ export class IndexingService {
           hasSpecificPattern = true;
           console.log(
             `🎯 Detected ${patternType} pattern:`,
-            matches.map((m) => m[0]),
+            matches.map((m) => m[0])
           );
 
           for (const match of matches) {
@@ -664,7 +714,7 @@ export class IndexingService {
                 category: detectedCategory,
                 campus: detectedCampus,
                 language: queryLanguage,
-              },
+              }
             );
             keywordResults.push(...keywordSearchResults);
           }
@@ -702,10 +752,17 @@ export class IndexingService {
           const id = result.id;
           if (resultMap.has(id)) {
             const existing = resultMap.get(id);
-            existing.score = Math.min(1.0, (existing.originalScore || 0) + result.score * 0.3);
+            existing.score = Math.min(
+              1.0,
+              (existing.originalScore || 0) + result.score * 0.3
+            );
             existing.searchType = "hybrid";
           } else {
-            resultMap.set(id, { ...result, searchType: "semantic", originalScore: result.score });
+            resultMap.set(id, {
+              ...result,
+              searchType: "semantic",
+              originalScore: result.score,
+            });
           }
         });
 
@@ -714,14 +771,17 @@ export class IndexingService {
           .slice(0, k);
 
         console.log(
-          `🔍 Hybrid search: ${keywordResults.length} keyword + ${semanticResults.length} semantic = ${combinedResults.length} combined`,
+          `🔍 Hybrid search: ${keywordResults.length} keyword + ${semanticResults.length} semantic = ${combinedResults.length} combined`
         );
       } else {
         combinedResults = semanticResults.slice(0, k);
       }
 
       // Enhanced reranking
-      const rerankedResults = this.rerankResults(combinedResults, augmentedQuery);
+      const rerankedResults = this.rerankResults(
+        combinedResults,
+        augmentedQuery
+      );
 
       return rerankedResults.map((result) => ({
         ...result,
@@ -737,7 +797,9 @@ export class IndexingService {
       }));
     } catch (error) {
       console.error("❌ Search failed:", error);
-      throw new Error(`Search failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(
+        `Search failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
 
@@ -746,7 +808,11 @@ export class IndexingService {
     keywordQuery: string,
     numberOnly: string,
     limit: number,
-    context?: { category?: string; campus?: string; language?: "norwegian" | "english" | "mixed" },
+    context?: {
+      category?: string;
+      campus?: string;
+      language?: "norwegian" | "english" | "mixed";
+    }
   ): Promise<any[]> {
     try {
       const categoryTerm =
@@ -807,7 +873,8 @@ export class IndexingService {
 
         const textMatch = searchTerms.some((term) => text.includes(term));
         const metadataMatch =
-          metadata.sectionNumber && metadata.sectionNumber.toLowerCase().includes(numberOnly);
+          metadata.sectionNumber &&
+          metadata.sectionNumber.toLowerCase().includes(numberOnly);
 
         return textMatch || metadataMatch;
       });
@@ -832,7 +899,7 @@ export class IndexingService {
       });
 
       console.log(
-        `🔍 Keyword search "${keywordQuery}": ${keywordMatches.length}/${broadResults.length} matches`,
+        `🔍 Keyword search "${keywordQuery}": ${keywordMatches.length}/${broadResults.length} matches`
       );
 
       // Enhanced scoring
@@ -928,9 +995,17 @@ export class IndexingService {
     console.log("🧹 Index cleared successfully");
   }
 
-  async reindexDocument(documentId: string, siteId: string, driveId: string): Promise<void> {
+  async reindexDocument(
+    documentId: string,
+    siteId: string,
+    driveId: string
+  ): Promise<void> {
     try {
-      const documents = await this.sharePointService.listDocuments(siteId, "/", false);
+      const documents = await this.sharePointService.listDocuments(
+        siteId,
+        "/",
+        false
+      );
       const document = documents.find((doc) => doc.id === documentId);
 
       if (!document) {
@@ -953,13 +1028,17 @@ export class IndexingService {
 
       // Reprocess document
       const jobId = `reindex_${Date.now()}`;
-      const result = await this.processDocumentWithValidation(document, jobId, { siteId });
+      const result = await this.processDocumentWithValidation(document, jobId, {
+        siteId,
+      });
 
       if (result.error) {
         throw new Error(result.error);
       }
 
-      console.log(`🔄 Document ${documentId} reindexed: ${result.chunksCreated} chunks`);
+      console.log(
+        `🔄 Document ${documentId} reindexed: ${result.chunksCreated} chunks`
+      );
     } catch (error) {
       console.error(`❌ Failed to reindex document ${documentId}:`, error);
       throw error;

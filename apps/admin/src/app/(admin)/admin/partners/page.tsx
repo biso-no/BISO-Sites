@@ -17,17 +17,29 @@ import {
 } from "@repo/ui/components/ui/select";
 import Link from "next/link";
 import { getCampuses } from "@/app/actions/admin";
-import { createPartner, deletePartner, listPartners } from "@/app/actions/partners";
+import {
+  createPartner,
+  deletePartner,
+  listPartners,
+} from "@/app/actions/partners";
 import { AdminSummary } from "@/components/admin/admin-summary";
 
 export default async function PartnersAdminPage() {
-  const [partners, campuses] = await Promise.all([listPartners(), getCampuses()]);
+  const [partners, campuses] = await Promise.all([
+    listPartners(),
+    getCampuses(),
+  ]);
 
   const totalPartners = partners.length;
-  const nationalPartners = partners.filter((partner) => partner.level === "national").length;
-  const campusPartners = partners.filter((partner) => partner.level === "campus").length;
-  const campusesRepresented = new Set(partners.map((partner) => partner.campus_id).filter(Boolean))
-    .size;
+  const nationalPartners = partners.filter(
+    (partner) => partner.level === "national"
+  ).length;
+  const campusPartners = partners.filter(
+    (partner) => partner.level === "campus"
+  ).length;
+  const campusesRepresented = new Set(
+    partners.map((partner) => partner.campus_id).filter(Boolean)
+  ).size;
 
   const summaryMetrics = [
     { label: "Totalt", value: totalPartners },
@@ -59,7 +71,8 @@ export default async function PartnersAdminPage() {
             Registrer partner
           </CardTitle>
           <CardDescription className="text-sm text-primary-60">
-            Legg til nye samarbeidspartnere og tilknytt dem til riktig campus og nivå.
+            Legg til nye samarbeidspartnere og tilknytt dem til riktig campus og
+            nivå.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -125,7 +138,9 @@ export default async function PartnersAdminPage() {
       <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 bg-white/85 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">Alle partnere</h2>
+            <h2 className="text-lg font-semibold text-primary-100">
+              Alle partnere
+            </h2>
             <p className="text-sm text-primary-60">
               Administrer {partners.length} avtaler på tvers av nivå og campus.
             </p>
@@ -161,12 +176,17 @@ export default async function PartnersAdminPage() {
             </thead>
             <tbody className="divide-y divide-primary/10">
               {partners.map((partner) => (
-                <tr key={partner.$id} className="bg-white/70 transition hover:bg-primary/5">
+                <tr
+                  key={partner.$id}
+                  className="bg-white/70 transition hover:bg-primary/5"
+                >
                   <td className="px-4 py-3 font-medium text-primary-100">
                     <div className="flex flex-col">
                       <span>{partner.name}</span>
                       {partner.url && (
-                        <span className="text-xs text-primary-50 truncate">{partner.url}</span>
+                        <span className="text-xs text-primary-50 truncate">
+                          {partner.url}
+                        </span>
                       )}
                     </div>
                   </td>
@@ -189,7 +209,9 @@ export default async function PartnersAdminPage() {
                         size="sm"
                         className="rounded-full border-primary/20 px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/5"
                       >
-                        <Link href={`/admin/partners/${partner.$id}`}>Rediger</Link>
+                        <Link href={`/admin/partners/${partner.$id}`}>
+                          Rediger
+                        </Link>
                       </Button>
                       <form action={deletePartner} className="inline-flex">
                         <input type="hidden" name="id" value={partner.$id} />

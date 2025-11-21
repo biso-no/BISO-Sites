@@ -1,5 +1,9 @@
 import type { Orders } from "@repo/api/types/appwrite";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -19,7 +23,13 @@ import {
 } from "@repo/ui/components/ui/table";
 import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowUpRight, CreditCard, DollarSign, Users } from "lucide-react";
+import {
+  Activity,
+  ArrowUpRight,
+  CreditCard,
+  DollarSign,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getOrders } from "@/app/actions/orders";
@@ -55,8 +65,10 @@ const STATUS_STYLES: Record<string, string> = {
     "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
   pending:
     "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100",
-  cancelled: "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
-  failed: "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
+  cancelled:
+    "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
+  failed:
+    "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
   refunded:
     "border-transparent bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200",
 };
@@ -103,11 +115,16 @@ export default async function Dashboard() {
           />
         </div>
         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-          <Card className="glass-panel xl:col-span-2" x-chunk="dashboard-01-chunk-4">
+          <Card
+            className="glass-panel xl:col-span-2"
+            x-chunk="dashboard-01-chunk-4"
+          >
             <CardHeader className="flex flex-row items-center">
               <div className="grid gap-2">
                 <CardTitle>{t("dashboard.transactions.title")}</CardTitle>
-                <CardDescription>{t("dashboard.transactions.description")}</CardDescription>
+                <CardDescription>
+                  {t("dashboard.transactions.description")}
+                </CardDescription>
               </div>
               <Button asChild size="sm" className="ml-auto gap-1">
                 <Link href="/admin/shop/orders">
@@ -130,7 +147,9 @@ export default async function Dashboard() {
                     <TableHead className="hidden xl:table-column">
                       {t("orders.table.date")}
                     </TableHead>
-                    <TableHead className="text-right">{t("orders.table.amount")}</TableHead>
+                    <TableHead className="text-right">
+                      {t("orders.table.amount")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -141,8 +160,12 @@ export default async function Dashboard() {
                     const statusClasses =
                       STATUS_STYLES[status] ||
                       "border-transparent bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200";
-                    const createdAt = DATE_FORMATTER.format(new Date(order.$createdAt));
-                    const totalAmount = NOK_FORMATTER.format(Number(order.total) || 0);
+                    const createdAt = DATE_FORMATTER.format(
+                      new Date(order.$createdAt)
+                    );
+                    const totalAmount = NOK_FORMATTER.format(
+                      Number(order.total) || 0
+                    );
 
                     return (
                       <TableRow key={order.$id}>
@@ -156,14 +179,18 @@ export default async function Dashboard() {
                           #{order.$id.slice(-6)}
                         </TableCell>
                         <TableCell className="hidden xl:table-column">
-                          <Badge className={cn("text-xs capitalize", statusClasses)}>
+                          <Badge
+                            className={cn("text-xs capitalize", statusClasses)}
+                          >
                             {status}
                           </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                           {createdAt}
                         </TableCell>
-                        <TableCell className="text-right font-medium">{totalAmount}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {totalAmount}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -218,17 +245,22 @@ function RecentSales({ orders, t }: { orders: Orders[]; t: Translator }) {
     <Card className="glass-panel" x-chunk="dashboard-01-chunk-5">
       <CardHeader>
         <CardTitle>{t("dashboard.recentSales.title")}</CardTitle>
-        <CardDescription>{t("dashboard.recentSales.description")}</CardDescription>
+        <CardDescription>
+          {t("dashboard.recentSales.description")}
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-8">
         {orders.length === 0 && (
-          <div className="text-sm text-muted-foreground">{t("dashboard.recentSales.empty")}</div>
+          <div className="text-sm text-muted-foreground">
+            {t("dashboard.recentSales.empty")}
+          </div>
         )}
         {orders.map((order) => {
           const buyerName = order.buyer_name || t("orders.detail.guest");
           const buyerEmail = order.buyer_email || "—";
           const amount = NOK_FORMATTER.format(Number(order.total) || 0);
-          const avatarSource = order.buyer_name || order.buyer_email || order.$id;
+          const avatarSource =
+            order.buyer_name || order.buyer_email || order.$id;
           const avatarSeed = encodeURIComponent(avatarSource || "guest");
           const initials = getInitials(avatarSource || "BISO");
 
@@ -265,5 +297,7 @@ function getInitials(name: string) {
   if (parts.length === 1) {
     return parts[0]?.[0]?.toUpperCase() ?? "B";
   }
-  return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
+  return (
+    (parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")
+  ).toUpperCase();
 }

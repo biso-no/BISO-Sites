@@ -27,13 +27,24 @@ async function EventDetails({ id }: { id: string }) {
 
   if (eventData?.is_collection && eventData.collection_id) {
     // This is a collection parent - fetch all its child events
-    collectionEvents = await getCollectionEvents(eventData.collection_id, locale);
+    collectionEvents = await getCollectionEvents(
+      eventData.collection_id,
+      locale
+    );
   } else if (eventData?.collection_id) {
     // This is a child event - fetch all events in the same collection
-    collectionEvents = await getCollectionEvents(eventData.collection_id, locale);
+    collectionEvents = await getCollectionEvents(
+      eventData.collection_id,
+      locale
+    );
   }
 
-  return <EventDetailsClient event={event} collectionEvents={collectionEvents || undefined} />;
+  return (
+    <EventDetailsClient
+      event={event}
+      collectionEvents={collectionEvents || undefined}
+    />
+  );
 }
 
 function EventDetailsSkeleton() {

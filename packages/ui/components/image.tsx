@@ -9,7 +9,11 @@ type Props = ImageProps & {
   fallbackSrc?: string;
 };
 
-export function ImageWithFallback({ fallbackSrc = ERROR_IMG_SRC, onError, ...props }: Props) {
+export function ImageWithFallback({
+  fallbackSrc = ERROR_IMG_SRC,
+  onError,
+  ...props
+}: Props) {
   const [src, setSrc] = useState(props.src);
 
   return (

@@ -20,7 +20,10 @@ interface EventImagesProps {
   onChange: (next: string[]) => void;
 }
 
-export default function ImageUploadCard({ images = [], onChange }: EventImagesProps) {
+export default function ImageUploadCard({
+  images = [],
+  onChange,
+}: EventImagesProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
 
@@ -29,7 +32,7 @@ export default function ImageUploadCard({ images = [], onChange }: EventImagesPr
       (images || [])
         .map((s) => (typeof s === "string" ? s.trim() : ""))
         .filter((s) => s.length > 0),
-    [images],
+    [images]
   );
 
   const mainImage = validImages[0] || "";
@@ -153,7 +156,7 @@ export default function ImageUploadCard({ images = [], onChange }: EventImagesPr
                 onClick={() => makeCover(index + 1)}
                 className={cn(
                   "group aspect-square w-full overflow-hidden rounded-md border",
-                  "focus:outline-none focus:ring-2 focus:ring-primary",
+                  "focus:outline-none focus:ring-2 focus:ring-primary"
                 )}
               >
                 <Image
@@ -207,7 +210,8 @@ export default function ImageUploadCard({ images = [], onChange }: EventImagesPr
             {isUploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading {uploadingFiles.size} image{uploadingFiles.size > 1 ? "s" : ""}...
+                Uploading {uploadingFiles.size} image
+                {uploadingFiles.size > 1 ? "s" : ""}...
               </>
             ) : (
               <>

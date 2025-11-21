@@ -17,7 +17,7 @@ interface ProcessedReceiptData {
  */
 export async function processReceipt(
   fileId: string,
-  fileUrl: string,
+  fileUrl: string
 ): Promise<{
   success: boolean;
   data?: ProcessedReceiptData;
@@ -36,7 +36,9 @@ export async function processReceipt(
     const buffer = Buffer.from(arrayBuffer);
 
     // Import the processing function server-side
-    const { processDocument } = await import("@/lib/services/document-processing");
+    const { processDocument } = await import(
+      "@/lib/services/document-processing"
+    );
 
     const result = await processDocument(buffer, blob.type);
 
@@ -54,7 +56,8 @@ export async function processReceipt(
     console.error("Error processing receipt:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to process receipt",
+      error:
+        error instanceof Error ? error.message : "Failed to process receipt",
     };
   }
 }
@@ -67,7 +70,7 @@ export async function generateExpenseDescription(
     description: string;
     amount: number;
     date: string;
-  }>,
+  }>
 ): Promise<{
   success: boolean;
   description?: string;
@@ -84,7 +87,10 @@ export async function generateExpenseDescription(
     const totalAmount = attachments.reduce((sum, att) => sum + att.amount, 0);
 
     const attachmentDetails = attachments
-      .map((att, index) => `${index + 1}. ${att.description} - ${att.amount} NOK (${att.date})`)
+      .map(
+        (att, index) =>
+          `${index + 1}. ${att.description} - ${att.amount} NOK (${att.date})`
+      )
       .join("\n");
 
     const prompt = `You are an assistant helping to create concise expense reimbursement descriptions for a student organization (BISO - BI Student Organisation).
@@ -117,7 +123,10 @@ Generate only the description text, no additional formatting or explanations.`;
     console.error("Error generating description:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to generate description",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate description",
     };
   }
 }
@@ -125,9 +134,15 @@ Generate only the description text, no additional formatting or explanations.`;
 /**
  * Process multiple receipts in parallel
  */
-async function processMultipleReceipts(files: Array<{ id: string; url: string }>): Promise<{
+async function processMultipleReceipts(
+  files: Array<{ id: string; url: string }>
+): Promise<{
   success: boolean;
-  results?: Array<{ fileId: string; data: ProcessedReceiptData | null; error?: string }>;
+  results?: Array<{
+    fileId: string;
+    data: ProcessedReceiptData | null;
+    error?: string;
+  }>;
   error?: string;
 }> {
   try {
@@ -139,7 +154,7 @@ async function processMultipleReceipts(files: Array<{ id: string; url: string }>
           data: result.success ? result.data! : null,
           error: result.error,
         };
-      }),
+      })
     );
 
     const processedResults = results.map((result) => {
@@ -162,7 +177,8 @@ async function processMultipleReceipts(files: Array<{ id: string; url: string }>
     console.error("Error processing multiple receipts:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to process receipts",
+      error:
+        error instanceof Error ? error.message : "Failed to process receipts",
     };
   }
 }
@@ -219,7 +235,8 @@ Respond with ONLY a JSON object in this format:
     return {
       success: false,
       isValid: true, // Default to valid if validation fails
-      error: error instanceof Error ? error.message : "Failed to validate receipt",
+      error:
+        error instanceof Error ? error.message : "Failed to validate receipt",
     };
   }
 }

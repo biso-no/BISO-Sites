@@ -1,6 +1,11 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import {
   Briefcase,
   Building2,
@@ -123,8 +128,16 @@ export default function PartnerPage() {
       icon: Building2,
       text: t("opportunities.businessHotspot.features.presentations"),
     },
-    { key: "talk", icon: MessageSquare, text: t("opportunities.businessHotspot.features.talk") },
-    { key: "stand", icon: Building2, text: t("opportunities.businessHotspot.features.stand") },
+    {
+      key: "talk",
+      icon: MessageSquare,
+      text: t("opportunities.businessHotspot.features.talk"),
+    },
+    {
+      key: "stand",
+      icon: Building2,
+      text: t("opportunities.businessHotspot.features.stand"),
+    },
     {
       key: "relationship",
       icon: Heart,
@@ -157,7 +170,11 @@ export default function PartnerPage() {
                 {t("hero.description")}
               </p>
               <div className="mt-10 flex items-center gap-x-6">
-                <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
                   <Link href="/contact">
                     <Mail className="mr-2 h-4 w-4" />
                     {t("buttons.contact")}
@@ -202,7 +219,10 @@ export default function PartnerPage() {
                 return (
                   <div key={benefit.key} className="flex flex-col">
                     <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900 dark:text-white">
-                      <Icon className="h-5 w-5 flex-none text-blue-600" aria-hidden="true" />
+                      <Icon
+                        className="h-5 w-5 flex-none text-blue-600"
+                        aria-hidden="true"
+                      />
                       {benefit.title}
                     </dt>
                     <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600 dark:text-gray-300">
@@ -229,7 +249,10 @@ export default function PartnerPage() {
           </div>
           <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 xl:grid-cols-4">
             {careerDays.map((career) => (
-              <Card key={career.key} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={career.key}
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-blue-600" />
@@ -237,7 +260,9 @@ export default function PartnerPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">{career.action}</Button>
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                    {career.action}
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -300,7 +325,9 @@ export default function PartnerPage() {
                   className="w-full rounded-2xl shadow-2xl"
                 />
                 <div className="absolute top-4 right-4">
-                  <Badge className="bg-orange-500 hover:bg-orange-600">Oslo Only</Badge>
+                  <Badge className="bg-orange-500 hover:bg-orange-600">
+                    Oslo Only
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -321,14 +348,19 @@ export default function PartnerPage() {
           </div>
           <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 xl:grid-cols-4">
             {campuses.map((campus) => (
-              <Card key={campus.key} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={campus.key}
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader>
                   <CardTitle className="text-center">{campus.title}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">
                     <Phone className="h-4 w-4 text-blue-600 shrink-0" />
-                    <span className="text-gray-600 dark:text-gray-300">{campus.phone}</span>
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {campus.phone}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Mail className="h-4 w-4 text-blue-600 shrink-0" />
@@ -341,7 +373,9 @@ export default function PartnerPage() {
                   </div>
                   <div className="flex items-start gap-3 text-sm">
                     <MapPin className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-                    <span className="text-gray-600 dark:text-gray-300">{campus.address}</span>
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {campus.address}
+                    </span>
                   </div>
                   <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
                     <Mail className="mr-2 h-4 w-4" />

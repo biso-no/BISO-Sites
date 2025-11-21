@@ -1,4 +1,7 @@
-import type { ContentTranslations, WebshopProducts } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 
 export type ProductCustomFieldType = "text" | "textarea" | "number" | "select";
 

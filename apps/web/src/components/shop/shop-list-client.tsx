@@ -27,7 +27,8 @@ export function ShopListClient({
   const locale = useLocale() as "en" | "no";
   const { activeCampusId } = useCampus();
 
-  const [products, setProducts] = useState<ContentTranslations[]>(initialProducts);
+  const [products, setProducts] =
+    useState<ContentTranslations[]>(initialProducts);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -66,7 +67,9 @@ export function ShopListClient({
     const matchesSearch =
       product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.short_description || "").toLowerCase().includes(searchQuery.toLowerCase());
+      (product.short_description || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
     return matchesCategory && matchesSearch;
   });
@@ -109,7 +112,9 @@ export function ShopListClient({
                 <Button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  variant={selectedCategory === category ? "default" : "outline"}
+                  variant={
+                    selectedCategory === category ? "default" : "outline"
+                  }
                   className={
                     selectedCategory === category
                       ? "bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90 border-0"
@@ -167,8 +172,12 @@ export function ShopListClient({
                 className="text-center py-16"
               >
                 <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-gray-900 mb-2 text-2xl font-bold">No products found</h3>
-                <p className="text-gray-600 mb-6">Try adjusting your search or filters</p>
+                <h3 className="text-gray-900 mb-2 text-2xl font-bold">
+                  No products found
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Try adjusting your search or filters
+                </p>
                 <Button
                   onClick={() => {
                     setSelectedCategory("All");
@@ -188,10 +197,13 @@ export function ShopListClient({
       {/* Pickup Info */}
       <div className="bg-[#001731] text-white py-12">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h3 className="mb-4 text-2xl font-bold">All Products Available for Campus Pickup</h3>
+          <h3 className="mb-4 text-2xl font-bold">
+            All Products Available for Campus Pickup
+          </h3>
           <p className="text-white/80 mb-4 text-lg">
-            All items purchased in the BISO Shop are available for pickup at the BISO office during
-            opening hours. No shipping fees, no hassle - just convenient campus pickup!
+            All items purchased in the BISO Shop are available for pickup at the
+            BISO office during opening hours. No shipping fees, no hassle - just
+            convenient campus pickup!
           </p>
           <p className="text-[#3DA9E0] font-semibold text-lg">
             <strong>BISO Office Hours:</strong> Monday-Friday, 10:00-16:00

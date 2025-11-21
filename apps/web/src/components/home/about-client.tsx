@@ -1,6 +1,13 @@
 "use client";
 import { Card } from "@repo/ui/components/ui/card";
-import { Briefcase, Calendar, Link, Megaphone, Rocket, Sparkles } from "lucide-react";
+import {
+  Briefcase,
+  Calendar,
+  Link,
+  Megaphone,
+  Rocket,
+  Sparkles,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
@@ -10,13 +17,29 @@ interface AboutClientProps {
   departmentsCount: number;
 }
 
-export function AboutClient({ eventCount, jobCount, departmentsCount }: AboutClientProps) {
+export function AboutClient({
+  eventCount,
+  jobCount,
+  departmentsCount,
+}: AboutClientProps) {
   const t = useTranslations("home");
   const tAbout = useTranslations("about");
   const stats = [
-    { number: `${eventCount}+`, label: t("about.upcomingEvents"), icon: Calendar },
-    { number: `${jobCount}+`, label: t("about.jobOpportunities"), icon: Briefcase },
-    { number: `${departmentsCount}+`, label: t("about.studentGroups"), icon: Rocket },
+    {
+      number: `${eventCount}+`,
+      label: t("about.upcomingEvents"),
+      icon: Calendar,
+    },
+    {
+      number: `${jobCount}+`,
+      label: t("about.jobOpportunities"),
+      icon: Briefcase,
+    },
+    {
+      number: `${departmentsCount}+`,
+      label: t("about.studentGroups"),
+      icon: Rocket,
+    },
     //{ number: '15+', label: 'Years Strong', icon: Trophy },
   ];
 
@@ -82,7 +105,9 @@ export function AboutClient({ eventCount, jobCount, departmentsCount }: AboutCli
                 {t("about.mainContent.studentCommunity")}
               </span>
             </h2>
-            <p className="text-gray-600 mb-6">{t("about.mainContent.paragraph1")}</p>
+            <p className="text-gray-600 mb-6">
+              {t("about.mainContent.paragraph1")}
+            </p>
             <p className="text-gray-600">{t("about.mainContent.paragraph2")}</p>
           </motion.div>
 

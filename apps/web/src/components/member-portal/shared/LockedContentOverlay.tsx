@@ -21,7 +21,10 @@ const MEMBERSHIP_PRICES = {
   "three-year": 1400,
 };
 
-export function LockedContentOverlay({ hasBIIdentity, children }: LockedContentOverlayProps) {
+export function LockedContentOverlay({
+  hasBIIdentity,
+  children,
+}: LockedContentOverlayProps) {
   const t = useTranslations("memberPortal");
   const [isPending, startTransition] = useTransition();
 
@@ -48,7 +51,9 @@ export function LockedContentOverlay({ hasBIIdentity, children }: LockedContentO
   return (
     <div className="relative">
       {/* Blurred content */}
-      <div className="filter blur-sm pointer-events-none select-none">{children}</div>
+      <div className="filter blur-sm pointer-events-none select-none">
+        {children}
+      </div>
 
       {/* Overlay */}
       <div className="absolute inset-0 flex items-center justify-center p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
@@ -127,7 +132,9 @@ export function LockedContentOverlay({ hasBIIdentity, children }: LockedContentO
                   disabled={isPending}
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  {isPending ? "Processing..." : t("states.notMember.purchaseMembership")}
+                  {isPending
+                    ? "Processing..."
+                    : t("states.notMember.purchaseMembership")}
                 </Button>
               </>
             )}

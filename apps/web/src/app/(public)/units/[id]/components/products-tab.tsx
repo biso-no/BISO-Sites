@@ -23,7 +23,9 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-12"
       >
-        <h2 className="text-3xl font-bold text-foreground mb-4">Products & Event Tickets</h2>
+        <h2 className="text-3xl font-bold text-foreground mb-4">
+          Products & Event Tickets
+        </h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
           Get your tickets and merchandise from this department
         </p>
@@ -131,7 +133,9 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
                           className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {productRef?.stock === 0 ? "Sold Out" : "View"}
-                          {productRef?.stock !== 0 && <ChevronRight className="w-4 h-4 ml-1" />}
+                          {productRef?.stock !== 0 && (
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -144,7 +148,9 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
       ) : (
         <Card className="p-12 text-center border-0 shadow-lg">
           <ShoppingBag className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-foreground mb-2">No Products Available</h3>
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            No Products Available
+          </h3>
           <p className="text-muted-foreground">
             Check back soon for new products and event tickets!
           </p>

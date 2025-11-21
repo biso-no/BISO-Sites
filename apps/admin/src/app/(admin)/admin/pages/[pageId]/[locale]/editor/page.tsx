@@ -21,7 +21,9 @@ export default async function EditorPage({ params }: EditorPageProps) {
     notFound();
   }
 
-  const translation = page.translations.find((t) => t.locale === (locale as Locale));
+  const translation = page.translations.find(
+    (t) => t.locale === (locale as Locale)
+  );
 
   // If translation doesn't exist, we should redirect to a default one OR handle creation
   // But wait, the user wants to be able to switch locales.
@@ -74,7 +76,9 @@ export default async function EditorPage({ params }: EditorPageProps) {
 
   // Refetch to be sure
   const freshPage = await getManagedPage(pageId);
-  const freshTranslation = freshPage?.translations.find((t) => t.locale === (locale as Locale));
+  const freshTranslation = freshPage?.translations.find(
+    (t) => t.locale === (locale as Locale)
+  );
 
   if (!freshTranslation) {
     // If still not found, maybe invalid locale or error
@@ -104,7 +108,10 @@ export default async function EditorPage({ params }: EditorPageProps) {
       slug={freshTranslation.slug || page.slug}
       status={page.status}
       visibility={page.visibility}
-      pageTranslations={freshPage!.translations.map((t) => ({ locale: t.locale, id: t.id }))}
+      pageTranslations={freshPage!.translations.map((t) => ({
+        locale: t.locale,
+        id: t.id,
+      }))}
     />
   );
 }

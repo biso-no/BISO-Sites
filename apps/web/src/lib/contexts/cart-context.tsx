@@ -1,7 +1,13 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import {
   createOrUpdateReservation,
   deleteReservation,
@@ -33,7 +39,9 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[];
   isLoading: boolean;
-  addItem: (item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }) => Promise<void>;
+  addItem: (
+    item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
+  ) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => void;
@@ -55,7 +63,10 @@ export function useCart() {
   return context;
 }
 
-function generateCartItemId(contentId: string, selectedOptions?: Record<string, string>): string {
+function generateCartItemId(
+  contentId: string,
+  selectedOptions?: Record<string, string>
+): string {
   const optionsHash = selectedOptions
     ? Object.entries(selectedOptions)
         .sort(([a], [b]) => a.localeCompare(b))
@@ -107,7 +118,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     refreshCart();
   }, [locale]);
 
-  const addItem = async (item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }) => {
+  const addItem = async (
+    item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
+  ) => {
     const id = generateCartItemId(item.contentId, item.selectedOptions);
     const quantity = item.quantity || 1;
 
@@ -119,7 +132,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       let newQuantity = existingItem.quantity + quantity;
 
       // Check max_per_order limit
-      if (item.metadata?.max_per_order && newQuantity > item.metadata.max_per_order) {
+      if (
+        item.metadata?.max_per_order &&
+        newQuantity > item.metadata.max_per_order
+      ) {
         newQuantity = item.metadata.max_per_order;
       }
 
@@ -133,14 +149,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       // Update local state
       setItems((prevItems) =>
-        prevItems.map((i) => (i.id === id ? { ...i, quantity: newQuantity } : i)),
+        prevItems.map((i) =>
+          i.id === id ? { ...i, quantity: newQuantity } : i
+        )
       );
     } else {
       // Add new item
       let initialQuantity = quantity;
 
       // Check max_per_order limit for new item
-      if (item.metadata?.max_per_order && initialQuantity > item.metadata.max_per_order) {
+      if (
+        item.metadata?.max_per_order &&
+        initialQuantity > item.metadata.max_per_order
+      ) {
         initialQuantity = item.metadata.max_per_order;
       }
 
@@ -181,7 +202,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       let newQuantity = Math.max(1, quantity);
 
       // Check max_per_order limit
-      if (item.metadata?.max_per_order && newQuantity > item.metadata.max_per_order) {
+      if (
+        item.metadata?.max_per_order &&
+        newQuantity > item.metadata.max_per_order
+      ) {
         newQuantity = item.metadata.max_per_order;
       }
 
@@ -200,7 +224,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             return { ...i, quantity: newQuantity };
           }
           return i;
-        }),
+        })
       );
     }
   };
@@ -216,13 +240,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const getSubtotal = (isMember: boolean) => {
     return items.reduce((sum, item) => {
-      const price = isMember && item.memberPrice ? item.memberPrice : item.regularPrice;
+      const price =
+        isMember && item.memberPrice ? item.memberPrice : item.regularPrice;
       return sum + price * item.quantity;
     }, 0);
   };
 
   const getRegularSubtotal = () => {
-    return items.reduce((sum, item) => sum + item.regularPrice * item.quantity, 0);
+    return items.reduce(
+      (sum, item) => sum + item.regularPrice * item.quantity,
+      0
+    );
   };
 
   const getTotalSavings = (isMember: boolean) => {

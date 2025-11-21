@@ -32,10 +32,13 @@ export function NotificationsProvider({
             setNotifications(notifications);
           }
         } catch (error) {
-          console.error("[notifications] Failed to poll for notifications:", error);
+          console.error(
+            "[notifications] Failed to poll for notifications:",
+            error
+          );
         }
       },
-      5 * 60 * 1000,
+      5 * 60 * 1000
     ); // 5 minutes
 
     return () => clearInterval(pollInterval);

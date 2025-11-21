@@ -44,8 +44,8 @@ export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
             <h1 className="text-white text-5xl font-bold mb-0">Våre enheter</h1>
           </div>
           <p className="text-white/90 max-w-2xl mx-auto mb-8 text-lg">
-            Utforsk studentdrevne enheter innen alt fra festivaler og finans til politikk og
-            velferd. Finn enheten som matcher dine ambisjoner!
+            Utforsk studentdrevne enheter innen alt fra festivaler og finans til
+            politikk og velferd. Finn enheten som matcher dine ambisjoner!
           </p>
 
           {/* Stats */}
@@ -55,7 +55,9 @@ export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
                 key={stat.label}
                 className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20"
               >
-                <div className="text-3xl font-bold text-white mb-2">{stat.value}</div>
+                <div className="text-3xl font-bold text-white mb-2">
+                  {stat.value}
+                </div>
                 <p className="text-white/80 text-sm">{stat.label}</p>
               </div>
             ))}

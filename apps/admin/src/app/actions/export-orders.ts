@@ -25,7 +25,9 @@ type ParsedOrderItem = {
   unit_price?: number;
 };
 
-export async function exportOrdersToCSV(params: ExportOrdersParams): Promise<CsvResult> {
+export async function exportOrdersToCSV(
+  params: ExportOrdersParams
+): Promise<CsvResult> {
   const { db } = await createSessionClient();
   const { startIso, endIso } = normalizeRange(params.startDate, params.endDate);
 
@@ -61,7 +63,7 @@ export async function exportOrdersToCSV(params: ExportOrdersParams): Promise<Csv
 async function fetchAllOrders(
   db: Awaited<ReturnType<typeof createSessionClient>>["db"],
   baseQueries: unknown[],
-  batchSize = 200,
+  batchSize = 200
 ) {
   const allOrders: Orders[] = [];
   let cursor: string | null = null;
@@ -72,7 +74,11 @@ async function fetchAllOrders(
       queries.push(Query.cursorAfter(cursor));
     }
 
-    const response = await db.listRows<Orders>(DATABASE_ID, ORDERS_TABLE, queries);
+    const response = await db.listRows<Orders>(
+      DATABASE_ID,
+      ORDERS_TABLE,
+      queries
+    );
     const batch = response.rows ?? [];
     if (!batch.length) break;
 
@@ -113,7 +119,9 @@ function buildCsvRows(orders: Orders[]) {
 
     const items = parseOrderItems(order.items_json);
     if (items.length === 0) {
-      rows.push(formatCsvRow([...baseColumns, "", "", formatMoney(totalValue), status]));
+      rows.push(
+        formatCsvRow([...baseColumns, "", "", formatMoney(totalValue), status])
+      );
       continue;
     }
 
@@ -123,7 +131,13 @@ function buildCsvRows(orders: Orders[]) {
       const unitPrice = formatMoney(item.unit_price ?? 0);
       for (let i = 0; i < quantity; i++) {
         rows.push(
-          formatCsvRow([...baseColumns, productLabel, unitPrice, formatMoney(totalValue), status]),
+          formatCsvRow([
+            ...baseColumns,
+            productLabel,
+            unitPrice,
+            formatMoney(totalValue),
+            status,
+          ])
         );
       }
     }
@@ -148,7 +162,11 @@ function formatCsvRow(columns: (string | number)[]) {
 
 function escapeCsv(value: string | number) {
   const stringValue = String(value ?? "");
-  if (stringValue.includes('"') || stringValue.includes(",") || stringValue.includes("\n")) {
+  if (
+    stringValue.includes('"') ||
+    stringValue.includes(",") ||
+    stringValue.includes("\n")
+  ) {
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
   return stringValue;

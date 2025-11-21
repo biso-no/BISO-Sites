@@ -161,7 +161,7 @@ async function processImage(buffer: Buffer): Promise<ExtractedDocumentData> {
 
 export async function processDocument(
   buffer: Buffer,
-  mimeType: string,
+  mimeType: string
 ): Promise<ExtractedDocumentData> {
   try {
     // Try PDF processing first for PDF files

@@ -12,14 +12,15 @@ export const revalidate = 0;
 export default async function CampusPage() {
   const locale = (await getLocale()) as Locale;
 
-  const [events, jobs, news, departments, campusData, campusMetadata] = await Promise.all([
-    listEvents({ status: "published", limit: 10, locale }),
-    listJobs({ status: "published", limit: 10, locale }),
-    listNews({ limit: 6, locale }),
-    getDepartments({ isActive: true, locale }),
-    getCampusData(),
-    getCampusMetadata(),
-  ]);
+  const [events, jobs, news, departments, campusData, campusMetadata] =
+    await Promise.all([
+      listEvents({ status: "published", limit: 10, locale }),
+      listJobs({ status: "published", limit: 10, locale }),
+      listNews({ limit: 6, locale }),
+      getDepartments({ isActive: true, locale }),
+      getCampusData(),
+      getCampusMetadata(),
+    ]);
 
   return (
     <CampusPageClient

@@ -49,10 +49,19 @@ interface RichTextEditorProps {
 
 type Level = 1 | 2 | 3;
 
-export function RichTextEditor({ content, onChange, editable = true }: RichTextEditorProps) {
+export function RichTextEditor({
+  content,
+  onChange,
+  editable = true,
+}: RichTextEditorProps) {
   // Check if the editor appears empty for placeholder purposes
   const isEditorEmpty = (html: string) => {
-    return !html || html === "<p></p>" || html === "<p><br></p>" || html.trim() === "";
+    return (
+      !html ||
+      html === "<p></p>" ||
+      html === "<p><br></p>" ||
+      html.trim() === ""
+    );
   };
 
   // Used to stop event propagation
@@ -149,7 +158,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
         shouldUpdateParentRef.current = true;
       }
     },
-    [editor, htmlContent],
+    [editor, htmlContent]
   );
 
   // Update editor content when HTML mode changes content
@@ -158,7 +167,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
       setHtmlContent(html);
       onChange(html);
     },
-    [onChange],
+    [onChange]
   );
 
   // Update editor editable state when prop changes
@@ -187,7 +196,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
         shouldUpdateParentRef.current = true;
       }
     },
-    [editor],
+    [editor]
   );
 
   // Safely handle heading changes
@@ -209,7 +218,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
         shouldUpdateParentRef.current = true;
       }
     },
-    [editor],
+    [editor]
   );
 
   // Safely handle link setting
@@ -236,12 +245,17 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
         }
 
         // update link
-        editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange("link")
+          .setLink({ href: url })
+          .run();
       } catch (error) {
         console.error("Error setting link:", error);
       }
     },
-    [editor],
+    [editor]
   );
 
   // Safely handle image insertion
@@ -262,7 +276,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
         console.error("Error adding image:", error);
       }
     },
-    [editor],
+    [editor]
   );
 
   if (!editor) {

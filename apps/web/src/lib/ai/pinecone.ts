@@ -94,10 +94,11 @@ export class PineconeVectorStore implements IVectorStore {
   constructor(
     indexName?: string,
     namespace: string = "default",
-    modelName: EmbeddingModelName = CONFIG.EMBEDDING.DEFAULT_MODEL,
+    modelName: EmbeddingModelName = CONFIG.EMBEDDING.DEFAULT_MODEL
   ) {
     // Get index name from environment or use default
-    this.indexName = indexName || process.env.PINECONE_INDEX_NAME || "sharepoint-documents";
+    this.indexName =
+      indexName || process.env.PINECONE_INDEX_NAME || "sharepoint-documents";
     this.namespace = namespace;
     this.modelConfig = EMBEDDING_MODELS[modelName];
     this.embeddingModel = openai.textEmbeddingModel(modelName);
@@ -121,7 +122,7 @@ export class PineconeVectorStore implements IVectorStore {
     });
 
     console.log(
-      `🚀 PineconeVectorStore: ${modelName} (${this.modelConfig.vectorSize}D) - Index: ${this.indexName}`,
+      `🚀 PineconeVectorStore: ${modelName} (${this.modelConfig.vectorSize}D) - Index: ${this.indexName}`
     );
   }
 
@@ -132,10 +133,14 @@ export class PineconeVectorStore implements IVectorStore {
   private updateStats(tokenCount: number): void {
     this.stats.totalTokensProcessed += tokenCount;
     this.stats.estimatedCost =
-      (this.stats.totalTokensProcessed / 1000) * this.stats.estimatedCostPer1kTokens;
+      (this.stats.totalTokensProcessed / 1000) *
+      this.stats.estimatedCostPer1kTokens;
   }
 
-  private async withRetry<T>(operation: () => Promise<T>, context: string): Promise<T> {
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    context: string
+  ): Promise<T> {
     let lastError: any;
 
     for (let attempt = 1; attempt <= CONFIG.RETRY.MAX_ATTEMPTS; attempt++) {
@@ -147,7 +152,9 @@ export class PineconeVectorStore implements IVectorStore {
 
         if (attempt === CONFIG.RETRY.MAX_ATTEMPTS) break;
 
-        const delay = CONFIG.RETRY.INITIAL_DELAY * CONFIG.RETRY.BACKOFF_MULTIPLIER ** (attempt - 1);
+        const delay =
+          CONFIG.RETRY.INITIAL_DELAY *
+          CONFIG.RETRY.BACKOFF_MULTIPLIER ** (attempt - 1);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
@@ -161,7 +168,9 @@ export class PineconeVectorStore implements IVectorStore {
     await this.withRetry(async () => {
       // List existing indexes
       const existingIndexes = await this.client.listIndexes();
-      const indexExists = existingIndexes.indexes?.some((idx) => idx.name === this.indexName);
+      const indexExists = existingIndexes.indexes?.some(
+        (idx) => idx.name === this.indexName
+      );
 
       if (!indexExists) {
         console.log(`Creating Pinecone index: ${this.indexName}`);
@@ -236,7 +245,8 @@ export class PineconeVectorStore implements IVectorStore {
     for (const [idx, item] of Array.from(items.entries())) {
       if (
         current.indices.length >= CONFIG.EMBEDDING.MAX_ITEMS_PER_BATCH ||
-        current.tokenSum + item.tokenCount > CONFIG.EMBEDDING.MAX_TOKENS_PER_REQUEST
+        current.tokenSum + item.tokenCount >
+          CONFIG.EMBEDDING.MAX_TOKENS_PER_REQUEST
       ) {
         if (current.indices.length > 0) {
           batches.push(current);
@@ -259,7 +269,7 @@ export class PineconeVectorStore implements IVectorStore {
     for (const batch of batches) {
       const { embeddings } = await this.withRetry(
         () => embedMany({ model: this.embeddingModel, values: batch.texts }),
-        "Generating embeddings",
+        "Generating embeddings"
       );
 
       embeddings.forEach((emb, i) => {
@@ -288,7 +298,7 @@ export class PineconeVectorStore implements IVectorStore {
       const batch = vectors.slice(i, i + BATCH_SIZE);
       await this.withRetry(
         () => this.index.namespace(this.namespace).upsert(batch),
-        `Upserting batch ${i / BATCH_SIZE + 1}`,
+        `Upserting batch ${i / BATCH_SIZE + 1}`
       );
     }
 
@@ -297,7 +307,12 @@ export class PineconeVectorStore implements IVectorStore {
 
   async search(options: SearchOptions): Promise<SearchResult[]> {
     await this.initialize();
-    const { query, k = CONFIG.SEARCH.DEFAULT_LIMIT, filter, includeMetadata = true } = options;
+    const {
+      query,
+      k = CONFIG.SEARCH.DEFAULT_LIMIT,
+      filter,
+      includeMetadata = true,
+    } = options;
 
     // For metadata-only search (no query)
     if (!query && filter) {
@@ -313,7 +328,7 @@ export class PineconeVectorStore implements IVectorStore {
             includeMetadata,
             filter,
           }),
-        "Performing metadata-only search",
+        "Performing metadata-only search"
       )) as QueryResponse;
 
       return (
@@ -334,7 +349,7 @@ export class PineconeVectorStore implements IVectorStore {
 
     const { embedding: vector } = await this.withRetry(
       () => embed({ model: this.embeddingModel, value: query }),
-      "Generating query embedding",
+      "Generating query embedding"
     );
 
     const queryRequest: any = {
@@ -349,7 +364,7 @@ export class PineconeVectorStore implements IVectorStore {
 
     const results = (await this.withRetry(
       () => this.index.namespace(this.namespace).query(queryRequest),
-      "Performing search",
+      "Performing search"
     )) as QueryResponse;
 
     return (
@@ -370,7 +385,7 @@ export class PineconeVectorStore implements IVectorStore {
 
     const { embedding: vector } = await this.withRetry(
       () => embed({ model: this.embeddingModel, value: query }),
-      "Generating query embedding",
+      "Generating query embedding"
     );
 
     const results = (await this.withRetry(
@@ -380,7 +395,7 @@ export class PineconeVectorStore implements IVectorStore {
           topK: cappedLimit,
           includeMetadata: true,
         }),
-      "Performing broad search",
+      "Performing broad search"
     )) as QueryResponse;
 
     return (
@@ -392,7 +407,9 @@ export class PineconeVectorStore implements IVectorStore {
           score: match.score || 0,
           distance: 1 - (match.score || 0),
         }))
-        .filter((result) => result.score >= CONFIG.SEARCH.MIN_SCORE_THRESHOLD) || []
+        .filter(
+          (result) => result.score >= CONFIG.SEARCH.MIN_SCORE_THRESHOLD
+        ) || []
     );
   }
 
@@ -404,13 +421,17 @@ export class PineconeVectorStore implements IVectorStore {
 
     await this.withRetry(
       () => this.index.namespace(this.namespace).deleteMany(convertedIds),
-      "Deleting documents",
+      "Deleting documents"
     );
 
     console.log(`🗑️ Deleted ${ids.length} documents from Pinecone`);
   }
 
-  async updateDocument(id: string, content: string, metadata: Record<string, any>): Promise<void> {
+  async updateDocument(
+    id: string,
+    content: string,
+    metadata: Record<string, any>
+  ): Promise<void> {
     await this.initialize();
 
     const pointId = uuidv5(id, SHAREPOINT_NAMESPACE);
@@ -419,7 +440,7 @@ export class PineconeVectorStore implements IVectorStore {
 
     const { embedding } = await this.withRetry(
       () => embed({ model: this.embeddingModel, value: content }),
-      "Generating embedding for update",
+      "Generating embedding for update"
     );
 
     await this.withRetry(
@@ -437,18 +458,21 @@ export class PineconeVectorStore implements IVectorStore {
             },
           },
         ]),
-      "Updating document",
+      "Updating document"
     );
 
     console.log(`📝 Updated document ${id} in Pinecone`);
   }
 
-  async getCollectionStats(): Promise<{ count: number; modelStats?: ModelStats }> {
+  async getCollectionStats(): Promise<{
+    count: number;
+    modelStats?: ModelStats;
+  }> {
     await this.initialize();
 
     const stats = (await this.withRetry(
       () => this.index.describeIndexStats(),
-      "Getting collection stats",
+      "Getting collection stats"
     )) as any;
 
     const namespaceStats = stats.namespaces?.[this.namespace];
@@ -466,13 +490,15 @@ export class PineconeVectorStore implements IVectorStore {
     // Delete all vectors in the namespace
     await this.withRetry(
       () => this.index.namespace(this.namespace).deleteAll(),
-      "Clearing collection",
+      "Clearing collection"
     );
 
     this.stats.totalTokensProcessed = 0;
     this.stats.estimatedCost = 0;
 
-    console.log(`🧹 Cleared namespace: ${this.namespace} in index: ${this.indexName}`);
+    console.log(
+      `🧹 Cleared namespace: ${this.namespace} in index: ${this.indexName}`
+    );
   }
 
   async healthCheck(): Promise<{ healthy: boolean; details: any }> {

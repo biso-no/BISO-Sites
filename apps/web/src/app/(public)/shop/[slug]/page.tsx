@@ -45,7 +45,11 @@ function ProductDetailsSkeleton() {
   );
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug?: string }> }) {
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ slug?: string }>;
+}) {
   const { slug } = await params;
   if (!slug) {
     notFound();
@@ -58,7 +62,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug?:
 }
 
 // Generate metadata for SEO
-export async function generateMetadata({ params }: { params: Promise<{ slug: string[] }> }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}) {
   const { slug } = await params;
   const locale = await getLocale();
   const product = await getProductBySlug(slug?.[0] ?? "", locale);

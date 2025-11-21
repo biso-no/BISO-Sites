@@ -9,7 +9,11 @@ import { getAuthStatus } from "@/lib/auth-utils";
 
 const allowedRoles = ["Admin", "hr", "finance", "pr"];
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   // First check if user is authenticated (not anonymous)
   const authStatus = await getAuthStatus();
 
@@ -29,7 +33,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   // Add fallback for when name is undefined
-  const firstName = user && user.user.name ? user.user.name.split(" ")[0] : "User";
+  const firstName =
+    user && user.user.name ? user.user.name.split(" ")[0] : "User";
 
   // Fetch initial notifications
   const initialNotifications = await fetchNotifications();

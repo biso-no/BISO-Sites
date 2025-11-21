@@ -126,7 +126,9 @@ export interface UpdateEventData {
   };
 }
 
-export async function listEvents(params: ListEventsParams = {}): Promise<AdminEvent[]> {
+export async function listEvents(
+  params: ListEventsParams = {}
+): Promise<AdminEvent[]> {
   const { limit = 25, status = "published", campus, search } = params;
 
   try {
@@ -198,14 +200,18 @@ export async function getEvent(id: string): Promise<AdminEvent | null> {
   }
 }
 
-export async function createEvent(data: CreateEventData, skipRevalidation = false) {
+export async function createEvent(
+  data: CreateEventData,
+  skipRevalidation = false
+) {
   try {
     const { db } = await createSessionClient();
     const eventId = ID.unique();
 
     // Build metadata JSON with non-schema fields only
     const metadataJson: EventMetadata = {};
-    if (data.metadata?.start_time) metadataJson.start_time = data.metadata.start_time;
+    if (data.metadata?.start_time)
+      metadataJson.start_time = data.metadata.start_time;
     if (data.metadata?.end_time) metadataJson.end_time = data.metadata.end_time;
     if (data.metadata?.units?.length) metadataJson.units = data.metadata.units;
 
@@ -226,7 +232,9 @@ export async function createEvent(data: CreateEventData, skipRevalidation = fals
       is_collection: data.is_collection ?? false,
       collection_pricing: data.collection_pricing ?? null,
       department_id: data.department_id ?? null,
-      metadata: Object.keys(metadataJson).length ? JSON.stringify(metadataJson) : null,
+      metadata: Object.keys(metadataJson).length
+        ? JSON.stringify(metadataJson)
+        : null,
       campus: data.campus_id,
       department: data.department_id ?? null,
       // Nested relationship creation - Appwrite creates translations atomically
@@ -260,7 +268,10 @@ export async function createEvent(data: CreateEventData, skipRevalidation = fals
   }
 }
 
-export async function updateEvent(eventId: string, data: UpdateEventData): Promise<Events | null> {
+export async function updateEvent(
+  eventId: string,
+  data: UpdateEventData
+): Promise<Events | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -276,20 +287,28 @@ export async function updateEvent(eventId: string, data: UpdateEventData): Promi
     if (data.price !== undefined) updateData.price = data.price;
     if (data.ticket_url !== undefined) updateData.ticket_url = data.ticket_url;
     if (data.image !== undefined) updateData.image = data.image;
-    if (data.member_only !== undefined) updateData.member_only = data.member_only;
-    if (data.collection_id !== undefined) updateData.collection_id = data.collection_id;
-    if (data.is_collection !== undefined) updateData.is_collection = data.is_collection;
+    if (data.member_only !== undefined)
+      updateData.member_only = data.member_only;
+    if (data.collection_id !== undefined)
+      updateData.collection_id = data.collection_id;
+    if (data.is_collection !== undefined)
+      updateData.is_collection = data.is_collection;
     if (data.collection_pricing !== undefined)
       updateData.collection_pricing = data.collection_pricing;
-    if (data.department_id !== undefined) updateData.department_id = data.department_id;
+    if (data.department_id !== undefined)
+      updateData.department_id = data.department_id;
 
     // Build metadata only if provided
     if (data.metadata !== undefined) {
       const metadataJson: EventMetadata = {};
-      if (data.metadata.start_time) metadataJson.start_time = data.metadata.start_time;
-      if (data.metadata.end_time) metadataJson.end_time = data.metadata.end_time;
+      if (data.metadata.start_time)
+        metadataJson.start_time = data.metadata.start_time;
+      if (data.metadata.end_time)
+        metadataJson.end_time = data.metadata.end_time;
       if (data.metadata.units?.length) metadataJson.units = data.metadata.units;
-      updateData.metadata = Object.keys(metadataJson).length ? JSON.stringify(metadataJson) : null;
+      updateData.metadata = Object.keys(metadataJson).length
+        ? JSON.stringify(metadataJson)
+        : null;
     }
 
     // Build translation_refs array with both translations if provided
@@ -302,13 +321,20 @@ export async function updateEvent(eventId: string, data: UpdateEventData): Promi
         Query.limit(1),
       ]);
 
-      const existingTranslations = existingEvent.rows[0]?.translation_refs || [];
+      const existingTranslations =
+        existingEvent.rows[0]?.translation_refs || [];
       const existingTranslationsArray = Array.isArray(existingTranslations)
-        ? existingTranslations.filter((t): t is ContentTranslations => typeof t !== "string")
+        ? existingTranslations.filter(
+            (t): t is ContentTranslations => typeof t !== "string"
+          )
         : [];
 
-      const enTranslation = existingTranslationsArray.find((t) => t.locale === Locale.EN);
-      const noTranslation = existingTranslationsArray.find((t) => t.locale === Locale.NO);
+      const enTranslation = existingTranslationsArray.find(
+        (t) => t.locale === Locale.EN
+      );
+      const noTranslation = existingTranslationsArray.find(
+        (t) => t.locale === Locale.NO
+      );
 
       updateData.translation_refs = [
         {
@@ -330,7 +356,12 @@ export async function updateEvent(eventId: string, data: UpdateEventData): Promi
       ];
     }
 
-    const event = await db.updateRow<Events>("app", "events", eventId, updateData);
+    const event = await db.updateRow<Events>(
+      "app",
+      "events",
+      eventId,
+      updateData
+    );
 
     revalidatePath("/events");
     revalidatePath("/admin/events");
@@ -360,7 +391,7 @@ async function deleteEvent(id: string): Promise<boolean> {
 export async function translateEventContent(
   content: { title: string; description: string },
   fromLocale: "en" | "no",
-  toLocale: "en" | "no",
+  toLocale: "en" | "no"
 ): Promise<{ title: string; description: string } | null> {
   try {
     const { generateObject } = await import("ai");
@@ -417,7 +448,11 @@ export async function listDepartments(campusId?: string) {
 
   try {
     const { db } = await createSessionClient();
-    const response = await db.listRows<Departments>("app", "departments", queries);
+    const response = await db.listRows<Departments>(
+      "app",
+      "departments",
+      queries
+    );
     return response.rows;
   } catch (error) {
     console.error("Error fetching departments:", error);
@@ -440,19 +475,30 @@ export async function listCampuses() {
 // Helper function to get collection events
 async function getCollectionEvents(
   collectionId: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations[]> {
   try {
     const { db } = await createSessionClient();
 
     // Get all events with this collection_id
-    const response = await db.listRows<ContentTranslations>("app", "content_translations", [
-      Query.equal("content_type", ContentType.EVENT),
-      Query.equal("locale", locale),
-      Query.equal("event_ref.collection_id", collectionId),
-      Query.select(["content_id", "$id", "locale", "title", "description", "event_ref.*"]),
-      Query.orderAsc("event_ref.start_date"),
-    ]);
+    const response = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", ContentType.EVENT),
+        Query.equal("locale", locale),
+        Query.equal("event_ref.collection_id", collectionId),
+        Query.select([
+          "content_id",
+          "$id",
+          "locale",
+          "title",
+          "description",
+          "event_ref.*",
+        ]),
+        Query.orderAsc("event_ref.start_date"),
+      ]
+    );
 
     return response.rows;
   } catch (error) {

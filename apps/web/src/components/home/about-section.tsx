@@ -11,12 +11,23 @@ export async function AboutSection() {
   const [events, jobs, campuses] = await Promise.all([
     listEvents({ locale, status: "published", limit: 1000 }),
     listJobs({ locale, status: "published", limit: 1000 }),
-    getCampuses({ selectedCampusId: "all", includeDepartments: true, includeNational: false }),
+    getCampuses({
+      selectedCampusId: "all",
+      includeDepartments: true,
+      includeNational: false,
+    }),
   ]);
   console.log("Campus data: ", campuses);
-  const departments = campuses.reduce((acc, campus) => acc + campus.departments.length, 0);
+  const departments = campuses.reduce(
+    (acc, campus) => acc + campus.departments.length,
+    0
+  );
 
   return (
-    <AboutClient eventCount={events.length} jobCount={jobs.length} departmentsCount={departments} />
+    <AboutClient
+      eventCount={events.length}
+      jobCount={jobs.length}
+      departmentsCount={departments}
+    />
   );
 }

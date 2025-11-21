@@ -42,7 +42,9 @@ export interface CreateNewsData {
   };
 }
 
-export async function listNews(params: ListNewsParams = {}): Promise<ContentTranslations[]> {
+export async function listNews(
+  params: ListNewsParams = {}
+): Promise<ContentTranslations[]> {
   const { limit = 25, status, campus, locale } = params;
 
   try {
@@ -50,7 +52,14 @@ export async function listNews(params: ListNewsParams = {}): Promise<ContentTran
 
     const queries = [
       Query.equal("content_type", ContentType.NEWS),
-      Query.select(["content_id", "$id", "locale", "title", "description", "news_ref.*"]),
+      Query.select([
+        "content_id",
+        "$id",
+        "locale",
+        "title",
+        "description",
+        "news_ref.*",
+      ]),
       Query.limit(limit),
       Query.orderDesc("$createdAt"),
     ];
@@ -72,7 +81,7 @@ export async function listNews(params: ListNewsParams = {}): Promise<ContentTran
     const newsResponse = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
-      queries,
+      queries
     );
     const newsItems = newsResponse.rows;
 
@@ -85,7 +94,7 @@ export async function listNews(params: ListNewsParams = {}): Promise<ContentTran
 
 export async function getNewsItem(
   id: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
@@ -98,9 +107,16 @@ export async function getNewsItem(
         Query.equal("content_type", ContentType.NEWS),
         Query.equal("content_id", id),
         Query.equal("locale", locale),
-        Query.select(["content_id", "$id", "locale", "title", "description", "news_ref.*"]),
+        Query.select([
+          "content_id",
+          "$id",
+          "locale",
+          "title",
+          "description",
+          "news_ref.*",
+        ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) {
@@ -116,7 +132,7 @@ export async function getNewsItem(
 
 async function createNewsItem(
   data: CreateNewsData,
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<News | null> {
   try {
     const { db } = await createSessionClient();
@@ -173,7 +189,7 @@ async function createNewsItem(
 async function updateNewsItem(
   id: string,
   data: Partial<CreateNewsData>,
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<NewsItem | null> {
   try {
     const { db } = await createSessionClient();
@@ -183,7 +199,8 @@ async function updateNewsItem(
 
     if (data.status !== undefined) updateData.status = data.status;
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.department_id !== undefined) updateData.department_id = data.department_id;
+    if (data.department_id !== undefined)
+      updateData.department_id = data.department_id;
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.url !== undefined) updateData.url = data.url;
     if (data.image !== undefined) updateData.image = data.image;
@@ -229,11 +246,11 @@ async function updateNewsItem(
 export async function filterArticles(
   articles: ContentTranslations[],
   category: string,
-  searchQuery: string,
+  searchQuery: string
 ) {
   return articles.filter(
     (article) =>
       article.content_type === category &&
-      article.title.toLowerCase().includes(searchQuery.toLowerCase()),
+      article.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 }

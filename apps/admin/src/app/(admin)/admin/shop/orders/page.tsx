@@ -26,7 +26,12 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { ListFilter } from "lucide-react";
 
 import { getTranslations } from "next-intl/server";
@@ -73,8 +78,10 @@ const STATUS_STYLES: Record<string, string> = {
     "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
   pending:
     "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100",
-  cancelled: "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
-  failed: "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
+  cancelled:
+    "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
+  failed:
+    "border-transparent bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-100",
   refunded:
     "border-transparent bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200",
 };
@@ -117,14 +124,24 @@ export default async function Dashboard() {
     amount: t("orders.table.amount"),
     view: t("orders.table.view"),
   };
-  const statusOptions = ["paid", "authorized", "pending", "cancelled", "failed", "refunded"];
+  const statusOptions = [
+    "paid",
+    "authorized",
+    "pending",
+    "cancelled",
+    "failed",
+    "refunded",
+  ];
 
   return (
     <div className="flex w-full flex-col">
       <main className="grid flex-1 items-start gap-4 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
         <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-            <Card className="glass-panel sm:col-span-2" x-chunk="dashboard-05-chunk-0">
+            <Card
+              className="glass-panel sm:col-span-2"
+              x-chunk="dashboard-05-chunk-0"
+            >
               <CardHeader className="pb-3">
                 <CardTitle>{t("orders.analytics.overviewTitle")}</CardTitle>
                 <CardDescription className="max-w-lg text-balance leading-relaxed">
@@ -132,7 +149,9 @@ export default async function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-semibold">{NOK_FORMATTER.format(revenueYear)}</div>
+                <div className="text-3xl font-semibold">
+                  {NOK_FORMATTER.format(revenueYear)}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {t("orders.analytics.totalVolumeSince", {
                     date: DATE_FORMATTER.format(startOfYear),
@@ -141,28 +160,43 @@ export default async function Dashboard() {
               </CardContent>
               <CardFooter>
                 <Button asChild variant="outline">
-                  <NextLink href="/shop">{t("orders.actions.openStore")}</NextLink>
+                  <NextLink href="/shop">
+                    {t("orders.actions.openStore")}
+                  </NextLink>
                 </Button>
               </CardFooter>
             </Card>
             <Card className="glass-panel" x-chunk="dashboard-05-chunk-1">
               <CardHeader className="pb-2">
-                <CardDescription>{t("orders.analytics.weekTitle")}</CardDescription>
-                <CardTitle className="text-3xl">{NOK_FORMATTER.format(revenueWeek)}</CardTitle>
+                <CardDescription>
+                  {t("orders.analytics.weekTitle")}
+                </CardDescription>
+                <CardTitle className="text-3xl">
+                  {NOK_FORMATTER.format(revenueWeek)}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  {t("orders.analytics.weekOrders", { count: ordersWeek.length })}
+                  {t("orders.analytics.weekOrders", {
+                    count: ordersWeek.length,
+                  })}
                 </div>
               </CardContent>
               <CardFooter>
-                <Progress value={weekProgress} aria-label={t("orders.analytics.weekTitle")} />
+                <Progress
+                  value={weekProgress}
+                  aria-label={t("orders.analytics.weekTitle")}
+                />
               </CardFooter>
             </Card>
             <Card className="glass-panel" x-chunk="dashboard-05-chunk-2">
               <CardHeader className="pb-2">
-                <CardDescription>{t("orders.analytics.monthTitle")}</CardDescription>
-                <CardTitle className="text-3xl">{NOK_FORMATTER.format(revenueMonth)}</CardTitle>
+                <CardDescription>
+                  {t("orders.analytics.monthTitle")}
+                </CardDescription>
+                <CardTitle className="text-3xl">
+                  {NOK_FORMATTER.format(revenueMonth)}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
@@ -173,21 +207,34 @@ export default async function Dashboard() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Progress value={monthProgress} aria-label={t("orders.analytics.monthTitle")} />
+                <Progress
+                  value={monthProgress}
+                  aria-label={t("orders.analytics.monthTitle")}
+                />
               </CardFooter>
             </Card>
           </div>
           <Tabs defaultValue="week">
             <div className="flex items-center">
               <TabsList>
-                <TabsTrigger value="week">{t("orders.analytics.tabsWeek")}</TabsTrigger>
-                <TabsTrigger value="month">{t("orders.analytics.tabsMonth")}</TabsTrigger>
-                <TabsTrigger value="year">{t("orders.analytics.tabsYear")}</TabsTrigger>
+                <TabsTrigger value="week">
+                  {t("orders.analytics.tabsWeek")}
+                </TabsTrigger>
+                <TabsTrigger value="month">
+                  {t("orders.analytics.tabsMonth")}
+                </TabsTrigger>
+                <TabsTrigger value="year">
+                  {t("orders.analytics.tabsYear")}
+                </TabsTrigger>
               </TabsList>
               <div className="ml-auto flex items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 gap-1 text-sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1 text-sm"
+                    >
                       <ListFilter className="h-3.5 w-3.5" />
                       <span className="sr-only sm:not-sr-only">
                         {t("orders.analytics.filterButtonLabel")}
@@ -258,7 +305,14 @@ type OrdersTableProps = {
   t: Translator;
 };
 
-function OrdersTable({ orders, title, description, emptyMessage, labels, t }: OrdersTableProps) {
+function OrdersTable({
+  orders,
+  title,
+  description,
+  emptyMessage,
+  labels,
+  t,
+}: OrdersTableProps) {
   return (
     <Card className="glass-panel" x-chunk="dashboard-05-chunk-3">
       <CardHeader className="px-7">
@@ -270,16 +324,23 @@ function OrdersTable({ orders, title, description, emptyMessage, labels, t }: Or
           <TableHeader>
             <TableRow>
               <TableHead>{labels.customer}</TableHead>
-              <TableHead className="hidden sm:table-cell">{labels.email}</TableHead>
-              <TableHead className="hidden sm:table-cell">{labels.status}</TableHead>
-              <TableHead className="hidden md:table-cell">{labels.date}</TableHead>
+              <TableHead className="hidden sm:table-cell">
+                {labels.email}
+              </TableHead>
+              <TableHead className="hidden sm:table-cell">
+                {labels.status}
+              </TableHead>
+              <TableHead className="hidden md:table-cell">
+                {labels.date}
+              </TableHead>
               <TableHead className="text-right">{labels.amount}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.map((order) => {
               const status = (order.status || "pending").toLowerCase();
-              const statusClasses = STATUS_STYLES[status] || STATUS_STYLES.pending;
+              const statusClasses =
+                STATUS_STYLES[status] || STATUS_STYLES.pending;
               const statusLabel = t(`orders.status.${status}`);
               return (
                 <TableRow key={order.$id}>
@@ -291,9 +352,13 @@ function OrdersTable({ orders, title, description, emptyMessage, labels, t }: Or
                       {order.buyer_email || "—"}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">{order.buyer_email || "—"}</TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    <Badge className={cn("text-xs capitalize", statusClasses)}>{statusLabel}</Badge>
+                    {order.buyer_email || "—"}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Badge className={cn("text-xs capitalize", statusClasses)}>
+                      {statusLabel}
+                    </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     {DATE_FORMATTER.format(order.createdAtDate)}
@@ -314,7 +379,10 @@ function OrdersTable({ orders, title, description, emptyMessage, labels, t }: Or
             })}
             {orders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
+                <TableCell
+                  colSpan={5}
+                  className="py-6 text-center text-sm text-muted-foreground"
+                >
                   {emptyMessage}
                 </TableCell>
               </TableRow>
@@ -326,13 +394,21 @@ function OrdersTable({ orders, title, description, emptyMessage, labels, t }: Or
   );
 }
 
-function OrderDetailCard({ order, t }: { order: PreparedOrder | null; t: Translator }) {
+function OrderDetailCard({
+  order,
+  t,
+}: {
+  order: PreparedOrder | null;
+  t: Translator;
+}) {
   if (!order) {
     return (
       <Card className="glass-panel" x-chunk="dashboard-05-chunk-4">
         <CardHeader>
           <CardTitle>{t("orders.detail.emptyTitle")}</CardTitle>
-          <CardDescription>{t("orders.detail.emptyDescription")}</CardDescription>
+          <CardDescription>
+            {t("orders.detail.emptyDescription")}
+          </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           {t("orders.detail.emptyMessage")}
@@ -345,16 +421,22 @@ function OrderDetailCard({ order, t }: { order: PreparedOrder | null; t: Transla
   const statusClasses = STATUS_STYLES[status] || STATUS_STYLES.pending;
   const statusLabel = t(`orders.status.${status}`);
   const items = parseOrderItems(order.items_json);
-  const subtotal = typeof order.subtotal === "number" ? order.subtotal : order.totalValue;
+  const subtotal =
+    typeof order.subtotal === "number" ? order.subtotal : order.totalValue;
   const discount = Number(order.discount_total ?? 0);
   const total = order.totalValue;
 
   return (
-    <Card className="glass-panel overflow-hidden" x-chunk="dashboard-05-chunk-4">
+    <Card
+      className="glass-panel overflow-hidden"
+      x-chunk="dashboard-05-chunk-4"
+    >
       <CardHeader className="flex flex-col gap-3 bg-muted/50">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>{t("orders.detail.title", { identifier: order.$id.slice(-8) })}</CardTitle>
+            <CardTitle>
+              {t("orders.detail.title", { identifier: order.$id.slice(-8) })}
+            </CardTitle>
             <CardDescription>
               {t("orders.detail.subtitle", {
                 date: DATE_FORMATTER.format(order.createdAtDate),
@@ -362,15 +444,21 @@ function OrderDetailCard({ order, t }: { order: PreparedOrder | null; t: Transla
               })}
             </CardDescription>
           </div>
-          <Badge className={cn("capitalize", statusClasses)}>{statusLabel}</Badge>
+          <Badge className={cn("capitalize", statusClasses)}>
+            {statusLabel}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="p-6 text-sm space-y-6">
         <div className="space-y-3">
-          <div className="font-semibold">{t("orders.detail.section.orderDetails")}</div>
+          <div className="font-semibold">
+            {t("orders.detail.section.orderDetails")}
+          </div>
           <ul className="grid gap-3">
             {items.length === 0 && (
-              <li className="text-muted-foreground">{t("orders.detail.itemsEmpty")}</li>
+              <li className="text-muted-foreground">
+                {t("orders.detail.itemsEmpty")}
+              </li>
             )}
             {items.map((item) => (
               <li
@@ -378,16 +466,20 @@ function OrderDetailCard({ order, t }: { order: PreparedOrder | null; t: Transla
                 className="flex items-center justify-between gap-4"
               >
                 <span className="text-muted-foreground">
-                  {item.title || item.product_slug || t("orders.detail.productFallback")}{" "}
+                  {item.title ||
+                    item.product_slug ||
+                    t("orders.detail.productFallback")}{" "}
                   {item.quantity ? (
-                    <span className="text-xs text-muted-foreground">x {item.quantity}</span>
+                    <span className="text-xs text-muted-foreground">
+                      x {item.quantity}
+                    </span>
                   ) : null}
                 </span>
                 <span>
                   {NOK_FORMATTER.format(
                     item.quantity && item.unit_price
                       ? item.quantity * item.unit_price
-                      : (item.unit_price ?? 0),
+                      : (item.unit_price ?? 0)
                   )}
                 </span>
               </li>
@@ -397,30 +489,44 @@ function OrderDetailCard({ order, t }: { order: PreparedOrder | null; t: Transla
         <Separator />
         <ul className="grid gap-2 text-sm">
           <li className="flex items-center justify-between">
-            <span className="text-muted-foreground">{t("orders.detail.subtotal")}</span>
+            <span className="text-muted-foreground">
+              {t("orders.detail.subtotal")}
+            </span>
             <span>{NOK_FORMATTER.format(subtotal)}</span>
           </li>
           <li className="flex items-center justify-between">
-            <span className="text-muted-foreground">{t("orders.detail.discount")}</span>
+            <span className="text-muted-foreground">
+              {t("orders.detail.discount")}
+            </span>
             <span>
-              {discount ? `- ${NOK_FORMATTER.format(discount)}` : NOK_FORMATTER.format(0)}
+              {discount
+                ? `- ${NOK_FORMATTER.format(discount)}`
+                : NOK_FORMATTER.format(0)}
             </span>
           </li>
           <li className="flex items-center justify-between font-semibold">
-            <span className="text-muted-foreground">{t("orders.detail.total")}</span>
+            <span className="text-muted-foreground">
+              {t("orders.detail.total")}
+            </span>
             <span>{NOK_FORMATTER.format(total)}</span>
           </li>
         </ul>
         <Separator />
         <div className="space-y-2">
-          <div className="font-semibold">{t("orders.detail.section.customer")}</div>
+          <div className="font-semibold">
+            {t("orders.detail.section.customer")}
+          </div>
           <dl className="grid gap-2 text-sm">
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">{t("orders.detail.customerName")}</dt>
+              <dt className="text-muted-foreground">
+                {t("orders.detail.customerName")}
+              </dt>
               <dd>{order.buyer_name || t("orders.detail.guest")}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">{t("orders.detail.customerEmail")}</dt>
+              <dt className="text-muted-foreground">
+                {t("orders.detail.customerEmail")}
+              </dt>
               <dd>
                 {order.buyer_email ? (
                   <a className="underline" href={`mailto:${order.buyer_email}`}>
@@ -432,7 +538,9 @@ function OrderDetailCard({ order, t }: { order: PreparedOrder | null; t: Transla
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">{t("orders.detail.customerPhone")}</dt>
+              <dt className="text-muted-foreground">
+                {t("orders.detail.customerPhone")}
+              </dt>
               <dd>
                 {order.buyer_phone ? (
                   <a className="underline" href={`tel:${order.buyer_phone}`}>
@@ -460,7 +568,11 @@ function OrderDetailCard({ order, t }: { order: PreparedOrder | null; t: Transla
           </Button>
           {order.vipps_payment_link && (
             <Button asChild size="sm" variant="outline">
-              <a href={order.vipps_payment_link} target="_blank" rel="noreferrer">
+              <a
+                href={order.vipps_payment_link}
+                target="_blank"
+                rel="noreferrer"
+              >
                 {t("orders.detail.openReceipt")}
               </a>
             </Button>

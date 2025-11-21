@@ -36,7 +36,10 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
       toast({ title: t("applications.messages.statusUpdated") });
       router.refresh();
     } catch (error) {
-      toast({ title: t("applications.messages.statusUpdateError"), variant: "destructive" });
+      toast({
+        title: t("applications.messages.statusUpdateError"),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +50,9 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
       const data = await exportJobApplicationData(application.$id);
       if (data) {
         // Create downloadable JSON file
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -60,7 +65,10 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
         toast({ title: t("applications.messages.exportSuccess") });
       }
     } catch (error) {
-      toast({ title: t("applications.messages.exportError"), variant: "destructive" });
+      toast({
+        title: t("applications.messages.exportError"),
+        variant: "destructive",
+      });
     }
   };
 
@@ -79,7 +87,10 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
         throw new Error("Failed to delete");
       }
     } catch (error) {
-      toast({ title: t("applications.messages.deleteError"), variant: "destructive" });
+      toast({
+        title: t("applications.messages.deleteError"),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +123,9 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
 
       {/* Contact applicant */}
       <Button size="sm" variant="outline" asChild>
-        <a href={`mailto:${application.applicant_email}?subject=${mailSubject}`}>
+        <a
+          href={`mailto:${application.applicant_email}?subject=${mailSubject}`}
+        >
           <Mail className="h-4 w-4" />
         </a>
       </Button>

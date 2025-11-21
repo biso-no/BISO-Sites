@@ -8,7 +8,11 @@ import {
   CommandInput,
   CommandItem,
 } from "@repo/ui/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@repo/ui/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@repo/ui/components/ui/popover";
 import { cn } from "@repo/ui/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
 import * as React from "react";
@@ -34,7 +38,9 @@ export function Combobox({
           aria-expanded={open}
           className="w-full justify-between"
         >
-          {value ? items.find((item) => item.value === value)?.label : "Select..."}
+          {value
+            ? items.find((item) => item.value === value)?.label
+            : "Select..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -52,7 +58,10 @@ export function Combobox({
                 }}
               >
                 <Check
-                  className={cn("mr-2 h-4 w-4", value === item.value ? "opacity-100" : "opacity-0")}
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    value === item.value ? "opacity-100" : "opacity-0"
+                  )}
                 />
                 {item.label}
               </CommandItem>

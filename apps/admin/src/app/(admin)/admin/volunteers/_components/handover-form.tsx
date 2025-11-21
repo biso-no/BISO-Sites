@@ -44,11 +44,16 @@ export default function HandoverForm() {
           onChange={(e) => setOldDelegate(e.target.value)}
           className="border p-2 rounded w-full"
         />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+        >
           Handover
         </button>
       </form>
-      {result && <pre className="mt-4 p-2 bg-gray-100 border rounded">{result}</pre>}
+      {result && (
+        <pre className="mt-4 p-2 bg-gray-100 border rounded">{result}</pre>
+      )}
     </div>
   );
 }

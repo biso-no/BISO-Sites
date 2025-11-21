@@ -27,7 +27,14 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { ArrowUpDown, CheckCircle2, Clock, Edit, Loader2, Search } from "lucide-react";
+import {
+  ArrowUpDown,
+  CheckCircle2,
+  Clock,
+  Edit,
+  Loader2,
+  Search,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -52,7 +59,10 @@ const TableSkeleton = () => (
 );
 
 const EXPENSE_STATUS_TOKENS = {
-  pending: { label: "Pending", className: "bg-amber-100 text-amber-800 border-amber-200" },
+  pending: {
+    label: "Pending",
+    className: "bg-amber-100 text-amber-800 border-amber-200",
+  },
   submitted: {
     label: "Submitted",
     className: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -105,14 +115,16 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
   const uniqueDepartments = useMemo(
     () =>
       Array.from(
-        new Set(expenses.map((expense) => expense.department).filter(Boolean)),
+        new Set(expenses.map((expense) => expense.department).filter(Boolean))
       ) as string[],
-    [expenses],
+    [expenses]
   );
   const uniqueCampuses = useMemo(
     () =>
-      Array.from(new Set(expenses.map((expense) => expense.campus).filter(Boolean))) as string[],
-    [expenses],
+      Array.from(
+        new Set(expenses.map((expense) => expense.campus).filter(Boolean))
+      ) as string[],
+    [expenses]
   );
 
   useEffect(() => {
@@ -124,12 +136,19 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
     return expenses.filter((expense) => {
       const matchesSearch =
         filters.search === "" ||
-        expense.user?.name?.toLowerCase().includes(filters.search.toLowerCase());
+        expense.user?.name
+          ?.toLowerCase()
+          .includes(filters.search.toLowerCase());
       const matchesDepartment =
-        filters.department === "all" || expense.department === filters.department;
-      const matchesCampus = filters.campus === "all" || expense.campus === filters.campus;
-      const matchesStatus = filters.status === "all" || expense.status === filters.status;
-      return matchesSearch && matchesDepartment && matchesCampus && matchesStatus;
+        filters.department === "all" ||
+        expense.department === filters.department;
+      const matchesCampus =
+        filters.campus === "all" || expense.campus === filters.campus;
+      const matchesStatus =
+        filters.status === "all" || expense.status === filters.status;
+      return (
+        matchesSearch && matchesDepartment && matchesCampus && matchesStatus
+      );
     });
   }, [expenses, filters]);
 
@@ -160,13 +179,18 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
 
   const stats = useMemo(
     () => ({
-      pending: expenses.filter((expense) => expense.status === "pending").length,
-      submitted: expenses.filter((expense) => expense.status === "submitted").length,
-      totalAmount: expenses.reduce((sum, expense) => sum + Number(expense.total ?? 0), 0),
+      pending: expenses.filter((expense) => expense.status === "pending")
+        .length,
+      submitted: expenses.filter((expense) => expense.status === "submitted")
+        .length,
+      totalAmount: expenses.reduce(
+        (sum, expense) => sum + Number(expense.total ?? 0),
+        0
+      ),
       campuses: new Set(expenses.map((expense) => expense.campus)).size,
       departments: new Set(expenses.map((expense) => expense.department)).size,
     }),
-    [expenses],
+    [expenses]
   );
 
   const approvalRate = formatPercentage(stats.submitted, expenses.length);
@@ -204,7 +228,12 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
   };
 
   const handleReset = () => {
-    const cleared = { search: "", department: "all", campus: "all", status: "all" };
+    const cleared = {
+      search: "",
+      department: "all",
+      campus: "all",
+      status: "all",
+    };
     setSearchParams(cleared);
     setFilters(cleared);
   };
@@ -234,7 +263,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.5)]">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold text-primary-100">Filtrer utlegg</CardTitle>
+          <CardTitle className="text-lg font-semibold text-primary-100">
+            Filtrer utlegg
+          </CardTitle>
           <CardDescription className="text-sm text-primary-60">
             Avgrens listen etter søker, avdeling, campus og status.
           </CardDescription>
@@ -245,12 +276,16 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
               type="text"
               placeholder="Søk på navn..."
               value={searchParams.search}
-              onChange={(e) => setSearchParams((prev) => ({ ...prev, search: e.target.value }))}
+              onChange={(e) =>
+                setSearchParams((prev) => ({ ...prev, search: e.target.value }))
+              }
               className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
             <Select
               value={searchParams.department}
-              onValueChange={(value) => setSearchParams((prev) => ({ ...prev, department: value }))}
+              onValueChange={(value) =>
+                setSearchParams((prev) => ({ ...prev, department: value }))
+              }
             >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle avdelinger" />
@@ -266,7 +301,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
             </Select>
             <Select
               value={searchParams.campus}
-              onValueChange={(value) => setSearchParams((prev) => ({ ...prev, campus: value }))}
+              onValueChange={(value) =>
+                setSearchParams((prev) => ({ ...prev, campus: value }))
+              }
             >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle campuser" />
@@ -282,7 +319,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
             </Select>
             <Select
               value={searchParams.status}
-              onValueChange={(value) => setSearchParams((prev) => ({ ...prev, status: value }))}
+              onValueChange={(value) =>
+                setSearchParams((prev) => ({ ...prev, status: value }))
+              }
             >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle statuser" />
@@ -316,9 +355,12 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
       <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">Utleggsoversikt</h2>
+            <h2 className="text-lg font-semibold text-primary-100">
+              Utleggsoversikt
+            </h2>
             <p className="text-sm text-primary-60">
-              Viser {filteredExpenses.length} av {expenses.length} registrerte utlegg
+              Viser {filteredExpenses.length} av {expenses.length} registrerte
+              utlegg
             </p>
           </div>
           <Badge
@@ -347,16 +389,28 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                       {getSortIcon("user")}
                     </div>
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("department")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("department")}
+                  >
                     Avdeling
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("campus")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("campus")}
+                  >
                     Campus
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("total")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("total")}
+                  >
                     Beløp
                   </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("status")}>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("status")}
+                  >
                     Status
                   </TableHead>
                   <TableHead className="text-right">Handlinger</TableHead>
@@ -380,7 +434,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                           </div>
                           <div className="flex flex-col">
                             <span>{expense.user?.name}</span>
-                            <span className="text-xs text-primary-50">{expense.user?.email}</span>
+                            <span className="text-xs text-primary-50">
+                              {expense.user?.email}
+                            </span>
                           </div>
                         </div>
                       </TableCell>
@@ -391,7 +447,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                           variant="outline"
                           className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-xs text-primary-80"
                         >
-                          {expense.total ? NOK_FORMATTER.format(Number(expense.total)) : "N/A"}
+                          {expense.total
+                            ? NOK_FORMATTER.format(Number(expense.total))
+                            : "N/A"}
                         </Badge>
                       </TableCell>
                       <TableCell>

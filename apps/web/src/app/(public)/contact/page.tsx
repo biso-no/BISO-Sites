@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default async function ContactPage() {
-  const [t, campuses] = await Promise.all([getTranslations("contact"), getCampuses()]);
+  const [t, campuses] = await Promise.all([
+    getTranslations("contact"),
+    getCampuses(),
+  ]);
   return (
     <div className="space-y-6">
       <PublicPageHeader
@@ -19,7 +22,9 @@ export default async function ContactPage() {
       <p className="text-sm text-muted-foreground">{t("intro")}</p>
       <div className="rounded-lg border p-4 bg-white">
         <div className="font-semibold">{t("national.title")}</div>
-        <div className="text-sm text-muted-foreground">{t("national.body")}</div>
+        <div className="text-sm text-muted-foreground">
+          {t("national.body")}
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {campuses.map((c) => (
@@ -35,7 +40,9 @@ export default async function ContactPage() {
           </div>
         ))}
         {campuses.length === 0 && (
-          <div className="text-sm text-muted-foreground">{t("campuses.empty")}</div>
+          <div className="text-sm text-muted-foreground">
+            {t("campuses.empty")}
+          </div>
         )}
       </div>
     </div>

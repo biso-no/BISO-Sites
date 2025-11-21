@@ -2,7 +2,12 @@
 
 import type { Expenses } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import {
   AlertCircle,
@@ -43,19 +48,23 @@ const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig = {
     pending: {
       icon: Clock,
-      className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      className:
+        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
     },
     submitted: {
       icon: CheckCircle2,
-      className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
     },
     default: {
       icon: AlertCircle,
-      className: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+      className:
+        "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
     },
   };
 
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.default;
+  const config =
+    statusConfig[status as keyof typeof statusConfig] || statusConfig.default;
   const Icon = config.icon;
 
   return (
@@ -63,7 +72,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       variant="secondary"
       className={cn(
         "px-3 py-1 capitalize flex items-center gap-1.5 text-sm font-medium",
-        config.className,
+        config.className
       )}
     >
       <Icon className="h-4 w-4" />
@@ -95,7 +104,11 @@ const InfoItem = ({
   </motion.div>
 );
 
-export function AdminExpenseDetails({ expenseData }: { expenseData: Expenses }) {
+export function AdminExpenseDetails({
+  expenseData,
+}: {
+  expenseData: Expenses;
+}) {
   return (
     <Suspense fallback={<ExpenseDetailsSkeleton />}>
       <motion.div
@@ -108,7 +121,9 @@ export function AdminExpenseDetails({ expenseData }: { expenseData: Expenses }) 
           <CardHeader className="border-b">
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-2xl font-bold">Expense Details</CardTitle>
+                <CardTitle className="text-2xl font-bold">
+                  Expense Details
+                </CardTitle>
                 <div className="text-sm text-muted-foreground mt-1">
                   Reference ID: {expenseData.$id}
                 </div>
@@ -124,10 +139,26 @@ export function AdminExpenseDetails({ expenseData }: { expenseData: Expenses }) 
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.2 }}
             >
-              <InfoItem icon={Building2} label="Campus" value={expenseData.campusRel.name} />
-              <InfoItem icon={FileText} label="Department" value={expenseData.departmentRel.Name} />
-              <InfoItem icon={Bank} label="Bank Account" value={expenseData.bank_account} />
-              <InfoItem icon={Receipt} label="Invoice ID" value={`#${expenseData.invoice_id}`} />
+              <InfoItem
+                icon={Building2}
+                label="Campus"
+                value={expenseData.campusRel.name}
+              />
+              <InfoItem
+                icon={FileText}
+                label="Department"
+                value={expenseData.departmentRel.Name}
+              />
+              <InfoItem
+                icon={Bank}
+                label="Bank Account"
+                value={expenseData.bank_account}
+              />
+              <InfoItem
+                icon={Receipt}
+                label="Invoice ID"
+                value={`#${expenseData.invoice_id}`}
+              />
             </motion.div>
 
             {/* Financial Details */}
@@ -138,19 +169,25 @@ export function AdminExpenseDetails({ expenseData }: { expenseData: Expenses }) 
               transition={{ duration: 0.3, delay: 0.4 }}
             >
               <div className="space-y-2">
-                <span className="text-sm font-medium text-muted-foreground">Total Amount</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Total Amount
+                </span>
                 <div className="text-3xl font-bold text-primary">
-                  {new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK" }).format(
-                    Number(expenseData.total),
-                  )}
+                  {new Intl.NumberFormat("sv-SE", {
+                    style: "currency",
+                    currency: "SEK",
+                  }).format(Number(expenseData.total))}
                 </div>
               </div>
               <div className="space-y-2">
-                <span className="text-sm font-medium text-muted-foreground">Prepayment Amount</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Prepayment Amount
+                </span>
                 <div className="text-3xl font-bold text-muted-foreground">
-                  {new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK" }).format(
-                    Number(expenseData.prepayment_amount),
-                  )}
+                  {new Intl.NumberFormat("sv-SE", {
+                    style: "currency",
+                    currency: "SEK",
+                  }).format(Number(expenseData.prepayment_amount))}
                 </div>
               </div>
             </motion.div>
@@ -162,8 +199,12 @@ export function AdminExpenseDetails({ expenseData }: { expenseData: Expenses }) 
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.6 }}
             >
-              <span className="text-sm font-medium text-muted-foreground">Description</span>
-              <div className="p-4 bg-muted/30 rounded-lg text-lg">{expenseData.description}</div>
+              <span className="text-sm font-medium text-muted-foreground">
+                Description
+              </span>
+              <div className="p-4 bg-muted/30 rounded-lg text-lg">
+                {expenseData.description}
+              </div>
             </motion.div>
 
             {/* User Information */}
@@ -178,7 +219,9 @@ export function AdminExpenseDetails({ expenseData }: { expenseData: Expenses }) 
                 <span className="font-medium">Submitted By</span>
               </div>
               <div className="space-y-1">
-                <div className="text-lg font-medium">{expenseData.user?.name || "N/A"}</div>
+                <div className="text-lg font-medium">
+                  {expenseData.user?.name || "N/A"}
+                </div>
                 <div className="text-sm text-muted-foreground">
                   {expenseData.user?.$id || "N/A"}
                 </div>

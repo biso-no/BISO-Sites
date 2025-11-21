@@ -17,7 +17,10 @@ export async function POST(request: NextRequest) {
 
     const path = payload?.path?.trim();
     if (!path) {
-      return NextResponse.json({ success: false, error: "Missing path" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Missing path" },
+        { status: 400 }
+      );
     }
 
     const locale = payload?.locale?.trim() || null;
@@ -25,7 +28,8 @@ export async function POST(request: NextRequest) {
 
     const headers = request.headers;
     const userAgent = headers.get("user-agent")?.slice(0, 255) || null;
-    const forwarded = headers.get("x-forwarded-for") || headers.get("x-real-ip");
+    const forwarded =
+      headers.get("x-forwarded-for") || headers.get("x-real-ip");
     const visitorIp = forwarded?.split(",")[0]?.trim() || null;
 
     let userId: string | null = null;

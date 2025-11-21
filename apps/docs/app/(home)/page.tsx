@@ -26,17 +26,20 @@ const sectionCards = [
   },
   {
     title: "Applications",
-    description: "Deep dives for the web and admin apps, including features and routing.",
+    description:
+      "Deep dives for the web and admin apps, including features and routing.",
     link: "/docs/applications/overview",
   },
   {
     title: "Packages",
-    description: "Shared API, payment, editor, and UI packages with usage examples.",
+    description:
+      "Shared API, payment, editor, and UI packages with usage examples.",
     link: "/docs/packages",
   },
   {
     title: "Operations",
-    description: "Deployments, environment variables, Appwrite, and external services.",
+    description:
+      "Deployments, environment variables, Appwrite, and external services.",
     link: "/docs/operations/overview",
   },
 ];
@@ -54,22 +57,30 @@ export default function Home() {
               Documentation for every maintainer
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-              Opinionated guides, references, and playbooks so future IT managers and contributors
-              can understand, operate, and extend the BISO Sites monorepo.
+              Opinionated guides, references, and playbooks so future IT
+              managers and contributors can understand, operate, and extend the
+              BISO Sites monorepo.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button asChild size="lg">
-                <Link href="/docs/repository/onboarding">New IT Manager: Start here</Link>
+                <Link href="/docs/repository/onboarding">
+                  New IT Manager: Start here
+                </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/docs/repository/quickstart">Developers: 5-minute setup</Link>
+                <Link href="/docs/repository/quickstart">
+                  Developers: 5-minute setup
+                </Link>
               </Button>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             {personaCards.map((card) => (
-              <div key={card.title} className="rounded-xl border bg-card p-6 text-left shadow-sm">
+              <div
+                key={card.title}
+                className="rounded-xl border bg-card p-6 text-left shadow-sm"
+              >
                 <p className="text-sm uppercase tracking-wide text-muted-foreground">
                   Persona flow
                 </p>
@@ -84,11 +95,14 @@ export default function Home() {
 
           <div className="space-y-4">
             <div className="text-center space-y-1">
-              <p className="text-sm uppercase tracking-wide text-muted-foreground">Section map</p>
+              <p className="text-sm uppercase tracking-wide text-muted-foreground">
+                Section map
+              </p>
               <h2 className="text-3xl font-bold">Everything in its place</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Use these anchors to dive straight into the area you need—repository basics,
-                app-specific guides, shared packages, or operations playbooks.
+                Use these anchors to dive straight into the area you
+                need—repository basics, app-specific guides, shared packages, or
+                operations playbooks.
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
@@ -99,7 +113,9 @@ export default function Home() {
                   className="rounded-xl border bg-muted/10 p-6 text-left transition hover:border-primary hover:bg-background"
                 >
                   <h3 className="text-xl font-semibold">{section.title}</h3>
-                  <p className="mt-2 text-muted-foreground">{section.description}</p>
+                  <p className="mt-2 text-muted-foreground">
+                    {section.description}
+                  </p>
                 </Link>
               ))}
             </div>
@@ -110,21 +126,24 @@ export default function Home() {
               <div className="text-3xl mb-3">🗂️</div>
               <h3 className="font-semibold text-lg mb-1">3 Applications</h3>
               <p className="text-sm text-muted-foreground">
-                Web (public), Admin (editors), and Docs (this site) powered by Next.js App Router.
+                Web (public), Admin (editors), and Docs (this site) powered by
+                Next.js App Router.
               </p>
             </div>
             <div className="rounded-lg border p-6 text-left">
               <div className="text-3xl mb-3">🧩</div>
               <h3 className="font-semibold text-lg mb-1">5 Shared Packages</h3>
               <p className="text-sm text-muted-foreground">
-                API, UI, Editor, Payment, and Configs keep logic consistent across apps.
+                API, UI, Editor, Payment, and Configs keep logic consistent
+                across apps.
               </p>
             </div>
             <div className="rounded-lg border p-6 text-left">
               <div className="text-3xl mb-3">🛠️</div>
               <h3 className="font-semibold text-lg mb-1">Operations Ready</h3>
               <p className="text-sm text-muted-foreground">
-                Playbooks for environments, Appwrite, Vipps, and deployment tooling.
+                Playbooks for environments, Appwrite, Vipps, and deployment
+                tooling.
               </p>
             </div>
           </div>

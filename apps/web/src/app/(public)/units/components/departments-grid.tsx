@@ -9,7 +9,8 @@ export function DepartmentsGrid({ departments }: DepartmentsGridProps) {
   if (departments.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        Fant ingen enheter med disse filtrene. Juster søket ditt eller velg en annen campus.
+        Fant ingen enheter med disse filtrene. Juster søket ditt eller velg en
+        annen campus.
       </div>
     );
   }

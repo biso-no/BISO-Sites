@@ -35,7 +35,7 @@ export const AdminSummary = ({
     <section
       className={cn(
         "surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 sm:px-8 sm:py-8",
-        className,
+        className
       )}
     >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -52,7 +52,11 @@ export const AdminSummary = ({
             <h1 className="text-2xl font-semibold tracking-tight text-primary-100 sm:text-3xl">
               {title}
             </h1>
-            {description && <p className="text-sm text-primary-60 sm:text-base">{description}</p>}
+            {description && (
+              <p className="text-sm text-primary-60 sm:text-base">
+                {description}
+              </p>
+            )}
           </div>
           {slot}
         </div>
@@ -71,13 +75,17 @@ export const AdminSummary = ({
               <span className="mt-1 block text-lg font-semibold text-primary-100">
                 {metric.value}
               </span>
-              {metric.hint && <span className="text-xs text-primary-60">{metric.hint}</span>}
+              {metric.hint && (
+                <span className="text-xs text-primary-60">{metric.hint}</span>
+              )}
             </div>
           ))}
         </div>
       )}
       {footer && (
-        <div className="mt-4 text-xs uppercase tracking-[0.16em] text-primary-60">{footer}</div>
+        <div className="mt-4 text-xs uppercase tracking-[0.16em] text-primary-60">
+          {footer}
+        </div>
       )}
     </section>
   );

@@ -11,21 +11,27 @@ interface StudentsTabProps {
 
 export function StudentsTab({ campusData, locale }: StudentsTabProps) {
   const studentBenefits = campusData
-    ? (locale === "en" ? campusData.studentBenefits_en : campusData.studentBenefits_nb) ||
+    ? (locale === "en"
+        ? campusData.studentBenefits_en
+        : campusData.studentBenefits_nb) ||
       campusData.studentBenefits_en ||
       campusData.studentBenefits_nb ||
       []
     : [];
 
   const careerAdvantages = campusData
-    ? (locale === "en" ? campusData.careerAdvantages_en : campusData.careerAdvantages_nb) ||
+    ? (locale === "en"
+        ? campusData.careerAdvantages_en
+        : campusData.careerAdvantages_nb) ||
       campusData.careerAdvantages_en ||
       campusData.careerAdvantages_nb ||
       []
     : [];
 
   const socialNetwork = campusData
-    ? (locale === "en" ? campusData.socialNetwork_en : campusData.socialNetwork_nb) ||
+    ? (locale === "en"
+        ? campusData.socialNetwork_en
+        : campusData.socialNetwork_nb) ||
       campusData.socialNetwork_en ||
       campusData.socialNetwork_nb ||
       []
@@ -64,7 +70,9 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
         className="text-center mb-12"
       >
         <h2 className="text-gray-900 mb-4">
-          {locale === "en" ? "Member Benefits & Advantages" : "Medlemsfordeler og -fordeler"}
+          {locale === "en"
+            ? "Member Benefits & Advantages"
+            : "Medlemsfordeler og -fordeler"}
         </h2>
         <p className="text-gray-600 max-w-2xl mx-auto">
           {locale === "en"

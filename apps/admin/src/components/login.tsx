@@ -1,7 +1,14 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import { ArrowRight, ExternalLink, Key, Mail, Send, Shield } from "lucide-react";
+import {
+  ArrowRight,
+  ExternalLink,
+  Key,
+  Mail,
+  Send,
+  Shield,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -11,14 +18,20 @@ import { signInWithAzure, signInWithMagicLink } from "@/lib/server";
 export function Login() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
 
   // Handle the restrictedDomain parameter but immediately clear it
   useEffect(() => {
     if (searchParams.get("restrictedDomain")) {
-      setMessage({ type: "error", text: "Please use your personal email address." });
+      setMessage({
+        type: "error",
+        text: "Please use your personal email address.",
+      });
       // Remove the parameter from URL
       router.replace("/auth/login", { scroll: false });
     }
@@ -41,9 +54,15 @@ export function Login() {
     setIsLoading(true);
     try {
       await signInWithMagicLink(email);
-      setMessage({ type: "success", text: "Login link sent! Please check your email." });
+      setMessage({
+        type: "success",
+        text: "Login link sent! Please check your email.",
+      });
     } catch (error) {
-      setMessage({ type: "error", text: "Failed to send login link. Please try again." });
+      setMessage({
+        type: "error",
+        text: "Failed to send login link. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -72,8 +91,12 @@ export function Login() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-center mb-1 gradient-text">Welcome Back</h1>
-        <p className="text-center text-gray-400 mb-8">Sign in to your BISO account</p>
+        <h1 className="text-2xl font-bold text-center mb-1 gradient-text">
+          Welcome Back
+        </h1>
+        <p className="text-center text-gray-400 mb-8">
+          Sign in to your BISO account
+        </p>
 
         <form onSubmit={handleUserLogin} className="space-y-6">
           <div className="space-y-2">
@@ -203,9 +226,10 @@ export function Login() {
               >
                 Privacy Policy
               </a>{" "}
-              and consent to the processing of your personal data as described therein. We comply
-              with GDPR regulations and you can manage your data preferences and request data
-              deletion from your profile settings.
+              and consent to the processing of your personal data as described
+              therein. We comply with GDPR regulations and you can manage your
+              data preferences and request data deletion from your profile
+              settings.
             </p>
           </div>
         </div>

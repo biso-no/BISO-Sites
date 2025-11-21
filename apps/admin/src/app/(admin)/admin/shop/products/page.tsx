@@ -1,4 +1,9 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -14,7 +19,9 @@ type ProductsPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
 
-export default async function DashboardPage({ searchParams = {} }: ProductsPageProps) {
+export default async function DashboardPage({
+  searchParams = {},
+}: ProductsPageProps) {
   const t = await getTranslations("adminShop");
   const filters = buildProductFilters(searchParams);
   const [products, filterSource] = await Promise.all([
@@ -33,15 +40,22 @@ export default async function DashboardPage({ searchParams = {} }: ProductsPageP
             <div className="flex items-center">
               <TabsList>
                 <TabsTrigger value="all">{t("products.tabs.all")}</TabsTrigger>
-                <TabsTrigger value="active">{t("products.tabs.active")}</TabsTrigger>
-                <TabsTrigger value="draft">{t("products.tabs.draft")}</TabsTrigger>
+                <TabsTrigger value="active">
+                  {t("products.tabs.active")}
+                </TabsTrigger>
+                <TabsTrigger value="draft">
+                  {t("products.tabs.draft")}
+                </TabsTrigger>
                 <TabsTrigger value="archived" className="hidden sm:flex">
                   {t("products.tabs.archived")}
                 </TabsTrigger>
               </TabsList>
               <ProductActions />
             </div>
-            <ProductFilters initialValues={initialValues} options={filterOptions} />
+            <ProductFilters
+              initialValues={initialValues}
+              options={filterOptions}
+            />
             <Suspense fallback={<div>{t("messages.loading")}</div>}>
               <ProductsTable products={products} />
             </Suspense>
@@ -52,7 +66,9 @@ export default async function DashboardPage({ searchParams = {} }: ProductsPageP
   );
 }
 
-function buildProductFilters(params: Record<string, string | string[] | undefined>) {
+function buildProductFilters(
+  params: Record<string, string | string[] | undefined>
+) {
   const filters: Parameters<typeof listProducts>[0] = {};
 
   const search = getParam(params, "q");
@@ -92,7 +108,10 @@ function buildFilterOptions(products: ProductWithTranslations[]) {
 
   products.forEach((product) => {
     if (product.campus_id) {
-      campusMap.set(product.campus_id, product.campus?.name || product.campus_id);
+      campusMap.set(
+        product.campus_id,
+        product.campus?.name || product.campus_id
+      );
     }
     if (product.category) {
       categories.add(product.category);
@@ -100,12 +119,17 @@ function buildFilterOptions(products: ProductWithTranslations[]) {
   });
 
   return {
-    campuses: Array.from(campusMap.entries()).map(([id, name]) => ({ id, name })),
+    campuses: Array.from(campusMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    })),
     categories: Array.from(categories.values()).sort(),
   };
 }
 
-function buildInitialValues(params: Record<string, string | string[] | undefined>) {
+function buildInitialValues(
+  params: Record<string, string | string[] | undefined>
+) {
   return {
     search: getParam(params, "q") || "",
     campus: getParam(params, "campus") || "all",
@@ -116,7 +140,10 @@ function buildInitialValues(params: Record<string, string | string[] | undefined
   };
 }
 
-function getParam(params: Record<string, string | string[] | undefined>, key: string) {
+function getParam(
+  params: Record<string, string | string[] | undefined>,
+  key: string
+) {
   const value = params[key];
   if (Array.isArray(value)) {
     return value[0];

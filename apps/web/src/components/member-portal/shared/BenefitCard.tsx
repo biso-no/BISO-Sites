@@ -4,7 +4,15 @@ import type { MemberBenefit } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { Check, Clock, Copy, ExternalLink, QrCode, Store, Ticket } from "lucide-react";
+import {
+  Check,
+  Clock,
+  Copy,
+  ExternalLink,
+  QrCode,
+  Store,
+  Ticket,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/memberPortal";
@@ -50,7 +58,10 @@ const getBenefitIcon = (type: string) => {
   }
 };
 
-export function BenefitCard({ benefit, isRevealed: initialRevealed }: BenefitCardProps) {
+export function BenefitCard({
+  benefit,
+  isRevealed: initialRevealed,
+}: BenefitCardProps) {
   const t = useTranslations("memberPortal.benefits");
   const [revealed, setRevealed] = useState(initialRevealed);
   const [value, setValue] = useState<string | null>(benefit.value || null);
@@ -113,10 +124,14 @@ export function BenefitCard({ benefit, isRevealed: initialRevealed }: BenefitCar
             )}
           </div>
         </div>
-        <Badge className={getCategoryColor(benefit.category)}>{benefit.category}</Badge>
+        <Badge className={getCategoryColor(benefit.category)}>
+          {benefit.category}
+        </Badge>
       </div>
 
-      <p className="text-gray-600 dark:text-gray-400 mb-4">{benefit.description}</p>
+      <p className="text-gray-600 dark:text-gray-400 mb-4">
+        {benefit.description}
+      </p>
 
       {benefit.type !== "text" && (
         <div className="mb-4">
@@ -135,7 +150,9 @@ export function BenefitCard({ benefit, isRevealed: initialRevealed }: BenefitCar
           {revealed && benefit.type === "code" && value && (
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
               <div className="flex items-center justify-between">
-                <code className="text-lg font-mono text-gray-900 dark:text-gray-100">{value}</code>
+                <code className="text-lg font-mono text-gray-900 dark:text-gray-100">
+                  {value}
+                </code>
                 <Button size="sm" variant="outline" onClick={handleCopyCode}>
                   {copiedCode ? (
                     <>

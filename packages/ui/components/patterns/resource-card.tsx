@@ -8,7 +8,8 @@ export interface ResourceMeta {
   value: string;
 }
 
-export interface ResourceCardProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface ResourceCardProps
+  extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   href?: string;
   excerpt?: string;
@@ -33,9 +34,15 @@ export function ResourceCard({
     <Card className={cn("group transition-colors", className)} {...props}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold leading-tight tracking-tight">{title}</h3>
+          <h3 className="text-lg font-semibold leading-tight tracking-tight">
+            {title}
+          </h3>
         </div>
-        {excerpt && <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{excerpt}</p>}
+        {excerpt && (
+          <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+            {excerpt}
+          </p>
+        )}
         {tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {tags.map((t) => (
@@ -52,7 +59,10 @@ export function ResourceCard({
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {meta.map((m) => (
               <span key={m.label} className="whitespace-nowrap">
-                <span className="font-medium text-foreground/80">{m.label}:</span> {m.value}
+                <span className="font-medium text-foreground/80">
+                  {m.label}:
+                </span>{" "}
+                {m.value}
               </span>
             ))}
           </div>

@@ -7,14 +7,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { Link2, Shield, User } from "lucide-react";
 import { useState } from "react";
 import { ProfileForm } from "@/app/expenses/profile/profile-form";
 import { PrivacyControls } from "@/components/privacy-controls";
 import { IdentityManagement } from "@/components/profile/identity-management";
 
-export function ProfileTabs({ userData, identities }: { userData: any; identities?: any[] }) {
+export function ProfileTabs({
+  userData,
+  identities,
+}: {
+  userData: any;
+  identities?: any[];
+}) {
   const [activeTab, setActiveTab] = useState("account");
 
   return (
@@ -52,10 +63,15 @@ export function ProfileTabs({ userData, identities }: { userData: any; identitie
         <Card>
           <CardHeader>
             <CardTitle>Account Information</CardTitle>
-            <CardDescription>View and manage your account details</CardDescription>
+            <CardDescription>
+              View and manage your account details
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <ProfileForm email={userData.user.email} initialData={userData.profile} />
+            <ProfileForm
+              email={userData.user.email}
+              initialData={userData.profile}
+            />
           </CardContent>
         </Card>
       </TabsContent>

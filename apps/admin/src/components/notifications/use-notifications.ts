@@ -11,7 +11,9 @@ import type {
 interface NotificationsState {
   notifications: Notification[];
   unreadCount: number;
-  addNotification: (notification: Omit<Notification, "id" | "timestamp" | "read">) => void;
+  addNotification: (
+    notification: Omit<Notification, "id" | "timestamp" | "read">
+  ) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   deleteNotification: (id: string) => void;
@@ -34,7 +36,10 @@ export const useNotifications = create<NotificationsState>()(
             read: false,
           };
 
-          const notifications = [newNotification, ...state.notifications].slice(0, 50); // Keep last 50
+          const notifications = [newNotification, ...state.notifications].slice(
+            0,
+            50
+          ); // Keep last 50
           const unreadCount = notifications.filter((n) => !n.read).length;
 
           return { notifications, unreadCount };
@@ -43,7 +48,7 @@ export const useNotifications = create<NotificationsState>()(
       markAsRead: (id) =>
         set((state) => {
           const notifications = state.notifications.map((n) =>
-            n.id === id ? { ...n, read: true } : n,
+            n.id === id ? { ...n, read: true } : n
           );
           const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -82,13 +87,17 @@ export const useNotifications = create<NotificationsState>()(
         notifications: state.notifications,
         unreadCount: state.unreadCount,
       }),
-    },
-  ),
+    }
+  )
 );
 
 // Helper function to create notifications
 export const createNotification = {
-  success: (title: string, message: string, options?: Partial<Notification>) => ({
+  success: (
+    title: string,
+    message: string,
+    options?: Partial<Notification>
+  ) => ({
     type: "success" as NotificationType,
     priority: "medium" as NotificationPriority,
     title,
@@ -104,7 +113,11 @@ export const createNotification = {
     ...options,
   }),
 
-  warning: (title: string, message: string, options?: Partial<Notification>) => ({
+  warning: (
+    title: string,
+    message: string,
+    options?: Partial<Notification>
+  ) => ({
     type: "warning" as NotificationType,
     priority: "medium" as NotificationPriority,
     title,

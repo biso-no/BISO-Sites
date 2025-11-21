@@ -6,7 +6,11 @@ import { Navigation } from "@/components/layout/nav";
 import { PublicProviders } from "@/components/layout/public-providers";
 
 // Anonymous session is now handled automatically by middleware
-export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <PublicProviders>
       <Navigation />

@@ -9,8 +9,14 @@ import { Textarea } from "@repo/ui/components/ui/textarea";
 import { ArrowLeft, Eye, Sparkles, Upload, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
-import { createExpenseAttachment, uploadExpenseAttachment } from "@/lib/actions/expense";
-import { generateExpenseDescription, processReceipt } from "@/lib/actions/expense-ocr";
+import {
+  createExpenseAttachment,
+  uploadExpenseAttachment,
+} from "@/lib/actions/expense";
+import {
+  generateExpenseDescription,
+  processReceipt,
+} from "@/lib/actions/expense-ocr";
 
 interface Attachment {
   id: string;
@@ -48,7 +54,9 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
 
     for (const file of fileArray) {
       const tempId = Math.random().toString();
-      const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
+      const preview = file.type.startsWith("image/")
+        ? URL.createObjectURL(file)
+        : undefined;
 
       const newAttachment: Attachment = {
         id: tempId,
@@ -86,13 +94,14 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                   ...att,
                   fileId: uploadResult.file!.$id,
                   fileUrl,
-                  description: ocrResult.data?.description || `Receipt from ${file.name}`,
+                  description:
+                    ocrResult.data?.description || `Receipt from ${file.name}`,
                   date: ocrResult.data?.date || att.date,
                   amount: ocrResult.data?.amount || 0,
                   processing: false,
                 }
-              : att,
-          ),
+              : att
+          )
         );
       } catch (error) {
         console.error("Error processing file:", error);
@@ -104,8 +113,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                   description: `Receipt from ${file.name}`,
                   processing: false,
                 }
-              : att,
-          ),
+              : att
+          )
         );
       }
     }
@@ -140,7 +149,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
   };
 
   const totalAmount = attachments.reduce((sum, att) => sum + att.amount, 0);
-  const canProceed = attachments.length > 0 && attachments.every((att) => !att.processing);
+  const canProceed =
+    attachments.length > 0 && attachments.every((att) => !att.processing);
 
   const handleNext = () => {
     if (canProceed) {
@@ -166,8 +176,12 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
         <label className="block">
           <div className="border-2 border-dashed border-[#3DA9E0]/30 rounded-lg p-12 text-center cursor-pointer hover:border-[#3DA9E0] hover:bg-[#3DA9E0]/5 transition-all">
             <Upload className="w-12 h-12 text-[#3DA9E0] mx-auto mb-4" />
-            <p className="text-gray-900 mb-2">Click to upload or drag and drop</p>
-            <p className="text-sm text-gray-600">PDF, JPG, PNG up to 10MB each</p>
+            <p className="text-gray-900 mb-2">
+              Click to upload or drag and drop
+            </p>
+            <p className="text-sm text-gray-600">
+              PDF, JPG, PNG up to 10MB each
+            </p>
           </div>
           <input
             type="file"
@@ -183,7 +197,9 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
       {attachments.length > 0 && (
         <div className="space-y-4 mb-8">
           <div className="flex items-center justify-between">
-            <h3 className="text-gray-900">Uploaded Receipts ({attachments.length})</h3>
+            <h3 className="text-gray-900">
+              Uploaded Receipts ({attachments.length})
+            </h3>
             {canProceed && !isGenerating && (
               <Button
                 onClick={handleGenerateDescription}
@@ -230,8 +246,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                               prev.map((att) =>
                                 att.id === attachment.id
                                   ? { ...att, description: e.target.value }
-                                  : att,
-                              ),
+                                  : att
+                              )
                             )
                           }
                         />
@@ -244,8 +260,10 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                           onChange={(e) =>
                             setAttachments((prev) =>
                               prev.map((att) =>
-                                att.id === attachment.id ? { ...att, date: e.target.value } : att,
-                              ),
+                                att.id === attachment.id
+                                  ? { ...att, date: e.target.value }
+                                  : att
+                              )
                             )
                           }
                         />
@@ -263,8 +281,8 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                                       ...att,
                                       amount: parseFloat(e.target.value) || 0,
                                     }
-                                  : att,
-                              ),
+                                  : att
+                              )
                             )
                           }
                         />
@@ -305,14 +323,18 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                 }
                 disabled={isGenerating}
               />
-              <p className="text-xs text-gray-500 mt-1">Edit this description as needed</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Edit this description as needed
+              </p>
             </motion.div>
           )}
 
           {/* Total */}
           <Card className="p-4 bg-[#3DA9E0]/5 border-[#3DA9E0]/20">
             <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
+              <span className="text-lg font-semibold text-gray-900">
+                Total Amount:
+              </span>
               <span className="text-2xl font-bold text-[#3DA9E0]">
                 {totalAmount.toFixed(2)} NOK
               </span>

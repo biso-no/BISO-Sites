@@ -3,7 +3,10 @@ import { getDepartmentTypes } from "@/lib/actions/departments";
 import DepartmentEditor from "../shared/department-editor";
 
 export default async function NewDepartmentPage() {
-  const [campuses, types] = await Promise.all([getCampuses(), getDepartmentTypes()]);
+  const [campuses, types] = await Promise.all([
+    getCampuses(),
+    getDepartmentTypes(),
+  ]);
 
   return (
     <DepartmentEditor

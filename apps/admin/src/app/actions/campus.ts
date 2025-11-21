@@ -27,7 +27,9 @@ async function getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
   }
 }
 
-async function getCampusMetadataById(campusId: string): Promise<CampusMetadata | null> {
+async function getCampusMetadataById(
+  campusId: string
+): Promise<CampusMetadata | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -46,7 +48,9 @@ async function getCampusMetadataById(campusId: string): Promise<CampusMetadata |
   }
 }
 
-async function getCampusMetadataByName(campusName: string): Promise<CampusMetadata | null> {
+async function getCampusMetadataByName(
+  campusName: string
+): Promise<CampusMetadata | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -88,7 +92,13 @@ export async function getCampuses({
   }
 
   if (includeDepartments) {
-    query.push(Query.select(["departments.$id", "departments.Name", "departments.active"]));
+    query.push(
+      Query.select([
+        "departments.$id",
+        "departments.Name",
+        "departments.active",
+      ])
+    );
   }
 
   const campuses = await db.listRows<Campus>("app", "campus", query);
@@ -104,7 +114,13 @@ export async function getCampusWithDepartments(campusId: string) {
     const { db } = await createSessionClient();
 
     const campus = await db.getRow<Campus>("app", "campus", campusId, [
-      Query.select(["$id", "name", "departments.$id", "departments.Name", "departments.active"]),
+      Query.select([
+        "$id",
+        "name",
+        "departments.$id",
+        "departments.Name",
+        "departments.active",
+      ]),
     ]);
 
     return {

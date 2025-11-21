@@ -27,7 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import {
   Calendar,
   Check,
@@ -48,7 +53,11 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { getCampuses, getCampusWithDepartments } from "@/app/actions/campus";
-import { createEvent, translateEventContent, updateEvent } from "@/app/actions/events";
+import {
+  createEvent,
+  translateEventContent,
+  updateEvent,
+} from "@/app/actions/events";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { toast } from "@/lib/hooks/use-toast";
 import type { AdminEvent } from "@/lib/types/event";
@@ -66,7 +75,11 @@ const formSchema = z.object({
   end_date: z.string().optional(),
   location: z.string().optional(),
   price: z.number().optional(),
-  ticket_url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  ticket_url: z
+    .string()
+    .url("Must be a valid URL")
+    .optional()
+    .or(z.literal("")),
   image: z.string().optional(),
   member_only: z.boolean(),
   collection_id: z.string().optional(),
@@ -118,10 +131,14 @@ export default function EventEditor({ event }: EventEditorProps) {
   const router = useRouter();
   const t = useTranslations("adminEvents");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isTranslating, setIsTranslating] = React.useState<"en" | "no" | null>(null);
+  const [isTranslating, setIsTranslating] = React.useState<"en" | "no" | null>(
+    null
+  );
   const [previewLocale, setPreviewLocale] = React.useState<"en" | "no">("en");
   const [campuses, setCampuses] = React.useState<Campus[]>([]);
-  const [departments, setDepartments] = React.useState<Array<{ $id: string; Name: string }>>([]);
+  const [departments, setDepartments] = React.useState<
+    Array<{ $id: string; Name: string }>
+  >([]);
   const [loadingDepartments, setLoadingDepartments] = React.useState(false);
 
   // Slug editing state
@@ -210,7 +227,8 @@ export default function EventEditor({ event }: EventEditorProps) {
       setMemberOnlyEnabled(event.member_only ?? false);
       setCollectionEnabled(event.is_collection ?? false);
       setPricingEnabled(
-        !!(event.price !== null && event.price !== undefined) || !!event.ticket_url,
+        !!(event.price !== null && event.price !== undefined) ||
+          !!event.ticket_url
       );
 
       // If editing, load departments for the selected campus
@@ -231,7 +249,9 @@ export default function EventEditor({ event }: EventEditorProps) {
     try {
       const result = await getCampusWithDepartments(campusId);
       if (result.success && result.campus?.departments) {
-        setDepartments(result.campus.departments.filter((dept: any) => dept.active));
+        setDepartments(
+          result.campus.departments.filter((dept: any) => dept.active)
+        );
       } else {
         setDepartments([]);
       }
@@ -314,12 +334,16 @@ export default function EventEditor({ event }: EventEditorProps) {
     : t("editor.slugDescriptionFallback");
   const slugEditingHint = t("editor.slugEditingHint");
 
-  const handleTranslate = async (fromLocale: "en" | "no", toLocale: "en" | "no") => {
+  const handleTranslate = async (
+    fromLocale: "en" | "no",
+    toLocale: "en" | "no"
+  ) => {
     const fromTranslation = form.getValues(`translations.${fromLocale}`);
     if (!fromTranslation?.title || !fromTranslation?.description) {
       toast({
         title: t("editor.messages.fillContent", {
-          language: fromLocale === "en" ? t("editor.english") : t("editor.norwegian"),
+          language:
+            fromLocale === "en" ? t("editor.english") : t("editor.norwegian"),
         }),
         variant: "destructive",
       });
@@ -329,17 +353,25 @@ export default function EventEditor({ event }: EventEditorProps) {
     setIsTranslating(toLocale);
 
     try {
-      const translated = await translateEventContent(fromTranslation, fromLocale, toLocale);
+      const translated = await translateEventContent(
+        fromTranslation,
+        fromLocale,
+        toLocale
+      );
       if (translated) {
         form.setValue(`translations.${toLocale}`, translated);
         toast({
           title: t("messages.translationCompleted"),
           description: t("messages.translationDescription", {
-            language: toLocale === "en" ? t("editor.english") : t("editor.norwegian"),
+            language:
+              toLocale === "en" ? t("editor.english") : t("editor.norwegian"),
           }),
         });
       } else {
-        toast({ title: t("messages.translationError"), variant: "destructive" });
+        toast({
+          title: t("messages.translationError"),
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Translation error:", error);
@@ -353,7 +385,8 @@ export default function EventEditor({ event }: EventEditorProps) {
     setIsSubmitting(true);
     try {
       const ticketUrl = values.ticket_url?.trim();
-      const primaryImage = values.metadata?.images?.[0] || values.image || undefined;
+      const primaryImage =
+        values.metadata?.images?.[0] || values.image || undefined;
 
       const payload: Parameters<typeof createEvent>[0] = {
         // Database schema fields
@@ -410,7 +443,9 @@ export default function EventEditor({ event }: EventEditorProps) {
     }
   };
 
-  const selectedCampus = campuses.find((c) => c.$id === form.watch("campus_id"));
+  const selectedCampus = campuses.find(
+    (c) => c.$id === form.watch("campus_id")
+  );
   const unitPlaceholder = loadingDepartments
     ? t("editor.placeholders.loading")
     : !selectedCampus
@@ -432,7 +467,12 @@ export default function EventEditor({ event }: EventEditorProps) {
         <main className="grid flex-1 items-start gap-4">
           {/* Header */}
           <div className="flex items-center gap-4 mb-4">
-            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => router.back()}
+            >
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">{t("editor.back")}</span>
             </Button>
@@ -446,7 +486,11 @@ export default function EventEditor({ event }: EventEditorProps) {
               <Button variant="outline" size="sm" onClick={() => router.back()}>
                 {t("form.cancel")}
               </Button>
-              <Button size="sm" onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
+              <Button
+                size="sm"
+                onClick={form.handleSubmit(onSubmit)}
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? t("editor.saving") : t("editor.saveEvent")}
               </Button>
             </div>
@@ -466,22 +510,32 @@ export default function EventEditor({ event }: EventEditorProps) {
                       <Languages className="h-5 w-5" />
                       {t("editor.eventContentTitle")}
                     </CardTitle>
-                    <CardDescription>{t("editor.eventContentDescription")}</CardDescription>
+                    <CardDescription>
+                      {t("editor.eventContentDescription")}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Tabs defaultValue="en" className="w-full">
                       <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="en" className="flex items-center gap-2">
+                        <TabsTrigger
+                          value="en"
+                          className="flex items-center gap-2"
+                        >
                           🇬🇧 {t("editor.english")}
                         </TabsTrigger>
-                        <TabsTrigger value="no" className="flex items-center gap-2">
+                        <TabsTrigger
+                          value="no"
+                          className="flex items-center gap-2"
+                        >
                           🇳🇴 {t("editor.norwegian")}
                         </TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="en" className="space-y-4 mt-4">
                         <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">{t("editor.englishSectionTitle")}</h3>
+                          <h3 className="text-lg font-medium">
+                            {t("editor.englishSectionTitle")}
+                          </h3>
                           <Button
                             type="button"
                             variant="outline"
@@ -504,7 +558,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                               <FormLabel>{t("form.title")}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder={t("editor.placeholders.englishTitle")}
+                                  placeholder={t(
+                                    "editor.placeholders.englishTitle"
+                                  )}
                                   {...field}
                                   className="glass-input"
                                 />
@@ -559,7 +615,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                               <FormLabel>{t("form.title")}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder={t("editor.placeholders.norwegianTitle")}
+                                  placeholder={t(
+                                    "editor.placeholders.norwegianTitle"
+                                  )}
                                   {...field}
                                   className="glass-input"
                                 />
@@ -597,7 +655,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                       <Calendar className="h-5 w-5" />
                       {t("editor.scheduleTitle")}
                     </CardTitle>
-                    <CardDescription>{t("editor.scheduleDescription")}</CardDescription>
+                    <CardDescription>
+                      {t("editor.scheduleDescription")}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
@@ -608,7 +668,11 @@ export default function EventEditor({ event }: EventEditorProps) {
                           <FormItem>
                             <FormLabel>{t("editor.startDate")}</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} className="glass-input" />
+                              <Input
+                                type="date"
+                                {...field}
+                                className="glass-input"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -621,7 +685,11 @@ export default function EventEditor({ event }: EventEditorProps) {
                           <FormItem>
                             <FormLabel>{t("editor.endDate")}</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} className="glass-input" />
+                              <Input
+                                type="date"
+                                {...field}
+                                className="glass-input"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -637,7 +705,11 @@ export default function EventEditor({ event }: EventEditorProps) {
                           <FormItem>
                             <FormLabel>{t("editor.startTime")}</FormLabel>
                             <FormControl>
-                              <Input type="time" {...field} className="glass-input" />
+                              <Input
+                                type="time"
+                                {...field}
+                                className="glass-input"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -650,7 +722,11 @@ export default function EventEditor({ event }: EventEditorProps) {
                           <FormItem>
                             <FormLabel>{t("editor.endTime")}</FormLabel>
                             <FormControl>
-                              <Input type="time" {...field} className="glass-input" />
+                              <Input
+                                type="time"
+                                {...field}
+                                className="glass-input"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -690,7 +766,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                                 field.onChange([...currentUnits, value]);
                               }
                             }}
-                            disabled={!form.watch("campus_id") || loadingDepartments}
+                            disabled={
+                              !form.watch("campus_id") || loadingDepartments
+                            }
                           >
                             <FormControl>
                               <SelectTrigger className="glass-input">
@@ -707,7 +785,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                           </Select>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {field.value?.map((unitId) => {
-                              const dept = departments.find((d) => d.$id === unitId);
+                              const dept = departments.find(
+                                (d) => d.$id === unitId
+                              );
                               return (
                                 <Badge
                                   key={unitId}
@@ -720,7 +800,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                                     className="ml-1 hover:text-destructive"
                                     onClick={() => {
                                       field.onChange(
-                                        (field.value || []).filter((id) => id !== unitId),
+                                        (field.value || []).filter(
+                                          (id) => id !== unitId
+                                        )
                                       );
                                     }}
                                   >
@@ -730,7 +812,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                               );
                             })}
                           </div>
-                          <FormDescription>{t("editor.unitsHint")}</FormDescription>
+                          <FormDescription>
+                            {t("editor.unitsHint")}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -789,13 +873,17 @@ export default function EventEditor({ event }: EventEditorProps) {
                                     field.onChange(undefined);
                                   } else {
                                     const num = Number(value);
-                                    field.onChange(Number.isNaN(num) ? undefined : num);
+                                    field.onChange(
+                                      Number.isNaN(num) ? undefined : num
+                                    );
                                   }
                                 }}
                                 className="glass-input"
                               />
                             </FormControl>
-                            <FormDescription>{t("editor.priceDescription")}</FormDescription>
+                            <FormDescription>
+                              {t("editor.priceDescription")}
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -808,9 +896,15 @@ export default function EventEditor({ event }: EventEditorProps) {
                           <FormItem>
                             <FormLabel>{t("editor.ticketUrlLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://..." {...field} className="glass-input" />
+                              <Input
+                                placeholder="https://..."
+                                {...field}
+                                className="glass-input"
+                              />
                             </FormControl>
-                            <FormDescription>{t("editor.ticketUrlDescription")}</FormDescription>
+                            <FormDescription>
+                              {t("editor.ticketUrlDescription")}
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -838,15 +932,21 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="collection_id"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t("editor.collectionIdLabel")}</FormLabel>
+                            <FormLabel>
+                              {t("editor.collectionIdLabel")}
+                            </FormLabel>
                             <FormControl>
                               <Input
-                                placeholder={t("editor.collectionIdPlaceholder")}
+                                placeholder={t(
+                                  "editor.collectionIdPlaceholder"
+                                )}
                                 {...field}
                                 className="glass-input"
                               />
                             </FormControl>
-                            <FormDescription>{t("editor.collectionIdDescription")}</FormDescription>
+                            <FormDescription>
+                              {t("editor.collectionIdDescription")}
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -857,7 +957,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                         name="collection_pricing"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t("editor.collectionPricingLabel")}</FormLabel>
+                            <FormLabel>
+                              {t("editor.collectionPricingLabel")}
+                            </FormLabel>
                             <Select
                               value={field.value ?? undefined}
                               onValueChange={(value) =>
@@ -867,7 +969,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                               <FormControl>
                                 <SelectTrigger className="glass-input">
                                   <SelectValue
-                                    placeholder={t("editor.collectionPricingPlaceholder")}
+                                    placeholder={t(
+                                      "editor.collectionPricingPlaceholder"
+                                    )}
                                   />
                                 </SelectTrigger>
                               </FormControl>
@@ -898,7 +1002,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                 <Card className="glass-card">
                   <CardHeader>
                     <CardTitle>Event Settings</CardTitle>
-                    <CardDescription>Configure status and location</CardDescription>
+                    <CardDescription>
+                      Configure status and location
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4">
                     <FormField
@@ -921,7 +1027,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                                   onClick={() => setIsEditingSlug(true)}
                                 >
                                   <Edit2 className="h-3.5 w-3.5" />
-                                  <span className="sr-only">{t("editor.editSlug")}</span>
+                                  <span className="sr-only">
+                                    {t("editor.editSlug")}
+                                  </span>
                                 </Button>
                               </div>
                             ) : (
@@ -941,11 +1049,19 @@ export default function EventEditor({ event }: EventEditorProps) {
                                     } else if (e.key === "Escape") {
                                       e.preventDefault();
                                       setIsEditingSlug(false);
-                                      const enTitle = form.getValues("translations.en.title");
-                                      const noTitle = form.getValues("translations.no.title");
-                                      const titleToUse = slugSource === "no" ? noTitle : enTitle;
+                                      const enTitle = form.getValues(
+                                        "translations.en.title"
+                                      );
+                                      const noTitle = form.getValues(
+                                        "translations.no.title"
+                                      );
+                                      const titleToUse =
+                                        slugSource === "no" ? noTitle : enTitle;
                                       if (titleToUse) {
-                                        form.setValue("slug", slugify(titleToUse));
+                                        form.setValue(
+                                          "slug",
+                                          slugify(titleToUse)
+                                        );
                                       }
                                     }
                                   }}
@@ -958,7 +1074,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                                   onClick={() => setIsEditingSlug(false)}
                                 >
                                   <Check className="h-4 w-4" />
-                                  <span className="sr-only">{t("editor.saveSlug")}</span>
+                                  <span className="sr-only">
+                                    {t("editor.saveSlug")}
+                                  </span>
                                 </Button>
                                 <Button
                                   type="button"
@@ -967,16 +1085,26 @@ export default function EventEditor({ event }: EventEditorProps) {
                                   className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                   onClick={() => {
                                     setIsEditingSlug(false);
-                                    const enTitle = form.getValues("translations.en.title");
-                                    const noTitle = form.getValues("translations.no.title");
-                                    const titleToUse = slugSource === "no" ? noTitle : enTitle;
+                                    const enTitle = form.getValues(
+                                      "translations.en.title"
+                                    );
+                                    const noTitle = form.getValues(
+                                      "translations.no.title"
+                                    );
+                                    const titleToUse =
+                                      slugSource === "no" ? noTitle : enTitle;
                                     if (titleToUse) {
-                                      form.setValue("slug", slugify(titleToUse));
+                                      form.setValue(
+                                        "slug",
+                                        slugify(titleToUse)
+                                      );
                                     }
                                   }}
                                 >
                                   <X className="h-4 w-4" />
-                                  <span className="sr-only">{t("editor.cancelSlug")}</span>
+                                  <span className="sr-only">
+                                    {t("editor.cancelSlug")}
+                                  </span>
                                 </Button>
                               </div>
                             )}
@@ -994,16 +1122,27 @@ export default function EventEditor({ event }: EventEditorProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("form.status")}</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger className="glass-input">
-                                <SelectValue placeholder={t("editor.selectStatus")} />
+                                <SelectValue
+                                  placeholder={t("editor.selectStatus")}
+                                />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="draft">{t("status.draft")}</SelectItem>
-                              <SelectItem value="published">{t("status.published")}</SelectItem>
-                              <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
+                              <SelectItem value="draft">
+                                {t("status.draft")}
+                              </SelectItem>
+                              <SelectItem value="published">
+                                {t("status.published")}
+                              </SelectItem>
+                              <SelectItem value="cancelled">
+                                {t("status.cancelled")}
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -1016,10 +1155,15 @@ export default function EventEditor({ event }: EventEditorProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("form.campus")}</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger className="glass-input">
-                                <SelectValue placeholder={t("editor.selectCampus")} />
+                                <SelectValue
+                                  placeholder={t("editor.selectCampus")}
+                                />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -1032,7 +1176,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                           </Select>
                           {selectedCampus && (
                             <FormDescription>
-                              {t("editor.selectedCampus", { name: selectedCampus.name })}
+                              {t("editor.selectedCampus", {
+                                name: selectedCampus.name,
+                              })}
                             </FormDescription>
                           )}
                           <FormMessage />
@@ -1048,11 +1194,15 @@ export default function EventEditor({ event }: EventEditorProps) {
                           <Select
                             value={field.value ?? undefined}
                             onValueChange={(value) => field.onChange(value)}
-                            disabled={!form.watch("campus_id") || loadingDepartments}
+                            disabled={
+                              !form.watch("campus_id") || loadingDepartments
+                            }
                           >
                             <FormControl>
                               <SelectTrigger className="glass-input">
-                                <SelectValue placeholder={departmentPlaceholder} />
+                                <SelectValue
+                                  placeholder={departmentPlaceholder}
+                                />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -1064,7 +1214,8 @@ export default function EventEditor({ event }: EventEditorProps) {
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            {!form.watch("campus_id") && t("editor.selectCampusDepartmentHint")}
+                            {!form.watch("campus_id") &&
+                              t("editor.selectCampusDepartmentHint")}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -1102,7 +1253,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                       </CardTitle>
                       <Tabs
                         value={previewLocale}
-                        onValueChange={(value) => setPreviewLocale(value as "en" | "no")}
+                        onValueChange={(value) =>
+                          setPreviewLocale(value as "en" | "no")
+                        }
                         className="w-auto"
                       >
                         <TabsList className="h-8">
@@ -1115,7 +1268,9 @@ export default function EventEditor({ event }: EventEditorProps) {
                         </TabsList>
                       </Tabs>
                     </div>
-                    <CardDescription>{t("editor.livePreviewDescription")}</CardDescription>
+                    <CardDescription>
+                      {t("editor.livePreviewDescription")}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <EventPreview
@@ -1136,7 +1291,11 @@ export default function EventEditor({ event }: EventEditorProps) {
             <Button variant="outline" size="sm" onClick={() => router.back()}>
               {t("form.cancel")}
             </Button>
-            <Button size="sm" onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
+            <Button
+              size="sm"
+              onClick={form.handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+            >
               {isSubmitting ? t("editor.saving") : t("editor.saveEvent")}
             </Button>
           </div>

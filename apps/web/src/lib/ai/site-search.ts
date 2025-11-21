@@ -6,7 +6,11 @@ type ValidIndex = (typeof VALID_INDICES)[number];
 
 function resolveBaseUrl() {
   // Prefer explicit base URL for server-side fetches
-  return process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+  return (
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXTAUTH_URL ||
+    "http://localhost:3000"
+  );
 }
 
 export const searchSiteContent = tool({
@@ -18,8 +22,17 @@ export const searchSiteContent = tool({
       .array(z.enum(VALID_INDICES))
       .optional()
       .describe("Optional indices to restrict search: jobs, events, news"),
-    limit: z.number().int().min(1).max(25).default(5).describe("Max number of items to return"),
-    locale: z.enum(["en", "no"]).optional().describe("Optional locale for titles/snippets"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(25)
+      .default(5)
+      .describe("Max number of items to return"),
+    locale: z
+      .enum(["en", "no"])
+      .optional()
+      .describe("Optional locale for titles/snippets"),
   }),
   execute: async ({
     query,
@@ -41,7 +54,10 @@ export const searchSiteContent = tool({
         cache: "no-store",
       });
       if (!res.ok) {
-        return { results: [], message: `Search failed with status ${res.status}` };
+        return {
+          results: [],
+          message: `Search failed with status ${res.status}`,
+        };
       }
       const data = (await res.json()) as {
         results: Array<{

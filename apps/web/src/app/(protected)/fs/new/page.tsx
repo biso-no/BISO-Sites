@@ -10,7 +10,15 @@ export default async function NewExpensePage() {
     redirect("/auth/login");
   }
 
-  const campuses = await getCampuses({ includeNational: true, includeDepartments: false });
+  const campuses = await getCampuses({
+    includeNational: true,
+    includeDepartments: false,
+  });
 
-  return <NewExpenseClient initialProfile={userData.profile || {}} campuses={campuses} />;
+  return (
+    <NewExpenseClient
+      initialProfile={userData.profile || {}}
+      campuses={campuses}
+    />
+  );
 }

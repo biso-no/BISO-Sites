@@ -76,13 +76,21 @@ const statusConfig = {
   },
 };
 
-export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps) {
+export function OrderDetailsClient({
+  order,
+  isSuccess,
+}: OrderDetailsClientProps) {
   const router = useRouter();
-  const config = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
+  const config =
+    statusConfig[order.status as keyof typeof statusConfig] ||
+    statusConfig.pending;
   const StatusIcon = config.icon;
 
   const items = order.items_json ? JSON.parse(order.items_json) : [];
-  const orderDate = format(new Date(order.$createdAt), "MMMM d, yyyy 'at' HH:mm");
+  const orderDate = format(
+    new Date(order.$createdAt),
+    "MMMM d, yyyy 'at' HH:mm"
+  );
 
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
@@ -113,11 +121,17 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <StatusIcon className={`w-20 h-20 mx-auto mb-4 ${config.color}`} />
+              <StatusIcon
+                className={`w-20 h-20 mx-auto mb-4 ${config.color}`}
+              />
               <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">
-                {isSuccess && order.status === "paid" ? "Order Confirmed!" : "Order Details"}
+                {isSuccess && order.status === "paid"
+                  ? "Order Confirmed!"
+                  : "Order Details"}
               </h1>
-              <p className="text-white/90 text-lg">Order #{order.$id.slice(-8).toUpperCase()}</p>
+              <p className="text-white/90 text-lg">
+                Order #{order.$id.slice(-8).toUpperCase()}
+              </p>
             </motion.div>
           </div>
         </div>
@@ -126,7 +140,10 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Success Message */}
         {isSuccess && order.status === "paid" && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
                 <CheckCircle2 className="w-8 h-8 text-green-600 shrink-0" />
@@ -135,15 +152,18 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                     Thank You for Your Purchase!
                   </h2>
                   <p className="text-gray-700 mb-4">
-                    Your payment has been confirmed and your order is being processed. You&apos;ll
-                    receive a confirmation email shortly with pickup details.
+                    Your payment has been confirmed and your order is being
+                    processed. You&apos;ll receive a confirmation email shortly
+                    with pickup details.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {order.vipps_receipt_url && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(order.vipps_receipt_url!, "_blank")}
+                        onClick={() =>
+                          window.open(order.vipps_receipt_url!, "_blank")
+                        }
                         className="border-green-300 text-green-700 hover:bg-green-100"
                       >
                         <Receipt className="w-4 h-4 mr-2" />
@@ -160,13 +180,18 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
 
         {/* Failed/Cancelled Message */}
         {(order.status === "failed" || order.status === "cancelled") && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
                 <XCircle className={`w-8 h-8 ${config.color} shrink-0`} />
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    {order.status === "cancelled" ? "Order Cancelled" : "Payment Failed"}
+                    {order.status === "cancelled"
+                      ? "Order Cancelled"
+                      : "Payment Failed"}
                   </h2>
                   <p className="text-gray-700 mb-4">
                     {order.status === "cancelled"
@@ -195,9 +220,13 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
               transition={{ delay: 0.1 }}
             >
               <Card className="p-6 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-4 text-xl font-bold">Order Status</h2>
+                <h2 className="text-gray-900 mb-4 text-xl font-bold">
+                  Order Status
+                </h2>
                 <div className="flex items-center gap-3 mb-4">
-                  <Badge className={`${config.bg} ${config.color} border-0 px-4 py-2 text-base`}>
+                  <Badge
+                    className={`${config.bg} ${config.color} border-0 px-4 py-2 text-base`}
+                  >
                     {config.label}
                   </Badge>
                   <span className="text-gray-600">{config.description}</span>
@@ -222,17 +251,27 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
               transition={{ delay: 0.2 }}
             >
               <Card className="p-6 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-6 text-xl font-bold">Order Items</h2>
+                <h2 className="text-gray-900 mb-6 text-xl font-bold">
+                  Order Items
+                </h2>
                 <div className="space-y-4">
                   {items.map((item: any, index: number) => (
-                    <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div
+                      key={index}
+                      className="flex gap-4 p-4 bg-gray-50 rounded-lg"
+                    >
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                        <div className="text-sm text-gray-600 mt-1">Quantity: {item.quantity}</div>
+                        <h3 className="font-semibold text-gray-900">
+                          {item.name}
+                        </h3>
+                        <div className="text-sm text-gray-600 mt-1">
+                          Quantity: {item.quantity}
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="font-semibold text-gray-900">
-                          {(item.price * item.quantity).toFixed(2)} {order.currency}
+                          {(item.price * item.quantity).toFixed(2)}{" "}
+                          {order.currency}
                         </div>
                         <div className="text-sm text-gray-600">
                           {item.price.toFixed(2)} {order.currency} each
@@ -261,7 +300,8 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                   )}
                   {order.membership_applied && (
                     <div className="text-sm text-[#3DA9E0]">
-                      ✓ Member discount applied ({order.member_discount_percent || 0}%)
+                      ✓ Member discount applied (
+                      {order.member_discount_percent || 0}%)
                     </div>
                   )}
                   <div className="flex justify-between text-gray-600 text-sm">
@@ -290,7 +330,9 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                 transition={{ delay: 0.3 }}
               >
                 <Card className="p-6 border-0 shadow-lg">
-                  <h3 className="font-bold text-gray-900 mb-4">Customer Information</h3>
+                  <h3 className="font-bold text-gray-900 mb-4">
+                    Customer Information
+                  </h3>
                   <div className="space-y-2 text-sm">
                     {order.buyer_name && (
                       <div>
@@ -323,9 +365,12 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                   <div className="flex items-start gap-3">
                     <Package className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="mb-2 text-gray-900 font-semibold">Pickup Details</h4>
+                      <h4 className="mb-2 text-gray-900 font-semibold">
+                        Pickup Details
+                      </h4>
                       <p className="text-sm text-gray-700 mb-2">
-                        Your order will be available for pickup at the BISO office.
+                        Your order will be available for pickup at the BISO
+                        office.
                       </p>
                       <div className="text-sm text-gray-600">
                         <div className="flex items-center gap-2 mb-1">
@@ -337,7 +382,8 @@ export function OrderDetailsClient({ order, isSuccess }: OrderDetailsClientProps
                         <strong>Pickup:</strong> Within 5 working days
                       </div>
                       <p className="text-xs text-gray-500 mt-3">
-                        You&apos;ll receive an email when your order is ready for pickup.
+                        You&apos;ll receive an email when your order is ready
+                        for pickup.
                       </p>
                     </div>
                   </div>

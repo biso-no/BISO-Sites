@@ -1,7 +1,8 @@
 import { createSessionClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
 
-const FUNCTION_ID = process.env.APPWRITE_CAMPUS_BOARD_FUNCTION_ID || "get_board_members";
+const FUNCTION_ID =
+  process.env.APPWRITE_CAMPUS_BOARD_FUNCTION_ID || "get_board_members";
 
 export async function POST(request: Request) {
   let payload: any;
@@ -9,7 +10,10 @@ export async function POST(request: Request) {
   try {
     payload = await request.json();
   } catch (error) {
-    return NextResponse.json({ success: false, message: "Invalid JSON payload" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Invalid JSON payload" },
+      { status: 400 }
+    );
   }
 
   const campus = payload?.campus ?? payload?.campusId ?? null;
@@ -18,7 +22,7 @@ export async function POST(request: Request) {
   if (!campus) {
     return NextResponse.json(
       { success: false, message: "Missing required parameter: campus" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -26,7 +30,7 @@ export async function POST(request: Request) {
     const { functions } = await createSessionClient();
     const execution = await functions.createExecution(
       FUNCTION_ID,
-      JSON.stringify({ campus, departmentId }),
+      JSON.stringify({ campus, departmentId })
     );
 
     const raw =
@@ -54,7 +58,7 @@ export async function POST(request: Request) {
     console.error("Failed to load campus leadership", error);
     return NextResponse.json(
       { success: false, message: "Failed to load campus leadership" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

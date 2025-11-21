@@ -11,7 +11,13 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 type MembershipCheckResult =
-  | { ok: true; active: boolean; membership?: any; studentId?: number; categories?: number[] }
+  | {
+      ok: true;
+      active: boolean;
+      membership?: any;
+      studentId?: number;
+      categories?: number[];
+    }
   | { ok: false; error: string };
 
 export function MembershipStatusCard({
@@ -24,7 +30,8 @@ export function MembershipStatusCard({
   const [state, setState] = useState<MembershipCheckResult | null>(initial);
   const [isRefreshing, startTransition] = useTransition();
 
-  const isActive = state && "ok" in state && state.ok ? Boolean(state.active) : false;
+  const isActive =
+    state && "ok" in state && state.ok ? Boolean(state.active) : false;
   const hasError = state && "ok" in state && !state.ok;
 
   const subtitle = useMemo(() => {
@@ -37,7 +44,8 @@ export function MembershipStatusCard({
   const onRefresh = () => {
     if (!hasBIIdentity) {
       toast.error("BI Student not linked", {
-        description: "Link your BI Student account under Linked Accounts to verify membership.",
+        description:
+          "Link your BI Student account under Linked Accounts to verify membership.",
       });
       return;
     }
@@ -46,7 +54,7 @@ export function MembershipStatusCard({
         const exec: any = await clientFunctions.createExecution(
           "verify_biso_membership",
           undefined,
-          false,
+          false
         );
         const payload = (() => {
           try {
@@ -60,7 +68,8 @@ export function MembershipStatusCard({
           toast.error("Verification failed: " + String(payload.error));
           return;
         }
-        const active = !!payload?.membership?.status || payload?.active === true;
+        const active =
+          !!payload?.membership?.status || payload?.active === true;
         setState({
           ok: true,
           active,
@@ -119,13 +128,25 @@ export function MembershipStatusCard({
               </div>
               <span className="text-primary-40">•</span>
               <div className="flex items-center gap-2">
-                <img src="/images/BI_POSITIVE.svg" alt="BI" className="h-8 w-8" />
-                <span className="text-primary-100 font-semibold">BI Student</span>
+                <img
+                  src="/images/BI_POSITIVE.svg"
+                  alt="BI"
+                  className="h-8 w-8"
+                />
+                <span className="text-primary-100 font-semibold">
+                  BI Student
+                </span>
               </div>
             </div>
             <div className="mt-1 flex items-center gap-2">
               <Badge
-                variant={isActive ? "secondary" : hasError ? "destructive" : "secondary"}
+                variant={
+                  isActive
+                    ? "secondary"
+                    : hasError
+                      ? "destructive"
+                      : "secondary"
+                }
                 className={
                   isActive
                     ? "bg-green-600 text-white hover:bg-green-600"
@@ -134,9 +155,15 @@ export function MembershipStatusCard({
                       : "bg-amber-500 text-white hover:bg-amber-500"
                 }
               >
-                {isActive ? "Verified Member" : hasError ? "Verification Error" : "Not Verified"}
+                {isActive
+                  ? "Verified Member"
+                  : hasError
+                    ? "Verification Error"
+                    : "Not Verified"}
               </Badge>
-              <span className="truncate text-sm text-primary-70">{subtitle}</span>
+              <span className="truncate text-sm text-primary-70">
+                {subtitle}
+              </span>
             </div>
           </div>
         </div>

@@ -15,7 +15,8 @@ export function NewsInfoSection() {
         >
           <h3 className="text-3xl font-bold mb-4">Stay Connected with BISO</h3>
           <p className="text-white/80 text-lg max-w-2xl mx-auto">
-            Never miss out on important updates, events, and stories from the BISO community.
+            Never miss out on important updates, events, and stories from the
+            BISO community.
           </p>
         </motion.div>
 
@@ -32,8 +33,8 @@ export function NewsInfoSection() {
             </div>
             <h4 className="text-xl font-bold mb-2">Get Notifications</h4>
             <p className="text-white/70">
-              Follow us on social media to get instant notifications about new articles and
-              announcements.
+              Follow us on social media to get instant notifications about new
+              articles and announcements.
             </p>
           </motion.div>
 
@@ -49,8 +50,8 @@ export function NewsInfoSection() {
             </div>
             <h4 className="text-xl font-bold mb-2">Weekly Newsletter</h4>
             <p className="text-white/70">
-              Subscribe to our newsletter to receive a weekly digest of the most important news and
-              events.
+              Subscribe to our newsletter to receive a weekly digest of the most
+              important news and events.
             </p>
           </motion.div>
 
@@ -66,8 +67,8 @@ export function NewsInfoSection() {
             </div>
             <h4 className="text-xl font-bold mb-2">Share Stories</h4>
             <p className="text-white/70">
-              Help us spread the word! Share interesting articles with your friends and fellow
-              students.
+              Help us spread the word! Share interesting articles with your
+              friends and fellow students.
             </p>
           </motion.div>
         </div>

@@ -20,15 +20,21 @@ import type {
   ProductWithTranslations,
   UpdateProductData,
 } from "@/lib/types/product";
-import { normalizeProductRow, PRODUCT_SELECT_FIELDS } from "./_utils/translatable";
+import {
+  normalizeProductRow,
+  PRODUCT_SELECT_FIELDS,
+} from "./_utils/translatable";
 
 export async function listProducts(
-  params: ListProductsParams = {},
+  params: ListProductsParams = {}
 ): Promise<ProductWithTranslations[]> {
   try {
     const { db } = await createSessionClient();
 
-    const queries = [Query.select([...PRODUCT_SELECT_FIELDS]), Query.orderDesc("$createdAt")];
+    const queries = [
+      Query.select([...PRODUCT_SELECT_FIELDS]),
+      Query.orderDesc("$createdAt"),
+    ];
 
     if (params.status) {
       queries.push(Query.equal("status", params.status));
@@ -74,7 +80,11 @@ export async function listProducts(
       queries.push(Query.search("slug", params.search.trim()));
     }
 
-    const response = await db.listRows<WebshopProducts>("app", "webshop_products", queries);
+    const response = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      queries
+    );
     return response.rows.map(normalizeProductRow);
   } catch (error) {
     console.error("Error listing products:", error);
@@ -82,15 +92,21 @@ export async function listProducts(
   }
 }
 
-export async function getProduct(id: string): Promise<ProductWithTranslations | null> {
+export async function getProduct(
+  id: string
+): Promise<ProductWithTranslations | null> {
   try {
     const { db } = await createSessionClient();
 
-    const response = await db.listRows<WebshopProducts>("app", "webshop_products", [
-      Query.equal("$id", id),
-      Query.limit(1),
-      Query.select([...PRODUCT_SELECT_FIELDS]),
-    ]);
+    const response = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      [
+        Query.equal("$id", id),
+        Query.limit(1),
+        Query.select([...PRODUCT_SELECT_FIELDS]),
+      ]
+    );
 
     const product = response.rows[0];
 
@@ -105,15 +121,21 @@ export async function getProduct(id: string): Promise<ProductWithTranslations | 
   }
 }
 
-async function getProductBySlug(slug: string): Promise<ProductWithTranslations | null> {
+async function getProductBySlug(
+  slug: string
+): Promise<ProductWithTranslations | null> {
   try {
     const { db } = await createSessionClient();
 
-    const productsResponse = await db.listRows<WebshopProducts>("app", "webshop_products", [
-      Query.equal("slug", slug),
-      Query.limit(1),
-      Query.select([...PRODUCT_SELECT_FIELDS]),
-    ]);
+    const productsResponse = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      [
+        Query.equal("slug", slug),
+        Query.limit(1),
+        Query.select([...PRODUCT_SELECT_FIELDS]),
+      ]
+    );
 
     const product = productsResponse.rows[0];
 
@@ -128,7 +150,7 @@ async function getProductBySlug(slug: string): Promise<ProductWithTranslations |
 
 export async function createProduct(
   data: CreateProductData,
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
@@ -157,25 +179,30 @@ export async function createProduct(
       } as ContentTranslations,
     ];
 
-    const product = await db.createRow<WebshopProducts>("app", "webshop_products", "unique()", {
-      slug: data.slug,
-      status: statusValue,
-      campus_id: data.campus_id,
-      // Top-level database fields (required by schema)
-      category: data.category,
-      regular_price: data.regular_price,
-      member_price: data.member_price ?? null,
-      member_only: data.member_only ?? false,
-      stock: data.stock ?? null,
-      image: data.image ?? null,
-      // Additional metadata
-      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
-      // Relationship fields
-      campus: data.campus_id,
-      departmentId: null,
-      department: null,
-      translation_refs: translationRefs,
-    } as any);
+    const product = await db.createRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      "unique()",
+      {
+        slug: data.slug,
+        status: statusValue,
+        campus_id: data.campus_id,
+        // Top-level database fields (required by schema)
+        category: data.category,
+        regular_price: data.regular_price,
+        member_price: data.member_price ?? null,
+        member_only: data.member_only ?? false,
+        stock: data.stock ?? null,
+        image: data.image ?? null,
+        // Additional metadata
+        metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+        // Relationship fields
+        campus: data.campus_id,
+        departmentId: null,
+        department: null,
+        translation_refs: translationRefs,
+      } as any
+    );
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
@@ -192,7 +219,7 @@ export async function createProduct(
 export async function updateProduct(
   id: string,
   data: UpdateProductData,
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
@@ -213,33 +240,49 @@ export async function updateProduct(
 
     // Top-level database fields
     if (data.category !== undefined) updateData.category = data.category;
-    if (data.regular_price !== undefined) updateData.regular_price = data.regular_price;
-    if (data.member_price !== undefined) updateData.member_price = data.member_price;
-    if (data.member_only !== undefined) updateData.member_only = data.member_only;
+    if (data.regular_price !== undefined)
+      updateData.regular_price = data.regular_price;
+    if (data.member_price !== undefined)
+      updateData.member_price = data.member_price;
+    if (data.member_only !== undefined)
+      updateData.member_only = data.member_only;
     if (data.stock !== undefined) updateData.stock = data.stock;
     if (data.image !== undefined) updateData.image = data.image;
 
     // Metadata JSON
     if (data.metadata !== undefined)
-      updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null;
+      updateData.metadata = data.metadata
+        ? JSON.stringify(data.metadata)
+        : null;
 
     // Build translation_refs array with both translations if provided
     // For updates, we need to fetch existing translation IDs to properly update them
     if (data.translations) {
       // Fetch existing translations to get their IDs
-      const existingProduct = await db.listRows<WebshopProducts>("app", "webshop_products", [
-        Query.equal("$id", id),
-        Query.select(["translation_refs.$id", "translation_refs.locale"]),
-        Query.limit(1),
-      ]);
+      const existingProduct = await db.listRows<WebshopProducts>(
+        "app",
+        "webshop_products",
+        [
+          Query.equal("$id", id),
+          Query.select(["translation_refs.$id", "translation_refs.locale"]),
+          Query.limit(1),
+        ]
+      );
 
-      const existingTranslations = existingProduct.rows[0]?.translation_refs || [];
+      const existingTranslations =
+        existingProduct.rows[0]?.translation_refs || [];
       const existingTranslationsArray = Array.isArray(existingTranslations)
-        ? existingTranslations.filter((t): t is ContentTranslations => typeof t !== "string")
+        ? existingTranslations.filter(
+            (t): t is ContentTranslations => typeof t !== "string"
+          )
         : [];
 
-      const enTranslation = existingTranslationsArray.find((t) => t.locale === Locale.EN);
-      const noTranslation = existingTranslationsArray.find((t) => t.locale === Locale.NO);
+      const enTranslation = existingTranslationsArray.find(
+        (t) => t.locale === Locale.EN
+      );
+      const noTranslation = existingTranslationsArray.find(
+        (t) => t.locale === Locale.NO
+      );
 
       updateData.translation_refs = [
         {
@@ -261,7 +304,12 @@ export async function updateProduct(
       ];
     }
 
-    const product = await db.updateRow<WebshopProducts>("app", "webshop_products", id, updateData);
+    const product = await db.updateRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      id,
+      updateData
+    );
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
@@ -275,7 +323,10 @@ export async function updateProduct(
   }
 }
 
-export async function deleteProduct(id: string, skipRevalidation = false): Promise<boolean> {
+export async function deleteProduct(
+  id: string,
+  skipRevalidation = false
+): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 
@@ -297,7 +348,7 @@ export async function deleteProduct(id: string, skipRevalidation = false): Promi
 async function updateProductStatus(
   id: string,
   status: "draft" | "published" | "archived",
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
@@ -308,9 +359,14 @@ async function updateProductStatus(
           ? Status.PUBLISHED
           : Status.ARCHIVED;
 
-    const product = await db.updateRow<WebshopProducts>("app", "webshop_products", id, {
-      status: statusValue,
-    });
+    const product = await db.updateRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      id,
+      {
+        status: statusValue,
+      }
+    );
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
@@ -326,7 +382,7 @@ async function updateProductStatus(
 
 export async function bulkUpdateProductStatus(
   productIds: string[],
-  status: "draft" | "published" | "archived",
+  status: "draft" | "published" | "archived"
 ) {
   if (!productIds.length) {
     return { success: false, error: "No products selected" };
@@ -343,8 +399,10 @@ export async function bulkUpdateProductStatus(
 
     await Promise.all(
       productIds.map((id) =>
-        db.updateRow<WebshopProducts>("app", "webshop_products", id, { status: statusValue }),
-      ),
+        db.updateRow<WebshopProducts>("app", "webshop_products", id, {
+          status: statusValue,
+        })
+      )
     );
 
     revalidateProductPaths();
@@ -360,7 +418,7 @@ export async function bulkUpdateProductStatus(
 
 export async function bulkUpdateProductPrices(
   productIds: string[],
-  options: { mode: "percent" | "absolute"; value: number },
+  options: { mode: "percent" | "absolute"; value: number }
 ) {
   if (!productIds.length) {
     return { success: false, error: "No products selected" };
@@ -373,10 +431,16 @@ export async function bulkUpdateProductPrices(
     const { db } = await createSessionClient();
     await Promise.all(
       productIds.map(async (id) => {
-        const product = await db.getRow<WebshopProducts>("app", "webshop_products", id);
+        const product = await db.getRow<WebshopProducts>(
+          "app",
+          "webshop_products",
+          id
+        );
         const currentPrice = Number(product?.regular_price ?? 0);
         let nextPrice =
-          options.mode === "percent" ? currentPrice * (1 + options.value / 100) : options.value;
+          options.mode === "percent"
+            ? currentPrice * (1 + options.value / 100)
+            : options.value;
         nextPrice = Number.isFinite(nextPrice)
           ? Math.max(0, Number(nextPrice.toFixed(2)))
           : currentPrice;
@@ -384,7 +448,7 @@ export async function bulkUpdateProductPrices(
         await db.updateRow<WebshopProducts>("app", "webshop_products", id, {
           regular_price: nextPrice,
         });
-      }),
+      })
     );
 
     revalidateProductPaths();
@@ -400,7 +464,7 @@ export async function bulkUpdateProductPrices(
 
 export async function bulkUpdateProductStock(
   productIds: string[],
-  options: { mode: "set" | "adjust"; value: number },
+  options: { mode: "set" | "adjust"; value: number }
 ) {
   if (!productIds.length) {
     return { success: false, error: "No products selected" };
@@ -413,16 +477,24 @@ export async function bulkUpdateProductStock(
     const { db } = await createSessionClient();
     await Promise.all(
       productIds.map(async (id) => {
-        const product = await db.getRow<WebshopProducts>("app", "webshop_products", id);
-        const currentStock = typeof product?.stock === "number" ? product.stock : 0;
-        let nextStock = options.mode === "set" ? options.value : currentStock + options.value;
+        const product = await db.getRow<WebshopProducts>(
+          "app",
+          "webshop_products",
+          id
+        );
+        const currentStock =
+          typeof product?.stock === "number" ? product.stock : 0;
+        let nextStock =
+          options.mode === "set" ? options.value : currentStock + options.value;
 
-        nextStock = Number.isFinite(nextStock) ? Math.max(0, Math.floor(nextStock)) : currentStock;
+        nextStock = Number.isFinite(nextStock)
+          ? Math.max(0, Math.floor(nextStock))
+          : currentStock;
 
         await db.updateRow<WebshopProducts>("app", "webshop_products", id, {
           stock: nextStock,
         });
-      }),
+      })
     );
 
     revalidateProductPaths();
@@ -446,7 +518,7 @@ function revalidateProductPaths() {
 export async function translateProductContent(
   content: ProductTranslation,
   fromLocale: "en" | "no",
-  toLocale: "en" | "no",
+  toLocale: "en" | "no"
 ): Promise<ProductTranslation | null> {
   try {
     const targetLanguage = toLocale === "en" ? "English" : "Norwegian";
@@ -481,7 +553,7 @@ export async function translateProductContent(
 // Get products for public pages (published only)
 async function getProducts(
   status: "in-stock" | "all" = "all",
-  locale: "en" | "no" = "en",
+  locale: "en" | "no" = "en"
 ): Promise<ProductWithTranslations[]> {
   return listProducts({
     status: "published",
@@ -490,7 +562,8 @@ async function getProducts(
   });
 }
 
-const PRODUCT_IMAGE_BUCKET = process.env.APPWRITE_PRODUCT_BUCKET_ID || "product-images";
+const PRODUCT_IMAGE_BUCKET =
+  process.env.APPWRITE_PRODUCT_BUCKET_ID || "product-images";
 
 export async function uploadProductImage(formData: FormData) {
   const file = formData.get("file");
@@ -499,7 +572,11 @@ export async function uploadProductImage(formData: FormData) {
   }
 
   const { storage } = await createSessionClient();
-  const uploaded = await storage.createFile(PRODUCT_IMAGE_BUCKET, "unique()", file);
+  const uploaded = await storage.createFile(
+    PRODUCT_IMAGE_BUCKET,
+    "unique()",
+    file
+  );
   const url = getStorageFileUrl(PRODUCT_IMAGE_BUCKET, uploaded.$id);
   return { id: uploaded.$id, url };
 }

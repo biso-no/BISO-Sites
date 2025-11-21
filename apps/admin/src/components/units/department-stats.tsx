@@ -1,7 +1,14 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import { AlertTriangle, Building2, Check, ChevronsUpDown, TrendingUp, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  Check,
+  ChevronsUpDown,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/shared/glass-card";
 import { MetricCard } from "@/components/shared/metric-card";
@@ -12,7 +19,10 @@ interface DepartmentStatsProps {
   loading?: boolean;
 }
 
-export function DepartmentStats({ departments, loading = false }: DepartmentStatsProps) {
+export function DepartmentStats({
+  departments,
+  loading = false,
+}: DepartmentStatsProps) {
   const [activeCount, setActiveCount] = useState(0);
   const [inactiveCount, setInactiveCount] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -27,7 +37,10 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
     setActiveCount(active);
     setInactiveCount(departments.length - active);
 
-    const users = departments.reduce((sum, dept) => sum + (dept.userCount || 0), 0);
+    const users = departments.reduce(
+      (sum, dept) => sum + (dept.userCount || 0),
+      0
+    );
     setTotalUsers(users);
 
     // Count departments per campus
@@ -41,11 +54,13 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
 
   // Sort campuses by count (descending)
   const sortedCampuses = Object.entries(campusCounts).sort(
-    ([, countA], [, countB]) => countB - countA,
+    ([, countA], [, countB]) => countB - countA
   );
 
   // Limit to top 3 by default
-  const displayCampuses = showMoreCampuses ? sortedCampuses : sortedCampuses.slice(0, 3);
+  const displayCampuses = showMoreCampuses
+    ? sortedCampuses
+    : sortedCampuses.slice(0, 3);
 
   if (loading) {
     return (
@@ -114,10 +129,16 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex justify-between items-center text-sm">
-                    <span className="font-medium text-foreground">{campusName}</span>
+                    <span className="font-medium text-foreground">
+                      {campusName}
+                    </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">{count} units</span>
-                      <span className="font-semibold text-primary">{percentage}%</span>
+                      <span className="text-muted-foreground">
+                        {count} units
+                      </span>
+                      <span className="font-semibold text-primary">
+                        {percentage}%
+                      </span>
                     </div>
                   </div>
                   <div className="relative h-3 w-full bg-muted/50 rounded-full overflow-hidden">
@@ -144,7 +165,9 @@ export function DepartmentStats({ departments, loading = false }: DepartmentStat
                   onClick={() => setShowMoreCampuses(!showMoreCampuses)}
                   className="text-primary hover:text-primary/80 gap-2"
                 >
-                  {showMoreCampuses ? "Show Less" : `Show All ${sortedCampuses.length} Campuses`}
+                  {showMoreCampuses
+                    ? "Show Less"
+                    : `Show All ${sortedCampuses.length} Campuses`}
                   <ChevronsUpDown className="h-4 w-4" />
                 </Button>
               </div>

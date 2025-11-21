@@ -24,7 +24,9 @@ export function BenefitsTab({
     <>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t("title")}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            {t("title")}
+          </h2>
           <p className="text-gray-600 dark:text-gray-400">{t("description")}</p>
         </div>
         <Badge className="bg-[#3DA9E0]/10 text-[#3DA9E0] border-[#3DA9E0]/30 px-4 py-2">
@@ -47,7 +49,9 @@ export function BenefitsTab({
   return (
     <TabsContent value="benefits" className="space-y-8">
       {!isMember ? (
-        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>{content}</LockedContentOverlay>
+        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
+          {content}
+        </LockedContentOverlay>
       ) : (
         content
       )}

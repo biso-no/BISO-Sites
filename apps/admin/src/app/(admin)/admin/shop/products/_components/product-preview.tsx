@@ -52,8 +52,10 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
     data.member_price && data.member_price < data.regular_price
       ? data.member_price
       : data.regular_price;
-  const hasDiscount = data.member_price && data.member_price < data.regular_price;
-  const imageUrl = data.metadata?.images?.[0] || data.image || "/images/placeholder.jpg";
+  const hasDiscount =
+    data.member_price && data.member_price < data.regular_price;
+  const imageUrl =
+    data.metadata?.images?.[0] || data.image || "/images/placeholder.jpg";
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("nb-NO", {
@@ -73,7 +75,9 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
 
   const shortDescription = useMemo(() => {
     const plainText = stripHtml(translation.description);
-    return plainText.length > 100 ? `${plainText.substring(0, 100)}...` : plainText;
+    return plainText.length > 100
+      ? `${plainText.substring(0, 100)}...`
+      : plainText;
   }, [translation.description]);
 
   return (
@@ -113,7 +117,8 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
               <Badge
                 className={cn(
                   "border font-medium",
-                  categoryColors[data.category] || "bg-gray-100 text-gray-700 border-gray-200",
+                  categoryColors[data.category] ||
+                    "bg-gray-100 text-gray-700 border-gray-200"
                 )}
               >
                 <Tag className="mr-1 h-3 w-3" />
@@ -144,7 +149,9 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
 
           {data.stock === 0 && (
             <div className="absolute bottom-3 right-3 rounded-full bg-gray-900/90 px-3 py-1 backdrop-blur-sm">
-              <span className="text-xs font-medium text-white">Out of Stock</span>
+              <span className="text-xs font-medium text-white">
+                Out of Stock
+              </span>
             </div>
           )}
         </div>
@@ -153,13 +160,16 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
         <div className="p-4 space-y-3">
           {/* Title */}
           <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-            {translation.title || (locale === "en" ? "Product Title" : "Produkttittel")}
+            {translation.title ||
+              (locale === "en" ? "Product Title" : "Produkttittel")}
           </h3>
 
           {/* Description */}
           <p className="text-sm text-gray-600 line-clamp-2">
             {shortDescription ||
-              (locale === "en" ? "Product description..." : "Produktbeskrivelse...")}
+              (locale === "en"
+                ? "Product description..."
+                : "Produktbeskrivelse...")}
           </p>
 
           {/* Price */}
@@ -177,7 +187,9 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
                 </Badge>
               </>
             ) : (
-              <span className="text-xl font-bold text-gray-900">{formatPrice(displayPrice)}</span>
+              <span className="text-xl font-bold text-gray-900">
+                {formatPrice(displayPrice)}
+              </span>
             )}
           </div>
 

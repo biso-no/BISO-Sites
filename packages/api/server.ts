@@ -14,7 +14,8 @@ import {
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
 const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
 const NEXT_PUBLIC_APPWRITE_ENDPOINT =
-  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1";
+  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+  "https://appwrite.biso.no/v1";
 
 export async function createSessionClient() {
   const client = new Client()

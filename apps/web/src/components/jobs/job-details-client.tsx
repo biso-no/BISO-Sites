@@ -45,9 +45,12 @@ const categoryColors: Record<string, string> = {
 };
 
 const categoryImages: Record<string, string> = {
-  "Academic Associations": "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1080",
-  Societies: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1080",
-  "Staff Functions": "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1080",
+  "Academic Associations":
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1080",
+  Societies:
+    "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1080",
+  "Staff Functions":
+    "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1080",
   Projects: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1080",
 };
 
@@ -103,7 +106,12 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       {/* Hero Section */}
       <div className="relative h-[40vh] overflow-hidden">
-        <ImageWithFallback src={categoryImage} alt={category} fill className="object-cover" />
+        <ImageWithFallback
+          src={categoryImage}
+          alt={category}
+          fill
+          className="object-cover"
+        />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0">
@@ -123,8 +131,12 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               animate={{ opacity: 1, y: 0 }}
               className="mt-12"
             >
-              <Badge className={`mb-4 ${categoryColors[category]}`}>{category}</Badge>
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{job.title}</h1>
+              <Badge className={`mb-4 ${categoryColors[category]}`}>
+                {category}
+              </Badge>
+              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">
+                {job.title}
+              </h1>
               <p className="text-white/90 text-xl">{department}</p>
 
               <div className="flex flex-wrap items-center gap-4 mt-6">
@@ -160,7 +172,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                     <span className="text-sm text-[#001731]">{department}</span>
                   </div>
                 </div>
-                <h2 className="text-gray-900 mb-4 text-2xl font-bold">Position Overview</h2>
+                <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+                  Position Overview
+                </h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                   {job.description}
                 </p>
@@ -175,7 +189,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 transition={{ delay: 0.2 }}
               >
                 <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">What You'll Do</h2>
+                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                    What You'll Do
+                  </h2>
                   <ul className="space-y-4">
                     {extendedResponsibilities.map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
@@ -196,7 +212,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 transition={{ delay: 0.3 }}
               >
                 <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">What We're Looking For</h2>
+                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                    What We're Looking For
+                  </h2>
                   <ul className="space-y-4">
                     {extendedRequirements.map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
@@ -216,7 +234,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               transition={{ delay: 0.4 }}
             >
               <Card className="p-8 border-0 shadow-lg bg-linear-to-br from-[#3DA9E0]/5 to-[#001731]/5">
-                <h2 className="text-gray-900 mb-6 text-2xl font-bold">What You'll Gain</h2>
+                <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                  What You'll Gain
+                </h2>
                 <ul className="space-y-4">
                   {benefits.map((item, index) => (
                     <li key={index} className="flex items-start gap-3">
@@ -235,7 +255,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               transition={{ delay: 0.5 }}
             >
               <Card className="p-8 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-6 text-2xl font-bold">Application Process</h2>
+                <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                  Application Process
+                </h2>
                 <div className="space-y-6">
                   <div className="flex gap-4">
                     <div className="shrink-0 w-12 h-12 rounded-full bg-linear-to-r from-[#3DA9E0] to-[#001731] flex items-center justify-center text-white font-bold">
@@ -322,7 +344,8 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                     </div>
                   </div>
                   <p className="text-sm text-gray-600">
-                    Make an impact while gaining valuable experience and connections.
+                    Make an impact while gaining valuable experience and
+                    connections.
                   </p>
                 </Card>
               )}
@@ -350,12 +373,15 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   <div>
                     <div className="text-sm text-gray-500 mb-1">Openings</div>
                     <div className="text-gray-900">
-                      {openings} {openings === 1 ? "position" : "positions"} available
+                      {openings} {openings === 1 ? "position" : "positions"}{" "}
+                      available
                     </div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Application Deadline</div>
+                    <div className="text-sm text-gray-500 mb-1">
+                      Application Deadline
+                    </div>
                     <div className="text-gray-900">{deadline}</div>
                   </div>
                 </div>
@@ -371,8 +397,8 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-[#001731] to-[#3DA9E0]">
                 <h3 className="mb-4 text-white font-bold">Ready to Apply?</h3>
                 <p className="text-white/90 text-sm mb-6">
-                  Submit your application and join our team in creating amazing experiences for
-                  students.
+                  Submit your application and join our team in creating amazing
+                  experiences for students.
                 </p>
                 <Button className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3">
                   <Send className="w-4 h-4 mr-2" />
@@ -398,7 +424,9 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">Questions?</h4>
+                    <h4 className="mb-2 text-gray-900 font-semibold">
+                      Questions?
+                    </h4>
                     <p className="text-sm text-gray-600">
                       Contact our recruitment team at{" "}
                       <a

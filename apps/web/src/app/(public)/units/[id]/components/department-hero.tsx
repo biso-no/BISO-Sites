@@ -68,11 +68,15 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
             </div>
 
             {department.short_description && (
-              <p className="text-white/90 text-lg mb-8 max-w-2xl">{department.short_description}</p>
+              <p className="text-white/90 text-lg mb-8 max-w-2xl">
+                {department.short_description}
+              </p>
             )}
 
             {/* Social Links */}
-            {dept.socials && dept.socials.length > 0 && <SocialLinks socials={dept.socials} />}
+            {dept.socials && dept.socials.length > 0 && (
+              <SocialLinks socials={dept.socials} />
+            )}
           </div>
         </div>
       </div>

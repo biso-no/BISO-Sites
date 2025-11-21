@@ -20,7 +20,9 @@ export const components: MDXComponents = {
   Mermaid,
 };
 
-export function getMDXComponents(customComponents?: MDXComponents): MDXComponents {
+export function getMDXComponents(
+  customComponents?: MDXComponents
+): MDXComponents {
   return {
     ...components,
     pre: ({ ref: _ref, ...props }) => (

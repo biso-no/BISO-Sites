@@ -17,10 +17,17 @@ interface ProductWithTranslation extends ContentTranslations {
   product_ref: NonNullable<ContentTranslations["product_ref"]>;
 }
 
-export const productCategories = ["Merch", "Trips", "Lockers", "Membership"] as const;
+export const productCategories = [
+  "Merch",
+  "Trips",
+  "Lockers",
+  "Membership",
+] as const;
 export type ProductCategory = (typeof productCategories)[number];
 
-export function parseProductMetadata(metadataString: string | null | undefined): ProductMetadata {
+export function parseProductMetadata(
+  metadataString: string | null | undefined
+): ProductMetadata {
   if (!metadataString) return {};
 
   try {
@@ -35,12 +42,17 @@ export function formatPrice(price: number | null | undefined): string {
   return `${price} NOK`;
 }
 
-function getProductCategory(category: string | null | undefined): ProductCategory {
+function getProductCategory(
+  category: string | null | undefined
+): ProductCategory {
   const cat = category as ProductCategory;
   return productCategories.includes(cat) ? cat : "Merch";
 }
 
-export function calculateSavings(regularPrice: number, memberPrice: number | null): number {
+export function calculateSavings(
+  regularPrice: number,
+  memberPrice: number | null
+): number {
   if (!memberPrice) return 0;
   return Math.max(0, regularPrice - memberPrice);
 }
@@ -48,7 +60,7 @@ export function calculateSavings(regularPrice: number, memberPrice: number | nul
 export function getDisplayPrice(
   regularPrice: number,
   memberPrice: number | null,
-  isMember: boolean,
+  isMember: boolean
 ): number {
   return isMember && memberPrice ? memberPrice : regularPrice;
 }

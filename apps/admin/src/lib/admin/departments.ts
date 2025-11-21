@@ -26,7 +26,8 @@ async function updateDepartment({ id, data }: { id: string; data: any }) {
     console.error("Error updating department:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update department",
+      error:
+        error instanceof Error ? error.message : "Failed to update department",
     };
   }
 }

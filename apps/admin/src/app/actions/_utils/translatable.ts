@@ -8,17 +8,25 @@ import type {
 import type { AdminEvent, EventMetadata } from "@/lib/types/event";
 import type { AdminJob, JobMetadata } from "@/lib/types/job";
 import type { NewsItemWithTranslations } from "@/lib/types/news";
-import type { ProductMetadata, ProductWithTranslations } from "@/lib/types/product";
+import type {
+  ProductMetadata,
+  ProductWithTranslations,
+} from "@/lib/types/product";
 import { parseJSONSafe } from "@/lib/utils/admin";
-import { buildTranslationMap, ensureTranslationArray } from "@/lib/utils/content-translations";
+import {
+  buildTranslationMap,
+  ensureTranslationArray,
+} from "@/lib/utils/content-translations";
 
 type WithTranslations<T> = T & { translation_refs?: ContentTranslations[] };
 
 const FALLBACK_OBJECT = {} as Record<string, unknown>;
 
-const parseMetadata = <T extends Record<string, unknown> = Record<string, unknown>>(
+const parseMetadata = <
+  T extends Record<string, unknown> = Record<string, unknown>,
+>(
   raw: unknown,
-  fallback: T = FALLBACK_OBJECT as T,
+  fallback: T = FALLBACK_OBJECT as T
 ): T => {
   if (!raw) return fallback;
   if (typeof raw === "string") {
@@ -116,12 +124,14 @@ export const normalizeJobRow = (row: WithTranslations<Jobs>): AdminJob => {
 };
 
 export const normalizeProductRow = (
-  row: WithTranslations<WebshopProducts>,
+  row: WithTranslations<WebshopProducts>
 ): ProductWithTranslations => {
   const translationRefs = ensureTranslationArray(row.translation_refs);
   const metadata = parseMetadata<ProductMetadata>(row.metadata);
   const metadataString =
-    typeof row.metadata === "string" ? row.metadata : JSON.stringify(row.metadata ?? {});
+    typeof row.metadata === "string"
+      ? row.metadata
+      : JSON.stringify(row.metadata ?? {});
 
   return {
     ...row,
@@ -131,7 +141,9 @@ export const normalizeProductRow = (
   } as ProductWithTranslations;
 };
 
-const normalizeNewsRow = (row: WithTranslations<News>): NewsItemWithTranslations => {
+const normalizeNewsRow = (
+  row: WithTranslations<News>
+): NewsItemWithTranslations => {
   const translationRefs = ensureTranslationArray(row.translation_refs);
 
   return {

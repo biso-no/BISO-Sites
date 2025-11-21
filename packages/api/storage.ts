@@ -3,7 +3,8 @@
  */
 
 const APPWRITE_ENDPOINT =
-  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1";
+  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+  "https://appwrite.biso.no/v1";
 const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
 
 /**
@@ -22,7 +23,10 @@ export function getStorageFileUrl(bucketId: string, fileId: string): string {
  * @param fileId - The file ID
  * @returns A direct URL to download the file
  */
-export function getStorageFileDownloadUrl(bucketId: string, fileId: string): string {
+export function getStorageFileDownloadUrl(
+  bucketId: string,
+  fileId: string
+): string {
   return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/download?project=${APPWRITE_PROJECT}`;
 }
 
@@ -42,7 +46,7 @@ export function getStorageFileThumbnailUrl(
     width?: number;
     height?: number;
     quality?: number;
-  },
+  }
 ): string {
   const params = new URLSearchParams({ project: APPWRITE_PROJECT });
 

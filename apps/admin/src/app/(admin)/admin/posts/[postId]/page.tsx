@@ -3,7 +3,11 @@ import { getDepartments, getPost, getPosts } from "@/app/actions/admin";
 import { getCampuses } from "../actions";
 import PostEditor from "../post-editor";
 
-export default async function AdminPostPage({ params }: { params: { postId: string } }) {
+export default async function AdminPostPage({
+  params,
+}: {
+  params: { postId: string };
+}) {
   const posts = await getPosts();
 
   const departments = await getDepartments();
@@ -20,5 +24,7 @@ export default async function AdminPostPage({ params }: { params: { postId: stri
 
   console.log("POST: ", JSON.stringify(post));
 
-  return <PostEditor post={post} departments={departments} campuses={campuses} />;
+  return (
+    <PostEditor post={post} departments={departments} campuses={campuses} />
+  );
 }

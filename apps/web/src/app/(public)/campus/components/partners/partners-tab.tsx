@@ -12,9 +12,15 @@ interface PartnersTabProps {
   locale: Locale;
 }
 
-export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps) {
+export function PartnersTab({
+  campusData,
+  campusName,
+  locale,
+}: PartnersTabProps) {
   const businessBenefits = campusData
-    ? (locale === "en" ? campusData.businessBenefits_en : campusData.businessBenefits_nb) ||
+    ? (locale === "en"
+        ? campusData.businessBenefits_en
+        : campusData.businessBenefits_nb) ||
       campusData.businessBenefits_en ||
       campusData.businessBenefits_nb ||
       []
@@ -56,7 +62,9 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
               <Briefcase className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-gray-900">
-              {locale === "en" ? "Partnership Benefits" : "Partnerskapsfordeler"}
+              {locale === "en"
+                ? "Partnership Benefits"
+                : "Partnerskapsfordeler"}
             </h3>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
@@ -96,7 +104,9 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
               className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
             >
               <Link href="/contact">
-                {locale === "en" ? "Contact Partnership Team" : "Kontakt partnerskapsteamet"}
+                {locale === "en"
+                  ? "Contact Partnership Team"
+                  : "Kontakt partnerskapsteamet"}
                 <ExternalLink className="w-4 h-4 ml-2" />
               </Link>
             </Button>

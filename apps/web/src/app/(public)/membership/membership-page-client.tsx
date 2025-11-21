@@ -2,7 +2,12 @@
 
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -27,7 +32,11 @@ import type { CampusData } from "@/lib/types/campus-data";
 
 type BenefitKey = keyof Pick<
   CampusData,
-  "studentBenefits" | "careerAdvantages" | "socialNetwork" | "safety" | "businessBenefits"
+  | "studentBenefits"
+  | "careerAdvantages"
+  | "socialNetwork"
+  | "safety"
+  | "businessBenefits"
 >;
 
 type BenefitConfig = {
@@ -58,7 +67,7 @@ export type MembershipPageClientProps = {
 function selectBenefitItems(
   data: CampusData | null | undefined,
   key: BenefitKey,
-  locale: Locale,
+  locale: Locale
 ): string[] {
   if (!data) return [];
   const suffix: BenefitLocaleSuffix = locale === "en" ? "en" : "nb";
@@ -70,14 +79,16 @@ function selectBenefitItems(
     : Array.isArray(fallback)
       ? (fallback as string[])
       : [];
-  return raw.map((item) => item?.trim()).filter((item): item is string => Boolean(item));
+  return raw
+    .map((item) => item?.trim())
+    .filter((item): item is string => Boolean(item));
 }
 
 function buildBenefitSections(
   configs: BenefitConfig[],
   data: CampusData | null | undefined,
   locale: Locale,
-  descriptionSelector: (config: BenefitConfig) => string,
+  descriptionSelector: (config: BenefitConfig) => string
 ): BenefitSection[] {
   if (!data) return [];
   return configs
@@ -140,7 +151,7 @@ export const MembershipPageClient = ({
         icon: Compass,
       },
     ],
-    [t],
+    [t]
   );
 
   const onboardingSteps = useMemo(
@@ -166,7 +177,7 @@ export const MembershipPageClient = ({
         description: t("onboarding.steps.4.description"),
       },
     ],
-    [t],
+    [t]
   );
 
   const highlightEvents = useMemo(
@@ -193,7 +204,7 @@ export const MembershipPageClient = ({
         cta: t("highlights.items.winterGames.cta"),
       },
     ],
-    [t],
+    [t]
   );
 
   const faqs = useMemo(
@@ -219,7 +230,7 @@ export const MembershipPageClient = ({
         answer: t("faq.items.engagement.answer"),
       },
     ],
-    [t],
+    [t]
   );
 
   const campusDataById = useMemo(() => {
@@ -258,9 +269,9 @@ export const MembershipPageClient = ({
         benefitConfigs,
         globalBenefits,
         locale,
-        (config) => config.globalDescription,
+        (config) => config.globalDescription
       ),
-    [benefitConfigs, globalBenefits, locale],
+    [benefitConfigs, globalBenefits, locale]
   );
 
   const campusSections = useMemo(() => {
@@ -269,7 +280,7 @@ export const MembershipPageClient = ({
       benefitConfigs,
       activeCampusData,
       locale,
-      (config) => config.localDescription,
+      (config) => config.localDescription
     );
   }, [activeCampusData, benefitConfigs, locale]);
 
@@ -312,10 +323,18 @@ export const MembershipPageClient = ({
             <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
               {heroTitle}
             </h1>
-            <p className="max-w-2xl text-base text-white/80 md:text-lg">{heroSubtitle}</p>
+            <p className="max-w-2xl text-base text-white/80 md:text-lg">
+              {heroSubtitle}
+            </p>
             <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
-                <Link href="https://biso.no/shop/bli-medlem-i-biso/">{t("hero.ctas.join")}</Link>
+              <Button
+                asChild
+                size="lg"
+                className="bg-white text-primary-100 hover:bg-white/90"
+              >
+                <Link href="https://biso.no/shop/bli-medlem-i-biso/">
+                  {t("hero.ctas.join")}
+                </Link>
               </Button>
               <Button
                 asChild
@@ -325,7 +344,12 @@ export const MembershipPageClient = ({
               >
                 <Link href="/jobs?campus=all">{t("hero.ctas.roles")}</Link>
               </Button>
-              <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10">
+              <Button
+                asChild
+                size="lg"
+                variant="ghost"
+                className="text-white hover:bg-white/10"
+              >
                 <Link href="/partner">{t("hero.ctas.partners")}</Link>
               </Button>
             </div>
@@ -346,8 +370,12 @@ export const MembershipPageClient = ({
           </div>
           <Card className="border-white/20 bg-white/10 text-white shadow-glow backdrop-blur">
             <CardHeader>
-              <CardTitle className="text-white/90">{t("onboarding.title")}</CardTitle>
-              <p className="text-sm text-white/70">{t("onboarding.subtitle")}</p>
+              <CardTitle className="text-white/90">
+                {t("onboarding.title")}
+              </CardTitle>
+              <p className="text-sm text-white/70">
+                {t("onboarding.subtitle")}
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               {onboardingSteps.map((step) => (
@@ -360,7 +388,9 @@ export const MembershipPageClient = ({
                   </div>
                   <div>
                     <p className="font-medium text-white">{step.title}</p>
-                    <p className="mt-1 text-sm text-white/70">{step.description}</p>
+                    <p className="mt-1 text-sm text-white/70">
+                      {step.description}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -372,7 +402,9 @@ export const MembershipPageClient = ({
       <section className="space-y-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">{t("global.title")}</h2>
+            <h2 className="text-2xl font-semibold text-primary-100">
+              {t("global.title")}
+            </h2>
             <p className="text-muted-foreground">{t("global.subtitle")}</p>
           </div>
           <Button
@@ -403,7 +435,9 @@ export const MembershipPageClient = ({
                     <CardTitle className="text-base font-semibold text-primary-100">
                       {section.title}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">{section.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {section.description}
+                    </p>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2 text-sm text-muted-foreground">
@@ -455,7 +489,7 @@ export const MembershipPageClient = ({
                           "rounded-full px-4 py-2 text-sm font-medium transition",
                           isActive
                             ? "bg-primary-100 text-white shadow-sm"
-                            : "bg-white text-primary-80 hover:bg-primary-10",
+                            : "bg-white text-primary-80 hover:bg-primary-10"
                         )}
                       >
                         {campus.name}
@@ -484,7 +518,9 @@ export const MembershipPageClient = ({
                     <CardTitle className="text-base font-semibold text-primary-100">
                       {section.title}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">{section.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {section.description}
+                    </p>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2 text-sm text-muted-foreground">
@@ -513,7 +549,9 @@ export const MembershipPageClient = ({
       <section className="space-y-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-primary-100">{t("highlights.title")}</h2>
+            <h2 className="text-2xl font-semibold text-primary-100">
+              {t("highlights.title")}
+            </h2>
             <p className="text-muted-foreground">{t("highlights.subtitle")}</p>
           </div>
           <Button
@@ -532,7 +570,10 @@ export const MembershipPageClient = ({
           {highlightEvents.map((event) => {
             const Icon = event.icon;
             return (
-              <Card key={event.key} className="h-full border-primary/10 bg-white/90 shadow-card">
+              <Card
+                key={event.key}
+                className="h-full border-primary/10 bg-white/90 shadow-card"
+              >
                 <CardHeader className="space-y-3">
                   <div className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
                     <Icon className="h-5 w-5" />
@@ -540,10 +581,15 @@ export const MembershipPageClient = ({
                   <CardTitle className="text-base font-semibold text-primary-100">
                     {event.title}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">{event.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {event.description}
+                  </p>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="ghost" className="px-0 text-primary-70 hover:text-primary-40">
+                  <Button
+                    variant="ghost"
+                    className="px-0 text-primary-70 hover:text-primary-40"
+                  >
                     {event.cta}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -564,9 +610,14 @@ export const MembershipPageClient = ({
           </CardHeader>
           <CardContent className="space-y-4">
             {faqs.map((faq) => (
-              <div key={faq.key} className="rounded-2xl border border-primary/10 bg-white/80 p-4">
+              <div
+                key={faq.key}
+                className="rounded-2xl border border-primary/10 bg-white/80 p-4"
+              >
                 <p className="font-medium text-primary-90">{faq.question}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{faq.answer}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {faq.answer}
+                </p>
               </div>
             ))}
           </CardContent>
@@ -576,17 +627,28 @@ export const MembershipPageClient = ({
             <CardTitle className="text-xl font-semibold text-primary-100">
               {t("ctaCard.title")}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">{t("ctaCard.subtitle")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("ctaCard.subtitle")}
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-primary/20 text-primary-70">
+              <Badge
+                variant="outline"
+                className="border-primary/20 text-primary-70"
+              >
                 {t("ctaCard.badges.annual")}
               </Badge>
-              <Badge variant="outline" className="border-primary/20 text-primary-70">
+              <Badge
+                variant="outline"
+                className="border-primary/20 text-primary-70"
+              >
                 {t("ctaCard.badges.semester")}
               </Badge>
-              <Badge variant="outline" className="border-primary/20 text-primary-70">
+              <Badge
+                variant="outline"
+                className="border-primary/20 text-primary-70"
+              >
                 {t("ctaCard.badges.digitalCard")}
               </Badge>
             </div>
@@ -595,7 +657,9 @@ export const MembershipPageClient = ({
               size="lg"
               className="w-full bg-primary-100 text-white hover:bg-primary-90"
             >
-              <Link href="https://biso.no/shop/bli-medlem-i-biso/">{t("ctaCard.primary")}</Link>
+              <Link href="https://biso.no/shop/bli-medlem-i-biso/">
+                {t("ctaCard.primary")}
+              </Link>
             </Button>
             <Button
               asChild

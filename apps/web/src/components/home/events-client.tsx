@@ -62,8 +62,12 @@ export function EventsClient({ events }: EventsClientProps) {
           {events.map((event, index) => {
             const isFeatured = index === 0;
             const eventRef = event.event_ref;
-            const startDate = eventRef?.start_date ? new Date(eventRef.start_date) : null;
-            const endDate = eventRef?.end_date ? new Date(eventRef.end_date) : null;
+            const startDate = eventRef?.start_date
+              ? new Date(eventRef.start_date)
+              : null;
+            const endDate = eventRef?.end_date
+              ? new Date(eventRef.end_date)
+              : null;
 
             // Format date and time
             const dateString = startDate
@@ -78,7 +82,10 @@ export function EventsClient({ events }: EventsClientProps) {
               startDate && endDate
                 ? `${startDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} - ${endDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`
                 : startDate
-                  ? startDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                  ? startDate.toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                   : "TBA";
 
             return (
@@ -91,7 +98,9 @@ export function EventsClient({ events }: EventsClientProps) {
                 className={isFeatured ? "md:col-span-2" : ""}
               >
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group">
-                  <div className={`grid ${isFeatured ? "md:grid-cols-2" : ""} gap-0`}>
+                  <div
+                    className={`grid ${isFeatured ? "md:grid-cols-2" : ""} gap-0`}
+                  >
                     {/* Image */}
                     <div
                       className={`relative overflow-hidden ${isFeatured ? "h-96 md:h-auto" : "h-64"}`}
@@ -140,7 +149,9 @@ export function EventsClient({ events }: EventsClientProps) {
                             "attendees" in eventRef.metadata && (
                               <div className="flex items-center gap-3 text-gray-600">
                                 <Users className="w-5 h-5 text-[#3DA9E0]" />
-                                <span>{eventRef.metadata.attendees} attending</span>
+                                <span>
+                                  {eventRef.metadata.attendees} attending
+                                </span>
                               </div>
                             )}
                         </div>

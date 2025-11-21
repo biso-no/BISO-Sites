@@ -7,7 +7,10 @@ import {
   useAssistantRuntime,
   useAssistantTool,
 } from "@assistant-ui/react";
-import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { z } from "zod";
@@ -43,10 +46,18 @@ function AdminAssistantContext() {
   const ctx = { role: "Admin", counts: { products: 0, pendingExpenses: 0 } };
 
   const activeConfig = useMemo(() => {
-    const mapping: Record<string, { instructions: (c: typeof ctx) => string; tools: string[] }> = {
+    const mapping: Record<
+      string,
+      { instructions: (c: typeof ctx) => string; tools: string[] }
+    > = {
       "/admin/shop/products": {
         instructions: (c) => `You are the Products copilot. Role=${c.role}.`,
-        tools: ["createProduct", "editProduct", "deleteProduct", "bulkUpdateProducts"],
+        tools: [
+          "createProduct",
+          "editProduct",
+          "deleteProduct",
+          "bulkUpdateProducts",
+        ],
       },
       "/admin/expenses": {
         instructions: (c) =>
@@ -77,7 +88,10 @@ function AdminAssistantContext() {
   useAssistantTool({
     toolName: "approveExpense",
     description: "Approve an expense by ID",
-    parameters: z.object({ expenseId: z.string(), note: z.string().optional() }),
+    parameters: z.object({
+      expenseId: z.string(),
+      note: z.string().optional(),
+    }),
     disabled: !activeConfig?.tools.includes("approveExpense"),
     execute: async ({ expenseId, note }) => {
       const res = await fetch("/api/expense/approve", {
@@ -98,13 +112,16 @@ function AdminAssistantContext() {
     toolName: "approveExpense",
     render: ({ args, status, result }) => {
       if (status.type === "running")
-        return <div className="text-sm">Approving expense {args.expenseId}…</div>;
+        return (
+          <div className="text-sm">Approving expense {args.expenseId}…</div>
+        );
       if (status.type === "incomplete" && status.reason === "error")
         return <div className="text-sm text-red-500">Failed to approve.</div>;
       if (result)
         return (
           <div className="text-sm text-green-600">
-            Approved by {result.approvedBy} at {new Date(result.at).toLocaleString()}
+            Approved by {result.approvedBy} at{" "}
+            {new Date(result.at).toLocaleString()}
           </div>
         );
       return null;

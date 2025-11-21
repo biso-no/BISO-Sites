@@ -35,7 +35,12 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Switch } from "@repo/ui/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import {
   AlertCircle,
@@ -56,7 +61,11 @@ import { type SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { listCampuses } from "@/app/actions/events"; // Using from events actions
-import { createProduct, translateProductContent, updateProduct } from "@/app/actions/products";
+import {
+  createProduct,
+  translateProductContent,
+  updateProduct,
+} from "@/app/actions/products";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import type { Campus } from "@/lib/types/post";
 import type {
@@ -172,7 +181,9 @@ export function EditProduct({ product }: EditProductProps) {
       return { title: "", description: "" };
     }
 
-    const translation = product.translation_refs.find((t) => t.locale === locale);
+    const translation = product.translation_refs.find(
+      (t) => t.locale === locale
+    );
     if (!translation) {
       return { title: "", description: "" };
     }
@@ -209,7 +220,8 @@ export function EditProduct({ product }: EditProductProps) {
         images: (metadataDefaults as ProductMetadata).images || [],
         max_per_user: (metadataDefaults as ProductMetadata).max_per_user,
         max_per_order: (metadataDefaults as ProductMetadata).max_per_order,
-        custom_fields: (metadataDefaults as ProductMetadata).custom_fields || [],
+        custom_fields:
+          (metadataDefaults as ProductMetadata).custom_fields || [],
         variations: (metadataDefaults as ProductMetadata).variations || [],
       },
       translations: {
@@ -243,10 +255,14 @@ export function EditProduct({ product }: EditProductProps) {
         !!(
           (product.metadata_parsed as ProductMetadata)?.max_per_user ||
           (product.metadata_parsed as ProductMetadata)?.max_per_order
-        ),
+        )
       );
-      setVariationsEnabled(!!(product.metadata_parsed as ProductMetadata)?.variations?.length);
-      setCustomFieldsEnabled(!!(product.metadata_parsed as ProductMetadata)?.custom_fields?.length);
+      setVariationsEnabled(
+        !!(product.metadata_parsed as ProductMetadata)?.variations?.length
+      );
+      setCustomFieldsEnabled(
+        !!(product.metadata_parsed as ProductMetadata)?.custom_fields?.length
+      );
     }
   }, [product]);
 
@@ -310,11 +326,14 @@ export function EditProduct({ product }: EditProductProps) {
     }
   }, [isEditingSlug]);
 
-  const handleTranslate = async (fromLocale: "en" | "no", toLocale: "en" | "no") => {
+  const handleTranslate = async (
+    fromLocale: "en" | "no",
+    toLocale: "en" | "no"
+  ) => {
     const fromTranslation = form.getValues(`translations.${fromLocale}`);
     if (!fromTranslation?.title || !fromTranslation?.description) {
       toast.error(
-        `Please fill in the ${fromLocale === "en" ? "English" : "Norwegian"} content first`,
+        `Please fill in the ${fromLocale === "en" ? "English" : "Norwegian"} content first`
       );
       return;
     }
@@ -328,10 +347,16 @@ export function EditProduct({ product }: EditProductProps) {
     setIsTranslating(toLocale);
 
     try {
-      const translated = await translateProductContent(translationData, fromLocale, toLocale);
+      const translated = await translateProductContent(
+        translationData,
+        fromLocale,
+        toLocale
+      );
       if (translated) {
         form.setValue(`translations.${toLocale}`, translated);
-        toast.success(`Content translated to ${toLocale === "en" ? "English" : "Norwegian"}`);
+        toast.success(
+          `Content translated to ${toLocale === "en" ? "English" : "Norwegian"}`
+        );
       } else {
         toast.error("Translation failed");
       }
@@ -348,7 +373,10 @@ export function EditProduct({ product }: EditProductProps) {
 
     try {
       // Transform the form data to match the expected types
-      const transformedTranslations: { en: ProductTranslation; no: ProductTranslation } = {
+      const transformedTranslations: {
+        en: ProductTranslation;
+        no: ProductTranslation;
+      } = {
         en: {
           title: data.translations.en.title,
           description: data.translations.en.description,
@@ -368,7 +396,8 @@ export function EditProduct({ product }: EditProductProps) {
         // Clean up images array
         const imageList = Array.isArray(metadata.images)
           ? metadata.images.filter(
-              (url): url is string => typeof url === "string" && url.trim().length > 0,
+              (url): url is string =>
+                typeof url === "string" && url.trim().length > 0
             )
           : [];
         metadata.images = imageList.length > 0 ? imageList : undefined;
@@ -381,7 +410,9 @@ export function EditProduct({ product }: EditProductProps) {
             ...field,
             options:
               field.type === "select"
-                ? (field.options || []).filter((option) => option.trim().length > 0)
+                ? (field.options || []).filter(
+                    (option) => option.trim().length > 0
+                  )
                 : undefined,
           }));
         }
@@ -393,7 +424,9 @@ export function EditProduct({ product }: EditProductProps) {
           metadata.variations = metadata.variations.map((variation) => ({
             ...variation,
             price_modifier:
-              typeof variation.price_modifier === "number" ? variation.price_modifier : 0,
+              typeof variation.price_modifier === "number"
+                ? variation.price_modifier
+                : 0,
             stock_quantity:
               typeof variation.stock_quantity === "number"
                 ? Math.max(0, variation.stock_quantity)
@@ -459,14 +492,21 @@ export function EditProduct({ product }: EditProductProps) {
     }
   };
 
-  const selectedCampus = campuses.find((c) => c.$id === form.watch("campus_id"));
+  const selectedCampus = campuses.find(
+    (c) => c.$id === form.watch("campus_id")
+  );
 
   return (
     <div className="flex min-h-screen w-full flex-col">
       <div className="flex flex-col sm:gap-4">
         <main className="grid flex-1 items-start gap-4">
           <div className="flex items-center gap-4 mb-4">
-            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => router.back()}
+            >
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Back</span>
             </Button>
@@ -482,7 +522,11 @@ export function EditProduct({ product }: EditProductProps) {
               <Button variant="outline" size="sm" onClick={() => router.back()}>
                 Cancel
               </Button>
-              <Button size="sm" onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
+              <Button
+                size="sm"
+                onClick={form.handleSubmit(onSubmit)}
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? "Saving..." : "Save Product"}
               </Button>
             </div>
@@ -502,22 +546,32 @@ export function EditProduct({ product }: EditProductProps) {
                       <Languages className="h-5 w-5" />
                       Product Content
                     </CardTitle>
-                    <CardDescription>Manage product content in multiple languages</CardDescription>
+                    <CardDescription>
+                      Manage product content in multiple languages
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Tabs defaultValue="en" className="w-full">
                       <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="en" className="flex items-center gap-2">
+                        <TabsTrigger
+                          value="en"
+                          className="flex items-center gap-2"
+                        >
                           🇬🇧 English
                         </TabsTrigger>
-                        <TabsTrigger value="no" className="flex items-center gap-2">
+                        <TabsTrigger
+                          value="no"
+                          className="flex items-center gap-2"
+                        >
                           🇳🇴 Norsk
                         </TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="en" className="space-y-4 mt-4">
                         <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">English Content</h3>
+                          <h3 className="text-lg font-medium">
+                            English Content
+                          </h3>
                           <Button
                             type="button"
                             variant="outline"
@@ -527,7 +581,9 @@ export function EditProduct({ product }: EditProductProps) {
                             className="flex items-center gap-2"
                           >
                             <Sparkles className="h-4 w-4" />
-                            {isTranslating === "en" ? "Translating..." : "Translate from Norwegian"}
+                            {isTranslating === "en"
+                              ? "Translating..."
+                              : "Translate from Norwegian"}
                           </Button>
                         </div>
                         <FormField
@@ -569,7 +625,9 @@ export function EditProduct({ product }: EditProductProps) {
 
                       <TabsContent value="no" className="space-y-4 mt-4">
                         <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">Norwegian Content</h3>
+                          <h3 className="text-lg font-medium">
+                            Norwegian Content
+                          </h3>
                           <Button
                             type="button"
                             variant="outline"
@@ -579,7 +637,9 @@ export function EditProduct({ product }: EditProductProps) {
                             className="flex items-center gap-2"
                           >
                             <Sparkles className="h-4 w-4" />
-                            {isTranslating === "no" ? "Translating..." : "Translate from English"}
+                            {isTranslating === "no"
+                              ? "Translating..."
+                              : "Translate from English"}
                           </Button>
                         </div>
                         <FormField
@@ -626,7 +686,9 @@ export function EditProduct({ product }: EditProductProps) {
                 <Card className="glass-card">
                   <CardHeader>
                     <CardTitle>Basic Details</CardTitle>
-                    <CardDescription>Configure essential product information</CardDescription>
+                    <CardDescription>
+                      Configure essential product information
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <FormField
@@ -658,7 +720,9 @@ export function EditProduct({ product }: EditProductProps) {
                               step="0.01"
                               placeholder="0.00"
                               {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
                               className="glass-input"
                             />
                           </FormControl>
@@ -672,13 +736,18 @@ export function EditProduct({ product }: EditProductProps) {
                       render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 p-4 bg-white/40">
                           <div className="space-y-0.5">
-                            <FormLabel className="text-base">Members Only</FormLabel>
+                            <FormLabel className="text-base">
+                              Members Only
+                            </FormLabel>
                             <FormDescription>
                               Only members can purchase this product
                             </FormDescription>
                           </div>
                           <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
                           </FormControl>
                         </FormItem>
                       )}
@@ -712,7 +781,9 @@ export function EditProduct({ product }: EditProductProps) {
                               value={field.value ?? ""}
                               onChange={(e) => {
                                 const value = e.target.value;
-                                field.onChange(value ? parseFloat(value) : undefined);
+                                field.onChange(
+                                  value ? parseFloat(value) : undefined
+                                );
                               }}
                               className="glass-input"
                             />
@@ -747,11 +818,15 @@ export function EditProduct({ product }: EditProductProps) {
                               type="number"
                               placeholder="Available quantity"
                               {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value) || 0)
+                              }
                               className="glass-input"
                             />
                           </FormControl>
-                          <FormDescription>Current inventory count</FormDescription>
+                          <FormDescription>
+                            Current inventory count
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -811,9 +886,12 @@ export function EditProduct({ product }: EditProductProps) {
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 p-4 bg-white/40">
                             <div className="space-y-0.5">
-                              <FormLabel className="text-base">Limit to one per customer</FormLabel>
+                              <FormLabel className="text-base">
+                                Limit to one per customer
+                              </FormLabel>
                               <FormDescription>
-                                Prevents customers from purchasing more than once
+                                Prevents customers from purchasing more than
+                                once
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -840,13 +918,17 @@ export function EditProduct({ product }: EditProductProps) {
                                 value={field.value ?? ""}
                                 onChange={(event) => {
                                   const next = event.target.value;
-                                  field.onChange(next ? parseInt(next) : undefined);
+                                  field.onChange(
+                                    next ? parseInt(next) : undefined
+                                  );
                                 }}
                                 placeholder="Unlimited"
                                 className="glass-input"
                               />
                             </FormControl>
-                            <FormDescription>Maximum units per single checkout</FormDescription>
+                            <FormDescription>
+                              Maximum units per single checkout
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -856,7 +938,11 @@ export function EditProduct({ product }: EditProductProps) {
                 </div>
 
                 {/* Options & Fields Accordion */}
-                <Accordion type="multiple" defaultValue={[]} className="space-y-4">
+                <Accordion
+                  type="multiple"
+                  defaultValue={[]}
+                  className="space-y-4"
+                >
                   <AccordionItem
                     value="options-fields"
                     className="overflow-hidden rounded-lg border bg-card glass-card"
@@ -866,8 +952,8 @@ export function EditProduct({ product }: EditProductProps) {
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                       <p className="pb-4 text-sm text-muted-foreground">
-                        Configure product variations and custom fields for additional customer
-                        input.
+                        Configure product variations and custom fields for
+                        additional customer input.
                       </p>
                       <div className="space-y-4">
                         <ToggleSection
@@ -876,7 +962,8 @@ export function EditProduct({ product }: EditProductProps) {
                           enabled={variationsEnabled}
                           onToggle={(enabled) => {
                             setVariationsEnabled(enabled);
-                            if (!enabled) form.setValue("metadata.variations", []);
+                            if (!enabled)
+                              form.setValue("metadata.variations", []);
                           }}
                         >
                           <FormField
@@ -900,7 +987,8 @@ export function EditProduct({ product }: EditProductProps) {
                           enabled={customFieldsEnabled}
                           onToggle={(enabled) => {
                             setCustomFieldsEnabled(enabled);
-                            if (!enabled) form.setValue("metadata.custom_fields", []);
+                            if (!enabled)
+                              form.setValue("metadata.custom_fields", []);
                           }}
                         >
                           <FormField
@@ -929,7 +1017,9 @@ export function EditProduct({ product }: EditProductProps) {
                 <Card className="glass-card">
                   <CardHeader>
                     <CardTitle>Product Settings</CardTitle>
-                    <CardDescription>Configure status and location</CardDescription>
+                    <CardDescription>
+                      Configure status and location
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4">
                     <FormField
@@ -973,11 +1063,19 @@ export function EditProduct({ product }: EditProductProps) {
                                       e.preventDefault();
                                       setIsEditingSlug(false);
                                       // Reset to auto-generated slug
-                                      const enTitle = form.getValues("translations.en.title");
-                                      const noTitle = form.getValues("translations.no.title");
-                                      const titleToUse = slugSource === "no" ? noTitle : enTitle;
+                                      const enTitle = form.getValues(
+                                        "translations.en.title"
+                                      );
+                                      const noTitle = form.getValues(
+                                        "translations.no.title"
+                                      );
+                                      const titleToUse =
+                                        slugSource === "no" ? noTitle : enTitle;
                                       if (titleToUse) {
-                                        form.setValue("slug", slugify(titleToUse));
+                                        form.setValue(
+                                          "slug",
+                                          slugify(titleToUse)
+                                        );
                                       }
                                     }
                                   }}
@@ -1000,11 +1098,19 @@ export function EditProduct({ product }: EditProductProps) {
                                   onClick={() => {
                                     setIsEditingSlug(false);
                                     // Reset to auto-generated slug
-                                    const enTitle = form.getValues("translations.en.title");
-                                    const noTitle = form.getValues("translations.no.title");
-                                    const titleToUse = slugSource === "no" ? noTitle : enTitle;
+                                    const enTitle = form.getValues(
+                                      "translations.en.title"
+                                    );
+                                    const noTitle = form.getValues(
+                                      "translations.no.title"
+                                    );
+                                    const titleToUse =
+                                      slugSource === "no" ? noTitle : enTitle;
                                     if (titleToUse) {
-                                      form.setValue("slug", slugify(titleToUse));
+                                      form.setValue(
+                                        "slug",
+                                        slugify(titleToUse)
+                                      );
                                     }
                                   }}
                                 >
@@ -1029,7 +1135,10 @@ export function EditProduct({ product }: EditProductProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger className="glass-input">
                                 <SelectValue placeholder="Select status" />
@@ -1037,7 +1146,9 @@ export function EditProduct({ product }: EditProductProps) {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="published">Published</SelectItem>
+                              <SelectItem value="published">
+                                Published
+                              </SelectItem>
                               <SelectItem value="archived">Archived</SelectItem>
                             </SelectContent>
                           </Select>
@@ -1051,7 +1162,10 @@ export function EditProduct({ product }: EditProductProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Campus</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger className="glass-input">
                                 <SelectValue placeholder="Select campus" />
@@ -1066,7 +1180,9 @@ export function EditProduct({ product }: EditProductProps) {
                             </SelectContent>
                           </Select>
                           {selectedCampus && (
-                            <FormDescription>Selected: {selectedCampus.name}</FormDescription>
+                            <FormDescription>
+                              Selected: {selectedCampus.name}
+                            </FormDescription>
                           )}
                           <FormMessage />
                         </FormItem>
@@ -1103,7 +1219,9 @@ export function EditProduct({ product }: EditProductProps) {
                       </CardTitle>
                       <Tabs
                         value={previewLocale}
-                        onValueChange={(value) => setPreviewLocale(value as "en" | "no")}
+                        onValueChange={(value) =>
+                          setPreviewLocale(value as "en" | "no")
+                        }
                         className="w-auto"
                       >
                         <TabsList className="h-8">
@@ -1116,10 +1234,15 @@ export function EditProduct({ product }: EditProductProps) {
                         </TabsList>
                       </Tabs>
                     </div>
-                    <CardDescription>See how your product will appear to customers</CardDescription>
+                    <CardDescription>
+                      See how your product will appear to customers
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ProductPreview data={form.watch()} locale={previewLocale} />
+                    <ProductPreview
+                      data={form.watch()}
+                      locale={previewLocale}
+                    />
                   </CardContent>
                 </Card>
               </div>
@@ -1131,7 +1254,11 @@ export function EditProduct({ product }: EditProductProps) {
             <Button variant="outline" size="sm" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button size="sm" onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
+            <Button
+              size="sm"
+              onClick={form.handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+            >
               {isSubmitting ? "Saving..." : "Save Product"}
             </Button>
           </div>

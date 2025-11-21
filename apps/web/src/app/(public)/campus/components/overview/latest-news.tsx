@@ -32,7 +32,9 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
   return (
     <section>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-gray-900">{locale === "en" ? "Latest News" : "Siste nytt"}</h2>
+        <h2 className="text-gray-900">
+          {locale === "en" ? "Latest News" : "Siste nytt"}
+        </h2>
         <Button variant="ghost" size="sm" className="text-[#3DA9E0]">
           <Link href="/news" className="flex items-center">
             {locale === "en" ? "View All" : "Se alle"}

@@ -43,7 +43,8 @@ interface EventPreviewProps {
 
 export function EventPreview({ data, locale }: EventPreviewProps) {
   const translation = data.translations[locale];
-  const imageUrl = data.metadata?.images?.[0] || data.image || "/images/placeholder.jpg";
+  const imageUrl =
+    data.metadata?.images?.[0] || data.image || "/images/placeholder.jpg";
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("nb-NO", {
@@ -76,7 +77,9 @@ export function EventPreview({ data, locale }: EventPreviewProps) {
   const shortDescription = useMemo(() => {
     if (!translation.description) return "";
     const plainText = stripHtml(translation.description);
-    return plainText.length > 150 ? `${plainText.substring(0, 150)}...` : plainText;
+    return plainText.length > 150
+      ? `${plainText.substring(0, 150)}...`
+      : plainText;
   }, [translation.description]);
 
   return (
@@ -123,7 +126,9 @@ export function EventPreview({ data, locale }: EventPreviewProps) {
           {/* Price Badge */}
           {data.price !== undefined && data.price !== null && (
             <div className="absolute bottom-3 right-3 rounded-full bg-primary/90 px-3 py-1 backdrop-blur-sm">
-              <span className="text-sm font-semibold text-white">{formatPrice(data.price)}</span>
+              <span className="text-sm font-semibold text-white">
+                {formatPrice(data.price)}
+              </span>
             </div>
           )}
 
@@ -140,7 +145,8 @@ export function EventPreview({ data, locale }: EventPreviewProps) {
         <div className="p-4 space-y-3">
           {/* Title */}
           <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-            {translation.title || (locale === "en" ? "Event Title" : "Arrangementstittel")}
+            {translation.title ||
+              (locale === "en" ? "Event Title" : "Arrangementstittel")}
           </h3>
 
           {/* Date & Time */}
@@ -171,7 +177,9 @@ export function EventPreview({ data, locale }: EventPreviewProps) {
           {/* Description */}
           <p className="text-sm text-gray-600 line-clamp-3">
             {shortDescription ||
-              (locale === "en" ? "Event description..." : "Arrangementbeskrivelse...")}
+              (locale === "en"
+                ? "Event description..."
+                : "Arrangementbeskrivelse...")}
           </p>
 
           {/* Ticket Link */}
@@ -179,7 +187,9 @@ export function EventPreview({ data, locale }: EventPreviewProps) {
             <div className="flex items-center gap-2 pt-2 border-t">
               <Badge variant="outline" className="text-xs">
                 <Ticket className="mr-1 h-3 w-3" />
-                {locale === "en" ? "Tickets Available" : "Billetter tilgjengelig"}
+                {locale === "en"
+                  ? "Tickets Available"
+                  : "Billetter tilgjengelig"}
               </Badge>
             </div>
           )}

@@ -57,7 +57,7 @@ function FilterBarContent({
                   "whitespace-nowrap",
                   currentCategory === "All"
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground",
+                    : "text-muted-foreground"
                 )}
               >
                 All
@@ -65,14 +65,16 @@ function FilterBarContent({
               {categories.map((cat) => (
                 <Button
                   key={cat.value}
-                  variant={currentCategory === cat.value ? "default" : "outline"}
+                  variant={
+                    currentCategory === cat.value ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => updateParams(categoryParam, cat.value)}
                   className={cn(
                     "whitespace-nowrap",
                     currentCategory === cat.value
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground",
+                      : "text-muted-foreground"
                   )}
                 >
                   {cat.label}
@@ -110,7 +112,9 @@ function FilterBarContent({
 
 export function FilterBar(props: FilterBarProps) {
   return (
-    <Suspense fallback={<div className="h-20 w-full bg-gray-50 animate-pulse" />}>
+    <Suspense
+      fallback={<div className="h-20 w-full bg-gray-50 animate-pulse" />}
+    >
       <FilterBarContent {...props} />
     </Suspense>
   );

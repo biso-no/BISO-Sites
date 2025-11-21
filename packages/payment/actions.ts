@@ -18,13 +18,18 @@ import {
  * @returns Redirects user to Vipps checkout page
  * @throws Error if checkout creation fails
  */
-export async function initiateVippsCheckout(params: CheckoutSessionParams): Promise<never> {
+export async function initiateVippsCheckout(
+  params: CheckoutSessionParams
+): Promise<never> {
   try {
     // Get database client from session
     const { db } = await createSessionClient();
 
     // Create checkout session (this creates order in DB and gets Vipps URL)
-    const { checkoutUrl, orderId, sessionId } = await createCheckoutSession(params, db);
+    const { checkoutUrl, orderId, sessionId } = await createCheckoutSession(
+      params,
+      db
+    );
 
     console.log(`[Checkout] Created session ${sessionId} for order ${orderId}`);
 

@@ -26,14 +26,21 @@ export function IdentityManagement({
 }: {
   initialIdentities: Identity[] | undefined;
 }) {
-  const [identities, setIdentities] = useState<Identity[] | undefined>(initialIdentities);
+  const [identities, setIdentities] = useState<Identity[] | undefined>(
+    initialIdentities
+  );
   const [isLinking, startLinkTransition] = useTransition();
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   const canRemove = (id: Identity) => {
     const provider = (id.provider || "").toLowerCase();
     // Keep core email/magic-url intact to avoid locking user out
-    if (provider === "email" || provider === "magic-url" || provider === "magicurl") return false;
+    if (
+      provider === "email" ||
+      provider === "magic-url" ||
+      provider === "magicurl"
+    )
+      return false;
     // Avoid removing the last remaining identity
     if ((identities?.length || 0) <= 1) return false;
     return true;
@@ -61,11 +68,12 @@ export function IdentityManagement({
   const linkProvider = (provider: OAuthProvider) => {
     startLinkTransition(async () => {
       try {
-        await clientAccount.createOAuth2Session(provider, successUrl, failureUrl, [
-          "openid",
-          "email",
-          "profile",
-        ]);
+        await clientAccount.createOAuth2Session(
+          provider,
+          successUrl,
+          failureUrl,
+          ["openid", "email", "profile"]
+        );
         // Browser will redirect; no-op here
       } catch (err: any) {
         toast.error("Linking failed: " + String(err?.message || err));
@@ -79,13 +87,19 @@ export function IdentityManagement({
     try {
       const res = await removeIdentity(identity.$id);
       if (res?.success) {
-        setIdentities((prev) => (prev || []).filter((i) => i.$id !== identity.$id));
+        setIdentities((prev) =>
+          (prev || []).filter((i) => i.$id !== identity.$id)
+        );
         toast.success("Identity removed");
       } else {
-        toast.error("Failed to remove", { description: String(res?.error || "Unknown error") });
+        toast.error("Failed to remove", {
+          description: String(res?.error || "Unknown error"),
+        });
       }
     } catch (err: any) {
-      toast.error("Failed to remove", { description: String(err?.message || err) });
+      toast.error("Failed to remove", {
+        description: String(err?.message || err),
+      });
     } finally {
       setRemovingId(null);
     }
@@ -97,8 +111,9 @@ export function IdentityManagement({
         <CardHeader>
           <CardTitle>Linked Accounts</CardTitle>
           <CardDescription>
-            Link your BISO account and your BI Student account. Linking your BI Student account lets
-            us verify your paid semester membership for benefits and discounts.
+            Link your BISO account and your BI Student account. Linking your BI
+            Student account lets us verify your paid semester membership for
+            benefits and discounts.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -128,11 +143,15 @@ export function IdentityManagement({
       <Card className="border border-primary/10 bg-white">
         <CardHeader>
           <CardTitle>Connected Identities</CardTitle>
-          <CardDescription>Accounts currently connected to your profile</CardDescription>
+          <CardDescription>
+            Accounts currently connected to your profile
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {(identities?.length || 0) === 0 ? (
-            <div className="text-sm text-primary-60">No identities linked yet.</div>
+            <div className="text-sm text-primary-60">
+              No identities linked yet.
+            </div>
           ) : (
             identities!.map((id) => (
               <div
@@ -140,7 +159,9 @@ export function IdentityManagement({
                 className="flex items-center justify-between rounded-lg border border-primary/10 bg-white px-3 py-2"
               >
                 <div className="flex items-center gap-3">
-                  <Badge variant="secondary">{providerLabel(id.provider)}</Badge>
+                  <Badge variant="secondary">
+                    {providerLabel(id.provider)}
+                  </Badge>
                   <div
                     className="text-sm text-primary-80 truncate max-w-[28ch]"
                     title={id.providerUid || id.$id}

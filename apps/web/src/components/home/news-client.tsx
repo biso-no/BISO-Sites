@@ -94,13 +94,17 @@ export function NewsClient({ news }: NewsClientProps) {
                     <Clock className="w-4 h-4" />
                     <span>
                       {getRelativeTime(
-                        featuredNews.news_ref?.$createdAt || featuredNews.$createdAt,
+                        featuredNews.news_ref?.$createdAt ||
+                          featuredNews.$createdAt
                       )}
                     </span>
                   </div>
                   <h3 className="mb-4 text-gray-900">{featuredNews.title}</h3>
                   <p className="text-gray-600 mb-6">
-                    {featuredNews.description?.replace(/<[^>]+>/g, "").slice(0, 200)}...
+                    {featuredNews.description
+                      ?.replace(/<[^>]+>/g, "")
+                      .slice(0, 200)}
+                    ...
                   </p>
                   <Link href={`/news/${featuredNews.content_id}`}>
                     <Button className="w-fit bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 group">
@@ -142,12 +146,15 @@ export function NewsClient({ news }: NewsClientProps) {
                     <div className="flex items-center gap-2 text-[#3DA9E0] mb-3">
                       <Clock className="w-4 h-4" />
                       <span className="text-sm">
-                        {getRelativeTime(item.news_ref?.$createdAt || item.$createdAt)}
+                        {getRelativeTime(
+                          item.news_ref?.$createdAt || item.$createdAt
+                        )}
                       </span>
                     </div>
                     <h4 className="mb-3 text-gray-900">{item.title}</h4>
                     <p className="text-gray-600 mb-4">
-                      {item.description?.replace(/<[^>]+>/g, "").slice(0, 150)}...
+                      {item.description?.replace(/<[^>]+>/g, "").slice(0, 150)}
+                      ...
                     </p>
                     <Link href={`/news/${item.content_id}`}>
                       <Button

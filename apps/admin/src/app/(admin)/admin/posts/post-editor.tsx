@@ -61,7 +61,11 @@ type PostEditorProps = {
   campuses: Campus[];
 };
 
-export default function PostEditor({ post, departments, campuses }: PostEditorProps) {
+export default function PostEditor({
+  post,
+  departments,
+  campuses,
+}: PostEditorProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const t = useTranslations("adminPosts");
@@ -75,7 +79,7 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
         department: z.string().min(1, t("formValidation.departmentRequired")),
         campus: z.string().min(1, t("formValidation.campusRequired")),
       }),
-    [t],
+    [t]
   );
 
   const getInitialValues = React.useMemo((): FormValues => {
@@ -127,7 +131,9 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
         }
         toast({
           title: t("messages.successTitle"),
-          description: post ? t("messages.updateSuccess") : t("messages.createSuccess"),
+          description: post
+            ? t("messages.updateSuccess")
+            : t("messages.createSuccess"),
         });
         router.push("/admin/posts");
       } catch (error) {
@@ -141,7 +147,7 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
         setIsSubmitting(false);
       }
     },
-    [post, router],
+    [post, router]
   );
 
   const editorConfig = React.useMemo(() => ({ height: 500 }), []);
@@ -150,7 +156,10 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
     <SidebarProvider side="right">
       <div className="flex h-screen overflow-hidden">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-1">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="flex flex-1"
+          >
             <div className="flex-1 overflow-auto p-8 space-y-8">
               <FormField
                 control={form.control}
@@ -159,7 +168,10 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                   <FormItem>
                     <FormLabel>{t("form.title")}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t("form.titlePlaceholder")} {...field} />
+                      <Input
+                        placeholder={t("form.titlePlaceholder")}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -176,7 +188,9 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                         value={field.value}
                         config={editorConfig}
                         onBlur={field.onBlur}
-                        onChange={(newContent: string) => field.onChange(newContent)}
+                        onChange={(newContent: string) =>
+                          field.onChange(newContent)
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -186,7 +200,9 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
             </div>
             <Sidebar className="w-80 border-l">
               <SidebarHeader className="px-4 py-2">
-                <h2 className="text-lg font-semibold">{t("form.settingsTitle")}</h2>
+                <h2 className="text-lg font-semibold">
+                  {t("form.settingsTitle")}
+                </h2>
               </SidebarHeader>
               <SidebarContent>
                 <div className="space-y-4 px-4">
@@ -196,7 +212,10 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t("form.status")}</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder={t("form.selectStatus")}>
@@ -207,8 +226,12 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="publish">{t("status.published")}</SelectItem>
-                            <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                            <SelectItem value="publish">
+                              {t("status.published")}
+                            </SelectItem>
+                            <SelectItem value="draft">
+                              {t("status.draft")}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -221,12 +244,18 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t("form.department")}</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder={t("form.selectDepartment")}>
-                                {departments.find((dep) => dep.$id === field.value)?.Name ||
-                                  t("form.selectDepartment")}
+                              <SelectValue
+                                placeholder={t("form.selectDepartment")}
+                              >
+                                {departments.find(
+                                  (dep) => dep.$id === field.value
+                                )?.Name || t("form.selectDepartment")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
@@ -248,12 +277,15 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t("form.campus")}</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder={t("form.selectCampus")}>
-                                {campuses.find((c) => c.$id === field.value)?.name ||
-                                  t("form.selectCampus")}
+                                {campuses.find((c) => c.$id === field.value)
+                                  ?.name || t("form.selectCampus")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
@@ -269,8 +301,14 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     {t("form.save")}
                   </Button>
                 </div>

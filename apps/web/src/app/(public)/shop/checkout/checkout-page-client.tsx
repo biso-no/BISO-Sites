@@ -1,7 +1,13 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import Link from "next/link";
 import { type FormEvent, useState, useTransition } from "react";
@@ -9,7 +15,10 @@ import { toast } from "sonner";
 import { startCartCheckout } from "@/app/actions/orders";
 import { cartSelectors, useCartStore } from "@/lib/stores/cart";
 
-const NOK = new Intl.NumberFormat("nb-NO", { style: "currency", currency: "NOK" });
+const NOK = new Intl.NumberFormat("nb-NO", {
+  style: "currency",
+  currency: "NOK",
+});
 
 export function CheckoutPageClient() {
   const items = useCartStore((state) => state.items);
@@ -45,7 +54,9 @@ export function CheckoutPageClient() {
             quantity: item.quantity,
             variationId: item.variation?.id,
             customFields: item.customFieldResponses || {},
-            customFieldLabels: item.customFields?.reduce<Record<string, string>>((acc, field) => {
+            customFieldLabels: item.customFields?.reduce<
+              Record<string, string>
+            >((acc, field) => {
               acc[field.id] = field.label;
               return acc;
             }, {}),
@@ -147,13 +158,17 @@ export function CheckoutPageClient() {
                   <div>
                     <div className="text-sm font-semibold">{item.title}</div>
                     {item.variation?.name ? (
-                      <div className="text-xs text-muted-foreground">{item.variation.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.variation.name}
+                      </div>
                     ) : null}
                     {item.customFields && item.customFields.length > 0 ? (
                       <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                         {item.customFields.map((field) => (
                           <li key={field.id}>
-                            <span className="font-medium text-foreground">{field.label}:</span>{" "}
+                            <span className="font-medium text-foreground">
+                              {field.label}:
+                            </span>{" "}
                             {field.value}
                           </li>
                         ))}
@@ -162,7 +177,9 @@ export function CheckoutPageClient() {
                   </div>
                   <div className="text-right text-sm">
                     <div>{NOK.format(item.unitPrice)}</div>
-                    <div className="text-xs text-muted-foreground">Qty {item.quantity}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Qty {item.quantity}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -181,8 +198,8 @@ export function CheckoutPageClient() {
             <span>{NOK.format(subtotal)}</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Discounts and membership benefits will apply automatically if eligible. You will be
-            redirected to Vipps to complete the payment.
+            Discounts and membership benefits will apply automatically if
+            eligible. You will be redirected to Vipps to complete the payment.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
