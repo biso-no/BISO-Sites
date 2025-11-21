@@ -1,3 +1,4 @@
+"use client"
 import { registerOverlayPortal, type Config, type Slot } from "@measured/puck";
 import { Hero, type HeroProps } from "@repo/ui/components/sections/hero";
 import { About, type AboutProps } from "@repo/ui/components/sections/about";
