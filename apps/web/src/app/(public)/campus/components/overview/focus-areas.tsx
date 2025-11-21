@@ -1,8 +1,8 @@
-import { motion } from "motion/react";
-import { Award } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
-import type { Locale } from "@/i18n/config";
 import type { CampusMetadata } from "@repo/api/types/appwrite";
+import { Card } from "@repo/ui/components/ui/card";
+import { Award } from "lucide-react";
+import { motion } from "motion/react";
+import type { Locale } from "@/i18n/config";
 
 interface FocusAreasProps {
   campusMetadata: CampusMetadata | null;
@@ -60,4 +60,3 @@ export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
     </section>
   );
 }
-

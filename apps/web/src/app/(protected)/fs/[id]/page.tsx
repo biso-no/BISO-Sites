@@ -1,15 +1,23 @@
-import { Suspense } from "react";
-import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Building2, Calendar, Paperclip, Clock, CheckCircle, XCircle } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
+import { ExpenseStatus } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { getExpenseById } from "@/lib/actions/expense";
-import { ExpenseStatus } from "@repo/api/types/appwrite";
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Paperclip,
+  XCircle,
+} from "lucide-react";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 import { ExpenseDetailSkeleton } from "@/components/expense/expense-skeleton";
+import { getExpenseById } from "@/lib/actions/expense";
 
 const statusConfig = {
   [ExpenseStatus.DRAFT]: {
@@ -77,9 +85,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
             </Badge>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-bold text-[#3DA9E0]">
-              {expense.total.toFixed(2)} NOK
-            </div>
+            <div className="text-3xl font-bold text-[#3DA9E0]">{expense.total.toFixed(2)} NOK</div>
             <p className="text-sm text-gray-500 mt-1">Total Amount</p>
           </div>
         </div>
@@ -228,4 +234,3 @@ export default async function ExpenseViewPage({ params }: ExpenseDetailsProps) {
     </div>
   );
 }
-

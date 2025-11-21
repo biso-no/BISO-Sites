@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
-import { ArrowUpDown, CheckCircle2, Clock, Edit, Loader2, Search } from "lucide-react";
-
-import { Button } from "@repo/ui/components/ui/button";
+import type { Expenses } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import {
   Select,
@@ -15,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -23,16 +27,17 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { ArrowUpDown, CheckCircle2, Clock, Edit, Loader2, Search } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { AdminSummary } from "@/components/admin/admin-summary";
 import {
   formatPercentage,
   getStatusToken,
   getUniqueLocales,
   parseJSONSafe,
 } from "@/lib/utils/admin";
-import { AdminSummary } from "@/components/admin/admin-summary";
-import { Expenses } from "@repo/api/types/appwrite";
 
 const TableSkeleton = () => (
   <div className="space-y-3">
@@ -48,7 +53,10 @@ const TableSkeleton = () => (
 
 const EXPENSE_STATUS_TOKENS = {
   pending: { label: "Pending", className: "bg-amber-100 text-amber-800 border-amber-200" },
-  submitted: { label: "Submitted", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  submitted: {
+    label: "Submitted",
+    className: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  },
 };
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
@@ -67,7 +75,9 @@ const StatusBadge = ({ status }: { status: string }) => {
   const Icon = STATUS_ICONS[status] ?? CheckCircle2;
 
   return (
-    <Badge className={`flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold uppercase tracking-wide ${token.className}`}>
+    <Badge
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-semibold uppercase tracking-wide ${token.className}`}
+    >
       <Icon className="h-3 w-3" />
       {token.label}
     </Badge>
@@ -84,18 +94,25 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
     status: "all",
   });
   const [filters, setFilters] = useState(searchParams);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Expenses | null; direction: "asc" | "desc" }>({
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Expenses | null;
+    direction: "asc" | "desc";
+  }>({
     key: null,
     direction: "asc",
   });
 
   const uniqueDepartments = useMemo(
-    () => Array.from(new Set(expenses.map((expense) => expense.department).filter(Boolean))) as string[],
-    [expenses]
+    () =>
+      Array.from(
+        new Set(expenses.map((expense) => expense.department).filter(Boolean)),
+      ) as string[],
+    [expenses],
   );
   const uniqueCampuses = useMemo(
-    () => Array.from(new Set(expenses.map((expense) => expense.campus).filter(Boolean))) as string[],
-    [expenses]
+    () =>
+      Array.from(new Set(expenses.map((expense) => expense.campus).filter(Boolean))) as string[],
+    [expenses],
   );
 
   useEffect(() => {
@@ -106,8 +123,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
   const filteredExpenses = useMemo(() => {
     return expenses.filter((expense) => {
       const matchesSearch =
-        filters.search === "" || expense.user?.name?.toLowerCase().includes(filters.search.toLowerCase());
-      const matchesDepartment = filters.department === "all" || expense.department === filters.department;
+        filters.search === "" ||
+        expense.user?.name?.toLowerCase().includes(filters.search.toLowerCase());
+      const matchesDepartment =
+        filters.department === "all" || expense.department === filters.department;
       const matchesCampus = filters.campus === "all" || expense.campus === filters.campus;
       const matchesStatus = filters.status === "all" || expense.status === filters.status;
       return matchesSearch && matchesDepartment && matchesCampus && matchesStatus;
@@ -122,9 +141,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
         let bValue = b[sortConfig.key!];
 
         if (sortConfig.key === "user") {
-          // @ts-ignore
+          // @ts-expect-error
           aValue = aValue?.name;
-          // @ts-ignore
+          // @ts-expect-error
           bValue = bValue?.name;
         }
 
@@ -139,21 +158,28 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
     return sorted;
   }, [filteredExpenses, sortConfig]);
 
-  const stats = useMemo(() => ({
-    pending: expenses.filter((expense) => expense.status === "pending").length,
-    submitted: expenses.filter((expense) => expense.status === "submitted").length,
-    totalAmount: expenses.reduce((sum, expense) => sum + Number(expense.total ?? 0), 0),
-    campuses: new Set(expenses.map((expense) => expense.campus)).size,
-    departments: new Set(expenses.map((expense) => expense.department)).size,
-  }), [expenses]);
+  const stats = useMemo(
+    () => ({
+      pending: expenses.filter((expense) => expense.status === "pending").length,
+      submitted: expenses.filter((expense) => expense.status === "submitted").length,
+      totalAmount: expenses.reduce((sum, expense) => sum + Number(expense.total ?? 0), 0),
+      campuses: new Set(expenses.map((expense) => expense.campus)).size,
+      departments: new Set(expenses.map((expense) => expense.department)).size,
+    }),
+    [expenses],
+  );
 
   const approvalRate = formatPercentage(stats.submitted, expenses.length);
   const summaryMetrics = [
     { label: "Totalt", value: expenses.length.toLocaleString() },
     { label: "Pending", value: stats.pending.toLocaleString() },
-    { label: "Submitted", value: stats.submitted.toLocaleString(), hint: `${approvalRate} godkjent` },
+    {
+      label: "Submitted",
+      value: stats.submitted.toLocaleString(),
+      hint: `${approvalRate} godkjent`,
+    },
     { label: "Campuser", value: stats.campuses.toString() },
-  ]
+  ];
   const formattedTotal = NOK_FORMATTER.format(stats.totalAmount);
 
   const handleSort = (key: keyof Expenses) => {
@@ -165,7 +191,11 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
 
   const getSortIcon = (key: keyof Expenses) => {
     if (sortConfig.key !== key) return null;
-    return sortConfig.direction === "asc" ? <ArrowUpDown className="h-4 w-4 rotate-180" /> : <ArrowUpDown className="h-4 w-4" />;
+    return sortConfig.direction === "asc" ? (
+      <ArrowUpDown className="h-4 w-4 rotate-180" />
+    ) : (
+      <ArrowUpDown className="h-4 w-4" />
+    );
   };
 
   const handleSearch = (event: React.FormEvent) => {
@@ -218,7 +248,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
               onChange={(e) => setSearchParams((prev) => ({ ...prev, search: e.target.value }))}
               className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
-            <Select value={searchParams.department} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, department: value }))}>
+            <Select
+              value={searchParams.department}
+              onValueChange={(value) => setSearchParams((prev) => ({ ...prev, department: value }))}
+            >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle avdelinger" />
               </SelectTrigger>
@@ -231,7 +264,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={searchParams.campus} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, campus: value }))}>
+            <Select
+              value={searchParams.campus}
+              onValueChange={(value) => setSearchParams((prev) => ({ ...prev, campus: value }))}
+            >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle campuser" />
               </SelectTrigger>
@@ -244,7 +280,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={searchParams.status} onValueChange={(value) => setSearchParams((prev) => ({ ...prev, status: value }))}>
+            <Select
+              value={searchParams.status}
+              onValueChange={(value) => setSearchParams((prev) => ({ ...prev, status: value }))}
+            >
               <SelectTrigger className="rounded-xl border-primary/20 text-sm">
                 <SelectValue placeholder="Alle statuser" />
               </SelectTrigger>
@@ -255,10 +294,18 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
               </SelectContent>
             </Select>
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1 rounded-xl bg-primary-40 text-sm font-semibold text-white shadow hover:bg-primary-30">
+              <Button
+                type="submit"
+                className="flex-1 rounded-xl bg-primary-40 text-sm font-semibold text-white shadow hover:bg-primary-30"
+              >
                 Filtrer
               </Button>
-              <Button type="button" variant="outline" className="rounded-xl border-primary/20 text-sm" onClick={handleReset}>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-primary/20 text-sm"
+                onClick={handleReset}
+              >
                 Nullstill
               </Button>
             </div>
@@ -274,7 +321,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
               Viser {filteredExpenses.length} av {expenses.length} registrerte utlegg
             </p>
           </div>
-          <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70">
+          <Badge
+            variant="outline"
+            className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-70"
+          >
             {approvalRate} godkjent
           </Badge>
         </div>
@@ -288,7 +338,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
             <Table className="min-w-[760px] text-sm">
               <TableHeader>
                 <TableRow className="bg-primary/5">
-                  <TableHead className="w-[200px] cursor-pointer" onClick={() => handleSort("user")}>
+                  <TableHead
+                    className="w-[200px] cursor-pointer"
+                    onClick={() => handleSort("user")}
+                  >
                     <div className="flex items-center gap-2">
                       Navn
                       {getSortIcon("user")}
@@ -334,7 +387,10 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
                       <TableCell>{expense.department || "—"}</TableCell>
                       <TableCell>{expense.campus || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-xs text-primary-80">
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-primary/20 px-3 py-0.5 font-mono text-xs text-primary-80"
+                        >
                           {expense.total ? NOK_FORMATTER.format(Number(expense.total)) : "N/A"}
                         </Badge>
                       </TableCell>

@@ -15,7 +15,10 @@ interface ProcessedReceiptData {
  * Process a receipt file using OCR to extract data
  * This calls the client-side API route that handles the OCR processing
  */
-export async function processReceipt(fileId: string, fileUrl: string): Promise<{
+export async function processReceipt(
+  fileId: string,
+  fileUrl: string,
+): Promise<{
   success: boolean;
   data?: ProcessedReceiptData;
   error?: string;
@@ -23,7 +26,7 @@ export async function processReceipt(fileId: string, fileUrl: string): Promise<{
   try {
     // Fetch the file from Appwrite storage
     const response = await fetch(fileUrl);
-    
+
     if (!response.ok) {
       throw new Error("Failed to fetch file from storage");
     }
@@ -34,7 +37,7 @@ export async function processReceipt(fileId: string, fileUrl: string): Promise<{
 
     // Import the processing function server-side
     const { processDocument } = await import("@/lib/services/document-processing");
-    
+
     const result = await processDocument(buffer, blob.type);
 
     return {
@@ -59,11 +62,13 @@ export async function processReceipt(fileId: string, fileUrl: string): Promise<{
 /**
  * Generate an AI description for the expense based on attachment data
  */
-export async function generateExpenseDescription(attachments: Array<{
-  description: string;
-  amount: number;
-  date: string;
-}>): Promise<{
+export async function generateExpenseDescription(
+  attachments: Array<{
+    description: string;
+    amount: number;
+    date: string;
+  }>,
+): Promise<{
   success: boolean;
   description?: string;
   error?: string;
@@ -77,10 +82,10 @@ export async function generateExpenseDescription(attachments: Array<{
     }
 
     const totalAmount = attachments.reduce((sum, att) => sum + att.amount, 0);
-    
-    const attachmentDetails = attachments.map((att, index) => 
-      `${index + 1}. ${att.description} - ${att.amount} NOK (${att.date})`
-    ).join("\n");
+
+    const attachmentDetails = attachments
+      .map((att, index) => `${index + 1}. ${att.description} - ${att.amount} NOK (${att.date})`)
+      .join("\n");
 
     const prompt = `You are an assistant helping to create concise expense reimbursement descriptions for a student organization (BISO - BI Student Organisation).
 
@@ -120,9 +125,7 @@ Generate only the description text, no additional formatting or explanations.`;
 /**
  * Process multiple receipts in parallel
  */
-async function processMultipleReceipts(
-  files: Array<{ id: string; url: string }>
-): Promise<{
+async function processMultipleReceipts(files: Array<{ id: string; url: string }>): Promise<{
   success: boolean;
   results?: Array<{ fileId: string; data: ProcessedReceiptData | null; error?: string }>;
   error?: string;
@@ -136,7 +139,7 @@ async function processMultipleReceipts(
           data: result.success ? result.data! : null,
           error: result.error,
         };
-      })
+      }),
     );
 
     const processedResults = results.map((result) => {
@@ -220,4 +223,3 @@ Respond with ONLY a JSON object in this format:
     };
   }
 }
-

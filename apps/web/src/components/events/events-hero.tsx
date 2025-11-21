@@ -1,23 +1,23 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react'
-import { ChevronDown } from 'lucide-react'
-import { ImageWithFallback } from '@repo/ui/components/image'
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { ChevronDown } from "lucide-react";
+import { motion } from "motion/react";
 
 export function EventsHero() {
   return (
     <div className="relative h-[50vh] overflow-hidden">
-            <ImageWithFallback
-              src="/images/logo-home.png"
-              alt="BISO logo"
-              width={140}               // pick the intrinsic pixel width
-              height={40}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 120px, 140px"
-              priority                   // above-the-fold
-              className="h-10 w-auto"    // control display size via CSS
-            />
+      <ImageWithFallback
+        src="/images/logo-home.png"
+        alt="BISO logo"
+        width={140} // pick the intrinsic pixel width
+        height={40} // and height that matches your asset ratio
+        sizes="(max-width: 768px) 120px, 140px"
+        priority // above-the-fold
+        className="h-10 w-auto" // control display size via CSS
+      />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-      
+
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <motion.div
@@ -33,7 +33,8 @@ export function EventsHero() {
               </span>
             </h1>
             <p className="text-white/90 text-lg max-w-2xl mx-auto">
-              From networking events to social gatherings, find the perfect opportunity to connect, learn, and create unforgettable memories.
+              From networking events to social gatherings, find the perfect opportunity to connect,
+              learn, and create unforgettable memories.
             </p>
           </motion.div>
         </div>
@@ -47,6 +48,5 @@ export function EventsHero() {
         <ChevronDown className="w-8 h-8 text-white/70" />
       </motion.div>
     </div>
-  )
+  );
 }
-

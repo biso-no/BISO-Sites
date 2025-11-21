@@ -1,9 +1,9 @@
 "use client";
 
-import { Building2, Plus } from 'lucide-react';
-import { Button } from '@repo/ui/components/ui/button';
-import { useRouter } from 'next/navigation';
-import { cn } from '@repo/ui/lib/utils';
+import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
+import { Building2, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface UnitsHeroSectionProps {
   totalDepartments: number;
@@ -35,18 +35,19 @@ export function UnitsHeroSection({ totalDepartments, campusOptions }: UnitsHeroS
               </h1>
             </div>
             <p className="text-white/90 text-lg max-w-2xl leading-relaxed">
-              Manage all departments across {campusOptions.length} campuses. 
-              <span className="font-semibold"> {totalDepartments} units</span> are currently in the system.
+              Manage all departments across {campusOptions.length} campuses.
+              <span className="font-semibold"> {totalDepartments} units</span> are currently in the
+              system.
             </p>
           </div>
 
           <Button
             size="lg"
-            onClick={() => router.push('/admin/units/new')}
+            onClick={() => router.push("/admin/units/new")}
             className={cn(
               "bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl",
               "transition-all duration-300 hover:scale-105 font-semibold",
-              "group relative overflow-hidden"
+              "group relative overflow-hidden",
             )}
           >
             <div className="absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
@@ -58,4 +59,3 @@ export function UnitsHeroSection({ totalDepartments, campusOptions }: UnitsHeroS
     </div>
   );
 }
-

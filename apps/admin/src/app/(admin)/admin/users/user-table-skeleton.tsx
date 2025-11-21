@@ -1,10 +1,17 @@
-"use client"
+"use client";
 
-import { Skeleton } from "@repo/ui/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@repo/ui/components/ui/table"
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@repo/ui/components/ui/table";
 
 interface UserTableSkeletonProps {
-  rowCount?: number
+  rowCount?: number;
 }
 
 export function UserTableSkeleton({ rowCount = 10 }: UserTableSkeletonProps) {
@@ -14,7 +21,7 @@ export function UserTableSkeleton({ rowCount = 10 }: UserTableSkeletonProps) {
         <Skeleton className="h-10 w-[250px]" />
         <Skeleton className="h-10 w-[180px]" />
       </div>
-      
+
       <div className="border rounded-md">
         <Table>
           <TableHeader>
@@ -77,10 +84,10 @@ export function UserTableSkeleton({ rowCount = 10 }: UserTableSkeletonProps) {
           </TableBody>
         </Table>
       </div>
-      
+
       <div className="flex justify-center mt-4">
         <Skeleton className="h-10 w-[300px]" />
       </div>
     </div>
-  )
-} 
+  );
+}

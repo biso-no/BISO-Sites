@@ -1,76 +1,80 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useLocale } from 'next-intl'
-import { motion, AnimatePresence } from 'motion/react'
-import { Search, Filter, X, ShoppingBag, Loader2 } from 'lucide-react'
-import { Button } from '@repo/ui/components/ui/button'
-import { Input } from '@repo/ui/components/ui/input'
-import { ProductCard } from './product-card'
-import { useCampus } from '@/components/context/campus'
-import { listProducts } from '@/app/actions/webshop'
-import type { ContentTranslations } from '@repo/api/types/appwrite'
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { Filter, Loader2, Search, ShoppingBag, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
+import { useEffect, useState } from "react";
+import { listProducts } from "@/app/actions/webshop";
+import { useCampus } from "@/components/context/campus";
+import { ProductCard } from "./product-card";
 
 interface ShopListClientProps {
-  products: ContentTranslations[]
-  isMember?: boolean
+  products: ContentTranslations[];
+  isMember?: boolean;
 }
 
-const categories = ['All', 'Merch', 'Trips', 'Lockers', 'Membership']
+const categories = ["All", "Merch", "Trips", "Lockers", "Membership"];
 
-export function ShopListClient({ products: initialProducts, isMember = false }: ShopListClientProps) {
-  const router = useRouter()
-  const locale = useLocale() as 'en' | 'no'
-  const { activeCampusId } = useCampus()
-  
-  const [products, setProducts] = useState<ContentTranslations[]>(initialProducts)
-  const [selectedCategory, setSelectedCategory] = useState<string>('All')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+export function ShopListClient({
+  products: initialProducts,
+  isMember = false,
+}: ShopListClientProps) {
+  const router = useRouter();
+  const locale = useLocale() as "en" | "no";
+  const { activeCampusId } = useCampus();
+
+  const [products, setProducts] = useState<ContentTranslations[]>(initialProducts);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Re-fetch products when campus or locale changes
   useEffect(() => {
     const fetchProducts = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
         const newProducts = await listProducts({
           locale,
-          status: 'published',
+          status: "published",
           limit: 100,
-          campus: activeCampusId || 'all',
-        })
-        setProducts(newProducts)
+          campus: activeCampusId || "all",
+        });
+        setProducts(newProducts);
       } catch (error) {
-        console.error('Failed to fetch products:', error)
+        console.error("Failed to fetch products:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchProducts()
-  }, [activeCampusId, locale])
+    fetchProducts();
+  }, [activeCampusId, locale]);
 
   // Filter products based on search and category
   const filteredProducts = products.filter((product) => {
-    const productData = product.product_ref
-    
-    // Filter out member-only products if user is not a member
-    if (productData?.member_only && !isMember) return false
+    const productData = product.product_ref;
 
-    const matchesCategory = selectedCategory === 'All' || productData?.category === selectedCategory
+    // Filter out member-only products if user is not a member
+    if (productData?.member_only && !isMember) return false;
+
+    const matchesCategory =
+      selectedCategory === "All" || productData?.category === selectedCategory;
     const matchesSearch =
       product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.short_description || '').toLowerCase().includes(searchQuery.toLowerCase())
+      (product.short_description || "").toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesCategory && matchesSearch
-  })
+    return matchesCategory && matchesSearch;
+  });
 
   const handleViewDetails = (product: ContentTranslations) => {
-    const slug = product.product_ref?.slug || product.content_id
-    router.push(`/shop/${slug}`)
-  }
+    const slug = product.product_ref?.slug || product.content_id;
+    router.push(`/shop/${slug}`);
+  };
 
   return (
     <>
@@ -90,7 +94,7 @@ export function ShopListClient({ products: initialProducts, isMember = false }: 
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setSearchQuery("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
@@ -105,11 +109,11 @@ export function ShopListClient({ products: initialProducts, isMember = false }: 
                 <Button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  variant={selectedCategory === category ? 'default' : 'outline'}
+                  variant={selectedCategory === category ? "default" : "outline"}
                   className={
                     selectedCategory === category
-                      ? 'bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90 border-0'
-                      : 'border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10'
+                      ? "bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90 border-0"
+                      : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
                   }
                   size="sm"
                 >
@@ -120,7 +124,8 @@ export function ShopListClient({ products: initialProducts, isMember = false }: 
           </div>
 
           <div className="mt-4 text-center text-gray-600">
-            Showing {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+            Showing {filteredProducts.length}{" "}
+            {filteredProducts.length === 1 ? "product" : "products"}
           </div>
         </div>
       </div>
@@ -156,26 +161,26 @@ export function ShopListClient({ products: initialProducts, isMember = false }: 
 
             {/* No Results */}
             {filteredProducts.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-gray-900 mb-2 text-2xl font-bold">No products found</h3>
-            <p className="text-gray-600 mb-6">Try adjusting your search or filters</p>
-            <Button
-              onClick={() => {
-                setSelectedCategory('All')
-                setSearchQuery('')
-              }}
-              variant="outline"
-              className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
-            >
-              Clear Filters
-            </Button>
-          </motion.div>
-        )}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-16"
+              >
+                <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-gray-900 mb-2 text-2xl font-bold">No products found</h3>
+                <p className="text-gray-600 mb-6">Try adjusting your search or filters</p>
+                <Button
+                  onClick={() => {
+                    setSelectedCategory("All");
+                    setSearchQuery("");
+                  }}
+                  variant="outline"
+                  className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
+                >
+                  Clear Filters
+                </Button>
+              </motion.div>
+            )}
           </>
         )}
       </div>
@@ -185,8 +190,8 @@ export function ShopListClient({ products: initialProducts, isMember = false }: 
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h3 className="mb-4 text-2xl font-bold">All Products Available for Campus Pickup</h3>
           <p className="text-white/80 mb-4 text-lg">
-            All items purchased in the BISO Shop are available for pickup at the BISO office during opening hours.
-            No shipping fees, no hassle - just convenient campus pickup!
+            All items purchased in the BISO Shop are available for pickup at the BISO office during
+            opening hours. No shipping fees, no hassle - just convenient campus pickup!
           </p>
           <p className="text-[#3DA9E0] font-semibold text-lg">
             <strong>BISO Office Hours:</strong> Monday-Friday, 10:00-16:00
@@ -194,6 +199,5 @@ export function ShopListClient({ products: initialProducts, isMember = false }: 
         </div>
       </div>
     </>
-  )
+  );
 }
-

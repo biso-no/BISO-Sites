@@ -1,10 +1,10 @@
 "use client";
-import { motion } from "motion/react";
 import { ArrowRight, Clock } from "lucide-react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { ImageWithFallback } from "../image";
+import { motion } from "motion/react";
 import Link from "next/link";
+import { ImageWithFallback } from "../image";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 
 // Simplified interface for UI purposes
 export interface NewsItem {
@@ -53,8 +53,8 @@ export function News({ news, labels }: NewsProps) {
     const diffInMs = now.getTime() - date.getTime();
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays === 0) return "Today";
+    if (diffInDays === 1) return "Yesterday";
     if (diffInDays < 7) return `${diffInDays} days ago`;
     if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
     if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`;
@@ -95,7 +95,10 @@ export function News({ news, labels }: NewsProps) {
               <div className="grid md:grid-cols-2 gap-0">
                 <div className="relative h-96 md:h-auto overflow-hidden group">
                   <ImageWithFallback
-                    src={featuredNews.image || 'https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080'}
+                    src={
+                      featuredNews.image ||
+                      "https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080"
+                    }
                     alt={featuredNews.title}
                     fill
                     className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -109,7 +112,7 @@ export function News({ news, labels }: NewsProps) {
                   </div>
                   <h3 className="mb-4 text-gray-900">{featuredNews.title}</h3>
                   <p className="text-gray-600 mb-6">
-                    {featuredNews.description?.replace(/<[^>]+>/g, '').slice(0, 200)}...
+                    {featuredNews.description?.replace(/<[^>]+>/g, "").slice(0, 200)}...
                   </p>
                   <Link href={`/news/${featuredNews.content_id}`}>
                     <Button className="w-fit bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 group">
@@ -137,7 +140,10 @@ export function News({ news, labels }: NewsProps) {
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 group h-full">
                   <div className="relative h-56 overflow-hidden">
                     <ImageWithFallback
-                      src={item.image || 'https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080'}
+                      src={
+                        item.image ||
+                        "https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080"
+                      }
                       alt={item.title}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -151,10 +157,13 @@ export function News({ news, labels }: NewsProps) {
                     </div>
                     <h4 className="mb-3 text-gray-900">{item.title}</h4>
                     <p className="text-gray-600 mb-4">
-                      {item.description?.replace(/<[^>]+>/g, '').slice(0, 150)}...
+                      {item.description?.replace(/<[^>]+>/g, "").slice(0, 150)}...
                     </p>
                     <Link href={`/news/${item.content_id}`}>
-                      <Button variant="ghost" className="text-[#001731] hover:text-[#3DA9E0] p-0 h-auto group">
+                      <Button
+                        variant="ghost"
+                        className="text-[#001731] hover:text-[#3DA9E0] p-0 h-auto group"
+                      >
                         {labels.readMore}
                         <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                       </Button>
@@ -174,7 +183,11 @@ export function News({ news, labels }: NewsProps) {
           className="text-center"
         >
           <Link href="/news">
-            <Button variant="outline" size="lg" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+            <Button
+              variant="outline"
+              size="lg"
+              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
               {labels.viewAllNews}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

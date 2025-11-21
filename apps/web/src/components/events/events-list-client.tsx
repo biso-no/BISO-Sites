@@ -1,49 +1,49 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
-import { Search, Filter, X, Calendar } from 'lucide-react'
-import { Button } from '@repo/ui/components/ui/button'
-import { Input } from '@repo/ui/components/ui/input'
-import { EventCard } from './event-card'
-import { EventDetailModal } from './event-detail-modal'
-import type { ContentTranslations } from '@repo/api/types/appwrite'
-import { parseEventMetadata, getEventCategory, eventCategories } from '@/lib/types/event'
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { Calendar, Filter, Search, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+import { eventCategories, getEventCategory, parseEventMetadata } from "@/lib/types/event";
+import { EventCard } from "./event-card";
+import { EventDetailModal } from "./event-detail-modal";
 
 interface EventsListClientProps {
-  events: ContentTranslations[]
-  isMember?: boolean
+  events: ContentTranslations[];
+  isMember?: boolean;
 }
 
-const categories = ['All', ...eventCategories] as const
+const categories = ["All", ...eventCategories] as const;
 
 export function EventsListClient({ events, isMember = false }: EventsListClientProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>('All')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedEvent, setSelectedEvent] = useState<ContentTranslations | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<ContentTranslations | null>(null);
 
   // Filter events based on search and category
   // Only show main events (collections or standalone, not collection items)
   const filteredEvents = events.filter((event) => {
-    const eventData = event.event_ref
-    
+    const eventData = event.event_ref;
+
     // Filter out member-only events if user is not a member
-    if (eventData?.member_only && !isMember) return false
-    
+    if (eventData?.member_only && !isMember) return false;
+
     // Only show events that are collections OR don't belong to any collection
-    const isMainEvent = eventData?.is_collection || !eventData?.collection_id
-    if (!isMainEvent) return false
-    
-    const metadata = parseEventMetadata(eventData?.metadata)
-    const category = getEventCategory(metadata)
-    
-    const matchesCategory = selectedCategory === 'All' || category === selectedCategory
+    const isMainEvent = eventData?.is_collection || !eventData?.collection_id;
+    if (!isMainEvent) return false;
+
+    const metadata = parseEventMetadata(eventData?.metadata);
+    const category = getEventCategory(metadata);
+
+    const matchesCategory = selectedCategory === "All" || category === selectedCategory;
     const matchesSearch =
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    return matchesCategory && matchesSearch
-  })
+      event.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <>
@@ -63,7 +63,7 @@ export function EventsListClient({ events, isMember = false }: EventsListClientP
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setSearchQuery("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
@@ -78,11 +78,11 @@ export function EventsListClient({ events, isMember = false }: EventsListClientP
                 <Button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  variant={selectedCategory === category ? 'default' : 'outline'}
+                  variant={selectedCategory === category ? "default" : "outline"}
                   className={
                     selectedCategory === category
-                      ? 'bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white border-0'
-                      : 'border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10'
+                      ? "bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white border-0"
+                      : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
                   }
                 >
                   {category}
@@ -92,7 +92,7 @@ export function EventsListClient({ events, isMember = false }: EventsListClientP
           </div>
 
           <div className="mt-4 text-center text-gray-600">
-            Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}
+            Showing {filteredEvents.length} {filteredEvents.length === 1 ? "event" : "events"}
           </div>
         </div>
       </div>
@@ -128,13 +128,11 @@ export function EventsListClient({ events, isMember = false }: EventsListClientP
           >
             <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="mb-2 text-gray-900 text-2xl font-bold">No events found</h3>
-            <p className="text-gray-600 mb-6">
-              Try adjusting your filters or search query
-            </p>
+            <p className="text-gray-600 mb-6">Try adjusting your filters or search query</p>
             <Button
               onClick={() => {
-                setSelectedCategory('All')
-                setSearchQuery('')
+                setSelectedCategory("All");
+                setSearchQuery("");
               }}
               variant="outline"
               className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
@@ -154,6 +152,5 @@ export function EventsListClient({ events, isMember = false }: EventsListClientP
         />
       )}
     </>
-  )
+  );
 }
-

@@ -1,25 +1,25 @@
 "use client";
 
-import { useMemo } from "react";
-import { useCampus } from "@/components/context/campus";
-import { CampusHero } from "./campus-hero";
-import { CampusTabs } from "./campus-tabs";
-import { FocusAreas } from "./overview/focus-areas";
-import { UpcomingEvents } from "./overview/upcoming-events";
-import { LatestNews } from "./overview/latest-news";
-import { JobPostings } from "./overview/job-postings";
-import { DepartmentsGrid } from "./overview/departments-grid";
-import { StudentsTab } from "./students/students-tab";
-import { PartnersTab } from "./partners/partners-tab";
-import { TeamTab } from "./team/team-tab";
 import type {
-  ContentTranslations,
-  Departments,
   CampusData,
   CampusMetadata,
+  ContentTranslations,
   DepartmentBoard,
+  Departments,
 } from "@repo/api/types/appwrite";
+import { useMemo } from "react";
+import { useCampus } from "@/components/context/campus";
 import type { Locale } from "@/i18n/config";
+import { CampusHero } from "./campus-hero";
+import { CampusTabs } from "./campus-tabs";
+import { DepartmentsGrid } from "./overview/departments-grid";
+import { FocusAreas } from "./overview/focus-areas";
+import { JobPostings } from "./overview/job-postings";
+import { LatestNews } from "./overview/latest-news";
+import { UpcomingEvents } from "./overview/upcoming-events";
+import { PartnersTab } from "./partners/partners-tab";
+import { StudentsTab } from "./students/students-tab";
+import { TeamTab } from "./team/team-tab";
 
 interface CampusPageClientProps {
   events: ContentTranslations[];
@@ -48,7 +48,7 @@ export function CampusPageClient({
     return (
       campusMetadata[activeCampusId] ||
       Object.values(campusMetadata).find(
-        (m) => m.campus_name?.toLowerCase() === activeCampus?.name?.toLowerCase()
+        (m) => m.campus_name?.toLowerCase() === activeCampus?.name?.toLowerCase(),
       ) ||
       null
     );
@@ -60,8 +60,7 @@ export function CampusPageClient({
     return (
       campusData.find(
         (cd) =>
-          cd.$id === activeCampusId ||
-          cd.name?.toLowerCase() === activeCampus.name?.toLowerCase()
+          cd.$id === activeCampusId || cd.name?.toLowerCase() === activeCampus.name?.toLowerCase(),
       ) || null
     );
   }, [activeCampus, activeCampusId, campusData]);
@@ -69,9 +68,7 @@ export function CampusPageClient({
   // Filter content by campus
   const campusSpecificEvents = useMemo(() => {
     if (!activeCampusId) return events;
-    return events.filter(
-      (event) => event.event_ref?.campus_id === activeCampusId
-    );
+    return events.filter((event) => event.event_ref?.campus_id === activeCampusId);
   }, [events, activeCampusId]);
 
   const campusSpecificJobs = useMemo(() => {
@@ -96,18 +93,14 @@ export function CampusPageClient({
       events: campusSpecificEvents.length,
       jobs: campusSpecificJobs.length,
     }),
-    [
-      campusSpecificDepartments.length,
-      campusSpecificEvents.length,
-      campusSpecificJobs.length,
-    ]
+    [campusSpecificDepartments.length, campusSpecificEvents.length, campusSpecificJobs.length],
   );
 
   // Get fallback team from campus data
   const fallbackTeam = useMemo(() => {
     if (!activeCampusData?.departmentBoard) return [];
     return activeCampusData.departmentBoard.filter(
-      (member): member is DepartmentBoard => !!member?.name
+      (member): member is DepartmentBoard => !!member?.name,
     );
   }, [activeCampusData]);
 
@@ -128,10 +121,7 @@ export function CampusPageClient({
           children={{
             overview: (
               <div className="space-y-12 py-12">
-                <FocusAreas
-                  campusMetadata={activeCampusMetadata}
-                  locale={locale}
-                />
+                <FocusAreas campusMetadata={activeCampusMetadata} locale={locale} />
                 <UpcomingEvents events={campusSpecificEvents} locale={locale} />
                 <div className="grid lg:grid-cols-2 gap-8">
                   <LatestNews news={campusSpecificNews} locale={locale} />

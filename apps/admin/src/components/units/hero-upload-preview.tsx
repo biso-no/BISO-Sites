@@ -1,14 +1,20 @@
 "use client";
 
-import { useRef, useState } from 'react';
-import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
-import { Button } from '@repo/ui/components/ui/button';
-import { Input } from '@repo/ui/components/ui/input';
-import { Label } from '@repo/ui/components/ui/label';
-import Image from 'next/image';
-import { toast } from 'sonner';
-import { uploadDepartmentHero } from '@/lib/actions/departments';
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
+import { Image as ImageIcon, Loader2, Upload, X } from "lucide-react";
+import Image from "next/image";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { uploadDepartmentHero } from "@/lib/actions/departments";
 
 interface HeroUploadPreviewProps {
   heroUrl?: string;
@@ -16,36 +22,37 @@ interface HeroUploadPreviewProps {
   departmentName: string;
 }
 
-const DEFAULT_HERO_URL = 'https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso';
+const DEFAULT_HERO_URL =
+  "https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso";
 
 export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUploadPreviewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
-  const [urlInput, setUrlInput] = useState(heroUrl || '');
+  const [urlInput, setUrlInput] = useState(heroUrl || "");
 
   const displayUrl = heroUrl || DEFAULT_HERO_URL;
   const hasCustomHero = !!heroUrl;
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
-    
+
     setIsUploading(true);
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     try {
       const result = await uploadDepartmentHero(formData);
       onChange(result.url);
-      toast.success('Hero image uploaded successfully');
+      toast.success("Hero image uploaded successfully");
     } catch (error) {
-      console.error('Failed to upload hero image', error);
-      toast.error('Failed to upload hero image');
+      console.error("Failed to upload hero image", error);
+      toast.error("Failed to upload hero image");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -60,14 +67,14 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
   const handleUrlSave = () => {
     onChange(urlInput);
     setIsEditingUrl(false);
-    toast.success('Hero URL updated');
+    toast.success("Hero URL updated");
   };
 
   const handleClear = () => {
-    onChange('');
-    setUrlInput('');
+    onChange("");
+    setUrlInput("");
     setIsEditingUrl(false);
-    toast.info('Hero image reset to default');
+    toast.info("Hero image reset to default");
   };
 
   return (
@@ -122,7 +129,7 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
                   disabled={isUploading}
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  {hasCustomHero ? 'Change' : 'Upload Custom'}
+                  {hasCustomHero ? "Change" : "Upload Custom"}
                 </Button>
                 {hasCustomHero && (
                   <Button
@@ -145,7 +152,9 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
         {isEditingUrl && (
           <div className="space-y-3 animate-in fade-in-50 slide-in-from-top-2">
             <div className="space-y-2">
-              <Label htmlFor="hero-url" className="text-xs">Or paste hero image URL</Label>
+              <Label htmlFor="hero-url" className="text-xs">
+                Or paste hero image URL
+              </Label>
               <Input
                 id="hero-url"
                 type="url"
@@ -156,19 +165,14 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
               />
             </div>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleUrlSave}
-                className="flex-1"
-                disabled={!urlInput}
-              >
+              <Button size="sm" onClick={handleUrlSave} className="flex-1" disabled={!urlInput}>
                 Save URL
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  setUrlInput(heroUrl || '');
+                  setUrlInput(heroUrl || "");
                   setIsEditingUrl(false);
                 }}
               >
@@ -188,13 +192,9 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
               className="flex-1"
             >
               <Upload className="h-4 w-4 mr-2" />
-              {hasCustomHero ? 'Upload New' : 'Upload Custom Hero'}
+              {hasCustomHero ? "Upload New" : "Upload Custom Hero"}
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setIsEditingUrl(true)}
-            >
+            <Button size="sm" variant="ghost" onClick={() => setIsEditingUrl(true)}>
               Or use URL
             </Button>
           </div>
@@ -203,4 +203,3 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
     </Card>
   );
 }
-

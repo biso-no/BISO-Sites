@@ -1,12 +1,12 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Sparkles, MapPin } from "lucide-react";
-import Link from "next/link";
+import type { CampusMetadata } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { ImageWithFallback } from "@repo/ui/components/image";
-import type { CampusMetadata } from "@repo/api/types/appwrite";
+import { MapPin, Sparkles } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
 interface CampusHeroProps {
@@ -29,8 +29,8 @@ const StatPill = ({ label, value }: { label: string; value: string | number }) =
 
 export function CampusHero({ campusName, campusMetadata, stats, locale }: CampusHeroProps) {
   const tagline = campusMetadata
-    ? (locale === "en" ? campusMetadata.tagline_en : campusMetadata.tagline_nb) || 
-      campusMetadata.tagline_en || 
+    ? (locale === "en" ? campusMetadata.tagline_en : campusMetadata.tagline_nb) ||
+      campusMetadata.tagline_en ||
       campusMetadata.tagline_nb
     : "Where Innovation Meets Opportunity";
 
@@ -47,9 +47,11 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
       []
     : [];
 
-  const location = campusMetadata?.campus_name 
+  const location = campusMetadata?.campus_name
     ? `${campusMetadata.campus_name}, Norway`
-    : campusName ? `${campusName}, Norway` : "Norway";
+    : campusName
+      ? `${campusName}, Norway`
+      : "Norway";
 
   const statsData = [
     {
@@ -75,7 +77,7 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
         className="w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
-      
+
       <div className="absolute inset-0">
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center">
           <motion.div
@@ -89,15 +91,15 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
               {location}
             </Badge>
             <h1 className="mb-6 text-white text-5xl font-bold">
-              {campusName ? `BISO ${campusName}` : locale === "en" ? "BISO - Student Life" : "BISO - Studentliv"}
+              {campusName
+                ? `BISO ${campusName}`
+                : locale === "en"
+                  ? "BISO - Student Life"
+                  : "BISO - Studentliv"}
             </h1>
-            <p className="text-white/90 mb-8 text-xl">
-              {tagline}
-            </p>
-            <p className="text-white/80 mb-8 text-lg max-w-2xl">
-              {description}
-            </p>
-            
+            <p className="text-white/90 mb-8 text-xl">{tagline}</p>
+            <p className="text-white/80 mb-8 text-lg max-w-2xl">{description}</p>
+
             {/* Highlights */}
             {highlights.length > 0 && (
               <div className="grid sm:grid-cols-2 gap-3 mb-8">
@@ -119,9 +121,7 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
             {/* CTA Buttons */}
             <div className="flex flex-wrap gap-3 mb-6">
               <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
-                <Link href="/membership">
-                  {locale === "en" ? "Become a Member" : "Bli medlem"}
-                </Link>
+                <Link href="/membership">{locale === "en" ? "Become a Member" : "Bli medlem"}</Link>
               </Button>
               <Button
                 asChild
@@ -129,9 +129,7 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
                 variant="outline"
                 className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
               >
-                <Link href="/events">
-                  {locale === "en" ? "See Events" : "Se arrangementer"}
-                </Link>
+                <Link href="/events">{locale === "en" ? "See Events" : "Se arrangementer"}</Link>
               </Button>
               <Button
                 asChild
@@ -139,9 +137,7 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
                 variant="ghost"
                 className="text-white hover:bg-white/10 hover:text-white"
               >
-                <Link href="/jobs">
-                  {locale === "en" ? "Find a Position" : "Finn et verv"}
-                </Link>
+                <Link href="/jobs">{locale === "en" ? "Find a Position" : "Finn et verv"}</Link>
               </Button>
             </div>
 

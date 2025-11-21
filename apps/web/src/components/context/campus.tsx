@@ -1,7 +1,7 @@
 "use client";
-import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
+import type { Campus } from "@repo/api/types/appwrite";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCampuses, setActiveCampus } from "@/app/actions/campus";
-import { Campus } from "@repo/api/types/appwrite";
 import { useHydration } from "@/lib/hooks/use-hydration";
 
 type CampusContextValue = {
@@ -81,7 +81,7 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     // Handle "all" selection by setting to null
     const normalizedCampusId = campusId === "all" ? null : campusId;
     setActiveCampusId(normalizedCampusId);
-    
+
     // Persist to server (user preferences) - fails silently if not logged in
     try {
       await setActiveCampus(normalizedCampusId);

@@ -1,14 +1,14 @@
 "use client";
 
-import React, { Suspense } from "react";
+import { ArrowRight, Briefcase, Clock, DollarSign, MapPin } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
-import { Briefcase, MapPin, Clock, DollarSign, ArrowRight } from "lucide-react";
-import { Card } from "../ui/card";
+import React, { Suspense } from "react";
+import { cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import Link from "next/link";
-import { cn } from "../../lib/utils";
+import { Card } from "../ui/card";
 
 export interface JobItem {
   title: string;
@@ -33,15 +33,15 @@ export interface JobsListProps {
   };
 }
 
-function JobsListContent({ 
+function JobsListContent({
   jobs = [],
   labels = {
     viewDetails: "View Details",
     paid: "Paid Position",
     volunteer: "Volunteer",
     deadline: "Deadline:",
-    noJobs: "No positions found matching your criteria."
-  }
+    noJobs: "No positions found matching your criteria.",
+  },
 }: JobsListProps) {
   const searchParams = useSearchParams();
   const category = searchParams.get("category");
@@ -50,13 +50,14 @@ function JobsListContent({
 
   const filteredJobs = jobs.filter((job) => {
     const matchesCategory = !category || category === "All" || job.category === category;
-    const matchesSearch = !query || 
-      job.title.toLowerCase().includes(query) || 
-      job.department?.toLowerCase().includes(query) || 
+    const matchesSearch =
+      !query ||
+      job.title.toLowerCase().includes(query) ||
+      job.department?.toLowerCase().includes(query) ||
       job.description?.toLowerCase().includes(query) ||
       false;
     const matchesPaid = !paidOnly || job.paid;
-    
+
     return matchesCategory && matchesSearch && matchesPaid;
   });
 
@@ -90,7 +91,10 @@ function JobsListContent({
                   </p>
                 </div>
                 {job.paid && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                  <Badge
+                    variant="secondary"
+                    className="bg-green-100 text-green-700 border-green-200"
+                  >
                     <DollarSign className="w-3 h-3 mr-1" />
                     {labels.paid}
                   </Badge>

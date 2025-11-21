@@ -1,6 +1,6 @@
-import { motion } from "motion/react";
-import { CheckCircle, type LucideIcon } from "lucide-react";
 import { Card } from "@repo/ui/components/ui/card";
+import { CheckCircle, type LucideIcon } from "lucide-react";
+import { motion } from "motion/react";
 
 interface BenefitsSectionProps {
   title: string;
@@ -79,4 +79,3 @@ export function BenefitsSection({
     </section>
   );
 }
-

@@ -1,45 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
-import TextAlign from '@tiptap/extension-text-align';
-import Image from '@tiptap/extension-image';
-import Placeholder from '@tiptap/extension-placeholder';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-import { createLowlight, common } from 'lowlight'
-import { Button } from '@repo/ui/components/ui/button';
-import { Textarea } from '@repo/ui/components/ui/textarea';
-import { 
-  Bold, 
-  Italic, 
-  Underline as UnderlineIcon, 
-  List, 
-  ListOrdered, 
-  Link as LinkIcon, 
-  AlignLeft, 
-  AlignCenter, 
-  AlignRight, 
-  AlignJustify,
-  Heading1,
-  Heading2,
-  Heading3,
-  Redo,
-  Undo,
-  Code,
-  Image as ImageIcon,
-  Sparkles,
-  FileCode
-} from 'lucide-react';
-import { Toggle } from '@repo/ui/components/ui/toggle';
+import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
+import { Textarea } from "@repo/ui/components/ui/textarea";
+import { Toggle } from "@repo/ui/components/ui/toggle";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
+import Underline from "@tiptap/extension-underline";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { common, createLowlight } from "lowlight";
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Code,
+  FileCode,
+  Heading1,
+  Heading2,
+  Heading3,
+  Image as ImageIcon,
+  Italic,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  Redo,
+  Sparkles,
+  Underline as UnderlineIcon,
+  Undo,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface RichTextEditorProps {
   content: string;
@@ -52,7 +52,7 @@ type Level = 1 | 2 | 3;
 export function RichTextEditor({ content, onChange, editable = true }: RichTextEditorProps) {
   // Check if the editor appears empty for placeholder purposes
   const isEditorEmpty = (html: string) => {
-    return !html || html === '<p></p>' || html === '<p><br></p>' || html.trim() === '';
+    return !html || html === "<p></p>" || html === "<p><br></p>" || html.trim() === "";
   };
 
   // Used to stop event propagation
@@ -63,7 +63,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
   const [isHtmlMode, setIsHtmlMode] = useState(false);
   const [htmlContent, setHtmlContent] = useState(content);
   const [isEmpty, setIsEmpty] = useState(isEditorEmpty(content));
-  
+
   // Add a reference to track if we should update parent
   const shouldUpdateParentRef = useRef(true);
   // Add a reference to track initial content
@@ -83,19 +83,20 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-primary underline decoration-primary underline-offset-4 hover:text-primary/80 transition-colors',
+          class:
+            "text-primary underline decoration-primary underline-offset-4 hover:text-primary/80 transition-colors",
         },
       }),
       TextAlign.configure({
-        types: ['heading', 'paragraph'],
+        types: ["heading", "paragraph"],
       }),
       Image.configure({
         allowBase64: true,
         inline: true,
       }),
       Placeholder.configure({
-        placeholder: 'Write an epic description...',
-        emptyEditorClass: 'is-editor-empty',
+        placeholder: "Write an epic description...",
+        emptyEditorClass: "is-editor-empty",
       }),
       CodeBlockLowlight.configure({
         lowlight,
@@ -108,7 +109,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
         const html = editor.getHTML();
         setHtmlContent(html);
         setIsEmpty(isEditorEmpty(html));
-        
+
         // Only update parent if we're supposed to
         if (shouldUpdateParentRef.current) {
           onChange(html);
@@ -120,39 +121,45 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
   });
 
   // Safely handle HTML mode toggle
-  const handleHtmlModeToggle = useCallback((newMode: boolean) => {
-    if (!editor) return;
-    
-    try {
-      shouldUpdateParentRef.current = false;
-      
-      // Get current content before switching
-      if (newMode) {
-        setHtmlContent(editor.getHTML());
-      }
-      
-      setIsHtmlMode(newMode);
-      
-      // If switching back to visual mode, update editor content
-      if (!newMode) {
-        editor.commands.setContent(htmlContent);
-      }
-      
-      // Resume parent updates after mode switch is complete
-      setTimeout(() => {
+  const handleHtmlModeToggle = useCallback(
+    (newMode: boolean) => {
+      if (!editor) return;
+
+      try {
+        shouldUpdateParentRef.current = false;
+
+        // Get current content before switching
+        if (newMode) {
+          setHtmlContent(editor.getHTML());
+        }
+
+        setIsHtmlMode(newMode);
+
+        // If switching back to visual mode, update editor content
+        if (!newMode) {
+          editor.commands.setContent(htmlContent);
+        }
+
+        // Resume parent updates after mode switch is complete
+        setTimeout(() => {
+          shouldUpdateParentRef.current = true;
+        }, 0);
+      } catch (error) {
+        console.error("Error toggling HTML mode:", error);
         shouldUpdateParentRef.current = true;
-      }, 0);
-    } catch (error) {
-      console.error("Error toggling HTML mode:", error);
-      shouldUpdateParentRef.current = true;
-    }
-  }, [editor, htmlContent]);
+      }
+    },
+    [editor, htmlContent],
+  );
 
   // Update editor content when HTML mode changes content
-  const handleHtmlChange = useCallback((html: string) => {
-    setHtmlContent(html);
-    onChange(html);
-  }, [onChange]);
+  const handleHtmlChange = useCallback(
+    (html: string) => {
+      setHtmlContent(html);
+      onChange(html);
+    },
+    [onChange],
+  );
 
   // Update editor editable state when prop changes
   useEffect(() => {
@@ -162,96 +169,101 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
   }, [editor, editable]);
 
   // Safely handle format clearing
-  const handleClearFormat = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!editor) return;
-    
-    try {
-      shouldUpdateParentRef.current = false;
-      
-      editor.chain()
-        .focus()
-        .unsetAllMarks()
-        .setParagraph()
-        .run();
-      
-      shouldUpdateParentRef.current = true;
-    } catch (error) {
-      console.error("Error clearing format:", error);
-      shouldUpdateParentRef.current = true;
-    }
-  }, [editor]);
+  const handleClearFormat = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!editor) return;
+
+      try {
+        shouldUpdateParentRef.current = false;
+
+        editor.chain().focus().unsetAllMarks().setParagraph().run();
+
+        shouldUpdateParentRef.current = true;
+      } catch (error) {
+        console.error("Error clearing format:", error);
+        shouldUpdateParentRef.current = true;
+      }
+    },
+    [editor],
+  );
 
   // Safely handle heading changes
-  const handleHeadingChange = useCallback((level: Level, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!editor) return;
-    
-    try {
-      shouldUpdateParentRef.current = false;
-      
-      editor.chain()
-        .focus()
-        .toggleHeading({ level })
-        .run();
-      
-      shouldUpdateParentRef.current = true;
-    } catch (error) {
-      console.error(`Error setting heading level ${level}:`, error);
-      shouldUpdateParentRef.current = true;
-    }
-  }, [editor]);
+  const handleHeadingChange = useCallback(
+    (level: Level, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!editor) return;
+
+      try {
+        shouldUpdateParentRef.current = false;
+
+        editor.chain().focus().toggleHeading({ level }).run();
+
+        shouldUpdateParentRef.current = true;
+      } catch (error) {
+        console.error(`Error setting heading level ${level}:`, error);
+        shouldUpdateParentRef.current = true;
+      }
+    },
+    [editor],
+  );
 
   // Safely handle link setting
-  const handleSetLink = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!editor) return;
-    
-    try {
-      const previousUrl = editor.getAttributes('link').href;
-      const url = window.prompt('URL', previousUrl);
-      
-      // cancelled
-      if (url === null) {
-        return;
+  const handleSetLink = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!editor) return;
+
+      try {
+        const previousUrl = editor.getAttributes("link").href;
+        const url = window.prompt("URL", previousUrl);
+
+        // cancelled
+        if (url === null) {
+          return;
+        }
+
+        // empty
+        if (url === "") {
+          editor.chain().focus().extendMarkRange("link").unsetLink().run();
+          return;
+        }
+
+        // update link
+        editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+      } catch (error) {
+        console.error("Error setting link:", error);
       }
-      
-      // empty
-      if (url === '') {
-        editor.chain().focus().extendMarkRange('link').unsetLink().run();
-        return;
-      }
-      
-      // update link
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-    } catch (error) {
-      console.error("Error setting link:", error);
-    }
-  }, [editor]);
+    },
+    [editor],
+  );
 
   // Safely handle image insertion
-  const handleAddImage = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!editor) return;
-    
-    try {
-      const url = window.prompt('Image URL');
-      
-      if (url) {
-        editor.chain().focus().setImage({ src: url }).run();
+  const handleAddImage = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!editor) return;
+
+      try {
+        const url = window.prompt("Image URL");
+
+        if (url) {
+          editor.chain().focus().setImage({ src: url }).run();
+        }
+      } catch (error) {
+        console.error("Error adding image:", error);
       }
-    } catch (error) {
-      console.error("Error adding image:", error);
-    }
-  }, [editor]);
+    },
+    [editor],
+  );
 
   if (!editor) {
     return null;
@@ -262,9 +274,9 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
       {editable && (
         <div className="flex justify-between items-center px-3 py-2 border-b border-primary/10 bg-white/50 dark:bg-card/50">
           <div className="flex gap-1">
-            <Button 
-              variant={isHtmlMode ? "ghost" : "secondary"} 
-              size="sm" 
+            <Button
+              variant={isHtmlMode ? "ghost" : "secondary"}
+              size="sm"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -274,9 +286,9 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
             >
               Visual
             </Button>
-            <Button 
-              variant={isHtmlMode ? "secondary" : "ghost"} 
-              size="sm" 
+            <Button
+              variant={isHtmlMode ? "secondary" : "ghost"}
+              size="sm"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -288,7 +300,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
               HTML
             </Button>
           </div>
-          
+
           {!isHtmlMode && (
             <div className="flex gap-1">
               <Button
@@ -321,7 +333,7 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
           )}
         </div>
       )}
-      
+
       {!isHtmlMode ? (
         <div>
           {editable && (
@@ -329,9 +341,9 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
               <div className="flex items-center border-r pr-1 mr-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={stopPropagation}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-8 gap-1 text-xs font-normal"
                       onClick={stopPropagation}
                     >
@@ -340,21 +352,21 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" onClick={stopPropagation}>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={(e) => handleHeadingChange(1, e)}
                       className="flex items-center gap-2"
                     >
                       <Heading1 className="h-4 w-4" />
                       <span className="text-lg font-bold">Heading 1</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={(e) => handleHeadingChange(2, e)}
                       className="flex items-center gap-2"
                     >
                       <Heading2 className="h-4 w-4" />
                       <span className="text-base font-bold">Heading 2</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={(e) => handleHeadingChange(3, e)}
                       className="flex items-center gap-2"
                     >
@@ -364,11 +376,11 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              
+
               <div className="flex gap-0.5">
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('bold')}
+                  pressed={editor.isActive("bold")}
                   onPressedChange={() => {
                     editor.chain().focus().toggleBold().run();
                   }}
@@ -378,10 +390,10 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <Bold className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('italic')}
+                  pressed={editor.isActive("italic")}
                   onPressedChange={() => {
                     editor.chain().focus().toggleItalic().run();
                   }}
@@ -391,10 +403,10 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <Italic className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('underline')}
+                  pressed={editor.isActive("underline")}
                   onPressedChange={() => {
                     editor.chain().focus().toggleUnderline().run();
                   }}
@@ -405,13 +417,13 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                   <UnderlineIcon className="h-4 w-4" />
                 </Toggle>
               </div>
-              
+
               <div className="w-px h-8 bg-border mx-1" />
-              
+
               <div className="flex gap-0.5">
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('bulletList')}
+                  pressed={editor.isActive("bulletList")}
                   onPressedChange={() => {
                     editor.chain().focus().toggleBulletList().run();
                   }}
@@ -421,10 +433,10 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <List className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('orderedList')}
+                  pressed={editor.isActive("orderedList")}
                   onPressedChange={() => {
                     editor.chain().focus().toggleOrderedList().run();
                   }}
@@ -435,15 +447,18 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                   <ListOrdered className="h-4 w-4" />
                 </Toggle>
               </div>
-              
+
               <div className="w-px h-8 bg-border mx-1" />
-              
+
               <div className="flex gap-0.5">
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('link')}
+                  pressed={editor.isActive("link")}
                   onPressedChange={(pressed) => {
-                    handleSetLink({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent);
+                    handleSetLink({
+                      preventDefault: () => {},
+                      stopPropagation: () => {},
+                    } as React.MouseEvent);
                   }}
                   aria-label="Link"
                   className="h-8 w-8 p-0"
@@ -451,12 +466,15 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <LinkIcon className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('image')}
+                  pressed={editor.isActive("image")}
                   onPressedChange={(pressed) => {
-                    handleAddImage({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent);
+                    handleAddImage({
+                      preventDefault: () => {},
+                      stopPropagation: () => {},
+                    } as React.MouseEvent);
                   }}
                   aria-label="Image"
                   className="h-8 w-8 p-0"
@@ -464,10 +482,10 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <ImageIcon className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive('codeBlock')}
+                  pressed={editor.isActive("codeBlock")}
                   onPressedChange={() => {
                     editor.chain().focus().toggleCodeBlock().run();
                   }}
@@ -478,15 +496,15 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                   <Code className="h-4 w-4" />
                 </Toggle>
               </div>
-              
+
               <div className="w-px h-8 bg-border mx-1" />
-              
+
               <div className="flex gap-0.5">
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive({ textAlign: 'left' })}
+                  pressed={editor.isActive({ textAlign: "left" })}
                   onPressedChange={() => {
-                    editor.chain().focus().setTextAlign('left').run();
+                    editor.chain().focus().setTextAlign("left").run();
                   }}
                   aria-label="Align Left"
                   className="h-8 w-8 p-0"
@@ -494,12 +512,12 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <AlignLeft className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive({ textAlign: 'center' })}
+                  pressed={editor.isActive({ textAlign: "center" })}
                   onPressedChange={() => {
-                    editor.chain().focus().setTextAlign('center').run();
+                    editor.chain().focus().setTextAlign("center").run();
                   }}
                   aria-label="Align Center"
                   className="h-8 w-8 p-0"
@@ -507,12 +525,12 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <AlignCenter className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive({ textAlign: 'right' })}
+                  pressed={editor.isActive({ textAlign: "right" })}
                   onPressedChange={() => {
-                    editor.chain().focus().setTextAlign('right').run();
+                    editor.chain().focus().setTextAlign("right").run();
                   }}
                   aria-label="Align Right"
                   className="h-8 w-8 p-0"
@@ -520,12 +538,12 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                 >
                   <AlignRight className="h-4 w-4" />
                 </Toggle>
-                
+
                 <Toggle
                   size="sm"
-                  pressed={editor.isActive({ textAlign: 'justify' })}
+                  pressed={editor.isActive({ textAlign: "justify" })}
                   onPressedChange={() => {
-                    editor.chain().focus().setTextAlign('justify').run();
+                    editor.chain().focus().setTextAlign("justify").run();
                   }}
                   aria-label="Align Justify"
                   className="h-8 w-8 p-0"
@@ -534,11 +552,11 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
                   <AlignJustify className="h-4 w-4" />
                 </Toggle>
               </div>
-              
+
               <div className="w-px h-8 bg-border mx-1" />
-              
-              <Button 
-                variant="ghost" 
+
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={handleClearFormat}
                 className="h-8 gap-1 text-xs font-normal"
@@ -548,15 +566,18 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
               </Button>
             </div>
           )}
-          
-          <div 
-            className={`${editable ? 'min-h-[300px] p-6 cursor-text relative' : 'p-0'}`} 
+
+          <div
+            className={`${editable ? "min-h-[300px] p-6 cursor-text relative" : "p-0"}`}
             onClick={(e) => {
               stopPropagation(e);
               editable && editor.chain().focus().run();
             }}
           >
-            <EditorContent editor={editor} className="prose prose-sm sm:prose-base lg:prose-lg max-w-none" />
+            <EditorContent
+              editor={editor}
+              className="prose prose-sm sm:prose-base lg:prose-lg max-w-none"
+            />
           </div>
         </div>
       ) : (
@@ -571,10 +592,10 @@ export function RichTextEditor({ content, onChange, editable = true }: RichTextE
           />
         </div>
       )}
-      
+
       {!editable && (
         <div className="p-0">
-          <div 
+          <div
             className="prose prose-sm sm:prose-base lg:prose-lg max-w-none p-6"
             dangerouslySetInnerHTML={{ __html: content }}
           />

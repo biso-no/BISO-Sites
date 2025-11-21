@@ -1,5 +1,5 @@
-import { DepartmentCard } from "./department-card";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { DepartmentCard } from "./department-card";
 
 interface DepartmentsGridProps {
   departments: ContentTranslations[];
@@ -17,11 +17,7 @@ export function DepartmentsGrid({ departments }: DepartmentsGridProps) {
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
       {departments.map((dept, index) => (
-        <DepartmentCard 
-          key={dept.$id} 
-          department={dept} 
-          index={index} 
-        />
+        <DepartmentCard key={dept.$id} department={dept} index={index} />
       ))}
     </div>
   );

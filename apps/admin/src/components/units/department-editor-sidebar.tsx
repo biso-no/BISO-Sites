@@ -1,14 +1,20 @@
 "use client";
 
-import { ReactNode } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
-import { Badge } from '@repo/ui/components/ui/badge';
-import { Separator } from '@repo/ui/components/ui/separator';
-import { Building2, Users, Users2, MessageSquare, Eye, Globe } from 'lucide-react';
-import { Button } from '@repo/ui/components/ui/button';
-import { LogoUploadPreview } from './logo-upload-preview';
-import { GlassCard } from '@/components/shared/glass-card';
-import { AnimatedBadge } from '@/components/shared/animated-badge';
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { Separator } from "@repo/ui/components/ui/separator";
+import { Building2, Eye, Globe, MessageSquare, Users, Users2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { AnimatedBadge } from "@/components/shared/animated-badge";
+import { GlassCard } from "@/components/shared/glass-card";
+import { LogoUploadPreview } from "./logo-upload-preview";
 
 interface DepartmentEditorSidebarProps {
   departmentName: string;
@@ -33,17 +39,13 @@ export function DepartmentEditorSidebar({
   campusControl,
   typeControl,
   stats,
-  isNew = false
+  isNew = false,
 }: DepartmentEditorSidebarProps) {
   return (
     <div className="space-y-6">
       {/* Status Badge */}
       <div className="flex justify-end">
-        <AnimatedBadge
-          variant={isNew ? "default" : "secondary"}
-          icon={Building2}
-          gradient={isNew}
-        >
+        <AnimatedBadge variant={isNew ? "default" : "secondary"} icon={Building2} gradient={isNew}>
           {isNew ? "New Unit" : "Editing"}
         </AnimatedBadge>
       </div>
@@ -68,16 +70,12 @@ export function DepartmentEditorSidebar({
       <LogoUploadPreview
         logoUrl={logoUrl}
         onChange={onLogoChange}
-        departmentName={departmentName || 'New Department'}
+        departmentName={departmentName || "New Department"}
       />
 
       {/* Quick Stats (only show for existing departments) */}
       {!isNew && stats && (
-        <GlassCard
-          title="Quick Stats"
-          description="Current department metrics"
-          variant="subtle"
-        >
+        <GlassCard title="Quick Stats" description="Current department metrics" variant="subtle">
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
               <div className="flex items-center gap-2">
@@ -140,4 +138,3 @@ export function DepartmentEditorSidebar({
     </div>
   );
 }
-

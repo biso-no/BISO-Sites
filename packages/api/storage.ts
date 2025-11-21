@@ -1,10 +1,10 @@
-
 /**
  * Helper functions for working with Appwrite Storage
  */
 
-const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1"
-const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso"
+const APPWRITE_ENDPOINT =
+  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1";
+const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
 
 /**
  * Generates a direct URL for viewing/downloading a file from Appwrite Storage
@@ -13,7 +13,7 @@ const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso"
  * @returns A direct URL to view the file
  */
 export function getStorageFileUrl(bucketId: string, fileId: string): string {
-  return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${APPWRITE_PROJECT}`
+  return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${APPWRITE_PROJECT}`;
 }
 
 /**
@@ -23,7 +23,7 @@ export function getStorageFileUrl(bucketId: string, fileId: string): string {
  * @returns A direct URL to download the file
  */
 export function getStorageFileDownloadUrl(bucketId: string, fileId: string): string {
-  return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/download?project=${APPWRITE_PROJECT}`
+  return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/download?project=${APPWRITE_PROJECT}`;
 }
 
 /**
@@ -39,17 +39,16 @@ export function getStorageFileThumbnailUrl(
   bucketId: string,
   fileId: string,
   options?: {
-    width?: number
-    height?: number
-    quality?: number
-  }
+    width?: number;
+    height?: number;
+    quality?: number;
+  },
 ): string {
-  const params = new URLSearchParams({ project: APPWRITE_PROJECT })
-  
-  if (options?.width) params.append('width', options.width.toString())
-  if (options?.height) params.append('height', options.height.toString())
-  if (options?.quality) params.append('quality', options.quality.toString())
-  
-  return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/preview?${params.toString()}`
-}
+  const params = new URLSearchParams({ project: APPWRITE_PROJECT });
 
+  if (options?.width) params.append("width", options.width.toString());
+  if (options?.height) params.append("height", options.height.toString());
+  if (options?.quality) params.append("quality", options.quality.toString());
+
+  return `${APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/preview?${params.toString()}`;
+}

@@ -1,8 +1,8 @@
-import { motion } from "motion/react";
-import { Users, TrendingUp, Heart, Shield } from "lucide-react";
-import { BenefitsSection } from "./benefits-section";
 import type { CampusData } from "@repo/api/types/appwrite";
+import { Heart, Shield, TrendingUp, Users } from "lucide-react";
+import { motion } from "motion/react";
 import type { Locale } from "@/i18n/config";
+import { BenefitsSection } from "./benefits-section";
 
 interface StudentsTabProps {
   campusData: CampusData | null;
@@ -11,18 +11,14 @@ interface StudentsTabProps {
 
 export function StudentsTab({ campusData, locale }: StudentsTabProps) {
   const studentBenefits = campusData
-    ? (locale === "en"
-        ? campusData.studentBenefits_en
-        : campusData.studentBenefits_nb) ||
+    ? (locale === "en" ? campusData.studentBenefits_en : campusData.studentBenefits_nb) ||
       campusData.studentBenefits_en ||
       campusData.studentBenefits_nb ||
       []
     : [];
 
   const careerAdvantages = campusData
-    ? (locale === "en"
-        ? campusData.careerAdvantages_en
-        : campusData.careerAdvantages_nb) ||
+    ? (locale === "en" ? campusData.careerAdvantages_en : campusData.careerAdvantages_nb) ||
       campusData.careerAdvantages_en ||
       campusData.careerAdvantages_nb ||
       []
@@ -68,9 +64,7 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
         className="text-center mb-12"
       >
         <h2 className="text-gray-900 mb-4">
-          {locale === "en"
-            ? "Member Benefits & Advantages"
-            : "Medlemsfordeler og -fordeler"}
+          {locale === "en" ? "Member Benefits & Advantages" : "Medlemsfordeler og -fordeler"}
         </h2>
         <p className="text-gray-600 max-w-2xl mx-auto">
           {locale === "en"
@@ -139,4 +133,3 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
     </>
   );
 }
-

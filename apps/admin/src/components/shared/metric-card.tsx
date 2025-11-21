@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Card, CardContent } from '@repo/ui/components/ui/card';
-import { LucideIcon } from 'lucide-react';
-import { cn } from '@repo/ui/lib/utils';
+import { Card, CardContent } from "@repo/ui/components/ui/card";
+import { cn } from "@repo/ui/lib/utils";
+import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface MetricCardProps {
   title: string;
@@ -27,7 +27,7 @@ export function MetricCard({
   iconBgColor = "bg-primary/10",
   trend,
   className,
-  animate = true
+  animate = true,
 }: MetricCardProps) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -61,7 +61,7 @@ export function MetricCard({
         "relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl",
         "border-border/50 bg-card/60 backdrop-blur-sm",
         "before:absolute before:inset-0 before:bg-linear-to-br before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity",
-        className
+        className,
       )}
     >
       <CardContent className="p-6">
@@ -71,14 +71,12 @@ export function MetricCard({
               {title}
             </p>
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold tracking-tight">
-                {displayValue.toLocaleString()}
-              </p>
+              <p className="text-3xl font-bold tracking-tight">{displayValue.toLocaleString()}</p>
               {trend && (
                 <span
                   className={cn(
                     "text-sm font-medium",
-                    trend.isPositive ? "text-green-600" : "text-red-600"
+                    trend.isPositive ? "text-green-600" : "text-red-600",
                   )}
                 >
                   {trend.isPositive ? "+" : ""}
@@ -90,7 +88,7 @@ export function MetricCard({
           <div
             className={cn(
               "p-3 rounded-xl transition-all duration-300 group-hover:scale-110",
-              iconBgColor
+              iconBgColor,
             )}
           >
             <Icon className={cn("h-6 w-6", iconColor)} />
@@ -100,4 +98,3 @@ export function MetricCard({
     </Card>
   );
 }
-

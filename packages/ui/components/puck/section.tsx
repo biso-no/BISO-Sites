@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { cn } from "../../lib/utils";
 
 export interface SectionProps {
@@ -47,17 +47,10 @@ export function Section({
         "relative w-full",
         bgClasses[backgroundColor],
         paddingClasses[padding],
-        className
+        className,
       )}
     >
-      <div
-        className={cn(
-          "mx-auto px-4 sm:px-6 lg:px-8",
-          widthClasses[maxWidth]
-        )}
-      >
-        {children}
-      </div>
+      <div className={cn("mx-auto px-4 sm:px-6 lg:px-8", widthClasses[maxWidth])}>{children}</div>
     </section>
   );
 }

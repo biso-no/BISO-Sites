@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Filter, X } from 'lucide-react';
-import { Button } from '@repo/ui/components/ui/button';
-import { Input } from '@repo/ui/components/ui/input';
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { Filter, Search, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
 
 interface NewsFiltersProps {
   categories: string[];
@@ -20,20 +20,20 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
 
   const updateFilters = (category?: string, search?: string) => {
     const params = new URLSearchParams(searchParams);
-    
+
     if (category !== undefined) {
-      if (category === 'All') {
-        params.delete('category');
+      if (category === "All") {
+        params.delete("category");
       } else {
-        params.set('category', category);
+        params.set("category", category);
       }
     }
-    
+
     if (search !== undefined) {
-      if (search === '') {
-        params.delete('search');
+      if (search === "") {
+        params.delete("search");
       } else {
-        params.set('search', search);
+        params.set("search", search);
       }
     }
 
@@ -52,8 +52,8 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
   };
 
   const clearSearch = () => {
-    setLocalSearch('');
-    updateFilters(undefined, '');
+    setLocalSearch("");
+    updateFilters(undefined, "");
   };
 
   return (
@@ -90,13 +90,13 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
               <Button
                 key={category}
                 onClick={() => handleCategoryChange(category)}
-                variant={selectedCategory === category ? 'default' : 'outline'}
+                variant={selectedCategory === category ? "default" : "outline"}
                 disabled={isPending}
                 size="sm"
                 className={
                   selectedCategory === category
-                    ? 'bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90 border-0'
-                    : 'border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10'
+                    ? "bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90 border-0"
+                    : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
                 }
               >
                 {category}

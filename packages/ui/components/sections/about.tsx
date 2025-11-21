@@ -1,16 +1,24 @@
 "use client";
+import {
+  Briefcase,
+  Calendar,
+  Link as LinkIcon,
+  Megaphone,
+  Rocket,
+  Sparkles,
+  Trophy,
+} from "lucide-react";
 import { motion } from "motion/react";
-import { Calendar, Briefcase, Rocket, Megaphone, Link as LinkIcon, Sparkles, Trophy } from "lucide-react";
 import { Card } from "../ui/card";
 
 export interface AboutStat {
   number: string;
   label: string;
-  iconName: 'Calendar' | 'Briefcase' | 'Rocket' | 'Trophy';
+  iconName: "Calendar" | "Briefcase" | "Rocket" | "Trophy";
 }
 
 export interface AboutValue {
-  iconName: 'Megaphone' | 'Link' | 'Sparkles';
+  iconName: "Megaphone" | "Link" | "Sparkles";
   title: string;
   description: string;
   gradient: string;
@@ -36,10 +44,15 @@ const IconMap = {
   Trophy,
   Megaphone,
   Link: LinkIcon,
-  Sparkles
+  Sparkles,
 };
 
-export function About({ stats, values, mainContent, videoUrl = "https://appwrite.biso.no/v1/storage/buckets/content/files/biso_video/view?project=biso&mode=admin" }: AboutProps) {
+export function About({
+  stats,
+  values,
+  mainContent,
+  videoUrl = "https://appwrite.biso.no/v1/storage/buckets/content/files/biso_video/view?project=biso&mode=admin",
+}: AboutProps) {
   return (
     <section id="about" className="py-24 bg-linear-to-b from-gray-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,12 +97,8 @@ export function About({ stats, values, mainContent, videoUrl = "https://appwrite
                 {mainContent.titleLine2}
               </span>
             </h2>
-            <p className="text-gray-600 mb-6">
-              {mainContent.paragraph1}
-            </p>
-            <p className="text-gray-600">
-              {mainContent.paragraph2}
-            </p>
+            <p className="text-gray-600 mb-6">{mainContent.paragraph1}</p>
+            <p className="text-gray-600">{mainContent.paragraph2}</p>
           </motion.div>
 
           <motion.div
@@ -120,7 +129,9 @@ export function About({ stats, values, mainContent, videoUrl = "https://appwrite
                 transition={{ delay: index * 0.1 }}
               >
                 <Card className="p-8 border-0 shadow-lg hover:shadow-xl transition-all hover:-translate-y-2 duration-300 bg-white">
-                  <div className={`w-16 h-16 mb-6 rounded-2xl bg-linear-to-br ${value.gradient} flex items-center justify-center shadow-lg`}>
+                  <div
+                    className={`w-16 h-16 mb-6 rounded-2xl bg-linear-to-br ${value.gradient} flex items-center justify-center shadow-lg`}
+                  >
                     <Icon className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="mb-3 text-gray-900">{value.title}</h3>

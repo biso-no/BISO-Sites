@@ -2,9 +2,8 @@
 
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "./server";
-import { PageStatus } from "./types/appwrite";
 import type { Locale, Pages, PageTranslations } from "./types/appwrite";
-import { PageVisibility } from "./types/appwrite";
+import { PageStatus, PageVisibility } from "./types/appwrite";
 
 const DATABASE_ID = "app";
 const PAGES_TABLE_ID = "pages";
@@ -125,7 +124,10 @@ function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
 
   return {
     id: row.$id,
-    pageId: (row as unknown as { page_id?: string }).page_id ?? (row as unknown as { page?: { $id: string } }).page?.$id ?? "",
+    pageId:
+      (row as unknown as { page_id?: string }).page_id ??
+      (row as unknown as { page?: { $id: string } }).page?.$id ??
+      "",
     locale: row.locale,
     title: row.title,
     slug: (row as unknown as { slug?: string | null }).slug ?? null,
@@ -140,8 +142,12 @@ function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
 }
 
 function normalizePage(row: Pages): PageRecord {
-  const translations = Array.isArray((row as unknown as { translation_refs?: PageTranslations[] }).translation_refs)
-    ? ((row as unknown as { translation_refs?: PageTranslations[] }).translation_refs ?? []).map(normalizeTranslation)
+  const translations = Array.isArray(
+    (row as unknown as { translation_refs?: PageTranslations[] }).translation_refs,
+  )
+    ? ((row as unknown as { translation_refs?: PageTranslations[] }).translation_refs ?? []).map(
+        normalizeTranslation,
+      )
     : [];
 
   return {
@@ -190,10 +196,7 @@ export interface ListPagesParams {
 export async function listPages(params: ListPagesParams = {}): Promise<PageRecord[]> {
   const { db } = await createAdminClient();
 
-  const queries = [
-    Query.select(PAGE_SELECT_FIELDS),
-    Query.orderDesc("$updatedAt"),
-  ];
+  const queries = [Query.select(PAGE_SELECT_FIELDS), Query.orderDesc("$updatedAt")];
 
   if (typeof params.limit === "number") {
     queries.push(Query.limit(params.limit));
@@ -239,17 +242,17 @@ export interface GetPageBySlugParams {
   preview?: boolean;
 }
 
-export async function getPublishedPage({ slug, locale, preview = false }: GetPageBySlugParams): Promise<PublishedPage | null> {
+export async function getPublishedPage({
+  slug,
+  locale,
+  preview = false,
+}: GetPageBySlugParams): Promise<PublishedPage | null> {
   const { db } = await createSessionClient();
 
   const response = await db.listRows<Pages>({
     databaseId: DATABASE_ID,
     tableId: PAGES_TABLE_ID,
-    queries: [
-      Query.equal("slug", slug),
-      Query.limit(1),
-      Query.select(PAGE_SELECT_FIELDS),
-    ],
+    queries: [Query.equal("slug", slug), Query.limit(1), Query.select(PAGE_SELECT_FIELDS)],
   });
 
   const row = response.rows[0];
@@ -276,7 +279,7 @@ export async function getPublishedPage({ slug, locale, preview = false }: GetPag
   }
 
   const baseDocument = preview
-    ? translation.draftDocument ?? translation.publishedDocument
+    ? (translation.draftDocument ?? translation.publishedDocument)
     : translation.publishedDocument;
 
   if (!baseDocument) {
@@ -446,8 +449,13 @@ export async function publishPageTranslation({
   const { db } = await createAdminClient();
   const translationRow = await fetchTranslationRow(translationId);
 
-  const baseDraft = decodeDocument((translationRow as unknown as { draft_document?: unknown }).draft_document);
-  const publishedDocument = document ?? baseDraft ?? decodeDocument((translationRow as unknown as { puck_document?: unknown }).puck_document);
+  const baseDraft = decodeDocument(
+    (translationRow as unknown as { draft_document?: unknown }).draft_document,
+  );
+  const publishedDocument =
+    document ??
+    baseDraft ??
+    decodeDocument((translationRow as unknown as { puck_document?: unknown }).puck_document);
   const data: Record<string, unknown> = {
     is_published: true,
     published_at: new Date().toISOString(),
@@ -519,11 +527,7 @@ export async function ensurePageTranslation({
   const existing = await db.listRows<PageTranslations>({
     databaseId: DATABASE_ID,
     tableId: PAGE_TRANSLATIONS_TABLE_ID,
-    queries: [
-      Query.equal("page_id", pageId),
-      Query.equal("locale", locale),
-      Query.limit(1),
-    ],
+    queries: [Query.equal("page_id", pageId), Query.equal("locale", locale), Query.limit(1)],
   });
 
   if (existing.rows.length > 0) {

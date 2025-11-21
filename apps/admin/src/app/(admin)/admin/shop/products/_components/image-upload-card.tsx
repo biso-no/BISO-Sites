@@ -1,96 +1,95 @@
-"use client"
+"use client";
 
-import { useMemo, useRef, useState } from "react"
-import Image from "next/image"
-import { Upload, Trash2, Loader2, Star } from "lucide-react"
-import { toast } from "sonner"
-
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card"
-import { Button } from "@repo/ui/components/ui/button"
-import { uploadProductImage } from "@/app/actions/products"
-import { cn } from "@/lib/utils"
+} from "@repo/ui/components/ui/card";
+import { Loader2, Star, Trash2, Upload } from "lucide-react";
+import Image from "next/image";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { uploadProductImage } from "@/app/actions/products";
+import { cn } from "@/lib/utils";
 
 interface ProductImagesProps {
-  images: string[]
-  onChange: (next: string[]) => void
+  images: string[];
+  onChange: (next: string[]) => void;
 }
 
 export default function ImageUploadCard({ images = [], onChange }: ProductImagesProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set())
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
 
   const validImages = useMemo(
     () =>
       (images || [])
         .map((s) => (typeof s === "string" ? s.trim() : ""))
         .filter((s) => s.length > 0),
-    [images]
-  )
+    [images],
+  );
 
-  const mainImage = validImages[0] || ""
-  const thumbnails = validImages.slice(1)
+  const mainImage = validImages[0] || "";
+  const thumbnails = validImages.slice(1);
 
   const handleUpload = async (file: File) => {
-    if (!file) return
-    
-    const fileId = `${file.name}-${Date.now()}`
-    setUploadingFiles(prev => new Set([...prev, fileId]))
+    if (!file) return;
 
-    const formData = new FormData()
-    formData.append("file", file)
+    const fileId = `${file.name}-${Date.now()}`;
+    setUploadingFiles((prev) => new Set([...prev, fileId]));
+
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
-      const result = await uploadProductImage(formData)
-      onChange([...validImages, result.url])
-      toast.success("Image uploaded")
+      const result = await uploadProductImage(formData);
+      onChange([...validImages, result.url]);
+      toast.success("Image uploaded");
     } catch (error) {
-      console.error("Failed to upload image", error)
-      toast.error("Failed to upload image")
+      console.error("Failed to upload image", error);
+      toast.error("Failed to upload image");
     } finally {
-      setUploadingFiles(prev => {
-        const next = new Set(prev)
-        next.delete(fileId)
-        return next
-      })
+      setUploadingFiles((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
     }
-  }
+  };
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || [])
-    files.forEach(file => {
+    const files = Array.from(event.target.files || []);
+    files.forEach((file) => {
       if (file) {
-        handleUpload(file)
+        handleUpload(file);
       }
-    })
-  }
+    });
+  };
 
   const removeImage = (index: number) => {
-    const next = [...validImages]
-    next.splice(index, 1)
-    onChange(next)
-    toast.info("Image removed")
-  }
+    const next = [...validImages];
+    next.splice(index, 1);
+    onChange(next);
+    toast.info("Image removed");
+  };
 
   const makeCover = (index: number) => {
-    if (index === 0) return
-    const next = [...validImages]
-    const [selected] = next.splice(index, 1)
-    if (!selected) return
-    next.unshift(selected)
-    onChange(next)
-  }
+    if (index === 0) return;
+    const next = [...validImages];
+    const [selected] = next.splice(index, 1);
+    if (!selected) return;
+    next.unshift(selected);
+    onChange(next);
+  };
 
-  const isUploading = uploadingFiles.size > 0
-  const uploadingArray = Array.from(uploadingFiles)
+  const isUploading = uploadingFiles.size > 0;
+  const uploadingArray = Array.from(uploadingFiles);
 
   return (
     <Card className="overflow-hidden">
@@ -153,7 +152,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
                 onClick={() => makeCover(index + 1)}
                 className={cn(
                   "group aspect-square w-full overflow-hidden rounded-md border",
-                  "focus:outline-none focus:ring-2 focus:ring-primary"
+                  "focus:outline-none focus:ring-2 focus:ring-primary",
                 )}
               >
                 <Image
@@ -178,7 +177,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
             </div>
           ))}
           {[...Array(Math.max(0, 3 - thumbnails.length))].map((_, index) => {
-            const isThisTileLoading = index < uploadingArray.length
+            const isThisTileLoading = index < uploadingArray.length;
             return (
               <button
                 key={`empty-${index}`}
@@ -187,10 +186,14 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
                 className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
                 disabled={isUploading}
               >
-                {isThisTileLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {isThisTileLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
                 Add
               </button>
-            )
+            );
           })}
         </div>
 
@@ -203,7 +206,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
             {isUploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading {uploadingFiles.size} image{uploadingFiles.size > 1 ? 's' : ''}...
+                Uploading {uploadingFiles.size} image{uploadingFiles.size > 1 ? "s" : ""}...
               </>
             ) : (
               <>
@@ -223,5 +226,5 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, Filter, MapPin } from "lucide-react";
-import { useCampus } from "@/components/context/campus";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
-import { Button } from "@repo/ui/components/ui/button";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
+import { Filter, MapPin, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useCampus } from "@/components/context/campus";
 
 interface DepartmentsFiltersClientProps {
   availableTypes: string[];
@@ -20,9 +26,9 @@ export interface FilterState {
   type: string | null;
 }
 
-export function DepartmentsFiltersClient({ 
-  availableTypes, 
-  onFilterChange 
+export function DepartmentsFiltersClient({
+  availableTypes,
+  onFilterChange,
 }: DepartmentsFiltersClientProps) {
   const { campuses, activeCampusId, selectCampus } = useCampus();
   const [searchQuery, setSearchQuery] = useState("");
@@ -132,7 +138,7 @@ export function DepartmentsFiltersClient({
           )}
           {selectedCampus !== "all" && (
             <Badge variant="outline" className="border-primary/20 text-primary">
-              {campuses.find(c => c.$id === selectedCampus)?.name}
+              {campuses.find((c) => c.$id === selectedCampus)?.name}
             </Badge>
           )}
           {selectedType !== "all" && (
@@ -140,12 +146,7 @@ export function DepartmentsFiltersClient({
               {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}
             </Badge>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAllFilters}
-            className="ml-auto"
-          >
+          <Button variant="ghost" size="sm" onClick={clearAllFilters} className="ml-auto">
             Fjern alle
           </Button>
         </div>
@@ -153,4 +154,3 @@ export function DepartmentsFiltersClient({
     </Card>
   );
 }
-

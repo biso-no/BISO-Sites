@@ -1,11 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import {
-  streamText,
-  UIMessage,
-  convertToModelMessages,
-  tool,
-  stepCountIs,
-} from "ai";
+import { convertToModelMessages, stepCountIs, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { tools } from "@/lib/ai/tools";
 

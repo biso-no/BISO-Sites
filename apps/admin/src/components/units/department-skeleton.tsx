@@ -13,7 +13,7 @@ export function DepartmentSkeleton() {
           <Skeleton className="h-6 w-32" />
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -27,7 +27,7 @@ export function DepartmentSkeleton() {
           <Skeleton className="h-4 w-full" />
         </div>
       </CardContent>
-      
+
       <CardFooter className="p-4 pt-0 flex justify-between">
         <Skeleton className="h-9 w-24" />
         <Skeleton className="h-9 w-16" />
@@ -44,4 +44,4 @@ function DepartmentSkeletonGrid() {
       ))}
     </div>
   );
-} 
+}

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Button } from "@repo/ui/components/ui/button";
+import Link from "next/link";
 
 const personaCards = [
   {
@@ -54,8 +54,8 @@ export default function Home() {
               Documentation for every maintainer
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-              Opinionated guides, references, and playbooks so future IT managers and
-              contributors can understand, operate, and extend the BISO Sites monorepo.
+              Opinionated guides, references, and playbooks so future IT managers and contributors
+              can understand, operate, and extend the BISO Sites monorepo.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button asChild size="lg">
@@ -69,10 +69,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {personaCards.map((card) => (
-              <div
-                key={card.title}
-                className="rounded-xl border bg-card p-6 text-left shadow-sm"
-              >
+              <div key={card.title} className="rounded-xl border bg-card p-6 text-left shadow-sm">
                 <p className="text-sm uppercase tracking-wide text-muted-foreground">
                   Persona flow
                 </p>
@@ -87,9 +84,7 @@ export default function Home() {
 
           <div className="space-y-4">
             <div className="text-center space-y-1">
-              <p className="text-sm uppercase tracking-wide text-muted-foreground">
-                Section map
-              </p>
+              <p className="text-sm uppercase tracking-wide text-muted-foreground">Section map</p>
               <h2 className="text-3xl font-bold">Everything in its place</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
                 Use these anchors to dive straight into the area you need—repository basics,

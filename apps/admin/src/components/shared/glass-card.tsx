@@ -1,8 +1,14 @@
 "use client";
 
-import { ReactNode } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
-import { cn } from '@repo/ui/lib/utils';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { cn } from "@repo/ui/lib/utils";
+import type { ReactNode } from "react";
 
 interface GlassCardProps {
   title?: string;
@@ -10,7 +16,7 @@ interface GlassCardProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  variant?: 'default' | 'premium' | 'subtle';
+  variant?: "default" | "premium" | "subtle";
   hover?: boolean;
 }
 
@@ -20,13 +26,13 @@ export function GlassCard({
   children,
   className,
   contentClassName,
-  variant = 'default',
-  hover = false
+  variant = "default",
+  hover = false,
 }: GlassCardProps) {
   const variantStyles = {
     default: "bg-card/60 backdrop-blur-sm border-border/50",
     premium: "bg-linear-to-br from-card/80 to-card/40 backdrop-blur-md border-primary/20 shadow-lg",
-    subtle: "bg-card/40 backdrop-blur-sm border-border/30"
+    subtle: "bg-card/40 backdrop-blur-sm border-border/30",
   };
 
   const hoverStyles = hover
@@ -35,29 +41,25 @@ export function GlassCard({
 
   return (
     <Card
-      className={cn(
-        variantStyles[variant],
-        hoverStyles,
-        "relative overflow-hidden",
-        className
-      )}
+      className={cn(variantStyles[variant], hoverStyles, "relative overflow-hidden", className)}
     >
       {/* Gradient overlay effect */}
-      {variant === 'premium' && (
+      {variant === "premium" && (
         <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
       )}
 
       {(title || description) && (
         <CardHeader className="relative z-10">
           {title && <CardTitle className="text-xl font-semibold">{title}</CardTitle>}
-          {description && <CardDescription className="text-sm text-muted-foreground">{description}</CardDescription>}
+          {description && (
+            <CardDescription className="text-sm text-muted-foreground">
+              {description}
+            </CardDescription>
+          )}
         </CardHeader>
       )}
-      
-      <CardContent className={cn("relative z-10", contentClassName)}>
-        {children}
-      </CardContent>
+
+      <CardContent className={cn("relative z-10", contentClassName)}>{children}</CardContent>
     </Card>
   );
 }
-

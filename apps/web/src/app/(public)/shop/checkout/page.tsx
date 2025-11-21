@@ -1,10 +1,10 @@
-import { Metadata } from "next"
-import { PublicPageHeader } from "@/components/public/PublicPageHeader"
-import { CheckoutPageClient } from "./checkout-page-client"
+import type { Metadata } from "next";
+import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { CheckoutPageClient } from "./checkout-page-client";
 
 export const metadata: Metadata = {
   title: "Checkout | BISO Shop",
-}
+};
 
 export default function CheckoutPage() {
   return (
@@ -20,5 +20,5 @@ export default function CheckoutPage() {
       />
       <CheckoutPageClient />
     </div>
-  )
+  );
 }

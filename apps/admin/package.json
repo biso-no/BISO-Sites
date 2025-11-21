@@ -6,7 +6,7 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "biome lint ."
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",
@@ -62,7 +62,6 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^17.0.45",

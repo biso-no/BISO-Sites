@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import { ReactNode } from "react"
-import { Badge } from "@repo/ui/components/ui/badge"
-import { cn } from '@repo/ui/lib/utils'
+import { Badge } from "@repo/ui/components/ui/badge";
+import { cn } from "@repo/ui/lib/utils";
+import type { ReactNode } from "react";
 
 interface SummaryMetric {
-  label: string
-  value: ReactNode
-  hint?: ReactNode
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
 }
 
 interface AdminSummaryProps {
-  badge?: string
-  title: string
-  description?: ReactNode
-  metrics?: SummaryMetric[]
-  action?: ReactNode
-  footer?: ReactNode
-  slot?: ReactNode
-  className?: string
+  badge?: string;
+  title: string;
+  description?: ReactNode;
+  metrics?: SummaryMetric[];
+  action?: ReactNode;
+  footer?: ReactNode;
+  slot?: ReactNode;
+  className?: string;
 }
 
 export const AdminSummary = ({
@@ -35,7 +35,7 @@ export const AdminSummary = ({
     <section
       className={cn(
         "surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 sm:px-8 sm:py-8",
-        className
+        className,
       )}
     >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -68,13 +68,17 @@ export const AdminSummary = ({
               <span className="text-[0.65rem] uppercase tracking-[0.18em] text-primary-50">
                 {metric.label}
               </span>
-              <span className="mt-1 block text-lg font-semibold text-primary-100">{metric.value}</span>
+              <span className="mt-1 block text-lg font-semibold text-primary-100">
+                {metric.value}
+              </span>
               {metric.hint && <span className="text-xs text-primary-60">{metric.hint}</span>}
             </div>
           ))}
         </div>
       )}
-      {footer && <div className="mt-4 text-xs uppercase tracking-[0.16em] text-primary-60">{footer}</div>}
+      {footer && (
+        <div className="mt-4 text-xs uppercase tracking-[0.16em] text-primary-60">{footer}</div>
+      )}
     </section>
-  )
-}
+  );
+};

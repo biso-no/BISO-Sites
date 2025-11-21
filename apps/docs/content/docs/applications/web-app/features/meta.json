@@ -1,10 +1,4 @@
 {
   "title": "Features",
-  "pages": [
-    "membership",
-    "ecommerce",
-    "events",
-    "units-departments"
-  ]
+  "pages": ["membership", "ecommerce", "events", "units-departments"]
 }
-

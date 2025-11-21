@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Models } from "@repo/api";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { updateProfile } from "@/lib/actions/user";
-import { Models } from "@repo/api";
 
 // Profile form schema
 const profileSchema = z.object({
@@ -39,7 +39,11 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
     console.log("Profile form initial data:", initialData);
   }, [initialData]);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<ProfileFormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: initialData?.name || "",
@@ -61,7 +65,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
     try {
       console.log("Submitting profile data:", data);
       const result = await updateProfile(data);
-      
+
       if (result) {
         console.log("Profile update result:", result);
         // TODO: Update the profile in the database and revalidate the profile page
@@ -72,7 +76,9 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      setErrorMessage(`Failed to update profile: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setErrorMessage(
+        `Failed to update profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -80,7 +86,6 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-
       <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
         {/* Success/Error Messages */}
         {successMessage && (
@@ -121,9 +126,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.name ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>}
           </div>
 
           {/* Email Field */}
@@ -141,9 +144,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
               disabled // Email should typically not be editable
             />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
-            )}
+            {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
           </div>
 
           {/* Phone Field */}
@@ -160,15 +161,11 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.phone ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.phone && (
-              <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>
-            )}
+            {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>}
           </div>
 
           <div className="border-t border-gray-100 md:col-span-2 pt-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">
-              Address Information
-            </h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-4">Address Information</h3>
           </div>
 
           {/* Address Field */}
@@ -204,9 +201,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.city ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.city && (
-              <p className="mt-1 text-sm text-red-500">{errors.city.message}</p>
-            )}
+            {errors.city && <p className="mt-1 text-sm text-red-500">{errors.city.message}</p>}
           </div>
 
           {/* ZIP/Postal Code Field */}
@@ -223,15 +218,11 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.zip ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.zip && (
-              <p className="mt-1 text-sm text-red-500">{errors.zip.message}</p>
-            )}
+            {errors.zip && <p className="mt-1 text-sm text-red-500">{errors.zip.message}</p>}
           </div>
 
           <div className="border-t border-gray-100 md:col-span-2 pt-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">
-              Banking Information
-            </h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-4">Banking Information</h3>
           </div>
 
           {/* Bank Account Field */}
@@ -267,9 +258,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.swift ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.swift && (
-              <p className="mt-1 text-sm text-red-500">{errors.swift.message}</p>
-            )}
+            {errors.swift && <p className="mt-1 text-sm text-red-500">{errors.swift.message}</p>}
           </div>
         </div>
 
@@ -281,9 +270,25 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
           >
             {isSubmitting ? (
               <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 Saving...
               </>
@@ -295,4 +300,4 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
       </form>
     </div>
   );
-} 
+}

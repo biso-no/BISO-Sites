@@ -1,18 +1,6 @@
 "use client";
-import { Post, Campus, Department } from "@/lib/types/post";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@repo/ui/components/ui/table";
-import Link from "next/link";
-import { format } from "date-fns";
-import { useState, useEffect, useMemo } from "react";
-import Image from "next/image";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import {
   Select,
@@ -22,25 +10,31 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@repo/ui/components/ui/table";
+import { format } from "date-fns";
+import {
   ChevronLeft,
   ChevronRight,
-  Search,
+  DeleteIcon,
+  Edit,
   Grid,
   List,
-  Edit,
   PlusCircle,
-  DeleteIcon,
+  Search,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
-import { deletePost } from "@/app/actions/admin";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
+import { deletePost } from "@/app/actions/admin";
+import type { Campus, Department, Post } from "@/lib/types/post";
 
 const getUniqueDepartments = (posts: Post[]): Department[] => {
   const uniqueMap = new Map<string, Department>();
@@ -104,12 +98,11 @@ export function PostTable({ posts }: { posts: Post[] }) {
   const filteredPosts = useMemo(() => {
     return posts.filter(
       (post) =>
-        (search === "" ||
-          post.title.toLowerCase().includes(search.toLowerCase())) &&
+        (search === "" || post.title.toLowerCase().includes(search.toLowerCase())) &&
         (department === "Department" ||
           department === "all" ||
           post.department.Name === department) &&
-        (campus === "Campus" || campus === "all" || post.campus.name === campus)
+        (campus === "Campus" || campus === "all" || post.campus.name === campus),
     );
   }, [posts, search, department, campus]);
 
@@ -161,7 +154,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
     router.push(`/admin/posts/createPost`);
   };
   const handleRowDelete = (postId: string) => {
-    deletePost(postId)
+    deletePost(postId);
     router.refresh();
   };
 
@@ -208,11 +201,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
               ))}
             </SelectContent>
           </Select>
-          <Select
-            value={formData.campus}
-            onValueChange={handleChange("campus")}
-            name="campus"
-          >
+          <Select value={formData.campus} onValueChange={handleChange("campus")} name="campus">
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder={t("filters.allCampuses")} />
             </SelectTrigger>
@@ -278,10 +267,8 @@ export function PostTable({ posts }: { posts: Post[] }) {
                       {getStatusLabel(post.status)}
                     </span>
                   </TableCell>
+                  <TableCell>{format(new Date(post.$createdAt), "MMM d, yyyy")}</TableCell>
                   <TableCell>
-                    {format(new Date(post.$createdAt), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell >
                     <div className="flex justify-between">
                       <Button onClick={() => handleRowClick(post.$id)}>
                         <Edit /> {t("edit")}
@@ -290,7 +277,6 @@ export function PostTable({ posts }: { posts: Post[] }) {
                         <DeleteIcon /> {t("delete")}
                       </Button>
                     </div>
-
                   </TableCell>
                 </TableRow>
               ))}
@@ -308,12 +294,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Image
-                    src={post.image}
-                    width={300}
-                    height={400}
-                    alt={t("imageAlt")}
-                  />
+                  <Image src={post.image} width={300} height={400} alt={t("imageAlt")} />
                   <p>
                     <strong>{t("table.department")}:</strong> {post.department.Name}
                   </p>
@@ -338,10 +319,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
                   </p>
                 </CardContent>
                 <CardFooter>
-                  <Link
-                    href={`/posts/${post.id}`}
-                    className="text-blue-600 hover:underline"
-                  >
+                  <Link href={`/posts/${post.id}`} className="text-blue-600 hover:underline">
                     {t("table.viewEdit")}
                   </Link>
                 </CardFooter>
@@ -352,16 +330,11 @@ export function PostTable({ posts }: { posts: Post[] }) {
 
         {/*Pagination*/}
         <div className="flex items-center justify-between mt-4">
-          <Button
-            onClick={() => setPage((old) => Math.max(old - 1, 1))}
-            disabled={page === 1}
-          >
+          <Button onClick={() => setPage((old) => Math.max(old - 1, 1))} disabled={page === 1}>
             <ChevronLeft className="w-4 h-4 mr-2" />
             {t("pagination.previous")}
           </Button>
-          <span>
-            {t("pagination.label", { page, total: totalPages })}
-          </span>
+          <span>{t("pagination.label", { page, total: totalPages })}</span>
           <Button
             onClick={() => setPage((old) => (old < totalPages ? old + 1 : old))}
             disabled={page === totalPages}

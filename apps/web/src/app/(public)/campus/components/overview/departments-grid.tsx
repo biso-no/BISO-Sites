@@ -1,10 +1,10 @@
-import { motion } from "motion/react";
-import { Building2 } from "lucide-react";
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { Card } from "@repo/ui/components/ui/card";
+import { Building2 } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
 interface DepartmentsGridProps {
@@ -13,11 +13,7 @@ interface DepartmentsGridProps {
   activeCampusId?: string | null;
 }
 
-export function DepartmentsGrid({
-  departments,
-  locale,
-  activeCampusId,
-}: DepartmentsGridProps) {
+export function DepartmentsGrid({ departments, locale, activeCampusId }: DepartmentsGridProps) {
   if (!departments || departments.length === 0) {
     return null;
   }
@@ -36,9 +32,7 @@ export function DepartmentsGrid({
           </p>
         </div>
         <Button variant="ghost" size="sm" className="text-[#3DA9E0]">
-          <Link
-            href={activeCampusId ? `/units?campus_id=${activeCampusId}` : "/units"}
-          >
+          <Link href={activeCampusId ? `/units?campus_id=${activeCampusId}` : "/units"}>
             {locale === "en" ? "See All Units" : "Se alle enheter"}
           </Link>
         </Button>
@@ -53,25 +47,22 @@ export function DepartmentsGrid({
             transition={{ delay: index * 0.1 }}
           >
             <Link href={`/units/${dept.department_ref?.$id || dept.content_id}`}>
-            <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all text-center group cursor-pointer">
+              <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all text-center group cursor-pointer">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Building2 className="w-8 h-8 text-white" />
-              </div>
+                  <Building2 className="w-8 h-8 text-white" />
+                </div>
                 <h4 className="text-foreground mb-2 font-semibold">{dept.title}</h4>
                 {dept.short_description && (
                   <p className="text-sm text-muted-foreground line-clamp-2">
                     {dept.short_description}
                   </p>
-              )}
+                )}
                 {dept.department_ref?.type && (
-                <Badge
-                  variant="outline"
-                    className="mt-3 text-xs border-border"
-                >
+                  <Badge variant="outline" className="mt-3 text-xs border-border">
                     {dept.department_ref.type}
-                </Badge>
-              )}
-            </Card>
+                  </Badge>
+                )}
+              </Card>
             </Link>
           </motion.div>
         ))}

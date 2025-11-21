@@ -1,9 +1,9 @@
 "use client";
-import * as React from "react";
-import { cn } from "@repo/ui/lib/utils";
-import { Input } from "@repo/ui/components/ui/input";
 import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { cn } from "@repo/ui/lib/utils";
 import { XIcon } from "lucide-react";
+import type * as React from "react";
 
 export interface FilterBarProps extends React.HTMLAttributes<HTMLDivElement> {
   query?: string;
@@ -33,7 +33,7 @@ export function FilterBar({
     <div
       className={cn(
         "flex flex-col gap-3 rounded-[calc(var(--radius))] border bg-background/70 p-3 md:flex-row md:items-center md:gap-4 md:p-4",
-        className
+        className,
       )}
       {...props}
     >
@@ -71,9 +71,7 @@ export function FilterBar({
                 onClick={() => onToggleFilter?.(f.key)}
                 className={cn(
                   "rounded-full px-3",
-                  active
-                    ? "bg-secondary text-secondary-foreground"
-                    : "bg-background"
+                  active ? "bg-secondary text-secondary-foreground" : "bg-background",
                 )}
               >
                 {f.label}
@@ -85,4 +83,3 @@ export function FilterBar({
     </div>
   );
 }
-

@@ -1,16 +1,25 @@
-'use client';
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Calendar, Users, Info, Newspaper, Mail, Briefcase, ShoppingBag } from 'lucide-react';
-import { Button } from '@repo/ui/components/ui/button';
-import { ImageWithFallback } from '@repo/ui/components/image';
-import Link from 'next/link';
-import { SelectCampus } from '@/components/select-campus';
-import { useCampus } from '@/components/context/campus';
-import { usePathname } from 'next/navigation';
-import { LocaleSwitcher } from '../locale-switcher';
-import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+"use client";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Briefcase,
+  Calendar,
+  Info,
+  Mail,
+  Menu,
+  Newspaper,
+  ShoppingBag,
+  Users,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
+import { useCampus } from "@/components/context/campus";
+import { SelectCampus } from "@/components/select-campus";
+import { LocaleSwitcher } from "../locale-switcher";
 
 interface NavigationProps {
   onEventsClick?: () => void;
@@ -19,32 +28,46 @@ interface NavigationProps {
   onShopClick?: () => void;
 }
 
-export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopClick }: NavigationProps) {
+export function Navigation({
+  onEventsClick,
+  onNewsClick,
+  onApplyClick,
+  onShopClick,
+}: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { campuses } = useCampus();
   const pathname = usePathname();
-  const t = useTranslations('common.navigation');
+  const t = useTranslations("common.navigation");
   const router = useRouter();
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const isActive = (href: string) => pathname === href;
 
-  const navItems = useMemo(() => [
-    { icon: Users, label: t('campus'), href: '/campus', onClick: undefined },
-    { icon: Calendar, label: t('events'), href: '/events', onClick: onEventsClick },
-    { icon: Newspaper, label: t('news'), href: '/news', onClick: onNewsClick },
-    { icon: ShoppingBag, label: t('shop'), href: '/shop', onClick: onShopClick },
-    { icon: Briefcase, label: t('applyHere'), href: '/jobs', onClick: onApplyClick, highlight: true },
-    //{ icon: Mail, label: 'Contact', href: '#contact', onClick: undefined },
-    { icon: Info, label: t('about'), href: '#about', onClick: undefined },
-  ], [pathname]);
+  const navItems = useMemo(
+    () => [
+      { icon: Users, label: t("campus"), href: "/campus", onClick: undefined },
+      { icon: Calendar, label: t("events"), href: "/events", onClick: onEventsClick },
+      { icon: Newspaper, label: t("news"), href: "/news", onClick: onNewsClick },
+      { icon: ShoppingBag, label: t("shop"), href: "/shop", onClick: onShopClick },
+      {
+        icon: Briefcase,
+        label: t("applyHere"),
+        href: "/jobs",
+        onClick: onApplyClick,
+        highlight: true,
+      },
+      //{ icon: Mail, label: 'Contact', href: '#contact', onClick: undefined },
+      { icon: Info, label: t("about"), href: "#about", onClick: undefined },
+    ],
+    [pathname],
+  );
 
   return (
     <motion.nav
@@ -52,8 +75,8 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
       animate={{ y: 0 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-[#001731]/95 backdrop-blur-lg shadow-lg shadow-[#3DA9E0]/10'
-          : 'bg-transparent'
+          ? "bg-[#001731]/95 backdrop-blur-lg shadow-lg shadow-[#3DA9E0]/10"
+          : "bg-transparent"
       }`}
     >
       <div className="w-full max-w-[min(1400px,100%)] mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,17 +84,16 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
           {/* Logo */}
           <motion.div whileHover={{ scale: 1.05 }} className="flex items-center gap-3">
             <Link href="/">
-            <ImageWithFallback
-              src="/images/home-logo.png"
-              alt="BISO logo"
-              width={140}               // pick the intrinsic pixel width
-              height={40}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 120px, 140px"                 // above-the-fold
-              className="h-10 w-auto"    // control display size via CSS
-            />
+              <ImageWithFallback
+                src="/images/home-logo.png"
+                alt="BISO logo"
+                width={140} // pick the intrinsic pixel width
+                height={40} // and height that matches your asset ratio
+                sizes="(max-width: 768px) 120px, 140px" // above-the-fold
+                className="h-10 w-auto" // control display size via CSS
+              />
             </Link>
           </motion.div>
-
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex flex-1 flex-wrap items-center justify-end gap-6">
@@ -86,26 +108,24 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
                   }
                 }}
                 className={`flex items-center gap-2 transition-colors duration-300 hover:text-[#3DA9E0] cursor-pointer ${
-                  isActive(item.href) 
-                    ? 'px-4 py-2 rounded-lg bg-linear-to-r from-[#3DA9E0]/20 to-[#001731]/20 border border-[#3DA9E0]/30 hover:from-[#3DA9E0]/30 hover:to-[#001731]/30'
-                    : ''
-                } ${
-                  isScrolled ? 'text-white' : 'text-white'
-                }`}
+                  isActive(item.href)
+                    ? "px-4 py-2 rounded-lg bg-linear-to-r from-[#3DA9E0]/20 to-[#001731]/20 border border-[#3DA9E0]/30 hover:from-[#3DA9E0]/30 hover:to-[#001731]/30"
+                    : ""
+                } ${isScrolled ? "text-white" : "text-white"}`}
               >
                 <item.icon className="w-4 h-4" />
                 {item.label}
               </Link>
             ))}
-            <SelectCampus campuses={campuses}/>
+            <SelectCampus campuses={campuses} />
             <LocaleSwitcher variant="ghost" size="sm" />
-            <Link href="/partner">{t('partner')}</Link>
+            <Link href="/partner">{t("partner")}</Link>
             <Button
               size="sm"
-              onClick={() => router.push('/member')}
+              onClick={() => router.push("/member")}
               className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 shadow-lg"
             >
-              {t('memberPortal')}
+              {t("memberPortal")}
             </Button>
           </div>
 
@@ -113,12 +133,11 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className={`md:hidden p-2 rounded-lg transition-colors duration-300 ${
-              isScrolled ? 'text-white' : 'text-white'
+              isScrolled ? "text-white" : "text-white"
             }`}
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
-
         </div>
       </div>
 
@@ -127,7 +146,7 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
         {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden bg-[#001731]/95 backdrop-blur-lg border-t border-[#3DA9E0]/20"
           >
@@ -144,16 +163,16 @@ export function Navigation({ onEventsClick, onNewsClick, onApplyClick, onShopCli
                     setIsMobileMenuOpen(false);
                   }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#3DA9E0]/10 text-white transition-colors cursor-pointer ${
-                    isActive(item.href) 
-                      ? 'bg-linear-to-r from-[#3DA9E0]/20 to-[#001731]/20 border border-[#3DA9E0]/30 hover:from-[#3DA9E0]/30 hover:to-[#001731]/30'
-                      : ''
+                    isActive(item.href)
+                      ? "bg-linear-to-r from-[#3DA9E0]/20 to-[#001731]/20 border border-[#3DA9E0]/30 hover:from-[#3DA9E0]/30 hover:to-[#001731]/30"
+                      : ""
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
                 </Link>
               ))}
-              <SelectCampus campuses={campuses}/>
+              <SelectCampus campuses={campuses} />
               <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0">
                 Member Portal
               </Button>

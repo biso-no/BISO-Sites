@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "motion/react";
-import { Loader2 } from "lucide-react";
-import { Card } from "@repo/ui/components/ui/card";
-import { TeamMemberCard } from "./team-member-card";
 import type { DepartmentBoard } from "@repo/api/types/appwrite";
+import { Card } from "@repo/ui/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/config";
+import { TeamMemberCard } from "./team-member-card";
 
 interface TeamTabProps {
   fallbackTeam: DepartmentBoard[];
@@ -79,12 +79,11 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
       .then((payload) => {
         if (cancelled) return;
         const dataset = payload?.data ?? payload;
-        const members =
-          Array.isArray(dataset?.members)
-            ? dataset.members
-            : Array.isArray(dataset?.data?.members)
-              ? dataset.data.members
-              : [];
+        const members = Array.isArray(dataset?.members)
+          ? dataset.members
+          : Array.isArray(dataset?.data?.members)
+            ? dataset.data.members
+            : [];
         if (Array.isArray(members) && members.length) {
           const mapped = members
             .map(mapToLeader)
@@ -98,7 +97,7 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
             setError(
               locale === "en"
                 ? "Campus leadership information is not available right now."
-                : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå."
+                : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå.",
             );
           }
         }
@@ -111,7 +110,7 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
           setError(
             locale === "en"
               ? "Campus leadership information is not available right now."
-              : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå."
+              : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå.",
           );
         } else {
           setError(null);
@@ -148,9 +147,7 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center">
             <Loader2 className="h-4 w-4 animate-spin text-primary-50" />
-            <span>
-              {locale === "en" ? "Loading team..." : "Laster team..."}
-            </span>
+            <span>{locale === "en" ? "Loading team..." : "Laster team..."}</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (
@@ -193,4 +190,3 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
     </>
   );
 }
-

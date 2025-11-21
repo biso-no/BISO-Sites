@@ -1,10 +1,10 @@
 "use client";
 
+import type { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import { type Data, PageEditor } from "@repo/editor";
 import { useRouter } from "next/navigation";
-import { PageEditor, type Data } from "@repo/editor";
-import { PageStatus, PageVisibility, Locale } from "@repo/api/types/appwrite";
-import { savePageDraft, publishPage, ensureTranslation } from "@/app/actions/pages";
 import { toast } from "sonner";
+import { ensureTranslation, publishPage, savePageDraft } from "@/app/actions/pages";
 
 interface EditorClientProps {
   pageId: string;
@@ -51,11 +51,14 @@ export function EditorClient({
     });
   };
 
-  const handleLocaleChange = async (newLocale: Locale, context: { title: string; slug: string }) => {
+  const handleLocaleChange = async (
+    newLocale: Locale,
+    context: { title: string; slug: string },
+  ) => {
     if (newLocale === locale) return;
-    
-    const existingTranslation = pageTranslations.find(t => t.locale === newLocale);
-    
+
+    const existingTranslation = pageTranslations.find((t) => t.locale === newLocale);
+
     if (existingTranslation) {
       router.push(`/admin/pages/${pageId}/${newLocale}/editor`);
     } else {
@@ -64,7 +67,7 @@ export function EditorClient({
           pageId,
           locale: newLocale,
           title: context.title,
-          sourceTranslationId: translationId
+          sourceTranslationId: translationId,
         });
         toast.success(`Created ${newLocale} translation`);
         router.push(`/admin/pages/${pageId}/${newLocale}/editor`);

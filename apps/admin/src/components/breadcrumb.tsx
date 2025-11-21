@@ -1,15 +1,22 @@
-"use client"
-import { Breadcrumb as DBreadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@repo/ui/components/ui/breadcrumb'
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import React from 'react';
+"use client";
+import {
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  Breadcrumb as DBreadcrumb,
+} from "@repo/ui/components/ui/breadcrumb";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import React from "react";
 
 const Breadcrumb = () => {
   const pathname = usePathname();
-  const pathArray = pathname.split('/').filter(Boolean);
+  const pathArray = pathname.split("/").filter(Boolean);
 
   // Remove "admin" from pathArray, if it exists as the first segment
-  if (pathArray[0] === 'admin') {
+  if (pathArray[0] === "admin") {
     pathArray.shift();
   }
 
@@ -27,13 +34,15 @@ const Breadcrumb = () => {
 
         {/* Dynamically create the rest of the breadcrumb links */}
         {pathArray.map((path, index) => {
-          const href = '/admin/' + pathArray.slice(0, index + 1).join('/');
+          const href = "/admin/" + pathArray.slice(0, index + 1).join("/");
 
           // If it's the last item, show it as the current page
           if (index === pathArray.length - 1) {
             return (
               <BreadcrumbItem key={path}>
-                <BreadcrumbPage>{decodeURIComponent(path.charAt(0).toUpperCase() + path.slice(1))}</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {decodeURIComponent(path.charAt(0).toUpperCase() + path.slice(1))}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             );
           }

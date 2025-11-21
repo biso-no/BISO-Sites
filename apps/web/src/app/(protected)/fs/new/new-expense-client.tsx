@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import type { Users } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
+import { ArrowLeft } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { CampusStep } from "@/components/expense/campus-step";
 import { ExpenseWizard, StepContainer } from "@/components/expense/expense-wizard";
 import { ProfileStep } from "@/components/expense/profile-step";
-import { CampusStep } from "@/components/expense/campus-step";
-import { UploadStep } from "@/components/expense/upload-step";
 import { SummaryDialog } from "@/components/expense/summary-dialog";
+import { UploadStep } from "@/components/expense/upload-step";
 import { createExpense, createExpenseAttachment } from "@/lib/actions/expense";
 import { updateProfile } from "@/lib/actions/user";
-import { Users } from "@repo/api/types/appwrite";
-import { toast } from "sonner";
 
 const steps = [
   { id: 1, title: "Profile", description: "Contact & Banking" },
@@ -27,10 +27,7 @@ interface NewExpenseClientProps {
   campuses: Array<{ $id: string; name: string }>;
 }
 
-export function NewExpenseClient({
-  initialProfile,
-  campuses,
-}: NewExpenseClientProps) {
+export function NewExpenseClient({ initialProfile, campuses }: NewExpenseClientProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [showSummary, setShowSummary] = useState(false);
@@ -99,7 +96,7 @@ export function NewExpenseClient({
     try {
       // Create attachment records in the database
       const attachmentIds: string[] = [];
-      
+
       for (const att of uploadData.attachments) {
         const result = await createExpenseAttachment({
           date: att.date,
@@ -168,9 +165,7 @@ export function NewExpenseClient({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="mb-4 text-4xl font-bold text-white">
-                Submit New Reimbursement
-              </h1>
+              <h1 className="mb-4 text-4xl font-bold text-white">Submit New Reimbursement</h1>
               <p className="text-white/90 text-lg">Step {currentStep} of 3</p>
             </motion.div>
           </div>
@@ -178,11 +173,7 @@ export function NewExpenseClient({
       </div>
 
       {/* Wizard */}
-      <ExpenseWizard
-        steps={steps}
-        currentStep={currentStep}
-        onStepChange={setCurrentStep}
-      >
+      <ExpenseWizard steps={steps} currentStep={currentStep} onStepChange={setCurrentStep}>
         {currentStep === 1 && (
           <StepContainer stepId={1}>
             <ProfileStep
@@ -205,10 +196,7 @@ export function NewExpenseClient({
 
         {currentStep === 3 && (
           <StepContainer stepId={3}>
-            <UploadStep
-              onNext={handleUploadNext}
-              onBack={() => setCurrentStep(2)}
-            />
+            <UploadStep onNext={handleUploadNext} onBack={() => setCurrentStep(2)} />
           </StepContainer>
         )}
       </ExpenseWizard>
@@ -233,4 +221,3 @@ export function NewExpenseClient({
     </div>
   );
 }
-

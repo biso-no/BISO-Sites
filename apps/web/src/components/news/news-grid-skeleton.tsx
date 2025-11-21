@@ -1,4 +1,4 @@
-import { Card } from '@repo/ui/components/ui/card';
+import { Card } from "@repo/ui/components/ui/card";
 
 export function NewsGridSkeleton() {
   return (

@@ -1,15 +1,13 @@
 "use client";
 
-import { BotIcon, ChevronDownIcon } from "lucide-react";
-
-import { type FC, forwardRef } from "react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
-
-import { Thread } from "./admin-thread";
-import { TooltipIconButton } from "./tooltip-icon-button";
-import { useAssistantUIStore } from "./assistant-ui-store";
 import { Button } from "@repo/ui/components/ui/button";
-import { cn } from '@repo/ui/lib/utils';
+import { cn } from "@repo/ui/lib/utils";
+import { BotIcon, ChevronDownIcon } from "lucide-react";
+import { type FC, forwardRef } from "react";
+import { Thread } from "./admin-thread";
+import { useAssistantUIStore } from "./assistant-ui-store";
+import { TooltipIconButton } from "./tooltip-icon-button";
 
 export const AssistantModal: FC = () => {
   const { mode, setMode, isModalOpen, setModalOpen, openSidebar } = useAssistantUIStore();
@@ -29,7 +27,13 @@ export const AssistantModal: FC = () => {
           <div className="flex items-center justify-between border-b px-3 py-2">
             <div className="text-sm font-medium">Admin Assistant</div>
             <div className="flex items-center gap-2">
-              <Button variant={isModal ? "default" : "outline"} size="sm" onClick={() => setMode("modal")}>Modal</Button>
+              <Button
+                variant={isModal ? "default" : "outline"}
+                size="sm"
+                onClick={() => setMode("modal")}
+              >
+                Modal
+              </Button>
               <Button
                 variant={!isModal ? "default" : "outline"}
                 size="sm"
@@ -54,33 +58,32 @@ export const AssistantModal: FC = () => {
 
 type AssistantModalButtonProps = { "data-state"?: "open" | "closed" };
 
-const AssistantModalButton = forwardRef<
-  HTMLButtonElement,
-  AssistantModalButtonProps
->(({ "data-state": state, ...rest }, ref) => {
-  const tooltip = state === "open" ? "Close Assistant" : "Open Assistant";
+const AssistantModalButton = forwardRef<HTMLButtonElement, AssistantModalButtonProps>(
+  ({ "data-state": state, ...rest }, ref) => {
+    const tooltip = state === "open" ? "Close Assistant" : "Open Assistant";
 
-  return (
-    <TooltipIconButton
-      variant="default"
-      tooltip={tooltip}
-      side="left"
-      {...rest}
-      className="aui-modal-button size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
-      ref={ref}
-    >
-      <BotIcon
-        data-state={state}
-        className="aui-modal-button-closed-icon absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90"
-      />
+    return (
+      <TooltipIconButton
+        variant="default"
+        tooltip={tooltip}
+        side="left"
+        {...rest}
+        className="aui-modal-button size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
+        ref={ref}
+      >
+        <BotIcon
+          data-state={state}
+          className="aui-modal-button-closed-icon absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90"
+        />
 
-      <ChevronDownIcon
-        data-state={state}
-        className="aui-modal-button-open-icon absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0"
-      />
-      <span className="aui-sr-only sr-only">{tooltip}</span>
-    </TooltipIconButton>
-  );
-});
+        <ChevronDownIcon
+          data-state={state}
+          className="aui-modal-button-open-icon absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0"
+        />
+        <span className="aui-sr-only sr-only">{tooltip}</span>
+      </TooltipIconButton>
+    );
+  },
+);
 
 AssistantModalButton.displayName = "AssistantModalButton";

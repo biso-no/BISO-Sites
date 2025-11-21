@@ -1,11 +1,11 @@
 "use client";
+import { ArrowRight, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { motion } from "motion/react";
-import { Calendar, MapPin, Clock, ArrowRight, Users } from "lucide-react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { ImageWithFallback } from "../image";
 import Link from "next/link";
+import { ImageWithFallback } from "../image";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 
 export interface EventItem {
   $id: string;
@@ -35,9 +35,9 @@ export interface EventsProps {
 
 export function Events({ events, labels }: EventsProps) {
   const categoryColors: Record<string, string> = {
-    Social: 'bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20',
-    Career: 'bg-[#001731]/10 text-[#001731] border-[#001731]/20',
-    Academic: 'bg-cyan-100 text-[#001731] border-cyan-200',
+    Social: "bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20",
+    Career: "bg-[#001731]/10 text-[#001731] border-[#001731]/20",
+    Academic: "bg-cyan-100 text-[#001731] border-cyan-200",
   };
 
   if (!events || events.length === 0) {
@@ -73,9 +73,7 @@ export function Events({ events, labels }: EventsProps) {
               {labels.amazingExperiences}
             </span>
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            {labels.description}
-          </p>
+          <p className="text-gray-600 max-w-2xl mx-auto">{labels.description}</p>
         </motion.div>
 
         {/* Events Grid */}
@@ -84,17 +82,22 @@ export function Events({ events, labels }: EventsProps) {
             const isFeatured = index === 0;
             const startDate = event.start_date ? new Date(event.start_date) : null;
             const endDate = event.end_date ? new Date(event.end_date) : null;
-            
+
             // Format date and time
-            const dateString = startDate 
-              ? startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-              : 'TBA';
-            
-            const timeString = startDate && endDate
-              ? `${startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
-              : startDate
-              ? startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-              : 'TBA';
+            const dateString = startDate
+              ? startDate.toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "TBA";
+
+            const timeString =
+              startDate && endDate
+                ? `${startDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} - ${endDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`
+                : startDate
+                  ? startDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                  : "TBA";
 
             return (
               <motion.div
@@ -103,21 +106,28 @@ export function Events({ events, labels }: EventsProps) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className={isFeatured ? 'md:col-span-2' : ''}
+                className={isFeatured ? "md:col-span-2" : ""}
               >
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group">
-                  <div className={`grid ${isFeatured ? 'md:grid-cols-2' : ''} gap-0`}>
+                  <div className={`grid ${isFeatured ? "md:grid-cols-2" : ""} gap-0`}>
                     {/* Image */}
-                    <div className={`relative overflow-hidden ${isFeatured ? 'h-96 md:h-auto' : 'h-64'}`}>
+                    <div
+                      className={`relative overflow-hidden ${isFeatured ? "h-96 md:h-auto" : "h-64"}`}
+                    >
                       <ImageWithFallback
-                        src={event.image || 'https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080'}
+                        src={
+                          event.image ||
+                          "https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080"
+                        }
                         alt={event.title}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                       {event.category && (
-                        <Badge className={`absolute top-4 left-4 ${categoryColors[event.category] || 'bg-gray-100 text-gray-900'}`}>
+                        <Badge
+                          className={`absolute top-4 left-4 ${categoryColors[event.category] || "bg-gray-100 text-gray-900"}`}
+                        >
                           {event.category}
                         </Badge>
                       )}
@@ -127,7 +137,7 @@ export function Events({ events, labels }: EventsProps) {
                     <div className="p-8 flex flex-col justify-between">
                       <div>
                         <h3 className="mb-4 text-gray-900">{event.title}</h3>
-                        
+
                         <div className="space-y-3 mb-6">
                           <div className="flex items-center gap-3 text-gray-600">
                             <Calendar className="w-5 h-5 text-[#3DA9E0]" />
@@ -139,7 +149,7 @@ export function Events({ events, labels }: EventsProps) {
                           </div>
                           <div className="flex items-center gap-3 text-gray-600">
                             <MapPin className="w-5 h-5 text-[#3DA9E0]" />
-                            <span>{event.location || 'Location TBA'}</span>
+                            <span>{event.location || "Location TBA"}</span>
                           </div>
                           {event.attendees !== undefined && (
                             <div className="flex items-center gap-3 text-gray-600">
@@ -172,7 +182,11 @@ export function Events({ events, labels }: EventsProps) {
           className="text-center"
         >
           <Link href="/events">
-            <Button variant="outline" size="lg" className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10">
+            <Button
+              variant="outline"
+              size="lg"
+              className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
+            >
               {labels.viewAllEvents}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

@@ -1,10 +1,10 @@
-import { motion } from "motion/react";
-import { Newspaper, ChevronRight } from "lucide-react";
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
-import { ImageWithFallback } from "@repo/ui/components/image";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { ChevronRight, Newspaper } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
 interface LatestNewsProps {
@@ -32,9 +32,7 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
   return (
     <section>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-gray-900">
-          {locale === "en" ? "Latest News" : "Siste nytt"}
-        </h2>
+        <h2 className="text-gray-900">{locale === "en" ? "Latest News" : "Siste nytt"}</h2>
         <Button variant="ghost" size="sm" className="text-[#3DA9E0]">
           <Link href="/news" className="flex items-center">
             {locale === "en" ? "View All" : "Se alle"}
@@ -90,4 +88,3 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
     </section>
   );
 }
-

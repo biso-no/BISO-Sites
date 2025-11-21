@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import { cn } from "../../lib/utils";
 import { ImageWithFallback } from "../image";
-import Link from "next/link";
 
 export interface LogoItem {
   image: string;
@@ -36,12 +36,15 @@ export function LogoGrid({
       <div className={cn("grid gap-6 items-center", gridCols[columns])}>
         {items.map((item, index) => {
           const Content = (
-            <div className={cn(
-              "relative flex items-center justify-center p-6 transition-all duration-300",
-              variant === "bordered" && "border border-border rounded-xl bg-white hover:border-primary/20 hover:shadow-md",
-              variant === "card" && "bg-white rounded-xl shadow-sm hover:shadow-md p-8",
-              grayscale && "grayscale hover:grayscale-0 opacity-70 hover:opacity-100"
-            )}>
+            <div
+              className={cn(
+                "relative flex items-center justify-center p-6 transition-all duration-300",
+                variant === "bordered" &&
+                  "border border-border rounded-xl bg-white hover:border-primary/20 hover:shadow-md",
+                variant === "card" && "bg-white rounded-xl shadow-sm hover:shadow-md p-8",
+                grayscale && "grayscale hover:grayscale-0 opacity-70 hover:opacity-100",
+              )}
+            >
               <div className="relative w-full h-12 sm:h-16">
                 <ImageWithFallback
                   src={item.image}
@@ -55,13 +58,23 @@ export function LogoGrid({
 
           if (item.href) {
             return (
-              <Link key={index} href={item.href} target="_blank" rel="noopener noreferrer" className="block h-full">
+              <Link
+                key={index}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block h-full"
+              >
                 {Content}
               </Link>
             );
           }
 
-          return <div key={index} className="h-full">{Content}</div>;
+          return (
+            <div key={index} className="h-full">
+              {Content}
+            </div>
+          );
         })}
       </div>
     </div>

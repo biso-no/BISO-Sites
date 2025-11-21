@@ -1,5 +1,12 @@
-'use client';
-import { Select, SelectContent, SelectItem, SelectGroup, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select';
+"use client";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
 
 interface RoleSwitcherProps {
   roles: string[];
@@ -8,10 +15,9 @@ interface RoleSwitcherProps {
 }
 
 export function RoleSwitcher({ roles, selectedRole, setSelectedRole }: RoleSwitcherProps) {
+  if (!roles.includes("Admin")) return null; // Only show to Admins
 
-  if (!roles.includes('Admin')) return null; // Only show to Admins
-
-  const availableRoles = ['Admin', 'pr', 'finance', 'Control Committee', 'hr']; // Define all possible roles
+  const availableRoles = ["Admin", "pr", "finance", "Control Committee", "hr"]; // Define all possible roles
 
   // During SSR and initial hydration, use a consistent value to avoid mismatch
   const selectValue = selectedRole;

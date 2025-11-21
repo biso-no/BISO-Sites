@@ -1,9 +1,9 @@
-import { motion } from "motion/react";
-import { Briefcase, Globe, ExternalLink, CheckCircle } from "lucide-react";
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
 import type { CampusData } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Briefcase, CheckCircle, ExternalLink, Globe } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
 interface PartnersTabProps {
@@ -14,9 +14,7 @@ interface PartnersTabProps {
 
 export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps) {
   const businessBenefits = campusData
-    ? (locale === "en"
-        ? campusData.businessBenefits_en
-        : campusData.businessBenefits_nb) ||
+    ? (locale === "en" ? campusData.businessBenefits_en : campusData.businessBenefits_nb) ||
       campusData.businessBenefits_en ||
       campusData.businessBenefits_nb ||
       []
@@ -98,9 +96,7 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
               className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
             >
               <Link href="/contact">
-                {locale === "en"
-                  ? "Contact Partnership Team"
-                  : "Kontakt partnerskapsteamet"}
+                {locale === "en" ? "Contact Partnership Team" : "Kontakt partnerskapsteamet"}
                 <ExternalLink className="w-4 h-4 ml-2" />
               </Link>
             </Button>
@@ -110,4 +106,3 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
     </>
   );
 }
-

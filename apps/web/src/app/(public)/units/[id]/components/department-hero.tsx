@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { ArrowLeft, Building2, MapPin } from "lucide-react";
-import { Badge } from "@repo/ui/components/ui/badge";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
-import { ContentTranslations } from "@repo/api/types/appwrite";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { ArrowLeft, Building2, MapPin } from "lucide-react";
+import Link from "next/link";
 import { SocialLinks } from "./social-links";
 
 interface DepartmentHeroProps {
@@ -11,11 +11,12 @@ interface DepartmentHeroProps {
 
 export function DepartmentHero({ department }: DepartmentHeroProps) {
   const dept = department.department_ref;
-  
+
   // Use custom hero image if available, otherwise use default
-  const DEFAULT_HERO_URL = 'https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso';
+  const DEFAULT_HERO_URL =
+    "https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso";
   const heroImageUrl = (dept as any)?.hero || DEFAULT_HERO_URL;
-  
+
   return (
     <div className="relative h-[60vh] overflow-hidden">
       <ImageWithFallback
@@ -25,7 +26,7 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
         className="w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
-      
+
       <div className="absolute inset-0">
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center">
           <Link
@@ -40,10 +41,10 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
             <div className="flex items-center gap-4 mb-6">
               {dept.logo && (
                 <div className="w-20 h-20 rounded-xl bg-white/10 backdrop-blur-sm p-3 border border-white/20">
-                  <img 
-                    src={dept.logo} 
-                    alt={department.title} 
-                    className="w-full h-full object-contain" 
+                  <img
+                    src={dept.logo}
+                    alt={department.title}
+                    className="w-full h-full object-contain"
                   />
                 </div>
               )}
@@ -65,17 +66,13 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
                 </h1>
               </div>
             </div>
-            
+
             {department.short_description && (
-              <p className="text-white/90 text-lg mb-8 max-w-2xl">
-                {department.short_description}
-              </p>
+              <p className="text-white/90 text-lg mb-8 max-w-2xl">{department.short_description}</p>
             )}
 
             {/* Social Links */}
-            {dept.socials && dept.socials.length > 0 && (
-              <SocialLinks socials={dept.socials} />
-            )}
+            {dept.socials && dept.socials.length > 0 && <SocialLinks socials={dept.socials} />}
           </div>
         </div>
       </div>

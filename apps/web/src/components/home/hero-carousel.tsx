@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown, ChevronLeft, ChevronRight, Calendar, Users, Sparkles } from "lucide-react";
-import Link from "next/link";
-import Image, { ImageProps } from "next/image";
 import { Button } from "@repo/ui/components/ui/button";
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Sparkles, Users } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import Image, { type ImageProps } from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Drop-in robust ImageWithFallback that does NOT force 100x100.
@@ -20,9 +20,13 @@ export type ImageWithFallbackProps = ImageProps & {
   fallbackSrc?: string;
 };
 
-export function ImageWithFallback({ fallbackSrc = ERROR_IMG_SRC, onError, ...props }: ImageWithFallbackProps) {
+export function ImageWithFallback({
+  fallbackSrc = ERROR_IMG_SRC,
+  onError,
+  ...props
+}: ImageWithFallbackProps) {
   const [src, setSrc] = useState(props.src);
-  const t = useTranslations('home.hero');
+  const t = useTranslations("home.hero");
   const isDataUri = typeof src === "string" && src.startsWith("data:");
 
   return (
@@ -40,7 +44,9 @@ export function ImageWithFallback({ fallbackSrc = ERROR_IMG_SRC, onError, ...pro
 }
 
 // ---- Types for your content model ----
-interface ContentRef { image?: string | null }
+interface ContentRef {
+  image?: string | null;
+}
 interface ContentTranslations {
   title?: string | null;
   description?: string | null;
@@ -54,7 +60,7 @@ interface HeroCarouselProps {
 }
 
 export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
-  const t = useTranslations('home.hero');
+  const t = useTranslations("home.hero");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -122,10 +128,10 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.8 }}
             >
-              {t('badge')}
+              {t("badge")}
               <br />
               <span className="bg-linear-to-r from-[#3DA9E0] via-cyan-300 to-blue-300 bg-clip-text text-transparent">
-                {t('badgeElevated')}
+                {t("badgeElevated")}
               </span>
             </motion.h1>
 
@@ -135,7 +141,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.8 }}
             >
-              {t('subtitleDefault')}
+              {t("subtitleDefault")}
             </motion.p>
 
             <motion.div
@@ -145,15 +151,22 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
               transition={{ delay: 0.7, duration: 0.8 }}
             >
               <Link href="#join">
-                <Button size="lg" className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50">
+                <Button
+                  size="lg"
+                  className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50"
+                >
                   <Users className="w-5 h-5 mr-2" />
-                  {t('ctas.join')}
+                  {t("ctas.join")}
                 </Button>
               </Link>
               <Link href="/events">
-                <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6"
+                >
                   <Calendar className="w-5 h-5 mr-2" />
-                  {t('ctas.viewEvents')}
+                  {t("ctas.viewEvents")}
                 </Button>
               </Link>
             </motion.div>
@@ -176,7 +189,9 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
   const currentItem = featuredContent[currentIndex];
   const isEvent = !!currentItem?.event_ref;
   const imageUrl = isEvent ? currentItem?.event_ref?.image : currentItem?.news_ref?.image;
-  const contentLink = isEvent ? `/events/${currentItem?.content_id}` : `/news/${currentItem?.content_id}`;
+  const contentLink = isEvent
+    ? `/events/${currentItem?.content_id}`
+    : `/news/${currentItem?.content_id}`;
 
   return (
     <div
@@ -221,26 +236,35 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
         >
           <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-8">
             <Sparkles className="w-5 h-5 text-[#3DA9E0]" />
-            <span className="text-white/90">{t('featuredContent', { contentType: isEvent ? t('featuredEvent') : t('featuredNews') })}</span>
+            <span className="text-white/90">
+              {t("featuredContent", {
+                contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
+              })}
+            </span>
           </div>
 
           <h1 className="mb-6 text-white max-w-4xl mx-auto">{currentItem?.title || ""}</h1>
 
           <p className="mb-10 text-white/80 max-w-2xl mx-auto text-lg">
-            {(currentItem?.description || "")
-              .replace(/<[^>]+>/g, "")
-              .slice(0, 180) || "..."}
+            {(currentItem?.description || "").replace(/<[^>]+>/g, "").slice(0, 180) || "..."}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href={contentLink}>
-              <Button size="lg" className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50">
-                {t('learnMore')}
+              <Button
+                size="lg"
+                className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50"
+              >
+                {t("learnMore")}
               </Button>
             </Link>
             <Link href={isEvent ? "/events" : "/news"}>
-              <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6">
-                {t('viewAll', { contentType: isEvent ? t('featuredEvent') : t('featuredNews') })}
+              <Button
+                size="lg"
+                variant="outline"
+                className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6"
+              >
+                {t("viewAll", { contentType: isEvent ? t("featuredEvent") : t("featuredNews") })}
               </Button>
             </Link>
           </div>

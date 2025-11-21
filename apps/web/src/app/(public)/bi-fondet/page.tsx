@@ -1,52 +1,57 @@
-"use server"
+"use server";
 
-import { getTranslations } from "next-intl/server"
-
-import { getFundingProgramBySlug } from "@/app/actions/funding"
-import { getLocale } from "@/app/actions/locale"
-import { Badge } from "@repo/ui/components/ui/badge"
-import { Button } from "@repo/ui/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card"
-import type { Locale } from "@/i18n/config"
-import Image from "next/image"
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import Image from "next/image";
+import { getTranslations } from "next-intl/server";
+import { getFundingProgramBySlug } from "@/app/actions/funding";
+import { getLocale } from "@/app/actions/locale";
+import type { Locale } from "@/i18n/config";
 
 const pickByLocale = <T,>(nbValue?: T, enValue?: T, locale: Locale = "no"): T | undefined =>
-  locale === "en" ? enValue ?? nbValue : nbValue ?? enValue
+  locale === "en" ? (enValue ?? nbValue) : (nbValue ?? enValue);
 
 export default async function BIFundPage() {
-  const locale = (await getLocale()) as Locale
-  const t = await getTranslations("fundingProgram")
+  const locale = (await getLocale()) as Locale;
+  const t = await getTranslations("fundingProgram");
 
-  const program = await getFundingProgramBySlug("bi-fondet")
-  const metadata = program?.parsedMetadata
+  const program = await getFundingProgramBySlug("bi-fondet");
+  const metadata = program?.parsedMetadata;
 
-  const title = pickByLocale(metadata?.title_nb, metadata?.title_en, locale) ?? t("fallback.title")
-  const intro = pickByLocale(metadata?.intro_nb, metadata?.intro_en, locale) ?? t("fallback.intro")
-  const grantPoints = pickByLocale(metadata?.grant_nb, metadata?.grant_en, locale)
-  const eligibility = pickByLocale(metadata?.eligibility_nb, metadata?.eligibility_en, locale)
-  const steps = pickByLocale(metadata?.steps_nb, metadata?.steps_en, locale)
+  const title = pickByLocale(metadata?.title_nb, metadata?.title_en, locale) ?? t("fallback.title");
+  const intro = pickByLocale(metadata?.intro_nb, metadata?.intro_en, locale) ?? t("fallback.intro");
+  const grantPoints = pickByLocale(metadata?.grant_nb, metadata?.grant_en, locale);
+  const eligibility = pickByLocale(metadata?.eligibility_nb, metadata?.eligibility_en, locale);
+  const steps = pickByLocale(metadata?.steps_nb, metadata?.steps_en, locale);
   const contact =
     pickByLocale(metadata?.contact_nb, metadata?.contact_en, locale) ??
-    t("fallback.contact", { email: program?.contact_email ?? "au.finance@biso.no" })
+    t("fallback.contact", { email: program?.contact_email ?? "au.finance@biso.no" });
 
-  const documents = metadata?.documents ?? []
-  const faqs = pickByLocale(metadata?.faqs_nb, metadata?.faqs_en, locale) ?? []
+  const documents = metadata?.documents ?? [];
+  const faqs = pickByLocale(metadata?.faqs_nb, metadata?.faqs_en, locale) ?? [];
 
-  const applicationUrl = program?.application_url || program?.contact_email
-  const heroImage = program?.hero_image_url
+  const applicationUrl = program?.application_url || program?.contact_email;
+  const heroImage = program?.hero_image_url;
 
   return (
     <div className="space-y-12">
       <section className="grid gap-8 rounded-3xl border border-primary/10 bg-white/90 p-8 shadow-lg md:grid-cols-[3fr_2fr]">
         <div className="space-y-4">
-          <Badge variant="outline" className="border-primary/20 text-xs uppercase tracking-wide text-primary-70">
+          <Badge
+            variant="outline"
+            className="border-primary/20 text-xs uppercase tracking-wide text-primary-70"
+          >
             {t("hero.badge")}
           </Badge>
           <h1 className="text-3xl font-semibold text-primary-100 md:text-4xl">{title}</h1>
           <p className="text-base text-primary-70">{intro}</p>
           <div className="flex flex-wrap gap-3">
             {grantPoints?.map((point) => (
-              <span key={point} className="rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-sm text-primary-70">
+              <span
+                key={point}
+                className="rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-sm text-primary-70"
+              >
                 {point}
               </span>
             ))}
@@ -54,7 +59,11 @@ export default async function BIFundPage() {
           <div className="flex flex-wrap gap-3">
             {applicationUrl && (
               <Button asChild size="lg">
-                <a href={applicationUrl} target={applicationUrl.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
+                <a
+                  href={applicationUrl}
+                  target={applicationUrl.startsWith("http") ? "_blank" : undefined}
+                  rel="noreferrer"
+                >
                   {t("hero.apply")}
                 </a>
               </Button>
@@ -71,12 +80,19 @@ export default async function BIFundPage() {
           <CardContent className="space-y-3 text-sm text-primary-70">
             <div className="flex items-start justify-between gap-3">
               <span className="font-medium text-primary-90">{t("overview.status")}</span>
-              <span>{program?.status === "active" ? t("overview.active") : t("overview.draft")}</span>
+              <span>
+                {program?.status === "active" ? t("overview.active") : t("overview.draft")}
+              </span>
             </div>
             {program?.document_url && (
               <div className="flex items-start justify-between gap-3">
                 <span className="font-medium text-primary-90">{t("overview.template")}</span>
-                <a href={program.document_url} target="_blank" rel="noreferrer" className="text-primary-40 underline-offset-2 hover:underline">
+                <a
+                  href={program.document_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary-40 underline-offset-2 hover:underline"
+                >
                   {t("overview.download")}
                 </a>
               </div>
@@ -87,7 +103,12 @@ export default async function BIFundPage() {
                 <ul className="space-y-1">
                   {documents.map((doc: { label_nb: string; label_en: string; url: string }) => (
                     <li key={doc.url}>
-                      <a href={doc.url} target="_blank" rel="noreferrer" className="text-primary-40 underline-offset-2 hover:underline">
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary-40 underline-offset-2 hover:underline"
+                      >
                         {pickByLocale(doc.label_nb, doc.label_en, locale)}
                       </a>
                     </li>
@@ -99,7 +120,10 @@ export default async function BIFundPage() {
               <span className="font-medium text-primary-90">{t("overview.contact")}</span>
               <p>{program?.contact_name ?? t("overview.contactFallback")}</p>
               {program?.contact_email ? (
-                <a href={`mailto:${program.contact_email}`} className="text-primary-40 underline-offset-2 hover:underline">
+                <a
+                  href={`mailto:${program.contact_email}`}
+                  className="text-primary-40 underline-offset-2 hover:underline"
+                >
                   {program.contact_email}
                 </a>
               ) : null}
@@ -171,5 +195,5 @@ export default async function BIFundPage() {
         <p className="mt-2 text-sm leading-6">{contact}</p>
       </section>
     </div>
-  )
+  );
 }

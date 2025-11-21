@@ -7,13 +7,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler"
   },
-  "include": [
-    "**/*.ts",
-    "**/*.json"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["**/*.ts", "**/*.json"],
+  "exclude": ["node_modules", "dist"]
 }
-

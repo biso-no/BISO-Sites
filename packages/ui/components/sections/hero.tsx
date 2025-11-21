@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown, ChevronLeft, ChevronRight, Calendar, Users, Sparkles } from "lucide-react";
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Sparkles, Users } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { Button } from "../ui/button";
+import { useCallback, useEffect, useState } from "react";
 import { ImageWithFallback } from "../image";
+import { Button } from "../ui/button";
 
 export interface HeroContentItem {
   title?: string | null;
@@ -12,7 +12,7 @@ export interface HeroContentItem {
   content_id?: string | number | null;
   imageUrl?: string | null;
   link?: string;
-  type?: 'event' | 'news' | 'custom';
+  type?: "event" | "news" | "custom";
 }
 
 export interface HeroProps {
@@ -120,13 +120,20 @@ export function Hero({ featuredContent, labels }: HeroProps) {
               transition={{ delay: 0.7, duration: 0.8 }}
             >
               <Link href="#join">
-                <Button size="lg" className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50">
+                <Button
+                  size="lg"
+                  className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50"
+                >
                   <Users className="w-5 h-5 mr-2" />
                   {labels.ctaJoin}
                 </Button>
               </Link>
               <Link href="/events">
-                <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6"
+                >
                   <Calendar className="w-5 h-5 mr-2" />
                   {labels.ctaViewEvents}
                 </Button>
@@ -150,7 +157,11 @@ export function Hero({ featuredContent, labels }: HeroProps) {
   // ---- Carousel rendering ----
   const currentItem = featuredContent[currentIndex];
   // Use provided link or fallback based on content_id and type
-  const contentLink = currentItem?.link || (currentItem?.type === 'event' ? `/events/${currentItem?.content_id}` : `/news/${currentItem?.content_id}`);
+  const contentLink =
+    currentItem?.link ||
+    (currentItem?.type === "event"
+      ? `/events/${currentItem?.content_id}`
+      : `/news/${currentItem?.content_id}`);
 
   return (
     <div
@@ -168,7 +179,10 @@ export function Hero({ featuredContent, labels }: HeroProps) {
           className="absolute inset-0"
         >
           <ImageWithFallback
-            src={currentItem?.imageUrl || "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"}
+            src={
+              currentItem?.imageUrl ||
+              "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"
+            }
             alt={currentItem?.title || ""}
             fill
             sizes="100vw"
@@ -198,22 +212,29 @@ export function Hero({ featuredContent, labels }: HeroProps) {
             <span className="text-white/90">{labels.featuredLabel}</span>
           </div>
 
-          <h1 className="mb-6 text-white max-w-4xl mx-auto text-4xl md:text-6xl font-bold">{currentItem?.title || ""}</h1>
+          <h1 className="mb-6 text-white max-w-4xl mx-auto text-4xl md:text-6xl font-bold">
+            {currentItem?.title || ""}
+          </h1>
 
           <p className="mb-10 text-white/80 max-w-2xl mx-auto text-lg">
-            {(currentItem?.description || "")
-              .replace(/<[^>]+>/g, "")
-              .slice(0, 180) || "..."}
+            {(currentItem?.description || "").replace(/<[^>]+>/g, "").slice(0, 180) || "..."}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href={contentLink}>
-              <Button size="lg" className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50">
+              <Button
+                size="lg"
+                className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 px-8 py-6 shadow-2xl shadow-[#3DA9E0]/50"
+              >
                 {labels.learnMore}
               </Button>
             </Link>
-            <Link href={currentItem?.type === 'event' ? "/events" : "/news"}>
-              <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6">
+            <Link href={currentItem?.type === "event" ? "/events" : "/news"}>
+              <Button
+                size="lg"
+                variant="outline"
+                className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6"
+              >
                 {labels.viewAll}
               </Button>
             </Link>

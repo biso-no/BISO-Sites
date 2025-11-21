@@ -1,9 +1,9 @@
-import { motion } from "motion/react";
-import { Building2, Calendar, ChevronRight } from "lucide-react";
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Building2, Calendar, ChevronRight } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
 interface JobPostingsProps {
@@ -31,9 +31,7 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
   return (
     <section>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-gray-900">
-          {locale === "en" ? "Open Positions" : "Ledige verv"}
-        </h2>
+        <h2 className="text-gray-900">{locale === "en" ? "Open Positions" : "Ledige verv"}</h2>
         <Button variant="ghost" size="sm" className="text-[#3DA9E0]">
           <Link href="/jobs" className="flex items-center">
             {locale === "en" ? "View All" : "Se alle"}
@@ -78,4 +76,3 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
     </section>
   );
 }
-

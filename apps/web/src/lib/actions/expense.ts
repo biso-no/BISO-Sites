@@ -2,11 +2,14 @@
 
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { Expenses, ExpenseAttachments, ExpenseStatus } from "@repo/api/types/appwrite";
+import { type ExpenseAttachments, ExpenseStatus, type Expenses } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
 // Type for creating an expense - omits relational fields that are populated by the database
-type CreateExpenseInput = Omit<Expenses, keyof import("@repo/api").Models.Row | "user" | "departmentRel" | "expenseAttachments"> & {
+type CreateExpenseInput = Omit<
+  Expenses,
+  keyof import("@repo/api").Models.Row | "user" | "departmentRel" | "expenseAttachments"
+> & {
   expenseAttachments: string[];
 };
 
@@ -16,18 +19,12 @@ type CreateExpenseAttachmentInput = Omit<ExpenseAttachments, keyof import("@repo
 /**
  * Get all expenses for the current user with optional filters
  */
-export async function getExpenses(filters?: { 
-  status?: ExpenseStatus; 
-  campus?: string;
-}) {
+export async function getExpenses(filters?: { status?: ExpenseStatus; campus?: string }) {
   try {
     const { db, account } = await createSessionClient();
     const user = await account.get();
 
-    const queries = [
-      Query.equal("userId", user.$id),
-      Query.orderDesc("$createdAt"),
-    ];
+    const queries = [Query.equal("userId", user.$id), Query.orderDesc("$createdAt")];
 
     if (filters?.status) {
       queries.push(Query.equal("status", filters.status));
@@ -37,11 +34,7 @@ export async function getExpenses(filters?: {
       queries.push(Query.equal("campus", filters.campus));
     }
 
-    const response = await db.listRows<Expenses>(
-      "app",
-      "expense",
-      queries
-    );
+    const response = await db.listRows<Expenses>("app", "expense", queries);
 
     return {
       success: true,
@@ -67,32 +60,27 @@ export async function getExpenseById(expenseId: string) {
     const { db, account } = await createSessionClient();
     const user = await account.get();
 
-    const expense = await db.getRow<Expenses>(
-      "app",
-      "expense",
-      expenseId,
-      [
-        Query.select([
-          "$id",
-          "$createdAt",
-          "$updatedAt",
-          "campus",
-          "department",
-          "bank_account",
-          "description",
-          "total",
-          "prepayment_amount",
-          "status",
-          "invoice_id",
-          "userId",
-          "eventName",
-          "expenseAttachments.*",
-          "user.name",
-          "user.email",
-          "departmentRel.Name",
-        ]),
-      ]
-    );
+    const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "campus",
+        "department",
+        "bank_account",
+        "description",
+        "total",
+        "prepayment_amount",
+        "status",
+        "invoice_id",
+        "userId",
+        "eventName",
+        "expenseAttachments.*",
+        "user.name",
+        "user.email",
+        "departmentRel.Name",
+      ]),
+    ]);
 
     // Verify the expense belongs to the current user
     if (expense.userId !== user.$id) {
@@ -148,15 +136,10 @@ export async function createExpense(data: {
       invoice_id: null,
     };
 
-    const expense = await db.createRow<Expenses>(
-      "app",
-      "expense",
-      ID.unique(),
-      expenseData as any
-    );
+    const expense = await db.createRow<Expenses>("app", "expense", ID.unique(), expenseData as any);
 
     revalidatePath("/fs");
-    
+
     return {
       success: true,
       expense,
@@ -189,7 +172,7 @@ export async function uploadExpenseAttachment(formData: FormData) {
     const result = await storage.createFile(
       "expenses", // Bucket ID
       ID.unique(),
-      file
+      file,
     );
 
     return {
@@ -230,7 +213,7 @@ export async function createExpenseAttachment(data: {
       "app",
       "expense_attachments",
       ID.unique(),
-      attachmentData as any
+      attachmentData as any,
     );
 
     return {
@@ -250,17 +233,14 @@ export async function createExpenseAttachment(data: {
 /**
  * Update an existing expense
  */
-async function updateExpense(
-  expenseId: string,
-  data: Partial<CreateExpenseInput>
-) {
+async function updateExpense(expenseId: string, data: Partial<CreateExpenseInput>) {
   try {
     const { db, account } = await createSessionClient();
     const user = await account.get();
 
     // Verify ownership
     const existingExpense = await db.getRow<Expenses>("app", "expense", expenseId);
-    
+
     if (existingExpense.userId !== user.$id) {
       return {
         success: false,
@@ -268,12 +248,7 @@ async function updateExpense(
       };
     }
 
-    const updatedExpense = await db.updateRow<Expenses>(
-      "app",
-      "expense",
-      expenseId,
-      data as any
-    );
+    const updatedExpense = await db.updateRow<Expenses>("app", "expense", expenseId, data as any);
 
     revalidatePath("/fs");
     revalidatePath(`/fs/${expenseId}`);
@@ -301,7 +276,7 @@ async function deleteExpense(expenseId: string) {
 
     // Verify ownership
     const existingExpense = await db.getRow<Expenses>("app", "expense", expenseId);
-    
+
     if (existingExpense.userId !== user.$id) {
       return {
         success: false,

@@ -1,9 +1,8 @@
-import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 import path from "path";
 
-
-const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const baseConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
@@ -34,10 +33,9 @@ const baseConfig: NextConfig = {
   },
 
   experimental: {
-    authInterrupts: true
+    authInterrupts: true,
   },
   // No framework-level redirects at this time (user preference)
 };
-
 
 export default withNextIntl(baseConfig);

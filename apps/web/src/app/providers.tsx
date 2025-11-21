@@ -1,13 +1,11 @@
-"use client"
-import { TooltipProvider } from "@repo/ui/components/ui/tooltip"
-import { ThemeProvider } from "@repo/ui/components/theme-provider"
+"use client";
+import { ThemeProvider } from "@repo/ui/components/theme-provider";
+import { TooltipProvider } from "@repo/ui/components/ui/tooltip";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-      <ThemeProvider>
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
-      </ThemeProvider>
-  )
+    <ThemeProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+    </ThemeProvider>
+  );
 }

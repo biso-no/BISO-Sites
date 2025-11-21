@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
-import { Button } from '@repo/ui/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Button } from "@repo/ui/components/ui/button";
+import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface DepartmentActionsHeaderProps {
   sortOrder?: string;
@@ -10,18 +10,15 @@ interface DepartmentActionsHeaderProps {
   types: string[];
 }
 
-export function DepartmentActionsHeader({ 
-  campuses,
-  types
-}: DepartmentActionsHeaderProps) {
+export function DepartmentActionsHeader({ campuses, types }: DepartmentActionsHeaderProps) {
   const router = useRouter();
 
   return (
     <div className="flex gap-2">
-      <Button onClick={() => router.push('/admin/units/new')} className="gap-2">
+      <Button onClick={() => router.push("/admin/units/new")} className="gap-2">
         <Plus className="h-4 w-4" />
         Add Unit
       </Button>
     </div>
   );
-} 
+}

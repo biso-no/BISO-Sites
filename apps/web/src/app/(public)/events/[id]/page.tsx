@@ -1,39 +1,39 @@
-import { Suspense } from 'react'
-import { notFound } from 'next/navigation'
-import { getEvent, getCollectionEvents } from '@/app/actions/events'
-import { getLocale } from '@/app/actions/locale'
-import { EventDetailsClient } from '@/components/events/event-details-client'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { getCollectionEvents, getEvent } from "@/app/actions/events";
+import { getLocale } from "@/app/actions/locale";
+import { EventDetailsClient } from "@/components/events/event-details-client";
 
 interface EventPageProps {
   params: {
-    id: string
-  }
+    id: string;
+  };
 }
 
 async function EventDetails({ id }: { id: string }) {
-  const locale = await getLocale()
-  
+  const locale = await getLocale();
+
   // Fetch the event
-  const event = await getEvent(id, locale)
-  
+  const event = await getEvent(id, locale);
+
   if (!event) {
-    notFound()
+    notFound();
   }
-  
+
   // Fetch collection events if this event belongs to or is a collection
-  let collectionEvents = null
-  const eventData = event.event_ref
-  
+  let collectionEvents = null;
+  const eventData = event.event_ref;
+
   if (eventData?.is_collection && eventData.collection_id) {
     // This is a collection parent - fetch all its child events
-    collectionEvents = await getCollectionEvents(eventData.collection_id, locale)
+    collectionEvents = await getCollectionEvents(eventData.collection_id, locale);
   } else if (eventData?.collection_id) {
     // This is a child event - fetch all events in the same collection
-    collectionEvents = await getCollectionEvents(eventData.collection_id, locale)
+    collectionEvents = await getCollectionEvents(eventData.collection_id, locale);
   }
-  
-  return <EventDetailsClient event={event} collectionEvents={collectionEvents || undefined} />
+
+  return <EventDetailsClient event={event} collectionEvents={collectionEvents || undefined} />;
 }
 
 function EventDetailsSkeleton() {
@@ -56,7 +56,7 @@ function EventDetailsSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default async function EventPage({ params }: EventPageProps) {
@@ -64,22 +64,22 @@ export default async function EventPage({ params }: EventPageProps) {
     <Suspense fallback={<EventDetailsSkeleton />}>
       <EventDetails id={params.id} />
     </Suspense>
-  )
+  );
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: EventPageProps) {
-  const locale = await getLocale()
-  const event = await getEvent(params.id, locale)
-  
+  const locale = await getLocale();
+  const event = await getEvent(params.id, locale);
+
   if (!event) {
     return {
-      title: 'Event Not Found | BISO',
-    }
+      title: "Event Not Found | BISO",
+    };
   }
-  
+
   return {
     title: `${event.title} | BISO Events`,
     description: event.description,
-  }
+  };
 }

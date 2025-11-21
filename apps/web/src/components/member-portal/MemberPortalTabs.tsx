@@ -1,32 +1,32 @@
-'use client'
+"use client";
 
+import type { MemberBenefit, PublicProfiles, Users } from "@repo/api/types/appwrite";
 import {
-  TabNavigation,
+  BenefitsTab,
+  MembershipTab,
   OverviewTab,
   ProfileTab,
-  MembershipTab,
-  BenefitsTab,
-  SettingsTab
-} from '@/components/member-portal'
-import type { Users, PublicProfiles, MemberBenefit } from '@repo/api/types/appwrite'
+  SettingsTab,
+  TabNavigation,
+} from "@/components/member-portal";
 
 interface MemberPortalTabsProps {
-  membershipType: string
-  benefitsCount: number
-  daysRemaining: number
-  estimatedSavings: number
-  startDate: string
-  expiryDate: string
-  benefits: MemberBenefit[]
-  revealedBenefits: Set<string>
-  isMember: boolean
-  hasBIIdentity: boolean
-  profile: Users
-  publicProfile: PublicProfiles | null
-  biEmail: string
-  userName: string
-  studentId: string
-  bankAccount?: string
+  membershipType: string;
+  benefitsCount: number;
+  daysRemaining: number;
+  estimatedSavings: number;
+  startDate: string;
+  expiryDate: string;
+  benefits: MemberBenefit[];
+  revealedBenefits: Set<string>;
+  isMember: boolean;
+  hasBIIdentity: boolean;
+  profile: Users;
+  publicProfile: PublicProfiles | null;
+  biEmail: string;
+  userName: string;
+  studentId: string;
+  bankAccount?: string;
 }
 
 export function MemberPortalTabs({
@@ -45,17 +45,17 @@ export function MemberPortalTabs({
   biEmail,
   userName,
   studentId,
-  bankAccount
+  bankAccount,
 }: MemberPortalTabsProps) {
   const handleTabChange = (tab: string) => {
-    if (typeof window !== 'undefined') {
-      window.location.hash = tab
+    if (typeof window !== "undefined") {
+      window.location.hash = tab;
     }
-  }
+  };
 
   return (
-    <TabNavigation 
-      defaultTab="overview" 
+    <TabNavigation
+      defaultTab="overview"
       benefitsCount={benefitsCount}
       isMember={isMember}
       hasBIIdentity={hasBIIdentity}
@@ -74,11 +74,7 @@ export function MemberPortalTabs({
         onTabChange={handleTabChange}
       />
 
-      <ProfileTab
-        user={profile}
-        publicProfile={publicProfile}
-        biEmail={biEmail}
-      />
+      <ProfileTab user={profile} publicProfile={publicProfile} biEmail={biEmail} />
 
       <MembershipTab
         userName={userName}
@@ -98,10 +94,7 @@ export function MemberPortalTabs({
         hasBIIdentity={hasBIIdentity}
       />
 
-      <SettingsTab
-        bankAccount={bankAccount}
-      />
+      <SettingsTab bankAccount={bankAccount} />
     </TabNavigation>
-  )
+  );
 }
-

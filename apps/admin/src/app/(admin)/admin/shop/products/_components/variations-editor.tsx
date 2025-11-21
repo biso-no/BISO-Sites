@@ -1,58 +1,60 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import { Plus, Trash2 } from "lucide-react"
-
-import { Input } from "@repo/ui/components/ui/input"
-import { Textarea } from "@repo/ui/components/ui/textarea"
-import { Switch } from "@repo/ui/components/ui/switch"
-import { Label } from "@repo/ui/components/ui/label"
-import { Button } from "@repo/ui/components/ui/button"
-import type { ProductVariation } from "@/lib/types/product"
-import { cn } from "@/lib/utils"
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
+import { Switch } from "@repo/ui/components/ui/switch";
+import { Textarea } from "@repo/ui/components/ui/textarea";
+import { Plus, Trash2 } from "lucide-react";
+import { useMemo } from "react";
+import type { ProductVariation } from "@/lib/types/product";
+import { cn } from "@/lib/utils";
 
 interface VariationsEditorProps {
-  value: ProductVariation[]
-  onChange: (next: ProductVariation[]) => void
+  value: ProductVariation[];
+  onChange: (next: ProductVariation[]) => void;
 }
 
 const createVariation = (): ProductVariation => ({
-  id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `var_${Math.random().toString(36).slice(2)}`,
+  id:
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `var_${Math.random().toString(36).slice(2)}`,
   name: "",
   description: "",
   price_modifier: 0,
   sku: "",
   stock_quantity: undefined,
   is_default: false,
-})
+});
 
 export function VariationsEditor({ value = [], onChange }: VariationsEditorProps) {
-  const variations = useMemo(() => value || [], [value])
+  const variations = useMemo(() => value || [], [value]);
 
   const updateVariation = (index: number, patch: Partial<ProductVariation>) => {
     const next = variations.map((variation, idx) =>
-      idx === index ? { ...variation, ...patch } : variation
-    )
-    onChange(next)
-  }
+      idx === index ? { ...variation, ...patch } : variation,
+    );
+    onChange(next);
+  };
 
   const setDefault = (index: number, isDefault: boolean) => {
     const next = variations.map((variation, idx) => ({
       ...variation,
       is_default: idx === index ? isDefault : isDefault ? false : variation.is_default,
-    }))
-    onChange(next)
-  }
+    }));
+    onChange(next);
+  };
 
   const removeVariation = (index: number) => {
-    const next = [...variations]
-    next.splice(index, 1)
-    onChange(next)
-  }
+    const next = [...variations];
+    next.splice(index, 1);
+    onChange(next);
+  };
 
   const addVariation = () => {
-    onChange([...variations, createVariation()])
-  }
+    onChange([...variations, createVariation()]);
+  };
 
   return (
     <div className="space-y-4">
@@ -60,8 +62,8 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
         <div>
           <h3 className="text-lg font-medium">Variations</h3>
           <p className="text-sm text-muted-foreground">
-            Define different options such as sizes, tiers, or access levels. Leave empty if the product
-            has no variations.
+            Define different options such as sizes, tiers, or access levels. Leave empty if the
+            product has no variations.
           </p>
         </div>
         <Button type="button" onClick={addVariation}>
@@ -81,7 +83,7 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
               key={variation.id}
               className={cn(
                 "rounded-lg border p-4",
-                variation.is_default ? "border-primary/60" : "border-border"
+                variation.is_default ? "border-primary/60" : "border-border",
               )}
             >
               <div className="flex items-center justify-between gap-4">
@@ -90,9 +92,7 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
                   <Input
                     value={variation.name}
                     placeholder="E.g. Locker access, Hoodie XL, VIP tier"
-                    onChange={(event) =>
-                      updateVariation(index, { name: event.target.value })
-                    }
+                    onChange={(event) => updateVariation(index, { name: event.target.value })}
                   />
                 </div>
                 <Button
@@ -139,9 +139,7 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
                     <Input
                       value={variation.sku || ""}
                       placeholder="Unique SKU for this variation"
-                      onChange={(event) =>
-                        updateVariation(index, { sku: event.target.value })
-                      }
+                      onChange={(event) => updateVariation(index, { sku: event.target.value })}
                     />
                   </div>
                   <div className="space-y-1">
@@ -178,5 +176,5 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
         </div>
       )}
     </div>
-  )
+  );
 }

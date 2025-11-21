@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Card } from "@repo/ui/components/ui/card";
 import { CheckCircle } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 
 interface Step {
   id: number;
@@ -31,8 +31,8 @@ export function ExpenseWizard({ steps, currentStep, children }: ExpenseWizardPro
                     currentStep > step.id
                       ? "bg-green-500 text-white"
                       : currentStep === step.id
-                      ? "bg-[#3DA9E0] text-white"
-                      : "bg-gray-200 text-gray-500"
+                        ? "bg-[#3DA9E0] text-white"
+                        : "bg-gray-200 text-gray-500"
                   }`}
                 >
                   {currentStep > step.id ? (
@@ -86,4 +86,3 @@ export function StepContainer({ stepId, children }: StepContainerProps) {
     </motion.div>
   );
 }
-

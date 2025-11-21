@@ -1,14 +1,14 @@
 "use client";
 
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@repo/ui/components/ui/dialog";
-import { Button } from "@repo/ui/components/ui/button";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { Building2 } from "lucide-react";
 
@@ -52,9 +52,7 @@ export function SummaryDialog({
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Review Your Reimbursement</DialogTitle>
-          <DialogDescription>
-            Please review all details before submitting
-          </DialogDescription>
+          <DialogDescription>Please review all details before submitting</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -123,9 +121,7 @@ export function SummaryDialog({
                     <p className="text-gray-900">{att.description}</p>
                     <p className="text-gray-500 text-xs">{att.date}</p>
                   </div>
-                  <span className="text-gray-900 font-medium">
-                    {att.amount.toFixed(2)} NOK
-                  </span>
+                  <span className="text-gray-900 font-medium">{att.amount.toFixed(2)} NOK</span>
                 </div>
               ))}
             </div>
@@ -147,9 +143,7 @@ export function SummaryDialog({
           {/* Total */}
           <div className="flex justify-between items-center p-4 bg-[#3DA9E0]/10 rounded-lg">
             <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
-            <span className="text-2xl font-bold text-[#3DA9E0]">
-              {data.total.toFixed(2)} NOK
-            </span>
+            <span className="text-2xl font-bold text-[#3DA9E0]">{data.total.toFixed(2)} NOK</span>
           </div>
         </div>
 
@@ -169,4 +163,3 @@ export function SummaryDialog({
     </Dialog>
   );
 }
-

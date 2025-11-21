@@ -12,7 +12,8 @@
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "lint": "biome lint ."
   },
   "dependencies": {
     "@measured/puck": "^0.20.2",
@@ -24,11 +25,9 @@
     "sonner": "^1.4.0"
   },
   "devDependencies": {
-    "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "eslint": "^9.38.0",
     "typescript": "5.9.2"
   }
 }

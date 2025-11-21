@@ -1,17 +1,14 @@
 "use client";
 
-import { FC } from "react";
-import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
-import { cn } from '@repo/ui/lib/utils';
+import { cn } from "@repo/ui/lib/utils";
+import type { FC } from "react";
+import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
 
 /**
  * Props for the SyntaxHighlighter component
  */
-export type HighlighterProps = Omit<
-  ShikiHighlighterProps,
-  "children" | "theme"
-> & {
+export type HighlighterProps = Omit<ShikiHighlighterProps, "children" | "theme"> & {
   theme?: ShikiHighlighterProps["theme"];
 } & Pick<AUIProps, "node" | "components" | "language" | "code">;
 

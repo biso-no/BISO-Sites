@@ -1,64 +1,74 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'motion/react'
-import { Search, Filter, X, Briefcase, BookOpen, PartyPopper, Cog, Rocket, DollarSign } from 'lucide-react'
-import { Button } from '@repo/ui/components/ui/button'
-import { Input } from '@repo/ui/components/ui/input'
-import { JobCard } from './job-card'
-import type { ContentTranslations } from '@repo/api/types/appwrite'
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import {
+  BookOpen,
+  Briefcase,
+  Cog,
+  DollarSign,
+  Filter,
+  PartyPopper,
+  Rocket,
+  Search,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { JobCard } from "./job-card";
 
 interface JobsListClientProps {
-  jobs: ContentTranslations[]
+  jobs: ContentTranslations[];
 }
 
 const getJobCategory = (metadata: Record<string, any>) => {
-  return metadata.category || 'General'
-}
+  return metadata.category || "General";
+};
 
 const parseJobMetadata = (metadata: Record<string, any>) => {
-  return metadata || {}
-}
+  return metadata || {};
+};
 
 const categories = [
-  { name: 'All', icon: Briefcase, color: 'from-[#3DA9E0] to-[#001731]' },
-  { name: 'Academic Associations', icon: BookOpen, color: 'from-blue-500 to-indigo-600' },
-  { name: 'Societies', icon: PartyPopper, color: 'from-[#3DA9E0] to-cyan-500' },
-  { name: 'Staff Functions', icon: Cog, color: 'from-[#001731] to-slate-700' },
-  { name: 'Projects', icon: Rocket, color: 'from-purple-500 to-pink-500' },
-]
+  { name: "All", icon: Briefcase, color: "from-[#3DA9E0] to-[#001731]" },
+  { name: "Academic Associations", icon: BookOpen, color: "from-blue-500 to-indigo-600" },
+  { name: "Societies", icon: PartyPopper, color: "from-[#3DA9E0] to-cyan-500" },
+  { name: "Staff Functions", icon: Cog, color: "from-[#001731] to-slate-700" },
+  { name: "Projects", icon: Rocket, color: "from-purple-500 to-pink-500" },
+];
 
 export function JobsListClient({ jobs }: JobsListClientProps) {
-  const router = useRouter()
-  const [selectedCategory, setSelectedCategory] = useState<string>('All')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showPaidOnly, setShowPaidOnly] = useState(false)
+  const router = useRouter();
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showPaidOnly, setShowPaidOnly] = useState(false);
 
   // Filter jobs based on search, category, and paid status
   const filteredJobs = jobs.filter((job) => {
-    const jobData = job.job_ref
-    const metadata = jobData?.metadata as Record<string, any>
-    const category = getJobCategory(metadata)
-    const paid = metadata.paid ?? false
-    const department = jobData?.department?.Name || ''
-    
-    const matchesCategory = selectedCategory === 'All' || category === selectedCategory
+    const jobData = job.job_ref;
+    const metadata = jobData?.metadata as Record<string, any>;
+    const category = getJobCategory(metadata);
+    const paid = metadata.paid ?? false;
+    const department = jobData?.department?.Name || "";
+
+    const matchesCategory = selectedCategory === "All" || category === selectedCategory;
     const matchesSearch =
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (job.short_description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      department.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesPaid = !showPaidOnly || paid
-    
-    return matchesCategory && matchesSearch && matchesPaid
-  })
+      (job.short_description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      department.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesPaid = !showPaidOnly || paid;
+
+    return matchesCategory && matchesSearch && matchesPaid;
+  });
 
   const handleViewDetails = (job: ContentTranslations) => {
     // Use slug if available, otherwise fall back to content_id
-    const slug = job.job_ref?.slug || job.content_id
-    router.push(`/jobs/${slug}`)
-  }
+    const slug = job.job_ref?.slug || job.content_id;
+    router.push(`/jobs/${slug}`);
+  };
 
   return (
     <>
@@ -78,7 +88,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setSearchQuery("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
@@ -90,33 +100,33 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             <div className="flex items-center gap-3 flex-wrap">
               <Filter className="w-5 h-5 text-[#001731]" />
               {categories.map((category) => {
-                const Icon = category.icon
+                const Icon = category.icon;
                 return (
                   <Button
                     key={category.name}
                     onClick={() => setSelectedCategory(category.name)}
-                    variant={selectedCategory === category.name ? 'default' : 'outline'}
+                    variant={selectedCategory === category.name ? "default" : "outline"}
                     className={
                       selectedCategory === category.name
                         ? `bg-linear-to-r ${category.color} text-white border-0`
-                        : 'border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10'
+                        : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
                     }
                   >
                     <Icon className="w-4 h-4 mr-2" />
                     {category.name}
                   </Button>
-                )
+                );
               })}
-              
+
               {/* Paid Filter */}
               <div className="ml-auto flex items-center gap-2">
                 <Button
                   onClick={() => setShowPaidOnly(!showPaidOnly)}
-                  variant={showPaidOnly ? 'default' : 'outline'}
+                  variant={showPaidOnly ? "default" : "outline"}
                   className={
                     showPaidOnly
-                      ? 'bg-linear-to-r from-green-500 to-emerald-600 text-white border-0'
-                      : 'border-green-500/20 text-green-700 hover:bg-green-50'
+                      ? "bg-linear-to-r from-green-500 to-emerald-600 text-white border-0"
+                      : "border-green-500/20 text-green-700 hover:bg-green-50"
                   }
                 >
                   <DollarSign className="w-4 h-4 mr-2" />
@@ -126,7 +136,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             </div>
 
             <div className="text-center text-gray-600 text-sm">
-              Showing {filteredJobs.length} {filteredJobs.length === 1 ? 'position' : 'positions'}
+              Showing {filteredJobs.length} {filteredJobs.length === 1 ? "position" : "positions"}
             </div>
           </div>
         </div>
@@ -143,12 +153,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             className="grid md:grid-cols-2 gap-8"
           >
             {filteredJobs.map((job, index) => (
-              <JobCard
-                key={job.$id}
-                job={job}
-                index={index}
-                onViewDetails={handleViewDetails}
-              />
+              <JobCard key={job.$id} job={job} index={index} onViewDetails={handleViewDetails} />
             ))}
           </motion.div>
         </AnimatePresence>
@@ -162,14 +167,12 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
           >
             <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="mb-2 text-gray-900 text-2xl font-bold">No positions found</h3>
-            <p className="text-gray-600 mb-6">
-              Try adjusting your filters or search query
-            </p>
+            <p className="text-gray-600 mb-6">Try adjusting your filters or search query</p>
             <Button
               onClick={() => {
-                setSelectedCategory('All')
-                setSearchQuery('')
-                setShowPaidOnly(false)
+                setSelectedCategory("All");
+                setSearchQuery("");
+                setShowPaidOnly(false);
               }}
               variant="outline"
               className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
@@ -185,7 +188,8 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-white mb-4 text-3xl font-bold">Questions About Applying?</h2>
           <p className="text-white/90 mb-8 text-lg">
-            Our recruitment team is here to help! Reach out if you have any questions about positions or the application process.
+            Our recruitment team is here to help! Reach out if you have any questions about
+            positions or the application process.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Button className="bg-white text-[#001731] hover:bg-white/90">
@@ -198,6 +202,5 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
         </div>
       </div>
     </>
-  )
+  );
 }
-

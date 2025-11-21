@@ -12,18 +12,16 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
     // Only verify if BI Student identity is linked
     try {
       const identities = await account.listIdentities();
-      const hasBI = (identities?.identities || []).some((i: any) => String(i?.provider || "").toLowerCase() === "oidc");
+      const hasBI = (identities?.identities || []).some(
+        (i: any) => String(i?.provider || "").toLowerCase() === "oidc",
+      );
       if (!hasBI) {
         return { ok: true, active: false };
       }
     } catch (e: any) {
       return { ok: false, error: `Failed to inspect identities: ${String(e?.message || e)}` };
     }
-    const exec: any = await functions.createExecution(
-      "verify_biso_membership",
-      undefined,
-      false
-    );
+    const exec: any = await functions.createExecution("verify_biso_membership", undefined, false);
 
     const raw = (exec && (exec.responseBody || (exec as any).response)) ?? "{}";
     let data: any = {};

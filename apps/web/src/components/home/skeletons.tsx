@@ -1,4 +1,4 @@
-import { Skeleton } from '@repo/ui/components/ui/skeleton';
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 
 export function HeroSkeleton() {
   return (
@@ -70,9 +70,9 @@ export function EventsSkeleton() {
         {/* Events Grid */}
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className={i === 0 ? 'md:col-span-2' : ''}>
+            <div key={i} className={i === 0 ? "md:col-span-2" : ""}>
               <div className="border rounded-lg overflow-hidden">
-                <Skeleton className={i === 0 ? 'h-96' : 'h-64'} />
+                <Skeleton className={i === 0 ? "h-96" : "h-64"} />
                 <div className="p-8">
                   <Skeleton className="h-8 w-3/4 mb-4" />
                   <div className="space-y-3 mb-6">
@@ -147,4 +147,3 @@ export function NewsSkeleton() {
     </section>
   );
 }
-
