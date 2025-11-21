@@ -10,8 +10,9 @@ import {
   TableRow,
 } from "@repo/ui/components/ui/table";
 import { Badge } from "@repo/ui/components/ui/badge";
-import { listManagedPages } from "@/app/actions/pages";
+import { listManagedPages, deletePage } from "@/app/actions/pages";
 import { CreatePageDialog } from "./create-page-dialog";
+import { DeletePageButton } from "./delete-page-button";
 
 export default async function PagesList() {
   const pages = await listManagedPages();
@@ -28,8 +29,8 @@ export default async function PagesList() {
         </CreatePageDialog>
       </div>
 
-      <div className="bg-white rounded-md border">
-        <Table>
+      <div className="rounded-md border">
+        <Table className="surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 sm:px-8 sm:py-8">
           <TableHeader>
             <TableRow>
               <TableHead>Title</TableHead>
@@ -75,6 +76,7 @@ export default async function PagesList() {
                           </Link>
                         </Button>
                       )}
+                      <DeletePageButton pageId={page.id} />
                     </div>
                   </TableCell>
                 </TableRow>

@@ -63,7 +63,7 @@ export const AdminSummary = ({
           {metrics.map((metric) => (
             <div
               key={metric.label}
-              className="rounded-2xl border border-primary/10 bg-white/80 px-4 py-4 shadow-[0_20px_45px_-32px_rgba(0,23,49,0.45)] backdrop-blur"
+              className="rounded-2xl border border-primary/10 px-4 py-4 shadow-[0_20px_45px_-32px_rgba(0,23,49,0.45)] backdrop-blur"
             >
               <span className="text-[0.65rem] uppercase tracking-[0.18em] text-primary-50">
                 {metric.label}

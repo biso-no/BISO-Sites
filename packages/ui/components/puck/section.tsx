@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils";
 export interface SectionProps {
   children?: ReactNode;
   className?: string;
-  backgroundColor?: "white" | "gray" | "primary" | "dark";
+  backgroundColor?: "white" | "gray" | "primary" | "primary-strong" | "dark";
   padding?: "none" | "sm" | "md" | "lg" | "xl";
   maxWidth?: "default" | "full" | "narrow";
   id?: string;
@@ -22,6 +22,7 @@ export function Section({
     white: "bg-white",
     gray: "bg-gray-50",
     primary: "bg-primary/5",
+    "primary-strong": "bg-primary text-primary-foreground",
     dark: "bg-slate-950 text-white",
   };
 

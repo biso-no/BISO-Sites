@@ -113,10 +113,10 @@ export default async function AdminJobsPage({
               defaultValue={q || ""}
               name="q"
               placeholder={t("searchPlaceholder")}
-              className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40 md:col-span-2"
+              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40 md:col-span-2"
             />
             <Select name="status" defaultValue={status}>
-              <SelectTrigger className="rounded-xl border-primary/20 bg-white/70">
+              <SelectTrigger className="rounded-xl border-primary/20">
                 <SelectValue placeholder={t("filters.status")} />
               </SelectTrigger>
               <SelectContent>
@@ -132,7 +132,7 @@ export default async function AdminJobsPage({
               name="campus"
               defaultValue={campus || ""}
               placeholder={t("filters.campus")}
-              className="rounded-xl border-primary/20 bg-white/70 text-sm focus-visible:ring-primary-40"
+              className="rounded-xl border-primary/20 text-sm focus-visible:ring-primary-40"
             />
             <Button type="submit" className="w-full rounded-xl bg-primary-40 text-sm font-semibold text-white shadow">
               {t("filters.filter")}
@@ -141,7 +141,7 @@ export default async function AdminJobsPage({
         </CardContent>
       </Card>
 
-      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 bg-white/85 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
+      <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10  shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex items-center justify-between border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold text-primary-100">{t("jobOverview")}</h2>
@@ -188,7 +188,7 @@ export default async function AdminJobsPage({
                 const statusToken = getStatusToken(job.status)
                 const statusLabel = t(`status.${job.status}`) || statusToken.label
                 const deadline = metadata.application_deadline
-                  ? new Date(metadata.application_deadline)
+                  ? new Date(JSON.stringify(metadata.application_deadline))
                   : null
 
                 return (

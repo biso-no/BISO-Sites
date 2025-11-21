@@ -5,7 +5,6 @@ import { PageStatus } from "@repo/api/types/appwrite";
 import type { Locale, PageVisibility } from "@repo/api/types/appwrite";
 import {
   createPage,
-  deletePage,
   deletePageTranslation,
   ensurePageTranslation,
   getPageById,
@@ -20,6 +19,7 @@ import {
   type PageTranslationRecord,
 } from "@repo/api/page-builder";
 import type { PageBuilderDocument } from "@repo/editor";
+import { createSessionClient } from "@repo/api/server";
 
 const ADMIN_LIST_PATH = "/admin/pages";
 
@@ -155,13 +155,9 @@ export async function publishPage(input: PublishPageInput) {
   return translation;
 }
 
-async function deleteManagedPage(pageId: string) {
-  const page = await getPageById(pageId);
-  await deletePage(pageId);
-
-  if (page?.slug) {
-    revalidatePath(`/${page.slug}`);
-  }
+export async function deletePage(pageId: string) {
+  const { db } = await createSessionClient();
+  await db.deleteRow("app", "pages", pageId);
 
   revalidatePath(ADMIN_LIST_PATH);
 }
