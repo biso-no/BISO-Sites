@@ -5,7 +5,7 @@ import { Button } from "@repo/ui/components/ui/button";
 
 export function DepartmentsCTA() {
   return (
-    <Card className="p-12 text-center border-0 shadow-xl bg-gradient-to-br from-primary/10 to-primary-foreground/10">
+    <Card className="p-12 text-center border-0 shadow-xl bg-linear-to-br from-primary/10 to-primary-foreground/10">
       <Award className="w-16 h-16 text-primary mx-auto mb-6" />
       <h2 className="text-3xl font-bold text-foreground mb-4">
         Vil du gjøre en forskjell?
@@ -17,7 +17,7 @@ export function DepartmentsCTA() {
       <div className="flex flex-wrap items-center justify-center gap-4">
         <Button 
           asChild 
-          className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+          className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
           size="lg"
         >
           <Link href="/jobs">

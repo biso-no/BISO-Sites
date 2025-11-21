@@ -83,7 +83,7 @@ export function BenefitCard({ benefit, isRevealed: initialRevealed }: BenefitCar
               className="w-12 h-12 rounded-lg object-cover"
             />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-[#3DA9E0]/10 dark:bg-[#3DA9E0]/20 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-lg bg-[#3DA9E0]/10 dark:bg-[#3DA9E0]/20 flex items-center justify-center shrink-0">
               <Icon className="w-6 h-6 text-[#3DA9E0]" />
             </div>
           )}

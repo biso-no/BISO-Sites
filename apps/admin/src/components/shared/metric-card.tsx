@@ -60,7 +60,7 @@ export function MetricCard({
       className={cn(
         "relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl",
         "border-border/50 bg-card/60 backdrop-blur-sm",
-        "before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+        "before:absolute before:inset-0 before:bg-linear-to-br before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity",
         className
       )}
     >

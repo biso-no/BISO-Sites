@@ -160,7 +160,7 @@ export function SummaryDialog({
           <Button
             onClick={onSubmit}
             disabled={isSubmitting}
-            className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+            className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
           >
             {isSubmitting ? "Submitting..." : "Submit Reimbursement"}
           </Button>

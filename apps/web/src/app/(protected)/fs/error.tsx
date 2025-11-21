@@ -18,7 +18,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white flex items-center justify-center p-4">
       <Card className="p-12 text-center border-0 shadow-xl max-w-md">
         <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
@@ -30,7 +30,7 @@ export default function Error({
             Try Again
           </Button>
           <Link href="/fs">
-            <Button className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white">
+            <Button className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white">
               Go to Expenses
             </Button>
           </Link>

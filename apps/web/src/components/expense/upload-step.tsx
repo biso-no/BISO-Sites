@@ -339,7 +339,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
         <Button
           onClick={handleNext}
           disabled={!canProceed}
-          className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+          className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
         >
           <Eye className="w-4 h-4 mr-2" />
           Review & Submit

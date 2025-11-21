@@ -60,7 +60,7 @@ export function MembershipTab({
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="p-6 bg-gradient-to-br from-[#3DA9E0]/10 to-[#001731]/10 rounded-lg">
+          <div className="p-6 bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 rounded-lg">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t('currentPlan')}</div>
             <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               {tPricing(currentPlan)}

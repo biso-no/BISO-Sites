@@ -83,7 +83,7 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
               fill
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/40 to-transparent" />
             
             {/* Close Button */}
             <button
@@ -199,7 +199,7 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
                 <ul className="grid md:grid-cols-2 gap-3">
                   {highlights.map((highlight: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#3DA9E0] mt-2 flex-shrink-0" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#3DA9E0] mt-2 shrink-0" />
                       <span className="text-gray-600">{highlight}</span>
                     </li>
                   ))}
@@ -214,7 +214,7 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
                 <div className="space-y-4">
                   {agenda.map((item: { time: string; activity: string }, idx: number) => (
                     <div key={idx} className="flex gap-4">
-                      <div className="flex-shrink-0 w-20">
+                      <div className="shrink-0 w-20">
                         <Badge variant="outline" className="border-[#3DA9E0] text-[#3DA9E0]">
                           {item.time}
                         </Badge>

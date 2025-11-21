@@ -16,6 +16,7 @@
     "@assistant-ui/styles": "^0.2.1",
     "@azure/msal-node": "^3.7.3",
     "@hookform/resolvers": "^5.2.2",
+    "@measured/puck": "^0.20.2",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@pinecone-database/pinecone": "^6.1.2",
     "@radix-ui/react-slot": "^1.2.4",
@@ -24,10 +25,9 @@
     "@repo/i18n": "*",
     "@repo/payment": "*",
     "@repo/ui": "*",
-    "@measured/puck": "^0.20.2",
     "@stripe/react-stripe-js": "^3.1.1",
     "@stripe/stripe-js": "^5.6.0",
-    "@tailwindcss/postcss": "^4.1.14",
+    "@tailwindcss/postcss": "^4.1.17",
     "@vippsmobilepay/sdk": "^2.4.2",
     "ai": "^5.0.44",
     "date-fns": "^4.1.0",
@@ -69,7 +69,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/turndown": "^5.0.5",
     "@types/xml2js": "^0.4.14",
-    "tailwindcss": "^4.1.14",
+    "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3"
   }
 }

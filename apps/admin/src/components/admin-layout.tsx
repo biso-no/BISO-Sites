@@ -246,7 +246,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   };
 
   return (
-    <div className="fixed inset-0 flex overflow-hidden bg-gradient-to-br from-primary-10/25 via-slate-50 to-secondary-10/40 dark:from-background dark:via-card dark:to-background">
+    <div className="fixed inset-0 flex overflow-hidden bg-linear-to-br from-primary-10/25 via-slate-50 to-secondary-10/40 dark:from-background dark:via-card dark:to-background">
       {/* Background Effects */}
       <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-40 dark:opacity-20" />
       <div className="pointer-events-none absolute -left-20 top-[-18%] h-72 w-72 rounded-full bg-secondary-20/60 dark:bg-primary/30 blur-[140px]" />
@@ -375,7 +375,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
 
         {/* Main Content with Single Scrollbar */}
         <main className="relative flex-1 overflow-y-auto">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary-10/18 via-transparent to-secondary-10/30" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary-10/18 via-transparent to-secondary-10/30" />
           
           {assistantMode === "sidebar" && assistantSidebarOpen ? (
             <ResizablePanelGroup direction="horizontal" className="relative z-10 h-full">

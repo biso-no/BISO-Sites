@@ -133,7 +133,7 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
           </div>
 
           <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <Shield className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+            <Shield className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
             <p className="text-sm text-green-700 dark:text-green-300">{t('securePayment')}</p>
           </div>
         </div>

@@ -49,10 +49,10 @@ export function BenefitsSection({
 
   return (
     <section>
-      <Card className={`p-8 border-0 shadow-xl bg-gradient-to-br ${colors.gradient}`}>
+      <Card className={`p-8 border-0 shadow-xl bg-linear-to-br ${colors.gradient}`}>
         <div className="flex items-center gap-3 mb-6">
           <div
-            className={`w-12 h-12 rounded-full bg-gradient-to-br ${colors.iconGradient} flex items-center justify-center`}
+            className={`w-12 h-12 rounded-full bg-linear-to-br ${colors.iconGradient} flex items-center justify-center`}
           >
             <Icon className="w-6 h-6 text-white" />
           </div>

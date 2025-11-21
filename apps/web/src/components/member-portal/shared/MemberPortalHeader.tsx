@@ -30,7 +30,7 @@ export function MemberPortalHeader({
     .toUpperCase()
 
   return (
-    <div className="bg-gradient-to-r from-[#001731] to-[#3DA9E0] text-white py-8">
+    <div className="bg-linear-to-r from-[#001731] to-[#3DA9E0] text-white py-8">
       <div className="max-w-7xl mx-auto px-4">
         <Link
           href="/"

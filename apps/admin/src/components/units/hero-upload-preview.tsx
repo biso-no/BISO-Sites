@@ -92,7 +92,7 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
         />
 
         {/* Hero Preview */}
-        <div className="aspect-[16/5] w-full rounded-xl overflow-hidden bg-linear-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center relative group">
+        <div className="aspect-16/5 w-full rounded-xl overflow-hidden bg-linear-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center relative group">
           {isUploading ? (
             <div className="flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />

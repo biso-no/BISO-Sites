@@ -15,6 +15,7 @@
     "@assistant-ui/react-markdown": "^0.11.0",
     "@assistant-ui/styles": "^0.2.1",
     "@hookform/resolvers": "^5.2.2",
+    "@measured/puck": "^0.20.2",
     "@minoru/react-dnd-treeview": "^3.5.3",
     "@radix-ui/react-slot": "^1.2.4",
     "@repo/api": "*",
@@ -22,8 +23,7 @@
     "@repo/i18n": "*",
     "@repo/payment": "*",
     "@repo/ui": "*",
-    "@measured/puck": "^0.20.2",
-    "@tailwindcss/postcss": "^4.1.14",
+    "@tailwindcss/postcss": "^4.1.17",
     "@tiptap/extension-code-block-lowlight": "^3.10.7",
     "@tiptap/extension-image": "^3.10.7",
     "@tiptap/extension-placeholder": "^3.10.7",
@@ -68,7 +68,7 @@
     "@types/node": "^17.0.45",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.14",
+    "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3"
   }
 }

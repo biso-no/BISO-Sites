@@ -99,7 +99,7 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
       {/* Product Card */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md">
         {/* Image */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+        <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
           <Image
             src={imageUrl}
             alt={translation.title || 'Product preview'}

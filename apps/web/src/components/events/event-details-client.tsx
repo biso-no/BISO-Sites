@@ -171,7 +171,7 @@ export function EventDetailsClient({ event, collectionEvents, isMember = false }
                   <ul className="space-y-4">
                     {highlights.map((highlight: string, index: number) => (
                       <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] flex-shrink-0 mt-1" />
+                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
                         <span className="text-gray-700">{highlight}</span>
                       </li>
                     ))}
@@ -193,7 +193,7 @@ export function EventDetailsClient({ event, collectionEvents, isMember = false }
                     {agenda.map((item: { time: string; activity: string }, index: number) => (
                       <div key={index}>
                         <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-20 text-[#3DA9E0] font-semibold">
+                          <div className="shrink-0 w-20 text-[#3DA9E0] font-semibold">
                             {item.time}
                           </div>
                           <div className="flex-1">
@@ -275,7 +275,7 @@ export function EventDetailsClient({ event, collectionEvents, isMember = false }
                             onClick={() => router.push(`/events/${collectionEvent.content_id}`)}
                           >
                             <div className="flex items-start gap-4">
-                              <div className="relative w-20 h-20 flex-shrink-0">
+                              <div className="relative w-20 h-20 shrink-0">
                                 <ImageWithFallback
                                   src={colImage}
                                   alt={collectionEvent.title}
@@ -320,7 +320,7 @@ export function EventDetailsClient({ event, collectionEvents, isMember = false }
             >
               <Card className="p-6 border-0 shadow-lg bg-blue-50">
                 <div className="flex items-start gap-3">
-                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="mb-2 text-gray-900 font-semibold">Important Information</h4>
                     <ul className="text-sm text-gray-600 space-y-1">
@@ -469,7 +469,7 @@ export function EventDetailsClient({ event, collectionEvents, isMember = false }
             >
               <Card className="p-6 border-0 shadow-lg bg-blue-50">
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <Mail className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="mb-2 text-gray-900 font-semibold">Questions?</h4>
                     <p className="text-sm text-gray-600">
