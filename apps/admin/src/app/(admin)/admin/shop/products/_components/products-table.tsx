@@ -56,6 +56,7 @@ import {
 } from "@/lib/utils/admin"
 import { AdminSummary } from "@/components/admin/admin-summary"
 import { cn } from "@repo/ui/lib/utils"
+import { Locale } from "@repo/api/types/appwrite"
 
 const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
   style: "currency",
@@ -90,7 +91,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     const translationComplete = products.filter((product) => {
       const refs = product.translation_refs ?? []
       const locales = refs.map((ref) => ref.locale)
-      return locales.includes("no") && locales.includes("en")
+      return locales.includes(Locale.NO) && locales.includes(Locale.EN)
     }).length
 
     const lowStock = products.filter(
@@ -229,7 +230,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                 {t('products.newProduct')}
               </Link>
             </Button>
-            <Button variant="outline" size="sm" className="rounded-full border-primary/20 bg-white/80 text-primary-90 hover:bg-primary/5">
+            <Button variant="outline" size="sm" className="rounded-full border-primary/20 text-primary-90 hover:bg-primary/5">
               <TrendingUp className="mr-2 h-4 w-4" />
               {t('products.reports')}
             </Button>
@@ -483,7 +484,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
             </Table>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col items-start justify-between gap-3 border-t border-primary/10 bg-white/70 px-6 py-4 text-xs text-primary-60 sm:flex-row sm:items-center sm:text-sm">
+        <CardFooter className="flex flex-col items-start justify-between gap-3 border-t border-primary/10 px-6 py-4 text-xs text-primary-60 sm:flex-row sm:items-center sm:text-sm">
           <span dangerouslySetInnerHTML={{ 
             __html: t('products.table.showing', { 
               start: 1, 

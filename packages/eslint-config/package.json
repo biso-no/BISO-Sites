@@ -3,12 +3,15 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules"
+  },
   "exports": {
     "./base": "./base.js",
     "./next-js": "./next.js",
     "./react-internal": "./react-internal.js"
   },
-  "devDependencies": {
+  "devDependencies": {  
     "@eslint/js": "^9.34.0",
     "@next/eslint-plugin-next": "^15.5.0",
     "eslint": "^9.38.0",

@@ -11,7 +11,7 @@
     "./types": "./src/types.ts"
   },
   "scripts": {
-    "lint": "eslint . --max-warnings 0",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { Suspense } from 'react';
-import { Expense } from "@/lib/types/expense";
 import { motion } from 'motion/react';
 import { 
   CalendarIcon, Receipt, Building2, 
@@ -12,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/components/ui
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Expenses } from '@repo/api/types/appwrite';
 
 // Loading skeleton component for the expense details
 const ExpenseDetailsSkeleton = () => (
@@ -91,7 +91,7 @@ const InfoItem = ({
 export function AdminExpenseDetails({
   expenseData,
 }: {
-  expenseData: Expense;
+  expenseData: Expenses;
 }) {
   return (
     <Suspense fallback={<ExpenseDetailsSkeleton />}>
@@ -101,7 +101,7 @@ export function AdminExpenseDetails({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <Card className="shadow-lg">
+        <Card className="shadow-lg glass-panel">
           <CardHeader className="border-b">
             <div className="flex justify-between items-center">
               <div>
@@ -121,8 +121,8 @@ export function AdminExpenseDetails({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.2 }}
             >
-              <InfoItem icon={Building2} label="Campus" value={expenseData.campus} />
-              <InfoItem icon={FileText} label="Department" value={expenseData.department} />
+              <InfoItem icon={Building2} label="Campus" value={expenseData.campusRel.name} />
+              <InfoItem icon={FileText} label="Department" value={expenseData.departmentRel.Name} />
               <InfoItem icon={Bank} label="Bank Account" value={expenseData.bank_account} />
               <InfoItem icon={Receipt} label="Invoice ID" value={`#${expenseData.invoice_id}`} />
             </motion.div>

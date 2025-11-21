@@ -11,7 +11,7 @@
     "./messages": "./messages/index.ts"
   },
   "scripts": {
-    "lint": "eslint .",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
     "check-types": "tsc --noEmit",
     "translate": "bun run scripts/translate.ts"
   },

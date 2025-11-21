@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, SlidersHorizontal, Download, UserPlus, RefreshCw, ChevronDown, ChevronUp, Check } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { User } from "@/lib/types/user"
+import { Users } from "@repo/api/types/appwrite"
 import { useUserStore } from "./user-store"
 import { UserAvatar } from "./user-avatar"
 import { RoleBadgeList } from "./role-badge"
@@ -66,7 +66,7 @@ import { cn } from "@/lib/utils"
 import { AdminSummary } from "@/components/admin/admin-summary"
 import { formatPercentage } from "@/lib/utils/admin"
 
-export function UserTable({ initialUsers }: { initialUsers: User[] }) {
+export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
   const t = useTranslations('adminUsers')
   const router = useRouter()
   const [isClient, setIsClient] = useState(false)
@@ -158,7 +158,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
   }
   
   // Handle sorting
-  const handleSort = (field: keyof User) => {
+  const handleSort = (field: string) => {
     if (sortField === field) {
       // Toggle direction if already sorting by this field
       setSorting(field, sortDirection === 'asc' ? 'desc' : 'asc')
@@ -169,7 +169,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
   }
   
   // Get sort icon for column
-  const getSortIcon = (field: keyof User) => {
+  const getSortIcon = (field: string) => {
     if (sortField !== field) return null
     
     return sortDirection === 'asc' 
@@ -306,7 +306,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                   variant="ghost"
                   onClick={() => setFilterRole(chip.value)}
                   className={cn(
-                    "rounded-full border border-primary/10 bg-white/70 px-3 py-1 text-xs font-semibold text-primary-80 shadow-sm transition",
+                    "rounded-full border border-primary/10 px-3 py-1 text-xs font-semibold text-primary-80 shadow-sm transition",
                     active && "bg-primary-40 text-white shadow-[0_18px_40px_-25px_rgba(0,23,49,0.6)] hover:bg-primary-30 hover:text-white"
                   )}
                 >
@@ -355,7 +355,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
       </CardHeader>
       
       <CardContent className="p-0">
-        <div className="border-y border-primary/10 bg-white/60 py-4 px-6 backdrop-blur">
+        <div className="border-y border-primary/10 py-4 px-6 backdrop-blur">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div className="relative w-full sm:max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-primary-40" />
@@ -364,13 +364,13 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                 placeholder={t('filters.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border-primary/20 bg-white/70 pl-9 text-sm shadow-inner focus-visible:ring-primary-40"
+                className="w-full rounded-xl border-primary/20 pl-9 text-sm shadow-inner focus-visible:ring-primary-40"
               />
             </div>
             
             <div className="flex flex-wrap items-center gap-2">
               <Select value={filterRole} onValueChange={setFilterRole}>
-                <SelectTrigger className="w-[180px] rounded-xl border-primary/20 bg-white/70">
+                <SelectTrigger className="w-[180px] rounded-xl border-primary/20">
                   <SelectValue placeholder={t('filters.role')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -388,7 +388,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-1.5 rounded-xl border-primary/20 bg-white/70 text-sm">
+                  <Button variant="outline" className="gap-1.5 rounded-xl border-primary/20text-sm">
                     <SlidersHorizontal className="h-4 w-4" />
                     <span className="hidden sm:inline">{t('filters.role')}</span>
                   </Button>
@@ -412,7 +412,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-1.5 rounded-xl border-primary/20 bg-white/70 text-sm">
+                  <Button variant="outline" className="gap-1.5 rounded-xl border-primary/20 text-sm">
                     <Download className="h-4 w-4" />
                     <span className="hidden sm:inline">{t('actions.view')}</span>
                   </Button>
@@ -504,7 +504,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.2 }}
                       onClick={(e) => handleRowClick(user.$id, e)}
-                      className="group cursor-pointer bg-white/70 transition hover:bg-primary/5"
+                      className="group cursor-pointerbg-white/70 transition hover:bg-primary/5"
                     >
                       <TableCell className="w-[40px]">
                         <Checkbox 
@@ -557,7 +557,7 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
         </div>
       </CardContent>
       
-      <CardFooter className="flex flex-col items-center justify-between gap-4 border-t border-primary/10 bg-white/70 px-6 py-4 sm:flex-row">
+      <CardFooter className="flex flex-col items-center justify-between gap-4 border-t border-primary/10 px-6 py-4 sm:flex-row">
           <div className="text-sm text-muted-foreground">
           {selectedUsers.length > 0 ? (
             <div className="flex items-center gap-2">
