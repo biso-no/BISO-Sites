@@ -16,7 +16,7 @@ export interface CTAProps {
   title: string;
   description?: string;
   buttons?: CTAButton[];
-  variant?: "default" | "card" | "split" | "brand";
+  variant?: "default" | "card" | "split" | "brand" | "dark";
   align?: "center" | "left";
 }
 
@@ -38,7 +38,7 @@ export function CTA({
         {title}
       </h2>
       {description && (
-        <p className={cn("text-lg", variant === "brand" ? "text-primary-foreground/90" : "text-muted-foreground")}>
+        <p className={cn("text-lg", (variant === "brand" || variant === "dark") ? "text-primary-foreground/90" : "text-muted-foreground")}>
           {description}
         </p>
       )}
@@ -47,7 +47,7 @@ export function CTA({
           {buttons.map((btn, i) => (
             <Button
               key={i}
-              variant={btn.variant as any || (variant === "brand" ? "secondary" : "default")}
+              variant={btn.variant as any || ((variant === "brand" || variant === "dark") ? "secondary" : "default")}
               size="lg"
               asChild
             >
@@ -73,6 +73,16 @@ export function CTA({
     return (
       <div className="py-16 w-full bg-primary text-primary-foreground rounded-3xl my-12 px-8">
         {content}
+      </div>
+    );
+  }
+
+  if (variant === "dark") {
+    return (
+      <div className="py-16 w-full bg-[#001731] text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {content}
+        </div>
       </div>
     );
   }
