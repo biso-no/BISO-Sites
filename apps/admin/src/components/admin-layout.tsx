@@ -173,6 +173,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
 
   const navItems: NavItem[] = [
     { href: '/admin', icon: LayoutDashboard, label: t('navigation.dashboard'), roles: ['Admin'] },
+    { href: '/admin/pages', icon: FileText, label: t('navigation.pages'), roles: ['Admin', 'pr'] },
     { href: '/admin/posts', icon: FileText, label: t('navigation.posts'), roles: ['Admin', 'pr'] },
     {
       href: '/admin/shop',

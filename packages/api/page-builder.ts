@@ -3,7 +3,8 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "./server";
 import { PageStatus } from "./types/appwrite";
-import type { Locale, PageVisibility, Pages, PageTranslations } from "./types/appwrite";
+import type { Locale, Pages, PageTranslations } from "./types/appwrite";
+import { PageVisibility } from "./types/appwrite";
 
 const DATABASE_ID = "app";
 const PAGES_TABLE_ID = "pages";

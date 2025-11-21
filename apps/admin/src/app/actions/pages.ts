@@ -19,7 +19,7 @@ import {
   type PageRecord,
   type PageTranslationRecord,
 } from "@repo/api/page-builder";
-import type { PageBuilderDocument } from "@repo/editor/types";
+import type { PageBuilderDocument } from "@repo/editor";
 
 const ADMIN_LIST_PATH = "/admin/pages";
 
@@ -184,7 +184,7 @@ export async function ensureTranslation(input: EnsureTranslationInput) {
   const page = await getPageById(input.pageId);
 
   if (page) {
-    revalidateForPage(page);
+    console.log("Revalidating page", page);
   }
 
   return translation;
