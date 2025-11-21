@@ -66,18 +66,20 @@ const buildTranslationMap = (
 ): Map<string, Record<Locale, string>> => {
   const map = new Map<string, Record<Locale, string>>();
 
-  translations.forEach((translation) => {
+  for (const translation of translations) {
     if (!SUPPORTED_LOCALES.includes(translation.locale)) {
-      return;
+      continue;
     }
 
     if (!map.has(translation.nav_id)) {
       map.set(translation.nav_id, {} as Record<Locale, string>);
     }
 
-    const group = map.get(translation.nav_id)!;
-    group[translation.locale] = translation.title;
-  });
+    const group = map.get(translation.nav_id);
+    if (group) {
+      group[translation.locale] = translation.title;
+    }
+  }
 
   return map;
 };
@@ -92,7 +94,9 @@ const sortAndAttachChildren = (items: NavMenuAdminItem[], locale: Locale) => {
     return a.slug.localeCompare(b.slug, locale);
   });
 
-  items.forEach((item) => sortAndAttachChildren(item.children, locale));
+  for (const item of items) {
+    sortAndAttachChildren(item.children, locale);
+  }
 };
 
 const buildNavTree = (
@@ -103,17 +107,17 @@ const buildNavTree = (
   const translationMap = buildTranslationMap(translations);
   const nodeMap = new Map<string, NavMenuAdminItem>();
 
-  documents.forEach((doc) => {
+  for (const doc of documents) {
     const translationEntry = translationMap.get(doc.$id) ?? {};
     const normalizedTranslations = { ...translationEntry } as Record<
       Locale,
       string
     >;
-    SUPPORTED_LOCALES.forEach((supportedLocale) => {
+    for (const supportedLocale of SUPPORTED_LOCALES) {
       if (!normalizedTranslations[supportedLocale]) {
         normalizedTranslations[supportedLocale] = "";
       }
-    });
+    }
 
     const _fallbackTitle =
       normalizedTranslations[locale] ||
@@ -133,17 +137,17 @@ const buildNavTree = (
       translations: normalizedTranslations,
       children: [],
     });
-  });
+  }
 
   const roots: NavMenuAdminItem[] = [];
 
-  nodeMap.forEach((node) => {
+  for (const node of nodeMap.values()) {
     if (node.parentId && nodeMap.has(node.parentId)) {
       nodeMap.get(node.parentId)?.children.push(node);
     } else {
       roots.push(node);
     }
-  });
+  }
 
   sortAndAttachChildren(roots, locale);
 
@@ -151,9 +155,11 @@ const buildNavTree = (
   const stack = [...roots];
 
   while (stack.length) {
-    const current = stack.shift()!;
-    flat.push(current);
-    stack.unshift(...current.children);
+    const current = stack.shift();
+    if (current) {
+      flat.push(current);
+      stack.unshift(...current.children);
+    }
   }
 
   return { tree: roots, flat };
@@ -438,7 +444,9 @@ const _moveNavMenuItem = async (
 
     const updatedOrder = [...siblings];
     const [removed] = updatedOrder.splice(currentIndex, 1);
-    updatedOrder.splice(swapIndex, 0, removed!);
+    if (removed) {
+      updatedOrder.splice(swapIndex, 0, removed);
+    }
 
     await Promise.all(
       updatedOrder.map((doc, index) =>

@@ -59,8 +59,8 @@ export function RichTextEditor({
     !html || html === "<p></p>" || html === "<p><br></p>" || html.trim() === "";
 
   // Used to stop event propagation
-  const stopPropagation = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const stopPropagation = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
   };
 
   const [isHtmlMode, setIsHtmlMode] = useState(false);
@@ -107,9 +107,9 @@ export function RichTextEditor({
     ],
     content: initialContentRef.current,
     editable,
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor: currentEditor }) => {
       try {
-        const html = editor.getHTML();
+        const html = currentEditor.getHTML();
         setHtmlContent(html);
         setIsEmpty(isEditorEmpty(html));
 
@@ -122,6 +122,17 @@ export function RichTextEditor({
       }
     },
   });
+
+  // Helper for mock events
+  const createMockEvent = () =>
+    ({
+      preventDefault: () => {
+        // no-op
+      },
+      stopPropagation: () => {
+        // no-op
+      },
+    }) as React.MouseEvent;
 
   // Safely handle HTML mode toggle
   const handleHtmlModeToggle = useCallback(
@@ -233,6 +244,7 @@ export function RichTextEditor({
 
       try {
         const previousUrl = editor.getAttributes("link").href;
+        // biome-ignore lint/suspicious/noAlert: Simple prompt for now, TODO: Replace with Dialog
         const url = window.prompt("URL", previousUrl);
 
         // cancelled
@@ -271,6 +283,7 @@ export function RichTextEditor({
       }
 
       try {
+        // biome-ignore lint/suspicious/noAlert: Simple prompt for now, TODO: Replace with Dialog
         const url = window.prompt("Image URL");
 
         if (url) {
@@ -288,7 +301,11 @@ export function RichTextEditor({
   }
 
   return (
-    <div className="glass-card overflow-hidden" onClick={stopPropagation}>
+    <div
+      className="glass-card overflow-hidden"
+      onPointerDownCapture={stopPropagation}
+      role="presentation"
+    >
       {editable && (
         <div className="flex items-center justify-between border-primary/10 border-b bg-white/50 px-3 py-2 dark:bg-card/50">
           <div className="flex gap-1">
@@ -485,10 +502,7 @@ export function RichTextEditor({
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
                   onPressedChange={(_pressed) => {
-                    handleSetLink({
-                      preventDefault: () => {},
-                      stopPropagation: () => {},
-                    } as React.MouseEvent);
+                    handleSetLink(createMockEvent());
                   }}
                   pressed={editor.isActive("link")}
                   size="sm"
@@ -501,10 +515,7 @@ export function RichTextEditor({
                   className="h-8 w-8 p-0"
                   onClick={stopPropagation}
                   onPressedChange={(_pressed) => {
-                    handleAddImage({
-                      preventDefault: () => {},
-                      stopPropagation: () => {},
-                    } as React.MouseEvent);
+                    handleAddImage(createMockEvent());
                   }}
                   pressed={editor.isActive("image")}
                   size="sm"
@@ -596,12 +607,27 @@ export function RichTextEditor({
             </div>
           )}
 
+          {/* biome-ignore lint/a11y/useSemanticElements: ContentEditable inside button is invalid */}
           <div
             className={`${editable ? "relative min-h-[300px] cursor-text p-6" : "p-0"}`}
             onClick={(e) => {
               stopPropagation(e);
-              editable && editor.chain().focus().run();
+              if (editable) {
+                editor.chain().focus().run();
+              }
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                if (editable) {
+                  editor.chain().focus().run();
+                }
+              }
+            }}
+            // biome-ignore lint/a11y/useSemanticElements: ContentEditable inside button is invalid
+            role="button"
+            tabIndex={0}
           >
             <EditorContent
               className="prose prose-sm sm:prose-base lg:prose-lg max-w-none"
@@ -615,6 +641,7 @@ export function RichTextEditor({
         <div className="p-0">
           <div
             className="prose prose-sm sm:prose-base lg:prose-lg max-w-none p-6"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: Rich text editor content
             dangerouslySetInnerHTML={{ __html: content }}
           />
         </div>

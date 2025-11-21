@@ -76,11 +76,14 @@ function selectBenefitItems(
   const localizedKey = `${key}_${suffix}` as LocalizedBenefitKey;
   const localized = data[localizedKey as keyof CampusData] as unknown;
   const fallback = data[key] as unknown;
-  const raw = Array.isArray(localized)
-    ? (localized as string[])
-    : Array.isArray(fallback)
-      ? (fallback as string[])
-      : [];
+
+  let raw: string[] = [];
+  if (Array.isArray(localized)) {
+    raw = localized as string[];
+  } else if (Array.isArray(fallback)) {
+    raw = fallback as string[];
+  }
+
   return raw
     .map((item) => item?.trim())
     .filter((item): item is string => Boolean(item));

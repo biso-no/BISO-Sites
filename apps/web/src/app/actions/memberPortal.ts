@@ -16,6 +16,14 @@ export async function createOrUpdatePublicProfile(
   if (!profile.$id) {
     return null;
   }
+  if (!profile.name) {
+    console.error("Cannot create/update public profile without name");
+    return null;
+  }
+  if (!profile.user_id) {
+    console.error("Cannot create/update public profile without user ID");
+    return null;
+  }
   const { db } = await createSessionClient();
   return await db.upsertRow<PublicProfiles>(
     "app",
@@ -26,14 +34,14 @@ export async function createOrUpdatePublicProfile(
       campus_id: profile.campus_id || null,
       email: profile.email || null,
       phone: profile.phone || null,
-      name: profile.name!,
+      name: profile.name,
       email_visible: profile.email_visible,
       phone_visible: profile.phone_visible,
-      user_id: profile.user_id!,
+      user_id: profile.user_id,
       $permissions: [
         isPublic
           ? Permission.read("any")
-          : Permission.read(`user:${profile.user_id!}`),
+          : Permission.read(`user:${profile.user_id}`),
       ],
     }
   );
@@ -119,7 +127,7 @@ export async function updatePublicProfile(
     const user = await account.get();
 
     const profile = await getPublicProfile(user.$id);
-    const isPublic = data.email_visible || data.phone_visible;
+    const isPublic = Boolean(data.email_visible || data.phone_visible);
 
     return await createOrUpdatePublicProfile(
       {
@@ -232,11 +240,9 @@ export async function uploadAvatar(formData: FormData): Promise<{
   }
 }
 
-export async function calculateEstimatedSavings(
-  _userId: string
-): Promise<number> {
+export async function calculateEstimatedSavings(_userId: string): Promise<number> {
   // Placeholder: Returns estimated savings in NOK
   // Future enhancement: Calculate based on revealed benefits and usage patterns
   // For now, return a static value
-  return 2500;
+  return Promise.resolve(2500);
 }

@@ -59,6 +59,8 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
   year: "numeric",
 });
 
+const WHITESPACE_PATTERN = /\s+/;
+
 const STATUS_STYLES: Record<string, string> = {
   paid: "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
   authorized:
@@ -287,13 +289,16 @@ function RecentSales({ orders, t }: { orders: Orders[]; t: Translator }) {
 }
 
 function formatTrend(trend: MetricTrend) {
-  const prefix = trend.percent > 0 ? "+" : trend.percent < 0 ? "" : "";
+  let prefix = "";
+  if (trend.percent > 0) {
+    prefix = "+";
+  }
   const percent = PERCENT_FORMATTER.format(trend.percent);
   return `${prefix}${percent}% ${trend.label}`;
 }
 
 function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/);
+  const parts = name.trim().split(WHITESPACE_PATTERN);
   if (parts.length === 1) {
     return parts[0]?.[0]?.toUpperCase() ?? "B";
   }

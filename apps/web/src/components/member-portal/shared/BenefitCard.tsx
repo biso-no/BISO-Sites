@@ -16,6 +16,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/memberPortal";
+import Image from "next/image";
 
 type BenefitCardProps = {
   benefit: MemberBenefit;
@@ -104,9 +105,10 @@ export function BenefitCard({
       <div className="mb-4 flex items-start justify-between">
         <div className="flex flex-1 items-start gap-4">
           {benefit.partnerLogo ? (
-            <img
-              alt={benefit.partner}
+            <Image
+              alt={benefit.partner || ""}
               className="h-12 w-12 rounded-lg object-cover"
+              fill
               src={benefit.partnerLogo}
             />
           ) : (

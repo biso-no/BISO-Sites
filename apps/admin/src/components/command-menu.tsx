@@ -27,12 +27,19 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import * as React from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+} from "react";
 
-type CommandItem = {
+type CommandMenuItem = {
   id: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   action: () => void;
   shortcut?: string;
   group: string;
@@ -41,14 +48,14 @@ type CommandItem = {
 
 export function CommandMenu() {
   const t = useTranslations("admin");
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const router = useRouter();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
+        setOpen((prev) => !prev);
       }
     };
 
@@ -56,12 +63,12 @@ export function CommandMenu() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  const runCommand = React.useCallback((command: () => void) => {
+  const runCommand = useCallback((command: () => void) => {
     setOpen(false);
     command();
   }, []);
 
-  const commands: CommandItem[] = React.useMemo(
+  const commands: CommandMenuItem[] = useMemo(
     () => [
       // Navigation
       {
@@ -180,15 +187,15 @@ export function CommandMenu() {
     [router, t]
   );
 
-  const groupedCommands = React.useMemo(() => {
-    const groups = new Map<string, CommandItem[]>();
-    commands.forEach((command) => {
+  const groupedCommands = useMemo(() => {
+    const groups = new Map<string, CommandMenuItem[]>();
+    for (const command of commands) {
       const group = command.group;
       if (!groups.has(group)) {
         groups.set(group, []);
       }
       groups.get(group)?.push(command);
-    });
+    }
     return groups;
   }, [commands]);
 
@@ -197,6 +204,7 @@ export function CommandMenu() {
       <button
         className="relative w-full max-w-sm"
         onClick={() => setOpen(true)}
+        type="button"
       >
         <div className="relative">
           <input
@@ -218,7 +226,7 @@ export function CommandMenu() {
           <CommandEmpty>{t("commandMenuNoResults")}</CommandEmpty>
           {Array.from(groupedCommands.entries()).map(
             ([group, items], index) => (
-              <React.Fragment key={group}>
+              <Fragment key={group}>
                 {index > 0 && <CommandSeparator />}
                 <CommandGroup heading={group}>
                   {items.map((item) => {
@@ -238,7 +246,7 @@ export function CommandMenu() {
                     );
                   })}
                 </CommandGroup>
-              </React.Fragment>
+              </Fragment>
             )
           )}
         </CommandList>
