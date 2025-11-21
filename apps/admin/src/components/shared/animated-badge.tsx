@@ -7,7 +7,13 @@ import type { ReactNode } from "react";
 
 interface AnimatedBadgeProps {
   children: ReactNode;
-  variant?: "default" | "secondary" | "destructive" | "outline" | "success" | "warning";
+  variant?:
+    | "default"
+    | "secondary"
+    | "destructive"
+    | "outline"
+    | "success"
+    | "warning";
   icon?: LucideIcon;
   pulse?: boolean;
   gradient?: boolean;
@@ -23,8 +29,10 @@ export function AnimatedBadge({
   className,
 }: AnimatedBadgeProps) {
   const gradientVariants = {
-    default: "bg-linear-to-r from-primary to-primary/80 text-primary-foreground border-0",
-    secondary: "bg-linear-to-r from-secondary to-secondary/80 text-secondary-foreground border-0",
+    default:
+      "bg-linear-to-r from-primary to-primary/80 text-primary-foreground border-0",
+    secondary:
+      "bg-linear-to-r from-secondary to-secondary/80 text-secondary-foreground border-0",
     destructive:
       "bg-linear-to-r from-destructive to-destructive/80 text-destructive-foreground border-0",
     success: "bg-linear-to-r from-green-500 to-green-600 text-white border-0",
@@ -40,7 +48,7 @@ export function AnimatedBadge({
         pulse && "animate-pulse",
         gradient && gradientVariants[variant],
         "shadow-sm",
-        className,
+        className
       )}
     >
       {Icon && <Icon className="h-3 w-3 mr-1" />}

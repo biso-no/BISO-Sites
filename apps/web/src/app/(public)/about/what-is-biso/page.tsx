@@ -15,7 +15,9 @@ export default function WhatIsBisoPage() {
         ]}
       />
       <p className="text-primary-70">{t("intro")}</p>
-      <div className="prose prose-primary max-w-none whitespace-pre-line">{t("content")}</div>
+      <div className="prose prose-primary max-w-none whitespace-pre-line">
+        {t("content")}
+      </div>
     </div>
   );
 }

@@ -10,7 +10,8 @@ function FilteredEventsContent({ events = [], labels }: EventsProps) {
   const query = searchParams.get("q")?.toLowerCase();
 
   const filteredEvents = events.filter((event) => {
-    const matchesCategory = !category || category === "All" || event.category === category;
+    const matchesCategory =
+      !category || category === "All" || event.category === category;
     const matchesSearch =
       !query ||
       event.title.toLowerCase().includes(query) ||

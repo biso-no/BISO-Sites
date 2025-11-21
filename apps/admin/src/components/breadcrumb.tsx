@@ -41,7 +41,9 @@ const Breadcrumb = () => {
             return (
               <BreadcrumbItem key={path}>
                 <BreadcrumbPage>
-                  {decodeURIComponent(path.charAt(0).toUpperCase() + path.slice(1))}
+                  {decodeURIComponent(
+                    path.charAt(0).toUpperCase() + path.slice(1)
+                  )}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             );
@@ -53,7 +55,9 @@ const Breadcrumb = () => {
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
                   <Link href={href}>
-                    {decodeURIComponent(path.charAt(0).toUpperCase() + path.slice(1))}
+                    {decodeURIComponent(
+                      path.charAt(0).toUpperCase() + path.slice(1)
+                    )}
                   </Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>

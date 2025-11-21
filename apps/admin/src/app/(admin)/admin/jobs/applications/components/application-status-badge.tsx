@@ -8,7 +8,9 @@ interface ApplicationStatusBadgeProps {
   status: JobApplication["status"];
 }
 
-export function ApplicationStatusBadge({ status }: ApplicationStatusBadgeProps) {
+export function ApplicationStatusBadge({
+  status,
+}: ApplicationStatusBadgeProps) {
   const t = useTranslations("adminJobs");
   const statusConfig = {
     submitted: { variant: "secondary" as const },
@@ -24,7 +26,11 @@ export function ApplicationStatusBadge({ status }: ApplicationStatusBadgeProps) 
   return (
     <Badge
       variant={config.variant}
-      className={status === "accepted" ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}
+      className={
+        status === "accepted"
+          ? "bg-green-100 text-green-800 hover:bg-green-200"
+          : ""
+      }
     >
       {label}
     </Badge>

@@ -64,11 +64,14 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
   const config = statusConfig[expense.status as ExpenseStatus];
   const StatusIcon = config.icon;
 
-  const submittedDate = new Date(expense.$createdAt).toLocaleDateString("no-NO", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const submittedDate = new Date(expense.$createdAt).toLocaleDateString(
+    "no-NO",
+    {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }
+  );
 
   return (
     <>
@@ -85,7 +88,9 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
             </Badge>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-bold text-[#3DA9E0]">{expense.total.toFixed(2)} NOK</div>
+            <div className="text-3xl font-bold text-[#3DA9E0]">
+              {expense.total.toFixed(2)} NOK
+            </div>
             <p className="text-sm text-gray-500 mt-1">Total Amount</p>
           </div>
         </div>
@@ -102,12 +107,16 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-500 mb-2">Department</h3>
+            <h3 className="text-sm font-semibold text-gray-500 mb-2">
+              Department
+            </h3>
             <p className="text-gray-900">{expense.department}</p>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-500 mb-2">Submitted Date</h3>
+            <h3 className="text-sm font-semibold text-gray-500 mb-2">
+              Submitted Date
+            </h3>
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-[#3DA9E0]" />
               <span className="text-gray-900">{submittedDate}</span>
@@ -115,27 +124,37 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-500 mb-2">Bank Account</h3>
+            <h3 className="text-sm font-semibold text-gray-500 mb-2">
+              Bank Account
+            </h3>
             <p className="text-gray-900 font-mono">{expense.bank_account}</p>
           </div>
 
           {expense.eventName && (
             <div className="md:col-span-2">
-              <h3 className="text-sm font-semibold text-gray-500 mb-2">Event Name</h3>
+              <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                Event Name
+              </h3>
               <p className="text-gray-900">{expense.eventName}</p>
             </div>
           )}
 
           {expense.prepayment_amount && expense.prepayment_amount > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-500 mb-2">Prepayment</h3>
-              <p className="text-gray-900">{expense.prepayment_amount.toFixed(2)} NOK</p>
+              <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                Prepayment
+              </h3>
+              <p className="text-gray-900">
+                {expense.prepayment_amount.toFixed(2)} NOK
+              </p>
             </div>
           )}
 
           {expense.invoice_id && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-500 mb-2">Invoice ID</h3>
+              <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                Invoice ID
+              </h3>
               <p className="text-gray-900 font-mono">{expense.invoice_id}</p>
             </div>
           )}
@@ -157,20 +176,28 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
               <Card key={attachment.$id} className="p-4 border-[#3DA9E0]/20">
                 <div className="space-y-2">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-500">Description</h4>
+                    <h4 className="text-sm font-semibold text-gray-500">
+                      Description
+                    </h4>
                     <p className="text-gray-900">{attachment.description}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-500">Date</h4>
+                      <h4 className="text-sm font-semibold text-gray-500">
+                        Date
+                      </h4>
                       <p className="text-gray-900">
                         {attachment.date
-                          ? new Date(attachment.date).toLocaleDateString("no-NO")
+                          ? new Date(attachment.date).toLocaleDateString(
+                              "no-NO"
+                            )
                           : "N/A"}
                       </p>
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-500">Amount</h4>
+                      <h4 className="text-sm font-semibold text-gray-500">
+                        Amount
+                      </h4>
                       <p className="text-gray-900 font-semibold">
                         {attachment.amount?.toFixed(2) || "0.00"} NOK
                       </p>

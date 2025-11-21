@@ -1,7 +1,11 @@
 "use client";
 
 import { ModeToggle } from "@repo/ui/components/mode-toggle";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   ResizableHandle,
@@ -67,7 +71,9 @@ const SidebarItem = ({
 
   useEffect(() => {
     if (item.subItems) {
-      setIsOpen(item.subItems.some((subItem) => pathname.startsWith(subItem.href)));
+      setIsOpen(
+        item.subItems.some((subItem) => pathname.startsWith(subItem.href))
+      );
     }
   }, [pathname, item.subItems]);
 
@@ -84,7 +90,7 @@ const SidebarItem = ({
           "flex items-center gap-2 rounded-2xl px-2 py-2 transition-all duration-200 ease-out",
           isActive
             ? "bg-primary/10 text-primary shadow-sm dark:bg-white/15 dark:text-white dark:shadow-[0_15px_35px_-25px_rgba(0,0,0,0.8)] dark:backdrop-blur"
-            : "text-muted-foreground hover:bg-primary/5 hover:text-primary dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white",
+            : "text-muted-foreground hover:bg-primary/5 hover:text-primary dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
         )}
       >
         <Link href={item.href} className="flex flex-1 items-center gap-3">
@@ -93,7 +99,7 @@ const SidebarItem = ({
               "flex h-8 w-8 items-center justify-center rounded-xl text-sm font-medium transition-colors",
               isActive
                 ? "bg-white text-primary shadow-sm dark:bg-white/25 dark:text-white/95"
-                : "bg-transparent text-muted-foreground dark:bg-white/5 dark:text-white/75",
+                : "bg-transparent text-muted-foreground dark:bg-white/5 dark:text-white/75"
             )}
           >
             <item.icon className="h-4 w-4" />
@@ -118,7 +124,12 @@ const SidebarItem = ({
             }}
             className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-primary/5 hover:text-primary dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
           >
-            <ChevronRight className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")} />
+            <ChevronRight
+              className={cn(
+                "h-4 w-4 transition-transform",
+                isOpen && "rotate-90"
+              )}
+            />
           </button>
         )}
       </div>
@@ -145,7 +156,7 @@ const SidebarItem = ({
                         "flex items-center rounded-xl px-3 py-2 text-xs font-medium transition-colors",
                         isSubActive
                           ? "bg-primary/10 text-primary dark:bg-white/15 dark:text-white dark:shadow-inner"
-                          : "text-muted-foreground hover:bg-primary/5 hover:text-primary dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white",
+                          : "text-muted-foreground hover:bg-primary/5 hover:text-primary dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white"
                       )}
                     >
                       {subItem.label}
@@ -166,7 +177,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const pathname = usePathname();
   const [selectedRole, setSelectedRole] = useState(
-    roles.includes("Admin") ? "Admin" : roles[0] || "",
+    roles.includes("Admin") ? "Admin" : roles[0] || ""
   );
   const [isLoading, setIsLoading] = useState(true);
   const {
@@ -183,9 +194,24 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   const toggleSidebar = () => setIsSidebarExpanded(!isSidebarExpanded);
 
   const navItems: NavItem[] = [
-    { href: "/admin", icon: LayoutDashboard, label: t("navigation.dashboard"), roles: ["Admin"] },
-    { href: "/admin/pages", icon: FileText, label: t("navigation.pages"), roles: ["Admin", "pr"] },
-    { href: "/admin/posts", icon: FileText, label: t("navigation.posts"), roles: ["Admin", "pr"] },
+    {
+      href: "/admin",
+      icon: LayoutDashboard,
+      label: t("navigation.dashboard"),
+      roles: ["Admin"],
+    },
+    {
+      href: "/admin/pages",
+      icon: FileText,
+      label: t("navigation.pages"),
+      roles: ["Admin", "pr"],
+    },
+    {
+      href: "/admin/posts",
+      icon: FileText,
+      label: t("navigation.posts"),
+      roles: ["Admin", "pr"],
+    },
     {
       href: "/admin/shop",
       icon: Store,
@@ -207,7 +233,11 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           label: t("shopSubItems.customers"),
           roles: ["Admin", "finance"],
         },
-        { href: "/admin/shop/settings", label: t("shopSubItems.settings"), roles: ["Admin"] },
+        {
+          href: "/admin/shop/settings",
+          label: t("shopSubItems.settings"),
+          roles: ["Admin"],
+        },
       ],
     },
     {
@@ -222,7 +252,11 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       label: t("navigation.jobs"),
       roles: ["Admin", "hr", "pr"],
       subItems: [
-        { href: "/admin/jobs", label: t("jobsSubItems.allJobs"), roles: ["Admin", "hr", "pr"] },
+        {
+          href: "/admin/jobs",
+          label: t("jobsSubItems.allJobs"),
+          roles: ["Admin", "hr", "pr"],
+        },
         {
           href: "/admin/jobs/applications",
           label: t("jobsSubItems.applications"),
@@ -236,7 +270,11 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       label: t("navigation.events"),
       roles: ["Admin", "pr"],
       subItems: [
-        { href: "/admin/events", label: t("eventsSubItems.allEvents"), roles: ["Admin", "pr"] },
+        {
+          href: "/admin/events",
+          label: t("eventsSubItems.allEvents"),
+          roles: ["Admin", "pr"],
+        },
         {
           href: "/admin/events/new",
           label: t("eventsSubItems.createEvent"),
@@ -256,15 +294,28 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       label: t("navigation.users"),
       roles: ["Admin", "hr", "finance"],
     },
-    { href: "/admin/varsling", icon: Shield, label: t("navigation.varsling"), roles: ["Admin"] },
+    {
+      href: "/admin/varsling",
+      icon: Shield,
+      label: t("navigation.varsling"),
+      roles: ["Admin"],
+    },
     {
       href: "/admin/settings",
       icon: Settings,
       label: t("navigation.settings"),
       roles: ["Admin"],
       subItems: [
-        { href: "/admin/settings", label: t("settingsSubItems.navigation"), roles: ["Admin"] },
-        { href: "/admin/settings/profile", label: t("settingsSubItems.profile"), roles: ["Admin"] },
+        {
+          href: "/admin/settings",
+          label: t("settingsSubItems.navigation"),
+          roles: ["Admin"],
+        },
+        {
+          href: "/admin/settings/profile",
+          label: t("settingsSubItems.profile"),
+          roles: ["Admin"],
+        },
         {
           href: "/admin/settings/security",
           label: t("settingsSubItems.security"),
@@ -305,7 +356,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
         <motion.div
           className="flex items-center gap-3 px-4 pb-4 pt-5"
           initial={false}
-          animate={{ justifyContent: isSidebarExpanded ? "flex-start" : "center" }}
+          animate={{
+            justifyContent: isSidebarExpanded ? "flex-start" : "center",
+          }}
         >
           <Link
             href="/admin"
@@ -331,7 +384,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             <p className="text-[0.65rem] uppercase tracking-[0.24em] text-muted-foreground dark:text-white/60">
               {t("activeRole")}
             </p>
-            <p className="text-sm font-medium text-foreground dark:text-white">{selectedRole}</p>
+            <p className="text-sm font-medium text-foreground dark:text-white">
+              {selectedRole}
+            </p>
           </div>
         </div>
 
@@ -361,8 +416,12 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
         {/* Sidebar Footer */}
         <div className="space-y-3 px-4 pb-4">
           <div className="rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 text-xs text-muted-foreground dark:border-white/10 dark:bg-white/10 dark:text-white/70">
-            <p className="font-semibold text-foreground dark:text-white">{t("supportLine")}</p>
-            <p className="mt-1 text-muted-foreground dark:text-white/70">it@biso.no</p>
+            <p className="font-semibold text-foreground dark:text-white">
+              {t("supportLine")}
+            </p>
+            <p className="mt-1 text-muted-foreground dark:text-white/70">
+              it@biso.no
+            </p>
           </div>
           <button
             onClick={toggleSidebar}
@@ -410,7 +469,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             <NotificationsDropdown />
             <ModeToggle />
             <Avatar className="h-10 w-10 border border-primary/10 shadow-sm dark:border-primary/20">
-              <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${firstName}`} />
+              <AvatarImage
+                src={`https://api.dicebear.com/7.x/initials/svg?seed=${firstName}`}
+              />
               <AvatarFallback>{firstName.charAt(0)}</AvatarFallback>
             </Avatar>
             <Button
@@ -439,9 +500,14 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary-10/18 via-transparent to-secondary-10/30" />
 
           {assistantMode === "sidebar" && assistantSidebarOpen ? (
-            <ResizablePanelGroup direction="horizontal" className="relative z-10 h-full">
+            <ResizablePanelGroup
+              direction="horizontal"
+              className="relative z-10 h-full"
+            >
               <ResizablePanel defaultSize={70} minSize={40} className="min-w-0">
-                <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">{children}</div>
+                <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
+                  {children}
+                </div>
               </ResizablePanel>
               <ResizableHandle className="bg-primary/10" />
               <ResizablePanel
@@ -455,7 +521,11 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                     <span className="text-sm font-semibold text-primary-90">
                       {t("assistant.title")}
                     </span>
-                    <Button variant="outline" size="sm" onClick={() => setSidebarOpen(false)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSidebarOpen(false)}
+                    >
                       {t("assistant.close")}
                     </Button>
                   </div>
@@ -470,7 +540,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
               </ResizablePanel>
             </ResizablePanelGroup>
           ) : (
-            <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">{children}</div>
+            <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
+              {children}
+            </div>
           )}
         </main>
 

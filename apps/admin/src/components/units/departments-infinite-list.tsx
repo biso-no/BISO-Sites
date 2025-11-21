@@ -42,7 +42,8 @@ export function DepartmentsInfiniteList({
 
   // Reset when filters change (using JSON.stringify for deep comparison)
   useEffect(() => {
-    const filtersChanged = JSON.stringify(filtersRef.current) !== JSON.stringify(filters);
+    const filtersChanged =
+      JSON.stringify(filtersRef.current) !== JSON.stringify(filters);
 
     if (filtersChanged) {
       filtersRef.current = filters;
@@ -95,7 +96,7 @@ export function DepartmentsInfiniteList({
           loadMore();
         }
       },
-      { threshold: 0.1, rootMargin: "100px" },
+      { threshold: 0.1, rootMargin: "100px" }
     );
 
     const currentTarget = observerTarget.current;
@@ -117,9 +118,14 @@ export function DepartmentsInfiniteList({
   if (departments.length === 0 && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
-        <div className="text-muted-foreground text-lg">No departments found</div>
+        <div className="text-muted-foreground text-lg">
+          No departments found
+        </div>
         <p className="text-sm text-muted-foreground max-w-md">
-          {filters.search || filters.campus_id || filters.type || filters.active !== undefined
+          {filters.search ||
+          filters.campus_id ||
+          filters.type ||
+          filters.active !== undefined
             ? "Try adjusting your filters to see more results."
             : "Get started by creating your first department."}
         </p>

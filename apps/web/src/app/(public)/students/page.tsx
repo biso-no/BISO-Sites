@@ -1,4 +1,7 @@
-import type { ContentTranslations, Departments } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  Departments,
+} from "@repo/api/types/appwrite";
 import { getCampusData } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
@@ -14,13 +17,14 @@ export const revalidate = 0;
 export default async function StudentsPage() {
   const locale = (await getLocale()) as Locale;
 
-  const [events, jobs, departments, campusData, globalBenefits] = await Promise.all([
-    listEvents({ status: "published", limit: 24, locale }),
-    listJobs({ status: "published", limit: 24, locale }),
-    getDepartments({ campusId: "all" }),
-    getCampusData(),
-    getGlobalMembershipBenefits(),
-  ]);
+  const [events, jobs, departments, campusData, globalBenefits] =
+    await Promise.all([
+      listEvents({ status: "published", limit: 24, locale }),
+      listJobs({ status: "published", limit: 24, locale }),
+      getDepartments({ campusId: "all" }),
+      getCampusData(),
+      getGlobalMembershipBenefits(),
+    ]);
 
   return (
     <StudentsPageClient

@@ -54,8 +54,12 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
     }
   };
 
-  const selectedCampusName = campuses.find((c) => c.$id === selectedCampus)?.name;
-  const selectedDepartmentName = departments.find((d) => d.$id === selectedDepartment)?.Name;
+  const selectedCampusName = campuses.find(
+    (c) => c.$id === selectedCampus
+  )?.name;
+  const selectedDepartmentName = departments.find(
+    (d) => d.$id === selectedDepartment
+  )?.Name;
 
   return (
     <Card className="p-8 border-0 shadow-lg">
@@ -64,7 +68,10 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
       <div className="space-y-6">
         <div>
           <Label>Campus *</Label>
-          <Select value={selectedCampus} onValueChange={(value) => setSelectedCampus(value)}>
+          <Select
+            value={selectedCampus}
+            onValueChange={(value) => setSelectedCampus(value)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select your campus" />
             </SelectTrigger>
@@ -85,7 +92,10 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
         </div>
 
         {selectedCampus && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             <Label>Department *</Label>
             <Select
               value={selectedDepartment}
@@ -94,7 +104,9 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
             >
               <SelectTrigger>
                 <SelectValue
-                  placeholder={loading ? "Loading departments..." : "Select department"}
+                  placeholder={
+                    loading ? "Loading departments..." : "Select department"
+                  }
                 />
               </SelectTrigger>
               <SelectContent>

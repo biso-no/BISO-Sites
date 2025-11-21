@@ -27,7 +27,8 @@ export async function getLoggedInUser(): Promise<{
     if (user.$id) {
       // Check if this is an authenticated user (not anonymous)
       const hasEmail = user.email && user.email.length > 0;
-      const hasRealName = user.name && user.name.length > 0 && !user.name.startsWith("guest_");
+      const hasRealName =
+        user.name && user.name.length > 0 && !user.name.startsWith("guest_");
       const isEmailVerified = user.emailVerification;
 
       const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);
@@ -63,7 +64,9 @@ async function getCurrentSession() {
   return session;
 }
 
-async function getUserById(userId: string): Promise<Models.User<Models.Preferences> | null> {
+async function getUserById(
+  userId: string
+): Promise<Models.User<Models.Preferences> | null> {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
@@ -77,7 +80,11 @@ async function getUserById(userId: string): Promise<Models.User<Models.Preferenc
 async function signIn(email: string) {
   try {
     const { account } = await createSessionClient();
-    const user = await account.createMagicURLToken(ID.unique(), email, `${BASE_URL}/auth/callback`);
+    const user = await account.createMagicURLToken(
+      ID.unique(),
+      email,
+      `${BASE_URL}/auth/callback`
+    );
     return user;
   } catch (error) {
     console.error(error);
@@ -94,7 +101,7 @@ async function signInWithOauth() {
     OAuthProvider.Microsoft,
     `${origin}/auth/oauth`,
     `${origin}/auth/login`,
-    ["openid", "email", "profile"],
+    ["openid", "email", "profile"]
   );
 
   return redirect(redirectUrl);
@@ -150,7 +157,10 @@ export async function updateProfile(profile: Partial<Users>) {
       }
       return await db.updateRow("app", "user", user.$id, profile);
     } catch (profileError) {
-      console.log("Profile not found, creating new profile for user:", user.$id);
+      console.log(
+        "Profile not found, creating new profile for user:",
+        user.$id
+      );
       console.error("Profile lookup error details:", profileError);
       return await db.createRow("app", "user", user.$id, profile);
     }
@@ -181,7 +191,9 @@ async function createProfile(profile: Partial<Users>, userId: string) {
   }
 }
 
-async function getUserPreferences(userId: string): Promise<Models.Preferences | null> {
+async function getUserPreferences(
+  userId: string
+): Promise<Models.Preferences | null> {
   const { account, db } = await createSessionClient();
   const user = await account.get();
 
@@ -195,7 +207,7 @@ async function getUserPreferences(userId: string): Promise<Models.Preferences | 
 
 async function updateUserPreferences(
   userId: string,
-  prefs: Record<string, any>,
+  prefs: Record<string, any>
 ): Promise<Models.Preferences | null> {
   const { account, db } = await createSessionClient();
   const user = await account.get();

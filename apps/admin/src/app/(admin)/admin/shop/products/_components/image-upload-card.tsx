@@ -20,7 +20,10 @@ interface ProductImagesProps {
   onChange: (next: string[]) => void;
 }
 
-export default function ImageUploadCard({ images = [], onChange }: ProductImagesProps) {
+export default function ImageUploadCard({
+  images = [],
+  onChange,
+}: ProductImagesProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
 
@@ -29,7 +32,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
       (images || [])
         .map((s) => (typeof s === "string" ? s.trim() : ""))
         .filter((s) => s.length > 0),
-    [images],
+    [images]
   );
 
   const mainImage = validImages[0] || "";
@@ -96,7 +99,8 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
       <CardHeader>
         <CardTitle>Product Images</CardTitle>
         <CardDescription>
-          Upload and manage your product gallery. The first image is used as the cover.
+          Upload and manage your product gallery. The first image is used as the
+          cover.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -152,7 +156,7 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
                 onClick={() => makeCover(index + 1)}
                 className={cn(
                   "group aspect-square w-full overflow-hidden rounded-md border",
-                  "focus:outline-none focus:ring-2 focus:ring-primary",
+                  "focus:outline-none focus:ring-2 focus:ring-primary"
                 )}
               >
                 <Image
@@ -206,7 +210,8 @@ export default function ImageUploadCard({ images = [], onChange }: ProductImages
             {isUploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading {uploadingFiles.size} image{uploadingFiles.size > 1 ? "s" : ""}...
+                Uploading {uploadingFiles.size} image
+                {uploadingFiles.size > 1 ? "s" : ""}...
               </>
             ) : (
               <>

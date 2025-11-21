@@ -9,7 +9,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CampusStep } from "@/components/expense/campus-step";
-import { ExpenseWizard, StepContainer } from "@/components/expense/expense-wizard";
+import {
+  ExpenseWizard,
+  StepContainer,
+} from "@/components/expense/expense-wizard";
 import { ProfileStep } from "@/components/expense/profile-step";
 import { SummaryDialog } from "@/components/expense/summary-dialog";
 import { UploadStep } from "@/components/expense/upload-step";
@@ -27,7 +30,10 @@ interface NewExpenseClientProps {
   campuses: Array<{ $id: string; name: string }>;
 }
 
-export function NewExpenseClient({ initialProfile, campuses }: NewExpenseClientProps) {
+export function NewExpenseClient({
+  initialProfile,
+  campuses,
+}: NewExpenseClientProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [showSummary, setShowSummary] = useState(false);
@@ -66,7 +72,10 @@ export function NewExpenseClient({ initialProfile, campuses }: NewExpenseClientP
     }
   };
 
-  const handleCampusNext = (data: { campusId: string; departmentId: string }) => {
+  const handleCampusNext = (data: {
+    campusId: string;
+    departmentId: string;
+  }) => {
     const campus = campuses.find((c) => c.$id === data.campusId);
     setCampusData({
       ...data,
@@ -165,7 +174,9 @@ export function NewExpenseClient({ initialProfile, campuses }: NewExpenseClientP
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="mb-4 text-4xl font-bold text-white">Submit New Reimbursement</h1>
+              <h1 className="mb-4 text-4xl font-bold text-white">
+                Submit New Reimbursement
+              </h1>
               <p className="text-white/90 text-lg">Step {currentStep} of 3</p>
             </motion.div>
           </div>
@@ -173,7 +184,11 @@ export function NewExpenseClient({ initialProfile, campuses }: NewExpenseClientP
       </div>
 
       {/* Wizard */}
-      <ExpenseWizard steps={steps} currentStep={currentStep} onStepChange={setCurrentStep}>
+      <ExpenseWizard
+        steps={steps}
+        currentStep={currentStep}
+        onStepChange={setCurrentStep}
+      >
         {currentStep === 1 && (
           <StepContainer stepId={1}>
             <ProfileStep
@@ -196,7 +211,10 @@ export function NewExpenseClient({ initialProfile, campuses }: NewExpenseClientP
 
         {currentStep === 3 && (
           <StepContainer stepId={3}>
-            <UploadStep onNext={handleUploadNext} onBack={() => setCurrentStep(2)} />
+            <UploadStep
+              onNext={handleUploadNext}
+              onBack={() => setCurrentStep(2)}
+            />
           </StepContainer>
         )}
       </ExpenseWizard>

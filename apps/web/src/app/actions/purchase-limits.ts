@@ -19,7 +19,7 @@ export async function checkMaxPerUser(
   productId: string,
   userId: string,
   requestedQty: number,
-  maxPerUser?: number,
+  maxPerUser?: number
 ): Promise<PurchaseLimitResult> {
   // If no limit is set, allow unlimited purchases
   if (!maxPerUser || maxPerUser <= 0) {
@@ -38,7 +38,10 @@ export async function checkMaxPerUser(
     // Get all completed orders for this user with 'authorized' or 'paid' status
     const orders = await db.listRows("app", "orders", [
       Query.equal("userId", userId),
-      Query.or([Query.equal("status", "authorized"), Query.equal("status", "paid")]),
+      Query.or([
+        Query.equal("status", "authorized"),
+        Query.equal("status", "paid"),
+      ]),
     ]);
 
     // Count quantities purchased for this specific product
@@ -91,7 +94,7 @@ export async function checkMaxPerUser(
  */
 export async function checkMaxPerOrder(
   requestedQty: number,
-  maxPerOrder?: number,
+  maxPerOrder?: number
 ): Promise<PurchaseLimitResult> {
   // If no limit is set, allow unlimited quantity
   if (!maxPerOrder || maxPerOrder <= 0) {
@@ -120,12 +123,17 @@ export async function validatePurchaseLimits(
   productId: string,
   userId: string,
   quantity: number,
-  metadata?: ProductMetadata | null,
+  metadata?: ProductMetadata | null
 ): Promise<PurchaseLimitResult> {
   // Extract and validate max values
   const maxPerOrder =
-    typeof metadata?.max_per_order === "number" ? metadata.max_per_order : undefined;
-  const maxPerUser = typeof metadata?.max_per_user === "number" ? metadata.max_per_user : undefined;
+    typeof metadata?.max_per_order === "number"
+      ? metadata.max_per_order
+      : undefined;
+  const maxPerUser =
+    typeof metadata?.max_per_user === "number"
+      ? metadata.max_per_user
+      : undefined;
 
   // Check max_per_order first (simpler check)
   const perOrderResult = await checkMaxPerOrder(quantity, maxPerOrder);
@@ -135,7 +143,12 @@ export async function validatePurchaseLimits(
   }
 
   // Check max_per_user
-  const perUserResult = await checkMaxPerUser(productId, userId, quantity, maxPerUser);
+  const perUserResult = await checkMaxPerUser(
+    productId,
+    userId,
+    quantity,
+    maxPerUser
+  );
 
   if (!perUserResult.allowed) {
     return perUserResult;
@@ -149,7 +162,7 @@ export async function validatePurchaseLimits(
  */
 async function getPurchaseHistory(
   productId: string,
-  userId: string,
+  userId: string
 ): Promise<{
   totalPurchased: number;
   orderCount: number;
@@ -163,7 +176,10 @@ async function getPurchaseHistory(
 
     const orders = await db.listRows("app", "orders", [
       Query.equal("userId", userId),
-      Query.or([Query.equal("status", "authorized"), Query.equal("status", "paid")]),
+      Query.or([
+        Query.equal("status", "authorized"),
+        Query.equal("status", "paid"),
+      ]),
     ]);
 
     let totalPurchased = 0;

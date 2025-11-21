@@ -116,11 +116,11 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
   const totalCount = filteredUsers.length;
   const activeCount = useMemo(
     () => filteredUsers.filter((user) => user.isActive).length,
-    [filteredUsers],
+    [filteredUsers]
   );
   const inactiveCount = useMemo(
     () => filteredUsers.filter((user) => !user.isActive).length,
-    [filteredUsers],
+    [filteredUsers]
   );
   const rosterSource = users.length ? users : initialUsers;
   const activeRate = formatPercentage(activeCount, totalCount || 0);
@@ -128,9 +128,13 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
   const uniqueRoles = useMemo(
     () =>
       Array.from(
-        new Set(rosterSource.flatMap((user) => (Array.isArray(user.roles) ? user.roles : []))),
+        new Set(
+          rosterSource.flatMap((user) =>
+            Array.isArray(user.roles) ? user.roles : []
+          )
+        )
       ),
-    [rosterSource],
+    [rosterSource]
   );
   const uniqueCampuses = useMemo(
     () =>
@@ -138,10 +142,10 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
         new Set(
           rosterSource
             .map((user) => user.campus?.name?.trim())
-            .filter((name): name is string => !!name && name.length > 0),
-        ),
+            .filter((name): name is string => !!name && name.length > 0)
+        )
       ),
-    [rosterSource],
+    [rosterSource]
   );
 
   const summaryMetrics = [
@@ -201,7 +205,8 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
 
   // Check if all visible users are selected
   const allSelected =
-    currentUsers.length > 0 && currentUsers.every((user) => selectedUsers.includes(user.$id));
+    currentUsers.length > 0 &&
+    currentUsers.every((user) => selectedUsers.includes(user.$id));
 
   // Handle select all checkbox
   const handleSelectAll = () => {
@@ -241,7 +246,7 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
       items.push(
         <PaginationItem key="first">
           <PaginationLink onClick={() => setCurrentPage(1)}>1</PaginationLink>
-        </PaginationItem>,
+        </PaginationItem>
       );
 
       // Add ellipsis if there's a gap
@@ -249,7 +254,7 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
         items.push(
           <PaginationItem key="ellipsis-start">
             <span className="px-4">...</span>
-          </PaginationItem>,
+          </PaginationItem>
         );
       }
     }
@@ -258,10 +263,13 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
     for (let i = startPage; i <= endPage; i++) {
       items.push(
         <PaginationItem key={i}>
-          <PaginationLink onClick={() => setCurrentPage(i)} isActive={currentPage === i}>
+          <PaginationLink
+            onClick={() => setCurrentPage(i)}
+            isActive={currentPage === i}
+          >
             {i}
           </PaginationLink>
-        </PaginationItem>,
+        </PaginationItem>
       );
     }
 
@@ -272,14 +280,16 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
         items.push(
           <PaginationItem key="ellipsis-end">
             <span className="px-4">...</span>
-          </PaginationItem>,
+          </PaginationItem>
         );
       }
 
       items.push(
         <PaginationItem key="last">
-          <PaginationLink onClick={() => setCurrentPage(totalPages)}>{totalPages}</PaginationLink>
-        </PaginationItem>,
+          <PaginationLink onClick={() => setCurrentPage(totalPages)}>
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
       );
     }
 
@@ -325,7 +335,7 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                   className={cn(
                     "rounded-full border border-primary/10 px-3 py-1 text-xs font-semibold text-primary-80 shadow-sm transition",
                     active &&
-                      "bg-primary-40 text-white shadow-[0_18px_40px_-25px_rgba(0,23,49,0.6)] hover:bg-primary-30 hover:text-white",
+                      "bg-primary-40 text-white shadow-[0_18px_40px_-25px_rgba(0,23,49,0.6)] hover:bg-primary-30 hover:text-white"
                   )}
                 >
                   {chip.label}
@@ -340,7 +350,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle className="text-xl font-semibold text-primary-100">{t("title")}</CardTitle>
+              <CardTitle className="text-xl font-semibold text-primary-100">
+                {t("title")}
+              </CardTitle>
               <CardDescription className="mt-1.5 text-sm text-primary-60">
                 {t("description")}
               </CardDescription>
@@ -355,7 +367,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                       onClick={handleRefresh}
                       disabled={isLoading}
                     >
-                      <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                      <RefreshCw
+                        className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                      />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -414,13 +428,17 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                       className="gap-1.5 rounded-xl border-primary/20text-sm"
                     >
                       <SlidersHorizontal className="h-4 w-4" />
-                      <span className="hidden sm:inline">{t("filters.role")}</span>
+                      <span className="hidden sm:inline">
+                        {t("filters.role")}
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-[200px]">
                     <DropdownMenuItem>{t("filters.active")}</DropdownMenuItem>
                     <DropdownMenuItem>{t("filters.inactive")}</DropdownMenuItem>
-                    <DropdownMenuItem>{t("table.registeredAt")}</DropdownMenuItem>
+                    <DropdownMenuItem>
+                      {t("table.registeredAt")}
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>{t("filters.all")}</DropdownMenuItem>
                   </DropdownMenuContent>
@@ -433,13 +451,21 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                       className="gap-1.5 rounded-xl border-primary/20 text-sm"
                     >
                       <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">{t("actions.view")}</span>
+                      <span className="hidden sm:inline">
+                        {t("actions.view")}
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-[200px]">
-                    <DropdownMenuItem>{t("actions.exportCsv")}</DropdownMenuItem>
-                    <DropdownMenuItem>{t("actions.exportExcel")}</DropdownMenuItem>
-                    <DropdownMenuItem>{t("actions.exportPdf")}</DropdownMenuItem>
+                    <DropdownMenuItem>
+                      {t("actions.exportCsv")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      {t("actions.exportExcel")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      {t("actions.exportPdf")}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -451,7 +477,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur">
                 <div className="animate-pulse flex flex-col items-center">
                   <RefreshCw className="animate-spin h-8 w-8 text-primary mb-2" />
-                  <span className="text-sm text-muted-foreground">{t("messages.loading")}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {t("messages.loading")}
+                  </span>
                 </div>
               </div>
             )}
@@ -468,26 +496,38 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                         className="row-action"
                       />
                     </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("name")}>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("name")}
+                    >
                       <div className="flex items-center">
                         <span>{t("table.name")}</span>
                         {getSortIcon("name")}
                       </div>
                     </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("email")}>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("email")}
+                    >
                       <div className="flex items-center">
                         <span>{t("table.email")}</span>
                         {getSortIcon("email")}
                       </div>
                     </TableHead>
                     <TableHead>{t("table.roles")}</TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("campus")}>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("campus")}
+                    >
                       <div className="flex items-center">
                         <span>{t("filters.campus")}</span>
                         {getSortIcon("campus")}
                       </div>
                     </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("isActive")}>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => handleSort("isActive")}
+                    >
                       <div className="flex items-center">
                         <span>{t("table.status")}</span>
                         {getSortIcon("isActive")}
@@ -510,7 +550,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                         <TableCell className="w-[40px]">
                           <Checkbox
                             checked={selectedUsers.includes(user.$id)}
-                            onCheckedChange={() => toggleUserSelection(user.$id)}
+                            onCheckedChange={() =>
+                              toggleUserSelection(user.$id)
+                            }
                             aria-label={`Select ${user.name}`}
                             className="row-action"
                             onClick={(e) => e.stopPropagation()}
@@ -546,7 +588,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                       <TableCell colSpan={6} className="h-32 text-center">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
                           <Search className="h-8 w-8 mb-2 opacity-50" />
-                          <h3 className="font-medium text-lg">{t("messages.noUsers")}</h3>
+                          <h3 className="font-medium text-lg">
+                            {t("messages.noUsers")}
+                          </h3>
                           <p className="text-sm">
                             {searchTerm || filterRole !== "all"
                               ? t("messages.adjustFilters")

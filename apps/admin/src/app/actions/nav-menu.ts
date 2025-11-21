@@ -62,7 +62,7 @@ const normalizeOrderValue = (value: number | null | undefined): number => {
 };
 
 const buildTranslationMap = (
-  translations: NavMenuTranslationDocument[],
+  translations: NavMenuTranslationDocument[]
 ): Map<string, Record<Locale, string>> => {
   const map = new Map<string, Record<Locale, string>>();
 
@@ -82,7 +82,8 @@ const buildTranslationMap = (
 
 const sortAndAttachChildren = (items: NavMenuAdminItem[], locale: Locale) => {
   items.sort((a, b) => {
-    const orderDelta = normalizeOrderValue(a.order) - normalizeOrderValue(b.order);
+    const orderDelta =
+      normalizeOrderValue(a.order) - normalizeOrderValue(b.order);
     if (orderDelta !== 0) return orderDelta;
     return a.slug.localeCompare(b.slug, locale);
   });
@@ -93,14 +94,17 @@ const sortAndAttachChildren = (items: NavMenuAdminItem[], locale: Locale) => {
 const buildNavTree = (
   documents: NavMenuDocument[],
   translations: NavMenuTranslationDocument[],
-  locale: Locale,
+  locale: Locale
 ): NavMenuAdminTree => {
   const translationMap = buildTranslationMap(translations);
   const nodeMap = new Map<string, NavMenuAdminItem>();
 
   documents.forEach((doc) => {
     const translationEntry = translationMap.get(doc.$id) ?? {};
-    const normalizedTranslations = { ...translationEntry } as Record<Locale, string>;
+    const normalizedTranslations = { ...translationEntry } as Record<
+      Locale,
+      string
+    >;
     SUPPORTED_LOCALES.forEach((supportedLocale) => {
       if (!normalizedTranslations[supportedLocale]) {
         normalizedTranslations[supportedLocale] = "";
@@ -154,13 +158,15 @@ const buildNavTree = (
 const fetchNavData = async (dbClient?: AdminDbClient) => {
   const db = dbClient ?? (await createSessionClient()).db;
 
-  const navDocumentsResponse = await db.listRows<NavMenuDocument>(DATABASE_ID, NAV_COLLECTION, [
-    Query.limit(400),
-  ]);
+  const navDocumentsResponse = await db.listRows<NavMenuDocument>(
+    DATABASE_ID,
+    NAV_COLLECTION,
+    [Query.limit(400)]
+  );
   const translationResponse = await db.listRows<NavMenuTranslationDocument>(
     DATABASE_ID,
     NAV_TRANSLATIONS_COLLECTION,
-    [Query.limit(800)],
+    [Query.limit(800)]
   );
 
   return {
@@ -173,10 +179,15 @@ const fetchNavData = async (dbClient?: AdminDbClient) => {
 const getSiblings = (documents: NavMenuDocument[], parentId: string | null) => {
   return documents
     .filter((doc) => (doc.parent_id ?? null) === parentId)
-    .sort((a, b) => normalizeOrderValue(a.order) - normalizeOrderValue(b.order));
+    .sort(
+      (a, b) => normalizeOrderValue(a.order) - normalizeOrderValue(b.order)
+    );
 };
 
-const determineNextOrder = (documents: NavMenuDocument[], parentId: string | null) => {
+const determineNextOrder = (
+  documents: NavMenuDocument[],
+  parentId: string | null
+) => {
   const siblings = getSiblings(documents, parentId);
   if (!siblings.length) return 1;
   const lastSibling = siblings[siblings.length - 1];
@@ -198,20 +209,33 @@ const upsertTranslation = async ({
   const existing = await db.listRows<NavMenuTranslationDocument>(
     DATABASE_ID,
     NAV_TRANSLATIONS_COLLECTION,
-    [Query.equal("nav_id", navId), Query.equal("locale", locale), Query.limit(1)],
+    [
+      Query.equal("nav_id", navId),
+      Query.equal("locale", locale),
+      Query.limit(1),
+    ]
   );
 
   if (!trimmedTitle) {
     if (existing.rows.length) {
-      await db.deleteRow(DATABASE_ID, NAV_TRANSLATIONS_COLLECTION, existing.rows[0]!.$id);
+      await db.deleteRow(
+        DATABASE_ID,
+        NAV_TRANSLATIONS_COLLECTION,
+        existing.rows[0]!.$id
+      );
     }
     return;
   }
 
   if (existing.rows.length) {
-    await db.updateRow(DATABASE_ID, NAV_TRANSLATIONS_COLLECTION, existing.rows[0]!.$id, {
-      title: trimmedTitle,
-    });
+    await db.updateRow(
+      DATABASE_ID,
+      NAV_TRANSLATIONS_COLLECTION,
+      existing.rows[0]!.$id,
+      {
+        title: trimmedTitle,
+      }
+    );
   } else {
     await db.createRow(DATABASE_ID, NAV_TRANSLATIONS_COLLECTION, ID.unique(), {
       nav_id: navId,
@@ -241,7 +265,9 @@ interface CreateNavMenuInput {
   translations: Record<Locale, string>;
 }
 
-export const createNavMenuItem = async (input: CreateNavMenuInput): Promise<MutationResponse> => {
+export const createNavMenuItem = async (
+  input: CreateNavMenuInput
+): Promise<MutationResponse> => {
   try {
     const { db } = await createSessionClient();
     const trimmedSlug = input.slug.trim();
@@ -261,14 +287,19 @@ export const createNavMenuItem = async (input: CreateNavMenuInput): Promise<Muta
     const { documents } = await fetchNavData(db);
     const nextOrder = determineNextOrder(documents, input.parentId ?? null);
 
-    const navDoc = await db.createRow(DATABASE_ID, NAV_COLLECTION, trimmedSlug, {
-      slug: trimmedSlug,
-      parent_id: input.parentId ?? null,
-      path: input.path?.trim() || null,
-      url: input.url?.trim() || null,
-      is_external: Boolean(input.isExternal),
-      order: nextOrder,
-    });
+    const navDoc = await db.createRow(
+      DATABASE_ID,
+      NAV_COLLECTION,
+      trimmedSlug,
+      {
+        slug: trimmedSlug,
+        parent_id: input.parentId ?? null,
+        path: input.path?.trim() || null,
+        url: input.url?.trim() || null,
+        is_external: Boolean(input.isExternal),
+        order: nextOrder,
+      }
+    );
 
     await Promise.all(
       SUPPORTED_LOCALES.map((locale) =>
@@ -277,8 +308,8 @@ export const createNavMenuItem = async (input: CreateNavMenuInput): Promise<Muta
           navId: navDoc.$id,
           locale,
           title: input.translations?.[locale] ?? "",
-        }),
-      ),
+        })
+      )
     );
 
     revalidateNavConsumers();
@@ -298,7 +329,9 @@ interface UpdateNavMenuInput {
   translations: Record<Locale, string>;
 }
 
-export const updateNavMenuItem = async (input: UpdateNavMenuInput): Promise<MutationResponse> => {
+export const updateNavMenuItem = async (
+  input: UpdateNavMenuInput
+): Promise<MutationResponse> => {
   try {
     const { db } = await createSessionClient();
 
@@ -316,8 +349,8 @@ export const updateNavMenuItem = async (input: UpdateNavMenuInput): Promise<Muta
           navId: input.id,
           locale,
           title: input.translations?.[locale] ?? "",
-        }),
-      ),
+        })
+      )
     );
 
     revalidateNavConsumers();
@@ -328,12 +361,16 @@ export const updateNavMenuItem = async (input: UpdateNavMenuInput): Promise<Muta
   }
 };
 
-export const deleteNavMenuItem = async (navId: string): Promise<MutationResponse> => {
+export const deleteNavMenuItem = async (
+  navId: string
+): Promise<MutationResponse> => {
   try {
     const { db } = await createSessionClient();
     const { documents } = await fetchNavData(db);
 
-    const hasChildren = documents.some((doc) => (doc.parent_id ?? null) === navId);
+    const hasChildren = documents.some(
+      (doc) => (doc.parent_id ?? null) === navId
+    );
     if (hasChildren) {
       return {
         success: false,
@@ -344,13 +381,13 @@ export const deleteNavMenuItem = async (navId: string): Promise<MutationResponse
     const translationsResponse = await db.listRows<NavMenuTranslationDocument>(
       DATABASE_ID,
       NAV_TRANSLATIONS_COLLECTION,
-      [Query.equal("nav_id", navId), Query.limit(20)],
+      [Query.equal("nav_id", navId), Query.limit(20)]
     );
 
     await Promise.all(
       translationsResponse.rows.map((translation) =>
-        db.deleteRow(DATABASE_ID, NAV_TRANSLATIONS_COLLECTION, translation.$id),
-      ),
+        db.deleteRow(DATABASE_ID, NAV_TRANSLATIONS_COLLECTION, translation.$id)
+      )
     );
 
     await db.deleteRow(DATABASE_ID, NAV_COLLECTION, navId);
@@ -365,7 +402,7 @@ export const deleteNavMenuItem = async (navId: string): Promise<MutationResponse
 
 const moveNavMenuItem = async (
   navId: string,
-  direction: "up" | "down",
+  direction: "up" | "down"
 ): Promise<MutationResponse> => {
   try {
     const { db } = await createSessionClient();
@@ -379,13 +416,19 @@ const moveNavMenuItem = async (
     const siblings = getSiblings(documents, target.parent_id ?? null);
     const currentIndex = siblings.findIndex((doc) => doc.$id === navId);
     if (currentIndex === -1) {
-      return { success: false, error: "Navigation item not found among siblings" };
+      return {
+        success: false,
+        error: "Navigation item not found among siblings",
+      };
     }
 
     const delta = direction === "up" ? -1 : 1;
     const swapIndex = currentIndex + delta;
     if (swapIndex < 0 || swapIndex >= siblings.length) {
-      return { success: false, error: "Cannot move item further in this direction" };
+      return {
+        success: false,
+        error: "Cannot move item further in this direction",
+      };
     }
 
     const updatedOrder = [...siblings];
@@ -396,8 +439,8 @@ const moveNavMenuItem = async (
       updatedOrder.map((doc, index) =>
         db.updateRow(DATABASE_ID, NAV_COLLECTION, doc.$id, {
           order: index + 1,
-        }),
-      ),
+        })
+      )
     );
 
     revalidateNavConsumers();
@@ -409,7 +452,7 @@ const moveNavMenuItem = async (
 };
 
 export const syncNavMenuStructure = async (
-  structure: NavMenuStructureItem[],
+  structure: NavMenuStructureItem[]
 ): Promise<MutationResponse> => {
   try {
     const { db } = await createSessionClient();
@@ -419,8 +462,8 @@ export const syncNavMenuStructure = async (
         db.updateRow(DATABASE_ID, NAV_COLLECTION, item.id, {
           parent_id: item.parentId ?? null,
           order: item.order,
-        }),
-      ),
+        })
+      )
     );
 
     revalidateNavConsumers();

@@ -44,7 +44,9 @@ function cloneDocument(document: PageDocument): PageDocument {
   return JSON.parse(JSON.stringify(document));
 }
 
-function ensureDocument(document: PageDocument | null | undefined): PageDocument {
+function ensureDocument(
+  document: PageDocument | null | undefined
+): PageDocument {
   if (!document) {
     return cloneDocument(EMPTY_DOCUMENT);
   }
@@ -76,7 +78,9 @@ function serializeDraft(document: PageDocument | null | undefined): string {
   return JSON.stringify(document ? cloneDocument(document) : EMPTY_DOCUMENT);
 }
 
-function serializePublished(document: PageDocument | null | undefined): string | null {
+function serializePublished(
+  document: PageDocument | null | undefined
+): string | null {
   if (!document) {
     return null;
   }
@@ -119,8 +123,12 @@ export interface PublishedPage {
 }
 
 function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
-  const draft = decodeDocument((row as unknown as { draft_document?: unknown }).draft_document);
-  const published = decodeDocument((row as unknown as { puck_document?: unknown }).puck_document);
+  const draft = decodeDocument(
+    (row as unknown as { draft_document?: unknown }).draft_document
+  );
+  const published = decodeDocument(
+    (row as unknown as { puck_document?: unknown }).puck_document
+  );
 
   return {
     id: row.$id,
@@ -131,11 +139,13 @@ function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
     locale: row.locale,
     title: row.title,
     slug: (row as unknown as { slug?: string | null }).slug ?? null,
-    description: (row as unknown as { description?: string | null }).description ?? null,
+    description:
+      (row as unknown as { description?: string | null }).description ?? null,
     draftDocument: ensureDocument(draft ?? published),
     publishedDocument: published ? cloneDocument(published) : null,
     isPublished: !!(row as unknown as { is_published?: boolean }).is_published,
-    publishedAt: (row as unknown as { published_at?: string | null }).published_at ?? null,
+    publishedAt:
+      (row as unknown as { published_at?: string | null }).published_at ?? null,
     createdAt: row.$createdAt,
     updatedAt: row.$updatedAt,
   };
@@ -143,11 +153,13 @@ function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
 
 function normalizePage(row: Pages): PageRecord {
   const translations = Array.isArray(
-    (row as unknown as { translation_refs?: PageTranslations[] }).translation_refs,
+    (row as unknown as { translation_refs?: PageTranslations[] })
+      .translation_refs
   )
-    ? ((row as unknown as { translation_refs?: PageTranslations[] }).translation_refs ?? []).map(
-        normalizeTranslation,
-      )
+    ? (
+        (row as unknown as { translation_refs?: PageTranslations[] })
+          .translation_refs ?? []
+      ).map(normalizeTranslation)
     : [];
 
   return {
@@ -157,7 +169,8 @@ function normalizePage(row: Pages): PageRecord {
     status: row.status as PageStatus,
     visibility: row.visibility as PageVisibility,
     template: (row as unknown as { template?: string | null }).template ?? null,
-    campusId: (row as unknown as { campus_id?: string | null }).campus_id ?? null,
+    campusId:
+      (row as unknown as { campus_id?: string | null }).campus_id ?? null,
     createdAt: row.$createdAt,
     updatedAt: row.$updatedAt,
     translations,
@@ -193,10 +206,15 @@ export interface ListPagesParams {
   campusId?: string | null;
 }
 
-export async function listPages(params: ListPagesParams = {}): Promise<PageRecord[]> {
+export async function listPages(
+  params: ListPagesParams = {}
+): Promise<PageRecord[]> {
   const { db } = await createAdminClient();
 
-  const queries = [Query.select(PAGE_SELECT_FIELDS), Query.orderDesc("$updatedAt")];
+  const queries = [
+    Query.select(PAGE_SELECT_FIELDS),
+    Query.orderDesc("$updatedAt"),
+  ];
 
   if (typeof params.limit === "number") {
     queries.push(Query.limit(params.limit));
@@ -252,7 +270,11 @@ export async function getPublishedPage({
   const response = await db.listRows<Pages>({
     databaseId: DATABASE_ID,
     tableId: PAGES_TABLE_ID,
-    queries: [Query.equal("slug", slug), Query.limit(1), Query.select(PAGE_SELECT_FIELDS)],
+    queries: [
+      Query.equal("slug", slug),
+      Query.limit(1),
+      Query.select(PAGE_SELECT_FIELDS),
+    ],
   });
 
   const row = response.rows[0];
@@ -370,7 +392,10 @@ export interface UpdatePageInput {
   campusId?: string | null;
 }
 
-export async function updatePage({ pageId, ...changes }: UpdatePageInput): Promise<PageRecord> {
+export async function updatePage({
+  pageId,
+  ...changes
+}: UpdatePageInput): Promise<PageRecord> {
   const { db } = await createAdminClient();
   const data: Record<string, unknown> = {};
 
@@ -414,7 +439,8 @@ export async function updatePageTranslationDraft({
   if (title !== undefined) data.title = title;
   if (slug !== undefined) data.slug = slug;
   if (description !== undefined) data.description = description;
-  if (draftDocument !== undefined) data.draft_document = serializeDraft(draftDocument);
+  if (draftDocument !== undefined)
+    data.draft_document = serializeDraft(draftDocument);
 
   if (Object.keys(data).length > 0) {
     await db.updateRow({
@@ -450,12 +476,14 @@ export async function publishPageTranslation({
   const translationRow = await fetchTranslationRow(translationId);
 
   const baseDraft = decodeDocument(
-    (translationRow as unknown as { draft_document?: unknown }).draft_document,
+    (translationRow as unknown as { draft_document?: unknown }).draft_document
   );
   const publishedDocument =
     document ??
     baseDraft ??
-    decodeDocument((translationRow as unknown as { puck_document?: unknown }).puck_document);
+    decodeDocument(
+      (translationRow as unknown as { puck_document?: unknown }).puck_document
+    );
   const data: Record<string, unknown> = {
     is_published: true,
     published_at: new Date().toISOString(),
@@ -498,7 +526,9 @@ export async function deletePage(pageId: string): Promise<void> {
   });
 }
 
-export async function deletePageTranslation(translationId: string): Promise<void> {
+export async function deletePageTranslation(
+  translationId: string
+): Promise<void> {
   const { db } = await createAdminClient();
   await db.deleteRow({
     databaseId: DATABASE_ID,
@@ -527,7 +557,11 @@ export async function ensurePageTranslation({
   const existing = await db.listRows<PageTranslations>({
     databaseId: DATABASE_ID,
     tableId: PAGE_TRANSLATIONS_TABLE_ID,
-    queries: [Query.equal("page_id", pageId), Query.equal("locale", locale), Query.limit(1)],
+    queries: [
+      Query.equal("page_id", pageId),
+      Query.equal("locale", locale),
+      Query.limit(1),
+    ],
   });
 
   if (existing.rows.length > 0) {
@@ -541,8 +575,12 @@ export async function ensurePageTranslation({
     try {
       const source = await fetchTranslationRow(sourceTranslationId);
       baseDocument =
-        decodeDocument((source as unknown as { draft_document?: unknown }).draft_document) ??
-        decodeDocument((source as unknown as { puck_document?: unknown }).puck_document);
+        decodeDocument(
+          (source as unknown as { draft_document?: unknown }).draft_document
+        ) ??
+        decodeDocument(
+          (source as unknown as { puck_document?: unknown }).puck_document
+        );
     } catch {
       baseDocument = null;
     }

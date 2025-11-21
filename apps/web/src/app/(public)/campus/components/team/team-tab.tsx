@@ -30,7 +30,9 @@ function mapToLeader(entry: any): CampusLeader {
     email: entry?.email ?? entry?.mail ?? undefined,
     phone:
       entry?.phone ??
-      (Array.isArray(entry?.businessPhones) ? entry.businessPhones[0] : undefined) ??
+      (Array.isArray(entry?.businessPhones)
+        ? entry.businessPhones[0]
+        : undefined) ??
       entry?.mobilePhone ??
       undefined,
     role: entry?.role ?? entry?.jobTitle ?? "",
@@ -47,7 +49,12 @@ function mapToDepartmentBoard(leader: CampusLeader): DepartmentBoard {
   } as DepartmentBoard;
 }
 
-export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabProps) {
+export function TeamTab({
+  fallbackTeam,
+  campusId,
+  campusName,
+  locale,
+}: TeamTabProps) {
   const [leadership, setLeadership] = useState<DepartmentBoard[]>(fallbackTeam);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +104,7 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
             setError(
               locale === "en"
                 ? "Campus leadership information is not available right now."
-                : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå.",
+                : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå."
             );
           }
         }
@@ -110,7 +117,7 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
           setError(
             locale === "en"
               ? "Campus leadership information is not available right now."
-              : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå.",
+              : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå."
           );
         } else {
           setError(null);
@@ -147,7 +154,9 @@ export function TeamTab({ fallbackTeam, campusId, campusName, locale }: TeamTabP
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center">
             <Loader2 className="h-4 w-4 animate-spin text-primary-50" />
-            <span>{locale === "en" ? "Loading team..." : "Laster team..."}</span>
+            <span>
+              {locale === "en" ? "Loading team..." : "Laster team..."}
+            </span>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (

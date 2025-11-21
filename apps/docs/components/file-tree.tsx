@@ -20,7 +20,12 @@ interface FileTreeItemProps {
   children?: ReactNode;
 }
 
-export function FileTreeItem({ name, icon = "📄", depth = 0, children }: FileTreeItemProps) {
+export function FileTreeItem({
+  name,
+  icon = "📄",
+  depth = 0,
+  children,
+}: FileTreeItemProps) {
   return (
     <div>
       <div
@@ -28,7 +33,12 @@ export function FileTreeItem({ name, icon = "📄", depth = 0, children }: FileT
         style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
       >
         <span className="mr-2">{icon}</span>
-        <span className={cn(depth === 0 && "font-semibold", "text-gray-900 dark:text-gray-100")}>
+        <span
+          className={cn(
+            depth === 0 && "font-semibold",
+            "text-gray-900 dark:text-gray-100"
+          )}
+        >
           {name}
         </span>
       </div>

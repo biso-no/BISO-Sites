@@ -16,9 +16,15 @@ export type RagSearchResult = {
 
 // Helper functions for language-aware responses
 function getLanguageInfo(results: any[], queryLanguage: string) {
-  const norwegianDocs = results.filter((r) => r.metadata?.documentLanguage === "norwegian").length;
-  const englishDocs = results.filter((r) => r.metadata?.documentLanguage === "english").length;
-  const authoritativeDocs = results.filter((r) => r.metadata?.isAuthoritative).length;
+  const norwegianDocs = results.filter(
+    (r) => r.metadata?.documentLanguage === "norwegian"
+  ).length;
+  const englishDocs = results.filter(
+    (r) => r.metadata?.documentLanguage === "english"
+  ).length;
+  const authoritativeDocs = results.filter(
+    (r) => r.metadata?.isAuthoritative
+  ).length;
   const latestVersions = results.filter((r) => r.metadata?.isLatest).length;
 
   return {
@@ -30,7 +36,11 @@ function getLanguageInfo(results: any[], queryLanguage: string) {
   };
 }
 
-function generateSearchMessage(resultCount: number, queryLanguage: string, languageInfo: any) {
+function generateSearchMessage(
+  resultCount: number,
+  queryLanguage: string,
+  languageInfo: any
+) {
   const { norwegianDocs, englishDocs, authoritativeDocs } = languageInfo;
 
   if (queryLanguage === "norwegian") {
@@ -70,7 +80,7 @@ export const searchSharePoint = tool({
       .string()
       .min(1)
       .describe(
-        'Search query to run against SharePoint index. For specific paragraph/section references, include the exact format like "§ 6.3" or "paragraf 6.3"',
+        'Search query to run against SharePoint index. For specific paragraph/section references, include the exact format like "§ 6.3" or "paragraf 6.3"'
       ),
     k: z
       .number()
@@ -78,8 +88,13 @@ export const searchSharePoint = tool({
       .min(1)
       .max(15)
       .default(5)
-      .describe("Number of results to return (max 15 for better coverage of specific searches)"),
-    filter: z.record(z.string(), z.any()).optional().describe("Optional filter for search results"),
+      .describe(
+        "Number of results to return (max 15 for better coverage of specific searches)"
+      ),
+    filter: z
+      .record(z.string(), z.any())
+      .optional()
+      .describe("Optional filter for search results"),
   }),
   execute: async ({
     query,
@@ -91,7 +106,9 @@ export const searchSharePoint = tool({
     filter?: Record<string, any>;
   }) => {
     try {
-      const { createIndexingService } = await import("@/lib/ai/indexing-service");
+      const { createIndexingService } = await import(
+        "@/lib/ai/indexing-service"
+      );
       const indexingService = await createIndexingService();
 
       // Detect query language for better response handling
@@ -116,7 +133,11 @@ export const searchSharePoint = tool({
 
       // Generate language-aware message
       const languageInfo = getLanguageInfo(results, queryLanguage);
-      const message = generateSearchMessage(transformedResults.length, queryLanguage, languageInfo);
+      const message = generateSearchMessage(
+        transformedResults.length,
+        queryLanguage,
+        languageInfo
+      );
 
       return {
         results: transformedResults,
@@ -132,7 +153,10 @@ export const searchSharePoint = tool({
         results: [],
         totalResults: 0,
         query,
-        error: error instanceof Error ? error.message : "Unknown error occurred during search",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unknown error occurred during search",
       };
     }
   },
@@ -144,7 +168,9 @@ export const getDocumentStats = tool({
   inputSchema: z.object({}),
   execute: async () => {
     try {
-      const { createIndexingService } = await import("@/lib/ai/indexing-service");
+      const { createIndexingService } = await import(
+        "@/lib/ai/indexing-service"
+      );
       const indexingService = await createIndexingService();
       const stats = await indexingService.getDocumentStats();
 
@@ -171,7 +197,9 @@ export const listSharePointSites = tool({
   inputSchema: z.object({}),
   execute: async () => {
     try {
-      const { SharePointService, getSharePointConfig } = await import("@/lib/sharepoint");
+      const { SharePointService, getSharePointConfig } = await import(
+        "@/lib/sharepoint"
+      );
       const sharePointService = new SharePointService(getSharePointConfig());
       const sites = await sharePointService.listSites();
 
@@ -189,7 +217,9 @@ export const listSharePointSites = tool({
       console.error("Error listing SharePoint sites:", error);
       return {
         error:
-          error instanceof Error ? error.message : "Unknown error occurred while listing sites",
+          error instanceof Error
+            ? error.message
+            : "Unknown error occurred while listing sites",
       };
     }
   },

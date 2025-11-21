@@ -80,7 +80,10 @@ export async function createNotification(data: {
     console.error("[notifications] Failed to create notification:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to create notification",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create notification",
     };
   }
 }
@@ -89,19 +92,24 @@ export async function createNotification(data: {
  * Mark a notification as inactive (soft delete)
  */
 export async function dismissNotification(
-  notificationId: string,
+  notificationId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createAdminClient();
 
-    await db.updateRow(DATABASE_ID, NOTICES_TABLE, notificationId, { isActive: false });
+    await db.updateRow(DATABASE_ID, NOTICES_TABLE, notificationId, {
+      isActive: false,
+    });
 
     return { success: true };
   } catch (error) {
     console.error("[notifications] Failed to dismiss notification:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to dismiss notification",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to dismiss notification",
     };
   }
 }
@@ -111,19 +119,25 @@ export async function dismissNotification(
  */
 export async function updateNotificationPriority(
   notificationId: string,
-  priority: number,
+  priority: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { db } = await createAdminClient();
 
-    await db.updateRow(DATABASE_ID, NOTICES_TABLE, notificationId, { priority });
+    await db.updateRow(DATABASE_ID, NOTICES_TABLE, notificationId, {
+      priority,
+    });
 
     return { success: true };
   } catch (error) {
-    console.error("[notifications] Failed to update notification priority:", error);
+    console.error(
+      "[notifications] Failed to update notification priority:",
+      error
+    );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update priority",
+      error:
+        error instanceof Error ? error.message : "Failed to update priority",
     };
   }
 }
@@ -136,7 +150,11 @@ function mapColorToType(color?: string | null): NotificationType {
 
   const normalized = color.toLowerCase();
 
-  if (normalized.includes("red") || normalized.includes("error") || normalized.includes("danger")) {
+  if (
+    normalized.includes("red") ||
+    normalized.includes("error") ||
+    normalized.includes("danger")
+  ) {
     return "error";
   }
   if (
@@ -157,7 +175,9 @@ function mapColorToType(color?: string | null): NotificationType {
 /**
  * Map notice priority number to notification priority level
  */
-function mapPriorityToLevel(priority?: number | null): "low" | "medium" | "high" {
+function mapPriorityToLevel(
+  priority?: number | null
+): "low" | "medium" | "high" {
   if (!priority) return "low";
 
   if (priority >= 3) return "high";

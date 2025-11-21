@@ -62,12 +62,15 @@ async function getMemberDiscountIfAny(product: any) {
     const exec = await functions.createExecution(
       "verify_biso_membership",
       String(studentId),
-      false,
+      false
     );
     const res = JSON.parse((exec as any).responseBody || "{}");
     const isActive = !!res?.membership?.status;
     if (!isActive) return { applied: false, percent: 0 };
-    return { applied: true, percent: Number(product.member_discount_percent) || 0 };
+    return {
+      applied: true,
+      percent: Number(product.member_discount_percent) || 0,
+    };
   } catch {
     return { applied: false, percent: 0 };
   }
@@ -98,16 +101,21 @@ export interface CheckoutResult {
 
 function normalizeCustomFields(inputs?: Record<string, string>) {
   if (!inputs) return {};
-  return Object.entries(inputs).reduce<Record<string, string>>((acc, [key, value]) => {
-    if (typeof value !== "string") return acc;
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return acc;
-    acc[key] = trimmed;
-    return acc;
-  }, {});
+  return Object.entries(inputs).reduce<Record<string, string>>(
+    (acc, [key, value]) => {
+      if (typeof value !== "string") return acc;
+      const trimmed = value.trim();
+      if (trimmed.length === 0) return acc;
+      acc[key] = trimmed;
+      return acc;
+    },
+    {}
+  );
 }
 
-export async function createCartCheckoutSession(data: CartCheckoutData): Promise<CheckoutResult> {
+export async function createCartCheckoutSession(
+  data: CartCheckoutData
+): Promise<CheckoutResult> {
   try {
     if (!data.items || data.items.length === 0) {
       throw new Error("Your cart is empty");
@@ -129,11 +137,14 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
     for (const item of sanitizedItems) {
       quantityByProduct.set(
         item.productId,
-        (quantityByProduct.get(item.productId) || 0) + item.quantity,
+        (quantityByProduct.get(item.productId) || 0) + item.quantity
       );
     }
 
-    const discountCache = new Map<string, { applied: boolean; percent: number }>();
+    const discountCache = new Map<
+      string,
+      { applied: boolean; percent: number }
+    >();
     const productCache = new Map<string, any>();
     const orderItems: OrderItem[] = [];
     const campusIds = new Set<string>();
@@ -150,34 +161,41 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
       if (!product) {
         product = await getProduct(productId);
         if (!product) {
-          throw new Error(`Product ${input.slug || productId} is not available anymore.`);
+          throw new Error(
+            `Product ${input.slug || productId} is not available anymore.`
+          );
         }
         productCache.set(productId, product);
       }
 
       if (!product.price) {
-        throw new Error(`Product ${product.title || product.slug} is missing a price.`);
+        throw new Error(
+          `Product ${product.title || product.slug} is missing a price.`
+        );
       }
 
       const totalForProduct = quantityByProduct.get(productId) || 0;
       if (product.max_per_order && totalForProduct > product.max_per_order) {
         throw new Error(
-          `Only ${product.max_per_order} of ${product.title || product.slug} can be purchased per order.`,
+          `Only ${product.max_per_order} of ${product.title || product.slug} can be purchased per order.`
         );
       }
 
       if (product.max_per_user === 1 && totalForProduct > 1) {
-        throw new Error(`${product.title || product.slug} is limited to one per customer.`);
+        throw new Error(
+          `${product.title || product.slug} is limited to one per customer.`
+        );
       }
 
       const variation = product.variations?.find(
-        (variant: any) => variant.id === input.variationId,
+        (variant: any) => variant.id === input.variationId
       );
       const basePrice = Number(product.price || 0);
       const variationModifier = Number(variation?.price_modifier || 0);
       const originalUnit = Math.max(0, basePrice + variationModifier);
 
-      const discount = discountCache.get(productId) || (await getMemberDiscountIfAny(product));
+      const discount =
+        discountCache.get(productId) || (await getMemberDiscountIfAny(product));
       discountCache.set(productId, discount);
 
       const discountedUnit = discount.applied
@@ -198,16 +216,18 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
           .map((field: any) => field.label);
         if (missingFields.length > 0) {
           throw new Error(
-            `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`,
+            `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`
           );
         }
       }
 
-      const customFieldDetails = Object.entries(customFieldResponses).map(([fieldId, value]) => ({
-        id: fieldId,
-        label: customFieldLabels[fieldId] || fieldId,
-        value,
-      }));
+      const customFieldDetails = Object.entries(customFieldResponses).map(
+        ([fieldId, value]) => ({
+          id: fieldId,
+          label: customFieldLabels[fieldId] || fieldId,
+          value,
+        })
+      );
 
       orderItems.push({
         product_id: product.$id,
@@ -221,7 +241,9 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
         custom_field_responses: Object.keys(customFieldResponses).length
           ? customFieldResponses
           : undefined,
-        custom_fields: customFieldDetails.length ? customFieldDetails : undefined,
+        custom_fields: customFieldDetails.length
+          ? customFieldDetails
+          : undefined,
       });
 
       subtotal += discountedUnit * input.quantity;
@@ -266,7 +288,10 @@ export async function createCartCheckoutSession(data: CartCheckoutData): Promise
 
     if (!vippsCheckout.ok) {
       console.error("Vipps checkout failed:", vippsCheckout);
-      return { success: false, error: "Failed to create Vipps checkout session" };
+      return {
+        success: false,
+        error: "Failed to create Vipps checkout session",
+      };
     }
 
     await db.updateRow("app", "orders", order.$id, {
@@ -293,9 +318,10 @@ async function startCartCheckout(data: CartCheckoutData) {
 }
 
 async function getCheckoutStatus(
-  orderId: string,
+  orderId: string
 ): Promise<
-  { success: false; error: string } | { success: true; order: Orders; vippsStatus: unknown }
+  | { success: false; error: string }
+  | { success: true; order: Orders; vippsStatus: unknown }
 > {
   try {
     const { db } = await createSessionClient();
@@ -317,7 +343,10 @@ async function getCheckoutStatus(
     console.error("Error getting checkout status:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to get checkout status",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to get checkout status",
     };
   }
 }

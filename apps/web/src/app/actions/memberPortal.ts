@@ -12,26 +12,37 @@ import { checkMembership } from "@/lib/profile";
 
 export async function createOrUpdatePublicProfile(
   profile: Partial<PublicProfiles>,
-  isPublic: boolean,
+  isPublic: boolean
 ): Promise<PublicProfiles | null> {
   if (!profile.$id) {
     return null;
   }
   const { db } = await createSessionClient();
-  return await db.upsertRow<PublicProfiles>("app", "public_profiles", profile.$id, {
-    avatar: profile.avatar || null,
-    campus_id: profile.campus_id || null,
-    email: profile.email || null,
-    phone: profile.phone || null,
-    name: profile.name!,
-    email_visible: profile.email_visible || false,
-    phone_visible: profile.phone_visible || false,
-    user_id: profile.user_id!,
-    $permissions: [isPublic ? Permission.read("any") : Permission.read("user:" + profile.user_id!)],
-  });
+  return await db.upsertRow<PublicProfiles>(
+    "app",
+    "public_profiles",
+    profile.$id,
+    {
+      avatar: profile.avatar || null,
+      campus_id: profile.campus_id || null,
+      email: profile.email || null,
+      phone: profile.phone || null,
+      name: profile.name!,
+      email_visible: profile.email_visible || false,
+      phone_visible: profile.phone_visible || false,
+      user_id: profile.user_id!,
+      $permissions: [
+        isPublic
+          ? Permission.read("any")
+          : Permission.read("user:" + profile.user_id!),
+      ],
+    }
+  );
 }
 
-export async function getMemberBenefits(userId: string): Promise<MemberBenefit[]> {
+export async function getMemberBenefits(
+  userId: string
+): Promise<MemberBenefit[]> {
   try {
     const { db } = await createSessionClient();
     const response = await db.listRows<MemberBenefit>("app", "member_benefit", [
@@ -83,13 +94,16 @@ export async function getUserProfile(): Promise<Users | null> {
   }
 }
 
-export async function getPublicProfile(userId: string): Promise<PublicProfiles | null> {
+export async function getPublicProfile(
+  userId: string
+): Promise<PublicProfiles | null> {
   try {
     const { db } = await createSessionClient();
-    const response = await db.listRows<PublicProfiles>("app", "public_profiles", [
-      Query.equal("user_id", userId),
-      Query.limit(1),
-    ]);
+    const response = await db.listRows<PublicProfiles>(
+      "app",
+      "public_profiles",
+      [Query.equal("user_id", userId), Query.limit(1)]
+    );
 
     return response.rows?.[0] || null;
   } catch (error) {
@@ -99,7 +113,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfiles |
 }
 
 export async function updatePublicProfile(
-  data: Partial<PublicProfiles>,
+  data: Partial<PublicProfiles>
 ): Promise<PublicProfiles | null> {
   try {
     const { account } = await createSessionClient();
@@ -115,7 +129,7 @@ export async function updatePublicProfile(
         $id: profile?.$id || user.$id,
         user_id: user.$id,
       },
-      isPublic,
+      isPublic
     );
   } catch (error) {
     console.error("Error updating public profile:", error);
@@ -124,7 +138,7 @@ export async function updatePublicProfile(
 }
 
 export async function revealBenefit(
-  benefitId: string,
+  benefitId: string
 ): Promise<{ success: boolean; value?: string } | null> {
   try {
     const { account, db } = await createSessionClient();
@@ -139,7 +153,11 @@ export async function revealBenefit(
 
     if (existing.rows && existing.rows.length > 0) {
       // Already revealed, fetch the benefit value
-      const benefit = await db.getRow<MemberBenefit>("app", "member_benefit", benefitId);
+      const benefit = await db.getRow<MemberBenefit>(
+        "app",
+        "member_benefit",
+        benefitId
+      );
       return { success: true, value: benefit.value };
     }
 
@@ -148,11 +166,18 @@ export async function revealBenefit(
       user_id: user.$id,
       benefit_id: benefitId,
       revealed_at: new Date().toISOString(),
-      $permissions: [Permission.read(`user:${user.$id}`), Permission.write(`user:${user.$id}`)],
+      $permissions: [
+        Permission.read(`user:${user.$id}`),
+        Permission.write(`user:${user.$id}`),
+      ],
     });
 
     // Fetch and return benefit value
-    const benefit = await db.getRow<MemberBenefit>("app", "member_benefit", benefitId);
+    const benefit = await db.getRow<MemberBenefit>(
+      "app",
+      "member_benefit",
+      benefitId
+    );
     return { success: true, value: benefit.value };
   } catch (error) {
     console.error("Error revealing benefit:", error);
@@ -163,9 +188,11 @@ export async function revealBenefit(
 export async function getBenefitReveals(userId: string): Promise<Set<string>> {
   try {
     const { db } = await createSessionClient();
-    const response = await db.listRows<BenefitReveals>("app", "benefit_reveals", [
-      Query.equal("user_id", userId),
-    ]);
+    const response = await db.listRows<BenefitReveals>(
+      "app",
+      "benefit_reveals",
+      [Query.equal("user_id", userId)]
+    );
 
     return new Set(response.rows?.map((r) => r.benefit_id) || []);
   } catch (error) {
@@ -174,9 +201,12 @@ export async function getBenefitReveals(userId: string): Promise<Set<string>> {
   }
 }
 
-export async function uploadAvatar(
-  formData: FormData,
-): Promise<{ success: boolean; fileId?: string; url?: string; error?: string }> {
+export async function uploadAvatar(formData: FormData): Promise<{
+  success: boolean;
+  fileId?: string;
+  url?: string;
+  error?: string;
+}> {
   try {
     const { account, storage } = await createSessionClient();
     const user = await account.get();
@@ -203,7 +233,9 @@ export async function uploadAvatar(
   }
 }
 
-export async function calculateEstimatedSavings(userId: string): Promise<number> {
+export async function calculateEstimatedSavings(
+  userId: string
+): Promise<number> {
   // Placeholder: Returns estimated savings in NOK
   // Future enhancement: Calculate based on revealed benefits and usage patterns
   // For now, return a static value

@@ -33,7 +33,11 @@ const parseJobMetadata = (metadata: Record<string, any>) => {
 
 const categories = [
   { name: "All", icon: Briefcase, color: "from-[#3DA9E0] to-[#001731]" },
-  { name: "Academic Associations", icon: BookOpen, color: "from-blue-500 to-indigo-600" },
+  {
+    name: "Academic Associations",
+    icon: BookOpen,
+    color: "from-blue-500 to-indigo-600",
+  },
   { name: "Societies", icon: PartyPopper, color: "from-[#3DA9E0] to-cyan-500" },
   { name: "Staff Functions", icon: Cog, color: "from-[#001731] to-slate-700" },
   { name: "Projects", icon: Rocket, color: "from-purple-500 to-pink-500" },
@@ -53,11 +57,14 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
     const paid = metadata.paid ?? false;
     const department = jobData?.department?.Name || "";
 
-    const matchesCategory = selectedCategory === "All" || category === selectedCategory;
+    const matchesCategory =
+      selectedCategory === "All" || category === selectedCategory;
     const matchesSearch =
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (job.short_description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (job.short_description || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       department.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPaid = !showPaidOnly || paid;
 
@@ -105,7 +112,9 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
                   <Button
                     key={category.name}
                     onClick={() => setSelectedCategory(category.name)}
-                    variant={selectedCategory === category.name ? "default" : "outline"}
+                    variant={
+                      selectedCategory === category.name ? "default" : "outline"
+                    }
                     className={
                       selectedCategory === category.name
                         ? `bg-linear-to-r ${category.color} text-white border-0`
@@ -136,7 +145,8 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             </div>
 
             <div className="text-center text-gray-600 text-sm">
-              Showing {filteredJobs.length} {filteredJobs.length === 1 ? "position" : "positions"}
+              Showing {filteredJobs.length}{" "}
+              {filteredJobs.length === 1 ? "position" : "positions"}
             </div>
           </div>
         </div>
@@ -153,7 +163,12 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             className="grid md:grid-cols-2 gap-8"
           >
             {filteredJobs.map((job, index) => (
-              <JobCard key={job.$id} job={job} index={index} onViewDetails={handleViewDetails} />
+              <JobCard
+                key={job.$id}
+                job={job}
+                index={index}
+                onViewDetails={handleViewDetails}
+              />
             ))}
           </motion.div>
         </AnimatePresence>
@@ -166,8 +181,12 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             className="text-center py-20"
           >
             <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="mb-2 text-gray-900 text-2xl font-bold">No positions found</h3>
-            <p className="text-gray-600 mb-6">Try adjusting your filters or search query</p>
+            <h3 className="mb-2 text-gray-900 text-2xl font-bold">
+              No positions found
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Try adjusting your filters or search query
+            </p>
             <Button
               onClick={() => {
                 setSelectedCategory("All");
@@ -186,16 +205,21 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
       {/* CTA Section */}
       <div className="bg-linear-to-r from-[#001731] to-[#3DA9E0] py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-white mb-4 text-3xl font-bold">Questions About Applying?</h2>
+          <h2 className="text-white mb-4 text-3xl font-bold">
+            Questions About Applying?
+          </h2>
           <p className="text-white/90 mb-8 text-lg">
-            Our recruitment team is here to help! Reach out if you have any questions about
-            positions or the application process.
+            Our recruitment team is here to help! Reach out if you have any
+            questions about positions or the application process.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Button className="bg-white text-[#001731] hover:bg-white/90">
               Contact Recruitment Team
             </Button>
-            <Button variant="outline" className="border-white text-white hover:bg-white/10">
+            <Button
+              variant="outline"
+              className="border-white text-white hover:bg-white/10"
+            >
               Download Information Pack
             </Button>
           </div>

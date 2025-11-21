@@ -122,7 +122,10 @@ export function Hero({
 }: HeroProps) {
   // Backwards compatibility for 'type'
   const effectiveLayout =
-    layout || (type === "center" || type === "left" || type === "split" ? type : "center");
+    layout ||
+    (type === "center" || type === "left" || type === "split"
+      ? type
+      : "center");
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -147,7 +150,8 @@ export function Hero({
   };
 
   useEffect(() => {
-    if (effectiveLayout !== "carousel" || isPaused || slides.length <= 1) return;
+    if (effectiveLayout !== "carousel" || isPaused || slides.length <= 1)
+      return;
     const interval = setInterval(nextSlide, 6000);
     return () => clearInterval(interval);
   }, [effectiveLayout, isPaused, nextSlide, slides.length]);
@@ -156,7 +160,10 @@ export function Hero({
 
   // --- Render Carousel ---
   if (effectiveLayout === "carousel") {
-    const currentSlide: HeroSlide = slides[currentIndex] || { title: "", subtitle: "" };
+    const currentSlide: HeroSlide = slides[currentIndex] || {
+      title: "",
+      subtitle: "",
+    };
 
     return (
       <div
@@ -174,7 +181,9 @@ export function Hero({
             className="absolute inset-0"
           >
             <ImageWithFallback
-              src={currentSlide.image || backgroundImage || "/images/hero-bg.png"}
+              src={
+                currentSlide.image || backgroundImage || "/images/hero-bg.png"
+              }
               alt={currentSlide.title || "Hero"}
               fill
               className="object-cover"
@@ -202,7 +211,10 @@ export function Hero({
               <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-8">
                 <Sparkles className="w-5 h-5 text-[#3DA9E0]" />
                 <span className="text-white/90">
-                  {badge || (currentSlide.type === "event" ? "Featured Event" : "Featured News")}
+                  {badge ||
+                    (currentSlide.type === "event"
+                      ? "Featured Event"
+                      : "Featured News")}
                 </span>
               </div>
             )}
@@ -226,13 +238,15 @@ export function Hero({
                     asChild
                     size="lg"
                     variant={
-                      btn.variant === "glass" ? "outline" : (btn.variant as any) || "default"
+                      btn.variant === "glass"
+                        ? "outline"
+                        : (btn.variant as any) || "default"
                     }
                     className={cn(
                       btn.variant === "gradient" &&
                         "bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white border-0",
                       btn.variant === "glass" &&
-                        "bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20",
+                        "bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20"
                     )}
                   >
                     <Link href={btn.href}>{btn.label}</Link>
@@ -266,7 +280,7 @@ export function Hero({
                   onClick={() => setCurrentIndex(idx)}
                   className={cn(
                     "h-2 rounded-full transition-all cursor-pointer",
-                    idx === currentIndex ? "bg-white w-8" : "bg-white/40 w-2",
+                    idx === currentIndex ? "bg-white w-8" : "bg-white/40 w-2"
                   )}
                 />
               ))}
@@ -289,7 +303,7 @@ export function Hero({
     <div
       className={cn(
         "relative flex flex-col justify-center overflow-hidden w-full",
-        heightClasses[height],
+        heightClasses[height]
       )}
     >
       {/* Background */}
@@ -317,11 +331,16 @@ export function Hero({
             "flex flex-col gap-8 max-w-4xl mx-auto",
             alignClasses[activeAlign],
             effectiveLayout === "split" &&
-              "lg:grid lg:grid-cols-2 lg:gap-16 lg:items-center lg:max-w-7xl",
+              "lg:grid lg:grid-cols-2 lg:gap-16 lg:items-center lg:max-w-7xl"
           )}
         >
           {/* Content Column */}
-          <div className={cn("flex flex-col gap-6", effectiveLayout === "split" && "lg:text-left")}>
+          <div
+            className={cn(
+              "flex flex-col gap-6",
+              effectiveLayout === "split" && "lg:text-left"
+            )}
+          >
             {/* Badge */}
             {badge && (
               <motion.div
@@ -341,7 +360,7 @@ export function Hero({
               transition={{ delay: 0.1, duration: 0.5 }}
               className={cn(
                 "text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight",
-                backgroundImage ? "text-white" : "text-foreground",
+                backgroundImage ? "text-white" : "text-foreground"
               )}
             >
               {title}
@@ -354,7 +373,7 @@ export function Hero({
                 transition={{ delay: 0.2, duration: 0.5 }}
                 className={cn(
                   "text-lg md:text-xl max-w-2xl",
-                  backgroundImage ? "text-gray-200" : "text-muted-foreground",
+                  backgroundImage ? "text-gray-200" : "text-muted-foreground"
                 )}
               >
                 {subtitle}
@@ -366,7 +385,7 @@ export function Hero({
               <div
                 className={cn(
                   "grid gap-3 my-2",
-                  highlights.length > 2 ? "sm:grid-cols-2" : "grid-cols-1",
+                  highlights.length > 2 ? "sm:grid-cols-2" : "grid-cols-1"
                 )}
               >
                 {highlights.map((item, idx) => {
@@ -379,7 +398,7 @@ export function Hero({
                       transition={{ delay: 0.3 + idx * 0.1 }}
                       className={cn(
                         "flex items-center gap-2",
-                        backgroundImage ? "text-white/90" : "text-foreground/80",
+                        backgroundImage ? "text-white/90" : "text-foreground/80"
                       )}
                     >
                       <Icon className="w-4 h-4 text-[#3DA9E0]" />
@@ -398,7 +417,7 @@ export function Hero({
                 transition={{ delay: 0.4, duration: 0.5 }}
                 className={cn(
                   "flex flex-wrap gap-4 mt-2",
-                  activeAlign === "center" && "justify-center",
+                  activeAlign === "center" && "justify-center"
                 )}
               >
                 {buttons.map((btn, i) => (
@@ -407,13 +426,15 @@ export function Hero({
                     asChild
                     size="lg"
                     variant={
-                      btn.variant === "glass" ? "outline" : (btn.variant as any) || "default"
+                      btn.variant === "glass"
+                        ? "outline"
+                        : (btn.variant as any) || "default"
                     }
                     className={cn(
                       btn.variant === "gradient" &&
                         "bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white border-0",
                       btn.variant === "glass" &&
-                        "bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20",
+                        "bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20"
                     )}
                   >
                     <Link href={btn.href}>{btn.label}</Link>
@@ -430,7 +451,7 @@ export function Hero({
                 transition={{ delay: 0.5, duration: 0.5 }}
                 className={cn(
                   "flex flex-wrap gap-3 mt-8",
-                  activeAlign === "center" && "justify-center",
+                  activeAlign === "center" && "justify-center"
                 )}
               >
                 {stats.map((stat, idx) =>
@@ -439,17 +460,21 @@ export function Hero({
                       key={idx}
                       className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left shadow-glow backdrop-blur-md"
                     >
-                      <div className="text-xl font-semibold text-white">{stat.value}</div>
+                      <div className="text-xl font-semibold text-white">
+                        {stat.value}
+                      </div>
                       <div className="text-xs uppercase tracking-wide text-white/70">
                         {stat.label}
                       </div>
                     </div>
                   ) : (
                     <div key={idx} className="text-center px-4">
-                      <div className="text-3xl text-white mb-1 font-bold">{stat.value}</div>
+                      <div className="text-3xl text-white mb-1 font-bold">
+                        {stat.value}
+                      </div>
                       <div className="text-white/80 text-sm">{stat.label}</div>
                     </div>
-                  ),
+                  )
                 )}
               </motion.div>
             )}
@@ -486,7 +511,12 @@ export function Hero({
               transition={{ delay: 0.6, duration: 0.5 }}
               className="relative w-full max-w-5xl mx-auto mt-12 aspect-video rounded-xl overflow-hidden shadow-2xl"
             >
-              <ImageWithFallback src={image} alt={title || "Hero"} fill className="object-cover" />
+              <ImageWithFallback
+                src={image}
+                alt={title || "Hero"}
+                fill
+                className="object-cover"
+              />
             </motion.div>
           )}
         </div>

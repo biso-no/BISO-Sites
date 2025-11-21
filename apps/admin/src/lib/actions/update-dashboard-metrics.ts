@@ -34,7 +34,7 @@ export interface StoredMetric {
  */
 export async function getCachedMetric(
   metricType: MetricType,
-  dateRange: DateRange,
+  dateRange: DateRange
 ): Promise<StoredMetric | null> {
   try {
     const { db } = await createAdminClient();
@@ -59,7 +59,7 @@ export async function getCachedMetric(
   } catch (error) {
     console.error(
       `[dashboard-metrics] Failed to get cached metric ${metricType}:${dateRange}`,
-      error,
+      error
     );
     return null;
   }
@@ -78,7 +78,7 @@ export async function getCachedMetric(
 export async function storeCachedMetric(
   metricType: MetricType,
   dateRange: DateRange,
-  data: unknown,
+  data: unknown
 ): Promise<void> {
   try {
     const { db } = await createAdminClient();
@@ -93,7 +93,10 @@ export async function storeCachedMetric(
 
     console.log(`[dashboard-metrics] Stored metric ${metricType}:${dateRange}`);
   } catch (error) {
-    console.error(`[dashboard-metrics] Failed to store metric ${metricType}:${dateRange}`, error);
+    console.error(
+      `[dashboard-metrics] Failed to store metric ${metricType}:${dateRange}`,
+      error
+    );
     throw error;
   }
 }
@@ -105,7 +108,10 @@ export async function storeCachedMetric(
  * @param maxAgeMinutes Maximum age in minutes before considering stale
  * @returns true if the metric should be recomputed
  */
-export function isMetricStale(metric: StoredMetric | null, maxAgeMinutes: number = 60): boolean {
+export function isMetricStale(
+  metric: StoredMetric | null,
+  maxAgeMinutes: number = 60
+): boolean {
   if (!metric) {
     return true;
   }
@@ -135,7 +141,7 @@ export async function getOrComputeMetric<T>(
   metricType: MetricType,
   dateRange: DateRange,
   computeFn: () => Promise<T>,
-  maxAgeMinutes: number = 60,
+  maxAgeMinutes: number = 60
 ): Promise<T> {
   const cached = await getCachedMetric(metricType, dateRange);
 

@@ -5,7 +5,15 @@ import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { format } from "date-fns";
-import { Calendar, Clock, ExternalLink, MapPin, Tag, Users, X } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  ExternalLink,
+  MapPin,
+  Tag,
+  Users,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   type EventCategory,
@@ -28,7 +36,11 @@ const categoryColors: Record<EventCategory, string> = {
   Culture: "bg-pink-100 text-pink-700 border-pink-200",
 };
 
-export function EventDetailModal({ event, isMember = false, onClose }: EventDetailModalProps) {
+export function EventDetailModal({
+  event,
+  isMember = false,
+  onClose,
+}: EventDetailModalProps) {
   const eventData = event.event_ref;
 
   // Parse metadata if available
@@ -40,15 +52,22 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
     ? format(new Date(eventData.start_date), "MMMM d, yyyy")
     : "TBA";
 
-  const startTime = eventData?.start_date ? format(new Date(eventData.start_date), "HH:mm") : "";
+  const startTime = eventData?.start_date
+    ? format(new Date(eventData.start_date), "HH:mm")
+    : "";
 
-  const endTime = eventData?.end_date ? format(new Date(eventData.end_date), "HH:mm") : "";
+  const endTime = eventData?.end_date
+    ? format(new Date(eventData.end_date), "HH:mm")
+    : "";
 
-  const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
+  const timeRange =
+    startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
 
   // Format price
   const price = formatEventPrice(eventData?.price);
-  const memberPrice = metadata.member_price ? formatEventPrice(metadata.member_price) : null;
+  const memberPrice = metadata.member_price
+    ? formatEventPrice(metadata.member_price)
+    : null;
 
   // Get attendees and other metadata
   const attendees = metadata.attendees || 0;
@@ -57,7 +76,8 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
 
   // Get image URL
   const imageUrl =
-    eventData?.image || "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
+    eventData?.image ||
+    "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
 
   return (
     <AnimatePresence>
@@ -77,7 +97,12 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
         >
           {/* Header Image */}
           <div className="relative h-80 overflow-hidden rounded-t-2xl">
-            <ImageWithFallback src={imageUrl} alt={event.title} fill className="object-cover" />
+            <ImageWithFallback
+              src={imageUrl}
+              alt={event.title}
+              fill
+              className="object-cover"
+            />
             <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/40 to-transparent" />
 
             {/* Close Button */}
@@ -90,7 +115,9 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
 
             {/* Category Badge */}
             <div className="absolute top-4 left-4 flex gap-2">
-              <Badge className={`${categoryColors[category] || categoryColors.Social}`}>
+              <Badge
+                className={`${categoryColors[category] || categoryColors.Social}`}
+              >
                 {category}
               </Badge>
               {memberPrice && !isMember && (
@@ -105,13 +132,19 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
             <div className="absolute bottom-0 left-0 right-0 p-8">
               <div className="flex justify-between items-end">
                 <div className="flex-1">
-                  <h2 className="text-white text-4xl font-bold mb-2">{event.title}</h2>
+                  <h2 className="text-white text-4xl font-bold mb-2">
+                    {event.title}
+                  </h2>
                 </div>
                 <div className="ml-4">
                   {memberPrice && isMember ? (
                     <div className="text-right">
-                      <div className="text-white/60 line-through text-sm">{price}</div>
-                      <div className="text-white text-2xl font-bold">{memberPrice}</div>
+                      <div className="text-white/60 line-through text-sm">
+                        {price}
+                      </div>
+                      <div className="text-white text-2xl font-bold">
+                        {memberPrice}
+                      </div>
                       <div className="text-white/80 text-xs">Member Price</div>
                     </div>
                   ) : (
@@ -149,7 +182,9 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
                   <MapPin className="w-5 h-5 text-[#3DA9E0] mt-1" />
                   <div>
                     <div className="font-medium text-gray-900">Location</div>
-                    <div className="text-gray-600">{eventData?.location || "Location TBA"}</div>
+                    <div className="text-gray-600">
+                      {eventData?.location || "Location TBA"}
+                    </div>
                   </div>
                 </div>
 
@@ -179,16 +214,22 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
 
             {/* Description */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">About This Event</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                About This Event
+              </h3>
               <div className="prose prose-gray max-w-none">
-                <p className="text-gray-600 whitespace-pre-line">{event.description}</p>
+                <p className="text-gray-600 whitespace-pre-line">
+                  {event.description}
+                </p>
               </div>
             </div>
 
             {/* Highlights */}
             {highlights.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Event Highlights</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  Event Highlights
+                </h3>
                 <ul className="grid md:grid-cols-2 gap-3">
                   {highlights.map((highlight: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2">
@@ -203,18 +244,25 @@ export function EventDetailModal({ event, isMember = false, onClose }: EventDeta
             {/* Agenda */}
             {agenda.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Agenda</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  Agenda
+                </h3>
                 <div className="space-y-4">
-                  {agenda.map((item: { time: string; activity: string }, idx: number) => (
-                    <div key={idx} className="flex gap-4">
-                      <div className="shrink-0 w-20">
-                        <Badge variant="outline" className="border-[#3DA9E0] text-[#3DA9E0]">
-                          {item.time}
-                        </Badge>
+                  {agenda.map(
+                    (item: { time: string; activity: string }, idx: number) => (
+                      <div key={idx} className="flex gap-4">
+                        <div className="shrink-0 w-20">
+                          <Badge
+                            variant="outline"
+                            className="border-[#3DA9E0] text-[#3DA9E0]"
+                          >
+                            {item.time}
+                          </Badge>
+                        </div>
+                        <div className="text-gray-600">{item.activity}</div>
                       </div>
-                      <div className="text-gray-600">{item.activity}</div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
             )}

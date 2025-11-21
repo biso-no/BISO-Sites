@@ -1,6 +1,11 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { Newspaper, ShoppingBag, Target, Users } from "lucide-react";
 import { useState } from "react";
 import type { DepartmentTranslation } from "@/lib/actions/departments";
@@ -14,7 +19,10 @@ interface DepartmentTabsClientProps {
   isMember: boolean;
 }
 
-export function DepartmentTabsClient({ department, isMember }: DepartmentTabsClientProps) {
+export function DepartmentTabsClient({
+  department,
+  isMember,
+}: DepartmentTabsClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
   const tabs = [
@@ -65,7 +73,10 @@ export function DepartmentTabsClient({ department, isMember }: DepartmentTabsCli
           </TabsContent>
 
           <TabsContent value="products" className="py-12">
-            <ProductsTab products={department.products || []} isMember={isMember} />
+            <ProductsTab
+              products={department.products || []}
+              isMember={isMember}
+            />
           </TabsContent>
         </Tabs>
       </div>

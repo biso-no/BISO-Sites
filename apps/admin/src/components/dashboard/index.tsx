@@ -18,7 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { cn } from "@repo/ui/lib/utils";
 import { AlertCircleIcon, BellIcon, CheckCircleIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -41,7 +46,14 @@ import {
 import type { DashboardMetrics } from "@/lib/actions/admin-dashboard";
 
 // Fallback colors for SSR
-const FALLBACK_COLORS = ["#004797", "#3DA9E0", "#F7D64A", "#82ca9d", "#FF8042", "#8884D8"];
+const FALLBACK_COLORS = [
+  "#004797",
+  "#3DA9E0",
+  "#F7D64A",
+  "#82ca9d",
+  "#FF8042",
+  "#8884D8",
+];
 
 const formatNumber = (value: number) => {
   if (value === undefined || value === null) return "0";
@@ -81,7 +93,11 @@ export default function AdminDashboard({
   const [dateRange, setDateRange] = useState<DateRange>("30d");
 
   const ROLE_OPTIONS = [
-    { value: "admin", label: t("dashboard.roleOptions.admin"), accent: "bg-primary-40 text-white" },
+    {
+      value: "admin",
+      label: t("dashboard.roleOptions.admin"),
+      accent: "bg-primary-40 text-white",
+    },
     {
       value: "pr",
       label: t("dashboard.roleOptions.pr"),
@@ -177,30 +193,40 @@ export default function AdminDashboard({
   // Use optimized counts from $sequence field
   const topPage = filteredData.pageViews.reduce(
     (best, current) => (current.views > (best?.views ?? 0) ? current : best),
-    filteredData.pageViews[0] ?? null,
+    filteredData.pageViews[0] ?? null
   );
   const previousUsers = userGrowth[userGrowth.length - 2]?.users ?? totalUsers;
   const userGrowthRate =
-    previousUsers > 0 ? ((totalUsers - previousUsers) / previousUsers) * 100 : 0;
+    previousUsers > 0
+      ? ((totalUsers - previousUsers) / previousUsers) * 100
+      : 0;
   const topTrafficSource = trafficSources.reduce(
     (best, current) => (current.value > (best?.value ?? 0) ? current : best),
-    trafficSources[0] ?? null,
+    trafficSources[0] ?? null
   );
   const alertCounts = systemAlerts.reduce(
     (acc, alert) => {
       acc[alert.type] = (acc[alert.type] ?? 0) + 1;
       return acc;
     },
-    {} as Record<string, number>,
+    {} as Record<string, number>
   );
 
   const totalAlerts = systemAlerts.length;
-  const totalRevenue = revenueByProduct.reduce((sum, product) => sum + product.revenue, 0);
-  const openPositions = jobApplications.reduce((sum, job) => sum + (job.openPositions ?? 0), 0);
+  const totalRevenue = revenueByProduct.reduce(
+    (sum, product) => sum + product.revenue,
+    0
+  );
+  const openPositions = jobApplications.reduce(
+    (sum, job) => sum + (job.openPositions ?? 0),
+    0
+  );
 
   const summaryMetrics = useMemo(() => {
     const totalPageViewsDescription = topPage
-      ? t("dashboard.summary.totalPageViews.descriptionTopPage", { page: topPage.name })
+      ? t("dashboard.summary.totalPageViews.descriptionTopPage", {
+          page: topPage.name,
+        })
       : t("dashboard.summary.totalPageViews.descriptionNoPage");
 
     return [
@@ -215,22 +241,31 @@ export default function AdminDashboard({
         label: t("dashboard.summary.activeMembers.label"),
         value: formatNumber(totalUsers),
         description: t("dashboard.summary.activeMembers.description"),
-        badge: t("dashboard.summary.activeMembers.segments", { count: userDistribution.length }),
+        badge: t("dashboard.summary.activeMembers.segments", {
+          count: userDistribution.length,
+        }),
         badgeTone: "text-muted-foreground",
       },
       {
         label: t("dashboard.summary.systemAlerts.label"),
         value: formatNumber(totalAlerts),
         description: t("dashboard.summary.systemAlerts.description"),
-        badge: t("dashboard.summary.systemAlerts.critical", { count: alertCounts.error ?? 0 }),
-        badgeTone: (alertCounts.error ?? 0) > 0 ? "text-red-500" : "text-secondary-100",
+        badge: t("dashboard.summary.systemAlerts.critical", {
+          count: alertCounts.error ?? 0,
+        }),
+        badgeTone:
+          (alertCounts.error ?? 0) > 0 ? "text-red-500" : "text-secondary-100",
       },
       {
         label: t("dashboard.summary.jobPipeline.label"),
         value: formatNumber(totalJobApplications),
-        description: t("dashboard.summary.jobPipeline.description", { count: openPositions }),
+        description: t("dashboard.summary.jobPipeline.description", {
+          count: openPositions,
+        }),
         badge: topTrafficSource
-          ? t("dashboard.summary.jobPipeline.traffic", { source: topTrafficSource.name })
+          ? t("dashboard.summary.jobPipeline.traffic", {
+              source: topTrafficSource.name,
+            })
           : t("dashboard.summary.jobPipeline.tracking"),
         badgeTone: "text-muted-foreground",
       },
@@ -275,7 +310,9 @@ export default function AdminDashboard({
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
                 <CardTitle>{t("dashboard.cards.pageViews.title")}</CardTitle>
-                <CardDescription>{t("dashboard.cards.pageViews.description")}</CardDescription>
+                <CardDescription>
+                  {t("dashboard.cards.pageViews.description")}
+                </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -292,7 +329,9 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.userDistribution.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.cards.userDistribution.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.cards.userDistribution.description")}
                 </CardDescription>
@@ -308,7 +347,9 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
+                      label={({ name, percent }) =>
+                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
+                      }
                     >
                       {userDistribution.map((entry, index) => (
                         <Cell
@@ -350,14 +391,22 @@ export default function AdminDashboard({
             {/* High-level analytics cards */}
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.totalPageViews.title")}</CardTitle>
-                <CardDescription>{t("dashboard.cards.totalPageViews.description")}</CardDescription>
+                <CardTitle>
+                  {t("dashboard.cards.totalPageViews.title")}
+                </CardTitle>
+                <CardDescription>
+                  {t("dashboard.cards.totalPageViews.description")}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{totalPageViews.toLocaleString()}</div>
+                <div className="text-3xl font-bold">
+                  {totalPageViews.toLocaleString()}
+                </div>
                 {topPage ? (
                   <div className="text-sm text-muted-foreground">
-                    {t("dashboard.analytics.topPageLabel", { page: topPage.name })}
+                    {t("dashboard.analytics.topPageLabel", {
+                      page: topPage.name,
+                    })}
                   </div>
                 ) : (
                   <div className="text-sm text-muted-foreground">
@@ -374,7 +423,9 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{totalUsers.toLocaleString()}</div>
+                <div className="text-3xl font-bold">
+                  {totalUsers.toLocaleString()}
+                </div>
                 <div
                   className={`text-sm ${userGrowthRate >= 0 ? "text-green-600" : "text-red-600"}`}
                 >
@@ -385,7 +436,9 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.topTrafficSource.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.cards.topTrafficSource.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.cards.topTrafficSource.description")}
                 </CardDescription>
@@ -393,13 +446,17 @@ export default function AdminDashboard({
               <CardContent>
                 {topTrafficSource ? (
                   <>
-                    <div className="text-3xl font-bold">{topTrafficSource.name}</div>
+                    <div className="text-3xl font-bold">
+                      {topTrafficSource.name}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {topTrafficSource.value.toLocaleString()} sessions
                     </div>
                   </>
                 ) : (
-                  <div className="text-sm text-muted-foreground">No traffic data available</div>
+                  <div className="text-sm text-muted-foreground">
+                    No traffic data available
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -407,7 +464,9 @@ export default function AdminDashboard({
             {/* Traffic Source Breakdown */}
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.trafficBreakdown.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.cards.trafficBreakdown.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.cards.trafficBreakdown.description")}
                 </CardDescription>
@@ -423,7 +482,9 @@ export default function AdminDashboard({
                       outerRadius={100}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
+                      label={({ name, percent }) =>
+                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
+                      }
                     >
                       {trafficSources.map((entry, index) => (
                         <Cell
@@ -443,8 +504,12 @@ export default function AdminDashboard({
         return (
           <Card className={cn(baseCardClasses, "col-span-3")}>
             <CardHeader>
-              <CardTitle>{t("dashboard.cards.recentActivities.title")}</CardTitle>
-              <CardDescription>{t("dashboard.cards.recentActivities.description")}</CardDescription>
+              <CardTitle>
+                {t("dashboard.cards.recentActivities.title")}
+              </CardTitle>
+              <CardDescription>
+                {t("dashboard.cards.recentActivities.description")}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -452,7 +517,9 @@ export default function AdminDashboard({
                   <TableRow>
                     <TableHead>{t("dashboard.cards.table.user")}</TableHead>
                     <TableHead>{t("dashboard.cards.table.action")}</TableHead>
-                    <TableHead>{t("dashboard.cards.table.timestamp")}</TableHead>
+                    <TableHead>
+                      {t("dashboard.cards.table.timestamp")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -480,7 +547,9 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-red-600">{alertCounts.error ?? 0}</div>
+                <div className="text-3xl font-bold text-red-600">
+                  {alertCounts.error ?? 0}
+                </div>
                 <div className="text-sm text-gray-600">
                   {t("dashboard.notifications.errors.description")}
                 </div>
@@ -494,7 +563,9 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-yellow-600">{alertCounts.warning ?? 0}</div>
+                <div className="text-3xl font-bold text-yellow-600">
+                  {alertCounts.warning ?? 0}
+                </div>
                 <div className="text-sm text-gray-600">
                   {t("dashboard.notifications.warnings.description")}
                 </div>
@@ -508,7 +579,9 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-600">{alertCounts.info ?? 0}</div>
+                <div className="text-3xl font-bold text-blue-600">
+                  {alertCounts.info ?? 0}
+                </div>
                 <div className="text-sm text-gray-600">
                   {t("dashboard.notifications.info.description")}
                 </div>
@@ -522,7 +595,9 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600">{alertCounts.success ?? 0}</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {alertCounts.success ?? 0}
+                </div>
                 <div className="text-sm text-gray-600">
                   {t("dashboard.notifications.success.description")}
                 </div>
@@ -532,7 +607,9 @@ export default function AdminDashboard({
             {/* System Alerts */}
             <Card className={cn(baseCardClasses, "col-span-1")}>
               <CardHeader>
-                <CardTitle>{t("dashboard.notifications.systemAlerts.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.notifications.systemAlerts.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.notifications.systemAlerts.description")}
                 </CardDescription>
@@ -540,20 +617,27 @@ export default function AdminDashboard({
               <CardContent>
                 <ScrollArea className="h-[400px]">
                   {systemAlerts.map((alert) => (
-                    <div key={alert.id} className="mb-4 flex items-center space-x-4">
+                    <div
+                      key={alert.id}
+                      className="mb-4 flex items-center space-x-4"
+                    >
                       {alert.type === "error" && (
                         <AlertCircleIcon className="h-6 w-6 text-red-500" />
                       )}
                       {alert.type === "warning" && (
                         <AlertCircleIcon className="h-6 w-6 text-yellow-500" />
                       )}
-                      {alert.type === "info" && <BellIcon className="h-6 w-6 text-blue-500" />}
+                      {alert.type === "info" && (
+                        <BellIcon className="h-6 w-6 text-blue-500" />
+                      )}
                       {alert.type === "success" && (
                         <CheckCircleIcon className="h-6 w-6 text-green-500" />
                       )}
                       <div>
                         <p className="font-medium">{alert.message}</p>
-                        <p className="text-sm text-gray-500">{alert.timestamp}</p>
+                        <p className="text-sm text-gray-500">
+                          {alert.timestamp}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -574,8 +658,12 @@ export default function AdminDashboard({
           <>
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.postEngagement.title")}</CardTitle>
-                <CardDescription>{t("dashboard.cards.postEngagement.description")}</CardDescription>
+                <CardTitle>
+                  {t("dashboard.cards.postEngagement.title")}
+                </CardTitle>
+                <CardDescription>
+                  {t("dashboard.cards.postEngagement.description")}
+                </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -594,8 +682,12 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.audienceGrowth.title")}</CardTitle>
-                <CardDescription>{t("dashboard.cards.audienceGrowth.description")}</CardDescription>
+                <CardTitle>
+                  {t("dashboard.cards.audienceGrowth.title")}
+                </CardTitle>
+                <CardDescription>
+                  {t("dashboard.cards.audienceGrowth.description")}
+                </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -605,7 +697,11 @@ export default function AdminDashboard({
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="followers" stroke="#8884d8" />
+                    <Line
+                      type="monotone"
+                      dataKey="followers"
+                      stroke="#8884d8"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -625,7 +721,9 @@ export default function AdminDashboard({
           <>
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.revenueByProduct.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.cards.revenueByProduct.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.cards.revenueByProduct.description")}
                 </CardDescription>
@@ -645,7 +743,9 @@ export default function AdminDashboard({
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.expenseCategories.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.cards.expenseCategories.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.cards.expenseCategories.description")}
                 </CardDescription>
@@ -661,7 +761,9 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="amount"
-                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
+                      label={({ name, percent }) =>
+                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
+                      }
                     >
                       {expenseCategories.map((entry, index) => (
                         <Cell
@@ -690,7 +792,9 @@ export default function AdminDashboard({
           <>
             <Card className={cn(baseCardClasses, "col-span-2")}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.jobApplications.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.cards.jobApplications.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.cards.jobApplications.description")}
                 </CardDescription>
@@ -701,18 +805,28 @@ export default function AdminDashboard({
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="position" />
                     <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#82ca9d"
+                    />
                     <Tooltip />
                     <Legend />
                     <Bar yAxisId="left" dataKey="applications" fill="#8884d8" />
-                    <Bar yAxisId="right" dataKey="openPositions" fill="#82ca9d" />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="openPositions"
+                      fill="#82ca9d"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
             <Card className={baseCardClasses}>
               <CardHeader>
-                <CardTitle>{t("dashboard.cards.employeeDistribution.title")}</CardTitle>
+                <CardTitle>
+                  {t("dashboard.cards.employeeDistribution.title")}
+                </CardTitle>
                 <CardDescription>
                   {t("dashboard.cards.employeeDistribution.description")}
                 </CardDescription>
@@ -728,7 +842,9 @@ export default function AdminDashboard({
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent ?? 0 * 100).toFixed(0)}%`}
+                      label={({ name, percent }) =>
+                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
+                      }
                     >
                       {employeeDistribution.map((entry, index) => (
                         <Cell
@@ -783,9 +899,9 @@ export default function AdminDashboard({
                       isSelected &&
                         cn(
                           option.accent,
-                          "shadow-[0_18px_40px_-25px_rgba(0,23,49,0.55)] hover:shadow-[0_18px_50px_-20px_rgba(0,23,49,0.45)]",
+                          "shadow-[0_18px_40px_-25px_rgba(0,23,49,0.55)] hover:shadow-[0_18px_50px_-20px_rgba(0,23,49,0.45)]"
                         ),
-                      !isSelected && "hover:bg-primary/5",
+                      !isSelected && "hover:bg-primary/5"
                     )}
                   >
                     {option.label}
@@ -803,10 +919,17 @@ export default function AdminDashboard({
                 <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   {metric.label}
                 </span>
-                <div className="mt-1 text-xl font-semibold text-foreground">{metric.value}</div>
-                <div className="text-xs text-muted-foreground">{metric.description}</div>
+                <div className="mt-1 text-xl font-semibold text-foreground">
+                  {metric.value}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {metric.description}
+                </div>
                 <span
-                  className={cn("mt-1 inline-block text-[11px] font-semibold", metric.badgeTone)}
+                  className={cn(
+                    "mt-1 inline-block text-[11px] font-semibold",
+                    metric.badgeTone
+                  )}
                 >
                   {metric.badge}
                 </span>
@@ -819,8 +942,12 @@ export default function AdminDashboard({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">{t("dashboard.focus.title")}</h2>
-            <p className="text-sm text-muted-foreground">{t("dashboard.focus.description")}</p>
+            <h2 className="text-lg font-semibold text-foreground">
+              {t("dashboard.focus.title")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t("dashboard.focus.description")}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             {/* Date Range Filter */}
@@ -836,7 +963,7 @@ export default function AdminDashboard({
                     className={cn(
                       "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
                       isSelected && "bg-primary-40 text-white shadow-sm",
-                      !isSelected && "text-muted-foreground hover:bg-primary/5",
+                      !isSelected && "text-muted-foreground hover:bg-primary/5"
                     )}
                   >
                     {option.label}
@@ -848,11 +975,16 @@ export default function AdminDashboard({
               variant="outline"
               className="rounded-full border-primary/10 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-foreground"
             >
-              {ROLE_OPTIONS.find((option) => option.value === role)?.label ?? "Admin"}
+              {ROLE_OPTIONS.find((option) => option.value === role)?.label ??
+                "Admin"}
             </Badge>
           </div>
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-4"
+        >
           <TabsList className="glass-panel flex flex-wrap gap-2 rounded-2xl border border-primary/10 bg-white/80 p-1">
             {SECTION_TABS.map((tab) => (
               <TabsTrigger

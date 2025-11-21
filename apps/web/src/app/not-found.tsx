@@ -8,7 +8,7 @@ export default function NotFound() {
     <main
       className={cn(
         "relative flex min-h-screen flex-col items-center justify-center overflow-hidden",
-        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white",
+        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white"
       )}
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.18),transparent_60%)]" />
@@ -20,18 +20,24 @@ export default function NotFound() {
         </div>
 
         <div className="space-y-4">
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-white/70">404</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-white/70">
+            404
+          </p>
           <h1 className="max-w-xl text-4xl font-semibold leading-tight text-white md:text-5xl">
             Vi fant ikke siden du lette etter.
           </h1>
           <p className="max-w-2xl text-base text-white/80 md:text-lg">
-            Kanskje ble innholdet flyttet, eller kanskje det er skrevet feil adresse. La oss hjelpe
-            deg tilbake til noe relevant.
+            Kanskje ble innholdet flyttet, eller kanskje det er skrevet feil
+            adresse. La oss hjelpe deg tilbake til noe relevant.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
+          <Button
+            asChild
+            size="lg"
+            className="bg-white text-primary-100 hover:bg-white/90"
+          >
             <Link href="/">
               <Home className="mr-2 h-5 w-5" />
               Gå til forsiden

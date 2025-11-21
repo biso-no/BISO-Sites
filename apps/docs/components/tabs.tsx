@@ -31,7 +31,7 @@ export function Tabs({ tabs, defaultValue }: TabsProps) {
               "border-b-2 -mb-px",
               activeTab === tab.value
                 ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                : "border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200",
+                : "border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
             )}
           >
             {tab.label}

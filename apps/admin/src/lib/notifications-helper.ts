@@ -65,7 +65,11 @@ export const NotificationTriggers = {
   /**
    * Job applications notifications
    */
-  onNewJobApplication: async (jobTitle: string, applicantName: string, applicationId: string) => {
+  onNewJobApplication: async (
+    jobTitle: string,
+    applicantName: string,
+    applicationId: string
+  ) => {
     await createNotification({
       title: "New Job Application",
       description: `${applicantName} applied for ${jobTitle}`,
@@ -78,7 +82,11 @@ export const NotificationTriggers = {
   /**
    * Expense notifications
    */
-  onExpenseNeedsApproval: async (expenseId: string, amount: number, submitter: string) => {
+  onExpenseNeedsApproval: async (
+    expenseId: string,
+    amount: number,
+    submitter: string
+  ) => {
     await createNotification({
       title: "Expense Awaiting Approval",
       description: `${submitter} submitted an expense of ${amount} NOK for review`,
@@ -177,7 +185,7 @@ export const NotificationTriggers = {
       color?: string;
       priority?: number;
       link?: string;
-    },
+    }
   ) => {
     await createNotification({
       title,

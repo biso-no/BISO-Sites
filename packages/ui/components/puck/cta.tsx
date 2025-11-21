@@ -33,7 +33,12 @@ export function CTA({
   };
 
   const content = (
-    <div className={cn("flex flex-col gap-6 max-w-3xl mx-auto", alignClasses[align])}>
+    <div
+      className={cn(
+        "flex flex-col gap-6 max-w-3xl mx-auto",
+        alignClasses[align]
+      )}
+    >
       <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
       {description && (
         <p
@@ -41,7 +46,7 @@ export function CTA({
             "text-lg",
             variant === "brand" || variant === "dark"
               ? "text-primary-foreground/90"
-              : "text-muted-foreground",
+              : "text-muted-foreground"
           )}
         >
           {description}
@@ -54,7 +59,9 @@ export function CTA({
               key={i}
               variant={
                 (btn.variant as any) ||
-                (variant === "brand" || variant === "dark" ? "secondary" : "default")
+                (variant === "brand" || variant === "dark"
+                  ? "secondary"
+                  : "default")
               }
               size="lg"
               asChild
@@ -70,7 +77,9 @@ export function CTA({
   if (variant === "card") {
     return (
       <div className="py-12 w-full">
-        <Card className="p-8 md:p-12 bg-gray-50 border-none shadow-sm">{content}</Card>
+        <Card className="p-8 md:p-12 bg-gray-50 border-none shadow-sm">
+          {content}
+        </Card>
       </div>
     );
   }

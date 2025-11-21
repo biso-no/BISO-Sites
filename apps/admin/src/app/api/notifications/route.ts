@@ -7,7 +7,10 @@ export async function GET() {
     return NextResponse.json(notifications);
   } catch (error) {
     console.error("[api/notifications] Failed to fetch notifications:", error);
-    return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch notifications" },
+      { status: 500 }
+    );
   }
 }
 

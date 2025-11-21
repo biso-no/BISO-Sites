@@ -33,7 +33,7 @@ export function FilterBar({
     <div
       className={cn(
         "flex flex-col gap-3 rounded-[calc(var(--radius))] border bg-background/70 p-3 md:flex-row md:items-center md:gap-4 md:p-4",
-        className,
+        className
       )}
       {...props}
     >
@@ -59,7 +59,12 @@ export function FilterBar({
       </div>
 
       {filters.length > 0 && (
-        <div className={cn("flex flex-wrap items-center gap-2", condensed && "md:ml-auto")}>
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-2",
+            condensed && "md:ml-auto"
+          )}
+        >
           {filters.map((f) => {
             const active = activeFilters.includes(f.key);
             return (
@@ -71,7 +76,9 @@ export function FilterBar({
                 onClick={() => onToggleFilter?.(f.key)}
                 className={cn(
                   "rounded-full px-3",
-                  active ? "bg-secondary text-secondary-foreground" : "bg-background",
+                  active
+                    ? "bg-secondary text-secondary-foreground"
+                    : "bg-background"
                 )}
               >
                 {f.label}

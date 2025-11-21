@@ -56,9 +56,16 @@ export interface CreateProductData {
 }
 
 export async function listProducts(
-  params: ListProductsParams = {},
+  params: ListProductsParams = {}
 ): Promise<ContentTranslations[]> {
-  const { limit = 50, status = "published", campus, category, locale, memberOnly } = params;
+  const {
+    limit = 50,
+    status = "published",
+    campus,
+    category,
+    locale,
+    memberOnly,
+  } = params;
 
   try {
     const { db } = await createSessionClient();
@@ -98,7 +105,7 @@ export async function listProducts(
     const productsResponse = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
-      queries,
+      queries
     );
     const products = productsResponse.rows;
 
@@ -109,7 +116,10 @@ export async function listProducts(
   }
 }
 
-async function getProduct(id: string, locale: "en" | "no"): Promise<ContentTranslations | null> {
+async function getProduct(
+  id: string,
+  locale: "en" | "no"
+): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -130,7 +140,7 @@ async function getProduct(id: string, locale: "en" | "no"): Promise<ContentTrans
           "product_ref.*",
         ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) {
@@ -146,7 +156,7 @@ async function getProduct(id: string, locale: "en" | "no"): Promise<ContentTrans
 
 export async function getProductBySlug(
   slug: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
@@ -168,7 +178,7 @@ export async function getProductBySlug(
           "product_ref.*",
         ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) {
@@ -184,7 +194,7 @@ export async function getProductBySlug(
 
 async function createProduct(
   data: CreateProductData,
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
@@ -214,25 +224,30 @@ async function createProduct(
     }
 
     const product =
-      (await db.createRow<WebshopProducts>("app", "webshop_products", "unique()", {
-        slug: data.slug,
-        status:
-          data.status === "draft"
-            ? Status.DRAFT
-            : data.status === "published"
-              ? Status.PUBLISHED
-              : Status.CLOSED,
-        campus_id: data.campus_id,
-        category: data.category,
-        regular_price: data.regular_price,
-        member_price: data.member_price ?? null,
-        member_only: data.member_only ?? false,
-        image: data.image ?? null,
-        stock: data.stock ?? null,
-        metadata: data.metadata ? JSON.stringify(data.metadata) : null,
-        departmentId: null,
-        translation_refs: translationRefs,
-      } as any)) ?? null;
+      (await db.createRow<WebshopProducts>(
+        "app",
+        "webshop_products",
+        "unique()",
+        {
+          slug: data.slug,
+          status:
+            data.status === "draft"
+              ? Status.DRAFT
+              : data.status === "published"
+                ? Status.PUBLISHED
+                : Status.CLOSED,
+          campus_id: data.campus_id,
+          category: data.category,
+          regular_price: data.regular_price,
+          member_price: data.member_price ?? null,
+          member_only: data.member_only ?? false,
+          image: data.image ?? null,
+          stock: data.stock ?? null,
+          metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+          departmentId: null,
+          translation_refs: translationRefs,
+        } as any
+      )) ?? null;
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
@@ -248,7 +263,7 @@ async function createProduct(
 
 async function updateProduct(
   id: string,
-  data: Partial<CreateProductData>,
+  data: Partial<CreateProductData>
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
@@ -266,13 +281,18 @@ async function updateProduct(
     }
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
     if (data.category !== undefined) updateData.category = data.category;
-    if (data.regular_price !== undefined) updateData.regular_price = data.regular_price;
-    if (data.member_price !== undefined) updateData.member_price = data.member_price;
-    if (data.member_only !== undefined) updateData.member_only = data.member_only;
+    if (data.regular_price !== undefined)
+      updateData.regular_price = data.regular_price;
+    if (data.member_price !== undefined)
+      updateData.member_price = data.member_price;
+    if (data.member_only !== undefined)
+      updateData.member_only = data.member_only;
     if (data.image !== undefined) updateData.image = data.image;
     if (data.stock !== undefined) updateData.stock = data.stock;
     if (data.metadata !== undefined)
-      updateData.metadata = data.metadata ? JSON.stringify(data.metadata) : null;
+      updateData.metadata = data.metadata
+        ? JSON.stringify(data.metadata)
+        : null;
 
     if (data.translations) {
       const translationRefs: ContentTranslations[] = [];
@@ -308,7 +328,7 @@ async function updateProduct(
       "app",
       "webshop_products",
       id,
-      updateData,
+      updateData
     )) as WebshopProducts;
 
     revalidatePath("/shop");
@@ -325,13 +345,18 @@ async function deleteProduct(id: string): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 
-    const translationsResponse = await db.listRows("app", "content_translations", [
-      Query.equal("content_type", ContentType.PRODUCT),
-      Query.equal("content_id", id),
-    ]);
+    const translationsResponse = await db.listRows(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", ContentType.PRODUCT),
+        Query.equal("content_id", id),
+      ]
+    );
 
-    const deleteTranslationPromises = translationsResponse.rows.map((translation) =>
-      db.deleteRow("app", "content_translations", translation.$id),
+    const deleteTranslationPromises = translationsResponse.rows.map(
+      (translation) =>
+        db.deleteRow("app", "content_translations", translation.$id)
     );
 
     await Promise.all(deleteTranslationPromises);

@@ -1,8 +1,14 @@
 "use client";
 import "@assistant-ui/styles/index.css";
 import "@assistant-ui/styles/markdown.css";
-import { AssistantRuntimeProvider, makeAssistantToolUI } from "@assistant-ui/react";
-import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  AssistantRuntimeProvider,
+  makeAssistantToolUI,
+} from "@assistant-ui/react";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
 import {
   BriefcaseBusiness,
   CalendarDays,
@@ -15,11 +21,18 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { summarizeSharePointResults, summarizeSiteResults } from "@/components/ai/tool-utils";
+import {
+  summarizeSharePointResults,
+  summarizeSiteResults,
+} from "@/components/ai/tool-utils";
 import { CartProvider } from "@/lib/contexts/cart-context";
 import { CampusProvider } from "../context/campus";
 
-export const PublicProviders = ({ children }: { children: React.ReactNode }) => {
+export const PublicProviders = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
       api: "/api/public-assistant",
@@ -64,7 +77,11 @@ function PublicAssistantContext() {
         );
       }
       if (status.type === "incomplete" && status.reason === "error") {
-        return <div className="my-1 text-xs text-red-600">Failed to search documents.</div>;
+        return (
+          <div className="my-1 text-xs text-red-600">
+            Failed to search documents.
+          </div>
+        );
       }
       if (!result) return null;
 
@@ -80,7 +97,9 @@ function PublicAssistantContext() {
               {(result.totalResults ?? items.length) === 1 ? "" : "s"}
             </span>
           </span>
-          {result.message ? <span className="ml-2">• {result.message}</span> : null}
+          {result.message ? (
+            <span className="ml-2">• {result.message}</span>
+          ) : null}
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {items.map((r, idx) => (
               <a
@@ -122,7 +141,9 @@ function PublicAssistantContext() {
                     )}
                   </div>
                   {s.snippet ? (
-                    <p className="text-[11.5px] text-muted-foreground">{s.snippet}</p>
+                    <p className="text-[11.5px] text-muted-foreground">
+                      {s.snippet}
+                    </p>
                   ) : null}
                   <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
                     {s.site ? (
@@ -132,7 +153,9 @@ function PublicAssistantContext() {
                       </span>
                     ) : null}
                     {s.lastModified ? (
-                      <span>Updated {new Date(s.lastModified).toLocaleDateString()}</span>
+                      <span>
+                        Updated {new Date(s.lastModified).toLocaleDateString()}
+                      </span>
                     ) : null}
                   </div>
                 </li>
@@ -153,7 +176,12 @@ function PublicAssistantContext() {
       locale?: "en" | "no";
     },
     {
-      results: Array<{ title: string; description?: string; href?: string; index?: string }>;
+      results: Array<{
+        title: string;
+        description?: string;
+        href?: string;
+        index?: string;
+      }>;
       totalResults: number;
       message?: string;
     }
@@ -170,7 +198,11 @@ function PublicAssistantContext() {
         );
       }
       if (status.type === "incomplete" && status.reason === "error") {
-        return <div className="my-1 text-xs text-red-600">Failed to search the site.</div>;
+        return (
+          <div className="my-1 text-xs text-red-600">
+            Failed to search the site.
+          </div>
+        );
       }
       if (!result) return null;
 
@@ -199,7 +231,9 @@ function PublicAssistantContext() {
               {(result.totalResults ?? items.length) === 1 ? "" : "s"}
             </span>
           </span>
-          {result.message ? <span className="ml-2">• {result.message}</span> : null}
+          {result.message ? (
+            <span className="ml-2">• {result.message}</span>
+          ) : null}
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {items.map((r, idx) => (
               <a
@@ -229,7 +263,10 @@ function PublicAssistantContext() {
                   <div className="mb-0.5 flex items-center gap-1">
                     <span className="text-primary/80">{iconFor(s.index)}</span>
                     {s.href ? (
-                      <a href={s.href} className="font-medium text-primary hover:underline">
+                      <a
+                        href={s.href}
+                        className="font-medium text-primary hover:underline"
+                      >
                         {s.title}
                       </a>
                     ) : (
@@ -237,7 +274,9 @@ function PublicAssistantContext() {
                     )}
                   </div>
                   {s.snippet ? (
-                    <p className="text-[11.5px] text-muted-foreground">{s.snippet}</p>
+                    <p className="text-[11.5px] text-muted-foreground">
+                      {s.snippet}
+                    </p>
                   ) : null}
                 </li>
               ))}

@@ -49,7 +49,8 @@ function JobsListContent({
   const paidOnly = searchParams.get("paid") === "true";
 
   const filteredJobs = jobs.filter((job) => {
-    const matchesCategory = !category || category === "All" || job.category === category;
+    const matchesCategory =
+      !category || category === "All" || job.category === category;
     const matchesSearch =
       !query ||
       job.title.toLowerCase().includes(query) ||
@@ -145,7 +146,9 @@ function JobsListContent({
 
 export function JobsList(props: JobsListProps) {
   return (
-    <Suspense fallback={<div className="py-12 text-center">Loading jobs...</div>}>
+    <Suspense
+      fallback={<div className="py-12 text-center">Loading jobs...</div>}
+    >
       <JobsListContent {...props} />
     </Suspense>
   );

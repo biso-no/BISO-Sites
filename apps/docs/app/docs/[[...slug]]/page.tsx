@@ -1,6 +1,11 @@
 import type { PageData } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/page";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+} from "fumadocs-ui/page";
 import { getPageImage, source } from "lib/source";
 import { getMDXComponents } from "mdx-components";
 import type { Metadata } from "next";
@@ -57,7 +62,9 @@ export async function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata(props: { params: Promise<Param> }): Promise<Metadata> {
+export async function generateMetadata(props: {
+  params: Promise<Param>;
+}): Promise<Metadata> {
   const params = await props.params;
 
   if (!params.slug) {

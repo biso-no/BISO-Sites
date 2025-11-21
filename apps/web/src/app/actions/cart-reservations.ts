@@ -48,7 +48,7 @@ export async function getAvailableStock(productId: string): Promise<number> {
  */
 export async function createOrUpdateReservation(
   productId: string,
-  quantity: number,
+  quantity: number
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const { db, account } = await createSessionClient();
@@ -98,7 +98,9 @@ export async function createOrUpdateReservation(
  * Delete a reservation for a specific product
  * RLS ensures user can only delete their own reservations
  */
-export async function deleteReservation(productId: string): Promise<{ success: boolean }> {
+export async function deleteReservation(
+  productId: string
+): Promise<{ success: boolean }> {
   try {
     const { db } = await createSessionClient();
 
@@ -169,7 +171,7 @@ export async function cleanupExpiredReservations(): Promise<number> {
  * RLS automatically filters to current user
  */
 async function getUserReservation(
-  productId: string,
+  productId: string
 ): Promise<{ quantity: number; expiresAt: string } | null> {
   try {
     const { db } = await createSessionClient();
@@ -226,7 +228,9 @@ export async function getUserCartReservations(): Promise<any[]> {
  * Get cart items with full product details
  * Returns enriched cart data ready for display
  */
-export async function getCartItemsWithDetails(locale: "en" | "no" = "en"): Promise<any[]> {
+export async function getCartItemsWithDetails(
+  locale: "en" | "no" = "en"
+): Promise<any[]> {
   try {
     const reservations = await getUserCartReservations();
     const { db } = await createSessionClient();
@@ -236,7 +240,11 @@ export async function getCartItemsWithDetails(locale: "en" | "no" = "en"): Promi
     for (const reservation of reservations) {
       try {
         // Fetch product details
-        const product = await db.getRow("app", "webshop_products", reservation.product_id);
+        const product = await db.getRow(
+          "app",
+          "webshop_products",
+          reservation.product_id
+        );
 
         // Get translation for the specified locale
         const translations = await db.listRows("app", "content_translations", [
@@ -262,7 +270,10 @@ export async function getCartItemsWithDetails(locale: "en" | "no" = "en"): Promi
           metadata: product.metadata ? JSON.parse(product.metadata) : null,
         });
       } catch (error) {
-        console.error(`Error fetching product ${reservation.product_id}:`, error);
+        console.error(
+          `Error fetching product ${reservation.product_id}:`,
+          error
+        );
         // Skip products that can't be loaded
       }
     }

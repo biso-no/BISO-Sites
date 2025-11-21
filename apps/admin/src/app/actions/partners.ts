@@ -16,7 +16,9 @@ export async function createPartner(formData: FormData) {
   const { db } = await createSessionClient();
   const data = {
     name: String(formData.get("name") || "").trim(),
-    url: (formData.get("url") ? String(formData.get("url")) : undefined) as string | undefined,
+    url: (formData.get("url") ? String(formData.get("url")) : undefined) as
+      | string
+      | undefined,
     level: String(formData.get("level") || "national") as "national" | "campus",
     image_bucket: String(formData.get("image_bucket") || "partners").trim(),
     image_file_id: String(formData.get("image_file_id") || "").trim(),

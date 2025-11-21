@@ -10,7 +10,11 @@ interface JobsHeroProps {
   departmentCount: number;
 }
 
-export function JobsHero({ totalPositions, paidPositions, departmentCount }: JobsHeroProps) {
+export function JobsHero({
+  totalPositions,
+  paidPositions,
+  departmentCount,
+}: JobsHeroProps) {
   return (
     <div className="relative h-[60vh] overflow-hidden">
       <ImageWithFallback
@@ -43,23 +47,29 @@ export function JobsHero({ totalPositions, paidPositions, departmentCount }: Job
               </span>
             </h1>
             <p className="text-white/90 max-w-2xl mx-auto text-lg">
-              Join BISO and be part of creating exceptional experiences for thousands of students.
-              Find your perfect role and make an impact.
+              Join BISO and be part of creating exceptional experiences for
+              thousands of students. Find your perfect role and make an impact.
             </p>
 
             <div className="flex items-center justify-center gap-8 mt-8">
               <div className="text-center">
-                <div className="text-3xl text-white mb-1 font-bold">{totalPositions}</div>
+                <div className="text-3xl text-white mb-1 font-bold">
+                  {totalPositions}
+                </div>
                 <div className="text-white/80 text-sm">Open Positions</div>
               </div>
               <div className="w-px h-12 bg-white/20" />
               <div className="text-center">
-                <div className="text-3xl text-white mb-1 font-bold">{paidPositions}</div>
+                <div className="text-3xl text-white mb-1 font-bold">
+                  {paidPositions}
+                </div>
                 <div className="text-white/80 text-sm">Paid Roles</div>
               </div>
               <div className="w-px h-12 bg-white/20" />
               <div className="text-center">
-                <div className="text-3xl text-white mb-1 font-bold">{departmentCount}</div>
+                <div className="text-3xl text-white mb-1 font-bold">
+                  {departmentCount}
+                </div>
                 <div className="text-white/80 text-sm">Departments</div>
               </div>
             </div>

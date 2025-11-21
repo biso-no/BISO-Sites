@@ -43,21 +43,31 @@ export default async function ShopSettingsPage() {
     <div className="flex w-full flex-col">
       <div className="mb-4">
         <h1 className="text-xl font-semibold">{t("settings.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("settings.description")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("settings.description")}
+        </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="glass-panel">
           <CardHeader>
             <CardTitle>{t("settings.general")}</CardTitle>
-            <CardDescription>{t("settings.generalDescription")}</CardDescription>
+            <CardDescription>
+              {t("settings.generalDescription")}
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="shopName">{t("settings.fields.shopName")}</Label>
-              <Input id="shopName" name="shopName" defaultValue={general.shopName || "BISO Shop"} />
+              <Input
+                id="shopName"
+                name="shopName"
+                defaultValue={general.shopName || "BISO Shop"}
+              />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="contactEmail">{t("settings.fields.contactEmail")}</Label>
+              <Label htmlFor="contactEmail">
+                {t("settings.fields.contactEmail")}
+              </Label>
               <Input
                 id="contactEmail"
                 name="contactEmail"
@@ -66,7 +76,9 @@ export default async function ShopSettingsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="defaultCampusId">{t("settings.fields.defaultCampus")}</Label>
+              <Label htmlFor="defaultCampusId">
+                {t("settings.fields.defaultCampus")}
+              </Label>
               <Input
                 id="defaultCampusId"
                 name="defaultCampusId"
@@ -109,7 +121,9 @@ export default async function ShopSettingsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_clientId">{t("settings.fields.vippsClientId")}</Label>
+              <Label htmlFor="vipps_clientId">
+                {t("settings.fields.vippsClientId")}
+              </Label>
               <Input
                 id="vipps_clientId"
                 name="vipps_clientId"
@@ -117,7 +131,9 @@ export default async function ShopSettingsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_clientSecret">{t("settings.fields.vippsClientSecret")}</Label>
+              <Label htmlFor="vipps_clientSecret">
+                {t("settings.fields.vippsClientSecret")}
+              </Label>
               <Input
                 id="vipps_clientSecret"
                 name="vipps_clientSecret"
@@ -126,7 +142,9 @@ export default async function ShopSettingsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vipps_returnUrl">{t("settings.fields.vippsReturnUrl")}</Label>
+              <Label htmlFor="vipps_returnUrl">
+                {t("settings.fields.vippsReturnUrl")}
+              </Label>
               <Input
                 id="vipps_returnUrl"
                 name="vipps_returnUrl"
@@ -171,7 +189,9 @@ export async function saveSettings(formData: FormData) {
     };
   } else if (section === "vipps") {
     next.vipps = {
-      merchantSerialNumber: String(formData.get("vipps_merchantSerialNumber") || ""),
+      merchantSerialNumber: String(
+        formData.get("vipps_merchantSerialNumber") || ""
+      ),
       subscriptionKey: String(formData.get("vipps_subscriptionKey") || ""),
       clientId: String(formData.get("vipps_clientId") || ""),
       clientSecret: String(formData.get("vipps_clientSecret") || ""),

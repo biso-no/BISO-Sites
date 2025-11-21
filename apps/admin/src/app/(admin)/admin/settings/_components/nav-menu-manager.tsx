@@ -11,7 +11,12 @@ import {
 } from "@minoru/react-dnd-treeview";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +35,13 @@ import {
 } from "@repo/ui/components/ui/select";
 import { Switch } from "@repo/ui/components/ui/switch";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Edit2, PlusCircle, RefreshCcw, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  Edit2,
+  PlusCircle,
+  RefreshCcw,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { DndProvider } from "react-dnd";
@@ -76,12 +87,12 @@ const defaultTranslations = (): Record<Locale, string> =>
       acc[locale] = "";
       return acc;
     },
-    {} as Record<Locale, string>,
+    {} as Record<Locale, string>
   );
 
 const toTreeItems = (
   nodes: NavMenuAdminItem[],
-  parent: string | number | null = ROOT_ID,
+  parent: string | number | null = ROOT_ID
 ): NavTreeItem[] =>
   nodes.flatMap((node, index) => {
     const currentParent = parent === null ? ROOT_ID : parent;
@@ -98,7 +109,10 @@ const toTreeItems = (
   });
 
 const buildNestedFromTree = (treeItems: NavTreeItem[]): NavMenuAdminItem[] => {
-  const map = new Map<string | number, NavMenuAdminItem & { children: NavMenuAdminItem[] }>();
+  const map = new Map<
+    string | number,
+    NavMenuAdminItem & { children: NavMenuAdminItem[] }
+  >();
 
   treeItems.forEach((item) => {
     map.set(item.id, {
@@ -131,7 +145,7 @@ const buildNestedFromTree = (treeItems: NavTreeItem[]): NavMenuAdminItem[] => {
 const buildStructurePayload = (
   nodes: NavMenuAdminItem[],
   parentId: string | null = null,
-  acc: NavMenuStructureItem[] = [],
+  acc: NavMenuStructureItem[] = []
 ) => {
   nodes.forEach((node, index) => {
     acc.push({ id: node.id, parentId, order: index + 1 });
@@ -145,7 +159,9 @@ interface FormDialogProps {
   title: string;
   submitLabel: string;
   initialValues: NavItemFormValues;
-  onSubmit: (values: NavItemFormValues) => Promise<{ success: boolean; error?: string }>;
+  onSubmit: (
+    values: NavItemFormValues
+  ) => Promise<{ success: boolean; error?: string }>;
   parentOptions: { value: string | null; label: string }[];
   disableSlug?: boolean;
   disableParentSelection?: boolean;
@@ -190,7 +206,10 @@ const NavItemFormDialog = ({
     });
   };
 
-  const updateField = <K extends keyof NavItemFormValues>(key: K, value: NavItemFormValues[K]) => {
+  const updateField = <K extends keyof NavItemFormValues>(
+    key: K,
+    value: NavItemFormValues[K]
+  ) => {
     setValues((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -216,7 +235,9 @@ const NavItemFormDialog = ({
             <Select
               disabled={disableParentSelection}
               value={values.parentId ?? "root"}
-              onValueChange={(value) => updateField("parentId", value === "root" ? null : value)}
+              onValueChange={(value) =>
+                updateField("parentId", value === "root" ? null : value)
+              }
             >
               <SelectTrigger id="nav-parent">
                 <SelectValue placeholder="Select parent" />
@@ -224,7 +245,10 @@ const NavItemFormDialog = ({
               <SelectContent>
                 <SelectItem value="root">None (top level)</SelectItem>
                 {parentOptions.map((option) => (
-                  <SelectItem key={option.value ?? "root"} value={option.value ?? "root"}>
+                  <SelectItem
+                    key={option.value ?? "root"}
+                    value={option.value ?? "root"}
+                  >
                     {option.label}
                   </SelectItem>
                 ))}
@@ -288,10 +312,18 @@ const NavItemFormDialog = ({
           </div>
         </div>
         <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
             Cancel
           </Button>
-          <Button variant="ghost" onClick={() => setValues(initialValues)} disabled={isPending}>
+          <Button
+            variant="ghost"
+            onClick={() => setValues(initialValues)}
+            disabled={isPending}
+          >
             Reset
           </Button>
           <Button onClick={handleSubmit} disabled={isPending}>
@@ -409,14 +441,18 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
       dragSourceId,
       dropTargetId,
       destinationIndex,
-    }: { dragSourceId?: NodeModel["id"]; dropTargetId: NodeModel["id"]; destinationIndex?: number },
+    }: {
+      dragSourceId?: NodeModel["id"];
+      dropTargetId: NodeModel["id"];
+      destinationIndex?: number;
+    }
   ) => {
     if (dragSourceId === undefined || dropTargetId === undefined) return;
     const mutated = mutateTreeWithIndex(
       treeData,
       dragSourceId,
       dropTargetId,
-      destinationIndex ?? 0,
+      destinationIndex ?? 0
     ) as NavTreeItem[];
     const normalizedTree = normalizeTree(mutated);
     setTreeData(normalizedTree);
@@ -424,17 +460,30 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
   };
 
   const openCreateDialog = (parentId: string | null, parentLabel: string) => {
-    setFormConfig({ mode: parentId ? "child" : "create", parentId, parentLabel });
+    setFormConfig({
+      mode: parentId ? "child" : "create",
+      parentId,
+      parentLabel,
+    });
   };
 
-  const closeDialog = () => setFormConfig({ mode: null, parentId: null, parentLabel: "" });
+  const closeDialog = () =>
+    setFormConfig({ mode: null, parentId: null, parentLabel: "" });
 
   const handleEdit = (item: NavMenuAdminItem) => {
-    setFormConfig({ mode: "edit", parentId: item.parentId, parentLabel: "", item });
+    setFormConfig({
+      mode: "edit",
+      parentId: item.parentId,
+      parentLabel: "",
+      item,
+    });
   };
 
   const handleAddChild = (item: NavMenuAdminItem) => {
-    openCreateDialog(item.id, item.translations.no || item.translations.en || item.slug);
+    openCreateDialog(
+      item.id,
+      item.translations.no || item.translations.en || item.slug
+    );
   };
 
   const handleDelete = (item: NavMenuAdminItem) => {
@@ -541,7 +590,14 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
 
   const renderNode = (
     node: NodeModel<NavMenuAdminItem>,
-    { depth, isOpen, onToggle, hasChild, isDragging, isDropTarget }: RenderParams,
+    {
+      depth,
+      isOpen,
+      onToggle,
+      hasChild,
+      isDragging,
+      isDropTarget,
+    }: RenderParams
   ) => {
     const item = node.data;
     const indent = depth * INDENT_WIDTH;
@@ -552,7 +608,7 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
         className={cn(
           "group relative flex items-center justify-between gap-3 rounded-2xl border border-primary/10 bg-white/85 px-3 py-2 text-xs shadow-sm backdrop-blur-sm transition",
           isDropTarget && "ring-2 ring-primary/30",
-          isDragging && "scale-[0.99] border-primary/30 shadow-md",
+          isDragging && "scale-[0.99] border-primary/30 shadow-md"
         )}
         style={{ marginLeft: indent }}
       >
@@ -564,11 +620,16 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
                 className="flex h-6 w-6 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary-70 transition hover:border-primary/40 hover:bg-primary/10"
               >
                 <ChevronDown
-                  className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
+                  className={cn(
+                    "h-3.5 w-3.5 transition-transform",
+                    isOpen && "rotate-180"
+                  )}
                 />
               </button>
             )}
-            <span className="text-sm font-semibold text-primary-100">{title}</span>
+            <span className="text-sm font-semibold text-primary-100">
+              {title}
+            </span>
             <Badge
               variant="outline"
               className="bg-primary/5 px-2 py-0 text-[10px] font-semibold uppercase tracking-wide text-primary-70"
@@ -623,11 +684,14 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
     );
   };
 
-  const renderPlaceholder: PlaceholderRender<NavMenuAdminItem> = (node, { depth }) => (
+  const renderPlaceholder: PlaceholderRender<NavMenuAdminItem> = (
+    node,
+    { depth }
+  ) => (
     <div
       className={cn(
         "flex h-9 items-center rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 text-xs font-semibold uppercase tracking-wide text-primary-60",
-        depth === 0 ? "ml-0" : "",
+        depth === 0 ? "ml-0" : ""
       )}
       style={{ marginLeft: depth * INDENT_WIDTH }}
     >
@@ -656,8 +720,8 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
                 Navigation tree
               </h2>
               <p className="max-w-2xl text-sm text-primary-60">
-                Administrer hierarki, lenker og språk for hovedmenyen. Dra og slipp for å oppdatere
-                strukturen i sanntid.
+                Administrer hierarki, lenker og språk for hovedmenyen. Dra og
+                slipp for å oppdatere strukturen i sanntid.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -675,7 +739,9 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
                 onClick={handleManualSync}
                 disabled={isSyncing}
               >
-                <RefreshCcw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+                <RefreshCcw
+                  className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")}
+                />
                 Sync structure
               </Button>
             </div>
@@ -689,14 +755,19 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
                 <span className="text-xs uppercase tracking-[0.18em] text-primary-50">
                   {metric.label}
                 </span>
-                <span className="block text-lg font-semibold text-primary-100">{metric.value}</span>
+                <span className="block text-lg font-semibold text-primary-100">
+                  {metric.value}
+                </span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <Card variant="glass" className="border border-primary/10 bg-white/90 backdrop-blur">
+      <Card
+        variant="glass"
+        className="border border-primary/10 bg-white/90 backdrop-blur"
+      >
         <CardHeader className="flex flex-col gap-3 border-b border-primary/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-base font-semibold text-primary-100">
@@ -712,11 +783,16 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-3 pt-4">
-          <DndProvider backend={HTML5Backend} options={getBackendOptions() as any}>
+          <DndProvider
+            backend={HTML5Backend}
+            options={getBackendOptions() as any}
+          >
             <Tree
               tree={treeData}
               rootId={ROOT_ID}
-              render={(node, params) => renderNode(node as NodeModel<NavMenuAdminItem>, params)}
+              render={(node, params) =>
+                renderNode(node as NodeModel<NavMenuAdminItem>, params)
+              }
               dragPreviewRender={(monitorProps) => (
                 <motion.div className="rounded-xl border border-primary/20 bg-white/90 px-4 py-2 text-sm font-medium text-primary-90 shadow-lg">
                   Moving:{" "}
@@ -733,7 +809,8 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
               classes={{
                 root: "space-y-2",
                 dropTarget: "ring-2 ring-primary/40 rounded-2xl bg-primary/5",
-                placeholder: "h-9 rounded-2xl border border-dashed border-primary/40 bg-primary/5",
+                placeholder:
+                  "h-9 rounded-2xl border border-dashed border-primary/40 bg-primary/5",
               }}
             />
           </DndProvider>
@@ -748,7 +825,9 @@ const NavMenuManager = ({ items }: NavMenuManagerProps) => {
             submitLabel={dialogSubmitLabel}
             initialValues={initialValues}
             onSubmit={handleSubmitFactory()}
-            parentOptions={parentOptions.filter((option) => option.value !== formConfig.item?.id)}
+            parentOptions={parentOptions.filter(
+              (option) => option.value !== formConfig.item?.id
+            )}
             disableSlug={formConfig.mode === "edit"}
             disableParentSelection={formConfig.mode === "child"}
             onOpenChange={(open) => {

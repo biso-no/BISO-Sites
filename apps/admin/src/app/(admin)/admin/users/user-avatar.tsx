@@ -1,6 +1,10 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import type { User } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +24,9 @@ export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
     .toUpperCase();
 
   // Determine avatar background color based on user name (consistent for each user)
-  const nameHash = user.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const nameHash = user.name
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colors = [
     "bg-red-500",
     "bg-orange-500",
@@ -52,7 +58,9 @@ export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
   return (
     <Avatar className={cn(sizeClass, className)}>
       <AvatarImage src={user.avatarUrl} alt={user.name} />
-      <AvatarFallback className={cn("font-medium text-white", bgColor)}>{initials}</AvatarFallback>
+      <AvatarFallback className={cn("font-medium text-white", bgColor)}>
+        {initials}
+      </AvatarFallback>
     </Avatar>
   );
 }

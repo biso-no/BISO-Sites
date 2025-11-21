@@ -29,7 +29,9 @@ export async function signInWithAzure() {
   const origin = (await headers()).get("origin");
 
   // Get the redirectTo parameter from the URL if it exists
-  const url = new URL((await headers()).get("referer") || `${origin}/auth/login`);
+  const url = new URL(
+    (await headers()).get("referer") || `${origin}/auth/login`
+  );
   const redirectTo = url.searchParams.get("redirectTo");
 
   // Include the redirectTo parameter in the success URL
@@ -40,7 +42,7 @@ export async function signInWithAzure() {
   const redirectUrl = await account.createOAuth2Token(
     OAuthProvider.Microsoft,
     successUrl,
-    `${origin}/auth/login`,
+    `${origin}/auth/login`
   );
 
   return redirect(redirectUrl);
@@ -60,7 +62,7 @@ export async function signInWithMagicLink(email: string) {
   const redirectUrl = await account.createMagicURLToken(
     ID.unique(),
     email,
-    `${origin}/auth/callback`,
+    `${origin}/auth/callback`
   );
 
   return redirectUrl ? true : false;

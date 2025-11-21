@@ -20,20 +20,35 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { AlertTriangle, CheckCircle, Eye, HelpCircle, Mail, Shield, User } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Eye,
+  HelpCircle,
+  Mail,
+  Shield,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { getCampuses } from "@/app/actions/campus";
-import { getVarslingSettings, submitVarslingCase } from "@/app/actions/varsling";
+import {
+  getVarslingSettings,
+  submitVarslingCase,
+} from "@/app/actions/varsling";
 
 export default function SafetyPage() {
   const t = useTranslations("varsling");
   const [campuses, setCampuses] = useState<Campus[]>([]);
-  const [varslingSettings, setVarslingSettings] = useState<VarslingSettings[]>([]);
+  const [varslingSettings, setVarslingSettings] = useState<VarslingSettings[]>(
+    []
+  );
   const [selectedCampus, setSelectedCampus] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
-  const [submissionType, setSubmissionType] = useState<"harassment" | "witness" | "other">("other");
+  const [submissionType, setSubmissionType] = useState<
+    "harassment" | "witness" | "other"
+  >("other");
   const [email, setEmail] = useState<string>("");
   const [caseDescription, setCaseDescription] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +89,9 @@ export default function SafetyPage() {
       return;
     }
 
-    const selectedSetting = varslingSettings.find((s) => s.role_name === selectedRole);
+    const selectedSetting = varslingSettings.find(
+      (s) => s.role_name === selectedRole
+    );
     if (!selectedSetting) {
       setSubmitStatus({
         type: "error",
@@ -133,8 +150,12 @@ export default function SafetyPage() {
           <Shield className="h-8 w-8 text-primary-60" />
           <h1 className="text-4xl font-bold text-primary-90">{t("title")}</h1>
         </div>
-        <h2 className="text-xl font-semibold text-primary-80">{t("subtitle")}</h2>
-        <p className="text-lg text-primary-70 max-w-3xl mx-auto">{t("description")}</p>
+        <h2 className="text-xl font-semibold text-primary-80">
+          {t("subtitle")}
+        </h2>
+        <p className="text-lg text-primary-70 max-w-3xl mx-auto">
+          {t("description")}
+        </p>
       </div>
 
       {/* Information Cards */}
@@ -143,7 +164,9 @@ export default function SafetyPage() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-600" />
-              <CardTitle className="text-orange-900">{t("infoCards.harassment.title")}</CardTitle>
+              <CardTitle className="text-orange-900">
+                {t("infoCards.harassment.title")}
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -157,7 +180,9 @@ export default function SafetyPage() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Eye className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-blue-900">{t("infoCards.witness.title")}</CardTitle>
+              <CardTitle className="text-blue-900">
+                {t("infoCards.witness.title")}
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -171,7 +196,9 @@ export default function SafetyPage() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-purple-600" />
-              <CardTitle className="text-purple-900">{t("infoCards.other.title")}</CardTitle>
+              <CardTitle className="text-purple-900">
+                {t("infoCards.other.title")}
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -200,12 +227,20 @@ export default function SafetyPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={t("form.fields.submissionType.placeholder")} />
+                  <SelectValue
+                    placeholder={t("form.fields.submissionType.placeholder")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="harassment">{t("form.submissionTypes.harassment")}</SelectItem>
-                  <SelectItem value="witness">{t("form.submissionTypes.witness")}</SelectItem>
-                  <SelectItem value="other">{t("form.submissionTypes.other")}</SelectItem>
+                  <SelectItem value="harassment">
+                    {t("form.submissionTypes.harassment")}
+                  </SelectItem>
+                  <SelectItem value="witness">
+                    {t("form.submissionTypes.witness")}
+                  </SelectItem>
+                  <SelectItem value="other">
+                    {t("form.submissionTypes.other")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -215,7 +250,9 @@ export default function SafetyPage() {
               <Label>{t("form.fields.campus.label")} *</Label>
               <Select value={selectedCampus} onValueChange={setSelectedCampus}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("form.fields.campus.placeholder")} />
+                  <SelectValue
+                    placeholder={t("form.fields.campus.placeholder")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {campuses.map((campus) => (
@@ -233,7 +270,9 @@ export default function SafetyPage() {
                 <Label>{t("form.fields.receiver.label")} *</Label>
                 <Select value={selectedRole} onValueChange={setSelectedRole}>
                   <SelectTrigger>
-                    <SelectValue placeholder={t("form.fields.receiver.placeholder")} />
+                    <SelectValue
+                      placeholder={t("form.fields.receiver.placeholder")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {varslingSettings.map((setting) => (
@@ -255,7 +294,9 @@ export default function SafetyPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t("form.fields.email.placeholder")}
               />
-              <p className="text-sm text-primary-60">{t("form.fields.email.description")}</p>
+              <p className="text-sm text-primary-60">
+                {t("form.fields.email.description")}
+              </p>
             </div>
 
             {/* Case Description */}
@@ -286,7 +327,11 @@ export default function SafetyPage() {
                     <AlertTriangle className="h-4 w-4 text-red-600" />
                   )}
                   <AlertDescription
-                    className={submitStatus.type === "success" ? "text-green-800" : "text-red-800"}
+                    className={
+                      submitStatus.type === "success"
+                        ? "text-green-800"
+                        : "text-red-800"
+                    }
                   >
                     {submitStatus.message}
                   </AlertDescription>
@@ -298,9 +343,16 @@ export default function SafetyPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting || !selectedCampus || !selectedRole || !caseDescription.trim()}
+              disabled={
+                isSubmitting ||
+                !selectedCampus ||
+                !selectedRole ||
+                !caseDescription.trim()
+              }
             >
-              {isSubmitting ? t("form.submit.submitting") : t("form.submit.button")}
+              {isSubmitting
+                ? t("form.submit.submitting")
+                : t("form.submit.button")}
             </Button>
           </form>
         </CardContent>
@@ -333,14 +385,20 @@ export default function SafetyPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <p className="text-primary-70 leading-relaxed">{t("codeOfConduct.purpose")}</p>
+            <p className="text-primary-70 leading-relaxed">
+              {t("codeOfConduct.purpose")}
+            </p>
             <ul className="space-y-2">
-              {["rules.0", "rules.1", "rules.2", "rules.3", "rules.4"].map((key, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
-                  <span className="text-primary-70">{t(`codeOfConduct.${key}`)}</span>
-                </li>
-              ))}
+              {["rules.0", "rules.1", "rules.2", "rules.3", "rules.4"].map(
+                (key, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                    <span className="text-primary-70">
+                      {t(`codeOfConduct.${key}`)}
+                    </span>
+                  </li>
+                )
+              )}
             </ul>
           </div>
         </CardContent>
@@ -389,8 +447,13 @@ export default function SafetyPage() {
             <p className="text-primary-70">{t("contact.description")}</p>
             <div className="grid gap-3 sm:grid-cols-3">
               {["contacts.0", "contacts.1", "contacts.2"].map((key, index) => (
-                <div key={index} className="p-4 border border-primary-20 rounded-lg bg-primary-5">
-                  <div className="font-semibold text-primary-90">{t(`contact.${key}.role`)}</div>
+                <div
+                  key={index}
+                  className="p-4 border border-primary-20 rounded-lg bg-primary-5"
+                >
+                  <div className="font-semibold text-primary-90">
+                    {t(`contact.${key}.role`)}
+                  </div>
                   <a
                     href={`mailto:${t(`contact.${key}.email`)}`}
                     className="text-primary-60 hover:text-primary-80 hover:underline"
@@ -412,30 +475,32 @@ export default function SafetyPage() {
             {t("privacy.title")}
           </h3>
           <div className="text-sm text-primary-70 space-y-3">
-            {["points.0", "points.1", "points.2", "points.3"].map((key, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                <p>
-                  {index === 3 ? (
-                    <>
-                      {t(`privacy.${key}`).split("personvernerklæring")[0]}
-                      <Link
-                        href={t("privacy.privacyLink")}
-                        className="text-primary-60 hover:underline"
-                      >
-                        {t(`privacy.${key}`).includes("personvernerklæring")
-                          ? "personvernerklæring"
-                          : "privacy policy"}
-                      </Link>
-                      {t(`privacy.${key}`).split("personvernerklæring")[1] ||
-                        t(`privacy.${key}`).split("privacy policy")[1]}
-                    </>
-                  ) : (
-                    t(`privacy.${key}`)
-                  )}
-                </p>
-              </div>
-            ))}
+            {["points.0", "points.1", "points.2", "points.3"].map(
+              (key, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                  <p>
+                    {index === 3 ? (
+                      <>
+                        {t(`privacy.${key}`).split("personvernerklæring")[0]}
+                        <Link
+                          href={t("privacy.privacyLink")}
+                          className="text-primary-60 hover:underline"
+                        >
+                          {t(`privacy.${key}`).includes("personvernerklæring")
+                            ? "personvernerklæring"
+                            : "privacy policy"}
+                        </Link>
+                        {t(`privacy.${key}`).split("personvernerklæring")[1] ||
+                          t(`privacy.${key}`).split("privacy policy")[1]}
+                      </>
+                    ) : (
+                      t(`privacy.${key}`)
+                    )}
+                  </p>
+                </div>
+              )
+            )}
           </div>
         </CardContent>
       </Card>

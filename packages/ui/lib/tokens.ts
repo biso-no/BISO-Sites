@@ -23,7 +23,12 @@ export type ColorToken =
   | "surface-card"
   | "surface-hover";
 
-export type RadiusToken = "radius-xs" | "radius-sm" | "radius" | "radius-lg" | "radius-xl";
+export type RadiusToken =
+  | "radius-xs"
+  | "radius-sm"
+  | "radius"
+  | "radius-lg"
+  | "radius-xl";
 
 export type FontSizeToken =
   | "font-size-xs"
@@ -35,9 +40,15 @@ export type FontSizeToken =
   | "font-size-3xl"
   | "font-size-4xl";
 
-export type LineHeightToken = "leading-tight" | "leading-normal" | "leading-relaxed";
+export type LineHeightToken =
+  | "leading-tight"
+  | "leading-normal"
+  | "leading-relaxed";
 
-export type MotionDurationToken = "duration-100" | "duration-200" | "duration-300";
+export type MotionDurationToken =
+  | "duration-100"
+  | "duration-200"
+  | "duration-300";
 
 export type MotionEaseToken =
   | "ease-standard"
@@ -75,7 +86,7 @@ export const motion = {
   transition(
     props: string | string[] = "all",
     duration: MotionDurationToken = "duration-200",
-    ease: MotionEaseToken = "ease-standard",
+    ease: MotionEaseToken = "ease-standard"
   ) {
     const p = Array.isArray(props) ? props.join(",") : props;
     return `${p} ${tokens.duration[duration]} ${tokens.ease[ease]}`;

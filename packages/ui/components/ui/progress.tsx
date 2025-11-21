@@ -12,7 +12,7 @@ const Progress = React.forwardRef<
     ref={ref}
     className={cn(
       "relative h-2 w-full overflow-hidden rounded-full bg-linear-to-r from-gray-100 to-gray-50",
-      className,
+      className
     )}
     {...props}
   >

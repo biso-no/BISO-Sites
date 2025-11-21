@@ -1,6 +1,11 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import Link from "next/link";
 import { listJobApplications, listJobs } from "@/app/actions/jobs";
 import { ApplicationActions } from "./components/application-actions";
@@ -27,7 +32,8 @@ export default async function JobApplicationsPage({
         <div>
           <h1 className="text-2xl font-bold">Job Applications</h1>
           <p className="text-muted-foreground">
-            {applications.length} application{applications.length !== 1 ? "s" : ""} total
+            {applications.length} application
+            {applications.length !== 1 ? "s" : ""} total
           </p>
         </div>
         <Button asChild>
@@ -44,16 +50,27 @@ export default async function JobApplicationsPage({
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <h3 className="font-semibold">{application.applicant_name}</h3>
+                      <h3 className="font-semibold">
+                        {application.applicant_name}
+                      </h3>
                       <ApplicationStatusBadge status={application.status} />
                     </div>
-                    <p className="text-sm text-muted-foreground">{application.applicant_email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {application.applicant_email}
+                    </p>
                     {application.applicant_phone && (
-                      <p className="text-sm text-muted-foreground">{application.applicant_phone}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {application.applicant_phone}
+                      </p>
                     )}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>Applied: {new Date(application.$createdAt).toLocaleDateString()}</span>
-                      {job && <span>• Position: {job.translations[0].title}</span>}
+                      <span>
+                        Applied:{" "}
+                        {new Date(application.$createdAt).toLocaleDateString()}
+                      </span>
+                      {job && (
+                        <span>• Position: {job.translations[0].title}</span>
+                      )}
                     </div>
                   </div>
 
@@ -63,7 +80,9 @@ export default async function JobApplicationsPage({
                 {application.cover_letter && (
                   <div className="mt-4 pt-4 border-t">
                     <h4 className="font-medium mb-2">Cover Letter</h4>
-                    <p className="text-sm whitespace-pre-wrap">{application.cover_letter}</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {application.cover_letter}
+                    </p>
                   </div>
                 )}
 
@@ -72,10 +91,13 @@ export default async function JobApplicationsPage({
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>
                       Data retention until:{" "}
-                      {new Date(application.data_retention_until).toLocaleDateString()}
+                      {new Date(
+                        application.data_retention_until
+                      ).toLocaleDateString()}
                     </span>
                     <span>
-                      Consent given: {new Date(application.consent_date).toLocaleDateString()}
+                      Consent given:{" "}
+                      {new Date(application.consent_date).toLocaleDateString()}
                     </span>
                   </div>
                 </div>

@@ -396,7 +396,11 @@
     },
     {
       "$id": "expense",
-      "$permissions": ["create(\"users\")", "read(\"team:admin\")", "read(\"team:finance\")"],
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"team:admin\")",
+        "read(\"team:finance\")"
+      ],
       "databaseId": "app",
       "name": "Expenses",
       "enabled": true,
@@ -947,7 +951,14 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": ["pending", "authorized", "paid", "cancelled", "failed", "refunded"],
+          "elements": [
+            "pending",
+            "authorized",
+            "paid",
+            "cancelled",
+            "failed",
+            "refunded"
+          ],
           "format": "enum",
           "default": null
         },
@@ -3211,7 +3222,13 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["submitted", "reviewed", "interview", "accepted", "rejected"],
+          "elements": [
+            "submitted",
+            "reviewed",
+            "interview",
+            "accepted",
+            "rejected"
+          ],
           "format": "enum",
           "default": null
         },

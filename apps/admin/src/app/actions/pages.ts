@@ -21,7 +21,9 @@ import { revalidatePath } from "next/cache";
 
 const ADMIN_LIST_PATH = "/admin/pages";
 
-function cloneDocument(document: PageBuilderDocument | null | undefined): PageDocument | null {
+function cloneDocument(
+  document: PageBuilderDocument | null | undefined
+): PageDocument | null {
   if (!document) {
     return null;
   }
@@ -37,7 +39,9 @@ function revalidateForPage(page: PageRecord) {
   }
 }
 
-export async function listManagedPages(params?: Parameters<typeof listPages>[0]) {
+export async function listManagedPages(
+  params?: Parameters<typeof listPages>[0]
+) {
   return listPages(params);
 }
 
@@ -160,7 +164,6 @@ export async function deletePage(pageId: string) {
   revalidatePath(ADMIN_LIST_PATH);
 }
 
-
 export interface EnsureTranslationInput {
   pageId: string;
   locale: Locale;
@@ -180,6 +183,10 @@ export async function ensureTranslation(input: EnsureTranslationInput) {
   return translation;
 }
 
-export async function getPublishedPagePreview(slug: string, locale: Locale, preview = false) {
+export async function getPublishedPagePreview(
+  slug: string,
+  locale: Locale,
+  preview = false
+) {
   return getPublishedPage({ slug, locale, preview });
 }

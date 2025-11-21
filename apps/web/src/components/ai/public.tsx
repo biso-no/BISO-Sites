@@ -17,7 +17,8 @@ export const AssistantModal: FC = () => {
       return;
     }
 
-    const isDismissed = window.localStorage.getItem(ASSISTANT_TOOLTIP_STORAGE_KEY) === "true";
+    const isDismissed =
+      window.localStorage.getItem(ASSISTANT_TOOLTIP_STORAGE_KEY) === "true";
     if (!isDismissed) {
       setShowTooltip(true);
     }
@@ -71,32 +72,33 @@ export const AssistantModal: FC = () => {
 
 type AssistantModalButtonProps = { "data-state"?: "open" | "closed" };
 
-const AssistantModalButton = forwardRef<HTMLButtonElement, AssistantModalButtonProps>(
-  ({ "data-state": state, ...rest }, ref) => {
-    const tooltip = state === "open" ? "Close Assistant" : "Open Assistant";
+const AssistantModalButton = forwardRef<
+  HTMLButtonElement,
+  AssistantModalButtonProps
+>(({ "data-state": state, ...rest }, ref) => {
+  const tooltip = state === "open" ? "Close Assistant" : "Open Assistant";
 
-    return (
-      <TooltipIconButton
-        variant="default"
-        tooltip={tooltip}
-        side="left"
-        {...rest}
-        className="aui-modal-button size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
-        ref={ref}
-      >
-        <BotIcon
-          data-state={state}
-          className="aui-modal-button-closed-icon absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90"
-        />
+  return (
+    <TooltipIconButton
+      variant="default"
+      tooltip={tooltip}
+      side="left"
+      {...rest}
+      className="aui-modal-button size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
+      ref={ref}
+    >
+      <BotIcon
+        data-state={state}
+        className="aui-modal-button-closed-icon absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90"
+      />
 
-        <ChevronDownIcon
-          data-state={state}
-          className="aui-modal-button-open-icon absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0"
-        />
-        <span className="aui-sr-only sr-only">{tooltip}</span>
-      </TooltipIconButton>
-    );
-  },
-);
+      <ChevronDownIcon
+        data-state={state}
+        className="aui-modal-button-open-icon absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0"
+      />
+      <span className="aui-sr-only sr-only">{tooltip}</span>
+    </TooltipIconButton>
+  );
+});
 
 AssistantModalButton.displayName = "AssistantModalButton";

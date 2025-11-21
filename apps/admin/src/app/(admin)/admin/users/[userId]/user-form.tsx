@@ -1,7 +1,11 @@
 "use client";
 
 import type { Campus, Users } from "@repo/api/types/appwrite";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -23,7 +27,12 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Switch } from "@repo/ui/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -103,7 +112,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
     .toUpperCase();
 
   // Generate color for avatar based on user name
-  const nameHash = (user.name || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const nameHash = (user.name || "")
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colors = [
     "bg-red-500",
     "bg-orange-500",
@@ -139,15 +150,23 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <CardTitle className="text-2xl">{t("editor.userDetailsTitle")}</CardTitle>
-              <CardDescription>{t("editor.userDetailsDescription")}</CardDescription>
+              <CardTitle className="text-2xl">
+                {t("editor.userDetailsTitle")}
+              </CardTitle>
+              <CardDescription>
+                {t("editor.userDetailsDescription")}
+              </CardDescription>
             </div>
           </div>
 
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button onClick={handleSave} className="gap-2" disabled={isSaving}>
+                <Button
+                  onClick={handleSave}
+                  className="gap-2"
+                  disabled={isSaving}
+                >
                   {isSaving ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
@@ -169,7 +188,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
           <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-background/50">
             <Avatar className="h-24 w-24">
               <AvatarImage src="" alt={user.name || ""} />
-              <AvatarFallback className={`text-xl font-semibold text-white ${bgColor}`}>
+              <AvatarFallback
+                className={`text-xl font-semibold text-white ${bgColor}`}
+              >
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -213,7 +234,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                     <Input
                       id="name"
                       value={user.name || ""}
-                      onChange={(e) => setUser({ ...user, name: e.target.value })}
+                      onChange={(e) =>
+                        setUser({ ...user, name: e.target.value })
+                      }
                       className="mt-1"
                     />
                   </div>
@@ -222,7 +245,12 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                     <Label htmlFor="email">{t("form.email")}</Label>
                     <div className="relative mt-1">
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input id="email" value={user.email || ""} disabled className="pl-10" />
+                      <Input
+                        id="email"
+                        value={user.email || ""}
+                        disabled
+                        className="pl-10"
+                      />
                     </div>
                   </div>
 
@@ -230,7 +258,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                     <Label htmlFor="campus">{t("editor.campus")}</Label>
                     <Select
                       value={user.campus_id || undefined}
-                      onValueChange={(value) => setUser({ ...user, campus_id: value })}
+                      onValueChange={(value) =>
+                        setUser({ ...user, campus_id: value })
+                      }
                     >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder={t("editor.selectCampus")} />
@@ -246,14 +276,21 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   </div>
 
                   <div>
-                    <Label htmlFor="account-status">{t("editor.accountStatus")}</Label>
+                    <Label htmlFor="account-status">
+                      {t("editor.accountStatus")}
+                    </Label>
                     <div className="flex items-center space-x-2 mt-3">
                       <Switch
                         id="account-status"
                         checked={user.isActive}
-                        onCheckedChange={(checked) => setUser({ ...user, isActive: checked })}
+                        onCheckedChange={(checked) =>
+                          setUser({ ...user, isActive: checked })
+                        }
                       />
-                      <Label htmlFor="account-status" className="text-sm font-normal">
+                      <Label
+                        htmlFor="account-status"
+                        className="text-sm font-normal"
+                      >
                         {user.isActive ? "Active" : "Inactive"}
                       </Label>
                     </div>
@@ -263,18 +300,21 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
 
               <TabsContent value="roles" className="space-y-4">
                 <div className="bg-muted/40 p-4 rounded-lg">
-                  <h3 className="font-medium mb-1">{t("editor.userRolesTitle")}</h3>
+                  <h3 className="font-medium mb-1">
+                    {t("editor.userRolesTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {t("editor.userRolesDescription")}
                   </p>
 
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                    {["User", "HR", "PR", "KK", "Finance", "Admin"].map((role) => {
-                      const currentRoles = user.roles || [];
-                      return (
-                        <div
-                          key={role}
-                          className={`
+                    {["User", "HR", "PR", "KK", "Finance", "Admin"].map(
+                      (role) => {
+                        const currentRoles = user.roles || [];
+                        return (
+                          <div
+                            key={role}
+                            className={`
                             flex items-center gap-2 p-2 rounded-md transition-colors
                             ${
                               currentRoles.includes(role)
@@ -282,30 +322,33 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                                 : "bg-muted border border-transparent"
                             }
                           `}
-                          onClick={() => handleRoleChange(role)}
-                        >
-                          <Checkbox
-                            id={`role-${role}`}
-                            checked={currentRoles.includes(role)}
-                            onCheckedChange={() => handleRoleChange(role)}
-                            className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                          />
-                          <label
-                            htmlFor={`role-${role}`}
-                            className="text-sm font-medium leading-none cursor-pointer flex-1"
+                            onClick={() => handleRoleChange(role)}
                           >
-                            {role}
-                          </label>
-                        </div>
-                      );
-                    })}
+                            <Checkbox
+                              id={`role-${role}`}
+                              checked={currentRoles.includes(role)}
+                              onCheckedChange={() => handleRoleChange(role)}
+                              className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                            />
+                            <label
+                              htmlFor={`role-${role}`}
+                              className="text-sm font-medium leading-none cursor-pointer flex-1"
+                            >
+                              {role}
+                            </label>
+                          </div>
+                        );
+                      }
+                    )}
                   </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="security" className="space-y-4">
                 <div className="bg-muted/40 p-4 rounded-lg">
-                  <h3 className="font-medium mb-1">{t("editor.accountSecurityTitle")}</h3>
+                  <h3 className="font-medium mb-1">
+                    {t("editor.accountSecurityTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {t("editor.accountSecurityDescription")}
                   </p>

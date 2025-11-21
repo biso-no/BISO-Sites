@@ -20,28 +20,45 @@ interface CampusHeroProps {
   locale: Locale;
 }
 
-const StatPill = ({ label, value }: { label: string; value: string | number }) => (
+const StatPill = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) => (
   <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left shadow-glow">
     <div className="text-xl font-semibold text-white">{value}</div>
     <div className="text-xs uppercase tracking-wide text-white/70">{label}</div>
   </div>
 );
 
-export function CampusHero({ campusName, campusMetadata, stats, locale }: CampusHeroProps) {
+export function CampusHero({
+  campusName,
+  campusMetadata,
+  stats,
+  locale,
+}: CampusHeroProps) {
   const tagline = campusMetadata
-    ? (locale === "en" ? campusMetadata.tagline_en : campusMetadata.tagline_nb) ||
+    ? (locale === "en"
+        ? campusMetadata.tagline_en
+        : campusMetadata.tagline_nb) ||
       campusMetadata.tagline_en ||
       campusMetadata.tagline_nb
     : "Where Innovation Meets Opportunity";
 
   const description = campusMetadata
-    ? (locale === "en" ? campusMetadata.description_en : campusMetadata.description_nb) ||
+    ? (locale === "en"
+        ? campusMetadata.description_en
+        : campusMetadata.description_nb) ||
       campusMetadata.description_en ||
       campusMetadata.description_nb
     : "BISO is the heart of student life at BI Norwegian Business School. Join us to create unforgettable experiences, foster career growth, and build a vibrant community.";
 
   const highlights = campusMetadata
-    ? (locale === "en" ? campusMetadata.highlights_en : campusMetadata.highlights_nb) ||
+    ? (locale === "en"
+        ? campusMetadata.highlights_en
+        : campusMetadata.highlights_nb) ||
       campusMetadata.highlights_en ||
       campusMetadata.highlights_nb ||
       []
@@ -98,7 +115,9 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
                   : "BISO - Studentliv"}
             </h1>
             <p className="text-white/90 mb-8 text-xl">{tagline}</p>
-            <p className="text-white/80 mb-8 text-lg max-w-2xl">{description}</p>
+            <p className="text-white/80 mb-8 text-lg max-w-2xl">
+              {description}
+            </p>
 
             {/* Highlights */}
             {highlights.length > 0 && (
@@ -120,8 +139,14 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap gap-3 mb-6">
-              <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
-                <Link href="/membership">{locale === "en" ? "Become a Member" : "Bli medlem"}</Link>
+              <Button
+                asChild
+                size="lg"
+                className="bg-white text-primary-100 hover:bg-white/90"
+              >
+                <Link href="/membership">
+                  {locale === "en" ? "Become a Member" : "Bli medlem"}
+                </Link>
               </Button>
               <Button
                 asChild
@@ -129,7 +154,9 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
                 variant="outline"
                 className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
               >
-                <Link href="/events">{locale === "en" ? "See Events" : "Se arrangementer"}</Link>
+                <Link href="/events">
+                  {locale === "en" ? "See Events" : "Se arrangementer"}
+                </Link>
               </Button>
               <Button
                 asChild
@@ -137,14 +164,20 @@ export function CampusHero({ campusName, campusMetadata, stats, locale }: Campus
                 variant="ghost"
                 className="text-white hover:bg-white/10 hover:text-white"
               >
-                <Link href="/jobs">{locale === "en" ? "Find a Position" : "Finn et verv"}</Link>
+                <Link href="/jobs">
+                  {locale === "en" ? "Find a Position" : "Finn et verv"}
+                </Link>
               </Button>
             </div>
 
             {/* Stats */}
             <div className="flex flex-wrap gap-3">
               {statsData.map((stat) => (
-                <StatPill key={stat.label} label={stat.label} value={stat.value} />
+                <StatPill
+                  key={stat.label}
+                  label={stat.label}
+                  value={stat.value}
+                />
               ))}
             </div>
           </motion.div>

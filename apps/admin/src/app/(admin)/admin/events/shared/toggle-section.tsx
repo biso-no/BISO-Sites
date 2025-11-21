@@ -26,7 +26,11 @@ export function ToggleSection({
 }: ToggleSectionProps) {
   return (
     <div
-      className={cn("toggle-section transition-all duration-300", enabled && "enabled", className)}
+      className={cn(
+        "toggle-section transition-all duration-300",
+        enabled && "enabled",
+        className
+      )}
       style={{
         transform: enabled ? "scale(1)" : "scale(0.98)",
         opacity: enabled ? 1 : 0.85,
@@ -40,7 +44,11 @@ export function ToggleSection({
             <p className="text-sm text-muted-foreground mt-1">{description}</p>
           </div>
         </div>
-        <Switch checked={enabled} onCheckedChange={onToggle} className="shrink-0 ml-4" />
+        <Switch
+          checked={enabled}
+          onCheckedChange={onToggle}
+          className="shrink-0 ml-4"
+        />
       </div>
       <AnimatePresence initial={false}>
         {enabled && (

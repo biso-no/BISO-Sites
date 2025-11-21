@@ -39,7 +39,12 @@ const categoryColors: Record<EventCategory, string> = {
   Culture: "bg-pink-100 text-pink-700 border-pink-200",
 };
 
-export function EventCard({ event, index, isMember = false, onViewDetails }: EventCardProps) {
+export function EventCard({
+  event,
+  index,
+  isMember = false,
+  onViewDetails,
+}: EventCardProps) {
   const eventData = event.event_ref;
 
   // Parse metadata if available
@@ -51,22 +56,30 @@ export function EventCard({ event, index, isMember = false, onViewDetails }: Eve
     ? format(new Date(eventData.start_date), "MMMM d, yyyy")
     : "TBA";
 
-  const startTime = eventData?.start_date ? format(new Date(eventData.start_date), "HH:mm") : "";
+  const startTime = eventData?.start_date
+    ? format(new Date(eventData.start_date), "HH:mm")
+    : "";
 
-  const endTime = eventData?.end_date ? format(new Date(eventData.end_date), "HH:mm") : "";
+  const endTime = eventData?.end_date
+    ? format(new Date(eventData.end_date), "HH:mm")
+    : "";
 
-  const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
+  const timeRange =
+    startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
 
   // Format price
   const price = formatEventPrice(eventData?.price);
-  const memberPrice = metadata.member_price ? formatEventPrice(metadata.member_price) : null;
+  const memberPrice = metadata.member_price
+    ? formatEventPrice(metadata.member_price)
+    : null;
 
   // Get attendees from metadata
   const attendees = metadata.attendees || 0;
 
   // Get image URL
   const imageUrl =
-    eventData?.image || "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
+    eventData?.image ||
+    "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
 
   return (
     <motion.div
@@ -87,7 +100,9 @@ export function EventCard({ event, index, isMember = false, onViewDetails }: Eve
 
           <div className="absolute top-4 left-4 flex flex-col gap-2">
             <div className="flex gap-2">
-              <Badge className={`${categoryColors[category] || categoryColors.Social}`}>
+              <Badge
+                className={`${categoryColors[category] || categoryColors.Social}`}
+              >
                 {category}
               </Badge>
               {eventData?.is_collection && (
@@ -124,8 +139,12 @@ export function EventCard({ event, index, isMember = false, onViewDetails }: Eve
 
         {/* Content */}
         <div className="p-6 flex flex-col grow">
-          <h3 className="mb-3 text-gray-900 text-xl font-semibold">{event.title}</h3>
-          <p className="text-gray-600 mb-4 grow line-clamp-2 text-sm">{event.description}</p>
+          <h3 className="mb-3 text-gray-900 text-xl font-semibold">
+            {event.title}
+          </h3>
+          <p className="text-gray-600 mb-4 grow line-clamp-2 text-sm">
+            {event.description}
+          </p>
 
           {eventData?.is_collection && (
             <div className="mb-4 p-3 bg-[#3DA9E0]/10 rounded-lg border border-[#3DA9E0]/20">
@@ -171,13 +190,18 @@ export function EventCard({ event, index, isMember = false, onViewDetails }: Eve
               {memberPrice && !isMember ? (
                 <div>
                   <div className="text-gray-900 font-medium">{price}</div>
-                  <div className="text-sm text-[#3DA9E0] mt-1">Members: {memberPrice}</div>
+                  <div className="text-sm text-[#3DA9E0] mt-1">
+                    Members: {memberPrice}
+                  </div>
                 </div>
               ) : memberPrice && isMember ? (
                 <div>
-                  <div className="text-gray-400 line-through text-sm">{price}</div>
+                  <div className="text-gray-400 line-through text-sm">
+                    {price}
+                  </div>
                   <div className="text-[#3DA9E0] font-medium">
-                    {memberPrice} <span className="text-sm">(Member Price)</span>
+                    {memberPrice}{" "}
+                    <span className="text-sm">(Member Price)</span>
                   </div>
                 </div>
               ) : (

@@ -15,7 +15,8 @@
       "@repo/*": ["../../packages/*"]
     },
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "strictNullChecks": true
   },
   "include": [
     "next-env.d.ts",

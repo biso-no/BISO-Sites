@@ -12,7 +12,11 @@ interface NewsFiltersProps {
   searchQuery: string;
 }
 
-export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsFiltersProps) {
+export function NewsFilters({
+  categories,
+  selectedCategory,
+  searchQuery,
+}: NewsFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -61,7 +65,10 @@ export function NewsFilters({ categories, selectedCategory, searchQuery }: NewsF
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           {/* Search */}
-          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-96">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="relative w-full md:w-96"
+          >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               type="text"

@@ -14,13 +14,21 @@ export function FileUpload({
   value?: File | string | null;
 }) {
   const previewUrl =
-    value instanceof File ? URL.createObjectURL(value) : typeof value === "string" ? value : null;
+    value instanceof File
+      ? URL.createObjectURL(value)
+      : typeof value === "string"
+        ? value
+        : null;
 
   return (
     <div className="flex justify-center">
       <div className="grid w-full max-w-sm items-center gap-3">
         <Label htmlFor={name}>{name}</Label>
-        <Input id={name} type="file" onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
+        <Input
+          id={name}
+          type="file"
+          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        />
         {previewUrl && (
           <Image
             src={previewUrl}

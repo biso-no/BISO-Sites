@@ -51,8 +51,12 @@ export function summarizeSharePointResults(result: any, limit = 2) {
 }
 
 export function summarizeSiteResults(result: any, limit = 3) {
-  const results: Array<{ title?: string; href?: string; description?: string; index?: string }> =
-    Array.isArray(result?.results) ? result.results : [];
+  const results: Array<{
+    title?: string;
+    href?: string;
+    description?: string;
+    index?: string;
+  }> = Array.isArray(result?.results) ? result.results : [];
   return results.slice(0, limit).map((r) => ({
     title: r.title || "Result",
     href: r.href,

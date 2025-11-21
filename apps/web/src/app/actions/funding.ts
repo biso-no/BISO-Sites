@@ -8,7 +8,9 @@ import type {
   ParsedFundingProgram,
 } from "@/lib/types/funding-program";
 
-const parseFundingMetadata = (value?: string | null): FundingProgramMetadata => {
+const parseFundingMetadata = (
+  value?: string | null
+): FundingProgramMetadata => {
   if (!value) return {};
   try {
     return JSON.parse(value) as FundingProgramMetadata;
@@ -23,14 +25,20 @@ const toParsedProgram = (program: FundingProgram): ParsedFundingProgram => ({
   parsedMetadata: parseFundingMetadata(program.metadata),
 });
 
-async function listFundingPrograms(status: string = "active"): Promise<ParsedFundingProgram[]> {
+async function listFundingPrograms(
+  status: string = "active"
+): Promise<ParsedFundingProgram[]> {
   try {
     const { db } = await createSessionClient();
     const queries = [Query.orderAsc("slug"), Query.limit(50)];
     if (status) {
       queries.push(Query.equal("status", status));
     }
-    const response = await db.listRows<FundingProgram>("app", "funding_programs", queries);
+    const response = await db.listRows<FundingProgram>(
+      "app",
+      "funding_programs",
+      queries
+    );
     return response.rows.map((doc) => toParsedProgram(doc));
   } catch (error) {
     console.error("Failed to fetch funding programs", error);
@@ -38,14 +46,17 @@ async function listFundingPrograms(status: string = "active"): Promise<ParsedFun
   }
 }
 
-export async function getFundingProgramBySlug(slug: string): Promise<ParsedFundingProgram | null> {
+export async function getFundingProgramBySlug(
+  slug: string
+): Promise<ParsedFundingProgram | null> {
   if (!slug) return null;
   try {
     const { db } = await createSessionClient();
-    const response = await db.listRows<FundingProgram>("app", "funding_programs", [
-      Query.equal("slug", slug),
-      Query.limit(1),
-    ]);
+    const response = await db.listRows<FundingProgram>(
+      "app",
+      "funding_programs",
+      [Query.equal("slug", slug), Query.limit(1)]
+    );
 
     if (response.total === 0 || !response.rows[0]) {
       return null;

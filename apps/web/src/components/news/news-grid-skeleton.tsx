@@ -11,7 +11,10 @@ export function NewsGridSkeleton() {
         </div>
         <div className="grid md:grid-cols-2 gap-8">
           {[1, 2].map((i) => (
-            <Card key={i} className="overflow-hidden border-0 shadow-2xl h-full flex flex-col">
+            <Card
+              key={i}
+              className="overflow-hidden border-0 shadow-2xl h-full flex flex-col"
+            >
               <div className="h-80 bg-gray-200" />
               <div className="p-6 space-y-4 flex-1 flex flex-col">
                 <div className="h-6 bg-gray-200 rounded w-3/4" />
@@ -35,7 +38,10 @@ export function NewsGridSkeleton() {
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="overflow-hidden border-0 shadow-lg h-full flex flex-col">
+            <Card
+              key={i}
+              className="overflow-hidden border-0 shadow-lg h-full flex flex-col"
+            >
               <div className="h-56 bg-gray-200" />
               <div className="p-6 space-y-3 flex-1 flex flex-col">
                 <div className="h-5 bg-gray-200 rounded w-3/4" />

@@ -2,29 +2,45 @@
 
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { type ExpenseAttachments, ExpenseStatus, type Expenses } from "@repo/api/types/appwrite";
+import {
+  type ExpenseAttachments,
+  ExpenseStatus,
+  type Expenses,
+} from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
 // Type for creating an expense - omits relational fields that are populated by the database
 type CreateExpenseInput = Omit<
   Expenses,
-  keyof import("@repo/api").Models.Row | "user" | "departmentRel" | "expenseAttachments"
+  | keyof import("@repo/api").Models.Row
+  | "user"
+  | "departmentRel"
+  | "expenseAttachments"
 > & {
   expenseAttachments: string[];
 };
 
 // Type for creating an expense attachment
-type CreateExpenseAttachmentInput = Omit<ExpenseAttachments, keyof import("@repo/api").Models.Row>;
+type CreateExpenseAttachmentInput = Omit<
+  ExpenseAttachments,
+  keyof import("@repo/api").Models.Row
+>;
 
 /**
  * Get all expenses for the current user with optional filters
  */
-export async function getExpenses(filters?: { status?: ExpenseStatus; campus?: string }) {
+export async function getExpenses(filters?: {
+  status?: ExpenseStatus;
+  campus?: string;
+}) {
   try {
     const { db, account } = await createSessionClient();
     const user = await account.get();
 
-    const queries = [Query.equal("userId", user.$id), Query.orderDesc("$createdAt")];
+    const queries = [
+      Query.equal("userId", user.$id),
+      Query.orderDesc("$createdAt"),
+    ];
 
     if (filters?.status) {
       queries.push(Query.equal("status", filters.status));
@@ -47,7 +63,8 @@ export async function getExpenses(filters?: { status?: ExpenseStatus; campus?: s
       success: false,
       expenses: [],
       total: 0,
-      error: error instanceof Error ? error.message : "Failed to fetch expenses",
+      error:
+        error instanceof Error ? error.message : "Failed to fetch expenses",
     };
   }
 }
@@ -136,7 +153,12 @@ export async function createExpense(data: {
       invoice_id: null,
     };
 
-    const expense = await db.createRow<Expenses>("app", "expense", ID.unique(), expenseData as any);
+    const expense = await db.createRow<Expenses>(
+      "app",
+      "expense",
+      ID.unique(),
+      expenseData as any
+    );
 
     revalidatePath("/fs");
 
@@ -149,7 +171,8 @@ export async function createExpense(data: {
     return {
       success: false,
       expense: null,
-      error: error instanceof Error ? error.message : "Failed to create expense",
+      error:
+        error instanceof Error ? error.message : "Failed to create expense",
     };
   }
 }
@@ -172,7 +195,7 @@ export async function uploadExpenseAttachment(formData: FormData) {
     const result = await storage.createFile(
       "expenses", // Bucket ID
       ID.unique(),
-      file,
+      file
     );
 
     return {
@@ -183,7 +206,8 @@ export async function uploadExpenseAttachment(formData: FormData) {
     console.error("Error uploading attachment:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to upload attachment",
+      error:
+        error instanceof Error ? error.message : "Failed to upload attachment",
     };
   }
 }
@@ -213,7 +237,7 @@ export async function createExpenseAttachment(data: {
       "app",
       "expense_attachments",
       ID.unique(),
-      attachmentData as any,
+      attachmentData as any
     );
 
     return {
@@ -225,7 +249,10 @@ export async function createExpenseAttachment(data: {
     return {
       success: false,
       attachment: null,
-      error: error instanceof Error ? error.message : "Failed to create attachment record",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create attachment record",
     };
   }
 }
@@ -233,13 +260,20 @@ export async function createExpenseAttachment(data: {
 /**
  * Update an existing expense
  */
-async function updateExpense(expenseId: string, data: Partial<CreateExpenseInput>) {
+async function updateExpense(
+  expenseId: string,
+  data: Partial<CreateExpenseInput>
+) {
   try {
     const { db, account } = await createSessionClient();
     const user = await account.get();
 
     // Verify ownership
-    const existingExpense = await db.getRow<Expenses>("app", "expense", expenseId);
+    const existingExpense = await db.getRow<Expenses>(
+      "app",
+      "expense",
+      expenseId
+    );
 
     if (existingExpense.userId !== user.$id) {
       return {
@@ -248,7 +282,12 @@ async function updateExpense(expenseId: string, data: Partial<CreateExpenseInput
       };
     }
 
-    const updatedExpense = await db.updateRow<Expenses>("app", "expense", expenseId, data as any);
+    const updatedExpense = await db.updateRow<Expenses>(
+      "app",
+      "expense",
+      expenseId,
+      data as any
+    );
 
     revalidatePath("/fs");
     revalidatePath(`/fs/${expenseId}`);
@@ -261,7 +300,8 @@ async function updateExpense(expenseId: string, data: Partial<CreateExpenseInput
     console.error("Error updating expense:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update expense",
+      error:
+        error instanceof Error ? error.message : "Failed to update expense",
     };
   }
 }
@@ -275,7 +315,11 @@ async function deleteExpense(expenseId: string) {
     const user = await account.get();
 
     // Verify ownership
-    const existingExpense = await db.getRow<Expenses>("app", "expense", expenseId);
+    const existingExpense = await db.getRow<Expenses>(
+      "app",
+      "expense",
+      expenseId
+    );
 
     if (existingExpense.userId !== user.$id) {
       return {
@@ -295,7 +339,8 @@ async function deleteExpense(expenseId: string) {
     console.error("Error deleting expense:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete expense",
+      error:
+        error instanceof Error ? error.message : "Failed to delete expense",
     };
   }
 }

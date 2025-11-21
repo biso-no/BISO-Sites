@@ -2,9 +2,19 @@
 
 import { Locale } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -65,7 +75,12 @@ export function PolicyPagesManager() {
         translations: { [localeEnum]: { title, body } },
       });
       if (updated) toast({ title: "Saved", description: "Page updated" });
-      else toast({ title: "Save failed", description: "Please try again", variant: "destructive" });
+      else
+        toast({
+          title: "Save failed",
+          description: "Please try again",
+          variant: "destructive",
+        });
     });
   };
 
@@ -73,12 +88,19 @@ export function PolicyPagesManager() {
     startTransition(async () => {
       const fromLocaleEnum = activeLocale === "en" ? Locale.EN : Locale.NO;
       const toLocaleEnum = to === "en" ? Locale.EN : Locale.NO;
-      const res = await translateSitePageContent(activePage, fromLocaleEnum, toLocaleEnum);
+      const res = await translateSitePageContent(
+        activePage,
+        fromLocaleEnum,
+        toLocaleEnum
+      );
       if (!res) {
         toast({ title: "Translation failed", variant: "destructive" });
         return;
       }
-      toast({ title: "Translated", description: `Updated ${to.toUpperCase()} content` });
+      toast({
+        title: "Translated",
+        description: `Updated ${to.toUpperCase()} content`,
+      });
       // Switch to target locale and reload fields
       setActiveLocale(to);
       void load(activePage, to);
@@ -104,13 +126,20 @@ export function PolicyPagesManager() {
           ))}
         </div>
 
-        <Tabs value={activeLocale} onValueChange={(v) => handleChangeLocale(v as LocaleString)}>
+        <Tabs
+          value={activeLocale}
+          onValueChange={(v) => handleChangeLocale(v as LocaleString)}
+        >
           <TabsList>
             <TabsTrigger value="no">NO</TabsTrigger>
             <TabsTrigger value="en">EN</TabsTrigger>
           </TabsList>
           <TabsContent value="no" className="space-y-3">
-            <Input placeholder="Tittel" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input
+              placeholder="Tittel"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
             <Textarea
               placeholder="Innhold (HTML eller tekst)"
               value={body}
@@ -119,7 +148,11 @@ export function PolicyPagesManager() {
             />
           </TabsContent>
           <TabsContent value="en" className="space-y-3">
-            <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
             <Textarea
               placeholder="Body (HTML or text)"
               value={body}

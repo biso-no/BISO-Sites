@@ -64,7 +64,8 @@ export function DepartmentsFiltersClient({
     setSelectedType("all");
   };
 
-  const hasActiveFilters = searchQuery || selectedCampus !== "all" || selectedType !== "all";
+  const hasActiveFilters =
+    searchQuery || selectedCampus !== "all" || selectedType !== "all";
 
   return (
     <Card className="p-6 border-0 shadow-xl bg-card relative z-10">
@@ -146,7 +147,12 @@ export function DepartmentsFiltersClient({
               {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}
             </Badge>
           )}
-          <Button variant="ghost" size="sm" onClick={clearAllFilters} className="ml-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearAllFilters}
+            className="ml-auto"
+          >
             Fjern alle
           </Button>
         </div>

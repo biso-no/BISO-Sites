@@ -10,18 +10,24 @@ const resolvePublishedPage = cache(async (slug: string, locale: Locale) => {
   return getPublishedPage({ slug, locale, preview: false });
 });
 
-export async function getPublicPage(slug: string, locale: Locale): Promise<PublishedPage | null> {
+export async function getPublicPage(
+  slug: string,
+  locale: Locale
+): Promise<PublishedPage | null> {
   return resolvePublishedPage(slug, locale);
 }
 
 export async function getPublicPagePreview(
   slug: string,
-  locale: Locale,
+  locale: Locale
 ): Promise<PublishedPage | null> {
   return getPublishedPage({ slug, locale, preview: true });
 }
 
-export async function getDemoPage(slug: string, locale: Locale): Promise<PageTranslations | null> {
+export async function getDemoPage(
+  slug: string,
+  locale: Locale
+): Promise<PageTranslations | null> {
   const { db } = await createSessionClient();
 
   const response = await db.listRows<PageTranslations>({

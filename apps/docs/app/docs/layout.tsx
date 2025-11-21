@@ -15,7 +15,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         title: (
           <>
             {logo}
-            <span className="font-medium in-[.uwu]:hidden in-[header]:text-[15px]">BISO Sites</span>
+            <span className="font-medium in-[.uwu]:hidden in-[header]:text-[15px]">
+              BISO Sites
+            </span>
           </>
         ),
       }}

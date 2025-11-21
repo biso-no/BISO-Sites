@@ -9,7 +9,10 @@ interface RegularArticlesProps {
   showHeader: boolean;
 }
 
-export function RegularArticles({ articles, showHeader }: RegularArticlesProps) {
+export function RegularArticles({
+  articles,
+  showHeader,
+}: RegularArticlesProps) {
   if (!articles || articles.length === 0) return null;
 
   return (
@@ -24,7 +27,9 @@ export function RegularArticles({ articles, showHeader }: RegularArticlesProps) 
           <div className="inline-block px-4 py-2 rounded-full bg-gray-100 text-gray-900 mb-4 text-sm font-medium">
             More News
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Latest Updates</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+            Latest Updates
+          </h2>
         </motion.div>
       )}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">

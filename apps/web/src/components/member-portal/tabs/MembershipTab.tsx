@@ -53,7 +53,9 @@ export function MembershipTab({
             <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               {t("title")}
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">{t("description")}</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              {t("description")}
+            </p>
           </div>
           <Badge className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 px-4 py-2">
             <Check className="w-4 h-4 mr-2" />
@@ -63,7 +65,9 @@ export function MembershipTab({
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <div className="p-6 bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 rounded-lg">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t("currentPlan")}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              {t("currentPlan")}
+            </div>
             <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               {tPricing(currentPlan)}
             </div>
@@ -89,7 +93,9 @@ export function MembershipTab({
           </div>
 
           <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t("autoRenewal")}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              {t("autoRenewal")}
+            </div>
             <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               {isAutoRenewEnabled ? t("enabled") : t("disabled")}
             </div>
@@ -109,7 +115,9 @@ export function MembershipTab({
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           {t("upgradeMembership")}
         </h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{t("upgradeDescription")}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
+          {t("upgradeDescription")}
+        </p>
 
         <div className="grid sm:grid-cols-3 gap-6 mb-6">
           {Object.entries(MEMBERSHIP_PRICES).map(([type, price]) => (
@@ -123,7 +131,9 @@ export function MembershipTab({
             >
               <div className="text-center">
                 {type === currentPlan && (
-                  <Badge className="mb-3 bg-[#3DA9E0] text-white">{t("currentPlanBadge")}</Badge>
+                  <Badge className="mb-3 bg-[#3DA9E0] text-white">
+                    {t("currentPlanBadge")}
+                  </Badge>
                 )}
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   {tPricing(type as MembershipDuration)}
@@ -137,7 +147,10 @@ export function MembershipTab({
                   {type === "three-year" && t("monthlyPrice", { price: 39 })}
                 </div>
                 {type === "three-year" && (
-                  <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
+                  <Badge
+                    variant="outline"
+                    className="border-green-200 text-green-700 bg-green-50"
+                  >
                     {t("savePercent", { percent: 33 })}
                   </Badge>
                 )}
@@ -191,7 +204,9 @@ export function MembershipTab({
   return (
     <TabsContent value="membership" className="space-y-8">
       {!isMember ? (
-        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>{content}</LockedContentOverlay>
+        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
+          {content}
+        </LockedContentOverlay>
       ) : (
         content
       )}

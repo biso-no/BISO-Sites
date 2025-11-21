@@ -23,7 +23,11 @@ export interface TeamGridProps {
   variant?: "card" | "minimal" | "circle";
 }
 
-export function TeamGrid({ members = [], columns = 3, variant = "card" }: TeamGridProps) {
+export function TeamGrid({
+  members = [],
+  columns = 3,
+  variant = "card",
+}: TeamGridProps) {
   const gridCols = {
     2: "sm:grid-cols-2",
     3: "sm:grid-cols-2 lg:grid-cols-3",
@@ -48,12 +52,16 @@ export function TeamGrid({ members = [], columns = 3, variant = "card" }: TeamGr
                     className="object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-1">{member.name}</h3>
+                <h3 className="text-xl font-bold text-foreground mb-1">
+                  {member.name}
+                </h3>
                 <p className="text-sm font-medium text-primary/80 mb-3 uppercase tracking-wide">
                   {member.role}
                 </p>
                 {member.bio && (
-                  <p className="text-muted-foreground text-sm mb-4 line-clamp-3">{member.bio}</p>
+                  <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+                    {member.bio}
+                  </p>
                 )}
                 <div className="flex gap-2 mt-auto">
                   {member.email && (
@@ -75,7 +83,11 @@ export function TeamGrid({ members = [], columns = 3, variant = "card" }: TeamGr
                       asChild
                       className="h-8 w-8 rounded-full hover:bg-[#0077b5]/10 hover:text-[#0077b5]"
                     >
-                      <Link href={member.linkedin} target="_blank" rel="noopener noreferrer">
+                      <Link
+                        href={member.linkedin}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         <Linkedin className="w-4 h-4" />
                       </Link>
                     </Button>
@@ -87,7 +99,10 @@ export function TeamGrid({ members = [], columns = 3, variant = "card" }: TeamGr
 
           // Minimal variant
           return (
-            <div key={index} className="flex flex-col items-center text-center group">
+            <div
+              key={index}
+              className="flex flex-col items-center text-center group"
+            >
               <div className="relative w-40 h-40 mb-4 rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300">
                 <ImageWithFallback
                   src={member.image}

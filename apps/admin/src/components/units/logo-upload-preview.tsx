@@ -22,7 +22,11 @@ interface LogoUploadPreviewProps {
   departmentName: string;
 }
 
-export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUploadPreviewProps) {
+export function LogoUploadPreview({
+  logoUrl,
+  onChange,
+  departmentName,
+}: LogoUploadPreviewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
@@ -103,7 +107,12 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
             </div>
           ) : logoUrl ? (
             <>
-              <Image src={logoUrl} alt={departmentName} fill className="object-cover" />
+              <Image
+                src={logoUrl}
+                alt={departmentName}
+                fill
+                className="object-cover"
+              />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex items-center justify-center gap-2">
                 <Button
                   size="sm"
@@ -129,7 +138,9 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
           ) : (
             <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
               <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20">
-                <span className="text-3xl font-bold text-primary">{initials}</span>
+                <span className="text-3xl font-bold text-primary">
+                  {initials}
+                </span>
               </div>
               <p className="text-sm text-muted-foreground">No logo uploaded</p>
               <div className="flex gap-2">
@@ -173,7 +184,12 @@ export function LogoUploadPreview({ logoUrl, onChange, departmentName }: LogoUpl
               />
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleUrlSave} className="flex-1" disabled={!urlInput}>
+              <Button
+                size="sm"
+                onClick={handleUrlSave}
+                className="flex-1"
+                disabled={!urlInput}
+              >
                 Save URL
               </Button>
               <Button

@@ -3,7 +3,11 @@
 import { Button } from "@repo/ui/components/ui/button";
 import { Calendar } from "@repo/ui/components/ui/calendar";
 import { Label } from "@repo/ui/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@repo/ui/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@repo/ui/components/ui/popover";
 import { File } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
@@ -33,9 +37,11 @@ export function OrderExportPopover() {
   const t = useTranslations("adminShop");
   const defaultPreset = PRESETS[1];
   const [open, setOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string>(defaultPreset.id);
+  const [selectedPreset, setSelectedPreset] = useState<string>(
+    defaultPreset.id
+  );
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
-    createPresetRange(defaultPreset.days),
+    createPresetRange(defaultPreset.days)
   );
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -100,14 +106,23 @@ export function OrderExportPopover() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="outline" className="h-7 gap-1 text-sm" disabled={isPending}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 gap-1 text-sm"
+          disabled={isPending}
+        >
           <File className="h-3.5 w-3.5" />
-          <span className="sr-only sm:not-sr-only">{t("orders.exportDialog.buttonLabel")}</span>
+          <span className="sr-only sm:not-sr-only">
+            {t("orders.exportDialog.buttonLabel")}
+          </span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 space-y-4" align="end">
         <div>
-          <p className="text-sm font-medium">{t("orders.exportDialog.quickRangesTitle")}</p>
+          <p className="text-sm font-medium">
+            {t("orders.exportDialog.quickRangesTitle")}
+          </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {PRESETS.map((preset) => (
               <Button
@@ -145,7 +160,9 @@ export function OrderExportPopover() {
           disabled={isPending || !canExport}
           className="w-full"
         >
-          {isPending ? t("orders.exportDialog.exporting") : t("orders.exportDialog.exportCsv")}
+          {isPending
+            ? t("orders.exportDialog.exporting")
+            : t("orders.exportDialog.exportCsv")}
         </Button>
         {message && <p className="text-xs text-muted-foreground">{message}</p>}
       </PopoverContent>

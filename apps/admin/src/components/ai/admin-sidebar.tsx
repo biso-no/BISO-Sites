@@ -18,7 +18,9 @@ export function AssistantSidebar({
       <m.aside
         initial={false}
         animate={
-          docked ? { x: 0, opacity: open ? 1 : 0 } : { x: open ? 0 : 384, opacity: open ? 1 : 0 }
+          docked
+            ? { x: 0, opacity: open ? 1 : 0 }
+            : { x: open ? 0 : 384, opacity: open ? 1 : 0 }
         }
         transition={{ type: "spring", stiffness: 240, damping: 28 }}
         className={

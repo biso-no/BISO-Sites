@@ -1,6 +1,10 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import { Card } from "@repo/ui/components/ui/card";
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import Link from "next/link";
@@ -60,7 +64,9 @@ export function MemberPortalHeader({
 
           <div className="hidden md:flex items-center gap-4">
             <Card className="px-6 py-3 bg-white/10 backdrop-blur-sm border-white/20">
-              <div className="text-white/70 text-sm mb-1">{t("common.membershipExpires")}</div>
+              <div className="text-white/70 text-sm mb-1">
+                {t("common.membershipExpires")}
+              </div>
               <div className="text-white flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 {new Date(membershipExpiry).toLocaleDateString("en-US", {
@@ -71,7 +77,9 @@ export function MemberPortalHeader({
               </div>
             </Card>
             <Card className="px-6 py-3 bg-white/10 backdrop-blur-sm border-white/20">
-              <div className="text-white/70 text-sm mb-1">{t("common.daysRemaining")}</div>
+              <div className="text-white/70 text-sm mb-1">
+                {t("common.daysRemaining")}
+              </div>
               <div className="text-white flex items-center gap-2">
                 <Clock className="w-4 h-4" />
                 {t("overview.daysRemaining", { days: daysRemaining })}

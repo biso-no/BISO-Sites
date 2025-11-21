@@ -171,13 +171,19 @@ export function JoinUs({
               )}
               <Card
                 className={`p-8 border-0 shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col ${
-                  duration.popular ? "ring-2 ring-purple-600 transform scale-105" : ""
+                  duration.popular
+                    ? "ring-2 ring-purple-600 transform scale-105"
+                    : ""
                 }`}
               >
                 <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold mb-4 text-gray-900">{duration.name}</h3>
+                  <h3 className="text-2xl font-bold mb-4 text-gray-900">
+                    {duration.name}
+                  </h3>
                   <div className="mb-2">
-                    <span className="text-4xl font-bold text-gray-900">{duration.price}</span>
+                    <span className="text-4xl font-bold text-gray-900">
+                      {duration.price}
+                    </span>
                   </div>
                   <p className="text-gray-600">{duration.period}</p>
                   {duration.savings && (
@@ -208,8 +214,13 @@ export function JoinUs({
         >
           <Card className="p-12 border-0 shadow-2xl bg-linear-to-br from-blue-600 to-primary-80 text-white">
             <h3 className="mb-4 text-white">{cta.title}</h3>
-            <p className="mb-8 text-white/90 max-w-2xl mx-auto">{cta.subtitle}</p>
-            <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 border-0">
+            <p className="mb-8 text-white/90 max-w-2xl mx-auto">
+              {cta.subtitle}
+            </p>
+            <Button
+              size="lg"
+              className="bg-white text-purple-600 hover:bg-gray-100 border-0"
+            >
               {cta.buttonText}
             </Button>
           </Card>

@@ -12,7 +12,9 @@ export interface DocumentViewerUrlOptions {
  * @param options - Options for generating the URL
  * @returns The full URL to the document viewer page
  */
-export function getDocumentViewerUrl(options: DocumentViewerUrlOptions): string {
+export function getDocumentViewerUrl(
+  options: DocumentViewerUrlOptions
+): string {
   const { fileName, baseUrl = "" } = options;
 
   // URL encode the fileName to handle spaces and special characters
@@ -25,7 +27,8 @@ export function getDocumentViewerUrl(options: DocumentViewerUrlOptions): string 
 
   // For server-side usage, try to get the base URL from environment
   if (typeof window === "undefined") {
-    const envBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
+    const envBaseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
     if (envBaseUrl) {
       return `${envBaseUrl}/document/${encodedFileName}`;
     }
@@ -96,12 +99,15 @@ function getDocumentTypeName(contentType: string): string {
   const lowerType = contentType.toLowerCase();
 
   if (lowerType.includes("pdf")) return "PDF Document";
-  if (lowerType.includes("word") || lowerType.includes("document")) return "Word Document";
-  if (lowerType.includes("excel") || lowerType.includes("spreadsheet")) return "Excel Spreadsheet";
+  if (lowerType.includes("word") || lowerType.includes("document"))
+    return "Word Document";
+  if (lowerType.includes("excel") || lowerType.includes("spreadsheet"))
+    return "Excel Spreadsheet";
   if (lowerType.includes("powerpoint") || lowerType.includes("presentation"))
     return "PowerPoint Presentation";
   if (lowerType.includes("image")) {
-    if (lowerType.includes("jpeg") || lowerType.includes("jpg")) return "JPEG Image";
+    if (lowerType.includes("jpeg") || lowerType.includes("jpg"))
+      return "JPEG Image";
     if (lowerType.includes("png")) return "PNG Image";
     if (lowerType.includes("gif")) return "GIF Image";
     if (lowerType.includes("svg")) return "SVG Image";
@@ -114,7 +120,8 @@ function getDocumentTypeName(contentType: string): string {
   }
   if (lowerType.includes("video")) return "Video File";
   if (lowerType.includes("audio")) return "Audio File";
-  if (lowerType.includes("zip") || lowerType.includes("compressed")) return "Archive File";
+  if (lowerType.includes("zip") || lowerType.includes("compressed"))
+    return "Archive File";
 
   return "Document";
 }
@@ -152,7 +159,8 @@ function formatDocumentMetadata(metadata: Record<string, any>) {
     createdBy: metadata.createdBy || "Unknown",
     webUrl: metadata.webUrl,
     viewerUrl: getDocumentViewerUrl({
-      fileName: metadata.fileName || metadata.documentName || "Unknown Document",
+      fileName:
+        metadata.fileName || metadata.documentName || "Unknown Document",
     }),
   };
 }

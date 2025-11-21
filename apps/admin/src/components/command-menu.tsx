@@ -182,7 +182,7 @@ export function CommandMenu() {
         keywords: t("commandKeywords.settings").split(" "),
       },
     ],
-    [router, t],
+    [router, t]
   );
 
   const groupedCommands = React.useMemo(() => {
@@ -199,7 +199,10 @@ export function CommandMenu() {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="relative w-full max-w-sm">
+      <button
+        onClick={() => setOpen(true)}
+        className="relative w-full max-w-sm"
+      >
         <div className="relative">
           <input
             type="text"
@@ -218,27 +221,31 @@ export function CommandMenu() {
         <CommandInput placeholder={t("commandMenuSearchPlaceholder")} />
         <CommandList>
           <CommandEmpty>{t("commandMenuNoResults")}</CommandEmpty>
-          {Array.from(groupedCommands.entries()).map(([group, items], index) => (
-            <React.Fragment key={group}>
-              {index > 0 && <CommandSeparator />}
-              <CommandGroup heading={group}>
-                {items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <CommandItem
-                      key={item.id}
-                      value={`${item.label} ${item.keywords?.join(" ") || ""}`}
-                      onSelect={() => runCommand(item.action)}
-                    >
-                      <Icon className="mr-2 h-4 w-4" />
-                      <span>{item.label}</span>
-                      {item.shortcut && <CommandShortcut>{item.shortcut}</CommandShortcut>}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </React.Fragment>
-          ))}
+          {Array.from(groupedCommands.entries()).map(
+            ([group, items], index) => (
+              <React.Fragment key={group}>
+                {index > 0 && <CommandSeparator />}
+                <CommandGroup heading={group}>
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <CommandItem
+                        key={item.id}
+                        value={`${item.label} ${item.keywords?.join(" ") || ""}`}
+                        onSelect={() => runCommand(item.action)}
+                      >
+                        <Icon className="mr-2 h-4 w-4" />
+                        <span>{item.label}</span>
+                        {item.shortcut && (
+                          <CommandShortcut>{item.shortcut}</CommandShortcut>
+                        )}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              </React.Fragment>
+            )
+          )}
         </CommandList>
       </CommandDialog>
     </>

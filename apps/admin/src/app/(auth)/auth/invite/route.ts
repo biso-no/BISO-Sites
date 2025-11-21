@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
-const NEXT_PUBLIC_APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT;
+const NEXT_PUBLIC_APPWRITE_ENDPOINT =
+  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const PROJECT_ID = "biso";
 const API_KEY = process.env.NEXT_PUBLIC_APPWRITE_API_KEY;
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
           userId,
           secret,
         }),
-      },
+      }
     );
 
     if (!response.ok) {
@@ -54,7 +55,9 @@ export async function GET(request: NextRequest) {
 
     if (setCookieHeader) {
       // Parse and set the cookies from Set-Cookie header
-      const cookiesList = setCookieHeader.split(",").map((cookie) => cookie.trim());
+      const cookiesList = setCookieHeader
+        .split(",")
+        .map((cookie) => cookie.trim());
       for (const cookieStr of cookiesList) {
         // Extract the cookie name and value
         const [cookiePart] = cookieStr.split(";");
@@ -93,6 +96,8 @@ export async function GET(request: NextRequest) {
     return redirectResponse;
   } catch (error) {
     console.error("Error handling team invitation:", error);
-    return NextResponse.redirect(new URL("/auth/login?error=unexpected_error", origin));
+    return NextResponse.redirect(
+      new URL("/auth/login?error=unexpected_error", origin)
+    );
   }
 }

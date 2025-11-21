@@ -6,7 +6,10 @@ import { DepartmentSkeleton } from "@/components/units/department-skeleton";
 import { DepartmentStats } from "@/components/units/department-stats";
 import { DepartmentsInfiniteList } from "@/components/units/departments-infinite-list";
 import { UnitsHeroSection } from "@/components/units/units-hero-section";
-import { getDepartmentsClient, getDepartmentTypes } from "@/lib/actions/departments";
+import {
+  getDepartmentsClient,
+  getDepartmentTypes,
+} from "@/lib/actions/departments";
 import type { FilterState } from "@/lib/hooks/use-departments-filter";
 
 export const revalidate = 0;
@@ -28,7 +31,12 @@ export default async function UnitsPage({ searchParams }: PageProps) {
 
   // Prepare filter values from search params
   const filters: FilterState = {
-    active: params.active === "false" ? false : params.active === "true" ? true : undefined,
+    active:
+      params.active === "false"
+        ? false
+        : params.active === "true"
+          ? true
+          : undefined,
     campus_id: params.campus_id,
     type: params.type,
     searchTerm: params.search,
@@ -54,7 +62,10 @@ export default async function UnitsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-8">
       {/* Premium Hero Section */}
-      <UnitsHeroSection totalDepartments={departments.length} campusOptions={campusOptions} />
+      <UnitsHeroSection
+        totalDepartments={departments.length}
+        campusOptions={campusOptions}
+      />
 
       {/* Stats cards */}
       <Suspense fallback={<div>Loading stats...</div>}>
@@ -64,13 +75,18 @@ export default async function UnitsPage({ searchParams }: PageProps) {
       <div className="space-y-6">
         {/* Actions and Filters Row */}
         <div className="flex flex-col md:flex-row justify-between gap-4">
-          <DepartmentFiltersWrapper filters={filters} campuses={campusOptions} types={types} />
+          <DepartmentFiltersWrapper
+            filters={filters}
+            campuses={campusOptions}
+            types={types}
+          />
           <DepartmentActionsHeader campuses={campusOptions} types={types} />
         </div>
 
         {/* Results count */}
         <div className="text-sm text-muted-foreground">
-          Showing {departments.length} department{departments.length !== 1 ? "s" : ""}
+          Showing {departments.length} department
+          {departments.length !== 1 ? "s" : ""}
           {hasMore && " (scroll for more)"}
         </div>
 

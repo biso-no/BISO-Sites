@@ -33,8 +33,8 @@ export function EventsHero() {
               </span>
             </h1>
             <p className="text-white/90 text-lg max-w-2xl mx-auto">
-              From networking events to social gatherings, find the perfect opportunity to connect,
-              learn, and create unforgettable memories.
+              From networking events to social gatherings, find the perfect
+              opportunity to connect, learn, and create unforgettable memories.
             </p>
           </motion.div>
         </div>

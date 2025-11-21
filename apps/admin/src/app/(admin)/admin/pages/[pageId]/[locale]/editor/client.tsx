@@ -1,10 +1,18 @@
 "use client";
 
-import type { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import type {
+  Locale,
+  PageStatus,
+  PageVisibility,
+} from "@repo/api/types/appwrite";
 import { type Data, PageEditor } from "@repo/editor";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ensureTranslation, publishPage, savePageDraft } from "@/app/actions/pages";
+import {
+  ensureTranslation,
+  publishPage,
+  savePageDraft,
+} from "@/app/actions/pages";
 
 interface EditorClientProps {
   pageId: string;
@@ -33,7 +41,10 @@ export function EditorClient({
 }: EditorClientProps) {
   const router = useRouter();
 
-  const handleSave = async (data: Data, metadata: { title: string; slug: string }) => {
+  const handleSave = async (
+    data: Data,
+    metadata: { title: string; slug: string }
+  ) => {
     await savePageDraft({
       translationId,
       draftDocument: data,
@@ -42,7 +53,10 @@ export function EditorClient({
     });
   };
 
-  const handlePublish = async (data: Data, metadata: { title: string; slug: string }) => {
+  const handlePublish = async (
+    data: Data,
+    metadata: { title: string; slug: string }
+  ) => {
     await publishPage({
       translationId,
       document: data,
@@ -53,11 +67,13 @@ export function EditorClient({
 
   const handleLocaleChange = async (
     newLocale: Locale,
-    context: { title: string; slug: string },
+    context: { title: string; slug: string }
   ) => {
     if (newLocale === locale) return;
 
-    const existingTranslation = pageTranslations.find((t) => t.locale === newLocale);
+    const existingTranslation = pageTranslations.find(
+      (t) => t.locale === newLocale
+    );
 
     if (existingTranslation) {
       router.push(`/admin/pages/${pageId}/${newLocale}/editor`);

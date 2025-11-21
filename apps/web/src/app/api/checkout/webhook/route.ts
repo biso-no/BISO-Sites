@@ -11,14 +11,15 @@ import { NextResponse } from "next/server";
  */
 export async function POST() {
   console.warn(
-    "[Deprecated] /api/checkout/webhook is deprecated. Use /api/payment/vipps/callback instead.",
+    "[Deprecated] /api/checkout/webhook is deprecated. Use /api/payment/vipps/callback instead."
   );
 
   return NextResponse.json(
     {
       ok: false,
-      message: "This endpoint is deprecated. Please use /api/payment/vipps/callback",
+      message:
+        "This endpoint is deprecated. Please use /api/payment/vipps/callback",
     },
-    { status: 410 }, // Gone
+    { status: 410 } // Gone
   );
 }

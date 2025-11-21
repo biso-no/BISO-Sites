@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating anonymous session:", error);
     return NextResponse.json(
       { success: false, error: "Failed to create anonymous session" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

@@ -49,7 +49,7 @@ export default function useDepartmentsFilter() {
 
       return () => clearTimeout(timeoutId);
     },
-    [updateFilter],
+    [updateFilter]
   );
 
   return {

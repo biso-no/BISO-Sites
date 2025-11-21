@@ -40,7 +40,10 @@ function DepartmentDetailsSkeleton() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-6 py-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-10 w-32 bg-muted animate-pulse rounded-md" />
+              <div
+                key={i}
+                className="h-10 w-32 bg-muted animate-pulse rounded-md"
+              />
             ))}
           </div>
         </div>
@@ -61,7 +64,11 @@ function DepartmentDetailsSkeleton() {
   );
 }
 
-export default async function DepartmentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DepartmentPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
   return (

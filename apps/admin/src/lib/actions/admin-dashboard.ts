@@ -35,18 +35,32 @@ type PageViewMetric = { name: string; views: number };
 type UserDistributionMetric = { name: string; value: number };
 type UserGrowthMetric = { date: string; users: number };
 type TrafficSourceMetric = { name: string; value: number };
-type RecentActivityMetric = { id: number; user: string; action: string; timestamp: string };
+type RecentActivityMetric = {
+  id: number;
+  user: string;
+  action: string;
+  timestamp: string;
+};
 type SystemAlertMetric = {
   id: number;
   type: "error" | "warning" | "info" | "success";
   message: string;
   timestamp: string;
 };
-type PostEngagementMetric = { name: string; likes: number; comments: number; shares: number };
+type PostEngagementMetric = {
+  name: string;
+  likes: number;
+  comments: number;
+  shares: number;
+};
 type AudienceGrowthMetric = { date: string; followers: number };
 type RevenueMetric = { name: string; revenue: number };
 type ExpenseCategoryMetric = { category: string; amount: number };
-type JobApplicationMetric = { position: string; applications: number; openPositions: number };
+type JobApplicationMetric = {
+  position: string;
+  applications: number;
+  openPositions: number;
+};
 type EmployeeDistributionMetric = { name: string; value: number };
 
 export type DashboardMetrics = {
@@ -102,7 +116,7 @@ function getDateCutoff(dateRange: DateRangeFilter): Date | null {
 }
 
 export async function getDashboardMetrics(
-  dateRange: DateRangeFilter = "30d",
+  dateRange: DateRangeFilter = "30d"
 ): Promise<DashboardMetrics> {
   const { db } = await createAdminClient();
   const dateCutoff = getDateCutoff(dateRange);
@@ -126,28 +140,37 @@ export async function getDashboardMetrics(
     safeFetch("total users count", () => getCount(db, USERS_TABLE)),
     safeFetch("total page views count", () => getCount(db, PAGE_VIEWS_TABLE)),
     safeFetch("total orders count", () =>
-      getCount(db, ORDERS_TABLE, [Query.equal("status", COMPLETED_ORDER_STATUSES)]),
+      getCount(db, ORDERS_TABLE, [
+        Query.equal("status", COMPLETED_ORDER_STATUSES),
+      ])
     ),
-    safeFetch("total job applications count", () => getCount(db, JOB_APPLICATIONS_TABLE)),
+    safeFetch("total job applications count", () =>
+      getCount(db, JOB_APPLICATIONS_TABLE)
+    ),
     // Detailed data for analysis (limited to recent data and date range)
     safeFetch("page views", () =>
       fetchRows<PageViewEvents>(
         db,
         PAGE_VIEWS_TABLE,
         [
-          ...(dateCutoff ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())] : []),
+          ...(dateCutoff
+            ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())]
+            : []),
           Query.orderDesc("$createdAt"),
         ],
-        { maxRows: 2000 },
-      ),
+        { maxRows: 2000 }
+      )
     ),
     safeFetch("users", () =>
       fetchRows<Users>(
         db,
         USERS_TABLE,
-        [Query.select(["$id", "$createdAt", "isActive", "roles"]), Query.orderDesc("$createdAt")],
-        { maxRows: 1000 },
-      ),
+        [
+          Query.select(["$id", "$createdAt", "isActive", "roles"]),
+          Query.orderDesc("$createdAt"),
+        ],
+        { maxRows: 1000 }
+      )
     ),
     safeFetch("orders", () =>
       fetchRows<Orders>(
@@ -156,23 +179,33 @@ export async function getDashboardMetrics(
         [
           Query.select(["$id", "$createdAt", "status", "items_json"]),
           Query.equal("status", COMPLETED_ORDER_STATUSES),
-          ...(dateCutoff ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())] : []),
+          ...(dateCutoff
+            ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())]
+            : []),
           Query.orderDesc("$createdAt"),
         ],
-        { maxRows: 500 },
-      ),
+        { maxRows: 500 }
+      )
     ),
     safeFetch("expenses", () =>
       fetchRows<Expenses>(
         db,
         EXPENSES_TABLE,
         [
-          Query.select(["$id", "$createdAt", "total", "department", "departmentRel.Name"]),
-          ...(dateCutoff ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())] : []),
+          Query.select([
+            "$id",
+            "$createdAt",
+            "total",
+            "department",
+            "departmentRel.Name",
+          ]),
+          ...(dateCutoff
+            ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())]
+            : []),
           Query.orderDesc("$createdAt"),
         ],
-        { maxRows: 500 },
-      ),
+        { maxRows: 500 }
+      )
     ),
     safeFetch("job applications", () =>
       fetchRows<JobApplications>(
@@ -180,19 +213,24 @@ export async function getDashboardMetrics(
         JOB_APPLICATIONS_TABLE,
         [
           Query.select(["$id", "$createdAt", "job_id", "status"]),
-          ...(dateCutoff ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())] : []),
+          ...(dateCutoff
+            ? [Query.greaterThan("$createdAt", dateCutoff.toISOString())]
+            : []),
           Query.orderDesc("$createdAt"),
         ],
-        { maxRows: 500 },
-      ),
+        { maxRows: 500 }
+      )
     ),
     safeFetch("departments", () =>
       fetchRows<Departments>(
         db,
         DEPARTMENTS_TABLE,
-        [Query.select(["$id", "Name", "users.$id", "active"]), Query.equal("active", true)],
-        { maxRows: 200 },
-      ),
+        [
+          Query.select(["$id", "Name", "users.$id", "active"]),
+          Query.equal("active", true),
+        ],
+        { maxRows: 200 }
+      )
     ),
     safeFetch("notices", () =>
       fetchRows<AppNotices>(
@@ -211,25 +249,31 @@ export async function getDashboardMetrics(
           Query.equal("isActive", true),
           Query.orderDesc("priority"),
         ],
-        { maxRows: 20 },
-      ),
+        { maxRows: 20 }
+      )
     ),
     safeFetch("audit logs", () =>
       fetchRows<AuditLogs>(
         db,
         AUDIT_LOGS_TABLE,
         [
-          Query.select(["$id", "$createdAt", "action", "actor_email", "resource_type"]),
+          Query.select([
+            "$id",
+            "$createdAt",
+            "action",
+            "actor_email",
+            "resource_type",
+          ]),
           Query.orderDesc("$createdAt"),
         ],
-        { maxRows: 25 },
-      ),
+        { maxRows: 25 }
+      )
     ),
   ]);
 
   const recentPageViews = filterByDate(pageViewEvents, PAGE_VIEW_LOOKBACK_DAYS);
   const uniqueJobIds = Array.from(
-    new Set(jobApplications.map((app) => app.job_id).filter(Boolean)),
+    new Set(jobApplications.map((app) => app.job_id).filter(Boolean))
   );
 
   const [jobs, jobTranslations] = await Promise.all([
@@ -238,9 +282,12 @@ export async function getDashboardMetrics(
           fetchRows<Jobs>(
             db,
             JOBS_TABLE,
-            [Query.select(["$id", "slug", "status", "metadata"]), Query.equal("$id", uniqueJobIds)],
-            { maxRows: uniqueJobIds.length },
-          ),
+            [
+              Query.select(["$id", "slug", "status", "metadata"]),
+              Query.equal("$id", uniqueJobIds),
+            ],
+            { maxRows: uniqueJobIds.length }
+          )
         )
       : Promise.resolve([] as Jobs[]),
     uniqueJobIds.length
@@ -253,8 +300,8 @@ export async function getDashboardMetrics(
               Query.equal("content_id", uniqueJobIds),
               Query.equal("content_type", "job"),
             ],
-            { maxRows: uniqueJobIds.length * 2 },
-          ),
+            { maxRows: uniqueJobIds.length * 2 }
+          )
         )
       : Promise.resolve([] as ContentTranslations[]),
   ]);
@@ -279,7 +326,11 @@ export async function getDashboardMetrics(
     audienceGrowth: buildAudienceGrowth(recentPageViews),
     revenueByProduct: buildRevenueByProduct(orders),
     expenseCategories: buildExpenseCategories(expenses),
-    jobApplications: buildJobApplicationMetrics(jobApplications, jobTitleMap, jobMetadataMap),
+    jobApplications: buildJobApplicationMetrics(
+      jobApplications,
+      jobTitleMap,
+      jobMetadataMap
+    ),
     employeeDistribution: buildEmployeeDistribution(departments),
   };
 }
@@ -298,7 +349,7 @@ async function fetchRows<T extends Models.Row>(
   db: DbClient,
   table: string,
   baseQueries: string[] = [],
-  options: { batchSize?: number; maxRows?: number } = {},
+  options: { batchSize?: number; maxRows?: number } = {}
 ): Promise<T[]> {
   const rows: T[] = [];
   let cursor: string | null = null;
@@ -349,7 +400,7 @@ function filterByDate<T extends Models.Row>(rows: T[], days: number): T[] {
 async function getCount(
   db: DbClient,
   table: string,
-  additionalQueries: string[] = [],
+  additionalQueries: string[] = []
 ): Promise<number> {
   try {
     const queries = [
@@ -495,7 +546,9 @@ function buildAudienceGrowth(events: PageViewEvents[]): AudienceGrowthMetric[] {
   const monthSet: string[] = [];
   const now = new Date();
   for (let i = MONTHS_TO_TRACK - 1; i >= 0; i--) {
-    monthSet.push(formatMonth(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+    monthSet.push(
+      formatMonth(new Date(now.getFullYear(), now.getMonth() - i, 1))
+    );
   }
   const monthLookup = new Set(monthSet);
   const visitorBuckets = new Map<string, Set<string>>();
@@ -530,8 +583,10 @@ function buildRevenueByProduct(orders: Orders[]): RevenueMetric[] {
   orders.forEach((order) => {
     const items = parseOrderItems(order.items_json);
     items.forEach((item) => {
-      const name = item.title || item.product_slug || item.product_id || "Product";
-      const amount = (Number(item.unit_price) || 0) * (Number(item.quantity) || 0);
+      const name =
+        item.title || item.product_slug || item.product_id || "Product";
+      const amount =
+        (Number(item.unit_price) || 0) * (Number(item.quantity) || 0);
       if (!amount) {
         return;
       }
@@ -548,7 +603,8 @@ function buildRevenueByProduct(orders: Orders[]): RevenueMetric[] {
 function buildExpenseCategories(expenses: Expenses[]): ExpenseCategoryMetric[] {
   const totals = new Map<string, number>();
   expenses.forEach((expense) => {
-    const category = expense.departmentRel?.Name || expense.department || "General";
+    const category =
+      expense.departmentRel?.Name || expense.department || "General";
     const amount = Number(expense.total) || 0;
     if (!amount) {
       return;
@@ -565,7 +621,7 @@ function buildExpenseCategories(expenses: Expenses[]): ExpenseCategoryMetric[] {
 function buildJobApplicationMetrics(
   applications: JobApplications[],
   jobTitleMap: Map<string, string>,
-  jobMetadataMap: Map<string, JobMetadata>,
+  jobMetadataMap: Map<string, JobMetadata>
 ): JobApplicationMetric[] {
   const counts = new Map<string, number>();
   applications.forEach((application) => {
@@ -593,7 +649,9 @@ function buildJobApplicationMetrics(
     .sort((a, b) => b.applications - a.applications);
 }
 
-function buildEmployeeDistribution(departments: Departments[]): EmployeeDistributionMetric[] {
+function buildEmployeeDistribution(
+  departments: Departments[]
+): EmployeeDistributionMetric[] {
   return departments
     .map((department) => ({
       name: department.Name || "Department",
@@ -603,7 +661,9 @@ function buildEmployeeDistribution(departments: Departments[]): EmployeeDistribu
     .sort((a, b) => b.value - a.value);
 }
 
-function buildJobTitleMap(translations: ContentTranslations[]): Map<string, string> {
+function buildJobTitleMap(
+  translations: ContentTranslations[]
+): Map<string, string> {
   const map = new Map<string, string>();
   translations.forEach((translation) => {
     if (!translation.content_id) {
@@ -648,7 +708,7 @@ function parseOrderItems(payload?: string | null): ParsedOrderItem[] {
     const parsed = JSON.parse(payload);
     if (Array.isArray(parsed)) {
       return parsed.filter(
-        (item) => typeof item === "object" && item !== null,
+        (item) => typeof item === "object" && item !== null
       ) as ParsedOrderItem[];
     }
   } catch (error) {
@@ -723,7 +783,11 @@ function resolveAlertType(color?: string | null): SystemAlertMetric["type"] {
     return "info";
   }
   const normalized = color.toLowerCase();
-  if (normalized.includes("red") || normalized.includes("error") || normalized.includes("danger")) {
+  if (
+    normalized.includes("red") ||
+    normalized.includes("error") ||
+    normalized.includes("danger")
+  ) {
     return "error";
   }
   if (
@@ -758,7 +822,10 @@ function resolveTrafficSource(referrer?: string | null): string {
     if (/facebook|instagram|linkedin|twitter|tiktok|snapchat/.test(host)) {
       return "Social Media";
     }
-    if (referrer.includes("utm_medium=paid") || referrer.includes("utm_source=ads")) {
+    if (
+      referrer.includes("utm_medium=paid") ||
+      referrer.includes("utm_source=ads")
+    ) {
       return "Paid Search";
     }
     return "Referral";

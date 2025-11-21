@@ -88,7 +88,11 @@ export function ProfileStep({
 
           <div>
             <Label>Email</Label>
-            <Input value={profile.email || ""} disabled className="bg-gray-50" />
+            <Input
+              value={profile.email || ""}
+              disabled
+              className="bg-gray-50"
+            />
             <p className="text-xs text-gray-500 mt-1">Cannot be edited</p>
           </div>
 
@@ -97,11 +101,15 @@ export function ProfileStep({
             {editing || !canProceed ? (
               <Input
                 value={profile.phone || ""}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, phone: e.target.value })
+                }
                 placeholder="+47 123 45 678"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.phone}</div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
+                {profile.phone}
+              </div>
             )}
           </div>
 
@@ -110,11 +118,15 @@ export function ProfileStep({
             {editing || !canProceed ? (
               <Input
                 value={profile.address || ""}
-                onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, address: e.target.value })
+                }
                 placeholder="Street name and number"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.address}</div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
+                {profile.address}
+              </div>
             )}
           </div>
 
@@ -123,11 +135,15 @@ export function ProfileStep({
             {editing || !canProceed ? (
               <Input
                 value={profile.zip || ""}
-                onChange={(e) => setProfile({ ...profile, zip: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, zip: e.target.value })
+                }
                 placeholder="0123"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.zip}</div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
+                {profile.zip}
+              </div>
             )}
           </div>
 
@@ -136,11 +152,15 @@ export function ProfileStep({
             {editing || !canProceed ? (
               <Input
                 value={profile.city || ""}
-                onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, city: e.target.value })
+                }
                 placeholder="Oslo"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.city}</div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
+                {profile.city}
+              </div>
             )}
           </div>
         </div>
@@ -155,18 +175,30 @@ export function ProfileStep({
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div className={isIBAN(profile.bank_account || "") ? "md:col-span-1" : "md:col-span-2"}>
+          <div
+            className={
+              isIBAN(profile.bank_account || "")
+                ? "md:col-span-1"
+                : "md:col-span-2"
+            }
+          >
             <Label>Bank Account / IBAN *</Label>
             {editing || !canProceed ? (
               <Input
                 value={profile.bank_account || ""}
-                onChange={(e) => setProfile({ ...profile, bank_account: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, bank_account: e.target.value })
+                }
                 placeholder="1234 56 78901 or NO93 8601 1117 947"
               />
             ) : (
-              <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.bank_account}</div>
+              <div className="p-3 bg-gray-50 rounded-md text-gray-700">
+                {profile.bank_account}
+              </div>
             )}
-            <p className="text-xs text-gray-500 mt-1">Norwegian account number or IBAN</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Norwegian account number or IBAN
+            </p>
           </div>
 
           {isIBAN(profile.bank_account || "") && (
@@ -175,13 +207,19 @@ export function ProfileStep({
               {editing || !canProceed ? (
                 <Input
                   value={profile.swift || ""}
-                  onChange={(e) => setProfile({ ...profile, swift: e.target.value })}
+                  onChange={(e) =>
+                    setProfile({ ...profile, swift: e.target.value })
+                  }
                   placeholder="DABANO22"
                 />
               ) : (
-                <div className="p-3 bg-gray-50 rounded-md text-gray-700">{profile.swift}</div>
+                <div className="p-3 bg-gray-50 rounded-md text-gray-700">
+                  {profile.swift}
+                </div>
               )}
-              <p className="text-xs text-gray-500 mt-1">Required for IBAN accounts</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Required for IBAN accounts
+              </p>
             </div>
           )}
         </div>

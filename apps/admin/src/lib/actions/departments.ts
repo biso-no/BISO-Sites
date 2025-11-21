@@ -40,7 +40,7 @@ export async function getDepartments(params: GetDepartmentsParams = {}) {
       "boardMembers.*",
       "socials.*",
       "users.*",
-    ]),
+    ])
   );
 
   // Filtering
@@ -65,13 +65,17 @@ export async function getDepartments(params: GetDepartmentsParams = {}) {
   queries.push(Query.offset(offset));
   queries.push(Query.orderAsc("Name"));
 
-  const departments = await db.listRows<Departments>("app", "departments", queries);
+  const departments = await db.listRows<Departments>(
+    "app",
+    "departments",
+    queries
+  );
   return departments.rows;
 }
 
 // Client-callable version that returns transformed data
 export async function getDepartmentsClient(
-  params: GetDepartmentsParams & { limit?: number; offset?: number } = {},
+  params: GetDepartmentsParams & { limit?: number; offset?: number } = {}
 ) {
   const departments = await getDepartments(params);
 
@@ -79,7 +83,8 @@ export async function getDepartmentsClient(
   const transformedDepartments = departments.map((dept) => {
     // Get English translation as default for display
     const enTranslation =
-      dept.translations?.find((t) => t.locale === "en") || dept.translations?.[0];
+      dept.translations?.find((t) => t.locale === "en") ||
+      dept.translations?.[0];
 
     return {
       ...dept,
@@ -147,7 +152,7 @@ async function updateDepartment(
     type?: string;
     logo?: string;
     campus_id?: string;
-  },
+  }
 ) {
   const { db } = await createSessionClient();
 
@@ -180,19 +185,24 @@ export async function createDepartment(data: {
         title: t.title,
         description: t.description,
         short_description: t.short_description || null,
-      }) as ContentTranslations,
+      }) as ContentTranslations
   );
 
   // Create department with translations
-  const department = await db.createRow<Departments>("app", "departments", "unique()", {
-    Id: data.Id,
-    Name: data.Name,
-    campus_id: data.campus_id,
-    active: data.active ?? true,
-    type: data.type || null,
-    logo: data.logo || null,
-    translation_refs: translationRefs,
-  } as any);
+  const department = await db.createRow<Departments>(
+    "app",
+    "departments",
+    "unique()",
+    {
+      Id: data.Id,
+      Name: data.Name,
+      campus_id: data.campus_id,
+      active: data.active ?? true,
+      type: data.type || null,
+      logo: data.logo || null,
+      translation_refs: translationRefs,
+    } as any
+  );
 
   return department;
 }
@@ -212,7 +222,7 @@ export async function updateDepartmentWithTranslations(
     title: string;
     description: string;
     short_description?: string;
-  }>,
+  }>
 ) {
   const { db } = await createSessionClient();
 
@@ -232,14 +242,19 @@ export async function updateDepartmentWithTranslations(
       });
     } else {
       // Create new translation
-      await db.createRow<ContentTranslations>("app", "content_translations", "unique()", {
-        content_type: ContentType.DEPARTMENT,
-        content_id: departmentId,
-        locale: translation.locale === "en" ? Locale.EN : Locale.NO,
-        title: translation.title,
-        description: translation.description,
-        short_description: translation.short_description || null,
-      } as any);
+      await db.createRow<ContentTranslations>(
+        "app",
+        "content_translations",
+        "unique()",
+        {
+          content_type: ContentType.DEPARTMENT,
+          content_id: departmentId,
+          locale: translation.locale === "en" ? Locale.EN : Locale.NO,
+          title: translation.title,
+          description: translation.description,
+          short_description: translation.short_description || null,
+        } as any
+      );
     }
   }
 }
@@ -258,7 +273,11 @@ export async function uploadDepartmentLogo(formData: FormData) {
   }
 
   const { storage } = await createSessionClient();
-  const uploaded = await storage.createFile(DEPARTMENT_LOGO_BUCKET, "unique()", file);
+  const uploaded = await storage.createFile(
+    DEPARTMENT_LOGO_BUCKET,
+    "unique()",
+    file
+  );
   const url = getStorageFileUrl(DEPARTMENT_LOGO_BUCKET, uploaded.$id);
 
   return { id: uploaded.$id, url };
@@ -274,7 +293,11 @@ export async function uploadDepartmentHero(formData: FormData) {
   }
 
   const { storage } = await createSessionClient();
-  const uploaded = await storage.createFile(DEPARTMENT_HERO_BUCKET, "unique()", file);
+  const uploaded = await storage.createFile(
+    DEPARTMENT_HERO_BUCKET,
+    "unique()",
+    file
+  );
   const url = getStorageFileUrl(DEPARTMENT_HERO_BUCKET, uploaded.$id);
 
   return { id: uploaded.$id, url };

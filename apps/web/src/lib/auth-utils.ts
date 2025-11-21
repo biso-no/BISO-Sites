@@ -11,7 +11,8 @@ async function isAuthenticatedUser(): Promise<boolean> {
     // In Appwrite, anonymous users have no email and their name is typically empty or a generated ID
     // We can check if the user has an email or if they have a proper name (not just an ID)
     const hasEmail = user.email && user.email.length > 0;
-    const hasRealName = user.name && user.name.length > 0 && !user.name.startsWith("guest_");
+    const hasRealName =
+      user.name && user.name.length > 0 && !user.name.startsWith("guest_");
 
     // Additional check: anonymous users typically don't have verified emails
     const isEmailVerified = user.emailVerification;
@@ -57,7 +58,8 @@ export async function getAuthStatus(): Promise<{
     }
 
     const hasEmail = user.email && user.email.length > 0;
-    const hasRealName = user.name && user.name.length > 0 && !user.name.startsWith("guest_");
+    const hasRealName =
+      user.name && user.name.length > 0 && !user.name.startsWith("guest_");
     const isEmailVerified = user.emailVerification;
 
     const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);

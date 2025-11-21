@@ -1,6 +1,11 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listLargeEvents } from "@/app/actions/large-events";
@@ -27,25 +32,36 @@ export default async function ProjectsPage() {
 
   const featuredConfig = (t.raw("featured") ?? {}) as Record<
     string,
-    { slug: string; title: string; description: string; cta: string; highlight?: string }
+    {
+      slug: string;
+      title: string;
+      description: string;
+      cta: string;
+      highlight?: string;
+    }
   >;
 
-  const featuredProjects = Object.entries(featuredConfig).map(([key, config]) => {
-    const event = pickEventBySlug(events, config.slug);
-    return {
-      key,
-      slug: config.slug,
-      title: event?.name ?? config.title,
-      description: event?.description ?? config.description,
-      highlight: config.highlight,
-      gradient: deriveAccent(event, key === "winterGames" ? ["#0F172A", "#1E3A8A"] : undefined),
-      href: `/projects/${config.slug}`,
-      cta: config.cta,
-    };
-  });
+  const featuredProjects = Object.entries(featuredConfig).map(
+    ([key, config]) => {
+      const event = pickEventBySlug(events, config.slug);
+      return {
+        key,
+        slug: config.slug,
+        title: event?.name ?? config.title,
+        description: event?.description ?? config.description,
+        highlight: config.highlight,
+        gradient: deriveAccent(
+          event,
+          key === "winterGames" ? ["#0F172A", "#1E3A8A"] : undefined
+        ),
+        href: `/projects/${config.slug}`,
+        cta: config.cta,
+      };
+    }
+  );
 
   const otherEvents = events.filter(
-    (event) => !featuredProjects.some((item) => item.slug === event.slug),
+    (event) => !featuredProjects.some((item) => item.slug === event.slug)
   );
 
   return (
@@ -62,7 +78,11 @@ export default async function ProjectsPage() {
             </h1>
             <p className="text-lg text-white/80">{t("hero.subtitle")}</p>
             <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="bg-white text-primary-100 hover:bg-white/90">
+              <Button
+                asChild
+                size="lg"
+                className="bg-white text-primary-100 hover:bg-white/90"
+              >
                 <Link href="#featured">{t("hero.ctaPrimary")}</Link>
               </Button>
               <Button
@@ -91,8 +111,12 @@ export default async function ProjectsPage() {
       <section id="featured" className="space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-3xl font-semibold text-primary-100">{t("featuredTitle")}</h2>
-            <p className="text-sm text-muted-foreground">{t("featuredSubtitle")}</p>
+            <h2 className="text-3xl font-semibold text-primary-100">
+              {t("featuredTitle")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t("featuredSubtitle")}
+            </p>
           </div>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
@@ -110,13 +134,23 @@ export default async function ProjectsPage() {
               <CardHeader className="space-y-3">
                 <Badge variant="secondary" className="w-fit uppercase">
                   {project.highlight ??
-                    t(`featuredLabels.${project.key}`, { default: project.key })}
+                    t(`featuredLabels.${project.key}`, {
+                      default: project.key,
+                    })}
                 </Badge>
-                <CardTitle className="text-2xl text-primary-100">{project.title}</CardTitle>
-                <p className="text-sm text-muted-foreground">{project.description}</p>
+                <CardTitle className="text-2xl text-primary-100">
+                  {project.title}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {project.description}
+                </p>
               </CardHeader>
               <CardContent className="flex justify-between">
-                <Button asChild variant="ghost" className="px-0 text-primary-40">
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="px-0 text-primary-40"
+                >
                   <Link href={project.href}>{project.cta}</Link>
                 </Button>
               </CardContent>
@@ -127,8 +161,12 @@ export default async function ProjectsPage() {
 
       <section id="calendar" className="space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold text-primary-100">{t("schedule.title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("schedule.subtitle")}</p>
+          <h2 className="text-2xl font-semibold text-primary-100">
+            {t("schedule.title")}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {t("schedule.subtitle")}
+          </p>
         </div>
 
         {otherEvents.length === 0 ? (
@@ -142,17 +180,24 @@ export default async function ProjectsPage() {
             {otherEvents.map((event) => (
               <Card key={event.$id} className="border-primary/10 bg-white">
                 <CardHeader className="space-y-2">
-                  <Badge variant="outline" className="w-fit text-xs uppercase text-primary-70">
+                  <Badge
+                    variant="outline"
+                    className="w-fit text-xs uppercase text-primary-70"
+                  >
                     {event.showcaseType || t("schedule.defaultTag")}
                   </Badge>
-                  <CardTitle className="text-lg text-primary-100">{event.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground line-clamp-3">{event.description}</p>
+                  <CardTitle className="text-lg text-primary-100">
+                    {event.name}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    {event.description}
+                  </p>
                 </CardHeader>
                 <CardContent className="flex justify-between text-xs text-muted-foreground">
                   <span>
                     {event.startDate
                       ? new Date(event.startDate).toLocaleDateString(
-                          locale === "en" ? "en-GB" : "nb-NO",
+                          locale === "en" ? "en-GB" : "nb-NO"
                         )
                       : "—"}
                   </span>

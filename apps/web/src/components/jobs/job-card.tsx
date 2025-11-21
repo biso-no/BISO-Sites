@@ -44,7 +44,9 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
   // Use short_description if available, otherwise truncate description
   const shortDescription =
     job.short_description ||
-    (job.description.length > 150 ? `${job.description.substring(0, 150)}...` : job.description);
+    (job.description.length > 150
+      ? `${job.description.substring(0, 150)}...`
+      : job.description);
 
   return (
     <motion.div
@@ -57,7 +59,9 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
         <div className="relative bg-linear-to-br from-[#001731] to-[#3DA9E0] p-6 text-white">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
-              <Badge className={`mb-3 ${categoryColors[category]}`}>{category}</Badge>
+              <Badge className={`mb-3 ${categoryColors[category]}`}>
+                {category}
+              </Badge>
               <h3 className="text-white mb-2 text-xl font-bold">{job.title}</h3>
               <p className="text-white/80 text-sm">{department}</p>
             </div>
@@ -104,21 +108,27 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
           <div className="space-y-4 mb-4 grow">
             {responsibilities.length > 0 && (
               <div>
-                <h4 className="text-sm text-gray-900 mb-2 font-semibold">Responsibilities</h4>
+                <h4 className="text-sm text-gray-900 mb-2 font-semibold">
+                  Responsibilities
+                </h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  {responsibilities.slice(0, 3).map((resp: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-[#3DA9E0] mt-1">•</span>
-                      <span>{resp}</span>
-                    </li>
-                  ))}
+                  {responsibilities
+                    .slice(0, 3)
+                    .map((resp: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-[#3DA9E0] mt-1">•</span>
+                        <span>{resp}</span>
+                      </li>
+                    ))}
                 </ul>
               </div>
             )}
 
             {requirements.length > 0 && (
               <div>
-                <h4 className="text-sm text-gray-900 mb-2 font-semibold">Requirements</h4>
+                <h4 className="text-sm text-gray-900 mb-2 font-semibold">
+                  Requirements
+                </h4>
                 <ul className="text-sm text-gray-600 space-y-1">
                   {requirements.slice(0, 3).map((req: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2">
@@ -133,8 +143,12 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
 
           <div className="border-t border-gray-100 pt-4 mt-auto">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500">Application Deadline</span>
-              <span className="text-sm text-[#001731] font-medium">{deadline}</span>
+              <span className="text-sm text-gray-500">
+                Application Deadline
+              </span>
+              <span className="text-sm text-[#001731] font-medium">
+                {deadline}
+              </span>
             </div>
             <Button
               onClick={() => onViewDetails(job)}

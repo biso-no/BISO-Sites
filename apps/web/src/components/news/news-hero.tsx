@@ -30,8 +30,8 @@ export function NewsHero() {
               </span>
             </h1>
             <p className="text-white/90 max-w-2xl mx-auto text-lg">
-              Stay updated with the latest happenings, achievements, and stories from the BISO
-              community.
+              Stay updated with the latest happenings, achievements, and stories
+              from the BISO community.
             </p>
           </motion.div>
         </div>

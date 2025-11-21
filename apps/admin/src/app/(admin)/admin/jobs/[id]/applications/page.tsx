@@ -32,7 +32,9 @@ export default async function AdminJobApplications({
               <th className="p-3 text-left">{t("table.name")}</th>
               <th className="p-3 text-left">{t("table.email")}</th>
               <th className="p-3 text-left">{t("table.phone")}</th>
-              <th className="p-3 text-left">{t("labels.appliedAt") || t("table.appliedAt")}</th>
+              <th className="p-3 text-left">
+                {t("labels.appliedAt") || t("table.appliedAt")}
+              </th>
             </tr>
           </thead>
           <tbody>

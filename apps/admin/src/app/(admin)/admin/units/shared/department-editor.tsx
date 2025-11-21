@@ -1,7 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ContentTranslations, Departments } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  Departments,
+} from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -22,10 +25,22 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Switch } from "@repo/ui/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@repo/ui/components/ui/tabs";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { cn } from "@repo/ui/lib/utils";
-import { Building2, ChevronLeft, Languages, Save, Sparkles, X } from "lucide-react";
+import {
+  Building2,
+  ChevronLeft,
+  Languages,
+  Save,
+  Sparkles,
+  X,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -35,13 +50,22 @@ import { z } from "zod";
 import { GlassCard } from "@/components/shared/glass-card";
 import { DepartmentEditorSidebar } from "@/components/units/department-editor-sidebar";
 import { HeroUploadPreview } from "@/components/units/hero-upload-preview";
-import { createDepartment, updateDepartmentWithTranslations } from "@/lib/actions/departments";
+import {
+  createDepartment,
+  updateDepartmentWithTranslations,
+} from "@/lib/actions/departments";
 
 const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false });
 
 const departmentSchema = z.object({
-  Id: z.string().min(1, "Department ID is required").max(10, "Max 10 characters"),
-  Name: z.string().min(1, "Department name is required").max(50, "Max 50 characters"),
+  Id: z
+    .string()
+    .min(1, "Department ID is required")
+    .max(10, "Max 10 characters"),
+  Name: z
+    .string()
+    .min(1, "Department name is required")
+    .max(50, "Max 50 characters"),
   campus_id: z.string().min(1, "Campus is required"),
   type: z.string().min(1, "Type is required"),
   logo: z.string().url("Must be a valid URL").optional().or(z.literal("")),
@@ -69,7 +93,11 @@ interface DepartmentEditorProps {
   types: string[];
 }
 
-export default function DepartmentEditor({ department, campuses, types }: DepartmentEditorProps) {
+export default function DepartmentEditor({
+  department,
+  campuses,
+  types,
+}: DepartmentEditorProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [activeLocale, setActiveLocale] = React.useState<"en" | "no">("en");
@@ -144,7 +172,7 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
             hero: data.hero || null,
             active: data.active,
           } as any,
-          translations,
+          translations
         );
 
         toast.success("Department updated successfully!");
@@ -179,7 +207,9 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
 
   const isEditing = !!department;
   const departmentName =
-    form.watch("translations.en.title") || form.watch("Name") || "New Department";
+    form.watch("translations.en.title") ||
+    form.watch("Name") ||
+    "New Department";
 
   return (
     <div className="min-h-screen w-full">
@@ -200,7 +230,10 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
               <div>
                 <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
                   {isEditing ? "Edit Department" : "Create Department"}
-                  <Badge variant={isEditing ? "secondary" : "default"} className="text-xs">
+                  <Badge
+                    variant={isEditing ? "secondary" : "default"}
+                    className="text-xs"
+                  >
                     <Building2 className="w-3 h-3 mr-1" />
                     {isEditing ? "Editing" : "New"}
                   </Badge>
@@ -229,7 +262,11 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
                 className="gap-2 bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Save className="w-4 h-4" />
-                {isSubmitting ? "Saving..." : isEditing ? "Update Department" : "Create Department"}
+                {isSubmitting
+                  ? "Saving..."
+                  : isEditing
+                    ? "Update Department"
+                    : "Create Department"}
               </Button>
             </div>
           </div>
@@ -268,8 +305,8 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
                             />
                           </FormControl>
                           <FormDescription className="text-xs">
-                            Unique identifier (max 10 chars{department ? ", cannot be changed" : ""}
-                            )
+                            Unique identifier (max 10 chars
+                            {department ? ", cannot be changed" : ""})
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -379,11 +416,14 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
                               <JoditEditor
                                 ref={editorRefEn}
                                 value={field.value}
-                                onBlur={(newContent) => field.onChange(newContent)}
+                                onBlur={(newContent) =>
+                                  field.onChange(newContent)
+                                }
                                 config={{
                                   readonly: false,
                                   height: 400,
-                                  placeholder: "Detailed department description in English",
+                                  placeholder:
+                                    "Detailed department description in English",
                                   toolbar: true,
                                 }}
                               />
@@ -447,11 +487,14 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
                               <JoditEditor
                                 ref={editorRefNo}
                                 value={field.value}
-                                onBlur={(newContent) => field.onChange(newContent)}
+                                onBlur={(newContent) =>
+                                  field.onChange(newContent)
+                                }
                                 config={{
                                   readonly: false,
                                   height: 400,
-                                  placeholder: "Detaljert avdelingsbeskrivelse på norsk",
+                                  placeholder:
+                                    "Detaljert avdelingsbeskrivelse på norsk",
                                   toolbar: true,
                                 }}
                               />
@@ -502,13 +545,18 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-sm">Active Status</FormLabel>
+                          <FormLabel className="text-sm">
+                            Active Status
+                          </FormLabel>
                           <FormDescription className="text-xs">
                             Visible to users when active
                           </FormDescription>
                         </div>
                         <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
                       </FormItem>
                     )}
@@ -521,7 +569,10 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-sm">Campus</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger className="bg-card/60 backdrop-blur-sm border-border/50">
                               <SelectValue placeholder="Select campus" />
@@ -547,7 +598,10 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-sm">Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger className="bg-card/60 backdrop-blur-sm border-border/50">
                               <SelectValue placeholder="Select type" />
@@ -585,7 +639,11 @@ export default function DepartmentEditor({ department, campuses, types }: Depart
           >
             Cancel
           </Button>
-          <Button onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting} className="flex-1">
+          <Button
+            onClick={form.handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+            className="flex-1"
+          >
             {isSubmitting ? "Saving..." : "Save"}
           </Button>
         </div>

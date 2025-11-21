@@ -3,7 +3,12 @@
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { AlertCircle, ArrowLeft, Building2, Link as LinkIcon } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  Link as LinkIcon,
+} from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";

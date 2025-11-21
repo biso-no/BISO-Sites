@@ -21,7 +21,8 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const headersList = await headers();
-    const authToken = headersList.get("authorization")?.replace("Bearer ", "") || "";
+    const authToken =
+      headersList.get("authorization")?.replace("Bearer ", "") || "";
 
     // Parse the webhook payload
     const payload = await request.json();
@@ -36,7 +37,10 @@ export async function POST(request: Request) {
 
     if (!sessionId) {
       console.error("No session ID found in webhook payload:", payload);
-      return NextResponse.json({ success: false, message: "Missing session ID" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Missing session ID" },
+        { status: 400 }
+      );
     }
 
     console.log(`[Vipps Webhook] Received callback for session: ${sessionId}`);
@@ -48,14 +52,23 @@ export async function POST(request: Request) {
     const result = await handleVippsCallback(authToken, sessionId, db);
 
     if (!result.success) {
-      console.error(`[Vipps Webhook] Failed to process callback: ${result.message}`);
-      return NextResponse.json(result, { status: result.message === "Unauthorized" ? 401 : 400 });
+      console.error(
+        `[Vipps Webhook] Failed to process callback: ${result.message}`
+      );
+      return NextResponse.json(result, {
+        status: result.message === "Unauthorized" ? 401 : 400,
+      });
     }
 
-    console.log(`[Vipps Webhook] Successfully processed callback for session: ${sessionId}`);
+    console.log(
+      `[Vipps Webhook] Successfully processed callback for session: ${sessionId}`
+    );
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error("[Vipps Webhook] Error processing webhook:", error);
-    return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

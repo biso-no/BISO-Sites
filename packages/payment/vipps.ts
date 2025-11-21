@@ -77,7 +77,7 @@ export interface VippsPaymentState {
  */
 async function createOrder(
   params: CheckoutSessionParams,
-  databases: any,
+  databases: any
 ): Promise<{ orderId: string; order: Orders }> {
   const orderId = ID.unique();
 
@@ -107,7 +107,7 @@ async function createOrder(
         vipps_order_id: null,
         vipps_payment_link: null,
         vipps_receipt_url: null,
-      },
+      }
     )) as Orders;
 
     return { orderId, order };
@@ -124,7 +124,7 @@ async function updateOrderWithSession(
   orderId: string,
   sessionId: string,
   checkoutUrl: string,
-  databases: any,
+  databases: any
 ): Promise<void> {
   try {
     await databases.updateRow(
@@ -134,7 +134,7 @@ async function updateOrderWithSession(
       {
         vipps_session_id: sessionId,
         vipps_payment_link: checkoutUrl,
-      },
+      }
     );
   } catch (error) {
     console.error("Error updating order with session:", error);
@@ -150,7 +150,7 @@ async function updateOrderStatus(
   orderId: string,
   paymentState: VippsPaymentState,
   sessionData: any,
-  databases: any,
+  databases: any
 ): Promise<void> {
   const updateData: Partial<Orders> = {};
   let newStatus: OrderStatus;
@@ -159,7 +159,7 @@ async function updateOrderStatus(
   const currentOrder = (await databases.getRow(
     process.env.APPWRITE_DATABASE_ID!,
     process.env.APPWRITE_ORDERS_COLLECTION_ID!,
-    orderId,
+    orderId
   )) as Orders;
 
   const oldStatus = currentOrder.status;
@@ -173,7 +173,8 @@ async function updateOrderStatus(
       // Payment authorized by user
       newStatus = OrderStatus.AUTHORIZED;
       updateData.vipps_order_id =
-        sessionData.payment?.aggregate?.authorizedAmount?.value?.toString() || null;
+        sessionData.payment?.aggregate?.authorizedAmount?.value?.toString() ||
+        null;
       break;
     case "ABORTED":
       // User cancelled the payment
@@ -194,7 +195,8 @@ async function updateOrderStatus(
   // Check if payment is captured (fully paid)
   if (sessionData.payment?.aggregate?.capturedAmount?.value > 0) {
     newStatus = OrderStatus.PAID;
-    updateData.vipps_receipt_url = sessionData.payment?.aggregate?.receipt?.url || null;
+    updateData.vipps_receipt_url =
+      sessionData.payment?.aggregate?.receipt?.url || null;
   }
 
   // Parse order items
@@ -210,7 +212,8 @@ async function updateOrderStatus(
   try {
     // Handle stock decrements when payment is authorized or paid
     if (
-      (newStatus === OrderStatus.AUTHORIZED || newStatus === OrderStatus.PAID) &&
+      (newStatus === OrderStatus.AUTHORIZED ||
+        newStatus === OrderStatus.PAID) &&
       oldStatus !== OrderStatus.AUTHORIZED &&
       oldStatus !== OrderStatus.PAID
     ) {
@@ -221,7 +224,7 @@ async function updateOrderStatus(
           const product = await databases.getRow(
             process.env.APPWRITE_DATABASE_ID!,
             process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-            item.product_id,
+            item.product_id
           );
 
           // Only decrement if stock is tracked (not null)
@@ -231,12 +234,17 @@ async function updateOrderStatus(
               process.env.APPWRITE_DATABASE_ID!,
               process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
               item.product_id,
-              { stock: newStock },
+              { stock: newStock }
             );
-            console.log(`[Stock] Product ${item.product_id}: ${product.stock} -> ${newStock}`);
+            console.log(
+              `[Stock] Product ${item.product_id}: ${product.stock} -> ${newStock}`
+            );
           }
         } catch (error) {
-          console.error(`Error decrementing stock for product ${item.product_id}:`, error);
+          console.error(
+            `Error decrementing stock for product ${item.product_id}:`,
+            error
+          );
           // Continue with other items even if one fails
         }
       }
@@ -247,17 +255,19 @@ async function updateOrderStatus(
           const reservations = await databases.listRows(
             process.env.APPWRITE_DATABASE_ID!,
             "cart_reservations",
-            [`equal("user_id", "${currentOrder.userId}")`],
+            [`equal("user_id", "${currentOrder.userId}")`]
           );
 
           for (const reservation of reservations.rows) {
             await databases.deleteRow(
               process.env.APPWRITE_DATABASE_ID!,
               "cart_reservations",
-              reservation.$id,
+              reservation.$id
             );
           }
-          console.log(`[Stock] Deleted cart reservations for user ${currentOrder.userId}`);
+          console.log(
+            `[Stock] Deleted cart reservations for user ${currentOrder.userId}`
+          );
         } catch (error) {
           console.error("Error deleting cart reservations:", error);
         }
@@ -276,7 +286,7 @@ async function updateOrderStatus(
           const product = await databases.getRow(
             process.env.APPWRITE_DATABASE_ID!,
             process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-            item.product_id,
+            item.product_id
           );
 
           // Only restore if stock is tracked (not null)
@@ -286,14 +296,17 @@ async function updateOrderStatus(
               process.env.APPWRITE_DATABASE_ID!,
               process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
               item.product_id,
-              { stock: newStock },
+              { stock: newStock }
             );
             console.log(
-              `[Stock] Restored product ${item.product_id}: ${product.stock} -> ${newStock}`,
+              `[Stock] Restored product ${item.product_id}: ${product.stock} -> ${newStock}`
             );
           }
         } catch (error) {
-          console.error(`Error restoring stock for product ${item.product_id}:`, error);
+          console.error(
+            `Error restoring stock for product ${item.product_id}:`,
+            error
+          );
           // Continue with other items even if one fails
         }
       }
@@ -307,7 +320,7 @@ async function updateOrderStatus(
       {
         status: newStatus,
         ...updateData,
-      },
+      }
     );
 
     console.log(`[Order] Status updated: ${oldStatus} -> ${newStatus}`);
@@ -334,7 +347,7 @@ async function updateOrderStatus(
  */
 export async function createCheckoutSession(
   params: CheckoutSessionParams,
-  db: any,
+  db: any
 ): Promise<VippsCheckoutResponse> {
   try {
     // Step 1: Create order in database first
@@ -390,22 +403,35 @@ export async function createCheckoutSession(
       ...(params.customerInfo &&
         Object.keys(params.customerInfo).length > 0 && {
           prefillCustomer: {
-            ...(params.customerInfo.firstName && { firstName: params.customerInfo.firstName }),
-            ...(params.customerInfo.lastName && { lastName: params.customerInfo.lastName }),
-            ...(params.customerInfo.email && { email: params.customerInfo.email }),
-            ...(params.customerInfo.phone && { phoneNumber: params.customerInfo.phone }),
+            ...(params.customerInfo.firstName && {
+              firstName: params.customerInfo.firstName,
+            }),
+            ...(params.customerInfo.lastName && {
+              lastName: params.customerInfo.lastName,
+            }),
+            ...(params.customerInfo.email && {
+              email: params.customerInfo.email,
+            }),
+            ...(params.customerInfo.phone && {
+              phoneNumber: params.customerInfo.phone,
+            }),
             ...(params.customerInfo.streetAddress && {
               streetAddress: params.customerInfo.streetAddress,
             }),
             ...(params.customerInfo.city && { city: params.customerInfo.city }),
-            ...(params.customerInfo.postalCode && { postalCode: params.customerInfo.postalCode }),
-            ...(params.customerInfo.country && { country: params.customerInfo.country }),
+            ...(params.customerInfo.postalCode && {
+              postalCode: params.customerInfo.postalCode,
+            }),
+            ...(params.customerInfo.country && {
+              country: params.customerInfo.country,
+            }),
           },
         }),
       merchantInfo: {
         callbackUrl: `${baseUrl}/api/payment/vipps/callback`,
         returnUrl: `${baseUrl}/checkout/return?orderId=${orderId}`,
-        callbackAuthorizationToken: process.env.VIPPS_CALLBACK_TOKEN || ID.unique(),
+        callbackAuthorizationToken:
+          process.env.VIPPS_CALLBACK_TOKEN || ID.unique(),
         termsAndConditionsUrl: `${baseUrl}/terms`,
       },
       configuration: {
@@ -421,7 +447,7 @@ export async function createCheckoutSession(
     const checkoutResponse = await client.checkout.create(
       merchantSerialNumber,
       accessToken,
-      checkoutRequest,
+      checkoutRequest
     );
 
     if (!checkoutResponse.ok) {
@@ -430,11 +456,11 @@ export async function createCheckoutSession(
         process.env.APPWRITE_DATABASE_ID!,
         process.env.APPWRITE_ORDERS_COLLECTION_ID!,
         orderId,
-        { status: OrderStatus.FAILED },
+        { status: OrderStatus.FAILED }
       );
 
       throw new Error(
-        `Failed to create Vipps checkout session: ${JSON.stringify(checkoutResponse.error)}`,
+        `Failed to create Vipps checkout session: ${JSON.stringify(checkoutResponse.error)}`
       );
     }
 
@@ -478,7 +504,7 @@ export async function createCheckoutSession(
 export async function handleVippsCallback(
   authToken: string,
   sessionId: string,
-  db: any,
+  db: any
 ): Promise<{ success: boolean; message: string }> {
   try {
     // Verify callback token
@@ -492,7 +518,7 @@ export async function handleVippsCallback(
     const orders = await db.listRows(
       process.env.APPWRITE_DATABASE_ID!,
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
-      [`equal("vipps_session_id", "${sessionId}")`],
+      [`equal("vipps_session_id", "${sessionId}")`]
     );
 
     if (orders.total === 0) {
@@ -509,10 +535,16 @@ export async function handleVippsCallback(
 
     // Get session info from Vipps
     const accessToken = await getAccessToken();
-    const sessionInfo = await client.checkout.info(merchantSerialNumber, accessToken, sessionId);
+    const sessionInfo = await client.checkout.info(
+      merchantSerialNumber,
+      accessToken,
+      sessionId
+    );
 
     if (!sessionInfo.ok) {
-      console.error(`Failed to get session info: ${JSON.stringify(sessionInfo.error)}`);
+      console.error(
+        `Failed to get session info: ${JSON.stringify(sessionInfo.error)}`
+      );
       return { success: false, message: "Failed to get session info" };
     }
 
@@ -539,12 +571,15 @@ export async function handleVippsCallback(
  * @param orderId - Order ID to retrieve
  * @param db - Database client (TablesDB instance from Appwrite)
  */
-export async function getOrderStatus(orderId: string, db: any): Promise<Orders | null> {
+export async function getOrderStatus(
+  orderId: string,
+  db: any
+): Promise<Orders | null> {
   try {
     const order = (await db.getRow(
       process.env.APPWRITE_DATABASE_ID!,
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
-      orderId,
+      orderId
     )) as Orders;
 
     return order;
@@ -562,12 +597,15 @@ export async function getOrderStatus(orderId: string, db: any): Promise<Orders |
  * @param orderId - Order ID to verify
  * @param db - Database client (TablesDB instance from Appwrite)
  */
-export async function verifyOrderStatus(orderId: string, db: any): Promise<Orders | null> {
+export async function verifyOrderStatus(
+  orderId: string,
+  db: any
+): Promise<Orders | null> {
   try {
     const order = (await db.getRow(
       process.env.APPWRITE_DATABASE_ID!,
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
-      orderId,
+      orderId
     )) as Orders;
 
     if (!order.vipps_session_id) {
@@ -580,7 +618,7 @@ export async function verifyOrderStatus(orderId: string, db: any): Promise<Order
     const sessionInfo = await client.checkout.info(
       merchantSerialNumber,
       accessToken,
-      order.vipps_session_id,
+      order.vipps_session_id
     );
 
     if (!sessionInfo.ok) {
@@ -601,7 +639,7 @@ export async function verifyOrderStatus(orderId: string, db: any): Promise<Order
     const updatedOrder = (await db.getRow(
       process.env.APPWRITE_DATABASE_ID!,
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
-      orderId,
+      orderId
     )) as Orders;
 
     return updatedOrder;

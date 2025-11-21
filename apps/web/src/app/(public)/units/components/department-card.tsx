@@ -4,7 +4,14 @@ import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { ChevronRight, Heart, MapPin, Sparkles, Target, Users } from "lucide-react";
+import {
+  ChevronRight,
+  Heart,
+  MapPin,
+  Sparkles,
+  Target,
+  Users,
+} from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
@@ -36,8 +43,11 @@ const stripHtml = (html?: string | null) => {
 export function DepartmentCard({ department, index }: DepartmentCardProps) {
   const dept = department.department_ref;
   const TypeIcon = typeIcons[dept?.type || "committee"] || Target;
-  const typeColor = typeColors[dept?.type || "committee"] || typeColors.committee;
-  const plainDescription = stripHtml(department.short_description || department.description);
+  const typeColor =
+    typeColors[dept?.type || "committee"] || typeColors.committee;
+  const plainDescription = stripHtml(
+    department.short_description || department.description
+  );
 
   const socialsCount = dept?.socials?.length || 0;
   const boardMembersCount = dept?.boardMembers?.length || 0;
@@ -59,7 +69,11 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
           <div className="relative flex items-start justify-between">
             <div className="w-16 h-16 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center group-hover:scale-110 transition-transform">
               {dept?.logo ? (
-                <img src={dept.logo} alt={department.title} className="w-10 h-10 object-contain" />
+                <img
+                  src={dept.logo}
+                  alt={department.title}
+                  className="w-10 h-10 object-contain"
+                />
               ) : (
                 <TypeIcon className="w-8 h-8 text-white" />
               )}
@@ -101,7 +115,8 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Sparkles className="w-4 h-4 text-primary" />
               <span>
-                Aktiv på {socialsCount} plattform{socialsCount !== 1 ? "er" : ""}
+                Aktiv på {socialsCount} plattform
+                {socialsCount !== 1 ? "er" : ""}
               </span>
             </div>
           )}
@@ -109,7 +124,10 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
 
         {/* Card Footer */}
         <div className="px-6 pb-6">
-          <Link href={`/units/${dept?.$id || department.content_id}`} className="block">
+          <Link
+            href={`/units/${dept?.$id || department.content_id}`}
+            className="block"
+          >
             <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white group">
               Les mer
               <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />

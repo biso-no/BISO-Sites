@@ -73,14 +73,18 @@ export function Events({ events, labels }: EventsProps) {
               {labels.amazingExperiences}
             </span>
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">{labels.description}</p>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            {labels.description}
+          </p>
         </motion.div>
 
         {/* Events Grid */}
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           {events.map((event, index) => {
             const isFeatured = index === 0;
-            const startDate = event.start_date ? new Date(event.start_date) : null;
+            const startDate = event.start_date
+              ? new Date(event.start_date)
+              : null;
             const endDate = event.end_date ? new Date(event.end_date) : null;
 
             // Format date and time
@@ -96,7 +100,10 @@ export function Events({ events, labels }: EventsProps) {
               startDate && endDate
                 ? `${startDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} - ${endDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`
                 : startDate
-                  ? startDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                  ? startDate.toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                   : "TBA";
 
             return (
@@ -109,7 +116,9 @@ export function Events({ events, labels }: EventsProps) {
                 className={isFeatured ? "md:col-span-2" : ""}
               >
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group">
-                  <div className={`grid ${isFeatured ? "md:grid-cols-2" : ""} gap-0`}>
+                  <div
+                    className={`grid ${isFeatured ? "md:grid-cols-2" : ""} gap-0`}
+                  >
                     {/* Image */}
                     <div
                       className={`relative overflow-hidden ${isFeatured ? "h-96 md:h-auto" : "h-64"}`}

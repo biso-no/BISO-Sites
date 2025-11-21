@@ -4,7 +4,8 @@ import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 
 export const metadata: Metadata = {
   title: "Drugs and Alcohol Policy | BISO",
-  description: "BISO policy related to drugs and alcohol for events and activities.",
+  description:
+    "BISO policy related to drugs and alcohol for events and activities.",
 };
 
 export default async function DrugsPolicyPage() {
@@ -13,7 +14,11 @@ export default async function DrugsPolicyPage() {
     <div className="space-y-6">
       <PublicPageHeader
         title={t("title")}
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Policies" }, { label: t("title") }]}
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "Policies" },
+          { label: t("title") },
+        ]}
       />
       <div className="prose max-w-none space-y-4">
         <p>{t("intro")}</p>

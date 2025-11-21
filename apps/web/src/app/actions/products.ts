@@ -21,14 +21,21 @@ import type {
 } from "@/lib/types/product";
 
 export async function listProducts(
-  params: ListProductsParams = {},
+  params: ListProductsParams = {}
 ): Promise<ContentTranslations[]> {
   try {
     const { db } = await createSessionClient();
 
     const queries = [
       Query.equal("content_type", ContentType.PRODUCT),
-      Query.select(["content_id", "$id", "locale", "title", "description", "product_ref.*"]),
+      Query.select([
+        "content_id",
+        "$id",
+        "locale",
+        "title",
+        "description",
+        "product_ref.*",
+      ]),
       Query.equal("locale", (params.locale as Locale) ?? Locale.EN),
       Query.orderDesc("$createdAt"),
     ];
@@ -49,7 +56,11 @@ export async function listProducts(
       queries.push(Query.offset(params.offset));
     }
 
-    const response = await db.listRows<ContentTranslations>("app", "content_translations", queries);
+    const response = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      queries
+    );
     const products = response.rows;
 
     return products;
@@ -61,7 +72,7 @@ export async function listProducts(
 
 export async function getProduct(
   id: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
@@ -74,9 +85,16 @@ export async function getProduct(
         Query.equal("content_type", ContentType.PRODUCT),
         Query.equal("content_id", id),
         Query.equal("locale", locale),
-        Query.select(["content_id", "$id", "locale", "title", "description", "product_ref.*"]),
+        Query.select([
+          "content_id",
+          "$id",
+          "locale",
+          "title",
+          "description",
+          "product_ref.*",
+        ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) {
@@ -92,16 +110,17 @@ export async function getProduct(
 
 async function getProductBySlug(
   slug: string,
-  locale: "en" | "no",
+  locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
 
     // Get product by slug
-    const productsResponse = await db.listRows<WebshopProducts>("app", "webshop_products", [
-      Query.equal("slug", slug),
-      Query.limit(1),
-    ]);
+    const productsResponse = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      [Query.equal("slug", slug), Query.limit(1)]
+    );
 
     if (productsResponse.rows.length === 0) return null;
 
@@ -117,9 +136,16 @@ async function getProductBySlug(
         Query.equal("content_type", ContentType.PRODUCT),
         Query.equal("content_id", product.$id),
         Query.equal("locale", locale),
-        Query.select(["content_id", "$id", "locale", "title", "description", "product_ref.*"]),
+        Query.select([
+          "content_id",
+          "$id",
+          "locale",
+          "title",
+          "description",
+          "product_ref.*",
+        ]),
         Query.limit(1),
-      ],
+      ]
     );
 
     if (translationsResponse.rows.length === 0) return null;
@@ -133,7 +159,7 @@ async function getProductBySlug(
 
 async function createProduct(
   data: CreateProductData,
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<Product | null> {
   try {
     const { db } = await createSessionClient();
@@ -161,13 +187,18 @@ async function createProduct(
       } as ContentTranslations);
     }
 
-    const product = await db.createRow<WebshopProducts>("app", "webshop_products", "unique()", {
-      slug: data.slug,
-      status: data.status,
-      campus_id: data.campus_id,
-      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
-      translation_refs: translationRefs,
-    });
+    const product = await db.createRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      "unique()",
+      {
+        slug: data.slug,
+        status: data.status,
+        campus_id: data.campus_id,
+        metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+        translation_refs: translationRefs,
+      }
+    );
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
@@ -184,7 +215,7 @@ async function createProduct(
 async function updateProduct(
   id: string,
   data: UpdateProductData,
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<Product | null> {
   try {
     const { db } = await createSessionClient();
@@ -195,7 +226,8 @@ async function updateProduct(
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.metadata !== undefined) updateData.metadata = JSON.stringify(data.metadata);
+    if (data.metadata !== undefined)
+      updateData.metadata = JSON.stringify(data.metadata);
 
     // Build translation_refs array from provided translations only
     if (data.translations) {
@@ -226,7 +258,12 @@ async function updateProduct(
       }
     }
 
-    const product = await db.updateRow<WebshopProducts>("app", "webshop_products", id, updateData);
+    const product = await db.updateRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      id,
+      updateData
+    );
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
@@ -240,7 +277,10 @@ async function updateProduct(
   }
 }
 
-async function deleteProduct(id: string, skipRevalidation = false): Promise<boolean> {
+async function deleteProduct(
+  id: string,
+  skipRevalidation = false
+): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 
@@ -262,12 +302,17 @@ async function deleteProduct(id: string, skipRevalidation = false): Promise<bool
 async function updateProductStatus(
   id: string,
   status: Product["status"],
-  skipRevalidation = false,
+  skipRevalidation = false
 ): Promise<Product | null> {
   try {
     const { db } = await createSessionClient();
 
-    const product = await db.updateRow<WebshopProducts>("app", "webshop_products", id, { status });
+    const product = await db.updateRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      id,
+      { status }
+    );
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
@@ -285,7 +330,7 @@ async function updateProductStatus(
 async function translateProductContent(
   content: ProductTranslation,
   fromLocale: "en" | "no",
-  toLocale: "en" | "no",
+  toLocale: "en" | "no"
 ): Promise<ProductTranslation | null> {
   try {
     const targetLanguage = toLocale === "en" ? "English" : "Norwegian";
@@ -320,7 +365,7 @@ async function translateProductContent(
 // Get products for public pages (published only)
 async function getProducts(
   status: "in-stock" | "all" = "all",
-  locale: "en" | "no" = "en",
+  locale: "en" | "no" = "en"
 ): Promise<ContentTranslations[]> {
   return listProducts({
     status: "published",
@@ -329,7 +374,8 @@ async function getProducts(
   });
 }
 
-const PRODUCT_IMAGE_BUCKET = process.env.APPWRITE_PRODUCT_BUCKET_ID || "product-images";
+const PRODUCT_IMAGE_BUCKET =
+  process.env.APPWRITE_PRODUCT_BUCKET_ID || "product-images";
 
 async function uploadProductImage(formData: FormData) {
   const file = formData.get("file");
@@ -338,7 +384,11 @@ async function uploadProductImage(formData: FormData) {
   }
 
   const { storage } = await createSessionClient();
-  const uploaded = await storage.createFile(PRODUCT_IMAGE_BUCKET, "unique()", file);
+  const uploaded = await storage.createFile(
+    PRODUCT_IMAGE_BUCKET,
+    "unique()",
+    file
+  );
   const view = storage.getFile(PRODUCT_IMAGE_BUCKET, uploaded.$id);
   const url = view.href;
 }

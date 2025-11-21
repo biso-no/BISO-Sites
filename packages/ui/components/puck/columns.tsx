@@ -43,7 +43,7 @@ export function Columns({
         layoutClasses[layout],
         gapClasses[gap],
         alignClasses[verticalAlign],
-        className,
+        className
       )}
     >
       {children}

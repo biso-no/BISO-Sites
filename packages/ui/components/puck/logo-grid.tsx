@@ -41,8 +41,10 @@ export function LogoGrid({
                 "relative flex items-center justify-center p-6 transition-all duration-300",
                 variant === "bordered" &&
                   "border border-border rounded-xl bg-white hover:border-primary/20 hover:shadow-md",
-                variant === "card" && "bg-white rounded-xl shadow-sm hover:shadow-md p-8",
-                grayscale && "grayscale hover:grayscale-0 opacity-70 hover:opacity-100",
+                variant === "card" &&
+                  "bg-white rounded-xl shadow-sm hover:shadow-md p-8",
+                grayscale &&
+                  "grayscale hover:grayscale-0 opacity-70 hover:opacity-100"
               )}
             >
               <div className="relative w-full h-12 sm:h-16">

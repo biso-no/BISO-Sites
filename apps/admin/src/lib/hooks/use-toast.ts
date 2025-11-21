@@ -1,6 +1,9 @@
 "use client";
 
-import type { ToastActionElement, ToastProps } from "@repo/ui/components/ui/toast";
+import type {
+  ToastActionElement,
+  ToastProps,
+} from "@repo/ui/components/ui/toast";
 // Inspired by react-hot-toast library
 import * as React from "react";
 
@@ -81,7 +84,9 @@ export const reducer = (state: State, action: Action): State => {
     case "UPDATE_TOAST":
       return {
         ...state,
-        toasts: state.toasts.map((t) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)),
+        toasts: state.toasts.map((t) =>
+          t.id === action.toast.id ? { ...t, ...action.toast } : t
+        ),
       };
 
     case "DISMISS_TOAST": {
@@ -105,7 +110,7 @@ export const reducer = (state: State, action: Action): State => {
                 ...t,
                 open: false,
               }
-            : t,
+            : t
         ),
       };
     }

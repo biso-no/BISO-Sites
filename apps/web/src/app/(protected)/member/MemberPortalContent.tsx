@@ -5,7 +5,10 @@ import {
   getPublicProfile,
   getUserProfile,
 } from "@/app/actions/memberPortal";
-import { MemberPortalHeader, MemberPortalTabs } from "@/components/member-portal";
+import {
+  MemberPortalHeader,
+  MemberPortalTabs,
+} from "@/components/member-portal";
 
 interface MemberPortalContentProps {
   user: any;
@@ -40,21 +43,23 @@ export async function MemberPortalContent({
     membership.membership?.expiryDate ||
     new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
   const startDate = new Date(
-    new Date(expiryDate).getTime() - 365 * 24 * 60 * 60 * 1000,
+    new Date(expiryDate).getTime() - 365 * 24 * 60 * 60 * 1000
   ).toISOString();
   const daysRemaining = Math.floor(
-    (new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+    (new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
   );
 
   // Get campus name
   const campus = profile?.campus?.name || user.profile?.campus?.name || "Oslo";
 
   // Get user name and avatar
-  const userName = profile?.name || user.profile?.name || user.user.name || "User";
+  const userName =
+    profile?.name || user.profile?.name || user.user.name || "User";
   const userAvatar = profile?.avatar || user.profile?.avatar || null;
 
   // Get student ID for BI email construction
-  const studentId = profile?.student_id || user.profile?.student_id || "S000000";
+  const studentId =
+    profile?.student_id || user.profile?.student_id || "S000000";
   const biEmail = `${studentId}@bi.no`;
 
   return (

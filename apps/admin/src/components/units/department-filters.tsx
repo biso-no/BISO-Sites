@@ -138,7 +138,8 @@ export function DepartmentFilters({
             <SelectTrigger className="w-[180px] h-11 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all duration-300">
               <SelectValue placeholder="All Campuses">
                 {filters.campus_id
-                  ? campuses.find((c) => c.id === filters.campus_id)?.name || "All Campuses"
+                  ? campuses.find((c) => c.id === filters.campus_id)?.name ||
+                    "All Campuses"
                   : "All Campuses"}
               </SelectValue>
             </SelectTrigger>
@@ -197,22 +198,36 @@ export function DepartmentFilters({
                 className="flex gap-2 cursor-pointer"
                 onClick={() => updateFilter("active", undefined)}
               >
-                {filters.active === undefined && <Check size={16} className="text-primary" />}
-                <span className={filters.active === undefined ? "font-medium" : ""}>All</span>
+                {filters.active === undefined && (
+                  <Check size={16} className="text-primary" />
+                )}
+                <span
+                  className={filters.active === undefined ? "font-medium" : ""}
+                >
+                  All
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="flex gap-2 cursor-pointer"
                 onClick={() => updateFilter("active", true)}
               >
-                {filters.active === true && <Check size={16} className="text-primary" />}
-                <span className={filters.active === true ? "font-medium" : ""}>Active</span>
+                {filters.active === true && (
+                  <Check size={16} className="text-primary" />
+                )}
+                <span className={filters.active === true ? "font-medium" : ""}>
+                  Active
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="flex gap-2 cursor-pointer"
                 onClick={() => updateFilter("active", false)}
               >
-                {filters.active === false && <Check size={16} className="text-primary" />}
-                <span className={filters.active === false ? "font-medium" : ""}>Inactive</span>
+                {filters.active === false && (
+                  <Check size={16} className="text-primary" />
+                )}
+                <span className={filters.active === false ? "font-medium" : ""}>
+                  Inactive
+                </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -267,7 +282,10 @@ export function DepartmentFilters({
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="inactive-filter" className="cursor-pointer">
+                      <Label
+                        htmlFor="inactive-filter"
+                        className="cursor-pointer"
+                      >
                         Show only inactive departments
                       </Label>
                       <Switch
@@ -287,14 +305,18 @@ export function DepartmentFilters({
                   <Select
                     value={filters.campus_id || "all"}
                     onValueChange={(value) => {
-                      updateFilter("campus_id", value === "all" ? undefined : value);
+                      updateFilter(
+                        "campus_id",
+                        value === "all" ? undefined : value
+                      );
                       setShowMobileFilters(false);
                     }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All Campuses">
                         {filters.campus_id
-                          ? campuses.find((c) => c.id === filters.campus_id)?.name || "All Campuses"
+                          ? campuses.find((c) => c.id === filters.campus_id)
+                              ?.name || "All Campuses"
                           : "All Campuses"}
                       </SelectValue>
                     </SelectTrigger>
@@ -322,7 +344,8 @@ export function DepartmentFilters({
                     <SelectTrigger>
                       <SelectValue placeholder="All Types">
                         {filters.type
-                          ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1)
+                          ? filters.type.charAt(0).toUpperCase() +
+                            filters.type.slice(1)
                           : "All Types"}
                       </SelectValue>
                     </SelectTrigger>
@@ -339,7 +362,11 @@ export function DepartmentFilters({
               </div>
 
               <SheetFooter className="sm:justify-between gap-4">
-                <Button variant="outline" onClick={resetFilters} className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={resetFilters}
+                  className="w-full sm:w-auto"
+                >
                   Reset All
                 </Button>
                 <SheetClose asChild>
@@ -357,7 +384,8 @@ export function DepartmentFilters({
           {filters.searchTerm && (
             <div className="bg-linear-to-r from-primary/10 to-accent/10 backdrop-blur-sm border border-primary/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
               <span className="font-medium">
-                Search: <span className="text-primary">{filters.searchTerm}</span>
+                Search:{" "}
+                <span className="text-primary">{filters.searchTerm}</span>
               </span>
               <button
                 onClick={clearSearch}
@@ -403,7 +431,9 @@ export function DepartmentFilters({
             <div className="bg-linear-to-r from-amber-500/10 to-amber-600/10 backdrop-blur-sm border border-amber-500/20 rounded-full px-4 py-2 text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 group">
               <span className="font-medium">
                 Status:{" "}
-                <span className="text-amber-600">{filters.active ? "Active" : "Inactive"}</span>
+                <span className="text-amber-600">
+                  {filters.active ? "Active" : "Inactive"}
+                </span>
               </span>
               <button
                 onClick={() => updateFilter("active", true)}

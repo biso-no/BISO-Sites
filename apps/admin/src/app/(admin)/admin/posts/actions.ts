@@ -8,6 +8,8 @@ const collectionId = "campuses";
 
 export async function getCampuses() {
   const { db } = await createSessionClient();
-  const campuses = await db.listRows<Campus>("app", "campuses", [Query.select(["name", "$id"])]);
+  const campuses = await db.listRows<Campus>("app", "campuses", [
+    Query.select(["name", "$id"]),
+  ]);
   return campuses.rows;
 }

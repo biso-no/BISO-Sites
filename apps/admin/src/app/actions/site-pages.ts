@@ -2,7 +2,11 @@
 
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { ContentTranslations, Locale, SitePages } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  Locale,
+  SitePages,
+} from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
 interface SitePageTranslation {
@@ -20,7 +24,7 @@ interface UpsertSitePageInput {
 
 export async function getSitePageTranslation(
   slug: string,
-  locale: Locale,
+  locale: Locale
 ): Promise<SitePageTranslation | null> {
   try {
     const { db } = await createSessionClient();
@@ -41,7 +45,11 @@ export async function getSitePageTranslation(
     const translationResponse = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
-      [Query.equal("content_id", sitePage.$id), Query.equal("locale", locale), Query.limit(1)],
+      [
+        Query.equal("content_id", sitePage.$id),
+        Query.equal("locale", locale),
+        Query.limit(1),
+      ]
     );
 
     if (translationResponse.rows.length === 0) {
@@ -60,7 +68,9 @@ export async function getSitePageTranslation(
   }
 }
 
-export async function upsertSitePage(input: UpsertSitePageInput): Promise<boolean> {
+export async function upsertSitePage(
+  input: UpsertSitePageInput
+): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 
@@ -92,18 +102,24 @@ export async function upsertSitePage(input: UpsertSitePageInput): Promise<boolea
     for (const [locale, translation] of Object.entries(input.translations)) {
       if (!translation) continue;
 
-      const existingTranslationResponse = await db.listRows<ContentTranslations>(
-        "app",
-        "content_translations",
-        [Query.equal("content_id", sitePageId), Query.equal("locale", locale), Query.limit(1)],
-      );
+      const existingTranslationResponse =
+        await db.listRows<ContentTranslations>("app", "content_translations", [
+          Query.equal("content_id", sitePageId),
+          Query.equal("locale", locale),
+          Query.limit(1),
+        ]);
 
       if (existingTranslationResponse.rows.length > 0) {
         // Update existing translation
-        await db.updateRow("app", "content_translations", existingTranslationResponse.rows[0].$id, {
-          title: translation.title,
-          description: translation.body,
-        });
+        await db.updateRow(
+          "app",
+          "content_translations",
+          existingTranslationResponse.rows[0].$id,
+          {
+            title: translation.title,
+            description: translation.body,
+          }
+        );
       } else {
         // Create new translation
         await db.createRow("app", "content_translations", ID.unique(), {
@@ -128,7 +144,7 @@ export async function upsertSitePage(input: UpsertSitePageInput): Promise<boolea
 export async function translateSitePageContent(
   slug: string,
   fromLocale: Locale,
-  toLocale: Locale,
+  toLocale: Locale
 ): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
@@ -146,11 +162,15 @@ export async function translateSitePageContent(
     const sitePage = sitePageResponse.rows[0];
 
     // Get source translation
-    const sourceResponse = await db.listRows<ContentTranslations>("app", "content_translations", [
-      Query.equal("content_id", sitePage.$id),
-      Query.equal("locale", fromLocale),
-      Query.limit(1),
-    ]);
+    const sourceResponse = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_id", sitePage.$id),
+        Query.equal("locale", fromLocale),
+        Query.limit(1),
+      ]
+    );
 
     if (sourceResponse.rows.length === 0) {
       return false;
@@ -182,18 +202,27 @@ Please respond with a JSON object containing the translated title and body:
     const translated = JSON.parse(result.text);
 
     // Check if target translation exists
-    const targetResponse = await db.listRows<ContentTranslations>("app", "content_translations", [
-      Query.equal("content_id", sitePage.$id),
-      Query.equal("locale", toLocale),
-      Query.limit(1),
-    ]);
+    const targetResponse = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_id", sitePage.$id),
+        Query.equal("locale", toLocale),
+        Query.limit(1),
+      ]
+    );
 
     if (targetResponse.rows.length > 0) {
       // Update existing
-      await db.updateRow("app", "content_translations", targetResponse.rows[0].$id, {
-        title: translated.title,
-        description: translated.body,
-      });
+      await db.updateRow(
+        "app",
+        "content_translations",
+        targetResponse.rows[0].$id,
+        {
+          title: translated.title,
+          description: translated.body,
+        }
+      );
     } else {
       // Create new
       await db.createRow("app", "content_translations", ID.unique(), {

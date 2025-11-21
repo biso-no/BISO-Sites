@@ -23,7 +23,11 @@ import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
 import * as m from "motion/react-m";
 import type { FC } from "react";
 
-import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "./attachment";
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "./attachment";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 import { TooltipIconButton } from "./tooltip-icon-button";
@@ -125,7 +129,8 @@ const ThreadWelcomeSuggestions: FC = () => {
         {
           title: "Retningslinjer for alkohol",
           label: "Hva er kravene ved event?",
-          action: "Hva er Bisos retningslinjer for alkoholservering på arrangementer?",
+          action:
+            "Hva er Bisos retningslinjer for alkoholservering på arrangementer?",
         },
       ].map((suggestedAction, index) => (
         <m.div
@@ -359,13 +364,16 @@ const EditComposer: FC = () => {
   );
 };
 
-const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => {
+const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
+  className,
+  ...rest
+}) => {
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
         "aui-branch-picker-root mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground",
-        className,
+        className
       )}
       {...rest}
     >

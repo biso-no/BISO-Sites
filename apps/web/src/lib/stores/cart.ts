@@ -29,7 +29,10 @@ export interface CartItem {
     value: string;
     required?: boolean;
   }[];
-  customFieldDefinitions?: Record<string, { label: string; required?: boolean }>;
+  customFieldDefinitions?: Record<
+    string,
+    { label: string; required?: boolean }
+  >;
   image?: string;
   maxPerOrder?: number;
   maxPerUser?: number;
@@ -73,15 +76,18 @@ const createItemId = () =>
 
 const buildCustomFieldDefinitions = (fields?: ProductCustomField[]) => {
   if (!fields || fields.length === 0) return undefined;
-  return fields.reduce<Record<string, { label: string; required?: boolean }>>((acc, field) => {
-    acc[field.id] = { label: field.label, required: field.required };
-    return acc;
-  }, {});
+  return fields.reduce<Record<string, { label: string; required?: boolean }>>(
+    (acc, field) => {
+      acc[field.id] = { label: field.label, required: field.required };
+      return acc;
+    },
+    {}
+  );
 };
 
 const buildCustomFieldEntries = (
   fields?: ProductCustomField[],
-  responses?: Record<string, string>,
+  responses?: Record<string, string>
 ) => {
   if (!fields || !responses) return undefined;
   const entries = fields
@@ -98,7 +104,12 @@ const buildCustomFieldEntries = (
     .filter(Boolean);
 
   return entries.length > 0
-    ? (entries as { id: string; label: string; value: string; required?: boolean }[])
+    ? (entries as {
+        id: string;
+        label: string;
+        value: string;
+        required?: boolean;
+      }[])
     : undefined;
 };
 
@@ -112,11 +123,16 @@ export const useCartStore = create<CartState>()(
         const normalizedResponses = normalizeResponses(customFieldResponses);
         const variationId = variation?.id;
 
-        const productItems = items.filter((item) => item.productId === product.$id);
-        const matchingItems = productItems.filter(
-          (item) => (item.variation?.id || null) === (variationId || null),
+        const productItems = items.filter(
+          (item) => item.productId === product.$id
         );
-        const totalForProduct = productItems.reduce((sum, item) => sum + item.quantity, 0);
+        const matchingItems = productItems.filter(
+          (item) => (item.variation?.id || null) === (variationId || null)
+        );
+        const totalForProduct = productItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        );
         const maxPerOrder = product.max_per_order;
         if (maxPerOrder && totalForProduct + safeQuantity > maxPerOrder) {
           return {
@@ -134,18 +150,24 @@ export const useCartStore = create<CartState>()(
 
         const existingIndex = items.findIndex((item) => {
           if (item.productId !== product.$id) return false;
-          if ((item.variation?.id || null) !== (variationId || null)) return false;
+          if ((item.variation?.id || null) !== (variationId || null))
+            return false;
           const itemResponses = normalizeResponses(item.customFieldResponses);
-          return JSON.stringify(itemResponses) === JSON.stringify(normalizedResponses || undefined);
+          return (
+            JSON.stringify(itemResponses) ===
+            JSON.stringify(normalizedResponses || undefined)
+          );
         });
 
         const basePrice = Number(product.price || 0);
         const modifier = Number(variation?.price_modifier || 0);
         const unitPrice = Math.max(0, basePrice + modifier);
-        const customFieldDefinitions = buildCustomFieldDefinitions(product.custom_fields);
+        const customFieldDefinitions = buildCustomFieldDefinitions(
+          product.custom_fields
+        );
         const customFields = buildCustomFieldEntries(
           product.custom_fields,
-          normalizedResponses || undefined,
+          normalizedResponses || undefined
         );
 
         if (existingIndex >= 0) {
@@ -167,7 +189,8 @@ export const useCartStore = create<CartState>()(
             basePrice,
             customFieldResponses: normalizedResponses,
             customFields: customFields || existingItem.customFields,
-            customFieldDefinitions: existingItem.customFieldDefinitions || customFieldDefinitions,
+            customFieldDefinitions:
+              existingItem.customFieldDefinitions || customFieldDefinitions,
           };
           set({ items: nextItems });
           return { success: true };
@@ -203,7 +226,9 @@ export const useCartStore = create<CartState>()(
         return { success: true };
       },
       removeItem: (id) => {
-        set((state) => ({ items: state.items.filter((item) => item.id !== id) }));
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== id),
+        }));
       },
       updateQuantity: (id, quantity) => {
         set((state) => {
@@ -215,7 +240,10 @@ export const useCartStore = create<CartState>()(
             }
             if (item.maxPerOrder) {
               const others = state.items
-                .filter((other) => other.id !== id && other.productId === item.productId)
+                .filter(
+                  (other) =>
+                    other.id !== id && other.productId === item.productId
+                )
                 .reduce((sum, other) => sum + other.quantity, 0);
               const allowed = Math.max(1, item.maxPerOrder - others);
               return { ...item, quantity: Math.min(safeQuantity, allowed) };
@@ -243,12 +271,16 @@ export const useCartStore = create<CartState>()(
                 label: definitions[responseId]?.label || responseId,
                 value: responseValue,
                 required: definitions[responseId]?.required,
-              }),
+              })
             );
             return {
               ...item,
-              customFieldResponses: Object.keys(responses).length ? responses : undefined,
-              customFields: nextCustomFields.length ? nextCustomFields : undefined,
+              customFieldResponses: Object.keys(responses).length
+                ? responses
+                : undefined,
+              customFields: nextCustomFields.length
+                ? nextCustomFields
+                : undefined,
             };
           }),
         }));
@@ -259,12 +291,13 @@ export const useCartStore = create<CartState>()(
       name: STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ items: state.items }),
-    },
-  ),
+    }
+  )
 );
 
 export const cartSelectors = {
-  itemCount: (state: CartState) => state.items.reduce((sum, item) => sum + item.quantity, 0),
+  itemCount: (state: CartState) =>
+    state.items.reduce((sum, item) => sum + item.quantity, 0),
   subTotal: (state: CartState) =>
     state.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
 };

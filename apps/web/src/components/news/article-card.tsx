@@ -39,17 +39,22 @@ const getRelativeTime = (dateString?: string) => {
 };
 
 export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
-  const categoryColor = categoryColors[article.content_type] || categoryColors["default"];
+  const categoryColor =
+    categoryColors[article.content_type] || categoryColors["default"];
   const imageUrl =
     article.news_ref?.image ||
     "https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080";
   const articleLink = `/news/${article.content_id}`;
-  const relativeTime = getRelativeTime(article.news_ref?.$createdAt || article.$createdAt);
+  const relativeTime = getRelativeTime(
+    article.news_ref?.$createdAt || article.$createdAt
+  );
 
   // Clean description
   const cleanDescription = article.description?.replace(/<[^>]+>/g, "") || "";
   const shortDescription =
-    cleanDescription.length > 150 ? `${cleanDescription.slice(0, 150)}...` : cleanDescription;
+    cleanDescription.length > 150
+      ? `${cleanDescription.slice(0, 150)}...`
+      : cleanDescription;
 
   if (variant === "featured") {
     return (
@@ -82,7 +87,9 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
                   <Clock className="w-4 h-4" />
                   <span className="text-sm">{relativeTime}</span>
                 </div>
-                <h3 className="text-3xl font-bold mb-4 text-gray-900">{article.title}</h3>
+                <h3 className="text-3xl font-bold mb-4 text-gray-900">
+                  {article.title}
+                </h3>
                 <p className="text-gray-600 mb-6 text-lg">{shortDescription}</p>
                 <Button className="w-fit bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 group">
                   Read More
@@ -125,8 +132,12 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
               <Clock className="w-4 h-4" />
               <span className="text-sm">{relativeTime}</span>
             </div>
-            <h4 className="text-xl font-bold mb-3 text-gray-900 line-clamp-2">{article.title}</h4>
-            <p className="text-gray-600 mb-4 grow line-clamp-3">{shortDescription}</p>
+            <h4 className="text-xl font-bold mb-3 text-gray-900 line-clamp-2">
+              {article.title}
+            </h4>
+            <p className="text-gray-600 mb-4 grow line-clamp-3">
+              {shortDescription}
+            </p>
             <Button
               variant="ghost"
               className="text-[#001731] hover:text-[#3DA9E0] p-0 h-auto group self-start"

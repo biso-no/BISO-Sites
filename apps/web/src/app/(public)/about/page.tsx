@@ -85,11 +85,14 @@ export default function AboutPage() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {t("general.strategy.items.impact.title", { default: "Påvirkning" })}
+                  {t("general.strategy.items.impact.title", {
+                    default: "Påvirkning",
+                  })}
                 </CardTitle>
                 <CardDescription>
                   {t("general.strategy.items.impact.desc", {
-                    default: "Gi studenter en stemme på BI, i studentpolitikken og i samfunnet.",
+                    default:
+                      "Gi studenter en stemme på BI, i studentpolitikken og i samfunnet.",
                   })}
                 </CardDescription>
               </CardHeader>
@@ -97,11 +100,14 @@ export default function AboutPage() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {t("general.strategy.items.connected.title", { default: "Påkoblet" })}
+                  {t("general.strategy.items.connected.title", {
+                    default: "Påkoblet",
+                  })}
                 </CardTitle>
                 <CardDescription>
                   {t("general.strategy.items.connected.desc", {
-                    default: "Forene studenter på tvers av campus og knytte dem til næringslivet.",
+                    default:
+                      "Forene studenter på tvers av campus og knytte dem til næringslivet.",
                   })}
                 </CardDescription>
               </CardHeader>
@@ -109,7 +115,9 @@ export default function AboutPage() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {t("general.strategy.items.engaged.title", { default: "Engasjert" })}
+                  {t("general.strategy.items.engaged.title", {
+                    default: "Engasjert",
+                  })}
                 </CardTitle>
                 <CardDescription>
                   {t("general.strategy.items.engaged.desc", {
@@ -128,7 +136,8 @@ export default function AboutPage() {
           </h3>
           <p className="text-primary-70">
             {t("general.whatWeDo.lead", {
-              default: "Alle midler i BISO skal gå tilbake til studentvelferd...",
+              default:
+                "Alle midler i BISO skal gå tilbake til studentvelferd...",
             })}
           </p>
           <ul className="grid gap-2 sm:grid-cols-2 mt-3">
@@ -156,7 +165,9 @@ export default function AboutPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-semibold text-primary-90">{t("general.politics.title")}</h3>
+            <h3 className="text-xl font-semibold text-primary-90">
+              {t("general.politics.title")}
+            </h3>
             <p className="text-primary-70">{t("general.politics.lead")}</p>
           </div>
           <Button asChild variant="secondary">
@@ -166,7 +177,9 @@ export default function AboutPage() {
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-primary-90">{t("hub.browse")}</h2>
+        <h2 className="text-xl font-semibold text-primary-90">
+          {t("hub.browse")}
+        </h2>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -210,7 +223,9 @@ export default function AboutPage() {
       {partners.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-primary-90">
-            {t("general.partners.title", { default: "Våre nasjonale partnere" })}
+            {t("general.partners.title", {
+              default: "Våre nasjonale partnere",
+            })}
           </h3>
           <div className="grid gap-6 sm:grid-cols-3 items-center">
             {partners.map((p) => (

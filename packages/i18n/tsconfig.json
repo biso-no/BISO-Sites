@@ -5,7 +5,8 @@
     "rootDir": ".",
     "resolveJsonModule": true,
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "strictNullChecks": true
   },
   "include": ["**/*.ts", "**/*.json"],
   "exclude": ["node_modules", "dist"]

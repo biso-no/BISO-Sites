@@ -14,7 +14,8 @@ export function SocialLinks({ socials }: SocialLinksProps) {
     if (platformLower.includes("instagram")) return Instagram;
     if (platformLower.includes("facebook")) return Facebook;
     if (platformLower.includes("linkedin")) return Linkedin;
-    if (platformLower.includes("twitter") || platformLower.includes("x")) return Twitter;
+    if (platformLower.includes("twitter") || platformLower.includes("x"))
+      return Twitter;
     return Globe;
   };
 

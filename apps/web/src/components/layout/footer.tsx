@@ -1,5 +1,13 @@
 "use client";
-import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from "lucide-react";
+import {
+  Facebook,
+  Instagram,
+  Linkedin,
+  Mail,
+  MapPin,
+  Phone,
+  Twitter,
+} from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,10 +56,17 @@ export function Footer() {
               className="mb-6"
             >
               <div className="flex items-center gap-3 mb-4">
-                <Image src="/images/logo-dark.png" alt="BISO" width={48} height={48} />
+                <Image
+                  src="/images/logo-dark.png"
+                  alt="BISO"
+                  width={48}
+                  height={48}
+                />
                 <div>
                   <div>BISO</div>
-                  <div className="text-sm text-gray-400">BI Student Organisation</div>
+                  <div className="text-sm text-gray-400">
+                    BI Student Organisation
+                  </div>
                 </div>
               </div>
               <p className="text-gray-400 mb-6">{t("about.description")}</p>
@@ -104,7 +119,8 @@ export function Footer() {
           className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-gray-800"
         >
           <p className="text-gray-400 mb-4 md:mb-0">
-            © {new Date().getFullYear()} BI Student Organisation. All rights reserved.
+            © {new Date().getFullYear()} BI Student Organisation. All rights
+            reserved.
           </p>
 
           <div className="flex gap-4">

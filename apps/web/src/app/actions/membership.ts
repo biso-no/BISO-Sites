@@ -15,7 +15,11 @@ export async function getGlobalMembershipBenefits(): Promise<CampusData | null> 
     const { db } = await createSessionClient();
 
     try {
-      const document = await db.getRow<CampusData>("app", "campus_data", NATIONAL_CAMPUS_ID);
+      const document = await db.getRow<CampusData>(
+        "app",
+        "campus_data",
+        NATIONAL_CAMPUS_ID
+      );
       return document;
     } catch (error) {
       const response = await db.listRows<CampusData>("app", "campus_data");

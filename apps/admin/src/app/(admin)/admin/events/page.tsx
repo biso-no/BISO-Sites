@@ -47,16 +47,22 @@ export default async function AdminEventsPage({
 
   const events = await listEvents({ campus, status, search, limit: 200 });
   const totalEvents = events.length;
-  const publishedEvents = events.filter((evt) => evt.status === Status.PUBLISHED).length;
-  const draftEvents = events.filter((evt) => evt.status === Status.DRAFT).length;
-  const cancelledEvents = events.filter((evt) => evt.status === Status.CLOSED).length;
+  const publishedEvents = events.filter(
+    (evt) => evt.status === Status.PUBLISHED
+  ).length;
+  const draftEvents = events.filter(
+    (evt) => evt.status === Status.DRAFT
+  ).length;
+  const cancelledEvents = events.filter(
+    (evt) => evt.status === Status.CLOSED
+  ).length;
   const translationCoverage = formatPercentage(
     events.filter((evt) => {
       const refs = evt.translation_refs ?? [];
       const locales = refs.map((ref: any) => ref.locale);
       return locales.includes("no") && locales.includes("en");
     }).length,
-    totalEvents,
+    totalEvents
   );
 
   const summaryCards = [
@@ -70,7 +76,11 @@ export default async function AdminEventsPage({
       value: publishedEvents,
       description: t("metrics.visibleToMembers"),
     },
-    { label: t("metrics.drafts"), value: draftEvents, description: t("metrics.forReview") },
+    {
+      label: t("metrics.drafts"),
+      value: draftEvents,
+      description: t("metrics.forReview"),
+    },
     {
       label: t("metrics.translations"),
       value: translationCoverage,
@@ -123,8 +133,12 @@ export default async function AdminEventsPage({
               <SelectContent>
                 <SelectItem value="all">{t("filters.all")}</SelectItem>
                 <SelectItem value="draft">{t("filters.draft")}</SelectItem>
-                <SelectItem value="published">{t("filters.published")}</SelectItem>
-                <SelectItem value="cancelled">{t("filters.cancelled")}</SelectItem>
+                <SelectItem value="published">
+                  {t("filters.published")}
+                </SelectItem>
+                <SelectItem value="cancelled">
+                  {t("filters.cancelled")}
+                </SelectItem>
               </SelectContent>
             </Select>
             <Input
@@ -146,17 +160,21 @@ export default async function AdminEventsPage({
       <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10 bg-white/88 shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex items-center justify-between border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">{t("eventList")}</h2>
+            <h2 className="text-lg font-semibold text-primary-100">
+              {t("eventList")}
+            </h2>
             <p className="text-sm text-primary-60">
               {t("eventsAcrossCampuses", {
                 count: totalEvents,
                 campuses: new Set(
                   events.map(
                     (evt) =>
-                      (typeof evt.campus === "object" ? evt.campus?.name : evt.campus) ||
+                      (typeof evt.campus === "object"
+                        ? evt.campus?.name
+                        : evt.campus) ||
                       evt.campus_id ||
-                      "Ukjent",
-                  ),
+                      "Ukjent"
+                  )
                 ).size,
               })}
             </p>
@@ -196,20 +214,28 @@ export default async function AdminEventsPage({
               {events.map((evt) => {
                 const refs = evt.translation_refs ?? [];
                 const metadata =
-                  (evt.metadata_parsed as Record<string, unknown> | undefined) ??
+                  (evt.metadata_parsed as
+                    | Record<string, unknown>
+                    | undefined) ??
                   parseJSONSafe<Record<string, unknown>>(evt.metadata);
                 const translationLocales = getUniqueLocales(refs);
                 const primaryTitle = refs[0]?.title || evt.slug || "Untitled";
                 const statusToken = getStatusToken(evt.status);
-                const startDate = evt.start_date ? new Date(evt.start_date) : null;
+                const startDate = evt.start_date
+                  ? new Date(evt.start_date)
+                  : null;
                 const startTime =
-                  typeof metadata.start_time === "string" ? metadata.start_time : null;
+                  typeof metadata.start_time === "string"
+                    ? metadata.start_time
+                    : null;
 
                 return (
                   <tr key={evt.$id} className="transition hover:bg-primary/5">
                     <td className="px-4 py-3 font-medium text-primary-100">
                       {primaryTitle}
-                      <span className="block text-xs text-primary-50">{evt.slug}</span>
+                      <span className="block text-xs text-primary-50">
+                        {evt.slug}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <Badge
@@ -263,7 +289,9 @@ export default async function AdminEventsPage({
                           size="sm"
                           className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10"
                         >
-                          <Link href={`/admin/events/${evt.$id}`}>{t("table.edit")}</Link>
+                          <Link href={`/admin/events/${evt.$id}`}>
+                            {t("table.edit")}
+                          </Link>
                         </Button>
                         <Button
                           asChild
@@ -271,7 +299,9 @@ export default async function AdminEventsPage({
                           size="sm"
                           className="rounded-full px-3 py-1 text-xs font-semibold text-primary-70 hover:bg-primary/10"
                         >
-                          <Link href={`/alumni/events/${evt.$id}`}>{t("table.preview")}</Link>
+                          <Link href={`/alumni/events/${evt.$id}`}>
+                            {t("table.preview")}
+                          </Link>
                         </Button>
                         <Button
                           asChild

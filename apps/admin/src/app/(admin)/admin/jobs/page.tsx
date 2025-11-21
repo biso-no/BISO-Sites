@@ -50,7 +50,7 @@ export default async function AdminJobsPage({
       const locales = refs.map((ref: any) => ref.locale);
       return locales.includes("no") && locales.includes("en");
     }).length,
-    totalJobs,
+    totalJobs
   );
 
   const summaryCards = [
@@ -75,8 +75,9 @@ export default async function AdminJobsPage({
       description: t("metrics.translationComplete"),
     },
   ];
-  const campusCount = new Set(jobs.map((job) => job.campus?.name || job.campus_id || "Ukjent"))
-    .size;
+  const campusCount = new Set(
+    jobs.map((job) => job.campus?.name || job.campus_id || "Ukjent")
+  ).size;
 
   return (
     <div className="space-y-8">
@@ -122,7 +123,9 @@ export default async function AdminJobsPage({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("filters.all")}</SelectItem>
-                <SelectItem value="published">{t("filters.published")}</SelectItem>
+                <SelectItem value="published">
+                  {t("filters.published")}
+                </SelectItem>
                 <SelectItem value="draft">{t("filters.draft")}</SelectItem>
                 <SelectItem value="closed">{t("filters.closed")}</SelectItem>
               </SelectContent>
@@ -146,7 +149,9 @@ export default async function AdminJobsPage({
       <div className="glass-panel overflow-hidden rounded-3xl border border-primary/10  shadow-[0_25px_55px_-38px_rgba(0,23,49,0.45)]">
         <div className="flex items-center justify-between border-b border-primary/10 px-6 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-primary-100">{t("jobOverview")}</h2>
+            <h2 className="text-lg font-semibold text-primary-100">
+              {t("jobOverview")}
+            </h2>
             <p className="text-sm text-primary-60">
               {t("positionsAcrossCampuses", {
                 count: totalJobs,
@@ -187,13 +192,21 @@ export default async function AdminJobsPage({
             </thead>
             <tbody className="divide-y divide-primary/10 bg-white/80">
               {jobs.map((job) => {
-                const translationLocales = getUniqueLocales(job.translation_refs);
-                const primaryTitle = job.translation_refs?.[0]?.title || job.slug;
+                const translationLocales = getUniqueLocales(
+                  job.translation_refs
+                );
+                const primaryTitle =
+                  job.translation_refs?.[0]?.title || job.slug;
                 const metadata =
-                  (job.metadata_parsed as Record<string, unknown> | undefined) ??
-                  parseJSONSafe<Record<string, unknown>>(job.metadata as string | null | undefined);
+                  (job.metadata_parsed as
+                    | Record<string, unknown>
+                    | undefined) ??
+                  parseJSONSafe<Record<string, unknown>>(
+                    job.metadata as string | null | undefined
+                  );
                 const statusToken = getStatusToken(job.status);
-                const statusLabel = t(`status.${job.status}`) || statusToken.label;
+                const statusLabel =
+                  t(`status.${job.status}`) || statusToken.label;
                 const deadline = metadata.application_deadline
                   ? new Date(JSON.stringify(metadata.application_deadline))
                   : null;
@@ -202,7 +215,9 @@ export default async function AdminJobsPage({
                   <tr key={job.$id} className="transition hover:bg-primary/5">
                     <td className="px-4 py-3 font-medium text-primary-100">
                       {primaryTitle}
-                      <span className="block text-xs text-primary-50">{job.slug}</span>
+                      <span className="block text-xs text-primary-50">
+                        {job.slug}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <Badge
@@ -255,7 +270,9 @@ export default async function AdminJobsPage({
                         size="sm"
                         className="rounded-full px-3 py-1 text-xs font-semibold text-primary-80 hover:bg-primary/10"
                       >
-                        <Link href={`/admin/jobs/${job.$id}`}>{t("table.edit")}</Link>
+                        <Link href={`/admin/jobs/${job.$id}`}>
+                          {t("table.edit")}
+                        </Link>
                       </Button>
                     </td>
                   </tr>

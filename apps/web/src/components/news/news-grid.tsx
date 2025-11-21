@@ -8,13 +8,24 @@ interface NewsGridProps {
   searchQuery: string;
 }
 
-export async function NewsGrid({ selectedCategory, searchQuery }: NewsGridProps) {
+export async function NewsGrid({
+  selectedCategory,
+  searchQuery,
+}: NewsGridProps) {
   // Fetch and filter articles on the server
   const allArticles = await listNews();
-  const filteredArticles = await filterArticles(allArticles, selectedCategory, searchQuery);
+  const filteredArticles = await filterArticles(
+    allArticles,
+    selectedCategory,
+    searchQuery
+  );
 
-  const featuredArticles = filteredArticles.filter((article) => article.news_ref?.sticky);
-  const regularArticles = filteredArticles.filter((article) => !article.news_ref?.sticky);
+  const featuredArticles = filteredArticles.filter(
+    (article) => article.news_ref?.sticky
+  );
+  const regularArticles = filteredArticles.filter(
+    (article) => !article.news_ref?.sticky
+  );
 
   if (filteredArticles.length === 0) {
     return <NoResults />;
@@ -23,11 +34,16 @@ export async function NewsGrid({ selectedCategory, searchQuery }: NewsGridProps)
   return (
     <div>
       {/* Featured Articles */}
-      {featuredArticles.length > 0 && <FeaturedArticles articles={featuredArticles} />}
+      {featuredArticles.length > 0 && (
+        <FeaturedArticles articles={featuredArticles} />
+      )}
 
       {/* Regular Articles */}
       {regularArticles.length > 0 && (
-        <RegularArticles articles={regularArticles} showHeader={featuredArticles.length > 0} />
+        <RegularArticles
+          articles={regularArticles}
+          showHeader={featuredArticles.length > 0}
+        />
       )}
     </div>
   );

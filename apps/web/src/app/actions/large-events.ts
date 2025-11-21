@@ -11,10 +11,14 @@ type ListParams = {
   showcaseTypes?: string[];
 };
 
-const parseJsonSafely = <T>(value?: string | string[] | null): T | undefined => {
+const parseJsonSafely = <T>(
+  value?: string | string[] | null
+): T | undefined => {
   if (!value) return undefined;
   try {
-    return JSON.parse(typeof value === "string" ? value : JSON.stringify(value)) as T;
+    return JSON.parse(
+      typeof value === "string" ? value : JSON.stringify(value)
+    ) as T;
   } catch (error) {
     console.error("Failed to parse JSON field for large event", error);
     return undefined;
@@ -30,12 +34,18 @@ const toParsedEvent = (event: LargeEvent): ParsedLargeEvent => {
   return {
     ...event,
     gradient,
-    parsedMetadata: parseJsonSafely<Record<string, unknown>>(event.contentMetadata),
-    parsedCampusConfigs: parseJsonSafely<Array<Record<string, unknown>>>(event.campusConfigs),
+    parsedMetadata: parseJsonSafely<Record<string, unknown>>(
+      event.contentMetadata
+    ),
+    parsedCampusConfigs: parseJsonSafely<Array<Record<string, unknown>>>(
+      event.campusConfigs
+    ),
   };
 };
 
-export async function listLargeEvents(params: ListParams = {}): Promise<ParsedLargeEvent[]> {
+export async function listLargeEvents(
+  params: ListParams = {}
+): Promise<ParsedLargeEvent[]> {
   const { limit = 25, activeOnly = true, showcaseTypes } = params;
   try {
     const { db } = await createSessionClient();
@@ -50,7 +60,11 @@ export async function listLargeEvents(params: ListParams = {}): Promise<ParsedLa
       queries.push(Query.equal("showcaseType", showcaseTypes));
     }
 
-    const response = await db.listRows<LargeEvent>("app", "large_event", queries);
+    const response = await db.listRows<LargeEvent>(
+      "app",
+      "large_event",
+      queries
+    );
     return response.rows.map((doc) => toParsedEvent(doc));
   } catch (error) {
     console.error("Failed to list large events", error);
@@ -58,7 +72,9 @@ export async function listLargeEvents(params: ListParams = {}): Promise<ParsedLa
   }
 }
 
-export async function getLargeEventBySlug(slug: string): Promise<ParsedLargeEvent | null> {
+export async function getLargeEventBySlug(
+  slug: string
+): Promise<ParsedLargeEvent | null> {
   if (!slug) return null;
   try {
     const { db } = await createSessionClient();
@@ -94,12 +110,16 @@ async function getLargeEventItems(eventId: string): Promise<LargeEventItem[]> {
   try {
     const { db } = await createSessionClient();
 
-    const response = await db.listRows<LargeEventItem>("app", "large_event_item", [
-      Query.equal("eventId", eventId),
-      Query.orderAsc("sort"),
-      Query.orderAsc("startTime"),
-      Query.limit(100),
-    ]);
+    const response = await db.listRows<LargeEventItem>(
+      "app",
+      "large_event_item",
+      [
+        Query.equal("eventId", eventId),
+        Query.orderAsc("sort"),
+        Query.orderAsc("startTime"),
+        Query.limit(100),
+      ]
+    );
 
     return response.rows;
   } catch (error) {

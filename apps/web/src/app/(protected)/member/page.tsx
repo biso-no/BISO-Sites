@@ -36,11 +36,15 @@ export default async function MemberPortalPage() {
   const identitiesResp = await listIdentities();
   const identities = identitiesResp?.identities || [];
   const hasBIIdentity = identities.some(
-    (i: any) => String(i?.provider || "").toLowerCase() === "oidc",
+    (i: any) => String(i?.provider || "").toLowerCase() === "oidc"
   );
 
   // Verify membership status (only if BI identity linked)
-  let membershipStatus: any = { active: false, membership: null, studentId: null };
+  let membershipStatus: any = {
+    active: false,
+    membership: null,
+    studentId: null,
+  };
   if (hasBIIdentity) {
     membershipStatus = await verifyMembershipStatus();
   }

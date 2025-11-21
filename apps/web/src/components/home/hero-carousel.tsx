@@ -1,6 +1,13 @@
 "use client";
 import { Button } from "@repo/ui/components/ui/button";
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Sparkles, Users } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
@@ -75,7 +82,9 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
 
   const prevSlide = () => {
     if (featuredContent.length === 0) return;
-    setCurrentIndex((prev) => (prev - 1 + featuredContent.length) % featuredContent.length);
+    setCurrentIndex(
+      (prev) => (prev - 1 + featuredContent.length) % featuredContent.length
+    );
   };
 
   const goToSlide = (index: number) => setCurrentIndex(index);
@@ -188,7 +197,9 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
   // ---- Carousel rendering ----
   const currentItem = featuredContent[currentIndex];
   const isEvent = !!currentItem?.event_ref;
-  const imageUrl = isEvent ? currentItem?.event_ref?.image : currentItem?.news_ref?.image;
+  const imageUrl = isEvent
+    ? currentItem?.event_ref?.image
+    : currentItem?.news_ref?.image;
   const contentLink = isEvent
     ? `/events/${currentItem?.content_id}`
     : `/news/${currentItem?.content_id}`;
@@ -209,7 +220,10 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
           className="absolute inset-0"
         >
           <ImageWithFallback
-            src={imageUrl || "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"}
+            src={
+              imageUrl ||
+              "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"
+            }
             alt={currentItem?.title || ""}
             fill
             sizes="100vw"
@@ -243,10 +257,14 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
             </span>
           </div>
 
-          <h1 className="mb-6 text-white max-w-4xl mx-auto">{currentItem?.title || ""}</h1>
+          <h1 className="mb-6 text-white max-w-4xl mx-auto">
+            {currentItem?.title || ""}
+          </h1>
 
           <p className="mb-10 text-white/80 max-w-2xl mx-auto text-lg">
-            {(currentItem?.description || "").replace(/<[^>]+>/g, "").slice(0, 180) || "..."}
+            {(currentItem?.description || "")
+              .replace(/<[^>]+>/g, "")
+              .slice(0, 180) || "..."}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -264,7 +282,9 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
                 variant="outline"
                 className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 px-8 py-6"
               >
-                {t("viewAll", { contentType: isEvent ? t("featuredEvent") : t("featuredNews") })}
+                {t("viewAll", {
+                  contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
+                })}
               </Button>
             </Link>
           </div>
@@ -298,7 +318,9 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
                 key={index}
                 onClick={() => goToSlide(index)}
                 className={`w-2 h-2 rounded-full transition-all ${
-                  index === currentIndex ? "bg-white w-8" : "bg-white/40 hover:bg-white/60"
+                  index === currentIndex
+                    ? "bg-white w-8"
+                    : "bg-white/40 hover:bg-white/60"
                 }`}
                 aria-label={`Go to slide ${index + 1}`}
               />

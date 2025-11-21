@@ -79,7 +79,9 @@ export function JoinUs() {
               {t("joinUs.biso")}
             </span>
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto mb-12">{t("joinUs.subtitle")}</p>
+          <p className="text-gray-600 max-w-2xl mx-auto mb-12">
+            {t("joinUs.subtitle")}
+          </p>
         </motion.div>
 
         {/* Benefits Grid */}
@@ -113,8 +115,12 @@ export function JoinUs() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h3 className="text-2xl font-bold text-gray-900 mb-6">{t("hero.badge")}</h3>
-          <p className="text-gray-600 max-w-3xl mx-auto mb-8">{t("hero.subtitle")}</p>
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">
+            {t("hero.badge")}
+          </h3>
+          <p className="text-gray-600 max-w-3xl mx-auto mb-8">
+            {t("hero.subtitle")}
+          </p>
         </motion.div>
 
         {/* Common Features */}
@@ -161,13 +167,19 @@ export function JoinUs() {
               )}
               <Card
                 className={`p-8 border-0 shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col ${
-                  duration.popular ? "ring-2 ring-purple-600 transform scale-105" : ""
+                  duration.popular
+                    ? "ring-2 ring-purple-600 transform scale-105"
+                    : ""
                 }`}
               >
                 <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold mb-4 text-gray-900">{duration.name}</h3>
+                  <h3 className="text-2xl font-bold mb-4 text-gray-900">
+                    {duration.name}
+                  </h3>
                   <div className="mb-2">
-                    <span className="text-4xl font-bold text-gray-900">{duration.price}</span>
+                    <span className="text-4xl font-bold text-gray-900">
+                      {duration.price}
+                    </span>
                   </div>
                   <p className="text-gray-600">{duration.period}</p>
                   {duration.savings && (
@@ -201,7 +213,10 @@ export function JoinUs() {
             <p className="mb-8 text-white/90 max-w-2xl mx-auto">
               {t("onboarding.notSure.subtitle")}
             </p>
-            <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 border-0">
+            <Button
+              size="lg"
+              className="bg-white text-purple-600 hover:bg-gray-100 border-0"
+            >
               {t("onboarding.notSure.cta")}
             </Button>
           </Card>

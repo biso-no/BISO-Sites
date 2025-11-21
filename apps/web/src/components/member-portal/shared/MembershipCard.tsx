@@ -25,7 +25,9 @@ export function MembershipCard({
           <div className="text-white/70 text-sm mb-1">{t("bisoMember")}</div>
           <div className="text-white font-semibold">{userName}</div>
         </div>
-        <Badge className="bg-white/20 text-white border-white/30">{membershipType}</Badge>
+        <Badge className="bg-white/20 text-white border-white/30">
+          {membershipType}
+        </Badge>
       </div>
 
       <div className="space-y-2 mb-8">

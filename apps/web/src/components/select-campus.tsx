@@ -15,7 +15,10 @@ type SelectCampusProps = {
   className?: string;
 };
 
-export const SelectCampus = ({ placeholder = "Velg campus", className }: SelectCampusProps) => {
+export const SelectCampus = ({
+  placeholder = "Velg campus",
+  className,
+}: SelectCampusProps) => {
   const { campuses, activeCampusId, selectCampus, loading } = useCampus();
 
   const handleValueChange = async (value: string) => {
@@ -27,7 +30,11 @@ export const SelectCampus = ({ placeholder = "Velg campus", className }: SelectC
   const selectValue = activeCampusId ?? "all";
 
   return (
-    <Select value={selectValue} onValueChange={handleValueChange} disabled={loading}>
+    <Select
+      value={selectValue}
+      onValueChange={handleValueChange}
+      disabled={loading}
+    >
       <SelectTrigger className={className} aria-label="Velg campus">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>

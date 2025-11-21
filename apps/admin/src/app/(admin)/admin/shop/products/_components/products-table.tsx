@@ -76,7 +76,11 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
 
 const LOW_STOCK_THRESHOLD = 10;
 
-export function ProductsTable({ products }: { products: ProductWithTranslations[] }) {
+export function ProductsTable({
+  products,
+}: {
+  products: ProductWithTranslations[];
+}) {
   const t = useTranslations("adminShop");
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -89,9 +93,15 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
 
   const aggregates = useMemo(() => {
     const total = products.length;
-    const published = products.filter((product) => product.status === "published").length;
-    const draft = products.filter((product) => product.status === "draft").length;
-    const archived = products.filter((product) => product.status === "archived").length;
+    const published = products.filter(
+      (product) => product.status === "published"
+    ).length;
+    const draft = products.filter(
+      (product) => product.status === "draft"
+    ).length;
+    const archived = products.filter(
+      (product) => product.status === "archived"
+    ).length;
     const translationComplete = products.filter((product) => {
       const refs = product.translation_refs ?? [];
       const locales = refs.map((ref) => ref.locale);
@@ -102,7 +112,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
       (product) =>
         typeof product.stock === "number" &&
         product.stock >= 0 &&
-        product.stock <= LOW_STOCK_THRESHOLD,
+        product.stock <= LOW_STOCK_THRESHOLD
     ).length;
 
     return {
@@ -116,7 +126,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
   }, [products]);
 
   useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => products.some((product) => product.$id === id)));
+    setSelectedIds((prev) =>
+      prev.filter((id) => products.some((product) => product.$id === id))
+    );
   }, [products]);
 
   const formatPrice = (price: number | null | undefined) => {
@@ -128,7 +140,7 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
 
   const handleUpdateStatus = async (
     productId: string,
-    newStatus: "draft" | "published" | "archived",
+    newStatus: "draft" | "published" | "archived"
   ) => {
     await updateProduct(productId, { status: newStatus });
   };
@@ -147,7 +159,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
 
   const toggleSelect = (productId: string, checked: boolean) => {
     setSelectedIds((prev) =>
-      checked ? Array.from(new Set([...prev, productId])) : prev.filter((id) => id !== productId),
+      checked
+        ? Array.from(new Set([...prev, productId]))
+        : prev.filter((id) => id !== productId)
     );
   };
 
@@ -172,7 +186,10 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
       return;
     }
     startBulkTransition(async () => {
-      const result = await bulkUpdateProductPrices(selectedIds, { mode: priceMode, value });
+      const result = await bulkUpdateProductPrices(selectedIds, {
+        mode: priceMode,
+        value,
+      });
       if (!result?.success) {
         setBulkFeedback(result?.error || t("messages.updatePriceError"));
         return;
@@ -191,7 +208,10 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
       return;
     }
     startBulkTransition(async () => {
-      const result = await bulkUpdateProductStock(selectedIds, { mode: stockMode, value });
+      const result = await bulkUpdateProductStock(selectedIds, {
+        mode: stockMode,
+        value,
+      });
       if (!result?.success) {
         setBulkFeedback(result?.error || t("messages.updateStockError"));
         return;
@@ -205,7 +225,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
   const renderStockValue = (stock: number | null | undefined) => {
     if (typeof stock === "number") {
       if (stock <= 0) {
-        return <Badge variant="destructive">{t("products.stockStatus.empty")}</Badge>;
+        return (
+          <Badge variant="destructive">{t("products.stockStatus.empty")}</Badge>
+        );
       }
       if (stock <= LOW_STOCK_THRESHOLD) {
         return (
@@ -219,8 +241,10 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
     return "—";
   };
 
-  const allSelected = selectedIds.length > 0 && selectedIds.length === products.length;
-  const partiallySelected = selectedIds.length > 0 && selectedIds.length < products.length;
+  const allSelected =
+    selectedIds.length > 0 && selectedIds.length === products.length;
+  const partiallySelected =
+    selectedIds.length > 0 && selectedIds.length < products.length;
 
   return (
     <TabsContent value="all">
@@ -231,9 +255,15 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
         description={t("products.inventoryDescription")}
         metrics={[
           { label: t("products.metrics.total"), value: aggregates.total },
-          { label: t("products.metrics.published"), value: aggregates.published },
+          {
+            label: t("products.metrics.published"),
+            value: aggregates.published,
+          },
           { label: t("products.metrics.draft"), value: aggregates.draft },
-          { label: t("products.metrics.translations"), value: aggregates.translationCoverage },
+          {
+            label: t("products.metrics.translations"),
+            value: aggregates.translationCoverage,
+          },
           { label: t("products.metrics.lowStock"), value: aggregates.lowStock },
         ]}
         action={
@@ -243,7 +273,10 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
               size="sm"
               className="rounded-full bg-primary-40 px-4 font-semibold text-white shadow-[0_15px_35px_-22px_rgba(0,23,49,0.7)] hover:bg-primary-30"
             >
-              <Link href="/admin/shop/products/new" className="flex items-center gap-2">
+              <Link
+                href="/admin/shop/products/new"
+                className="flex items-center gap-2"
+              >
                 <Plus className="h-4 w-4" />
                 {t("products.newProduct")}
               </Link>
@@ -263,7 +296,11 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
       {selectedIds.length > 0 && (
         <div className="mb-4 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 shadow-inner">
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-primary-90">
-            <span>{t("products.bulkActions.selected", { count: selectedIds.length })}</span>
+            <span>
+              {t("products.bulkActions.selected", {
+                count: selectedIds.length,
+              })}
+            </span>
             <Button
               variant="ghost"
               size="sm"
@@ -272,7 +309,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
             >
               {t("products.bulkActions.reset")}
             </Button>
-            {bulkFeedback && <span className="text-xs text-primary-60">{bulkFeedback}</span>}
+            {bulkFeedback && (
+              <span className="text-xs text-primary-60">{bulkFeedback}</span>
+            )}
           </div>
           <div className="mt-3 grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
@@ -324,16 +363,22 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                 />
                 <Select
                   value={priceMode}
-                  onValueChange={(value) => setPriceMode(value as "percent" | "absolute")}
+                  onValueChange={(value) =>
+                    setPriceMode(value as "percent" | "absolute")
+                  }
                 >
                   <SelectTrigger className="h-9 w-[140px]">
-                    <SelectValue placeholder={t("products.bulkActions.selectMode")} />
+                    <SelectValue
+                      placeholder={t("products.bulkActions.selectMode")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percent">
                       {t("products.bulkActions.percentAdjust")}
                     </SelectItem>
-                    <SelectItem value="absolute">{t("products.bulkActions.setPrice")}</SelectItem>
+                    <SelectItem value="absolute">
+                      {t("products.bulkActions.setPrice")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <Button type="submit" size="sm" disabled={isBulkPending}>
@@ -356,14 +401,22 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                 />
                 <Select
                   value={stockMode}
-                  onValueChange={(value) => setStockMode(value as "adjust" | "set")}
+                  onValueChange={(value) =>
+                    setStockMode(value as "adjust" | "set")
+                  }
                 >
                   <SelectTrigger className="h-9 w-[140px]">
-                    <SelectValue placeholder={t("products.bulkActions.selectMode")} />
+                    <SelectValue
+                      placeholder={t("products.bulkActions.selectMode")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="adjust">{t("products.bulkActions.adjust")}</SelectItem>
-                    <SelectItem value="set">{t("products.bulkActions.setStock")}</SelectItem>
+                    <SelectItem value="adjust">
+                      {t("products.bulkActions.adjust")}
+                    </SelectItem>
+                    <SelectItem value="set">
+                      {t("products.bulkActions.setStock")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <Button type="submit" size="sm" disabled={isBulkPending}>
@@ -400,14 +453,24 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                   <TableHead className="w-10">
                     <Checkbox
                       aria-label={t("products.table.selectAll")}
-                      checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
-                      onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
+                      checked={
+                        allSelected
+                          ? true
+                          : partiallySelected
+                            ? "indeterminate"
+                            : false
+                      }
+                      onCheckedChange={(checked) =>
+                        toggleSelectAll(Boolean(checked))
+                      }
                     />
                   </TableHead>
                   <TableHead className="hidden w-[100px] sm:table-cell">
                     <span className="sr-only">{t("products.table.image")}</span>
                   </TableHead>
-                  <TableHead className="min-w-[160px]">{t("products.table.product")}</TableHead>
+                  <TableHead className="min-w-[160px]">
+                    {t("products.table.product")}
+                  </TableHead>
                   <TableHead>{t("products.table.status")}</TableHead>
                   <TableHead>{t("products.table.translations")}</TableHead>
                   <TableHead className="hidden md:table-cell">
@@ -423,7 +486,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                     {t("products.table.created")}
                   </TableHead>
                   <TableHead>
-                    <span className="sr-only">{t("products.table.actions")}</span>
+                    <span className="sr-only">
+                      {t("products.table.actions")}
+                    </span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -431,13 +496,17 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                 {products.map((product) => {
                   const refs = product.translation_refs ?? [];
                   const metadata =
-                    (product.metadata_parsed as Record<string, unknown> | undefined) ??
+                    (product.metadata_parsed as
+                      | Record<string, unknown>
+                      | undefined) ??
                     parseJSONSafe<Record<string, unknown>>(product.metadata);
                   const title = refs[0]?.title || product.slug;
                   const statusToken = getStatusToken(product.status);
                   const uniqueLocales = getUniqueLocales(refs);
                   const primaryImage =
-                    product.image || (metadata as any).image || "/placeholder.svg";
+                    product.image ||
+                    (metadata as any).image ||
+                    "/placeholder.svg";
 
                   const isSelected = selectedIds.includes(product.$id);
 
@@ -446,14 +515,18 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                       key={product.$id}
                       className={cn(
                         "group transition hover:bg-primary/5",
-                        isSelected && "bg-primary/5/60",
+                        isSelected && "bg-primary/5/60"
                       )}
                     >
                       <TableCell>
                         <Checkbox
-                          aria-label={t("products.table.selectProduct", { title })}
+                          aria-label={t("products.table.selectProduct", {
+                            title,
+                          })}
                           checked={isSelected}
-                          onCheckedChange={(checked) => toggleSelect(product.$id, Boolean(checked))}
+                          onCheckedChange={(checked) =>
+                            toggleSelect(product.$id, Boolean(checked))
+                          }
                         />
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
@@ -474,7 +547,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                         >
                           {title}
                         </Link>
-                        <div className="text-xs text-primary-50">{product.slug}</div>
+                        <div className="text-xs text-primary-50">
+                          {product.slug}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -527,24 +602,34 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>{t("products.table.actions")}</DropdownMenuLabel>
+                            <DropdownMenuLabel>
+                              {t("products.table.actions")}
+                            </DropdownMenuLabel>
                             <DropdownMenuItem
-                              onClick={() => handleUpdateStatus(product.$id, "published")}
+                              onClick={() =>
+                                handleUpdateStatus(product.$id, "published")
+                              }
                             >
                               {t("products.actions.setPublished")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleUpdateStatus(product.$id, "draft")}
+                              onClick={() =>
+                                handleUpdateStatus(product.$id, "draft")
+                              }
                             >
                               {t("products.actions.setDraft")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleUpdateStatus(product.$id, "archived")}
+                              onClick={() =>
+                                handleUpdateStatus(product.$id, "archived")
+                              }
                             >
                               {t("products.actions.archive")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleDeleteProduct(product.$id)}>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteProduct(product.$id)}
+                            >
                               {t("products.actions.delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -568,7 +653,9 @@ export function ProductsTable({ products }: { products: ProductWithTranslations[
             }}
           />
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary-70">
-            {t("products.table.updated", { date: DATE_FORMATTER.format(new Date()) })}
+            {t("products.table.updated", {
+              date: DATE_FORMATTER.format(new Date()),
+            })}
           </div>
         </CardFooter>
       </Card>

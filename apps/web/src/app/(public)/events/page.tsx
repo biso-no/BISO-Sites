@@ -8,7 +8,8 @@ import { EventsListClient } from "@/components/events/events-list-client";
 // This is a server component
 export const metadata = {
   title: "Events | BISO",
-  description: "Discover amazing events and experiences at BI Norwegian Business School",
+  description:
+    "Discover amazing events and experiences at BI Norwegian Business School",
 };
 
 async function EventsList({ locale }: { locale: "en" | "no" }) {

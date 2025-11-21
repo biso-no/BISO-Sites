@@ -19,24 +19,36 @@ interface PublicPageHeaderProps {
   breadcrumbs: BreadcrumbEntry[];
 }
 
-export function PublicPageHeader({ title, subtitle, breadcrumbs }: PublicPageHeaderProps) {
+export function PublicPageHeader({
+  title,
+  subtitle,
+  breadcrumbs,
+}: PublicPageHeaderProps) {
   const eyebrowLabel = breadcrumbs[0]?.label ?? "BISO";
   const currentPage = breadcrumbs[breadcrumbs.length - 1]?.label ?? title;
-  const parentLabel = breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2]?.label : null;
+  const parentLabel =
+    breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2]?.label : null;
 
   const renderedBreadcrumbs = breadcrumbs.length ? (
     breadcrumbs.map((bc, idx) => (
       <Fragment key={`${bc.label}-${idx}`}>
         <BreadcrumbItem>
           {bc.href ? (
-            <BreadcrumbLink asChild className="text-primary-60 hover:text-primary-40">
+            <BreadcrumbLink
+              asChild
+              className="text-primary-60 hover:text-primary-40"
+            >
               <Link href={bc.href}>{bc.label}</Link>
             </BreadcrumbLink>
           ) : (
-            <BreadcrumbPage className="text-primary-40">{bc.label}</BreadcrumbPage>
+            <BreadcrumbPage className="text-primary-40">
+              {bc.label}
+            </BreadcrumbPage>
           )}
         </BreadcrumbItem>
-        {idx < breadcrumbs.length - 1 && <BreadcrumbSeparator className="text-primary-60/80" />}
+        {idx < breadcrumbs.length - 1 && (
+          <BreadcrumbSeparator className="text-primary-60/80" />
+        )}
       </Fragment>
     ))
   ) : (
@@ -79,7 +91,9 @@ export function PublicPageHeader({ title, subtitle, breadcrumbs }: PublicPageHea
               <span className="block text-[0.7rem] uppercase tracking-[0.16em] text-primary-60">
                 Nåværende
               </span>
-              <span className="text-base font-semibold text-primary-90">{currentPage}</span>
+              <span className="text-base font-semibold text-primary-90">
+                {currentPage}
+              </span>
             </div>
           </div>
 
@@ -89,7 +103,7 @@ export function PublicPageHeader({ title, subtitle, breadcrumbs }: PublicPageHea
             <BreadcrumbList
               className={cn(
                 "flex flex-wrap gap-1.5 text-[0.85rem] font-medium text-primary-60",
-                "sm:gap-2.5",
+                "sm:gap-2.5"
               )}
             >
               {renderedBreadcrumbs}

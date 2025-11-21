@@ -42,11 +42,13 @@ export function PrivacyControls({ userId }: { userId: string }) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       toast.success("Data Request Submitted", {
-        description: "We'll prepare your data and send it to your email within 30 days.",
+        description:
+          "We'll prepare your data and send it to your email within 30 days.",
       });
     } catch (error) {
       toast.error("Data Request Failed", {
-        description: "There was a problem requesting your data. Please try again.",
+        description:
+          "There was a problem requesting your data. Please try again.",
       });
     } finally {
       setRequestingData(false);
@@ -70,7 +72,8 @@ export function PrivacyControls({ userId }: { userId: string }) {
       setDeleteDialogOpen(false);
     } catch (error) {
       toast.error("Deletion Failed", {
-        description: "There was a problem deleting your account. Please try again.",
+        description:
+          "There was a problem deleting your account. Please try again.",
       });
     } finally {
       setDeletingData(false);
@@ -86,7 +89,8 @@ export function PrivacyControls({ userId }: { userId: string }) {
             Your Privacy Rights
           </CardTitle>
           <CardDescription className="text-gray-600">
-            Under GDPR, you have the right to access, modify, and delete your personal data
+            Under GDPR, you have the right to access, modify, and delete your
+            personal data
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
@@ -96,15 +100,17 @@ export function PrivacyControls({ userId }: { userId: string }) {
               <a href="/privacy" className="text-blue-600 hover:underline">
                 privacy policy
               </a>{" "}
-              and applicable data protection laws. You have the right to access, export, and request
-              deletion of your data.
+              and applicable data protection laws. You have the right to access,
+              export, and request deletion of your data.
             </p>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 transition-colors">
               <div>
-                <h3 className="text-sm font-medium text-gray-900">Request Your Data</h3>
+                <h3 className="text-sm font-medium text-gray-900">
+                  Request Your Data
+                </h3>
                 <p className="text-xs text-gray-500">
                   Get a copy of all personal data we store about you
                 </p>
@@ -155,10 +161,12 @@ export function PrivacyControls({ userId }: { userId: string }) {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-white text-gray-900 border border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-gray-900">Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle className="text-gray-900">
+              Are you absolutely sure?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-600">
-              This action cannot be undone. This will permanently delete your account and remove all
-              your data from our servers.
+              This action cannot be undone. This will permanently delete your
+              account and remove all your data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="border-t border-gray-100 pt-4">

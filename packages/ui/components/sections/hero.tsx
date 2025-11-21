@@ -1,5 +1,12 @@
 "use client";
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Sparkles, Users } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -44,7 +51,9 @@ export function Hero({ featuredContent, labels }: HeroProps) {
 
   const prevSlide = () => {
     if (featuredContent.length === 0) return;
-    setCurrentIndex((prev) => (prev - 1 + featuredContent.length) % featuredContent.length);
+    setCurrentIndex(
+      (prev) => (prev - 1 + featuredContent.length) % featuredContent.length
+    );
   };
 
   const goToSlide = (index: number) => setCurrentIndex(index);
@@ -217,7 +226,9 @@ export function Hero({ featuredContent, labels }: HeroProps) {
           </h1>
 
           <p className="mb-10 text-white/80 max-w-2xl mx-auto text-lg">
-            {(currentItem?.description || "").replace(/<[^>]+>/g, "").slice(0, 180) || "..."}
+            {(currentItem?.description || "")
+              .replace(/<[^>]+>/g, "")
+              .slice(0, 180) || "..."}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -269,7 +280,9 @@ export function Hero({ featuredContent, labels }: HeroProps) {
                 key={index}
                 onClick={() => goToSlide(index)}
                 className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
-                  index === currentIndex ? "bg-white w-8" : "bg-white/40 hover:bg-white/60"
+                  index === currentIndex
+                    ? "bg-white w-8"
+                    : "bg-white/40 hover:bg-white/60"
                 }`}
                 aria-label={`Go to slide ${index + 1}`}
               />

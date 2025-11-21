@@ -26,7 +26,12 @@ export function TabNavigation({
   useEffect(() => {
     // Read hash from URL on mount
     const hash = window.location.hash.slice(1);
-    if (hash && ["overview", "profile", "membership", "benefits", "settings"].includes(hash)) {
+    if (
+      hash &&
+      ["overview", "profile", "membership", "benefits", "settings"].includes(
+        hash
+      )
+    ) {
       setActiveTab(hash);
     }
 
@@ -35,7 +40,9 @@ export function TabNavigation({
       const newHash = window.location.hash.slice(1);
       if (
         newHash &&
-        ["overview", "profile", "membership", "benefits", "settings"].includes(newHash)
+        ["overview", "profile", "membership", "benefits", "settings"].includes(
+          newHash
+        )
       ) {
         setActiveTab(newHash);
       } else if (!newHash) {
@@ -63,12 +70,18 @@ export function TabNavigation({
           <User className="w-4 h-4" />
           {t("profile")}
         </TabsTrigger>
-        <TabsTrigger value="membership" className="flex items-center gap-2 relative">
+        <TabsTrigger
+          value="membership"
+          className="flex items-center gap-2 relative"
+        >
           <Shield className="w-4 h-4" />
           {t("membership")}
           {!isMember && <span className="ml-1 text-xs">🔒</span>}
         </TabsTrigger>
-        <TabsTrigger value="benefits" className="flex items-center gap-2 relative">
+        <TabsTrigger
+          value="benefits"
+          className="flex items-center gap-2 relative"
+        >
           <Gift className="w-4 h-4" />
           {t("benefits")} ({isMember ? benefitsCount : "•••"})
           {!isMember && <span className="ml-1 text-xs">🔒</span>}

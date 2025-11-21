@@ -21,7 +21,9 @@ export default function Error({
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white flex items-center justify-center p-4">
       <Card className="p-12 text-center border-0 shadow-xl max-w-md">
         <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Something went wrong
+        </h2>
         <p className="text-gray-600 mb-6">
           We encountered an error loading your expenses. Please try again.
         </p>

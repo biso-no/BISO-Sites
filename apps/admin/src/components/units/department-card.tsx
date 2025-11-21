@@ -3,7 +3,12 @@
 import type { Departments } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@repo/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@repo/ui/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -12,15 +17,32 @@ import {
   DialogTrigger,
 } from "@repo/ui/components/ui/dialog";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
-import { Calendar, Edit, Eye, MapPin, MessageSquare, Tag, Users, Users2 } from "lucide-react";
+import {
+  Calendar,
+  Edit,
+  Eye,
+  MapPin,
+  MessageSquare,
+  Tag,
+  Users,
+  Users2,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 // Client-side only component for HTML content
-function HTMLContent({ html, className }: { html: string; className?: string }) {
+function HTMLContent({
+  html,
+  className,
+}: {
+  html: string;
+  className?: string;
+}) {
   if (!html) return null;
-  return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
+  );
 }
 
 interface DepartmentCardProps {
@@ -40,11 +62,13 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
 
   // Get English translation as default for display
   const enTranslation = department.translations?.find((t) => t.locale === "en");
-  const displayName = department.displayTitle || enTranslation?.title || department.Name;
+  const displayName =
+    department.displayTitle || enTranslation?.title || department.Name;
   const shortDescription = enTranslation?.short_description || "";
 
   const placeholderLogo =
-    "https://via.placeholder.com/80?text=" + encodeURIComponent(displayName.substring(0, 2));
+    "https://via.placeholder.com/80?text=" +
+    encodeURIComponent(displayName.substring(0, 2));
 
   const logoUrl = department.logo || placeholderLogo;
 
@@ -66,7 +90,10 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
 
         <div className="absolute top-3 right-3 z-20 flex gap-2">
           {!department.active && (
-            <Badge variant="destructive" className="shadow-lg backdrop-blur-sm animate-pulse">
+            <Badge
+              variant="destructive"
+              className="shadow-lg backdrop-blur-sm animate-pulse"
+            >
               Inactive
             </Badge>
           )}
@@ -113,7 +140,9 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
             <div className="p-1.5 rounded-md bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors duration-300">
               <MapPin size={14} className="text-blue-600" />
             </div>
-            <span className="font-medium">{department.campusName || "No campus assigned"}</span>
+            <span className="font-medium">
+              {department.campusName || "No campus assigned"}
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -122,7 +151,9 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
                 <Users size={14} className="text-green-600" />
               </div>
               <div className="flex flex-col">
-                <span className="font-semibold text-foreground">{department.userCount || 0}</span>
+                <span className="font-semibold text-foreground">
+                  {department.userCount || 0}
+                </span>
                 <span className="text-xs text-muted-foreground">members</span>
               </div>
             </div>
@@ -145,7 +176,9 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
               <div className="p-1.5 rounded-md bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors duration-300">
                 <MessageSquare size={14} className="text-amber-600" />
               </div>
-              <span className="font-medium">{department.socialsCount} social links</span>
+              <span className="font-medium">
+                {department.socialsCount} social links
+              </span>
             </div>
           )}
 

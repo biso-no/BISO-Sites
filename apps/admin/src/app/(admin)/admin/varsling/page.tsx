@@ -38,7 +38,14 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { AlertCircle, CheckCircle, Edit, Plus, Shield, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Edit,
+  Plus,
+  Shield,
+  Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { getCampuses } from "@/app/actions/campus";
@@ -216,7 +223,11 @@ export default function VarslingAdminPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center p-8">{t("messages.loading")}</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        {t("messages.loading")}
+      </div>
+    );
   }
 
   return (
@@ -261,7 +272,9 @@ export default function VarslingAdminPage() {
                   <TableHead>{t("table.headers.email")}</TableHead>
                   <TableHead>{t("table.headers.sorting")}</TableHead>
                   <TableHead>{t("table.headers.status")}</TableHead>
-                  <TableHead className="text-right">{t("table.headers.actions")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("table.headers.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -279,7 +292,9 @@ export default function VarslingAdminPage() {
                           checked={setting.is_active}
                           onCheckedChange={() => toggleActive(setting)}
                         />
-                        <Badge variant={setting.is_active ? "default" : "secondary"}>
+                        <Badge
+                          variant={setting.is_active ? "default" : "secondary"}
+                        >
                           {setting.is_active
                             ? t("table.status.active")
                             : t("table.status.inactive")}
@@ -288,7 +303,11 @@ export default function VarslingAdminPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEditDialog(setting)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(setting)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -317,7 +336,9 @@ export default function VarslingAdminPage() {
               {editingId ? t("dialog.edit.title") : t("dialog.create.title")}
             </DialogTitle>
             <DialogDescription>
-              {editingId ? t("dialog.edit.description") : t("dialog.create.description")}
+              {editingId
+                ? t("dialog.edit.description")
+                : t("dialog.create.description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -327,10 +348,14 @@ export default function VarslingAdminPage() {
               <Label>{t("dialog.fields.campus.label")} *</Label>
               <Select
                 value={formData.campus_id}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, campus_id: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, campus_id: value }))
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={t("dialog.fields.campus.placeholder")} />
+                  <SelectValue
+                    placeholder={t("dialog.fields.campus.placeholder")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {campuses.map((campus) => (
@@ -347,7 +372,12 @@ export default function VarslingAdminPage() {
               <Label>{t("dialog.fields.role.label")} *</Label>
               <Input
                 value={formData.role_name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, role_name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    role_name: e.target.value,
+                  }))
+                }
                 placeholder={t("dialog.fields.role.placeholder")}
               />
             </div>
@@ -358,7 +388,9 @@ export default function VarslingAdminPage() {
               <Input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
                 placeholder={t("dialog.fields.email.placeholder")}
               />
             </div>
@@ -370,11 +402,16 @@ export default function VarslingAdminPage() {
                 type="number"
                 value={formData.sort_order}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    sort_order: parseInt(e.target.value) || 0,
+                  }))
                 }
                 placeholder={t("dialog.fields.sortOrder.placeholder")}
               />
-              <p className="text-xs text-primary-60">{t("dialog.fields.sortOrder.description")}</p>
+              <p className="text-xs text-primary-60">
+                {t("dialog.fields.sortOrder.description")}
+              </p>
             </div>
 
             {/* Active Status */}
@@ -404,7 +441,11 @@ export default function VarslingAdminPage() {
                     <AlertCircle className="h-4 w-4 text-red-600" />
                   )}
                   <AlertDescription
-                    className={submitStatus.type === "success" ? "text-green-800" : "text-red-800"}
+                    className={
+                      submitStatus.type === "success"
+                        ? "text-green-800"
+                        : "text-red-800"
+                    }
                   >
                     {submitStatus.message}
                   </AlertDescription>

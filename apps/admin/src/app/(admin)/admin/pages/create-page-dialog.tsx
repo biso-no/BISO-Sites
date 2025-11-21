@@ -33,7 +33,10 @@ const formSchema = z.object({
   slug: z
     .string()
     .min(1, "Slug is required")
-    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug must contain only lowercase letters, numbers, and hyphens"
+    ),
 });
 
 export function CreatePageDialog({ children }: { children: React.ReactNode }) {
@@ -80,7 +83,8 @@ export function CreatePageDialog({ children }: { children: React.ReactNode }) {
         <DialogHeader>
           <DialogTitle>Create New Page</DialogTitle>
           <DialogDescription>
-            Enter a title and slug for your new page. You can edit the content afterwards.
+            Enter a title and slug for your new page. You can edit the content
+            afterwards.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -104,7 +108,7 @@ export function CreatePageDialog({ children }: { children: React.ReactNode }) {
                             e.target.value
                               .toLowerCase()
                               .replace(/[^a-z0-9]+/g, "-")
-                              .replace(/^-+|-+$/g, ""),
+                              .replace(/^-+|-+$/g, "")
                           );
                         }
                       }}

@@ -28,11 +28,20 @@ export class DocumentClassifier {
   /**
    * Classify a document based on filename, path, and content patterns
    */
-  classifyDocument(fileName: string, filePath: string, content?: string): DocumentClassification {
+  classifyDocument(
+    fileName: string,
+    filePath: string,
+    content?: string
+  ): DocumentClassification {
     const language = this.detectLanguage(fileName, filePath, content);
     const version = this.parseVersion(fileName);
     const path = this.analyzePath(filePath);
-    const authority = this.determineAuthority(language, version, path, fileName);
+    const authority = this.determineAuthority(
+      language,
+      version,
+      path,
+      fileName
+    );
 
     return {
       language,
@@ -45,7 +54,10 @@ export class DocumentClassifier {
   /**
    * Compare two documents to determine which is more authoritative
    */
-  compareAuthority(docA: DocumentClassification, docB: DocumentClassification): number {
+  compareAuthority(
+    docA: DocumentClassification,
+    docB: DocumentClassification
+  ): number {
     // Higher priority score wins
     return docB.authority.priority - docA.authority.priority;
   }
@@ -59,13 +71,17 @@ export class DocumentClassifier {
       filePath: string;
       content?: string;
       lastModified?: string;
-    }>,
+    }>
   ): { index: number; classification: DocumentClassification } | null {
     if (documents.length === 0) return null;
 
     const classified = documents.map((doc, index) => ({
       index,
-      classification: this.classifyDocument(doc.fileName, doc.filePath, doc.content),
+      classification: this.classifyDocument(
+        doc.fileName,
+        doc.filePath,
+        doc.content
+      ),
       lastModified: doc.lastModified,
     }));
 
@@ -73,12 +89,16 @@ export class DocumentClassifier {
     classified.sort((a, b) => {
       // First, compare authority priority
       const authorityDiff =
-        b.classification.authority.priority - a.classification.authority.priority;
+        b.classification.authority.priority -
+        a.classification.authority.priority;
       if (authorityDiff !== 0) return authorityDiff;
 
       // If same priority, prefer more recent
       if (a.lastModified && b.lastModified) {
-        return new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime();
+        return (
+          new Date(b.lastModified).getTime() -
+          new Date(a.lastModified).getTime()
+        );
       }
 
       return 0;
@@ -90,7 +110,7 @@ export class DocumentClassifier {
   private detectLanguage(
     fileName: string,
     filePath: string,
-    content?: string,
+    content?: string
   ): "norwegian" | "english" | "mixed" | "unknown" {
     const fileNameLower = fileName.toLowerCase();
     const filePathLower = filePath.toLowerCase();
@@ -100,23 +120,24 @@ export class DocumentClassifier {
     const englishIndicators = ["eng", "english", "engelsk"];
 
     const hasNorwegianInName = norwegianIndicators.some((indicator) =>
-      fileNameLower.includes(indicator),
+      fileNameLower.includes(indicator)
     );
     const hasEnglishInName = englishIndicators.some((indicator) =>
-      fileNameLower.includes(indicator),
+      fileNameLower.includes(indicator)
     );
 
     // Path-based detection
     const pathSegments = filePathLower.split("/").map((s) => s.trim());
     const hasNorwegianPath = pathSegments.some((segment) =>
-      ["norsk", "norwegian", "no"].includes(segment),
+      ["norsk", "norwegian", "no"].includes(segment)
     );
     const hasEnglishPath = pathSegments.some((segment) =>
-      ["english", "eng", "en"].includes(segment),
+      ["english", "eng", "en"].includes(segment)
     );
 
     // Content-based detection (if available)
-    let contentLanguage: "norwegian" | "english" | "mixed" | "unknown" = "unknown";
+    let contentLanguage: "norwegian" | "english" | "mixed" | "unknown" =
+      "unknown";
     if (content) {
       contentLanguage = this.detectContentLanguage(content);
     }
@@ -136,7 +157,9 @@ export class DocumentClassifier {
     return "norwegian";
   }
 
-  private detectContentLanguage(content: string): "norwegian" | "english" | "mixed" | "unknown" {
+  private detectContentLanguage(
+    content: string
+  ): "norwegian" | "english" | "mixed" | "unknown" {
     const sampleText = content.substring(0, 2000).toLowerCase();
 
     // Norwegian indicators
@@ -174,8 +197,12 @@ export class DocumentClassifier {
       "must",
     ];
 
-    const norwegianMatches = norwegianWords.filter((word) => sampleText.includes(word)).length;
-    const englishMatches = englishWords.filter((word) => sampleText.includes(word)).length;
+    const norwegianMatches = norwegianWords.filter((word) =>
+      sampleText.includes(word)
+    ).length;
+    const englishMatches = englishWords.filter((word) =>
+      sampleText.includes(word)
+    ).length;
 
     if (norwegianMatches > englishMatches * 1.5) return "norwegian";
     if (englishMatches > norwegianMatches * 1.5) return "english";
@@ -225,9 +252,11 @@ export class DocumentClassifier {
 
     // Check for language folders
     const hasNorwegianFolder = segments.some((segment) =>
-      ["norsk", "norwegian", "no"].includes(segment),
+      ["norsk", "norwegian", "no"].includes(segment)
     );
-    const hasEnglishFolder = segments.some((segment) => ["english", "eng", "en"].includes(segment));
+    const hasEnglishFolder = segments.some((segment) =>
+      ["english", "eng", "en"].includes(segment)
+    );
 
     // Determine document category
     let category: string | undefined;
@@ -235,7 +264,10 @@ export class DocumentClassifier {
       category = "statutes";
     } else if (pathLower.includes("local") && pathLower.includes("law")) {
       category = "local-laws";
-    } else if (pathLower.includes("business") && pathLower.includes("relation")) {
+    } else if (
+      pathLower.includes("business") &&
+      pathLower.includes("relation")
+    ) {
       category = "business-relations";
     } else if (pathLower.includes("organisation")) {
       category = "organizational";
@@ -243,7 +275,11 @@ export class DocumentClassifier {
 
     return {
       isInLanguageFolder: hasNorwegianFolder || hasEnglishFolder,
-      languageFolder: hasNorwegianFolder ? "norwegian" : hasEnglishFolder ? "english" : undefined,
+      languageFolder: hasNorwegianFolder
+        ? "norwegian"
+        : hasEnglishFolder
+          ? "english"
+          : undefined,
       category,
     };
   }
@@ -252,7 +288,7 @@ export class DocumentClassifier {
     language: DocumentClassification["language"],
     version: DocumentClassification["version"],
     path: DocumentClassification["path"],
-    fileName: string,
+    fileName: string
   ): DocumentClassification["authority"] {
     let priority = 0;
     let isAuthoritative = true;
@@ -288,7 +324,10 @@ export class DocumentClassifier {
 
     // File name patterns that indicate authority
     const fileNameLower = fileName.toLowerCase();
-    if (fileNameLower.includes("current") || fileNameLower.includes("gjeldende")) {
+    if (
+      fileNameLower.includes("current") ||
+      fileNameLower.includes("gjeldende")
+    ) {
       priority += 15;
     }
     if (fileNameLower.includes("draft") || fileNameLower.includes("utkast")) {
@@ -371,8 +410,12 @@ export class DocumentClassifier {
       "will",
     ];
 
-    const norwegianMatches = norwegianWords.filter((word) => queryLower.includes(word)).length;
-    const englishMatches = englishWords.filter((word) => queryLower.includes(word)).length;
+    const norwegianMatches = norwegianWords.filter((word) =>
+      queryLower.includes(word)
+    ).length;
+    const englishMatches = englishWords.filter((word) =>
+      queryLower.includes(word)
+    ).length;
 
     if (norwegianMatches > englishMatches) return "norwegian";
     if (englishMatches > norwegianMatches) return "english";

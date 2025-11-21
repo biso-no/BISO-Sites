@@ -34,7 +34,14 @@ export class DocumentProcessor {
       codeBlockStyle: "fenced",
       bulletListMarker: "-",
     });
-    this.turndownService.remove(["style", "script", "noscript", "iframe", "object", "embed"]);
+    this.turndownService.remove([
+      "style",
+      "script",
+      "noscript",
+      "iframe",
+      "object",
+      "embed",
+    ]);
     this.turndownService.addRule("cleanBreaks", {
       filter: ["br"],
       replacement: () => "\n",
@@ -48,7 +55,7 @@ export class DocumentProcessor {
   async processDocument(
     buffer: ArrayBuffer,
     contentType: string,
-    metadata: Record<string, any>,
+    metadata: Record<string, any>
   ): Promise<ProcessedDocument> {
     const fileName = metadata?.fileName || "";
     const correctedType = correctMimeType(contentType, fileName);
@@ -77,7 +84,9 @@ export class DocumentProcessor {
     const cleanContent = this.cleanContent(content);
     const chunks = this.createChunks(cleanContent, metadata);
 
-    console.log(`📄 ${fileName}: ${cleanContent.length} chars → ${chunks.length} chunks`);
+    console.log(
+      `📄 ${fileName}: ${cleanContent.length} chars → ${chunks.length} chunks`
+    );
 
     return { content: cleanContent, metadata, chunks };
   }
@@ -94,7 +103,7 @@ export class DocumentProcessor {
     const { parseStringPromise } = await import("xml2js");
     const zip = await JSZip.loadAsync(new Uint8Array(buffer));
     const slideFiles = Object.keys(zip.files).filter(
-      (f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml"),
+      (f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml")
     );
 
     const slideTexts: string[] = [];
@@ -106,7 +115,9 @@ export class DocumentProcessor {
       const texts: string[] = [];
       const extractTexts = (obj: any) => {
         if (obj?.["a:t"]) {
-          const text = Array.isArray(obj["a:t"]) ? obj["a:t"].join(" ") : String(obj["a:t"]);
+          const text = Array.isArray(obj["a:t"])
+            ? obj["a:t"].join(" ")
+            : String(obj["a:t"]);
           texts.push(text);
         }
         if (typeof obj === "object") {
@@ -130,7 +141,10 @@ export class DocumentProcessor {
 
     for (const sheetName of wb.SheetNames) {
       const sheet = wb.Sheets[sheetName];
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        blankrows: false,
+      });
 
       if (rows.length > 0) {
         const table = this.arrayToMarkdownTable(rows);
@@ -153,7 +167,7 @@ export class DocumentProcessor {
     if (lines.length < 2) return text;
 
     const rows = lines.map((line) =>
-      line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "")),
+      line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""))
     );
     return this.arrayToMarkdownTable(rows) || text;
   }
@@ -166,10 +180,14 @@ export class DocumentProcessor {
   private arrayToMarkdownTable(rows: any[][]): string | null {
     if (rows.length === 0) return null;
 
-    const header = rows[0].map((cell) => String(cell || "").replace(/\|/g, "\\|"));
+    const header = rows[0].map((cell) =>
+      String(cell || "").replace(/\|/g, "\\|")
+    );
     const body = rows
       .slice(1)
-      .map((row) => row.map((cell) => String(cell || "").replace(/\|/g, "\\|")));
+      .map((row) =>
+        row.map((cell) => String(cell || "").replace(/\|/g, "\\|"))
+      );
 
     if (header.every((cell) => !cell)) return null;
 
@@ -201,10 +219,16 @@ export class DocumentProcessor {
     return cleaned;
   }
 
-  private createChunks(content: string, metadata: Record<string, any>): DocumentChunk[] {
+  private createChunks(
+    content: string,
+    metadata: Record<string, any>
+  ): DocumentChunk[] {
     // Try structure-aware chunking first
     const structuredChunks = this.tryStructuredChunking(content, metadata);
-    if (structuredChunks.length > 0 && this.validateChunks(structuredChunks, content.length)) {
+    if (
+      structuredChunks.length > 0 &&
+      this.validateChunks(structuredChunks, content.length)
+    ) {
       return structuredChunks;
     }
 
@@ -212,11 +236,15 @@ export class DocumentProcessor {
     return this.createTokenBasedChunks(content, metadata);
   }
 
-  private tryStructuredChunking(content: string, metadata: Record<string, any>): DocumentChunk[] {
+  private tryStructuredChunking(
+    content: string,
+    metadata: Record<string, any>
+  ): DocumentChunk[] {
     const chunks: DocumentChunk[] = [];
 
     // Look for clear document structure
-    const sectionRegex = /^(#{1,4}\s+.+|§\s*\d+(?:\.\d+)*\s+.+|\d+\.\s+[A-ZÆØÅ].{10,})$/gm;
+    const sectionRegex =
+      /^(#{1,4}\s+.+|§\s*\d+(?:\.\d+)*\s+.+|\d+\.\s+[A-ZÆØÅ].{10,})$/gm;
     const sections: Array<{ title: string; start: number; end: number }> = [];
 
     let match;
@@ -245,7 +273,11 @@ export class DocumentProcessor {
 
       if (tokenCount > CHUNKING_CONFIG.MAX_CHUNK_SIZE) {
         // Split large sections
-        const subChunks = this.splitLargeSection(sectionContent, section.title, chunks.length);
+        const subChunks = this.splitLargeSection(
+          sectionContent,
+          section.title,
+          chunks.length
+        );
         chunks.push(...subChunks);
       } else {
         chunks.push({
@@ -265,10 +297,16 @@ export class DocumentProcessor {
     return chunks;
   }
 
-  private splitLargeSection(content: string, title: string, baseIndex: number): DocumentChunk[] {
+  private splitLargeSection(
+    content: string,
+    title: string,
+    baseIndex: number
+  ): DocumentChunk[] {
     const chunks: DocumentChunk[] = [];
     const targetSize = CHUNKING_CONFIG.TARGET_CHUNK_SIZE;
-    const overlapSize = Math.floor(targetSize * CHUNKING_CONFIG.OVERLAP_PERCENTAGE);
+    const overlapSize = Math.floor(
+      targetSize * CHUNKING_CONFIG.OVERLAP_PERCENTAGE
+    );
 
     let position = 0;
     let partIndex = 0;
@@ -285,7 +323,9 @@ export class DocumentProcessor {
           chunkContent.lastIndexOf("\n"),
         ];
 
-        const goodBoundary = boundaries.find((pos) => pos > chunkContent.length * 0.7);
+        const goodBoundary = boundaries.find(
+          (pos) => pos > chunkContent.length * 0.7
+        );
         if (goodBoundary && goodBoundary > 0) {
           chunkContent = chunkContent.substring(0, goodBoundary + 1);
         }
@@ -314,10 +354,15 @@ export class DocumentProcessor {
     return chunks;
   }
 
-  private createTokenBasedChunks(content: string, metadata: Record<string, any>): DocumentChunk[] {
+  private createTokenBasedChunks(
+    content: string,
+    metadata: Record<string, any>
+  ): DocumentChunk[] {
     const chunks: DocumentChunk[] = [];
     const targetTokens = CHUNKING_CONFIG.TARGET_CHUNK_SIZE;
-    const overlapTokens = Math.floor(targetTokens * CHUNKING_CONFIG.OVERLAP_PERCENTAGE);
+    const overlapTokens = Math.floor(
+      targetTokens * CHUNKING_CONFIG.OVERLAP_PERCENTAGE
+    );
 
     // Rough char estimates for processing
     const targetChars = targetTokens * 4;
@@ -339,10 +384,15 @@ export class DocumentProcessor {
           { pos: chunkContent.lastIndexOf(" "), type: "word" },
         ];
 
-        const goodBoundary = boundaries.find((b) => b.pos > chunkContent.length * 0.6);
+        const goodBoundary = boundaries.find(
+          (b) => b.pos > chunkContent.length * 0.6
+        );
         if (goodBoundary && goodBoundary.pos > 0) {
           const adjustment = goodBoundary.type === "sentence" ? 1 : 0;
-          chunkContent = content.substring(startPos, startPos + goodBoundary.pos + adjustment);
+          chunkContent = content.substring(
+            startPos,
+            startPos + goodBoundary.pos + adjustment
+          );
           endPos = startPos + goodBoundary.pos + adjustment;
         }
       }
@@ -372,12 +422,18 @@ export class DocumentProcessor {
     return chunks;
   }
 
-  private validateChunks(chunks: DocumentChunk[], contentLength: number): boolean {
+  private validateChunks(
+    chunks: DocumentChunk[],
+    contentLength: number
+  ): boolean {
     if (chunks.length === 0 || chunks.length > 200) return false;
 
     const tokenCounts = chunks.map((chunk) => this.countTokens(chunk.content));
-    const avgTokens = tokenCounts.reduce((sum, count) => sum + count, 0) / tokenCounts.length;
+    const avgTokens =
+      tokenCounts.reduce((sum, count) => sum + count, 0) / tokenCounts.length;
 
-    return avgTokens >= 50 && avgTokens <= 1500 && Math.min(...tokenCounts) >= 20;
+    return (
+      avgTokens >= 50 && avgTokens <= 1500 && Math.min(...tokenCounts) >= 20
+    );
   }
 }

@@ -70,42 +70,60 @@ export async function getShopMetrics(): Promise<ShopMetrics> {
   const normalizedProducts: SimplifiedProduct[] = products.map((product) => ({
     id: product.$id,
     createdAt: new Date(product.$createdAt),
-    status: typeof product.status === "string" ? product.status : String(product.status),
+    status:
+      typeof product.status === "string"
+        ? product.status
+        : String(product.status),
   }));
 
   const now = new Date();
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const totalRevenue = normalizedOrders.reduce((sum, order) => sum + order.total, 0);
+  const totalRevenue = normalizedOrders.reduce(
+    (sum, order) => sum + order.total,
+    0
+  );
   const revenueThisMonth = sumInRange(normalizedOrders, startOfThisMonth, now);
-  const revenueLastMonth = sumInRange(normalizedOrders, startOfLastMonth, startOfThisMonth);
+  const revenueLastMonth = sumInRange(
+    normalizedOrders,
+    startOfLastMonth,
+    startOfThisMonth
+  );
 
   const totalSales = normalizedOrders.length;
   const salesThisMonth = countInRange(normalizedOrders, startOfThisMonth, now);
-  const salesLastMonth = countInRange(normalizedOrders, startOfLastMonth, startOfThisMonth);
+  const salesLastMonth = countInRange(
+    normalizedOrders,
+    startOfLastMonth,
+    startOfThisMonth
+  );
 
   const totalProducts = normalizedProducts.length;
   const publishedProducts = normalizedProducts.filter(
-    (product) => product.status === PUBLISHED_STATUS,
+    (product) => product.status === PUBLISHED_STATUS
   ).length;
-  const productsCreatedThisMonth = countInRange(normalizedProducts, startOfThisMonth, now);
+  const productsCreatedThisMonth = countInRange(
+    normalizedProducts,
+    startOfThisMonth,
+    now
+  );
   const productsCreatedLastMonth = countInRange(
     normalizedProducts,
     startOfLastMonth,
-    startOfThisMonth,
+    startOfThisMonth
   );
   const publishedThisMonth = normalizedProducts.filter(
     (product) =>
       product.status === PUBLISHED_STATUS &&
       product.createdAt >= startOfThisMonth &&
-      product.createdAt < now,
+      product.createdAt < now
   ).length;
   const publishedLastMonth = normalizedProducts.filter(
     (product) =>
       product.status === PUBLISHED_STATUS &&
       product.createdAt >= startOfLastMonth &&
-      product.createdAt < startOfThisMonth,
+      product.createdAt < startOfThisMonth
   ).length;
 
   return {
@@ -132,7 +150,7 @@ async function fetchAllRows<T extends Models.Row>(
   db: DbClient,
   table: string,
   baseQueries: string[],
-  batchSize = 200,
+  batchSize = 200
 ): Promise<T[]> {
   const rows: T[] = [];
   let cursor: string | null = null;
@@ -173,7 +191,11 @@ function sumInRange(items: SimplifiedOrder[], start: Date, end: Date) {
   }, 0);
 }
 
-function countInRange(items: Array<{ createdAt: Date }>, start: Date, end: Date) {
+function countInRange(
+  items: Array<{ createdAt: Date }>,
+  start: Date,
+  end: Date
+) {
   return items.reduce((count, item) => {
     if (item.createdAt >= start && item.createdAt < end) {
       return count + 1;
@@ -182,7 +204,11 @@ function countInRange(items: Array<{ createdAt: Date }>, start: Date, end: Date)
   }, 0);
 }
 
-function buildTrend(current: number, previous: number, label = "vs last month"): MetricTrend {
+function buildTrend(
+  current: number,
+  previous: number,
+  label = "vs last month"
+): MetricTrend {
   const absolute = current - previous;
   const percent =
     previous === 0

@@ -18,15 +18,23 @@ export interface AccordionBlockProps {
   type?: "single" | "multiple";
 }
 
-export function AccordionBlock({ items = [], type = "single" }: AccordionBlockProps) {
+export function AccordionBlock({
+  items = [],
+  type = "single",
+}: AccordionBlockProps) {
   return (
     <div className="w-full max-w-3xl mx-auto">
-      <AccordionRoot type={type === "single" ? "single" : "multiple"} collapsible>
+      <AccordionRoot
+        type={type === "single" ? "single" : "multiple"}
+        collapsible
+      >
         {items.map((item, index) => (
           <AccordionItem key={index} value={`item-${index}`}>
             <AccordionTrigger>{item.title}</AccordionTrigger>
             <AccordionContent>
-              <div className="prose prose-sm max-w-none text-muted-foreground">{item.content}</div>
+              <div className="prose prose-sm max-w-none text-muted-foreground">
+                {item.content}
+              </div>
             </AccordionContent>
           </AccordionItem>
         ))}

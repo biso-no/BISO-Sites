@@ -28,12 +28,15 @@ const createVariation = (): ProductVariation => ({
   is_default: false,
 });
 
-export function VariationsEditor({ value = [], onChange }: VariationsEditorProps) {
+export function VariationsEditor({
+  value = [],
+  onChange,
+}: VariationsEditorProps) {
   const variations = useMemo(() => value || [], [value]);
 
   const updateVariation = (index: number, patch: Partial<ProductVariation>) => {
     const next = variations.map((variation, idx) =>
-      idx === index ? { ...variation, ...patch } : variation,
+      idx === index ? { ...variation, ...patch } : variation
     );
     onChange(next);
   };
@@ -41,7 +44,8 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
   const setDefault = (index: number, isDefault: boolean) => {
     const next = variations.map((variation, idx) => ({
       ...variation,
-      is_default: idx === index ? isDefault : isDefault ? false : variation.is_default,
+      is_default:
+        idx === index ? isDefault : isDefault ? false : variation.is_default,
     }));
     onChange(next);
   };
@@ -62,8 +66,8 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
         <div>
           <h3 className="text-lg font-medium">Variations</h3>
           <p className="text-sm text-muted-foreground">
-            Define different options such as sizes, tiers, or access levels. Leave empty if the
-            product has no variations.
+            Define different options such as sizes, tiers, or access levels.
+            Leave empty if the product has no variations.
           </p>
         </div>
         <Button type="button" onClick={addVariation}>
@@ -83,16 +87,20 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
               key={variation.id}
               className={cn(
                 "rounded-lg border p-4",
-                variation.is_default ? "border-primary/60" : "border-border",
+                variation.is_default ? "border-primary/60" : "border-border"
               )}
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-sm font-semibold">Variation name</Label>
+                  <Label className="text-sm font-semibold">
+                    Variation name
+                  </Label>
                   <Input
                     value={variation.name}
                     placeholder="E.g. Locker access, Hoodie XL, VIP tier"
-                    onChange={(event) => updateVariation(index, { name: event.target.value })}
+                    onChange={(event) =>
+                      updateVariation(index, { name: event.target.value })
+                    }
                   />
                 </div>
                 <Button
@@ -114,7 +122,9 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
                     placeholder="Short description that will be shown to customers."
                     rows={3}
                     onChange={(event) =>
-                      updateVariation(index, { description: event.target.value })
+                      updateVariation(index, {
+                        description: event.target.value,
+                      })
                     }
                   />
                 </div>
@@ -131,7 +141,8 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
                       }
                     />
                     <p className="text-xs text-muted-foreground">
-                      Added to the base price. Use negative numbers for discounts.
+                      Added to the base price. Use negative numbers for
+                      discounts.
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -139,7 +150,9 @@ export function VariationsEditor({ value = [], onChange }: VariationsEditorProps
                     <Input
                       value={variation.sku || ""}
                       placeholder="Unique SKU for this variation"
-                      onChange={(event) => updateVariation(index, { sku: event.target.value })}
+                      onChange={(event) =>
+                        updateVariation(index, { sku: event.target.value })
+                      }
                     />
                   </div>
                   <div className="space-y-1">

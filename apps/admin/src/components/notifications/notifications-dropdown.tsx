@@ -15,7 +15,15 @@ import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, Bell, Check, CheckCircle, Clock, Info, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  Bell,
+  Check,
+  CheckCircle,
+  Clock,
+  Info,
+  XCircle,
+} from "lucide-react";
 import * as React from "react";
 import { useNotifications } from "./use-notifications";
 
@@ -36,7 +44,11 @@ export type Notification = {
 
 const typeConfig: Record<
   NotificationType,
-  { icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+    bgColor: string;
+  }
 > = {
   success: {
     icon: CheckCircle,
@@ -61,8 +73,13 @@ const typeConfig: Record<
 };
 
 export function NotificationsDropdown() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } =
-    useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+  } = useNotifications();
   const [open, setOpen] = React.useState(false);
 
   const handleNotificationClick = (notification: Notification) => {
@@ -109,7 +126,9 @@ export function NotificationsDropdown() {
         <DropdownMenuLabel className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-primary-60" />
-            <span className="text-sm font-semibold text-foreground">Notifications</span>
+            <span className="text-sm font-semibold text-foreground">
+              Notifications
+            </span>
             {unreadCount > 0 && (
               <Badge variant="secondary" className="h-5 px-2 text-xs">
                 {unreadCount}
@@ -135,8 +154,12 @@ export function NotificationsDropdown() {
               <div className="rounded-full bg-primary/5 p-3 mb-3">
                 <Bell className="h-6 w-6 text-primary-40" />
               </div>
-              <p className="text-sm font-medium text-foreground">All caught up!</p>
-              <p className="text-xs text-muted-foreground mt-1">No new notifications</p>
+              <p className="text-sm font-medium text-foreground">
+                All caught up!
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                No new notifications
+              </p>
             </div>
           ) : (
             <DropdownMenuGroup>
@@ -149,14 +172,14 @@ export function NotificationsDropdown() {
                     key={notification.id}
                     className={cn(
                       "cursor-pointer flex gap-3 px-4 py-3 focus:bg-primary/5",
-                      !notification.read && "bg-primary/5 dark:bg-primary/10",
+                      !notification.read && "bg-primary/5 dark:bg-primary/10"
                     )}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div
                       className={cn(
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                        config.bgColor,
+                        config.bgColor
                       )}
                     >
                       <Icon className={cn("h-4 w-4", config.color)} />
@@ -167,7 +190,7 @@ export function NotificationsDropdown() {
                           className={cn(
                             "text-sm font-medium",
                             !notification.read && "text-foreground",
-                            notification.read && "text-muted-foreground",
+                            notification.read && "text-muted-foreground"
                           )}
                         >
                           {notification.title}
@@ -182,9 +205,12 @@ export function NotificationsDropdown() {
                       <div className="flex items-center gap-2 mt-1">
                         <Clock className="h-3 w-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(notification.timestamp), {
-                            addSuffix: true,
-                          })}
+                          {formatDistanceToNow(
+                            new Date(notification.timestamp),
+                            {
+                              addSuffix: true,
+                            }
+                          )}
                         </span>
                       </div>
                     </div>

@@ -13,9 +13,17 @@ interface OrderPageProps {
   };
 }
 
-async function OrderDetails({ orderId, isSuccess }: { orderId: string; isSuccess: boolean }) {
+async function OrderDetails({
+  orderId,
+  isSuccess,
+}: {
+  orderId: string;
+  isSuccess: boolean;
+}) {
   // Verify order status with Vipps to get latest status
-  const order = isSuccess ? await verifyOrder(orderId) : await getOrder(orderId);
+  const order = isSuccess
+    ? await verifyOrder(orderId)
+    : await getOrder(orderId);
 
   if (!order) {
     notFound();
@@ -42,7 +50,10 @@ function OrderDetailsSkeleton() {
   );
 }
 
-export default async function OrderPage({ params, searchParams }: OrderPageProps) {
+export default async function OrderPage({
+  params,
+  searchParams,
+}: OrderPageProps) {
   const isSuccess = searchParams.success === "true";
 
   return (

@@ -40,7 +40,9 @@ export function DepartmentFiltersWrapper({
 
     if (newQueryString !== currentQueryString) {
       startTransition(() => {
-        const newUrl = newQueryString ? `${pathname}?${newQueryString}` : pathname;
+        const newUrl = newQueryString
+          ? `${pathname}?${newQueryString}`
+          : pathname;
         router.replace(newUrl, { scroll: false });
       });
     }

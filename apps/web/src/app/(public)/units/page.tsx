@@ -18,7 +18,7 @@ async function DepartmentsContent() {
     ...new Set(
       departments
         .map((d) => d.department_ref?.type)
-        .filter((type): type is string => Boolean(type)),
+        .filter((type): type is string => Boolean(type))
     ),
   ].sort();
 
@@ -27,10 +27,11 @@ async function DepartmentsContent() {
     totalDepartments: departments.length,
     totalMembers: departments.reduce(
       (sum, dept) => sum + (dept.department_ref?.boardMembers?.length || 0),
-      0,
+      0
     ),
-    totalCampuses: new Set(departments.map((d) => d.department_ref?.campus_id).filter(Boolean))
-      .size,
+    totalCampuses: new Set(
+      departments.map((d) => d.department_ref?.campus_id).filter(Boolean)
+    ).size,
   };
 
   return (
@@ -40,7 +41,10 @@ async function DepartmentsContent() {
 
       {/* Filters with overlap */}
       <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-10 mb-12">
-        <DepartmentsListClient departments={departments} availableTypes={availableTypes} />
+        <DepartmentsListClient
+          departments={departments}
+          availableTypes={availableTypes}
+        />
       </div>
 
       {/* Call to Action */}
@@ -86,7 +90,10 @@ function UnitsPageSkeleton() {
         {/* Grid Skeleton */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-[400px] bg-muted animate-pulse rounded-lg" />
+            <div
+              key={i}
+              className="h-[400px] bg-muted animate-pulse rounded-lg"
+            />
           ))}
         </div>
       </div>

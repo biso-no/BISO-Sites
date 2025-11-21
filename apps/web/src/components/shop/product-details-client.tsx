@@ -1,6 +1,9 @@
 "use client";
 
-import type { ContentTranslations, WebshopProducts } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -30,7 +33,10 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { createOrUpdateReservation, getAvailableStock } from "@/app/actions/cart-reservations";
+import {
+  createOrUpdateReservation,
+  getAvailableStock,
+} from "@/app/actions/cart-reservations";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import { useCart } from "@/lib/contexts/cart-context";
 import {
@@ -61,7 +67,9 @@ export function ProductDetailsClient({
 }: ProductDetailsClientProps) {
   const router = useRouter();
   const { addItem } = useCart();
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [selectedOptions, setSelectedOptions] = useState<
+    Record<string, string>
+  >({});
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [addedToCart, setAddedToCart] = useState(false);
   const [availableStock, setAvailableStock] = useState<number | null>(null);
@@ -74,16 +82,20 @@ export function ProductDetailsClient({
   const displayPrice = getDisplayPrice(
     productRef?.regular_price ?? 0,
     productRef?.member_price,
-    isMember,
+    isMember
   );
   const hasDiscount =
     isMember &&
     productRef?.member_price &&
     productRef?.member_price < (productRef?.regular_price ?? 0);
-  const savings = calculateSavings(productRef?.regular_price ?? 0, productRef?.member_price);
+  const savings = calculateSavings(
+    productRef?.regular_price ?? 0,
+    productRef?.member_price
+  );
 
   const imageUrl =
-    productRef?.image || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080";
+    productRef?.image ||
+    "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080";
 
   // Load available stock on mount
   useEffect(() => {
@@ -127,7 +139,7 @@ export function ProductDetailsClient({
         toast.error(
           currentAvailable === 0
             ? "This item is out of stock"
-            : `Only ${currentAvailable} available (others reserved in carts)`,
+            : `Only ${currentAvailable} available (others reserved in carts)`
         );
         setAvailableStock(currentAvailable);
         return;
@@ -139,7 +151,7 @@ export function ProductDetailsClient({
       productRef?.$id ?? "",
       userId || "guest", // TODO: Get from session when available
       quantity,
-      metadata,
+      metadata
     );
 
     if (!limitCheck.allowed) {
@@ -158,7 +170,10 @@ export function ProductDetailsClient({
 
     // Create reservation for this stock
     if (productRef?.stock !== null && productRef?.stock !== undefined) {
-      const reservationResult = await createOrUpdateReservation(productRef?.$id ?? "", quantity);
+      const reservationResult = await createOrUpdateReservation(
+        productRef?.$id ?? "",
+        quantity
+      );
 
       if (!reservationResult.success) {
         toast.error("Failed to reserve stock. Please try again.");
@@ -182,11 +197,17 @@ export function ProductDetailsClient({
       memberPrice: productRef?.member_price,
       memberOnly: productRef?.member_only ?? false,
       stock: productRef?.stock,
-      selectedOptions: Object.keys(namedOptions).length > 0 ? namedOptions : undefined,
+      selectedOptions:
+        Object.keys(namedOptions).length > 0 ? namedOptions : undefined,
       metadata: {
-        max_per_user: typeof metadata.max_per_user === "number" ? metadata.max_per_user : undefined,
+        max_per_user:
+          typeof metadata.max_per_user === "number"
+            ? metadata.max_per_user
+            : undefined,
         max_per_order:
-          typeof metadata.max_per_order === "number" ? metadata.max_per_order : undefined,
+          typeof metadata.max_per_order === "number"
+            ? metadata.max_per_order
+            : undefined,
         sku: typeof metadata.sku === "string" ? metadata.sku : undefined,
       },
     });
@@ -214,7 +235,12 @@ export function ProductDetailsClient({
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       {/* Hero Section */}
       <div className="relative h-[60vh] overflow-hidden">
-        <ImageWithFallback src={imageUrl} alt={product.title} fill className="object-cover" />
+        <ImageWithFallback
+          src={imageUrl}
+          alt={product.title}
+          fill
+          className="object-cover"
+        />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/90 via-[#3DA9E0]/60 to-[#001731]/85" />
 
         <div className="absolute inset-0">
@@ -252,7 +278,9 @@ export function ProductDetailsClient({
                 )}
               </div>
 
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">{product.title}</h1>
+              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">
+                {product.title}
+              </h1>
 
               <div className="flex items-baseline gap-3">
                 {hasDiscount ? (
@@ -263,10 +291,14 @@ export function ProductDetailsClient({
                     <span className="text-xl text-white/60 line-through">
                       {formatPrice(productRef?.regular_price ?? 0)}
                     </span>
-                    <Badge className="bg-green-500 text-white border-0">Member Discount</Badge>
+                    <Badge className="bg-green-500 text-white border-0">
+                      Member Discount
+                    </Badge>
                   </>
                 ) : (
-                  <span className="text-3xl text-white font-bold">{formatPrice(displayPrice)}</span>
+                  <span className="text-3xl text-white font-bold">
+                    {formatPrice(displayPrice)}
+                  </span>
                 )}
               </div>
 
@@ -274,8 +306,10 @@ export function ProductDetailsClient({
                 productRef?.member_price &&
                 productRef?.member_price < (productRef?.regular_price ?? 0) && (
                   <p className="text-white/80 mt-3 text-lg">
-                    🎉 Members pay only {formatPrice(productRef.member_price)} - Save{" "}
-                    {(productRef.regular_price ?? 0) - productRef.member_price} NOK!
+                    🎉 Members pay only {formatPrice(productRef.member_price)} -
+                    Save{" "}
+                    {(productRef.regular_price ?? 0) - productRef.member_price}{" "}
+                    NOK!
                   </p>
                 )}
             </motion.div>
@@ -294,7 +328,9 @@ export function ProductDetailsClient({
               transition={{ delay: 0.1 }}
             >
               <Card className="p-8 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-4 text-2xl font-bold">Product Description</h2>
+                <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+                  Product Description
+                </h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                   {product.description}
                 </p>
@@ -309,24 +345,32 @@ export function ProductDetailsClient({
                 transition={{ delay: 0.2 }}
               >
                 <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">Product Options</h2>
+                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                    Product Options
+                  </h2>
                   <div className="space-y-6">
                     {productOptions.map((option, index) => (
                       <div key={index}>
                         <Label className="mb-2 block font-semibold">
                           {option.label}
-                          {option.required && <span className="text-red-500 ml-1">*</span>}
+                          {option.required && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
                         </Label>
 
                         {option.type === "select" && option.options ? (
                           <Select
                             value={selectedOptions[`option-${index}`] || ""}
-                            onValueChange={(value) => handleOptionChange(index, value)}
+                            onValueChange={(value) =>
+                              handleOptionChange(index, value)
+                            }
                           >
                             <SelectTrigger
                               className={`w-full ${errors[`option-${index}`] ? "border-red-500" : ""}`}
                             >
-                              <SelectValue placeholder={`Select ${option.label.toLowerCase()}`} />
+                              <SelectValue
+                                placeholder={`Select ${option.label.toLowerCase()}`}
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               {option.options.map((opt) => (
@@ -341,13 +385,19 @@ export function ProductDetailsClient({
                             type="text"
                             placeholder={option.placeholder || option.label}
                             value={selectedOptions[`option-${index}`] || ""}
-                            onChange={(e) => handleOptionChange(index, e.target.value)}
-                            className={errors[`option-${index}`] ? "border-red-500" : ""}
+                            onChange={(e) =>
+                              handleOptionChange(index, e.target.value)
+                            }
+                            className={
+                              errors[`option-${index}`] ? "border-red-500" : ""
+                            }
                           />
                         )}
 
                         {errors[`option-${index}`] && (
-                          <p className="text-red-500 text-sm mt-1">This field is required</p>
+                          <p className="text-red-500 text-sm mt-1">
+                            This field is required
+                          </p>
                         )}
                       </div>
                     ))}
@@ -366,10 +416,12 @@ export function ProductDetailsClient({
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">Campus Pickup</h4>
+                    <h4 className="mb-2 text-gray-900 font-semibold">
+                      Campus Pickup
+                    </h4>
                     <p className="text-sm text-gray-700 mb-2">
-                      All products are available for pickup at the BISO office. No shipping, no
-                      hassle!
+                      All products are available for pickup at the BISO office.
+                      No shipping, no hassle!
                     </p>
                     <div className="text-sm text-gray-600">
                       <strong>BISO Office:</strong> Main Building, Ground Floor
@@ -426,15 +478,20 @@ export function ProductDetailsClient({
                               ? `Only ${availableStock} available!`
                               : "In Stock"}
                       </div>
-                      {!isLoadingStock && availableStock !== null && availableStock > 10 && (
-                        <div className="text-sm text-gray-600">{availableStock} available</div>
-                      )}
+                      {!isLoadingStock &&
+                        availableStock !== null &&
+                        availableStock > 10 && (
+                          <div className="text-sm text-gray-600">
+                            {availableStock} available
+                          </div>
+                        )}
                       {!isLoadingStock &&
                         availableStock !== null &&
                         (productRef?.stock ?? 0) > 0 &&
                         availableStock < (productRef?.stock ?? 0) && (
                           <div className="text-xs text-gray-500 mt-1">
-                            {(productRef?.stock ?? 0) - availableStock} reserved in carts
+                            {(productRef?.stock ?? 0) - availableStock} reserved
+                            in carts
                           </div>
                         )}
                     </div>
@@ -459,22 +516,28 @@ export function ProductDetailsClient({
                       <div className="text-4xl text-white font-bold mb-2">
                         {formatPrice(displayPrice)}
                       </div>
-                      <Badge className="bg-white/20 text-white border-0">Save {savings} NOK</Badge>
+                      <Badge className="bg-white/20 text-white border-0">
+                        Save {savings} NOK
+                      </Badge>
                     </>
                   ) : (
-                    <div className="text-4xl text-white font-bold">{formatPrice(displayPrice)}</div>
+                    <div className="text-4xl text-white font-bold">
+                      {formatPrice(displayPrice)}
+                    </div>
                   )}
                 </div>
 
                 {!isMember &&
                   productRef?.member_price &&
-                  productRef?.member_price < (productRef?.regular_price ?? 0) && (
+                  productRef?.member_price <
+                    (productRef?.regular_price ?? 0) && (
                     <Alert className="mb-4 bg-white/10 border-white/20">
                       <AlertCircle className="h-4 w-4 text-white" />
                       <AlertDescription className="text-white text-sm">
                         Become a BISO member to save{" "}
-                        {(productRef?.regular_price ?? 0) - productRef.member_price} NOK on this
-                        item!
+                        {(productRef?.regular_price ?? 0) -
+                          productRef.member_price}{" "}
+                        NOK on this item!
                       </AlertDescription>
                     </Alert>
                   )}
@@ -512,11 +575,14 @@ export function ProductDetailsClient({
                 <div className="space-y-3">
                   {!isMember &&
                   productRef?.member_price &&
-                  productRef?.member_price < (productRef?.regular_price ?? 0) ? (
+                  productRef?.member_price <
+                    (productRef?.regular_price ?? 0) ? (
                     <>
                       <div className="flex justify-between text-gray-600">
                         <span>Regular Price</span>
-                        <span>{formatPrice(productRef?.regular_price ?? 0)}</span>
+                        <span>
+                          {formatPrice(productRef?.regular_price ?? 0)}
+                        </span>
                       </div>
                       <Separator />
                       <div className="flex justify-between text-[#3DA9E0]">
@@ -527,7 +593,10 @@ export function ProductDetailsClient({
                       <div className="flex justify-between text-green-600">
                         <span>Member Savings</span>
                         <span>
-                          -{(productRef?.regular_price ?? 0) - productRef.member_price} NOK
+                          -
+                          {(productRef?.regular_price ?? 0) -
+                            productRef.member_price}{" "}
+                          NOK
                         </span>
                       </div>
                     </>
@@ -535,7 +604,9 @@ export function ProductDetailsClient({
                     <>
                       <div className="flex justify-between text-gray-400 line-through">
                         <span>Regular Price</span>
-                        <span>{formatPrice(productRef?.regular_price ?? 0)}</span>
+                        <span>
+                          {formatPrice(productRef?.regular_price ?? 0)}
+                        </span>
                       </div>
                       <div className="flex justify-between text-green-600">
                         <span>Member Discount</span>
@@ -556,7 +627,9 @@ export function ProductDetailsClient({
                   <Separator />
                   <div className="flex justify-between text-gray-600 text-sm">
                     <span>Shipping</span>
-                    <span className="text-green-600 font-medium">Free (Campus Pickup)</span>
+                    <span className="text-green-600 font-medium">
+                      Free (Campus Pickup)
+                    </span>
                   </div>
                   <div className="flex justify-between text-gray-600 text-sm">
                     <span>Tax</span>
@@ -577,7 +650,9 @@ export function ProductDetailsClient({
                   <div className="flex items-start gap-3">
                     <Users className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="mb-2 text-gray-900 font-semibold">Not a member yet?</h4>
+                      <h4 className="mb-2 text-gray-900 font-semibold">
+                        Not a member yet?
+                      </h4>
                       <p className="text-sm text-gray-700 mb-3">
                         Join BISO from just 350 NOK/semester and enjoy:
                       </p>

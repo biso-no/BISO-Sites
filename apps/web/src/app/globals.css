@@ -1,4 +1,3 @@
-
 @plugin "tailwindcss-animate";
 @plugin "@tailwindcss/typography";
 @import "tailwindcss";
@@ -25,7 +24,7 @@
 .tiptap pre {
   background-color: #1e293b;
   color: #e2e8f0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   padding: 0.75em 1em;
   border-radius: 0.5em;
 }
@@ -36,7 +35,7 @@
   font-weight: 600;
   padding: 0.2em 0.4em;
   border-radius: 0.25em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.9em;
 }
 
@@ -162,8 +161,12 @@
 
 /* Add smooth animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .tiptap .ProseMirror-selectednode {
@@ -172,11 +175,11 @@
 }
 
 /* Bubble menu animation */
-.tippy-box[data-animation=fade][data-state=hidden] {
+.tippy-box[data-animation="fade"][data-state="hidden"] {
   opacity: 0;
 }
 
-.tippy-box[data-animation=fade][data-state=visible] {
+.tippy-box[data-animation="fade"][data-state="visible"] {
   opacity: 1;
   transition: opacity 0.2s ease-out;
 }
@@ -324,30 +327,16 @@
 
 @layer utilities {
   .bg-grid-primary {
-    background-image: linear-gradient(
-        to right,
-        rgba(0, 23, 49, 0.08) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        rgba(0, 23, 49, 0.08) 1px,
-        transparent 1px
-      );
+    background-image:
+      linear-gradient(to right, rgba(0, 23, 49, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 23, 49, 0.08) 1px, transparent 1px);
     background-size: 32px 32px;
   }
 
   .bg-grid-primary-soft {
-    background-image: linear-gradient(
-        to right,
-        rgba(0, 23, 49, 0.04) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        rgba(0, 23, 49, 0.04) 1px,
-        transparent 1px
-      );
+    background-image:
+      linear-gradient(to right, rgba(0, 23, 49, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 23, 49, 0.04) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
@@ -363,9 +352,11 @@
     width: clamp(320px, 40vw, 520px);
     aspect-ratio: 1 / 1;
     border-radius: 999px;
-    background: radial-gradient(circle at center,
-        rgba(61, 169, 224, 0.28),
-        rgba(0, 23, 49, 0));
+    background: radial-gradient(
+      circle at center,
+      rgba(61, 169, 224, 0.28),
+      rgba(0, 23, 49, 0)
+    );
     filter: blur(4px);
     opacity: 0.85;
     z-index: -2;
@@ -378,9 +369,11 @@
     width: clamp(280px, 32vw, 420px);
     aspect-ratio: 1 / 1;
     border-radius: 999px;
-    background: radial-gradient(circle at center,
-        rgba(247, 214, 74, 0.18),
-        rgba(0, 23, 49, 0));
+    background: radial-gradient(
+      circle at center,
+      rgba(247, 214, 74, 0.18),
+      rgba(0, 23, 49, 0)
+    );
     filter: blur(6px);
     opacity: 0.8;
     z-index: -2;
@@ -394,18 +387,29 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(120deg, rgba(61, 169, 224, 0.08), rgba(0, 23, 49, 0.12));
+    background: linear-gradient(
+      120deg,
+      rgba(61, 169, 224, 0.08),
+      rgba(0, 23, 49, 0.12)
+    );
     opacity: 0.75;
     z-index: -1;
   }
 
   .accent-ring {
-    box-shadow: 0 0 0 1px rgba(0, 23, 49, 0.08), 0 30px 60px -40px rgba(0, 23, 49, 0.45);
+    box-shadow:
+      0 0 0 1px rgba(0, 23, 49, 0.08),
+      0 30px 60px -40px rgba(0, 23, 49, 0.45);
   }
 
   .gradient-divider {
     height: 1px;
-    background: linear-gradient(to right, transparent, rgba(0, 23, 49, 0.2), transparent);
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(0, 23, 49, 0.2),
+      transparent
+    );
   }
 }
 

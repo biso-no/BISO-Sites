@@ -35,7 +35,9 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   const articles = await listNews();
 
   // Get unique categories and add "All" option
-  const uniqueCategories = Array.from(new Set(articles.map((article) => article.content_type)));
+  const uniqueCategories = Array.from(
+    new Set(articles.map((article) => article.content_type))
+  );
   const categories = ["All", ...uniqueCategories];
 
   return (
@@ -60,7 +62,10 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
       <div className="bg-linear-to-b from-gray-50 to-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Suspense fallback={<NewsGridSkeleton />}>
-            <NewsGrid selectedCategory={selectedCategory} searchQuery={searchQuery} />
+            <NewsGrid
+              selectedCategory={selectedCategory}
+              searchQuery={searchQuery}
+            />
           </Suspense>
         </div>
       </div>

@@ -28,7 +28,8 @@ export default async function PublicProfilePage() {
   identitiesResp = await listIdentities();
   const ids: any[] = identitiesResp?.identities || [];
   hasBIIdentity =
-    Array.isArray(ids) && ids.some((i) => String(i?.provider || "").toLowerCase() === "oidc");
+    Array.isArray(ids) &&
+    ids.some((i) => String(i?.provider || "").toLowerCase() === "oidc");
   if (hasBIIdentity) {
     membership = await checkMembership();
   } else {
@@ -40,7 +41,8 @@ export default async function PublicProfilePage() {
       <ProfileHead />
       {/* Summary header */}
       {(() => {
-        const displayName = userData?.profile?.name || userData?.user.name || "User";
+        const displayName =
+          userData?.profile?.name || userData?.user.name || "User";
         const initials = displayName
           .split(" ")
           .filter(Boolean)
@@ -70,7 +72,10 @@ export default async function PublicProfilePage() {
       {/* Membership status up-front */}
       <div className="mb-6"></div>
 
-      <ProfileTabs userData={userData} identities={identitiesResp?.identities} />
+      <ProfileTabs
+        userData={userData}
+        identities={identitiesResp?.identities}
+      />
     </div>
   );
 }

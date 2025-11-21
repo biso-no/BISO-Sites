@@ -25,7 +25,11 @@ interface HeroUploadPreviewProps {
 const DEFAULT_HERO_URL =
   "https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso";
 
-export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUploadPreviewProps) {
+export function HeroUploadPreview({
+  heroUrl,
+  onChange,
+  departmentName,
+}: HeroUploadPreviewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
@@ -85,7 +89,8 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
           Hero Background
         </CardTitle>
         <CardDescription className="text-xs">
-          Upload hero background image (recommended: 1920x600px, landscape format)
+          Upload hero background image (recommended: 1920x600px, landscape
+          format)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -103,7 +108,9 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
           {isUploading ? (
             <div className="flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Uploading hero image...</p>
+              <p className="text-sm text-muted-foreground">
+                Uploading hero image...
+              </p>
             </div>
           ) : (
             <>
@@ -165,7 +172,12 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
               />
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleUrlSave} className="flex-1" disabled={!urlInput}>
+              <Button
+                size="sm"
+                onClick={handleUrlSave}
+                className="flex-1"
+                disabled={!urlInput}
+              >
                 Save URL
               </Button>
               <Button
@@ -194,7 +206,11 @@ export function HeroUploadPreview({ heroUrl, onChange, departmentName }: HeroUpl
               <Upload className="h-4 w-4 mr-2" />
               {hasCustomHero ? "Upload New" : "Upload Custom Hero"}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setIsEditingUrl(true)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsEditingUrl(true)}
+            >
               Or use URL
             </Button>
           </div>

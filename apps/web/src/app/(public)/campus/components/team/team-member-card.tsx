@@ -1,5 +1,9 @@
 import type { DepartmentBoard } from "@repo/api/types/appwrite";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Linkedin, Mail } from "lucide-react";
@@ -21,7 +25,10 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
   return (
     <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all text-center group">
       <Avatar className="w-32 h-32 mx-auto mb-4 ring-4 ring-[#3DA9E0]/20 group-hover:ring-[#3DA9E0] transition-all">
-        <AvatarImage src={member.imageUrl || undefined} alt={member.name || ""} />
+        <AvatarImage
+          src={member.imageUrl || undefined}
+          alt={member.name || ""}
+        />
         <AvatarFallback className="bg-linear-to-br from-[#3DA9E0] to-[#001731] text-white text-2xl">
           {member.name ? getInitials(member.name) : "??"}
         </AvatarFallback>

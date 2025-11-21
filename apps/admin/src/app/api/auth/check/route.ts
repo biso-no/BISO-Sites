@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         isAnonymous: false,
         error: "Failed to check authentication status",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

@@ -13,11 +13,17 @@ import { updateProfile } from "@/lib/actions/user";
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address").optional(),
-  phone: z.string().min(8, "Phone number must be at least 8 characters").optional(),
+  phone: z
+    .string()
+    .min(8, "Phone number must be at least 8 characters")
+    .optional(),
   address: z.string().min(3, "Address is required").optional(),
   city: z.string().min(2, "City is required").optional(),
   zip: z.string().min(4, "ZIP/Postal code is required").optional(),
-  bank_account: z.string().min(8, "Bank account must be at least 8 characters").optional(),
+  bank_account: z
+    .string()
+    .min(8, "Bank account must be at least 8 characters")
+    .optional(),
   swift: z.string().optional(),
 });
 
@@ -77,7 +83,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
     } catch (error) {
       console.error("Error updating profile:", error);
       setErrorMessage(
-        `Failed to update profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Failed to update profile: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       setIsSubmitting(false);
@@ -114,7 +120,10 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Name Field */}
           <div className="md:col-span-2">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Full Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -126,12 +135,17 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.name ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
+            )}
           </div>
 
           {/* Email Field */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Email Address
             </label>
             <input
@@ -144,12 +158,19 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
               disabled // Email should typically not be editable
             />
-            {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           {/* Phone Field */}
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Phone Number
             </label>
             <input
@@ -161,16 +182,25 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.phone ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>}
+            {errors.phone && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.phone.message}
+              </p>
+            )}
           </div>
 
           <div className="border-t border-gray-100 md:col-span-2 pt-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Address Information</h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-4">
+              Address Information
+            </h3>
           </div>
 
           {/* Address Field */}
           <div className="md:col-span-2">
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="address"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Street Address
             </label>
             <input
@@ -183,13 +213,18 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
             {errors.address && (
-              <p className="mt-1 text-sm text-red-500">{errors.address.message}</p>
+              <p className="mt-1 text-sm text-red-500">
+                {errors.address.message}
+              </p>
             )}
           </div>
 
           {/* City Field */}
           <div>
-            <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="city"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               City
             </label>
             <input
@@ -201,12 +236,17 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.city ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.city && <p className="mt-1 text-sm text-red-500">{errors.city.message}</p>}
+            {errors.city && (
+              <p className="mt-1 text-sm text-red-500">{errors.city.message}</p>
+            )}
           </div>
 
           {/* ZIP/Postal Code Field */}
           <div>
-            <label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="zip"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               ZIP/Postal Code
             </label>
             <input
@@ -218,16 +258,23 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.zip ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.zip && <p className="mt-1 text-sm text-red-500">{errors.zip.message}</p>}
+            {errors.zip && (
+              <p className="mt-1 text-sm text-red-500">{errors.zip.message}</p>
+            )}
           </div>
 
           <div className="border-t border-gray-100 md:col-span-2 pt-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Banking Information</h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-4">
+              Banking Information
+            </h3>
           </div>
 
           {/* Bank Account Field */}
           <div>
-            <label htmlFor="bank_account" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="bank_account"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Bank Account Number
             </label>
             <input
@@ -240,13 +287,18 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
             {errors.bank_account && (
-              <p className="mt-1 text-sm text-red-500">{errors.bank_account.message}</p>
+              <p className="mt-1 text-sm text-red-500">
+                {errors.bank_account.message}
+              </p>
             )}
           </div>
 
           {/* SWIFT Field */}
           <div>
-            <label htmlFor="swift" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="swift"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               SWIFT/BIC Code
             </label>
             <input
@@ -258,7 +310,11 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                 errors.swift ? "border-red-500" : "border-gray-300"
               } focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200`}
             />
-            {errors.swift && <p className="mt-1 text-sm text-red-500">{errors.swift.message}</p>}
+            {errors.swift && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.swift.message}
+              </p>
+            )}
           </div>
         </div>
 

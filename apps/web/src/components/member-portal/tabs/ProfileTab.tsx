@@ -1,7 +1,11 @@
 "use client";
 
 import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -27,7 +31,8 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
   const [formData, setFormData] = useState({
     name: user.name || "",
     bio: publicProfile?.bio || user.bio || "",
-    isPublic: publicProfile?.email_visible || publicProfile?.phone_visible || false,
+    isPublic:
+      publicProfile?.email_visible || publicProfile?.phone_visible || false,
     emailVisible: publicProfile?.email_visible || false,
     phoneVisible: publicProfile?.phone_visible || false,
   });
@@ -69,11 +74,15 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
   return (
     <TabsContent value="profile" className="space-y-8">
       <Card className="p-8 border-0 shadow-lg dark:bg-gray-900/50 dark:backdrop-blur-sm">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{t("title")}</h3>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+          {t("title")}
+        </h3>
 
         <div className="flex items-center gap-6 mb-8">
           <Avatar className="w-24 h-24 border-4 border-[#3DA9E0]/20">
-            {user.avatar && <AvatarImage src={user.avatar} alt={user.name || ""} />}
+            {user.avatar && (
+              <AvatarImage src={user.avatar} alt={user.name || ""} />
+            )}
             <AvatarFallback className="bg-linear-to-br from-[#3DA9E0] to-[#001731] text-white text-2xl">
               {initials}
             </AvatarFallback>
@@ -92,7 +101,9 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
                 />
               </label>
             </Button>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{t("photoRequirements")}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {t("photoRequirements")}
+            </p>
           </div>
         </div>
 
@@ -101,7 +112,9 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
             <Label>{t("fullName")}</Label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               className="mt-2"
             />
           </div>
@@ -177,7 +190,9 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
               <Linkedin className="w-5 h-5 text-[#0077B5]" />
               <div>
                 <div className="text-sm font-medium">LinkedIn</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{t("notConnected")}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("notConnected")}
+                </div>
               </div>
             </div>
             <Button size="sm" variant="outline">
@@ -190,7 +205,9 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
               <Twitter className="w-5 h-5 text-[#1DA1F2]" />
               <div>
                 <div className="text-sm font-medium">Twitter</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{t("notConnected")}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("notConnected")}
+                </div>
               </div>
             </div>
             <Button size="sm" variant="outline">
@@ -203,7 +220,9 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
               <Facebook className="w-5 h-5 text-[#4267B2]" />
               <div>
                 <div className="text-sm font-medium">Facebook</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{t("notConnected")}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("notConnected")}
+                </div>
               </div>
             </div>
             <Button size="sm" variant="outline">
