@@ -10,7 +10,9 @@ export function Mermaid({ chart }: { chart: string }) {
     setMounted(true);
   }, []);
 
-  if (!mounted) return;
+  if (!mounted) {
+    return;
+  }
   return <MermaidContent chart={chart} />;
 }
 
@@ -21,7 +23,9 @@ function cachePromise<T>(
   setPromise: () => Promise<T>
 ): Promise<T> {
   const cached = cache.get(key);
-  if (cached) return cached as Promise<T>;
+  if (cached) {
+    return cached as Promise<T>;
+  }
 
   const promise = setPromise();
   cache.set(key, promise);
@@ -44,17 +48,19 @@ function MermaidContent({ chart }: { chart: string }) {
   });
 
   const { svg, bindFunctions } = use(
-    cachePromise(`${chart}-${resolvedTheme}`, () => {
-      return mermaid.render(id, chart.replaceAll("\\n", "\n"));
-    })
+    cachePromise(`${chart}-${resolvedTheme}`, () =>
+      mermaid.render(id, chart.replaceAll("\\n", "\n"))
+    )
   );
 
   return (
     <div
-      ref={(container) => {
-        if (container) bindFunctions?.(container);
-      }}
       dangerouslySetInnerHTML={{ __html: svg }}
+      ref={(container) => {
+        if (container) {
+          bindFunctions?.(container);
+        }
+      }}
     />
   );
 }

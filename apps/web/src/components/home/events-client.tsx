@@ -9,9 +9,9 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-interface EventsClientProps {
+type EventsClientProps = {
   events: ContentTranslations[];
-}
+};
 
 export function EventsClient({ events }: EventsClientProps) {
   const t = useTranslations("home.events");
@@ -23,8 +23,8 @@ export function EventsClient({ events }: EventsClientProps) {
 
   if (!events || events.length === 0) {
     return (
-      <section id="events" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="bg-white py-24" id="events">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="mb-6 text-gray-900">{t("empty")}</h2>
             <p className="text-gray-600">{t("emptyDescription")}</p>
@@ -35,16 +35,16 @@ export function EventsClient({ events }: EventsClientProps) {
   }
 
   return (
-    <section id="events" className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="bg-white py-24" id="events">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
+          className="mb-16 text-center"
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          whileInView={{ opacity: 1, y: 0 }}
         >
-          <div className="inline-block px-4 py-2 rounded-full bg-[#3DA9E0]/10 text-[#001731] mb-6">
+          <div className="mb-6 inline-block rounded-full bg-[#3DA9E0]/10 px-4 py-2 text-[#001731]">
             {t("upcomingEvents")}
           </div>
           <h2 className="mb-6 text-gray-900">
@@ -54,11 +54,11 @@ export function EventsClient({ events }: EventsClientProps) {
               {t("amazingExperiences")}
             </span>
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">{t("description")}</p>
+          <p className="mx-auto max-w-2xl text-gray-600">{t("description")}</p>
         </motion.div>
 
         {/* Events Grid */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <div className="mb-12 grid gap-8 md:grid-cols-2">
           {events.map((event, index) => {
             const isFeatured = index === 0;
             const eventRef = event.event_ref;
@@ -90,14 +90,14 @@ export function EventsClient({ events }: EventsClientProps) {
 
             return (
               <motion.div
-                key={event.$id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
                 className={isFeatured ? "md:col-span-2" : ""}
+                initial={{ opacity: 0, y: 20 }}
+                key={event.$id}
+                transition={{ delay: index * 0.1 }}
+                viewport={{ once: true }}
+                whileInView={{ opacity: 1, y: 0 }}
               >
-                <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group">
+                <Card className="group overflow-hidden border-0 shadow-lg transition-all duration-300 hover:shadow-2xl">
                   <div
                     className={`grid ${isFeatured ? "md:grid-cols-2" : ""} gap-0`}
                   >
@@ -106,13 +106,13 @@ export function EventsClient({ events }: EventsClientProps) {
                       className={`relative overflow-hidden ${isFeatured ? "h-96 md:h-auto" : "h-64"}`}
                     >
                       <ImageWithFallback
+                        alt={event.title}
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        fill
                         src={
                           eventRef?.image ||
                           "https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080"
                         }
-                        alt={event.title}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                       {eventRef?.metadata &&
@@ -127,28 +127,28 @@ export function EventsClient({ events }: EventsClientProps) {
                     </div>
 
                     {/* Content */}
-                    <div className="p-8 flex flex-col justify-between">
+                    <div className="flex flex-col justify-between p-8">
                       <div>
                         <h3 className="mb-4 text-gray-900">{event.title}</h3>
 
-                        <div className="space-y-3 mb-6">
+                        <div className="mb-6 space-y-3">
                           <div className="flex items-center gap-3 text-gray-600">
-                            <Calendar className="w-5 h-5 text-[#3DA9E0]" />
+                            <Calendar className="h-5 w-5 text-[#3DA9E0]" />
                             <span>{dateString}</span>
                           </div>
                           <div className="flex items-center gap-3 text-gray-600">
-                            <Clock className="w-5 h-5 text-[#3DA9E0]" />
+                            <Clock className="h-5 w-5 text-[#3DA9E0]" />
                             <span>{timeString}</span>
                           </div>
                           <div className="flex items-center gap-3 text-gray-600">
-                            <MapPin className="w-5 h-5 text-[#3DA9E0]" />
+                            <MapPin className="h-5 w-5 text-[#3DA9E0]" />
                             <span>{eventRef?.location || "Location TBA"}</span>
                           </div>
                           {eventRef?.metadata &&
                             typeof eventRef.metadata === "object" &&
                             "attendees" in eventRef.metadata && (
                               <div className="flex items-center gap-3 text-gray-600">
-                                <Users className="w-5 h-5 text-[#3DA9E0]" />
+                                <Users className="h-5 w-5 text-[#3DA9E0]" />
                                 <span>
                                   {eventRef.metadata.attendees} attending
                                 </span>
@@ -158,9 +158,9 @@ export function EventsClient({ events }: EventsClientProps) {
                       </div>
 
                       <Link href={`/events/${event.content_id}`}>
-                        <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 group">
+                        <Button className="group w-full border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
                           {t("registerNow")}
-                          <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                         </Button>
                       </Link>
                     </div>
@@ -173,19 +173,19 @@ export function EventsClient({ events }: EventsClientProps) {
 
         {/* View All Button */}
         <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
           className="text-center"
+          initial={{ opacity: 0 }}
+          viewport={{ once: true }}
+          whileInView={{ opacity: 1 }}
         >
           <Link href="/events">
             <Button
-              variant="outline"
-              size="lg"
               className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
+              size="lg"
+              variant="outline"
             >
               {t("viewAllEvents")}
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </motion.div>

@@ -34,7 +34,7 @@ const Breadcrumb = () => {
 
         {/* Dynamically create the rest of the breadcrumb links */}
         {pathArray.map((path, index) => {
-          const href = "/admin/" + pathArray.slice(0, index + 1).join("/");
+          const href = `/admin/${pathArray.slice(0, index + 1).join("/")}`;
 
           // If it's the last item, show it as the current page
           if (index === pathArray.length - 1) {

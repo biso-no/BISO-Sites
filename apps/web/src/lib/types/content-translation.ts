@@ -10,8 +10,8 @@ export interface ContentTranslation extends Models.Row {
   additional_fields?: string | null; // JSON string for flexible content
 }
 
-interface TranslatableContent {
+type TranslatableContent = {
   title: string;
   description: string;
   [key: string]: any; // For additional translatable fields
-}
+};

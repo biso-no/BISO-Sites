@@ -16,11 +16,11 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { uploadDepartmentLogo } from "@/lib/actions/departments";
 
-interface LogoUploadPreviewProps {
+type LogoUploadPreviewProps = {
   logoUrl?: string;
   onChange: (url: string) => void;
   departmentName: string;
-}
+};
 
 export function LogoUploadPreview({
   logoUrl,
@@ -33,7 +33,9 @@ export function LogoUploadPreview({
   const [urlInput, setUrlInput] = useState(logoUrl || "");
 
   const handleFileUpload = async (file: File) => {
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     setIsUploading(true);
 
@@ -78,9 +80,9 @@ export function LogoUploadPreview({
   const initials = departmentName.substring(0, 2).toUpperCase();
 
   return (
-    <Card className="bg-card/60 backdrop-blur-sm border-border/50 overflow-hidden">
+    <Card className="overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-base">
           <ImageIcon className="h-4 w-4" />
           Department Logo
         </CardTitle>
@@ -90,46 +92,46 @@ export function LogoUploadPreview({
       </CardHeader>
       <CardContent className="space-y-4">
         <input
-          ref={fileInputRef}
-          type="file"
           accept="image/*"
           className="hidden"
-          onChange={onFileChange}
           disabled={isUploading}
+          onChange={onFileChange}
+          ref={fileInputRef}
+          type="file"
         />
 
         {/* Logo Preview */}
-        <div className="aspect-square w-full rounded-xl overflow-hidden bg-linear-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center relative group">
+        <div className="group relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border-2 border-border/50 bg-linear-to-br from-primary/20 to-accent/20">
           {isUploading ? (
             <div className="flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Uploading...</p>
+              <p className="text-muted-foreground text-sm">Uploading...</p>
             </div>
           ) : logoUrl ? (
             <>
               <Image
-                src={logoUrl}
                 alt={departmentName}
-                fill
                 className="object-cover"
+                fill
+                src={logoUrl}
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex items-center justify-center gap-2">
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 transition-all duration-300 group-hover:bg-black/60">
                 <Button
+                  className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
                   size="sm"
                   variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  disabled={isUploading}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="mr-2 h-4 w-4" />
                   Change
                 </Button>
                 <Button
+                  className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  disabled={isUploading}
+                  onClick={handleClear}
                   size="sm"
                   variant="destructive"
-                  onClick={handleClear}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  disabled={isUploading}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -137,28 +139,28 @@ export function LogoUploadPreview({
             </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
-              <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20">
-                <span className="text-3xl font-bold text-primary">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/10">
+                <span className="font-bold text-3xl text-primary">
                   {initials}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">No logo uploaded</p>
+              <p className="text-muted-foreground text-sm">No logo uploaded</p>
               <div className="flex gap-2">
                 <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
                   className="bg-card/60 backdrop-blur-sm"
                   disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  size="sm"
+                  variant="outline"
                 >
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="mr-2 h-4 w-4" />
                   Upload File
                 </Button>
                 <Button
+                  disabled={isUploading}
+                  onClick={() => setIsEditingUrl(true)}
                   size="sm"
                   variant="ghost"
-                  onClick={() => setIsEditingUrl(true)}
-                  disabled={isUploading}
                 >
                   Or use URL
                 </Button>
@@ -169,36 +171,36 @@ export function LogoUploadPreview({
 
         {/* URL Input (alternative method) */}
         {isEditingUrl && !logoUrl && (
-          <div className="space-y-3 animate-in fade-in-50 slide-in-from-top-2">
+          <div className="fade-in-50 slide-in-from-top-2 animate-in space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="logo-url" className="text-xs">
+              <Label className="text-xs" htmlFor="logo-url">
                 Or paste logo URL
               </Label>
               <Input
+                className="h-9 bg-card/60 text-sm backdrop-blur-sm"
                 id="logo-url"
-                type="url"
-                placeholder="https://example.com/logo.png"
-                value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                className="h-9 text-sm bg-card/60 backdrop-blur-sm"
+                placeholder="https://example.com/logo.png"
+                type="url"
+                value={urlInput}
               />
             </div>
             <div className="flex gap-2">
               <Button
-                size="sm"
-                onClick={handleUrlSave}
                 className="flex-1"
                 disabled={!urlInput}
+                onClick={handleUrlSave}
+                size="sm"
               >
                 Save URL
               </Button>
               <Button
-                size="sm"
-                variant="outline"
                 onClick={() => {
                   setUrlInput("");
                   setIsEditingUrl(false);
                 }}
+                size="sm"
+                variant="outline"
               >
                 Cancel
               </Button>
@@ -210,21 +212,21 @@ export function LogoUploadPreview({
         {logoUrl && !isUploading && (
           <div className="flex gap-2">
             <Button
+              className="flex-1"
+              onClick={() => fileInputRef.current?.click()}
               size="sm"
               variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1"
             >
-              <Upload className="h-4 w-4 mr-2" />
+              <Upload className="mr-2 h-4 w-4" />
               Upload New
             </Button>
             <Button
-              size="sm"
-              variant="ghost"
               onClick={() => {
                 setUrlInput(logoUrl);
                 setIsEditingUrl(true);
               }}
+              size="sm"
+              variant="ghost"
             >
               Edit URL
             </Button>

@@ -17,7 +17,9 @@ const pickEventBySlug = (events: ParsedLargeEvent[], slug: string) =>
   events.find((event) => event.slug === slug);
 
 const deriveAccent = (event?: ParsedLargeEvent, fallback?: string[]) => {
-  if (event?.gradient && event.gradient.length >= 2) return event.gradient;
+  if (event?.gradient && event.gradient.length >= 2) {
+    return event.gradient;
+  }
   if (event?.primaryColorHex && event?.secondaryColorHex) {
     return [event.primaryColorHex, event.secondaryColorHex];
   }
@@ -70,26 +72,26 @@ export default async function ProjectsPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.25),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.35),transparent_55%)]" />
         <div className="relative grid gap-8 lg:grid-cols-[3fr_2fr]">
           <div className="space-y-6">
-            <Badge className="bg-white/10 text-xs uppercase tracking-wide text-white">
+            <Badge className="bg-white/10 text-white text-xs uppercase tracking-wide">
               {t("hero.badge")}
             </Badge>
-            <h1 className="text-4xl font-semibold leading-tight text-white md:text-5xl">
+            <h1 className="font-semibold text-4xl text-white leading-tight md:text-5xl">
               {t("hero.title")}
             </h1>
             <p className="text-lg text-white/80">{t("hero.subtitle")}</p>
             <div className="flex flex-wrap gap-3">
               <Button
                 asChild
-                size="lg"
                 className="bg-white text-primary-100 hover:bg-white/90"
+                size="lg"
               >
                 <Link href="#featured">{t("hero.ctaPrimary")}</Link>
               </Button>
               <Button
                 asChild
+                className="border-white/60 bg-transparent text-white hover:bg-white/10"
                 size="lg"
                 variant="secondary"
-                className="border-white/60 bg-transparent text-white hover:bg-white/10"
               >
                 <Link href="#calendar">{t("hero.ctaSecondary")}</Link>
               </Button>
@@ -108,13 +110,13 @@ export default async function ProjectsPage() {
         </div>
       </section>
 
-      <section id="featured" className="space-y-8">
+      <section className="space-y-8" id="featured">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-3xl font-semibold text-primary-100">
+            <h2 className="font-semibold text-3xl text-primary-100">
               {t("featuredTitle")}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {t("featuredSubtitle")}
             </p>
           </div>
@@ -122,8 +124,8 @@ export default async function ProjectsPage() {
         <div className="grid gap-6 md:grid-cols-2">
           {featuredProjects.map((project) => (
             <Card
+              className="hover:-translate-y-1 overflow-hidden border-primary/10 bg-white shadow-lg transition hover:shadow-xl"
               key={project.slug}
-              className="overflow-hidden border-primary/10 bg-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
             >
               <div
                 className="h-2 w-full"
@@ -132,7 +134,7 @@ export default async function ProjectsPage() {
                 }}
               />
               <CardHeader className="space-y-3">
-                <Badge variant="secondary" className="w-fit uppercase">
+                <Badge className="w-fit uppercase" variant="secondary">
                   {project.highlight ??
                     t(`featuredLabels.${project.key}`, {
                       default: project.key,
@@ -141,15 +143,15 @@ export default async function ProjectsPage() {
                 <CardTitle className="text-2xl text-primary-100">
                   {project.title}
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   {project.description}
                 </p>
               </CardHeader>
               <CardContent className="flex justify-between">
                 <Button
                   asChild
-                  variant="ghost"
                   className="px-0 text-primary-40"
+                  variant="ghost"
                 >
                   <Link href={project.href}>{project.cta}</Link>
                 </Button>
@@ -159,41 +161,41 @@ export default async function ProjectsPage() {
         </div>
       </section>
 
-      <section id="calendar" className="space-y-6">
+      <section className="space-y-6" id="calendar">
         <div>
-          <h2 className="text-2xl font-semibold text-primary-100">
+          <h2 className="font-semibold text-2xl text-primary-100">
             {t("schedule.title")}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {t("schedule.subtitle")}
           </p>
         </div>
 
         {otherEvents.length === 0 ? (
           <Card className="border-primary/10 bg-white">
-            <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            <CardContent className="py-12 text-center text-muted-foreground text-sm">
               {t("schedule.empty")}
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {otherEvents.map((event) => (
-              <Card key={event.$id} className="border-primary/10 bg-white">
+              <Card className="border-primary/10 bg-white" key={event.$id}>
                 <CardHeader className="space-y-2">
                   <Badge
+                    className="w-fit text-primary-70 text-xs uppercase"
                     variant="outline"
-                    className="w-fit text-xs uppercase text-primary-70"
                   >
                     {event.showcaseType || t("schedule.defaultTag")}
                   </Badge>
                   <CardTitle className="text-lg text-primary-100">
                     {event.name}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground line-clamp-3">
+                  <p className="line-clamp-3 text-muted-foreground text-sm">
                     {event.description}
                   </p>
                 </CardHeader>
-                <CardContent className="flex justify-between text-xs text-muted-foreground">
+                <CardContent className="flex justify-between text-muted-foreground text-xs">
                   <span>
                     {event.startDate
                       ? new Date(event.startDate).toLocaleDateString(
@@ -202,8 +204,8 @@ export default async function ProjectsPage() {
                       : "—"}
                   </span>
                   <Link
-                    href={`/projects/${event.slug}`}
                     className="underline-offset-2 hover:underline"
+                    href={`/projects/${event.slug}`}
                   >
                     {t("schedule.more")}
                   </Link>

@@ -13,11 +13,11 @@ import { Fragment } from "react";
 
 type BreadcrumbEntry = { label: string; href?: string };
 
-interface PublicPageHeaderProps {
+type PublicPageHeaderProps = {
   title: string;
   subtitle?: string;
   breadcrumbs: BreadcrumbEntry[];
-}
+};
 
 export function PublicPageHeader({
   title,
@@ -25,9 +25,8 @@ export function PublicPageHeader({
   breadcrumbs,
 }: PublicPageHeaderProps) {
   const eyebrowLabel = breadcrumbs[0]?.label ?? "BISO";
-  const currentPage = breadcrumbs[breadcrumbs.length - 1]?.label ?? title;
-  const parentLabel =
-    breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2]?.label : null;
+  const currentPage = breadcrumbs.at(-1)?.label ?? title;
+  const parentLabel = breadcrumbs.length > 1 ? breadcrumbs.at(-2)?.label : null;
 
   const renderedBreadcrumbs = breadcrumbs.length ? (
     breadcrumbs.map((bc, idx) => (
@@ -58,14 +57,14 @@ export function PublicPageHeader({
   );
 
   return (
-    <section className="surface-spotlight glass-panel accent-ring relative overflow-hidden px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-12">
+    <section className="surface-spotlight glass-panel relative overflow-hidden px-6 py-7 accent-ring sm:px-8 sm:py-8 lg:px-10 lg:py-12">
       <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary-100/90 via-blue-strong/70 to-primary-80/80 opacity-[0.16]" />
       <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-60" />
       <div className="relative z-10 flex flex-col gap-6">
-        <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.18em] text-primary-40">
+        <div className="flex flex-wrap items-center gap-3 text-primary-40 text-xs uppercase tracking-[0.18em]">
           <Badge
+            className="border-primary/15 bg-white/80 px-3 py-1 font-semibold text-[0.68rem] text-primary-80 uppercase tracking-wide shadow-sm"
             variant="outline"
-            className="border-primary/15 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-primary-80 shadow-sm"
           >
             {eyebrowLabel}
           </Badge>
@@ -78,20 +77,20 @@ export function PublicPageHeader({
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-primary-100 sm:text-4xl lg:text-[2.75rem]">
+              <h1 className="font-semibold text-3xl text-primary-100 tracking-tight sm:text-4xl lg:text-[2.75rem]">
                 <span className="gradient-text">{title}</span>
               </h1>
               {subtitle && (
-                <p className="max-w-2xl text-sm text-primary-20 sm:text-base sm:leading-relaxed">
+                <p className="max-w-2xl text-primary-20 text-sm sm:text-base sm:leading-relaxed">
                   {subtitle}
                 </p>
               )}
             </div>
-            <div className="rounded-2xl border border-primary/15 bg-white/80 px-4 py-3 text-sm font-medium text-primary-70 shadow-sm backdrop-blur">
-              <span className="block text-[0.7rem] uppercase tracking-[0.16em] text-primary-60">
+            <div className="rounded-2xl border border-primary/15 bg-white/80 px-4 py-3 font-medium text-primary-70 text-sm shadow-sm backdrop-blur">
+              <span className="block text-[0.7rem] text-primary-60 uppercase tracking-[0.16em]">
                 Nåværende
               </span>
-              <span className="text-base font-semibold text-primary-90">
+              <span className="font-semibold text-base text-primary-90">
                 {currentPage}
               </span>
             </div>
@@ -102,7 +101,7 @@ export function PublicPageHeader({
           <Breadcrumb>
             <BreadcrumbList
               className={cn(
-                "flex flex-wrap gap-1.5 text-[0.85rem] font-medium text-primary-60",
+                "flex flex-wrap gap-1.5 font-medium text-[0.85rem] text-primary-60",
                 "sm:gap-2.5"
               )}
             >

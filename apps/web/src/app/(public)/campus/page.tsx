@@ -24,13 +24,13 @@ export default async function CampusPage() {
 
   return (
     <CampusPageClient
-      events={events}
-      jobs={jobs}
-      news={news}
-      departments={departments}
       campusData={campusData}
       campusMetadata={campusMetadata}
+      departments={departments}
+      events={events}
+      jobs={jobs}
       locale={locale}
+      news={news}
     />
   );
 }

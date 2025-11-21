@@ -3,10 +3,10 @@ import { Card, CardContent } from "@repo/ui/components/ui/card";
 import { cn } from "@repo/ui/lib/utils";
 import type * as React from "react";
 
-export interface ResourceMeta {
+export type ResourceMeta = {
   label: string;
   value: string;
-}
+};
 
 export interface ResourceCardProps
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -34,12 +34,12 @@ export function ResourceCard({
     <Card className={cn("group transition-colors", className)} {...props}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold leading-tight tracking-tight">
+          <h3 className="font-semibold text-lg leading-tight tracking-tight">
             {title}
           </h3>
         </div>
         {excerpt && (
-          <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+          <p className="mt-2 line-clamp-3 text-muted-foreground text-sm">
             {excerpt}
           </p>
         )}
@@ -47,8 +47,8 @@ export function ResourceCard({
           <div className="mt-3 flex flex-wrap gap-1.5">
             {tags.map((t) => (
               <span
-                key={t}
                 className="rounded-full bg-muted px-2 py-0.5 text-[12px] text-muted-foreground"
+                key={t}
               >
                 {t}
               </span>
@@ -56,9 +56,9 @@ export function ResourceCard({
           </div>
         )}
         {meta.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs">
             {meta.map((m) => (
-              <span key={m.label} className="whitespace-nowrap">
+              <span className="whitespace-nowrap" key={m.label}>
                 <span className="font-medium text-foreground/80">
                   {m.label}:
                 </span>{" "}
@@ -68,7 +68,7 @@ export function ResourceCard({
           </div>
         )}
         <div className="mt-4">
-          <Button size="sm" onClick={onClick} asChild={Boolean(href)}>
+          <Button asChild={Boolean(href)} onClick={onClick} size="sm">
             {href ? <a href={href}>{ctaLabel}</a> : <span>{ctaLabel}</span>}
           </Button>
         </div>
@@ -78,7 +78,7 @@ export function ResourceCard({
 
   if (href) {
     return (
-      <a href={href} className="no-underline">
+      <a className="no-underline" href={href}>
         {Content}
       </a>
     );

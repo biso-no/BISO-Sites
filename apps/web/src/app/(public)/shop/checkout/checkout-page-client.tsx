@@ -37,7 +37,7 @@ export function CheckoutPageClient() {
       return;
     }
 
-    if (!name.trim() || !email.trim()) {
+    if (!(name.trim() && email.trim())) {
       toast.error("Name and email are required");
       return;
     }
@@ -64,7 +64,7 @@ export function CheckoutPageClient() {
         };
 
         const result = await startCartCheckout(payload);
-        if (!result?.success || !result.paymentUrl) {
+        if (!(result?.success && result.paymentUrl)) {
           toast.error(result?.error || "Could not start checkout");
           return;
         }
@@ -95,7 +95,7 @@ export function CheckoutPageClient() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-[2fr_1fr]">
+    <form className="grid gap-6 md:grid-cols-[2fr_1fr]" onSubmit={handleSubmit}>
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -103,45 +103,45 @@ export function CheckoutPageClient() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="checkout-name" className="text-sm font-medium">
+              <label className="font-medium text-sm" htmlFor="checkout-name">
                 Full name
               </label>
               <Input
                 id="checkout-name"
-                required
-                value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Your name"
+                required
+                value={name}
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="checkout-email" className="text-sm font-medium">
+              <label className="font-medium text-sm" htmlFor="checkout-email">
                 Email
               </label>
               <Input
                 id="checkout-email"
-                type="email"
-                required
-                value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
+                required
+                type="email"
+                value={email}
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="checkout-phone" className="text-sm font-medium">
+              <label className="font-medium text-sm" htmlFor="checkout-phone">
                 Phone (optional)
               </label>
               <Input
                 id="checkout-phone"
-                type="tel"
-                value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder="+47 9x xx xx xx"
+                type="tel"
+                value={phone}
               />
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isPending}>
+            <Button className="w-full" disabled={isPending} type="submit">
               {isPending ? "Starting checkout..." : "Pay with Vipps or card"}
             </Button>
           </CardFooter>
@@ -153,17 +153,17 @@ export function CheckoutPageClient() {
           </CardHeader>
           <CardContent className="space-y-4">
             {items.map((item) => (
-              <div key={item.id} className="rounded-lg border p-4">
+              <div className="rounded-lg border p-4" key={item.id}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold">{item.title}</div>
+                    <div className="font-semibold text-sm">{item.title}</div>
                     {item.variation?.name ? (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         {item.variation.name}
                       </div>
                     ) : null}
                     {item.customFields && item.customFields.length > 0 ? (
-                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      <ul className="mt-2 space-y-1 text-muted-foreground text-xs">
                         {item.customFields.map((field) => (
                           <li key={field.id}>
                             <span className="font-medium text-foreground">
@@ -177,7 +177,7 @@ export function CheckoutPageClient() {
                   </div>
                   <div className="text-right text-sm">
                     <div>{NOK.format(item.unitPrice)}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       Qty {item.quantity}
                     </div>
                   </div>
@@ -197,13 +197,13 @@ export function CheckoutPageClient() {
             <span>Subtotal</span>
             <span>{NOK.format(subtotal)}</span>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Discounts and membership benefits will apply automatically if
             eligible. You will be redirected to Vipps to complete the payment.
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
-          <Button asChild variant="outline" className="w-full">
+          <Button asChild className="w-full" variant="outline">
             <Link href="/shop/cart">Back to cart</Link>
           </Button>
         </CardFooter>

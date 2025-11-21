@@ -30,11 +30,11 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-interface EventDetailsClientProps {
+type EventDetailsClientProps = {
   event: ContentTranslations;
   collectionEvents?: ContentTranslations[];
   isMember?: boolean;
-}
+};
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",
@@ -114,53 +114,53 @@ export function EventDetailsClient({
       {/* Hero Section */}
       <div className="relative h-[50vh] overflow-hidden">
         <ImageWithFallback
-          src={imageUrl}
           alt={event.title}
-          fill
           className="object-cover"
+          fill
+          src={imageUrl}
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0">
-          <div className="max-w-5xl mx-auto px-4 h-full flex items-center">
+          <div className="mx-auto flex h-full max-w-5xl items-center px-4">
             <motion.button
-              onClick={() => router.push("/events")}
-              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
+              className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-[#3DA9E0]"
+              initial={{ opacity: 0, x: -20 }}
+              onClick={() => router.push("/events")}
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
               Back to Events
             </motion.button>
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-12"
+              initial={{ opacity: 0, y: 20 }}
             >
               <Badge className={`mb-4 ${categoryColors[category]}`}>
                 {category}
               </Badge>
-              <h1 className="text-white mb-4 text-4xl md:text-5xl font-bold">
+              <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
                 {event.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-4 mt-6">
+              <div className="mt-6 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2 text-white/90">
-                  <Calendar className="w-5 h-5 text-[#3DA9E0]" />
+                  <Calendar className="h-5 w-5 text-[#3DA9E0]" />
                   <span>{startDate}</span>
                 </div>
                 <div className="flex items-center gap-2 text-white/90">
-                  <Clock className="w-5 h-5 text-[#3DA9E0]" />
+                  <Clock className="h-5 w-5 text-[#3DA9E0]" />
                   <span>{timeRange}</span>
                 </div>
                 <div className="flex items-center gap-2 text-white/90">
-                  <MapPin className="w-5 h-5 text-[#3DA9E0]" />
+                  <MapPin className="h-5 w-5 text-[#3DA9E0]" />
                   <span>{eventData?.location || "Location TBA"}</span>
                 </div>
                 {attendees > 0 && (
                   <div className="flex items-center gap-2 text-white/90">
-                    <Users className="w-5 h-5 text-[#3DA9E0]" />
+                    <Users className="h-5 w-5 text-[#3DA9E0]" />
                     <span>{attendees} attending</span>
                   </div>
                 )}
@@ -170,21 +170,21 @@ export function EventDetailsClient({
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-8 lg:col-span-2">
             {/* Overview */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="p-8 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-4 text-2xl font-bold">
+              <Card className="border-0 p-8 shadow-lg">
+                <h2 className="mb-4 font-bold text-2xl text-gray-900">
                   About This Event
                 </h2>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                <p className="whitespace-pre-line text-gray-700 leading-relaxed">
                   {event.description}
                 </p>
               </Card>
@@ -193,18 +193,18 @@ export function EventDetailsClient({
             {/* Highlights */}
             {highlights.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.2 }}
               >
-                <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                <Card className="border-0 p-8 shadow-lg">
+                  <h2 className="mb-6 font-bold text-2xl text-gray-900">
                     What to Expect
                   </h2>
                   <ul className="space-y-4">
                     {highlights.map((highlight: string, index: number) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-[#3DA9E0] shrink-0 mt-1" />
+                      <li className="flex items-start gap-3" key={index}>
+                        <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#3DA9E0]" />
                         <span className="text-gray-700">{highlight}</span>
                       </li>
                     ))}
@@ -216,12 +216,12 @@ export function EventDetailsClient({
             {/* Agenda */}
             {agenda.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.3 }}
               >
-                <Card className="p-8 border-0 shadow-lg">
-                  <h2 className="text-gray-900 mb-6 text-2xl font-bold">
+                <Card className="border-0 p-8 shadow-lg">
+                  <h2 className="mb-6 font-bold text-2xl text-gray-900">
                     Event Schedule
                   </h2>
                   <div className="space-y-6">
@@ -232,7 +232,7 @@ export function EventDetailsClient({
                       ) => (
                         <div key={index}>
                           <div className="flex gap-4">
-                            <div className="shrink-0 w-20 text-[#3DA9E0] font-semibold">
+                            <div className="w-20 shrink-0 font-semibold text-[#3DA9E0]">
                               {item.time}
                             </div>
                             <div className="flex-1">
@@ -253,26 +253,26 @@ export function EventDetailsClient({
             {/* Collection Events */}
             {collectionEvents && collectionEvents.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.4 }}
               >
-                <Card className="p-8 border-0 shadow-lg bg-linear-to-br from-[#3DA9E0]/5 to-[#001731]/5">
-                  <div className="flex items-start justify-between mb-6">
-                    <h2 className="text-gray-900 text-2xl font-bold">
+                <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/5 to-[#001731]/5 p-8 shadow-lg">
+                  <div className="mb-6 flex items-start justify-between">
+                    <h2 className="font-bold text-2xl text-gray-900">
                       {eventData?.is_collection
                         ? "Events in This Collection"
                         : "Other Events in This Collection"}
                     </h2>
                     {eventData?.is_collection &&
                       eventData.collection_pricing === "bundle" && (
-                        <Badge className="bg-green-100 text-green-700 border-green-200">
+                        <Badge className="border-green-200 bg-green-100 text-green-700">
                           Bundle Pricing
                         </Badge>
                       )}
                     {eventData?.is_collection &&
                       eventData.collection_pricing === "individual" && (
-                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                        <Badge className="border-blue-200 bg-blue-100 text-blue-700">
                           Individual Pricing
                         </Badge>
                       )}
@@ -280,8 +280,8 @@ export function EventDetailsClient({
 
                   {eventData?.is_collection &&
                     eventData.collection_pricing === "bundle" && (
-                      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-gray-700">
+                      <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
+                        <p className="text-gray-700 text-sm">
                           <strong>Bundle Pricing:</strong> Pay {price} once to
                           get access to all {collectionEvents.length} events in
                           this collection.
@@ -291,8 +291,8 @@ export function EventDetailsClient({
 
                   {eventData?.is_collection &&
                     eventData.collection_pricing === "individual" && (
-                      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-gray-700">
+                      <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                        <p className="text-gray-700 text-sm">
                           <strong>Individual Pricing:</strong> Each event can be
                           registered for separately. Choose the events that
                           interest you most!
@@ -328,8 +328,8 @@ export function EventDetailsClient({
 
                         return (
                           <Card
+                            className="cursor-pointer p-4 transition-shadow hover:shadow-md"
                             key={collectionEvent.$id}
-                            className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                             onClick={() =>
                               router.push(
                                 `/events/${collectionEvent.content_id}`
@@ -337,33 +337,33 @@ export function EventDetailsClient({
                             }
                           >
                             <div className="flex items-start gap-4">
-                              <div className="relative w-20 h-20 shrink-0">
+                              <div className="relative h-20 w-20 shrink-0">
                                 <ImageWithFallback
-                                  src={colImage}
                                   alt={collectionEvent.title}
+                                  className="rounded-lg object-cover"
                                   fill
-                                  className="object-cover rounded-lg"
+                                  src={colImage}
                                 />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                  <h3 className="text-gray-900 font-semibold">
+                              <div className="min-w-0 flex-1">
+                                <div className="mb-2 flex items-start justify-between gap-2">
+                                  <h3 className="font-semibold text-gray-900">
                                     {collectionEvent.title}
                                   </h3>
                                   {eventData?.collection_pricing ===
                                     "individual" && (
-                                    <span className="text-sm text-[#3DA9E0] whitespace-nowrap font-medium">
+                                    <span className="whitespace-nowrap font-medium text-[#3DA9E0] text-sm">
                                       {colPrice}
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                                <div className="flex flex-wrap gap-3 text-gray-600 text-sm">
                                   <div className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
+                                    <Calendar className="h-4 w-4" />
                                     <span>{colStartDate}</span>
                                   </div>
                                   <div className="flex items-center gap-1">
-                                    <Clock className="w-4 h-4" />
+                                    <Clock className="h-4 w-4" />
                                     <span>{colTimeRange}</span>
                                   </div>
                                 </div>
@@ -379,18 +379,18 @@ export function EventDetailsClient({
 
             {/* Important Info */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.5 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-blue-50">
+              <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                 <div className="flex items-start gap-3">
-                  <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">
+                    <h4 className="mb-2 font-semibold text-gray-900">
                       Important Information
                     </h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
+                    <ul className="space-y-1 text-gray-600 text-sm">
                       <li>
                         • Please arrive 15 minutes before the event starts
                       </li>
@@ -414,17 +414,17 @@ export function EventDetailsClient({
           <div className="space-y-6">
             {/* Price Card */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-green-50 to-emerald-50">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-white" />
+              <Card className="border-0 bg-linear-to-br from-green-50 to-emerald-50 p-6 shadow-lg">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500">
+                    <DollarSign className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-gray-600 text-sm">
                       {eventData?.is_collection &&
                       eventData.collection_pricing === "bundle"
                         ? "Bundle Price"
@@ -433,39 +433,39 @@ export function EventDetailsClient({
                           ? "Pricing"
                           : "Price"}
                     </div>
-                    <div className="text-gray-900 font-bold text-xl">
+                    <div className="font-bold text-gray-900 text-xl">
                       {displayPrice}
                     </div>
                     {showMemberDiscount && (
-                      <div className="text-xs text-green-600">
+                      <div className="text-green-600 text-xs">
                         Members: {memberPrice}
                       </div>
                     )}
                   </div>
                 </div>
                 {price === "Free" ? (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-gray-600 text-sm">
                     This event is free for all students!
                   </p>
                 ) : eventData?.is_collection &&
                   eventData.collection_pricing === "bundle" ? (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-gray-600 text-sm">
                     One payment gives you access to all{" "}
                     {collectionEvents?.length || 0} events in this collection!
                   </p>
                 ) : eventData?.is_collection &&
                   eventData.collection_pricing === "individual" ? (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-gray-600 text-sm">
                     Register for individual events separately based on your
                     interests.
                   </p>
                 ) : eventData?.collection_id ? (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-gray-600 text-sm">
                     This event is part of a collection. Check collection details
                     for bundle pricing.
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-gray-600 text-sm">
                     Secure your spot with online payment.
                   </p>
                 )}
@@ -474,40 +474,40 @@ export function EventDetailsClient({
 
             {/* Register/Tickster Card */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-linear-to-br from-[#001731] to-[#3DA9E0]">
-                <h3 className="mb-4 text-white text-xl font-bold">
+              <Card className="border-0 bg-linear-to-br from-[#001731] to-[#3DA9E0] p-6 shadow-lg">
+                <h3 className="mb-4 font-bold text-white text-xl">
                   {eventData?.ticket_url ? "Get Your Ticket" : "Register Now"}
                 </h3>
-                <p className="text-white/90 text-sm mb-6">
+                <p className="mb-6 text-sm text-white/90">
                   {eventData?.ticket_url
                     ? "Click below to purchase your ticket on Tickster and secure your spot!"
                     : "Spaces are limited! Register now to guarantee your attendance."}
                 </p>
                 {eventData?.ticket_url ? (
                   <Button
-                    className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3"
+                    className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90"
                     onClick={() => window.open(eventData.ticket_url!, "_blank")}
                   >
-                    <Ticket className="w-4 h-4 mr-2" />
+                    <Ticket className="mr-2 h-4 w-4" />
                     Buy on Tickster
-                    <ExternalLink className="w-4 h-4 ml-2" />
+                    <ExternalLink className="ml-2 h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button className="w-full bg-white text-[#001731] hover:bg-white/90 mb-3">
-                    <Ticket className="w-4 h-4 mr-2" />
+                  <Button className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90">
+                    <Ticket className="mr-2 h-4 w-4" />
                     Register Now
                   </Button>
                 )}
                 <Button
-                  variant="outline"
                   className="w-full border-white text-white hover:bg-white/10"
                   onClick={handleShare}
+                  variant="outline"
                 >
-                  <Share2 className="w-4 h-4 mr-2" />
+                  <Share2 className="mr-2 h-4 w-4" />
                   Share Event
                 </Button>
               </Card>
@@ -515,39 +515,39 @@ export function EventDetailsClient({
 
             {/* Event Details */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.4 }}
             >
-              <Card className="p-6 border-0 shadow-lg">
-                <h3 className="mb-4 text-gray-900 font-bold">Event Details</h3>
+              <Card className="border-0 p-6 shadow-lg">
+                <h3 className="mb-4 font-bold text-gray-900">Event Details</h3>
                 <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Date</div>
+                    <div className="mb-1 text-gray-500 text-sm">Date</div>
                     <div className="text-gray-900">{startDate}</div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Time</div>
+                    <div className="mb-1 text-gray-500 text-sm">Time</div>
                     <div className="text-gray-900">{timeRange}</div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Location</div>
+                    <div className="mb-1 text-gray-500 text-sm">Location</div>
                     <div className="text-gray-900">
                       {eventData?.location || "Location TBA"}
                     </div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">Category</div>
+                    <div className="mb-1 text-gray-500 text-sm">Category</div>
                     <div className="text-gray-900">{category}</div>
                   </div>
                   {attendees > 0 && (
                     <>
                       <Separator />
                       <div>
-                        <div className="text-sm text-gray-500 mb-1">
+                        <div className="mb-1 text-gray-500 text-sm">
                           Expected Attendance
                         </div>
                         <div className="text-gray-900">
@@ -562,22 +562,22 @@ export function EventDetailsClient({
 
             {/* Contact Card */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.5 }}
             >
-              <Card className="p-6 border-0 shadow-lg bg-blue-50">
+              <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <Mail className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
                   <div>
-                    <h4 className="mb-2 text-gray-900 font-semibold">
+                    <h4 className="mb-2 font-semibold text-gray-900">
                       Questions?
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-gray-600 text-sm">
                       Contact our events team at{" "}
                       <a
-                        href="mailto:events@biso.no"
                         className="text-[#3DA9E0] hover:underline"
+                        href="mailto:events@biso.no"
                       >
                         events@biso.no
                       </a>

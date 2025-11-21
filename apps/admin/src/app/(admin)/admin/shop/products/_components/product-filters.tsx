@@ -85,17 +85,17 @@ export function ProductFilters({
   };
 
   return (
-    <div className="mb-6 rounded-2xl border border-primary/15 bg-white/70 p-4 shadow-sm glass-panel">
+    <div className="glass-panel mb-6 rounded-2xl border border-primary/15 bg-white/70 p-4 shadow-sm">
       <div className="grid gap-3 lg:grid-cols-4">
         <Input
+          onChange={(event) => updateForm("search", event.target.value)}
           placeholder={t("products.searchPlaceholder")}
           value={formValues.search}
-          onChange={(event) => updateForm("search", event.target.value)}
         />
 
         <Select
-          value={formValues.campus}
           onValueChange={(value) => updateForm("campus", value)}
+          value={formValues.campus}
         >
           <SelectTrigger>
             <SelectValue placeholder={t("products.bulkActions.campus")} />
@@ -113,8 +113,8 @@ export function ProductFilters({
         </Select>
 
         <Select
-          value={formValues.category}
           onValueChange={(value) => updateForm("category", value)}
+          value={formValues.category}
         >
           <SelectTrigger>
             <SelectValue placeholder={t("products.bulkActions.category")} />
@@ -132,8 +132,8 @@ export function ProductFilters({
         </Select>
 
         <Select
-          value={formValues.stock}
           onValueChange={(value) => updateForm("stock", value)}
+          value={formValues.stock}
         >
           <SelectTrigger>
             <SelectValue placeholder={t("products.bulkActions.stockStatus")} />
@@ -150,34 +150,34 @@ export function ProductFilters({
 
       <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <Input
-          type="number"
-          placeholder={t("products.bulkActions.minPrice")}
-          value={formValues.priceMin}
           onChange={(event) => updateForm("priceMin", event.target.value)}
+          placeholder={t("products.bulkActions.minPrice")}
+          type="number"
+          value={formValues.priceMin}
         />
         <Input
-          type="number"
-          placeholder={t("products.bulkActions.maxPrice")}
-          value={formValues.priceMax}
           onChange={(event) => updateForm("priceMax", event.target.value)}
+          placeholder={t("products.bulkActions.maxPrice")}
+          type="number"
+          value={formValues.priceMax}
         />
         <div className="flex flex-wrap gap-2 md:col-span-2 lg:col-span-2">
           <Button
-            type="button"
-            size="sm"
-            onClick={applyFilters}
             disabled={isPending}
+            onClick={applyFilters}
+            size="sm"
+            type="button"
           >
             {isPending
               ? t("products.bulkActions.updating")
               : t("products.bulkActions.applyFilters")}
           </Button>
           <Button
+            disabled={isPending}
+            onClick={resetFilters}
+            size="sm"
             type="button"
             variant="ghost"
-            size="sm"
-            onClick={resetFilters}
-            disabled={isPending}
           >
             {t("products.bulkActions.reset")}
           </Button>

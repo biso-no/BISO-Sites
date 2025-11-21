@@ -10,11 +10,11 @@ import {
   MemberPortalTabs,
 } from "@/components/member-portal";
 
-interface MemberPortalContentProps {
+type MemberPortalContentProps = {
   user: any;
   membership: any;
   hasBIIdentity: boolean;
-}
+};
 
 export async function MemberPortalContent({
   user,
@@ -65,31 +65,31 @@ export async function MemberPortalContent({
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
       <MemberPortalHeader
-        userName={userName}
-        userAvatar={userAvatar}
         campus={campus}
-        membershipExpiry={expiryDate}
         daysRemaining={daysRemaining}
+        membershipExpiry={expiryDate}
+        userAvatar={userAvatar}
+        userName={userName}
       />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8">
         <MemberPortalTabs
-          membershipType={membershipType}
+          bankAccount={profile?.bank_account || user.profile?.bank_account}
+          benefits={benefits}
           benefitsCount={benefits.length}
+          biEmail={biEmail}
           daysRemaining={daysRemaining}
           estimatedSavings={estimatedSavings}
-          startDate={startDate}
           expiryDate={expiryDate}
-          benefits={benefits}
-          revealedBenefits={revealedBenefits}
-          isMember={isMember}
           hasBIIdentity={hasBIIdentity}
+          isMember={isMember}
+          membershipType={membershipType}
           profile={profile || user.profile || user.user}
           publicProfile={publicProfile}
-          biEmail={biEmail}
-          userName={userName}
+          revealedBenefits={revealedBenefits}
+          startDate={startDate}
           studentId={studentId}
-          bankAccount={profile?.bank_account || user.profile?.bank_account}
+          userName={userName}
         />
       </div>
     </div>

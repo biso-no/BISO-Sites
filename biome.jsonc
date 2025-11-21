@@ -1,4 +1,18 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["ultracite/core"]
+  "extends": ["ultracite/core", "ultracite/react"],
+  "linter": {
+    "rules": {
+      "performance": {
+        "noNamespaceImport": "warn"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noEvolvingTypes": "warn"
+      },
+      "style": {
+        "noEnum": "off"
+      }
+    }
+  }
 }

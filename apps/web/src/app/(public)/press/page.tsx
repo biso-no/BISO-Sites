@@ -39,8 +39,8 @@ export default async function PressPage() {
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title={t("title")}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: t("title") }]}
+        title={t("title")}
       />
       <Card>
         <CardHeader>
@@ -60,10 +60,10 @@ export default async function PressPage() {
           <CardTitle>{t("assets.title")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="list-disc ml-5">
+          <ul className="ml-5 list-disc">
             {assets.map((a) => (
               <li key={a.key}>
-                <a className="underline" href={a.href} download>
+                <a className="underline" download href={a.href}>
                   {a.label}
                 </a>
               </li>

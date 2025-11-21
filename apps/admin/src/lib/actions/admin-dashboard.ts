@@ -354,7 +354,7 @@ async function fetchRows<T extends Models.Row>(
   const rows: T[] = [];
   let cursor: string | null = null;
   const batchSize = options.batchSize ?? 200;
-  const maxRows = options.maxRows ?? Infinity;
+  const maxRows = options.maxRows ?? Number.POSITIVE_INFINITY;
 
   while (rows.length < maxRows) {
     const limit = Math.min(batchSize, maxRows - rows.length);
@@ -371,7 +371,7 @@ async function fetchRows<T extends Models.Row>(
       break;
     }
 
-    const last = batch[batch.length - 1];
+    const last = batch.at(-1);
     if (!last?.$id) {
       break;
     }
@@ -569,7 +569,7 @@ function buildAudienceGrowth(events: PageViewEvents[]): AudienceGrowthMetric[] {
     if (!visitorBuckets.has(key)) {
       visitorBuckets.set(key, new Set());
     }
-    visitorBuckets.get(key)!.add(visitorKey);
+    visitorBuckets.get(key)?.add(visitorKey);
   });
 
   return monthSet.map((month) => ({

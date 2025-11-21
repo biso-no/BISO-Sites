@@ -39,7 +39,9 @@ export const parseJSONSafe = <
   value: string | null | undefined,
   fallback: T = {} as T
 ): T => {
-  if (!value) return fallback;
+  if (!value) {
+    return fallback;
+  }
   try {
     return JSON.parse(value) as T;
   } catch {
@@ -50,12 +52,14 @@ export const parseJSONSafe = <
 export const getUniqueLocales = (
   references: Array<{ locale?: string }> | undefined | null
 ): string[] => {
-  if (!references?.length) return [];
+  if (!references?.length) {
+    return [];
+  }
   return Array.from(
     new Set(
       references
         .map((ref) => ref.locale?.trim())
-        .filter((locale): locale is string => Boolean(locale && locale.length))
+        .filter((locale): locale is string => Boolean(locale?.length))
     )
   );
 };
@@ -78,6 +82,8 @@ export const getStatusToken = (
 };
 
 export const formatPercentage = (completed: number, total: number) => {
-  if (total <= 0) return "0%";
+  if (total <= 0) {
+    return "0%";
+  }
   return `${Math.round((completed / total) * 100)}%`;
 };

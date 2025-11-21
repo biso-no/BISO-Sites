@@ -1,10 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type {
-  ContentTranslations,
-  Departments,
-} from "@repo/api/types/appwrite";
+import type { Departments } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -32,15 +29,7 @@ import {
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { cn } from "@repo/ui/lib/utils";
-import {
-  Building2,
-  ChevronLeft,
-  Languages,
-  Save,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { Building2, ChevronLeft, Save, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -87,11 +76,11 @@ const departmentSchema = z.object({
 
 type DepartmentFormData = z.infer<typeof departmentSchema>;
 
-interface DepartmentEditorProps {
+type DepartmentEditorProps = {
   department?: Departments;
   campuses: Array<{ $id: string; name: string }>;
   types: string[];
-}
+};
 
 export default function DepartmentEditor({
   department,
@@ -214,54 +203,54 @@ export default function DepartmentEditor({
   return (
     <div className="min-h-screen w-full">
       {/* Premium Header */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
-        <div className="container max-w-7xl mx-auto px-4 py-4">
+      <div className="sticky top-0 z-50 border-border/50 border-b bg-background/95 shadow-sm backdrop-blur-md">
+        <div className="container mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/admin/units")}
                 className="gap-2 hover:bg-primary/10"
+                onClick={() => router.push("/admin/units")}
+                size="sm"
+                variant="ghost"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="h-4 w-4" />
                 Back
               </Button>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+                <h1 className="flex items-center gap-3 font-bold text-2xl tracking-tight">
                   {isEditing ? "Edit Department" : "Create Department"}
                   <Badge
-                    variant={isEditing ? "secondary" : "default"}
                     className="text-xs"
+                    variant={isEditing ? "secondary" : "default"}
                   >
-                    <Building2 className="w-3 h-3 mr-1" />
+                    <Building2 className="mr-1 h-3 w-3" />
                     {isEditing ? "Editing" : "New"}
                   </Badge>
                 </h1>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="mt-1 text-muted-foreground text-sm">
                   {isEditing
                     ? "Update department information and content"
                     : "Add a new department to your organization"}
                 </p>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden items-center gap-2 md:flex">
               <Button
+                className="gap-2"
+                disabled={isSubmitting}
+                onClick={() => router.push("/admin/units")}
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/admin/units")}
-                disabled={isSubmitting}
-                className="gap-2"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
                 Cancel
               </Button>
               <Button
-                onClick={form.handleSubmit(onSubmit)}
+                className="gap-2 bg-linear-to-r from-primary to-primary/90 shadow-lg transition-all duration-300 hover:from-primary/90 hover:to-primary hover:shadow-xl"
                 disabled={isSubmitting}
-                className="gap-2 bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
+                onClick={form.handleSubmit(onSubmit)}
               >
-                <Save className="w-4 h-4" />
+                <Save className="h-4 w-4" />
                 {isSubmitting
                   ? "Saving..."
                   : isEditing
@@ -273,18 +262,18 @@ export default function DepartmentEditor({
         </div>
       </div>
 
-      <div className="container max-w-7xl mx-auto px-4 py-8">
+      <div className="container mx-auto max-w-7xl px-4 py-8">
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(onSubmit)}
             className="grid gap-6 lg:grid-cols-[1fr_380px]"
+            onSubmit={form.handleSubmit(onSubmit)}
           >
             {/* LEFT COLUMN - Main Content */}
             <div className="space-y-6">
               {/* Basic Information */}
               <GlassCard
-                title="Basic Information"
                 description="Core department details and identifiers"
+                title="Basic Information"
                 variant="premium"
               >
                 <div className="space-y-4">
@@ -297,11 +286,11 @@ export default function DepartmentEditor({
                           <FormLabel>Department ID</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="e.g., BI"
-                              maxLength={10}
                               disabled={!!department}
+                              maxLength={10}
+                              placeholder="e.g., BI"
                               {...field}
-                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
+                              className="border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 focus:border-primary/50"
                             />
                           </FormControl>
                           <FormDescription className="text-xs">
@@ -321,10 +310,10 @@ export default function DepartmentEditor({
                           <FormLabel>Display Name</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="e.g., Business Intelligence"
                               maxLength={50}
+                              placeholder="e.g., Business Intelligence"
                               {...field}
-                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
+                              className="border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 focus:border-primary/50"
                             />
                           </FormControl>
                           <FormDescription className="text-xs">
@@ -340,31 +329,31 @@ export default function DepartmentEditor({
 
               {/* Translations */}
               <GlassCard
-                title="Content & Translations"
                 description="Multi-language content for public display"
+                title="Content & Translations"
                 variant="premium"
               >
                 <Tabs
-                  value={activeLocale}
-                  onValueChange={(v) => setActiveLocale(v as "en" | "no")}
                   className="w-full"
+                  onValueChange={(v) => setActiveLocale(v as "en" | "no")}
+                  value={activeLocale}
                 >
                   <TabsList className="grid w-full grid-cols-2 bg-muted/50 backdrop-blur-sm">
                     <TabsTrigger
-                      value="en"
                       className="flex items-center gap-2 data-[state=active]:bg-card/80"
+                      value="en"
                     >
                       🇬🇧 English
                     </TabsTrigger>
                     <TabsTrigger
-                      value="no"
                       className="flex items-center gap-2 data-[state=active]:bg-card/80"
+                      value="no"
                     >
                       🇳🇴 Norwegian
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="en" className="space-y-4 mt-6">
+                  <TabsContent className="mt-6 space-y-4" value="en">
                     <FormField
                       control={form.control}
                       name="translations.en.title"
@@ -375,7 +364,7 @@ export default function DepartmentEditor({
                             <Input
                               placeholder="Department title in English"
                               {...field}
-                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
+                              className="border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 focus:border-primary/50"
                             />
                           </FormControl>
                           <FormMessage />
@@ -394,7 +383,7 @@ export default function DepartmentEditor({
                               placeholder="Brief description for cards and previews"
                               rows={3}
                               {...field}
-                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300 resize-none"
+                              className="resize-none border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 focus:border-primary/50"
                             />
                           </FormControl>
                           <FormDescription className="text-xs">
@@ -412,13 +401,8 @@ export default function DepartmentEditor({
                         <FormItem>
                           <FormLabel>Full Description (English)</FormLabel>
                           <FormControl>
-                            <div className="border border-border/50 rounded-lg overflow-hidden bg-card/40 backdrop-blur-sm">
+                            <div className="overflow-hidden rounded-lg border border-border/50 bg-card/40 backdrop-blur-sm">
                               <JoditEditor
-                                ref={editorRefEn}
-                                value={field.value}
-                                onBlur={(newContent) =>
-                                  field.onChange(newContent)
-                                }
                                 config={{
                                   readonly: false,
                                   height: 400,
@@ -426,6 +410,11 @@ export default function DepartmentEditor({
                                     "Detailed department description in English",
                                   toolbar: true,
                                 }}
+                                onBlur={(newContent) =>
+                                  field.onChange(newContent)
+                                }
+                                ref={editorRefEn}
+                                value={field.value}
                               />
                             </div>
                           </FormControl>
@@ -435,7 +424,7 @@ export default function DepartmentEditor({
                     />
                   </TabsContent>
 
-                  <TabsContent value="no" className="space-y-4 mt-6">
+                  <TabsContent className="mt-6 space-y-4" value="no">
                     <FormField
                       control={form.control}
                       name="translations.no.title"
@@ -446,7 +435,7 @@ export default function DepartmentEditor({
                             <Input
                               placeholder="Avdelingstittel på norsk"
                               {...field}
-                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300"
+                              className="border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 focus:border-primary/50"
                             />
                           </FormControl>
                           <FormMessage />
@@ -465,7 +454,7 @@ export default function DepartmentEditor({
                               placeholder="Kort beskrivelse for kort og forhåndsvisninger"
                               rows={3}
                               {...field}
-                              className="bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 transition-all duration-300 resize-none"
+                              className="resize-none border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 focus:border-primary/50"
                             />
                           </FormControl>
                           <FormDescription className="text-xs">
@@ -483,13 +472,8 @@ export default function DepartmentEditor({
                         <FormItem>
                           <FormLabel>Full beskrivelse (Norsk)</FormLabel>
                           <FormControl>
-                            <div className="border border-border/50 rounded-lg overflow-hidden bg-card/40 backdrop-blur-sm">
+                            <div className="overflow-hidden rounded-lg border border-border/50 bg-card/40 backdrop-blur-sm">
                               <JoditEditor
-                                ref={editorRefNo}
-                                value={field.value}
-                                onBlur={(newContent) =>
-                                  field.onChange(newContent)
-                                }
                                 config={{
                                   readonly: false,
                                   height: 400,
@@ -497,6 +481,11 @@ export default function DepartmentEditor({
                                     "Detaljert avdelingsbeskrivelse på norsk",
                                   toolbar: true,
                                 }}
+                                onBlur={(newContent) =>
+                                  field.onChange(newContent)
+                                }
+                                ref={editorRefNo}
+                                value={field.value}
                               />
                             </div>
                           </FormControl>
@@ -510,14 +499,14 @@ export default function DepartmentEditor({
 
               {/* Hero Image Upload */}
               <GlassCard
-                title="Hero Background"
                 description="Upload a custom hero background for the department page"
+                title="Hero Background"
                 variant="premium"
               >
                 <HeroUploadPreview
+                  departmentName={departmentName}
                   heroUrl={form.watch("hero")}
                   onChange={(url) => form.setValue("hero", url)}
-                  departmentName={departmentName}
                 />
               </GlassCard>
             </div>
@@ -525,10 +514,39 @@ export default function DepartmentEditor({
             {/* RIGHT COLUMN - Sticky Sidebar */}
             <div className="lg:sticky lg:top-24 lg:self-start">
               <DepartmentEditorSidebar
+                campusControl={
+                  <FormField
+                    control={form.control}
+                    name="campus_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm">Campus</FormLabel>
+                        <Select
+                          defaultValue={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="border-border/50 bg-card/60 backdrop-blur-sm">
+                              <SelectValue placeholder="Select campus" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {campuses.map((campus) => (
+                              <SelectItem key={campus.$id} value={campus.$id}>
+                                {campus.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                }
                 departmentName={departmentName}
+                isNew={!isEditing}
                 logoUrl={form.watch("logo")}
                 onLogoChange={(url) => form.setValue("logo", url)}
-                isNew={!isEditing}
                 stats={
                   department
                     ? {
@@ -562,35 +580,6 @@ export default function DepartmentEditor({
                     )}
                   />
                 }
-                campusControl={
-                  <FormField
-                    control={form.control}
-                    name="campus_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm">Campus</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="bg-card/60 backdrop-blur-sm border-border/50">
-                              <SelectValue placeholder="Select campus" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {campuses.map((campus) => (
-                              <SelectItem key={campus.$id} value={campus.$id}>
-                                {campus.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                }
                 typeControl={
                   <FormField
                     control={form.control}
@@ -599,11 +588,11 @@ export default function DepartmentEditor({
                       <FormItem>
                         <FormLabel className="text-sm">Type</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
                           defaultValue={field.value}
+                          onValueChange={field.onChange}
                         >
                           <FormControl>
-                            <SelectTrigger className="bg-card/60 backdrop-blur-sm border-border/50">
+                            <SelectTrigger className="border-border/50 bg-card/60 backdrop-blur-sm">
                               <SelectValue placeholder="Select type" />
                             </SelectTrigger>
                           </FormControl>
@@ -629,20 +618,20 @@ export default function DepartmentEditor({
         </Form>
 
         {/* Mobile Actions */}
-        <div className="flex md:hidden items-center justify-center gap-2 mt-6 p-4 bg-card/60 backdrop-blur-sm rounded-xl border border-border/50 sticky bottom-4">
+        <div className="sticky bottom-4 mt-6 flex items-center justify-center gap-2 rounded-xl border border-border/50 bg-card/60 p-4 backdrop-blur-sm md:hidden">
           <Button
+            className="flex-1"
+            disabled={isSubmitting}
+            onClick={() => router.push("/admin/units")}
             type="button"
             variant="outline"
-            onClick={() => router.push("/admin/units")}
-            disabled={isSubmitting}
-            className="flex-1"
           >
             Cancel
           </Button>
           <Button
-            onClick={form.handleSubmit(onSubmit)}
-            disabled={isSubmitting}
             className="flex-1"
+            disabled={isSubmitting}
+            onClick={form.handleSubmit(onSubmit)}
           >
             {isSubmitting ? "Saving..." : "Save"}
           </Button>

@@ -17,6 +17,6 @@ export interface LargeEventItem extends Models.Row {
 export interface ParsedLargeEvent extends LargeEvent {
   gradient?: string[];
   parsedMetadata?: Record<string, unknown>;
-  parsedCampusConfigs?: Array<Record<string, unknown>>;
+  parsedCampusConfigs?: Record<string, unknown>[];
   items?: LargeEventItem[];
 }

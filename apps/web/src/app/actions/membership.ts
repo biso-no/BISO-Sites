@@ -21,16 +21,15 @@ export async function getGlobalMembershipBenefits(): Promise<CampusData | null> 
         NATIONAL_CAMPUS_ID
       );
       return document;
-    } catch (error) {
+    } catch (_error) {
       const response = await db.listRows<CampusData>("app", "campus_data");
-      const document = response.rows.find((item: CampusData) => {
-        return (
+      const document = response.rows.find(
+        (item: CampusData) =>
           item &&
           (item.$id === NATIONAL_CAMPUS_ID ||
             normaliseName(item.name) === NATIONAL_CAMPUS_NAME ||
             normaliseName(item?.name_nb) === NATIONAL_CAMPUS_NAME)
-        );
-      });
+      );
 
       return document ? document : null;
     }

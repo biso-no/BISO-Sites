@@ -8,11 +8,11 @@ import {
 import type { User } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 
-interface UserAvatarProps {
+type UserAvatarProps = {
   user: User;
   className?: string;
   size?: "sm" | "md" | "lg";
-}
+};
 
 export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
   // Generate initials from name
@@ -57,7 +57,7 @@ export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
 
   return (
     <Avatar className={cn(sizeClass, className)}>
-      <AvatarImage src={user.avatarUrl} alt={user.name} />
+      <AvatarImage alt={user.name} src={user.avatarUrl} />
       <AvatarFallback className={cn("font-medium text-white", bgColor)}>
         {initials}
       </AvatarFallback>

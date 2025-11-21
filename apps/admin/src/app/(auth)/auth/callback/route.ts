@@ -7,9 +7,9 @@ export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
   const secret = request.nextUrl.searchParams.get("secret");
   const redirectTo = request.nextUrl.searchParams.get("redirectTo");
-  const url = request.nextUrl.protocol + request.headers.get("host");
+  const _url = request.nextUrl.protocol + request.headers.get("host");
 
-  if (!userId || !secret) {
+  if (!(userId && secret)) {
     return redirect("/auth/login?error=invalid_parameters");
   }
 

@@ -16,11 +16,11 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { uploadDepartmentHero } from "@/lib/actions/departments";
 
-interface HeroUploadPreviewProps {
+type HeroUploadPreviewProps = {
   heroUrl?: string;
   onChange: (url: string) => void;
   departmentName: string;
-}
+};
 
 const DEFAULT_HERO_URL =
   "https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso";
@@ -39,7 +39,9 @@ export function HeroUploadPreview({
   const hasCustomHero = !!heroUrl;
 
   const handleFileUpload = async (file: File) => {
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     setIsUploading(true);
 
@@ -82,9 +84,9 @@ export function HeroUploadPreview({
   };
 
   return (
-    <Card className="bg-card/60 backdrop-blur-sm border-border/50 overflow-hidden">
+    <Card className="overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-base">
           <ImageIcon className="h-4 w-4" />
           Hero Background
         </CardTitle>
@@ -95,58 +97,58 @@ export function HeroUploadPreview({
       </CardHeader>
       <CardContent className="space-y-4">
         <input
-          ref={fileInputRef}
-          type="file"
           accept="image/*"
           className="hidden"
-          onChange={onFileChange}
           disabled={isUploading}
+          onChange={onFileChange}
+          ref={fileInputRef}
+          type="file"
         />
 
         {/* Hero Preview */}
-        <div className="aspect-16/5 w-full rounded-xl overflow-hidden bg-linear-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center relative group">
+        <div className="group relative flex aspect-16/5 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-border/50 bg-linear-to-br from-primary/20 to-accent/20">
           {isUploading ? (
             <div className="flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Uploading hero image...
               </p>
             </div>
           ) : (
             <>
               <Image
-                src={displayUrl}
                 alt={`${departmentName} hero background`}
-                fill
                 className="object-cover"
+                fill
+                src={displayUrl}
               />
               {!hasCustomHero && (
                 <div className="absolute top-2 left-2 z-10">
-                  <span className="text-xs bg-black/60 text-white px-2 py-1 rounded backdrop-blur-sm">
+                  <span className="rounded bg-black/60 px-2 py-1 text-white text-xs backdrop-blur-sm">
                     Default Background
                   </span>
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex items-center justify-center gap-2">
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 transition-all duration-300 group-hover:bg-black/60">
                 <Button
+                  className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
                   size="sm"
                   variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  disabled={isUploading}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="mr-2 h-4 w-4" />
                   {hasCustomHero ? "Change" : "Upload Custom"}
                 </Button>
                 {hasCustomHero && (
                   <Button
+                    className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    disabled={isUploading}
+                    onClick={handleClear}
                     size="sm"
                     variant="destructive"
-                    onClick={handleClear}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    disabled={isUploading}
                   >
-                    <X className="h-4 w-4 mr-2" />
+                    <X className="mr-2 h-4 w-4" />
                     Reset to Default
                   </Button>
                 )}
@@ -157,36 +159,36 @@ export function HeroUploadPreview({
 
         {/* URL Input (alternative method) */}
         {isEditingUrl && (
-          <div className="space-y-3 animate-in fade-in-50 slide-in-from-top-2">
+          <div className="fade-in-50 slide-in-from-top-2 animate-in space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="hero-url" className="text-xs">
+              <Label className="text-xs" htmlFor="hero-url">
                 Or paste hero image URL
               </Label>
               <Input
+                className="h-9 bg-card/60 text-sm backdrop-blur-sm"
                 id="hero-url"
-                type="url"
-                placeholder="https://example.com/hero.jpg"
-                value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                className="h-9 text-sm bg-card/60 backdrop-blur-sm"
+                placeholder="https://example.com/hero.jpg"
+                type="url"
+                value={urlInput}
               />
             </div>
             <div className="flex gap-2">
               <Button
-                size="sm"
-                onClick={handleUrlSave}
                 className="flex-1"
                 disabled={!urlInput}
+                onClick={handleUrlSave}
+                size="sm"
               >
                 Save URL
               </Button>
               <Button
-                size="sm"
-                variant="outline"
                 onClick={() => {
                   setUrlInput(heroUrl || "");
                   setIsEditingUrl(false);
                 }}
+                size="sm"
+                variant="outline"
               >
                 Cancel
               </Button>
@@ -195,21 +197,21 @@ export function HeroUploadPreview({
         )}
 
         {/* Action buttons */}
-        {!isUploading && !isEditingUrl && (
+        {!(isUploading || isEditingUrl) && (
           <div className="flex gap-2">
             <Button
+              className="flex-1"
+              onClick={() => fileInputRef.current?.click()}
               size="sm"
               variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1"
             >
-              <Upload className="h-4 w-4 mr-2" />
+              <Upload className="mr-2 h-4 w-4" />
               {hasCustomHero ? "Upload New" : "Upload Custom Hero"}
             </Button>
             <Button
+              onClick={() => setIsEditingUrl(true)}
               size="sm"
               variant="ghost"
-              onClick={() => setIsEditingUrl(true)}
             >
               Or use URL
             </Button>

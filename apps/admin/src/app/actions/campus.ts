@@ -1,11 +1,11 @@
 "use server";
 
-import { Models, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Campus, CampusMetadata } from "@repo/api/types/appwrite";
 import type { CampusData } from "@/lib/types/campus-data";
 
-async function getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
+async function _getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
   try {
     const { db } = await createSessionClient();
 
@@ -27,7 +27,7 @@ async function getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
   }
 }
 
-async function getCampusMetadataById(
+async function _getCampusMetadataById(
   campusId: string
 ): Promise<CampusMetadata | null> {
   try {
@@ -48,7 +48,7 @@ async function getCampusMetadataById(
   }
 }
 
-async function getCampusMetadataByName(
+async function _getCampusMetadataByName(
   campusName: string
 ): Promise<CampusMetadata | null> {
   try {
@@ -137,7 +137,7 @@ export async function getCampusWithDepartments(campusId: string) {
   }
 }
 
-async function getCampusData() {
+async function _getCampusData() {
   const { db } = await createSessionClient();
   const campuses = await db.listRows<CampusData>("app", "campus_data");
 

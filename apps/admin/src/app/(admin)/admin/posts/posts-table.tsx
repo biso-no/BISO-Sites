@@ -49,7 +49,7 @@ const getUniqueDepartments = (posts: Post[]): Department[] => {
     const department = post.department;
 
     // Check if the department has a valid 'id' and add to the map if it's not already present
-    if (department && department.Name && !uniqueMap.has(department.Name)) {
+    if (department?.Name && !uniqueMap.has(department.Name)) {
       uniqueMap.set(department.Name, department);
     }
   });
@@ -64,7 +64,7 @@ const getUniqueCampuses = (posts: Post[]): Campus[] => {
     const campus = post.campus;
 
     // Check if the department has a valid 'id' and add to the map if it's not already present
-    if (campus && campus.name && !uniqueMap.has(campus.name)) {
+    if (campus?.name && !uniqueMap.has(campus.name)) {
       uniqueMap.set(campus.name, campus);
     }
   });
@@ -101,17 +101,21 @@ export function PostTable({ posts }: { posts: Post[] }) {
     setUniqueDepartments(uniqueDepartments);
   }, [posts]);
 
-  const filteredPosts = useMemo(() => {
-    return posts.filter(
-      (post) =>
-        (search === "" ||
-          post.title.toLowerCase().includes(search.toLowerCase())) &&
-        (department === "Department" ||
-          department === "all" ||
-          post.department.Name === department) &&
-        (campus === "Campus" || campus === "all" || post.campus.name === campus)
-    );
-  }, [posts, search, department, campus]);
+  const filteredPosts = useMemo(
+    () =>
+      posts.filter(
+        (post) =>
+          (search === "" ||
+            post.title.toLowerCase().includes(search.toLowerCase())) &&
+          (department === "Department" ||
+            department === "all" ||
+            post.department.Name === department) &&
+          (campus === "Campus" ||
+            campus === "all" ||
+            post.campus.name === campus)
+      ),
+    [posts, search, department, campus]
+  );
 
   // dummy comment
   //pagination
@@ -131,14 +135,13 @@ export function PostTable({ posts }: { posts: Post[] }) {
           [eOrField]: value,
         });
       };
-    } else {
-      // This is for the Input fields
-      const { name, value } = eOrField.target;
-      setFormData({
-        ...formData,
-        [name]: value,
-      });
     }
+    // This is for the Input fields
+    const { name, value } = eOrField.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -157,8 +160,8 @@ export function PostTable({ posts }: { posts: Post[] }) {
   const handleRowClick = (postId: string) => {
     router.push(`/admin/posts/${postId}`);
   };
-  const handleRowCreate = () => {
-    router.push(`/admin/posts/createPost`);
+  const _handleRowCreate = () => {
+    router.push("/admin/posts/createPost");
   };
   const handleRowDelete = (postId: string) => {
     deletePost(postId);
@@ -178,23 +181,23 @@ export function PostTable({ posts }: { posts: Post[] }) {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="mb-5 text-2xl font-bold">{t("title")}</h1>
+      <h1 className="mb-5 font-bold text-2xl">{t("title")}</h1>
       <div className="container mx-auto py-10">
-        <h1 className="mb-5 text-2xl font-bold">{t("title")}</h1>
+        <h1 className="mb-5 font-bold text-2xl">{t("title")}</h1>
 
-        <form onSubmit={handleSearch} className="flex gap-4 mb-5">
+        <form className="mb-5 flex gap-4" onSubmit={handleSearch}>
           <Input
-            type="text"
-            name="search"
-            placeholder={t("search")}
-            value={formData.search}
-            onChange={handleChange}
             className="grow"
+            name="search"
+            onChange={handleChange}
+            placeholder={t("search")}
+            type="text"
+            value={formData.search}
           />
           <Select
-            value={formData.department}
-            onValueChange={handleChange("department")}
             name="department"
+            onValueChange={handleChange("department")}
+            value={formData.department}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder={t("filters.allDepartments")} />
@@ -209,9 +212,9 @@ export function PostTable({ posts }: { posts: Post[] }) {
             </SelectContent>
           </Select>
           <Select
-            value={formData.campus}
-            onValueChange={handleChange("campus")}
             name="campus"
+            onValueChange={handleChange("campus")}
+            value={formData.campus}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder={t("filters.allCampuses")} />
@@ -227,15 +230,15 @@ export function PostTable({ posts }: { posts: Post[] }) {
           </Select>
 
           <Button type="submit">
-            <Search className="w-4 h-4 mr-2" />
+            <Search className="mr-2 h-4 w-4" />
             {t("search")}
           </Button>
 
-          <Button type="button" onClick={toggleViewType} variant="outline">
+          <Button onClick={toggleViewType} type="button" variant="outline">
             {viewType === "list" ? (
-              <Grid className="w-4 h-4 mr-2" />
+              <Grid className="mr-2 h-4 w-4" />
             ) : (
-              <List className="w-4 h-4 mr-2" />
+              <List className="mr-2 h-4 w-4" />
             )}
             {viewType === "list" ? t("view.grid") : t("view.list")}
           </Button>
@@ -272,7 +275,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
                   <TableCell>{post.campus?.name}</TableCell>
                   <TableCell>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs ${
+                      className={`rounded-full px-2 py-1 text-xs ${
                         post.status === "publish"
                           ? "bg-green-200 text-green-800"
                           : "bg-yellow-200 text-yellow-800"
@@ -300,7 +303,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
           </Table>
         ) : (
           //grid view
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {paginatedPosts.map((post: Post) => (
               <Card key={post.id}>
                 <CardHeader>
@@ -311,10 +314,10 @@ export function PostTable({ posts }: { posts: Post[] }) {
                 </CardHeader>
                 <CardContent>
                   <Image
+                    alt={t("imageAlt")}
+                    height={400}
                     src={post.image}
                     width={300}
-                    height={400}
-                    alt={t("imageAlt")}
                   />
                   <p>
                     <strong>{t("table.department")}:</strong>{" "}
@@ -326,7 +329,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
                   <p>
                     <strong>{t("table.status")}:</strong>
                     <span
-                      className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                      className={`ml-2 rounded-full px-2 py-1 text-xs ${
                         post.status === "publish"
                           ? "bg-green-200 text-green-800"
                           : "bg-yellow-200 text-yellow-800"
@@ -342,8 +345,8 @@ export function PostTable({ posts }: { posts: Post[] }) {
                 </CardContent>
                 <CardFooter>
                   <Link
-                    href={`/posts/${post.id}`}
                     className="text-blue-600 hover:underline"
+                    href={`/posts/${post.id}`}
                   >
                     {t("table.viewEdit")}
                   </Link>
@@ -354,21 +357,21 @@ export function PostTable({ posts }: { posts: Post[] }) {
         )}
 
         {/*Pagination*/}
-        <div className="flex items-center justify-between mt-4">
+        <div className="mt-4 flex items-center justify-between">
           <Button
-            onClick={() => setPage((old) => Math.max(old - 1, 1))}
             disabled={page === 1}
+            onClick={() => setPage((old) => Math.max(old - 1, 1))}
           >
-            <ChevronLeft className="w-4 h-4 mr-2" />
+            <ChevronLeft className="mr-2 h-4 w-4" />
             {t("pagination.previous")}
           </Button>
           <span>{t("pagination.label", { page, total: totalPages })}</span>
           <Button
-            onClick={() => setPage((old) => (old < totalPages ? old + 1 : old))}
             disabled={page === totalPages}
+            onClick={() => setPage((old) => (old < totalPages ? old + 1 : old))}
           >
             {t("pagination.next")}
-            <ChevronRight className="w-4 h-4 ml-2" />
+            <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </div>

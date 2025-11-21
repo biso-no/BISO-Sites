@@ -1,15 +1,7 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import {
-  ArrowRight,
-  ExternalLink,
-  Key,
-  Mail,
-  Send,
-  Shield,
-} from "lucide-react";
-import Image from "next/image";
+import { ArrowRight, ExternalLink, Key, Mail, Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -58,7 +50,7 @@ export function Login() {
         type: "success",
         text: "Login link sent! Please check your email.",
       });
-    } catch (error) {
+    } catch (_error) {
       setMessage({
         type: "error",
         text: "Failed to send login link. Please try again.",
@@ -75,62 +67,62 @@ export function Login() {
   return (
     <div className="relative w-full max-w-md overflow-hidden rounded-2xl shadow-xl">
       {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden -z-10">
-        <div className="absolute -top-10 -right-10 w-120 h-120 rounded-full bg-blue-accent/5 blur-3xl" />
-        <div className="absolute -bottom-20 -left-10 w-100 h-100 rounded-full bg-secondary-100/5 blur-3xl" />
+      <div className="-z-10 absolute inset-0 overflow-hidden">
+        <div className="-top-10 -right-10 absolute h-120 w-120 rounded-full bg-blue-accent/5 blur-3xl" />
+        <div className="-bottom-20 -left-10 absolute h-100 w-100 rounded-full bg-secondary-100/5 blur-3xl" />
       </div>
 
-      <div className="glass-dark border border-white/5 rounded-2xl p-8">
+      <div className="glass-dark rounded-2xl border border-white/5 p-8">
         {/* Logo Section */}
-        <div className="flex justify-center mb-6">
+        <div className="mb-6 flex justify-center">
           <div className="relative h-12 w-12">
             {/* Replace with your actual logo */}
-            <div className="h-12 w-12 rounded-lg bg-linear-to-br from-blue-accent to-secondary-100 flex items-center justify-center">
-              <span className="text-white font-bold text-xl">B</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-linear-to-br from-blue-accent to-secondary-100">
+              <span className="font-bold text-white text-xl">B</span>
             </div>
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-center mb-1 gradient-text">
+        <h1 className="gradient-text mb-1 text-center font-bold text-2xl">
           Welcome Back
         </h1>
-        <p className="text-center text-gray-400 mb-8">
+        <p className="mb-8 text-center text-gray-400">
           Sign in to your BISO account
         </p>
 
-        <form onSubmit={handleUserLogin} className="space-y-6">
+        <form className="space-y-6" onSubmit={handleUserLogin}>
           <div className="space-y-2">
             <label
+              className="flex items-center gap-2 font-medium text-gray-300 text-sm"
               htmlFor="email"
-              className="text-sm font-medium text-gray-300 flex items-center gap-2"
             >
               <Mail className="h-4 w-4 text-blue-accent" />
               Email Address
             </label>
             <div className="relative">
               <input
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white backdrop-blur-sm transition-all duration-200 placeholder:text-gray-500 focus:border-blue-accent/50 focus:outline-none focus:ring-2 focus:ring-blue-accent/25"
                 id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-3 text-white placeholder:text-gray-500 focus:border-blue-accent/50 focus:outline-none focus:ring-2 focus:ring-blue-accent/25 transition-all duration-200"
+                placeholder="name@example.com"
+                type="email"
+                value={email}
               />
             </div>
           </div>
 
           <button
-            type="submit"
+            className="hover:-translate-y-0.5 group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-blue-accent to-secondary-100 py-3 font-medium text-white shadow-glow-blue transition-all duration-300 hover:shadow-glow"
             disabled={isLoading}
-            className="w-full relative overflow-hidden rounded-lg bg-linear-to-r from-blue-accent to-secondary-100 text-white py-3 font-medium shadow-glow-blue transition-all duration-300 hover:-translate-y-0.5 hover:shadow-glow group"
+            type="submit"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
+                  className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
                   fill="none"
                   viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
                   <circle
                     className="opacity-25"
@@ -139,12 +131,12 @@ export function Login() {
                     r="10"
                     stroke="currentColor"
                     strokeWidth="4"
-                  ></circle>
+                  />
                   <path
                     className="opacity-75"
-                    fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                    fill="currentColor"
+                  />
                 </svg>
                 Sending...
               </span>
@@ -159,7 +151,7 @@ export function Login() {
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-white/10" />
+            <span className="w-full border-white/10 border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-primary-90 px-2 text-gray-400">Or</span>
@@ -167,8 +159,8 @@ export function Login() {
         </div>
 
         <Button
+          className="glass group flex w-full items-center justify-center rounded-lg border border-white/10 py-3 font-medium text-white transition-all duration-300 hover:brightness-110"
           onClick={handleAdminLogin}
-          className="w-full glass border border-white/10 text-white py-3 rounded-lg flex items-center justify-center font-medium hover:brightness-110 transition-all duration-300 group"
         >
           <Key className="mr-2 h-4 w-4 text-gold-default" />
           Sign in with BISO account
@@ -177,32 +169,32 @@ export function Login() {
 
         {message && (
           <div
-            className={`mt-6 p-4 rounded-lg ${message.type === "error" ? "bg-red-500/20 border border-red-500/30 text-red-200" : "bg-green-500/20 border border-green-500/30 text-green-200"}`}
+            className={`mt-6 rounded-lg p-4 ${message.type === "error" ? "border border-red-500/30 bg-red-500/20 text-red-200" : "border border-green-500/30 bg-green-500/20 text-green-200"}`}
           >
-            <p className="text-sm font-medium flex items-start">
+            <p className="flex items-start font-medium text-sm">
               <span
                 className={`mr-2 rounded-full ${message.type === "error" ? "bg-red-500/30" : "bg-green-500/30"} p-0.5`}
               >
                 <svg
-                  xmlns="http://www.w3.org/2000/svg"
                   className="h-4 w-4"
                   fill="none"
-                  viewBox="0 0 24 24"
                   stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
                   {message.type === "error" ? (
                     <path
+                      d="M6 18L18 6M6 6l12 12"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
                     />
                   ) : (
                     <path
+                      d="M5 13l4 4L19 7"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M5 13l4 4L19 7"
                     />
                   )}
                 </svg>
@@ -213,16 +205,16 @@ export function Login() {
         )}
         {/*We should not allow users to sign in with BISO email addresses, as they must use their personal ones*/}
         {/* Privacy Notice */}
-        <div className="mt-6 p-3 border border-blue-500/20 rounded-lg bg-blue-500/5">
+        <div className="mt-6 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
           <div className="flex items-start">
-            <Shield className="h-4 w-4 text-blue-400 mt-0.5 mr-2 shrink-0" />
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <Shield className="mt-0.5 mr-2 h-4 w-4 shrink-0 text-blue-400" />
+            <p className="text-gray-400 text-xs leading-relaxed">
               By signing in, you agree to our{" "}
               <a
-                href="https://biso.no/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
                 className="text-blue-400 hover:underline"
+                href="https://biso.no/privacy"
+                rel="noopener noreferrer"
+                target="_blank"
               >
                 Privacy Policy
               </a>{" "}
@@ -234,11 +226,11 @@ export function Login() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-xs text-gray-500">
+        <div className="mt-6 text-center text-gray-500 text-xs">
           <p>Don&apos;t have an account yet?</p>
           <Link
+            className="inline-flex items-center text-blue-accent hover:underline"
             href="/contact"
-            className="text-blue-accent hover:underline inline-flex items-center"
           >
             Contact us for access
             <ArrowRight className="ml-1 h-3 w-3" />

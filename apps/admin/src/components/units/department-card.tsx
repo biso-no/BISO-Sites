@@ -9,43 +9,28 @@ import {
   CardFooter,
   CardHeader,
 } from "@repo/ui/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@repo/ui/components/ui/dialog";
-import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
-import {
-  Calendar,
-  Edit,
-  Eye,
-  MapPin,
-  MessageSquare,
-  Tag,
-  Users,
-  Users2,
-} from "lucide-react";
+import { Edit, Eye, MapPin, MessageSquare, Users, Users2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 // Client-side only component for HTML content
-function HTMLContent({
+function _HTMLContent({
   html,
   className,
 }: {
   html: string;
   className?: string;
 }) {
-  if (!html) return null;
+  if (!html) {
+    return null;
+  }
   return (
     <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
   );
 }
 
-interface DepartmentCardProps {
+type DepartmentCardProps = {
   department: Departments & {
     campusName?: string;
     displayTitle?: string;
@@ -54,10 +39,10 @@ interface DepartmentCardProps {
     socialsCount?: number;
   };
   onEdit?: (department: any) => void;
-}
+};
 
 export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [_isDetailsOpen, _setIsDetailsOpen] = useState(false);
   const router = useRouter();
 
   // Get English translation as default for display
@@ -73,15 +58,12 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
   const logoUrl = department.logo || placeholderLogo;
 
   return (
-    <Card className="overflow-hidden transition-all duration-500 hover:shadow-2xl border-border/50 hover:border-primary/30 group relative bg-card/60 backdrop-blur-sm hover:-translate-y-2">
+    <Card className="group hover:-translate-y-2 relative overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-500 hover:border-primary/30 hover:shadow-2xl">
       {/* Gradient overlay on hover */}
-      <div className="absolute inset-0 bg-linear-to-br from-primary/0 via-accent/0 to-primary/0 group-hover:from-primary/10 group-hover:via-accent/5 group-hover:to-primary/10 transition-all duration-500 pointer-events-none z-0" />
+      <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-br from-primary/0 via-accent/0 to-primary/0 transition-all duration-500 group-hover:from-primary/10 group-hover:via-accent/5 group-hover:to-primary/10" />
 
-      <CardHeader className="p-0 overflow-hidden h-40 relative">
-        <div
-          className="absolute inset-0 bg-linear-to-t from-black/90 via-black/60 to-transparent z-10 
-                    transition-all duration-500 group-hover:from-black/95"
-        />
+      <CardHeader className="relative h-40 overflow-hidden p-0">
+        <div className="absolute inset-0 z-10 bg-linear-to-t from-black/90 via-black/60 to-transparent transition-all duration-500 group-hover:from-black/95" />
 
         {/* Animated gradient background */}
         <div className="absolute inset-0 bg-linear-to-br from-primary via-primary/80 to-accent transition-all duration-500 group-hover:scale-110">
@@ -91,42 +73,42 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
         <div className="absolute top-3 right-3 z-20 flex gap-2">
           {!department.active && (
             <Badge
+              className="animate-pulse shadow-lg backdrop-blur-sm"
               variant="destructive"
-              className="shadow-lg backdrop-blur-sm animate-pulse"
             >
               Inactive
             </Badge>
           )}
           {department.type && (
             <Badge
+              className="border-white/20 bg-black/40 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:bg-black/60"
               variant="outline"
-              className="bg-black/40 backdrop-blur-md border-white/20 text-white shadow-lg hover:bg-black/60 transition-all duration-300"
             >
               {department.type}
             </Badge>
           )}
         </div>
 
-        <div className="h-full w-full relative">
+        <div className="relative h-full w-full">
           {/* Department logo as an overlay */}
           <div className="absolute bottom-4 left-4 z-20 flex items-center gap-3">
-            <div className="h-14 w-14 rounded-xl overflow-hidden bg-white/10 backdrop-blur-md flex items-center justify-center border-2 border-white/30 shadow-xl group-hover:scale-110 group-hover:border-white/50 transition-all duration-500">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border-2 border-white/30 bg-white/10 shadow-xl backdrop-blur-md transition-all duration-500 group-hover:scale-110 group-hover:border-white/50">
               {department.logo ? (
                 <Image
-                  src={logoUrl}
                   alt={department.Name}
-                  width={56}
+                  className="h-full w-full object-cover"
                   height={56}
-                  className="object-cover h-full w-full"
+                  src={logoUrl}
+                  width={56}
                 />
               ) : (
-                <span className="text-xl font-bold text-white">
+                <span className="font-bold text-white text-xl">
                   {displayName.substring(0, 2).toUpperCase()}
                 </span>
               )}
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-white text-xl drop-shadow-lg line-clamp-2 group-hover:text-white/90 transition-colors duration-300">
+              <h3 className="line-clamp-2 font-bold text-white text-xl drop-shadow-lg transition-colors duration-300 group-hover:text-white/90">
                 {displayName}
               </h3>
             </div>
@@ -134,11 +116,11 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="p-5 relative z-10">
+      <CardContent className="relative z-10 p-5">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-foreground transition-colors duration-300">
-            <div className="p-1.5 rounded-md bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors duration-300">
-              <MapPin size={14} className="text-blue-600" />
+          <div className="flex items-center gap-2 text-muted-foreground text-sm transition-colors duration-300 group-hover:text-foreground">
+            <div className="rounded-md bg-blue-500/10 p-1.5 transition-colors duration-300 group-hover:bg-blue-500/20">
+              <MapPin className="text-blue-600" size={14} />
             </div>
             <span className="font-medium">
               {department.campusName || "No campus assigned"}
@@ -147,34 +129,34 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2 text-sm">
-              <div className="p-1.5 rounded-md bg-green-500/10 group-hover:bg-green-500/20 transition-colors duration-300">
-                <Users size={14} className="text-green-600" />
+              <div className="rounded-md bg-green-500/10 p-1.5 transition-colors duration-300 group-hover:bg-green-500/20">
+                <Users className="text-green-600" size={14} />
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground">
                   {department.userCount || 0}
                 </span>
-                <span className="text-xs text-muted-foreground">members</span>
+                <span className="text-muted-foreground text-xs">members</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 text-sm">
-              <div className="p-1.5 rounded-md bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors duration-300">
-                <Users2 size={14} className="text-purple-600" />
+              <div className="rounded-md bg-purple-500/10 p-1.5 transition-colors duration-300 group-hover:bg-purple-500/20">
+                <Users2 className="text-purple-600" size={14} />
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground">
                   {department.boardMemberCount || 0}
                 </span>
-                <span className="text-xs text-muted-foreground">board</span>
+                <span className="text-muted-foreground text-xs">board</span>
               </div>
             </div>
           </div>
 
           {department.socialsCount && department.socialsCount > 0 && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="p-1.5 rounded-md bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors duration-300">
-                <MessageSquare size={14} className="text-amber-600" />
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <div className="rounded-md bg-amber-500/10 p-1.5 transition-colors duration-300 group-hover:bg-amber-500/20">
+                <MessageSquare className="text-amber-600" size={14} />
               </div>
               <span className="font-medium">
                 {department.socialsCount} social links
@@ -183,36 +165,36 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
           )}
 
           {shortDescription && (
-            <p className="mt-1 text-sm line-clamp-2 text-muted-foreground leading-relaxed">
+            <p className="mt-1 line-clamp-2 text-muted-foreground text-sm leading-relaxed">
               {shortDescription}
             </p>
           )}
         </div>
       </CardContent>
 
-      <CardFooter className="p-5 pt-0 flex gap-2 relative z-10">
+      <CardFooter className="relative z-10 flex gap-2 p-5 pt-0">
         <Button
+          className="group/btn flex-1 border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-primary/5"
           onClick={() => router.push(`/admin/units/${department.$id}`)}
-          variant="outline"
           size="sm"
-          className="flex-1 bg-card/60 backdrop-blur-sm border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 group/btn"
+          variant="outline"
         >
           <Eye
+            className="mr-2 transition-transform duration-300 group-hover/btn:scale-110"
             size={14}
-            className="mr-2 group-hover/btn:scale-110 transition-transform duration-300"
           />
           View Details
         </Button>
         {onEdit && (
           <Button
-            variant="ghost"
-            size="sm"
+            className="group/btn transition-all duration-300 hover:bg-primary/10"
             onClick={() => onEdit(department)}
-            className="hover:bg-primary/10 transition-all duration-300 group/btn"
+            size="sm"
+            variant="ghost"
           >
             <Edit
+              className="mr-2 transition-transform duration-300 group-hover/btn:rotate-12"
               size={14}
-              className="mr-2 group-hover/btn:rotate-12 transition-transform duration-300"
             />
             Edit
           </Button>

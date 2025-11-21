@@ -6,7 +6,6 @@ import {
   Building2,
   Check,
   ChevronsUpDown,
-  TrendingUp,
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -14,10 +13,10 @@ import { GlassCard } from "@/components/shared/glass-card";
 import { MetricCard } from "@/components/shared/metric-card";
 import type { Department } from "@/lib/admin/departments";
 
-interface DepartmentStatsProps {
+type DepartmentStatsProps = {
   departments: Department[];
   loading?: boolean;
-}
+};
 
 export function DepartmentStats({
   departments,
@@ -30,7 +29,9 @@ export function DepartmentStats({
   const [showMoreCampuses, setShowMoreCampuses] = useState(false);
 
   useEffect(() => {
-    if (!departments.length) return;
+    if (!departments.length) {
+      return;
+    }
 
     // Calculate stats
     const active = departments.filter((d) => d.active).length;
@@ -65,9 +66,9 @@ export function DepartmentStats({
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
+            <div className="h-32 animate-pulse rounded-xl bg-muted" key={i} />
           ))}
         </div>
       </div>
@@ -77,58 +78,58 @@ export function DepartmentStats({
   return (
     <div className="space-y-8">
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
+          icon={Building2}
+          iconBgColor="bg-primary/10"
+          iconColor="text-primary"
           title="Total Units"
           value={departments.length}
-          icon={Building2}
-          iconColor="text-primary"
-          iconBgColor="bg-primary/10"
         />
 
         <MetricCard
+          icon={Users}
+          iconBgColor="bg-blue-500/10"
+          iconColor="text-blue-600"
           title="Total Members"
           value={totalUsers}
-          icon={Users}
-          iconColor="text-blue-600"
-          iconBgColor="bg-blue-500/10"
         />
 
         <MetricCard
+          icon={Check}
+          iconBgColor="bg-green-500/10"
+          iconColor="text-green-600"
           title="Active Units"
           value={activeCount}
-          icon={Check}
-          iconColor="text-green-600"
-          iconBgColor="bg-green-500/10"
         />
 
         <MetricCard
+          icon={AlertTriangle}
+          iconBgColor="bg-amber-500/10"
+          iconColor="text-amber-600"
           title="Inactive Units"
           value={inactiveCount}
-          icon={AlertTriangle}
-          iconColor="text-amber-600"
-          iconBgColor="bg-amber-500/10"
         />
       </div>
 
       {/* Campus Distribution */}
       {departments.length > 0 && sortedCampuses.length > 0 && (
         <GlassCard
-          title="Campus Distribution"
+          className="fade-in-50 slide-in-from-bottom-4 animate-in duration-500"
           description="Department distribution across all campuses"
+          title="Campus Distribution"
           variant="premium"
-          className="animate-in fade-in-50 slide-in-from-bottom-4 duration-500"
         >
           <div className="space-y-4">
             {displayCampuses.map(([campusName, count], index) => {
               const percentage = Math.round((count / departments.length) * 100);
               return (
                 <div
+                  className="fade-in-50 slide-in-from-left-4 animate-in space-y-2"
                   key={campusName}
-                  className="space-y-2 animate-in fade-in-50 slide-in-from-left-4"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <div className="flex justify-between items-center text-sm">
+                  <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-foreground">
                       {campusName}
                     </span>
@@ -141,16 +142,16 @@ export function DepartmentStats({
                       </span>
                     </div>
                   </div>
-                  <div className="relative h-3 w-full bg-muted/50 rounded-full overflow-hidden">
+                  <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted/50">
                     {/* Animated gradient bar */}
                     <div
-                      className="absolute inset-y-0 left-0 bg-linear-to-r from-primary to-accent rounded-full transition-all duration-1000 ease-out shadow-sm"
+                      className="absolute inset-y-0 left-0 rounded-full bg-linear-to-r from-primary to-accent shadow-sm transition-all duration-1000 ease-out"
                       style={{
                         width: `${percentage}%`,
                         transitionDelay: `${index * 100}ms`,
                       }}
                     >
-                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                      <div className="absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/20 to-transparent" />
                     </div>
                   </div>
                 </div>
@@ -158,12 +159,12 @@ export function DepartmentStats({
             })}
 
             {sortedCampuses.length > 3 && (
-              <div className="pt-2 flex justify-center">
+              <div className="flex justify-center pt-2">
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  className="gap-2 text-primary hover:text-primary/80"
                   onClick={() => setShowMoreCampuses(!showMoreCampuses)}
-                  className="text-primary hover:text-primary/80 gap-2"
+                  size="sm"
+                  variant="ghost"
                 >
                   {showMoreCampuses
                     ? "Show Less"

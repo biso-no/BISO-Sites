@@ -59,8 +59,6 @@ export async function extractTextFromPdf(input: PdfInput): Promise<string> {
     }
 
     return pages.join("\n\n");
-  } catch (error) {
-    throw error;
   } finally {
     if (pdf) {
       await pdf.destroy();

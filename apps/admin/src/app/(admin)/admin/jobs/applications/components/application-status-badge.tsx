@@ -4,9 +4,9 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { useTranslations } from "next-intl";
 import type { JobApplication } from "@/lib/types/job-application";
 
-interface ApplicationStatusBadgeProps {
+type ApplicationStatusBadgeProps = {
   status: JobApplication["status"];
-}
+};
 
 export function ApplicationStatusBadge({
   status,
@@ -25,12 +25,12 @@ export function ApplicationStatusBadge({
 
   return (
     <Badge
-      variant={config.variant}
       className={
         status === "accepted"
           ? "bg-green-100 text-green-800 hover:bg-green-200"
           : ""
       }
+      variant={config.variant}
     >
       {label}
     </Badge>

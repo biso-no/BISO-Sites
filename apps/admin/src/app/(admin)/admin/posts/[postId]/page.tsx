@@ -8,7 +8,7 @@ export default async function AdminPostPage({
 }: {
   params: { postId: string };
 }) {
-  const posts = await getPosts();
+  const _posts = await getPosts();
 
   const departments = await getDepartments();
 
@@ -25,6 +25,6 @@ export default async function AdminPostPage({
   console.log("POST: ", JSON.stringify(post));
 
   return (
-    <PostEditor post={post} departments={departments} campuses={campuses} />
+    <PostEditor campuses={campuses} departments={departments} post={post} />
   );
 }

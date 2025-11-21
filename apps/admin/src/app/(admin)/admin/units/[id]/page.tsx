@@ -28,8 +28,8 @@ export default async function DepartmentEditPage({
 
   return (
     <DepartmentEditor
-      department={department}
       campuses={campuses.map((c) => ({ $id: c.$id, name: c.name }))}
+      department={department}
       types={types}
     />
   );

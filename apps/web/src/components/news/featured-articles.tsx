@@ -4,25 +4,27 @@ import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { motion } from "motion/react";
 import { ArticleCard } from "./article-card";
 
-interface FeaturedArticlesProps {
+type FeaturedArticlesProps = {
   articles: ContentTranslations[];
-}
+};
 
 export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
-  if (!articles || articles.length === 0) return null;
+  if (!articles || articles.length === 0) {
+    return null;
+  }
 
   return (
     <div className="mb-16">
       <motion.div
+        className="mb-12 text-center"
         initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        className="text-center mb-12"
+        whileInView={{ opacity: 1, y: 0 }}
       >
-        <div className="inline-block px-4 py-2 rounded-full bg-[#3DA9E0]/10 text-[#001731] mb-4 text-sm font-medium">
+        <div className="mb-4 inline-block rounded-full bg-[#3DA9E0]/10 px-4 py-2 font-medium text-[#001731] text-sm">
           Featured Stories
         </div>
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+        <h2 className="font-bold text-3xl text-gray-900 md:text-4xl">
           Top News from the
           <br />
           <span className="bg-linear-to-r from-[#3DA9E0] to-[#001731] bg-clip-text text-transparent">
@@ -34,10 +36,10 @@ export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
       <div className="space-y-8">
         {articles.map((article, index) => (
           <ArticleCard
-            key={article.news_ref?.$id || article.$id}
             article={article}
-            variant="featured"
             index={index}
+            key={article.news_ref?.$id || article.$id}
+            variant="featured"
           />
         ))}
       </div>

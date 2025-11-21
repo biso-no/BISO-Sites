@@ -19,20 +19,20 @@ export default async function EditJobPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/admin/jobs/${id}`} className="font-medium">
+        <Link className="font-medium" href={`/admin/jobs/${id}`}>
           {t("edit")}
         </Link>
         <Link
-          href={`/admin/jobs/${id}/applications`}
           className="text-muted-foreground hover:text-foreground"
+          href={`/admin/jobs/${id}/applications`}
         >
           {t("applications.title")}
         </Link>
       </div>
       <JobEditor
-        job={job as any}
         campuses={campuses as any}
         departments={departments as any}
+        job={job as any}
       />
     </div>
   );

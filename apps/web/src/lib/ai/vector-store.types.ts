@@ -1,26 +1,26 @@
-export interface VectorDocument {
+export type VectorDocument = {
   id: string;
   content: string;
   metadata: Record<string, any>;
   embedding?: number[];
-}
+};
 
-export interface SearchResult {
+export type SearchResult = {
   id: string;
   content: string;
   metadata: Record<string, any>;
   score: number;
   distance: number;
-}
+};
 
-export interface SearchOptions {
+export type SearchOptions = {
   query: string;
   k?: number;
   filter?: Record<string, any>;
   includeMetadata?: boolean;
-}
+};
 
-export interface IVectorStore {
+export type IVectorStore = {
   initialize(): Promise<void>;
   addDocuments(documents: VectorDocument[]): Promise<void>;
   search(options: SearchOptions): Promise<SearchResult[]>;
@@ -33,4 +33,4 @@ export interface IVectorStore {
   ): Promise<void>;
   getCollectionStats(): Promise<{ count: number }>;
   clearCollection(): Promise<void>;
-}
+};

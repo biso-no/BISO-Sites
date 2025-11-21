@@ -26,7 +26,6 @@ import {
   FormMessage,
 } from "@repo/ui/components/ui/form";
 import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -41,7 +40,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
-import { Textarea } from "@repo/ui/components/ui/textarea";
 import {
   AlertCircle,
   Check,
@@ -136,9 +134,9 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
-interface EditProductProps {
+type EditProductProps = {
   product?: ProductWithTranslations;
-}
+};
 
 // Slugify function
 function slugify(text: string): string {
@@ -269,15 +267,23 @@ export function EditProduct({ product }: EditProductProps) {
   // Auto-generate slug from title
   useEffect(() => {
     // Don't auto-generate if user is manually editing
-    if (isEditingSlug) return;
+    if (isEditingSlug) {
+      return;
+    }
 
     // Don't auto-generate if editing existing product (preserve manual slug)
-    if (product) return;
+    if (product) {
+      return;
+    }
 
     const subscription = form.watch((value, { name }) => {
       // Only react to title changes
-      if (!name?.startsWith("translations.")) return;
-      if (!name?.endsWith(".title")) return;
+      if (!name?.startsWith("translations.")) {
+        return;
+      }
+      if (!name?.endsWith(".title")) {
+        return;
+      }
 
       const enTitle = value.translations?.en?.title || "";
       const noTitle = value.translations?.no?.title || "";
@@ -331,7 +337,7 @@ export function EditProduct({ product }: EditProductProps) {
     toLocale: "en" | "no"
   ) => {
     const fromTranslation = form.getValues(`translations.${fromLocale}`);
-    if (!fromTranslation?.title || !fromTranslation?.description) {
+    if (!(fromTranslation?.title && fromTranslation?.description)) {
       toast.error(
         `Please fill in the ${fromLocale === "en" ? "English" : "Norwegian"} content first`
       );
@@ -404,7 +410,7 @@ export function EditProduct({ product }: EditProductProps) {
 
         // Clean up custom fields
         if (!metadata.custom_fields || metadata.custom_fields.length === 0) {
-          delete metadata.custom_fields;
+          metadata.custom_fields = undefined;
         } else {
           metadata.custom_fields = metadata.custom_fields.map((field) => ({
             ...field,
@@ -419,7 +425,7 @@ export function EditProduct({ product }: EditProductProps) {
 
         // Clean up variations
         if (!metadata.variations || metadata.variations.length === 0) {
-          delete metadata.variations;
+          metadata.variations = undefined;
         } else {
           metadata.variations = metadata.variations.map((variation) => ({
             ...variation,
@@ -435,11 +441,19 @@ export function EditProduct({ product }: EditProductProps) {
         }
 
         // Clean up optional fields
-        if (!metadata.max_per_user) delete metadata.max_per_user;
-        if (!metadata.max_per_order) delete metadata.max_per_order;
+        if (!metadata.max_per_user) {
+          metadata.max_per_user = undefined;
+        }
+        if (!metadata.max_per_order) {
+          metadata.max_per_order = undefined;
+        }
 
-        if (metadata.sku) metadata.sku = metadata.sku.trim();
-        if (!metadata.sku) delete metadata.sku;
+        if (metadata.sku) {
+          metadata.sku = metadata.sku.trim();
+        }
+        if (!metadata.sku) {
+          metadata.sku = undefined;
+        }
       }
 
       // Determine image (from metadata.images or existing)
@@ -500,32 +514,32 @@ export function EditProduct({ product }: EditProductProps) {
     <div className="flex min-h-screen w-full flex-col">
       <div className="flex flex-col sm:gap-4">
         <main className="grid flex-1 items-start gap-4">
-          <div className="flex items-center gap-4 mb-4">
+          <div className="mb-4 flex items-center gap-4">
             <Button
-              variant="outline"
-              size="icon"
               className="h-7 w-7"
               onClick={() => router.back()}
+              size="icon"
+              variant="outline"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Back</span>
             </Button>
-            <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+            <h1 className="flex-1 shrink-0 whitespace-nowrap font-semibold text-xl tracking-tight sm:grow-0">
               {isEditing
                 ? `Edit ${product.translation_refs?.[0]?.title || product.slug}`
                 : "New Product"}
             </h1>
-            <Badge variant="outline" className="ml-auto sm:ml-0">
+            <Badge className="ml-auto sm:ml-0" variant="outline">
               {form.watch("status")}
             </Badge>
             <div className="hidden items-center gap-2 md:ml-auto md:flex">
-              <Button variant="outline" size="sm" onClick={() => router.back()}>
+              <Button onClick={() => router.back()} size="sm" variant="outline">
                 Cancel
               </Button>
               <Button
-                size="sm"
-                onClick={form.handleSubmit(onSubmit)}
                 disabled={isSubmitting}
+                onClick={form.handleSubmit(onSubmit)}
+                size="sm"
               >
                 {isSubmitting ? "Saving..." : "Save Product"}
               </Button>
@@ -534,8 +548,8 @@ export function EditProduct({ product }: EditProductProps) {
 
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(onSubmit)}
               className="grid gap-6 lg:grid-cols-[1fr_400px]"
+              onSubmit={form.handleSubmit(onSubmit)}
             >
               {/* LEFT COLUMN - Form Content */}
               <div className="space-y-6">
@@ -551,34 +565,34 @@ export function EditProduct({ product }: EditProductProps) {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Tabs defaultValue="en" className="w-full">
+                    <Tabs className="w-full" defaultValue="en">
                       <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger
-                          value="en"
                           className="flex items-center gap-2"
+                          value="en"
                         >
                           🇬🇧 English
                         </TabsTrigger>
                         <TabsTrigger
-                          value="no"
                           className="flex items-center gap-2"
+                          value="no"
                         >
                           🇳🇴 Norsk
                         </TabsTrigger>
                       </TabsList>
 
-                      <TabsContent value="en" className="space-y-4 mt-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">
+                      <TabsContent className="mt-4 space-y-4" value="en">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-lg">
                             English Content
                           </h3>
                           <Button
+                            className="flex items-center gap-2"
+                            disabled={isTranslating === "en"}
+                            onClick={() => handleTranslate("no", "en")}
+                            size="sm"
                             type="button"
                             variant="outline"
-                            size="sm"
-                            onClick={() => handleTranslate("no", "en")}
-                            disabled={isTranslating === "en"}
-                            className="flex items-center gap-2"
                           >
                             <Sparkles className="h-4 w-4" />
                             {isTranslating === "en"
@@ -596,8 +610,8 @@ export function EditProduct({ product }: EditProductProps) {
                                 <Input
                                   placeholder="Product title in English"
                                   {...field}
-                                  value={field.value || ""}
                                   className="glass-input"
+                                  value={field.value || ""}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -613,8 +627,8 @@ export function EditProduct({ product }: EditProductProps) {
                               <FormControl>
                                 <RichTextEditor
                                   content={field.value || ""}
-                                  onChange={field.onChange}
                                   editable={true}
+                                  onChange={field.onChange}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -623,18 +637,18 @@ export function EditProduct({ product }: EditProductProps) {
                         />
                       </TabsContent>
 
-                      <TabsContent value="no" className="space-y-4 mt-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">
+                      <TabsContent className="mt-4 space-y-4" value="no">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-lg">
                             Norwegian Content
                           </h3>
                           <Button
+                            className="flex items-center gap-2"
+                            disabled={isTranslating === "no"}
+                            onClick={() => handleTranslate("en", "no")}
+                            size="sm"
                             type="button"
                             variant="outline"
-                            size="sm"
-                            onClick={() => handleTranslate("en", "no")}
-                            disabled={isTranslating === "no"}
-                            className="flex items-center gap-2"
                           >
                             <Sparkles className="h-4 w-4" />
                             {isTranslating === "no"
@@ -652,8 +666,8 @@ export function EditProduct({ product }: EditProductProps) {
                                 <Input
                                   placeholder="Produkttittel på norsk"
                                   {...field}
-                                  value={field.value || ""}
                                   className="glass-input"
+                                  value={field.value || ""}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -669,8 +683,8 @@ export function EditProduct({ product }: EditProductProps) {
                               <FormControl>
                                 <RichTextEditor
                                   content={field.value || ""}
-                                  onChange={field.onChange}
                                   editable={true}
+                                  onChange={field.onChange}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -716,14 +730,16 @@ export function EditProduct({ product }: EditProductProps) {
                           <FormLabel>Regular Price (NOK)</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
-                              step="0.01"
                               placeholder="0.00"
+                              step="0.01"
+                              type="number"
                               {...field}
-                              onChange={(e) =>
-                                field.onChange(parseFloat(e.target.value) || 0)
-                              }
                               className="glass-input"
+                              onChange={(e) =>
+                                field.onChange(
+                                  Number.parseFloat(e.target.value) || 0
+                                )
+                              }
                             />
                           </FormControl>
                           <FormMessage />
@@ -734,7 +750,7 @@ export function EditProduct({ product }: EditProductProps) {
                       control={form.control}
                       name="member_only"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 p-4 bg-white/40">
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 bg-white/40 p-4">
                           <div className="space-y-0.5">
                             <FormLabel className="text-base">
                               Members Only
@@ -758,14 +774,16 @@ export function EditProduct({ product }: EditProductProps) {
                 {/* Toggle Sections for Optional Fields */}
                 <div className="space-y-4">
                   <ToggleSection
-                    title="Member Pricing"
                     description="Set a special price for members"
                     enabled={memberPricingEnabled}
+                    icon={DollarSign}
                     onToggle={(enabled) => {
                       setMemberPricingEnabled(enabled);
-                      if (!enabled) form.setValue("member_price", undefined);
+                      if (!enabled) {
+                        form.setValue("member_price", undefined);
+                      }
                     }}
-                    icon={DollarSign}
+                    title="Member Pricing"
                   >
                     <FormField
                       control={form.control}
@@ -775,17 +793,17 @@ export function EditProduct({ product }: EditProductProps) {
                           <FormLabel>Member Price (NOK)</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Member price"
-                              value={field.value ?? ""}
+                              className="glass-input"
                               onChange={(e) => {
                                 const value = e.target.value;
                                 field.onChange(
-                                  value ? parseFloat(value) : undefined
+                                  value ? Number.parseFloat(value) : undefined
                                 );
                               }}
-                              className="glass-input"
+                              placeholder="Member price"
+                              step="0.01"
+                              type="number"
+                              value={field.value ?? ""}
                             />
                           </FormControl>
                           <FormDescription>
@@ -798,14 +816,16 @@ export function EditProduct({ product }: EditProductProps) {
                   </ToggleSection>
 
                   <ToggleSection
-                    title="Stock Management"
                     description="Track inventory levels for this product"
                     enabled={stockEnabled}
+                    icon={Package}
                     onToggle={(enabled) => {
                       setStockEnabled(enabled);
-                      if (!enabled) form.setValue("stock", undefined);
+                      if (!enabled) {
+                        form.setValue("stock", undefined);
+                      }
                     }}
-                    icon={Package}
+                    title="Stock Management"
                   >
                     <FormField
                       control={form.control}
@@ -815,13 +835,15 @@ export function EditProduct({ product }: EditProductProps) {
                           <FormLabel>Stock Quantity</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
                               placeholder="Available quantity"
+                              type="number"
                               {...field}
-                              onChange={(e) =>
-                                field.onChange(parseInt(e.target.value) || 0)
-                              }
                               className="glass-input"
+                              onChange={(e) =>
+                                field.onChange(
+                                  Number.parseInt(e.target.value, 10) || 0
+                                )
+                              }
                             />
                           </FormControl>
                           <FormDescription>
@@ -834,14 +856,16 @@ export function EditProduct({ product }: EditProductProps) {
                   </ToggleSection>
 
                   <ToggleSection
-                    title="SKU & Tracking"
                     description="Add SKU for inventory tracking"
                     enabled={skuEnabled}
+                    icon={Hash}
                     onToggle={(enabled) => {
                       setSkuEnabled(enabled);
-                      if (!enabled) form.setValue("metadata.sku", "");
+                      if (!enabled) {
+                        form.setValue("metadata.sku", "");
+                      }
                     }}
-                    icon={Hash}
+                    title="SKU & Tracking"
                   >
                     <FormField
                       control={form.control}
@@ -853,8 +877,8 @@ export function EditProduct({ product }: EditProductProps) {
                             <Input
                               placeholder="Product SKU"
                               {...field}
-                              value={field.value || ""}
                               className="glass-input"
+                              value={field.value || ""}
                             />
                           </FormControl>
                           <FormDescription>
@@ -867,9 +891,9 @@ export function EditProduct({ product }: EditProductProps) {
                   </ToggleSection>
 
                   <ToggleSection
-                    title="Purchase Limits"
                     description="Restrict how many units customers can buy"
                     enabled={purchaseLimitsEnabled}
+                    icon={AlertCircle}
                     onToggle={(enabled) => {
                       setPurchaseLimitsEnabled(enabled);
                       if (!enabled) {
@@ -877,14 +901,14 @@ export function EditProduct({ product }: EditProductProps) {
                         form.setValue("metadata.max_per_order", undefined);
                       }
                     }}
-                    icon={AlertCircle}
+                    title="Purchase Limits"
                   >
                     <div className="space-y-4">
                       <FormField
                         control={form.control}
                         name="metadata.max_per_user"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 p-4 bg-white/40">
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 bg-white/40 p-4">
                             <div className="space-y-0.5">
                               <FormLabel className="text-base">
                                 Limit to one per customer
@@ -913,17 +937,17 @@ export function EditProduct({ product }: EditProductProps) {
                             <FormLabel>Maximum per order</FormLabel>
                             <FormControl>
                               <Input
-                                type="number"
+                                className="glass-input"
                                 min={1}
-                                value={field.value ?? ""}
                                 onChange={(event) => {
                                   const next = event.target.value;
                                   field.onChange(
-                                    next ? parseInt(next) : undefined
+                                    next ? Number.parseInt(next, 10) : undefined
                                   );
                                 }}
                                 placeholder="Unlimited"
-                                className="glass-input"
+                                type="number"
+                                value={field.value ?? ""}
                               />
                             </FormControl>
                             <FormDescription>
@@ -939,32 +963,33 @@ export function EditProduct({ product }: EditProductProps) {
 
                 {/* Options & Fields Accordion */}
                 <Accordion
-                  type="multiple"
-                  defaultValue={[]}
                   className="space-y-4"
+                  defaultValue={[]}
+                  type="multiple"
                 >
                   <AccordionItem
+                    className="glass-card overflow-hidden rounded-lg border bg-card"
                     value="options-fields"
-                    className="overflow-hidden rounded-lg border bg-card glass-card"
                   >
-                    <AccordionTrigger className="px-4 py-3 text-left text-base font-semibold hover:no-underline">
+                    <AccordionTrigger className="px-4 py-3 text-left font-semibold text-base hover:no-underline">
                       Advanced Options
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
-                      <p className="pb-4 text-sm text-muted-foreground">
+                      <p className="pb-4 text-muted-foreground text-sm">
                         Configure product variations and custom fields for
                         additional customer input.
                       </p>
                       <div className="space-y-4">
                         <ToggleSection
-                          title="Product Variations"
                           description="Offer different options like sizes, colors, or packages"
                           enabled={variationsEnabled}
                           onToggle={(enabled) => {
                             setVariationsEnabled(enabled);
-                            if (!enabled)
+                            if (!enabled) {
                               form.setValue("metadata.variations", []);
+                            }
                           }}
+                          title="Product Variations"
                         >
                           <FormField
                             control={form.control}
@@ -972,8 +997,8 @@ export function EditProduct({ product }: EditProductProps) {
                             render={({ field }) => (
                               <FormItem>
                                 <VariationsEditor
-                                  value={field.value || []}
                                   onChange={(next) => field.onChange(next)}
+                                  value={field.value || []}
                                 />
                                 <FormMessage />
                               </FormItem>
@@ -982,14 +1007,15 @@ export function EditProduct({ product }: EditProductProps) {
                         </ToggleSection>
 
                         <ToggleSection
-                          title="Custom Fields"
                           description="Collect additional information from customers during purchase"
                           enabled={customFieldsEnabled}
                           onToggle={(enabled) => {
                             setCustomFieldsEnabled(enabled);
-                            if (!enabled)
+                            if (!enabled) {
                               form.setValue("metadata.custom_fields", []);
+                            }
                           }}
+                          title="Custom Fields"
                         >
                           <FormField
                             control={form.control}
@@ -997,8 +1023,8 @@ export function EditProduct({ product }: EditProductProps) {
                             render={({ field }) => (
                               <FormItem>
                                 <CustomFieldsEditor
-                                  value={field.value || []}
                                   onChange={(next) => field.onChange(next)}
+                                  value={field.value || []}
                                 />
                                 <FormMessage />
                               </FormItem>
@@ -1012,7 +1038,7 @@ export function EditProduct({ product }: EditProductProps) {
               </div>
 
               {/* RIGHT COLUMN - Sticky Sidebar */}
-              <div className="lg:sticky lg:top-6 lg:self-start space-y-6">
+              <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
                 {/* Status & Campus */}
                 <Card className="glass-card">
                   <CardHeader>
@@ -1029,31 +1055,11 @@ export function EditProduct({ product }: EditProductProps) {
                         <FormItem>
                           <FormLabel>Slug</FormLabel>
                           <FormControl>
-                            {!isEditingSlug ? (
-                              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-white/40 px-3 py-2">
-                                <code className="flex-1 text-sm font-mono text-muted-foreground">
-                                  {field.value || "auto-generated-from-title"}
-                                </code>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0"
-                                  onClick={() => setIsEditingSlug(true)}
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Edit slug</span>
-                                </Button>
-                              </div>
-                            ) : (
+                            {isEditingSlug ? (
                               <div className="flex items-center gap-2">
                                 <Input
                                   placeholder="product-slug"
                                   {...field}
-                                  ref={(e) => {
-                                    field.ref(e);
-                                    slugInputRef.current = e;
-                                  }}
                                   className="glass-input flex-1"
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -1079,22 +1085,23 @@ export function EditProduct({ product }: EditProductProps) {
                                       }
                                     }
                                   }}
+                                  ref={(e) => {
+                                    field.ref(e);
+                                    slugInputRef.current = e;
+                                  }}
                                 />
                                 <Button
+                                  className="h-9 w-9 p-0 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                  onClick={() => setIsEditingSlug(false)}
+                                  size="sm"
                                   type="button"
                                   variant="ghost"
-                                  size="sm"
-                                  className="h-9 w-9 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => setIsEditingSlug(false)}
                                 >
                                   <Check className="h-4 w-4" />
                                   <span className="sr-only">Save slug</span>
                                 </Button>
                                 <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
                                   onClick={() => {
                                     setIsEditingSlug(false);
                                     // Reset to auto-generated slug
@@ -1113,17 +1120,36 @@ export function EditProduct({ product }: EditProductProps) {
                                       );
                                     }
                                   }}
+                                  size="sm"
+                                  type="button"
+                                  variant="ghost"
                                 >
                                   <X className="h-4 w-4" />
                                   <span className="sr-only">Cancel</span>
                                 </Button>
                               </div>
+                            ) : (
+                              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-white/40 px-3 py-2">
+                                <code className="flex-1 font-mono text-muted-foreground text-sm">
+                                  {field.value || "auto-generated-from-title"}
+                                </code>
+                                <Button
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => setIsEditingSlug(true)}
+                                  size="sm"
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Edit slug</span>
+                                </Button>
+                              </div>
                             )}
                           </FormControl>
                           <FormDescription>
-                            {!isEditingSlug
-                              ? `Auto-generated from ${slugSource === "no" ? "Norwegian" : slugSource === "en" ? "English" : "title"} • Click edit to customize`
-                              : "Press Enter to save, Escape to cancel"}
+                            {isEditingSlug
+                              ? "Press Enter to save, Escape to cancel"
+                              : `Auto-generated from ${slugSource === "no" ? "Norwegian" : slugSource === "en" ? "English" : "title"} • Click edit to customize`}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -1136,8 +1162,8 @@ export function EditProduct({ product }: EditProductProps) {
                         <FormItem>
                           <FormLabel>Status</FormLabel>
                           <Select
-                            onValueChange={field.onChange}
                             defaultValue={field.value}
+                            onValueChange={field.onChange}
                           >
                             <FormControl>
                               <SelectTrigger className="glass-input">
@@ -1163,8 +1189,8 @@ export function EditProduct({ product }: EditProductProps) {
                         <FormItem>
                           <FormLabel>Campus</FormLabel>
                           <Select
-                            onValueChange={field.onChange}
                             defaultValue={field.value}
+                            onValueChange={field.onChange}
                           >
                             <FormControl>
                               <SelectTrigger className="glass-input">
@@ -1218,17 +1244,17 @@ export function EditProduct({ product }: EditProductProps) {
                         Live Preview
                       </CardTitle>
                       <Tabs
-                        value={previewLocale}
+                        className="w-auto"
                         onValueChange={(value) =>
                           setPreviewLocale(value as "en" | "no")
                         }
-                        className="w-auto"
+                        value={previewLocale}
                       >
                         <TabsList className="h-8">
-                          <TabsTrigger value="en" className="text-xs px-2">
+                          <TabsTrigger className="px-2 text-xs" value="en">
                             🇬🇧
                           </TabsTrigger>
-                          <TabsTrigger value="no" className="text-xs px-2">
+                          <TabsTrigger className="px-2 text-xs" value="no">
                             🇳🇴
                           </TabsTrigger>
                         </TabsList>
@@ -1250,14 +1276,14 @@ export function EditProduct({ product }: EditProductProps) {
           </Form>
 
           {/* Mobile Actions */}
-          <div className="flex items-center justify-center gap-2 md:hidden mt-4">
-            <Button variant="outline" size="sm" onClick={() => router.back()}>
+          <div className="mt-4 flex items-center justify-center gap-2 md:hidden">
+            <Button onClick={() => router.back()} size="sm" variant="outline">
               Cancel
             </Button>
             <Button
-              size="sm"
-              onClick={form.handleSubmit(onSubmit)}
               disabled={isSubmitting}
+              onClick={form.handleSubmit(onSubmit)}
+              size="sm"
             >
               {isSubmitting ? "Saving..." : "Save Product"}
             </Button>

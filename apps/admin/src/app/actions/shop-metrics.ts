@@ -13,24 +13,24 @@ const PUBLISHED_STATUS = "published";
 
 type TrendDirection = "up" | "down" | "flat";
 
-export interface MetricTrend {
+export type MetricTrend = {
   absolute: number;
   percent: number;
   direction: TrendDirection;
   label: string;
-}
+};
 
-export interface MetricSummary {
+export type MetricSummary = {
   value: number;
   trend: MetricTrend;
-}
+};
 
-export interface ShopMetrics {
+export type ShopMetrics = {
   revenue: MetricSummary;
   catalog: MetricSummary;
   sales: MetricSummary;
   activeCatalog: MetricSummary;
-}
+};
 
 type DbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
 
@@ -172,7 +172,7 @@ async function fetchAllRows<T extends Models.Row>(
       break;
     }
 
-    const last = batch[batch.length - 1];
+    const last = batch.at(-1);
     cursor = last?.$id ?? null;
     if (!cursor) {
       break;

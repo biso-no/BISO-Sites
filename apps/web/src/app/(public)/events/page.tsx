@@ -26,10 +26,10 @@ async function EventsList({ locale }: { locale: "en" | "no" }) {
 
 function EventsListSkeleton() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="space-y-4">
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {[...new Array(6)].map((_, i) => (
+          <div className="space-y-4" key={i}>
             <Skeleton className="h-56 w-full" />
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-full" />

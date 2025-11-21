@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     const mimeType =
       (form.get("mimeType") as string) || (file as File)?.type || "";
 
-    if (!file || !(file instanceof File)) {
+    if (!(file && file instanceof File)) {
       return new Response(JSON.stringify({ error: "File is required" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },

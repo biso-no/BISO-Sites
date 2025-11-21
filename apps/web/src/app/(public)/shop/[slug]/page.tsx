@@ -18,18 +18,18 @@ async function ProductDetails({ slug }: { slug: string }) {
   // TODO: Get actual member status from auth
   const isMember = false;
 
-  return <ProductDetailsClient product={product} isMember={isMember} />;
+  return <ProductDetailsClient isMember={isMember} product={product} />;
 }
 
 function ProductDetailsSkeleton() {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       <div className="relative h-[60vh]">
-        <Skeleton className="w-full h-full" />
+        <Skeleton className="h-full w-full" />
       </div>
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
             <Skeleton className="h-48 w-full" />
             <Skeleton className="h-64 w-full" />
             <Skeleton className="h-32 w-full" />

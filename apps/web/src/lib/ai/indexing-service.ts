@@ -1,10 +1,7 @@
 import "server-only";
 import { type SharePointDocument, SharePointService } from "@/lib/sharepoint";
 import { isSupportedContentType } from "./content-types";
-import {
-  DocumentClassification,
-  documentClassifier,
-} from "./document-classifier";
+import { documentClassifier } from "./document-classifier";
 import {
   DocumentProcessor,
   type ProcessedDocument,
@@ -13,7 +10,7 @@ import { getDocumentViewerUrl } from "./document-utils";
 import { correctMimeType } from "./mime-utils";
 import type { VectorDocument } from "./vector-store.types";
 
-export interface IndexingJob {
+export type IndexingJob = {
   id: string;
   status: "pending" | "processing" | "completed" | "failed";
   siteId: string;
@@ -37,18 +34,18 @@ export interface IndexingJob {
       max: number;
     };
   };
-}
+};
 
-export interface IndexingOptions {
+export type IndexingOptions = {
   siteId: string;
   folderPath?: string;
   recursive?: boolean;
   batchSize?: number;
   maxConcurrency?: number;
   validateChunks?: boolean; // New: enable chunk validation
-}
+};
 
-export interface ProcessedDocumentResult {
+export type ProcessedDocumentResult = {
   documentId: string;
   chunks: VectorDocument[];
   chunksCreated: number;
@@ -57,13 +54,13 @@ export interface ProcessedDocumentResult {
   error?: string;
   skipped?: boolean;
   skipReason?: string;
-}
+};
 
 export class IndexingService {
-  private sharePointService: SharePointService;
-  private documentProcessor: DocumentProcessor;
-  private vectorStore: import("./vector-store.types").IVectorStore;
-  private jobs: Map<string, IndexingJob> = new Map();
+  private readonly sharePointService: SharePointService;
+  private readonly documentProcessor: DocumentProcessor;
+  private readonly vectorStore: import("./vector-store.types").IVectorStore;
+  private readonly jobs: Map<string, IndexingJob> = new Map();
 
   constructor(
     sharePointService: SharePointService,
@@ -83,7 +80,7 @@ export class IndexingService {
       siteId: options.siteId,
       siteName: "Unknown",
       folderPath: options.folderPath || "/",
-      recursive: options.recursive || false,
+      recursive: options.recursive,
       totalDocuments: 0,
       processedDocuments: 0,
       failedDocuments: 0,
@@ -122,7 +119,9 @@ export class IndexingService {
     options: IndexingOptions
   ): Promise<void> {
     const job = this.jobs.get(jobId);
-    if (!job) throw new Error("Job not found");
+    if (!job) {
+      throw new Error("Job not found");
+    }
 
     console.log(`🚀 Starting indexing job ${jobId}`);
 
@@ -145,7 +144,7 @@ export class IndexingService {
       const allDocuments = await this.sharePointService.listDocuments(
         options.siteId,
         options.folderPath || "/",
-        options.recursive || false
+        options.recursive
       );
 
       console.log(`📂 Found ${allDocuments.length} total documents`);
@@ -169,7 +168,7 @@ export class IndexingService {
 
       // Process documents in batches with enhanced monitoring
       const batchSize = options.batchSize || 5; // Reduced for better quality control
-      const maxConcurrency = options.maxConcurrency || 2; // Reduced to avoid overwhelming services
+      const _maxConcurrency = options.maxConcurrency || 2; // Reduced to avoid overwhelming services
 
       const processingResults: ProcessedDocumentResult[] = [];
 
@@ -343,7 +342,7 @@ export class IndexingService {
       if (!documentGroups.has(key)) {
         documentGroups.set(key, []);
       }
-      documentGroups.get(key)!.push(doc);
+      documentGroups.get(key)?.push(doc);
     });
 
     const prioritizedDocuments: SharePointDocument[] = [];
@@ -408,7 +407,7 @@ export class IndexingService {
   private async processDocumentWithValidation(
     document: SharePointDocument,
     jobId: string,
-    options: IndexingOptions
+    _options: IndexingOptions
   ): Promise<ProcessedDocumentResult> {
     const startTime = Date.now();
 
@@ -551,7 +550,7 @@ export class IndexingService {
 
   private validateProcessedDocument(
     processed: ProcessedDocument,
-    fileName: string
+    _fileName: string
   ): {
     isValid: boolean;
     error?: string;
@@ -872,9 +871,9 @@ export class IndexingService {
         ];
 
         const textMatch = searchTerms.some((term) => text.includes(term));
-        const metadataMatch =
-          metadata.sectionNumber &&
-          metadata.sectionNumber.toLowerCase().includes(numberOnly);
+        const metadataMatch = metadata.sectionNumber
+          ?.toLowerCase()
+          .includes(numberOnly);
 
         return textMatch || metadataMatch;
       });
@@ -887,12 +886,16 @@ export class IndexingService {
         // Prioritize structured chunks
         const aStructured = aMetadata.isStructured ? 2 : 0;
         const bStructured = bMetadata.isStructured ? 2 : 0;
-        if (aStructured !== bStructured) return bStructured - aStructured;
+        if (aStructured !== bStructured) {
+          return bStructured - aStructured;
+        }
 
         // Prioritize exact matches
         const aExact = aMetadata.sectionNumber === numberOnly ? 1 : 0;
         const bExact = bMetadata.sectionNumber === numberOnly ? 1 : 0;
-        if (aExact !== bExact) return bExact - aExact;
+        if (aExact !== bExact) {
+          return bExact - aExact;
+        }
 
         // Fall back to similarity score
         return (b.score || 0) - (a.score || 0);
@@ -908,8 +911,12 @@ export class IndexingService {
           const metadata = result.metadata || {};
           let scoreBoost = 0.3; // Base keyword boost
 
-          if (metadata.isStructured) scoreBoost += 0.2;
-          if (metadata.sectionNumber === numberOnly) scoreBoost += 0.3;
+          if (metadata.isStructured) {
+            scoreBoost += 0.2;
+          }
+          if (metadata.sectionNumber === numberOnly) {
+            scoreBoost += 0.3;
+          }
 
           return {
             ...result,
@@ -936,7 +943,9 @@ export class IndexingService {
         let score = 0;
 
         // Structure bonus
-        if (metadata.isStructured) score += 0.2;
+        if (metadata.isStructured) {
+          score += 0.2;
+        }
 
         // Language matching
         const docLang = metadata.documentLanguage || "unknown";
@@ -947,17 +956,28 @@ export class IndexingService {
         }
 
         // Authority scoring
-        if (metadata.isAuthoritative) score += 0.2;
-        if (metadata.isLatest) score += 0.15;
-        if (metadata.isTranslation) score -= 0.1;
+        if (metadata.isAuthoritative) {
+          score += 0.2;
+        }
+        if (metadata.isLatest) {
+          score += 0.15;
+        }
+        if (metadata.isTranslation) {
+          score -= 0.1;
+        }
 
         // Content length preference
         const length = content.length;
-        if (length >= 500 && length <= 1500) score += 0.1;
-        else if (length < 100) score -= 0.1;
+        if (length >= 500 && length <= 1500) {
+          score += 0.1;
+        } else if (length < 100) {
+          score -= 0.1;
+        }
 
         // Processing quality indicators
-        if (metadata.tokenCount && metadata.tokenCount > 50) score += 0.05;
+        if (metadata.tokenCount && metadata.tokenCount > 50) {
+          score += 0.05;
+        }
 
         return score;
       };

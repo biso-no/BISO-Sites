@@ -4,7 +4,7 @@ import { createSessionClient } from "@repo/api/server";
 import type { Orders, Users } from "@repo/api/types/appwrite";
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
-import { Order, type OrderItem } from "@/lib/types/order";
+import type { OrderItem } from "@/lib/types/order";
 import { createVippsCheckout } from "@/lib/vipps";
 
 export async function getOrders({
@@ -51,14 +51,21 @@ export async function getOrder(id: string) {
 
 async function getMemberDiscountIfAny(product: any) {
   try {
-    if (!product?.member_discount_enabled || !product?.member_discount_percent)
+    if (
+      !(product?.member_discount_enabled && product?.member_discount_percent)
+    ) {
       return { applied: false, percent: 0 };
+    }
     const { account, db, functions } = await createSessionClient();
     const user = await account.get().catch(() => null);
-    if (!user?.$id) return { applied: false, percent: 0 };
+    if (!user?.$id) {
+      return { applied: false, percent: 0 };
+    }
     const profile = await db.getRow<Users>("app", "user", user.$id);
     const studentId = profile?.studentId?.student_id;
-    if (!studentId) return { applied: false, percent: 0 };
+    if (!studentId) {
+      return { applied: false, percent: 0 };
+    }
     const exec = await functions.createExecution(
       "verify_biso_membership",
       String(studentId),
@@ -66,7 +73,9 @@ async function getMemberDiscountIfAny(product: any) {
     );
     const res = JSON.parse((exec as any).responseBody || "{}");
     const isActive = !!res?.membership?.status;
-    if (!isActive) return { applied: false, percent: 0 };
+    if (!isActive) {
+      return { applied: false, percent: 0 };
+    }
     return {
       applied: true,
       percent: Number(product.member_discount_percent) || 0,
@@ -76,36 +85,42 @@ async function getMemberDiscountIfAny(product: any) {
   }
 }
 
-export interface CheckoutLineItemInput {
+export type CheckoutLineItemInput = {
   productId: string;
   slug: string;
   quantity: number;
   variationId?: string;
   customFields?: Record<string, string>;
   customFieldLabels?: Record<string, string>;
-}
+};
 
-export interface CartCheckoutData {
+export type CartCheckoutData = {
   items: CheckoutLineItemInput[];
   name: string;
   email: string;
   phone?: string;
-}
+};
 
-export interface CheckoutResult {
+export type CheckoutResult = {
   success: boolean;
   paymentUrl?: string;
   orderId?: string;
   error?: string;
-}
+};
 
 function normalizeCustomFields(inputs?: Record<string, string>) {
-  if (!inputs) return {};
+  if (!inputs) {
+    return {};
+  }
   return Object.entries(inputs).reduce<Record<string, string>>(
     (acc, [key, value]) => {
-      if (typeof value !== "string") return acc;
+      if (typeof value !== "string") {
+        return acc;
+      }
       const trimmed = value.trim();
-      if (trimmed.length === 0) return acc;
+      if (trimmed.length === 0) {
+        return acc;
+      }
       acc[key] = trimmed;
       return acc;
     },
@@ -121,7 +136,7 @@ export async function createCartCheckoutSession(
       throw new Error("Your cart is empty");
     }
 
-    const locale = await getLocale();
+    const _locale = await getLocale();
     const sanitizedItems = data.items
       .map((item) => ({
         ...item,
@@ -155,7 +170,9 @@ export async function createCartCheckoutSession(
 
     for (const input of sanitizedItems) {
       const productId = input.productId;
-      if (!productId) continue;
+      if (!productId) {
+        continue;
+      }
 
       let product = productCache.get(productId);
       if (!product) {
@@ -313,11 +330,11 @@ export async function createCartCheckoutSession(
   }
 }
 
-async function startCartCheckout(data: CartCheckoutData) {
+async function _startCartCheckout(data: CartCheckoutData) {
   return createCartCheckoutSession(data);
 }
 
-async function getCheckoutStatus(
+async function _getCheckoutStatus(
   orderId: string
 ): Promise<
   | { success: false; error: string }

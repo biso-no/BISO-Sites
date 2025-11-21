@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import {
   AccordionContent,
   AccordionItem,
@@ -8,25 +7,25 @@ import {
   AccordionTrigger,
 } from "../ui/accordion";
 
-export interface AccordionItemProps {
+export type AccordionItemProps = {
   title: string;
   content: string;
-}
+};
 
-export interface AccordionBlockProps {
+export type AccordionBlockProps = {
   items: AccordionItemProps[];
   type?: "single" | "multiple";
-}
+};
 
 export function AccordionBlock({
   items = [],
   type = "single",
 }: AccordionBlockProps) {
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="mx-auto w-full max-w-3xl">
       <AccordionRoot
-        type={type === "single" ? "single" : "multiple"}
         collapsible
+        type={type === "single" ? "single" : "multiple"}
       >
         {items.map((item, index) => (
           <AccordionItem key={index} value={`item-${index}`}>

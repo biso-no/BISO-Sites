@@ -40,15 +40,15 @@ async function DepartmentsContent() {
       <DepartmentsHero stats={stats} />
 
       {/* Filters with overlap */}
-      <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-10 mb-12">
+      <div className="-mt-8 relative z-10 mx-auto mb-12 max-w-7xl px-4">
         <DepartmentsListClient
-          departments={departments}
           availableTypes={availableTypes}
+          departments={departments}
         />
       </div>
 
       {/* Call to Action */}
-      <div className="max-w-7xl mx-auto px-4 pb-16">
+      <div className="mx-auto max-w-7xl px-4 pb-16">
         <DepartmentsCTA />
       </div>
     </>
@@ -69,38 +69,38 @@ function UnitsPageSkeleton() {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       {/* Hero Skeleton */}
-      <div className="relative h-[50vh] overflow-hidden bg-muted/50 animate-pulse isolate" />
+      <div className="relative isolate h-[50vh] animate-pulse overflow-hidden bg-muted/50" />
 
       {/* Filters Skeleton with overlap */}
-      <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-10 mb-12">
-        <div className="p-6 border-0 shadow-xl bg-card rounded-lg relative z-10">
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="h-12 bg-muted animate-pulse rounded-md" />
-            <div className="h-12 bg-muted animate-pulse rounded-md" />
-            <div className="h-12 bg-muted animate-pulse rounded-md" />
+      <div className="-mt-8 relative z-10 mx-auto mb-12 max-w-7xl px-4">
+        <div className="relative z-10 rounded-lg border-0 bg-card p-6 shadow-xl">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="h-12 animate-pulse rounded-md bg-muted" />
+            <div className="h-12 animate-pulse rounded-md bg-muted" />
+            <div className="h-12 animate-pulse rounded-md bg-muted" />
           </div>
         </div>
 
         {/* Results count skeleton */}
         <div className="mt-8 space-y-2">
-          <div className="h-8 w-48 bg-muted animate-pulse rounded-md" />
-          <div className="h-5 w-96 bg-muted animate-pulse rounded-md" />
+          <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+          <div className="h-5 w-96 animate-pulse rounded-md bg-muted" />
         </div>
 
         {/* Grid Skeleton */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
-          {[...Array(6)].map((_, i) => (
+        <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {[...new Array(6)].map((_, i) => (
             <div
+              className="h-[400px] animate-pulse rounded-lg bg-muted"
               key={i}
-              className="h-[400px] bg-muted animate-pulse rounded-lg"
             />
           ))}
         </div>
       </div>
 
       {/* CTA Skeleton */}
-      <div className="max-w-7xl mx-auto px-4 pb-16">
-        <div className="h-64 bg-muted animate-pulse rounded-lg" />
+      <div className="mx-auto max-w-7xl px-4 pb-16">
+        <div className="h-64 animate-pulse rounded-lg bg-muted" />
       </div>
     </div>
   );

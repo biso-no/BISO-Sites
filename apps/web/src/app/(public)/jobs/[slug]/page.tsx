@@ -5,11 +5,11 @@ import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobDetailsClient } from "@/components/jobs/job-details-client";
 
-interface JobPageProps {
+type JobPageProps = {
   params: {
     slug: string;
   };
-}
+};
 
 async function JobDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
@@ -28,11 +28,11 @@ function JobDetailsSkeleton() {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       <div className="relative h-[40vh]">
-        <Skeleton className="w-full h-full" />
+        <Skeleton className="h-full w-full" />
       </div>
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
             <Skeleton className="h-48 w-full" />
             <Skeleton className="h-64 w-full" />
             <Skeleton className="h-64 w-full" />

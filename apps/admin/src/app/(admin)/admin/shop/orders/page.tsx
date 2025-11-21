@@ -149,10 +149,10 @@ export default async function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-semibold">
+                <div className="font-semibold text-3xl">
                   {NOK_FORMATTER.format(revenueYear)}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   {t("orders.analytics.totalVolumeSince", {
                     date: DATE_FORMATTER.format(startOfYear),
                   })}
@@ -176,7 +176,7 @@ export default async function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-muted-foreground text-xs">
                   {t("orders.analytics.weekOrders", {
                     count: ordersWeek.length,
                   })}
@@ -184,8 +184,8 @@ export default async function Dashboard() {
               </CardContent>
               <CardFooter>
                 <Progress
-                  value={weekProgress}
                   aria-label={t("orders.analytics.weekTitle")}
+                  value={weekProgress}
                 />
               </CardFooter>
             </Card>
@@ -199,7 +199,7 @@ export default async function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-muted-foreground text-xs">
                   {t("orders.analytics.monthOrders", {
                     count: ordersMonth.length,
                     date: DATE_FORMATTER.format(startOfMonth),
@@ -208,8 +208,8 @@ export default async function Dashboard() {
               </CardContent>
               <CardFooter>
                 <Progress
-                  value={monthProgress}
                   aria-label={t("orders.analytics.monthTitle")}
+                  value={monthProgress}
                 />
               </CardFooter>
             </Card>
@@ -231,9 +231,9 @@ export default async function Dashboard() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      variant="outline"
-                      size="sm"
                       className="h-7 gap-1 text-sm"
+                      size="sm"
+                      variant="outline"
                     >
                       <ListFilter className="h-3.5 w-3.5" />
                       <span className="sr-only sm:not-sr-only">
@@ -258,32 +258,32 @@ export default async function Dashboard() {
             </div>
             <TabsContent value="week">
               <OrdersTable
-                orders={ordersWeek}
-                title={t("orders.analytics.weekTitle")}
                 description={t("orders.analytics.weekDescription")}
                 emptyMessage={t("orders.analytics.weekEmpty")}
                 labels={tableLabels}
+                orders={ordersWeek}
                 t={t}
+                title={t("orders.analytics.weekTitle")}
               />
             </TabsContent>
             <TabsContent value="month">
               <OrdersTable
-                orders={ordersMonth}
-                title={t("orders.analytics.monthTitle")}
                 description={t("orders.analytics.monthDescription")}
                 emptyMessage={t("orders.analytics.monthEmpty")}
                 labels={tableLabels}
+                orders={ordersMonth}
                 t={t}
+                title={t("orders.analytics.monthTitle")}
               />
             </TabsContent>
             <TabsContent value="year">
               <OrdersTable
-                orders={ordersYear}
-                title={t("orders.analytics.tabsYear")}
                 description={t("orders.analytics.yearDescription")}
                 emptyMessage={t("orders.analytics.yearEmpty")}
                 labels={tableLabels}
+                orders={ordersYear}
                 t={t}
+                title={t("orders.analytics.tabsYear")}
               />
             </TabsContent>
           </Tabs>
@@ -348,7 +348,7 @@ function OrdersTable({
                     <div className="font-medium">
                       {order.buyer_name || t("orders.detail.guest")}
                     </div>
-                    <div className="hidden text-sm text-muted-foreground md:inline">
+                    <div className="hidden text-muted-foreground text-sm md:inline">
                       {order.buyer_email || "—"}
                     </div>
                   </TableCell>
@@ -380,8 +380,8 @@ function OrdersTable({
             {orders.length === 0 && (
               <TableRow>
                 <TableCell
+                  className="py-6 text-center text-muted-foreground text-sm"
                   colSpan={5}
-                  className="py-6 text-center text-sm text-muted-foreground"
                 >
                   {emptyMessage}
                 </TableCell>
@@ -410,7 +410,7 @@ function OrderDetailCard({
             {t("orders.detail.emptyDescription")}
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
+        <CardContent className="text-muted-foreground text-sm">
           {t("orders.detail.emptyMessage")}
         </CardContent>
       </Card>
@@ -449,7 +449,7 @@ function OrderDetailCard({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="p-6 text-sm space-y-6">
+      <CardContent className="space-y-6 p-6 text-sm">
         <div className="space-y-3">
           <div className="font-semibold">
             {t("orders.detail.section.orderDetails")}
@@ -462,15 +462,15 @@ function OrderDetailCard({
             )}
             {items.map((item) => (
               <li
-                key={`${item.product_id}-${item.variation_id ?? "base"}`}
                 className="flex items-center justify-between gap-4"
+                key={`${item.product_id}-${item.variation_id ?? "base"}`}
               >
                 <span className="text-muted-foreground">
                   {item.title ||
                     item.product_slug ||
                     t("orders.detail.productFallback")}{" "}
                   {item.quantity ? (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-muted-foreground text-xs">
                       x {item.quantity}
                     </span>
                   ) : null}
@@ -555,7 +555,7 @@ function OrderDetailCard({
         </div>
       </CardContent>
       <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-6 py-4">
-        <div className="text-xs text-muted-foreground">
+        <div className="text-muted-foreground text-xs">
           {t("orders.detail.lastUpdated", {
             date: DATE_FORMATTER.format(order.createdAtDate),
           })}
@@ -570,8 +570,8 @@ function OrderDetailCard({
             <Button asChild size="sm" variant="outline">
               <a
                 href={order.vipps_payment_link}
-                target="_blank"
                 rel="noreferrer"
+                target="_blank"
               >
                 {t("orders.detail.openReceipt")}
               </a>
@@ -593,7 +593,9 @@ type ParsedOrderItem = {
 };
 
 function parseOrderItems(itemsJson?: string | null): ParsedOrderItem[] {
-  if (!itemsJson) return [];
+  if (!itemsJson) {
+    return [];
+  }
   try {
     const parsed = JSON.parse(itemsJson);
     if (Array.isArray(parsed)) {
@@ -614,6 +616,8 @@ function sumTotals(orders: PreparedOrder[]) {
 }
 
 function calculateProgress(part: number, whole: number) {
-  if (part <= 0 || whole <= 0) return 0;
+  if (part <= 0 || whole <= 0) {
+    return 0;
+  }
   return Math.min(100, Number(((part / whole) * 100).toFixed(1)));
 }

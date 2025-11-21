@@ -26,6 +26,6 @@ export async function getOrgChartUrl() {
   const arrayBuffer = await storage.getFilePreview("content", "org_chart");
   const base64 = Buffer.from(arrayBuffer).toString("base64");
   const dataUrl = `data:image/png;base64,${base64}`;
-  console.log("Org chart url:", dataUrl.substring(0, 64) + "...");
+  console.log("Org chart url:", `${dataUrl.substring(0, 64)}...`);
   return dataUrl;
 }

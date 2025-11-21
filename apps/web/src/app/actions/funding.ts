@@ -11,7 +11,9 @@ import type {
 const parseFundingMetadata = (
   value?: string | null
 ): FundingProgramMetadata => {
-  if (!value) return {};
+  if (!value) {
+    return {};
+  }
   try {
     return JSON.parse(value) as FundingProgramMetadata;
   } catch (error) {
@@ -25,8 +27,8 @@ const toParsedProgram = (program: FundingProgram): ParsedFundingProgram => ({
   parsedMetadata: parseFundingMetadata(program.metadata),
 });
 
-async function listFundingPrograms(
-  status: string = "active"
+async function _listFundingPrograms(
+  status = "active"
 ): Promise<ParsedFundingProgram[]> {
   try {
     const { db } = await createSessionClient();
@@ -49,7 +51,9 @@ async function listFundingPrograms(
 export async function getFundingProgramBySlug(
   slug: string
 ): Promise<ParsedFundingProgram | null> {
-  if (!slug) return null;
+  if (!slug) {
+    return null;
+  }
   try {
     const { db } = await createSessionClient();
     const response = await db.listRows<FundingProgram>(

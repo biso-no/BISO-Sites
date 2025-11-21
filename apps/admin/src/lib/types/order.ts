@@ -8,7 +8,7 @@ export type OrderStatus =
   | "failed"
   | "refunded";
 
-export interface OrderItem {
+export type OrderItem = {
   product_id: string;
   product_slug?: string;
   title?: string;
@@ -19,7 +19,7 @@ export interface OrderItem {
   variation_price?: number;
   custom_field_responses?: Record<string, string>;
   custom_fields?: { id: string; label: string; value: string }[];
-}
+};
 
 export interface Order extends Models.Row {
   status: OrderStatus;

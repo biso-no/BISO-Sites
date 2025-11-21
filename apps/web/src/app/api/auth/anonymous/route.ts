@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Also support POST for programmatic calls
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const { account } = await createSessionClient();
     const session = await account.createAnonymousSession();

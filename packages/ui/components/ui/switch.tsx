@@ -2,12 +2,15 @@
 
 import * as SwitchPrimitives from "@radix-ui/react-switch";
 import { cn } from "@repo/ui/lib/utils";
-import * as React from "react";
+import type * as React from "react";
 
-const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitives.Root>,
-  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
->(({ className, ...props }, ref) => (
+const Switch = ({
+  className,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root> & {
+  ref?: React.RefObject<React.ElementRef<typeof SwitchPrimitives.Root> | null>;
+}) => (
   <SwitchPrimitives.Root
     className={cn(
       "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent",
@@ -40,7 +43,7 @@ const Switch = React.forwardRef<
       }}
     />
   </SwitchPrimitives.Root>
-));
+);
 Switch.displayName = SwitchPrimitives.Root.displayName;
 
 export { Switch };

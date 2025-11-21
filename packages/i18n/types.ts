@@ -1,5 +1,3 @@
-import type { Locale } from "./config";
-
 // Message namespace types
 export type MessageNamespace =
   | "academicsContact"

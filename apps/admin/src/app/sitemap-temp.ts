@@ -2,10 +2,6 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { ContentType, Locale } from "@repo/api/types/appwrite";
 import type { MetadataRoute } from "next";
-import { listEvents } from "@/app/actions/events";
-import { listJobs } from "@/app/actions/jobs";
-import { listLargeEvents } from "@/app/actions/large-events";
-import { listNews } from "@/app/actions/news";
 
 export async function generateSitemap() {
   const base = process.env.NEXT_PUBLIC_BASE_URL || "https://app.biso.no";

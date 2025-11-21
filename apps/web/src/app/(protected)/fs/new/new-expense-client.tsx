@@ -25,10 +25,10 @@ const steps = [
   { id: 3, title: "Attachments", description: "Upload Receipts" },
 ];
 
-interface NewExpenseClientProps {
+type NewExpenseClientProps = {
   initialProfile: Partial<Users>;
   campuses: Array<{ $id: string; name: string }>;
-}
+};
 
 export function NewExpenseClient({
   initialProfile,
@@ -67,7 +67,7 @@ export function NewExpenseClient({
     try {
       await updateProfile(updatedProfile);
       toast.success("Profile updated successfully");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update profile");
     }
   };
@@ -99,7 +99,9 @@ export function NewExpenseClient({
   };
 
   const handleSubmit = async () => {
-    if (!campusData || !uploadData) return;
+    if (!(campusData && uploadData)) {
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -149,35 +151,35 @@ export function NewExpenseClient({
       {/* Header */}
       <div className="relative h-[30vh] overflow-hidden">
         <ImageWithFallback
-          src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmaW5hbmNlJTIwZG9jdW1lbnRzfGVufDF8fHx8MTc2MjE2NTE0NXww&ixlib=rb-4.1.0&q=80&w=1080"
           alt="New Reimbursement"
-          fill
           className="object-cover"
+          fill
+          src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmaW5hbmNlJTIwZG9jdW1lbnRzfGVufDF8fHx8MTc2MjE2NTE0NXww&ixlib=rb-4.1.0&q=80&w=1080"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="mx-auto max-w-4xl px-4 text-center">
             <Link href="/fs">
               <motion.button
-                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
+                className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-[#3DA9E0]"
+                initial={{ opacity: 0, x: -20 }}
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="h-5 w-5" />
                 Back to Reimbursements
               </motion.button>
             </Link>
 
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 30 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="mb-4 text-4xl font-bold text-white">
+              <h1 className="mb-4 font-bold text-4xl text-white">
                 Submit New Reimbursement
               </h1>
-              <p className="text-white/90 text-lg">Step {currentStep} of 3</p>
+              <p className="text-lg text-white/90">Step {currentStep} of 3</p>
             </motion.div>
           </div>
         </div>
@@ -185,16 +187,16 @@ export function NewExpenseClient({
 
       {/* Wizard */}
       <ExpenseWizard
-        steps={steps}
         currentStep={currentStep}
         onStepChange={setCurrentStep}
+        steps={steps}
       >
         {currentStep === 1 && (
           <StepContainer stepId={1}>
             <ProfileStep
-              profile={profile}
               onNext={handleProfileNext}
               onUpdateProfile={handleProfileUpdate}
+              profile={profile}
             />
           </StepContainer>
         )}
@@ -203,8 +205,8 @@ export function NewExpenseClient({
           <StepContainer stepId={2}>
             <CampusStep
               campuses={campuses}
-              onNext={handleCampusNext}
               onBack={() => setCurrentStep(1)}
+              onNext={handleCampusNext}
             />
           </StepContainer>
         )}
@@ -212,8 +214,8 @@ export function NewExpenseClient({
         {currentStep === 3 && (
           <StepContainer stepId={3}>
             <UploadStep
-              onNext={handleUploadNext}
               onBack={() => setCurrentStep(2)}
+              onNext={handleUploadNext}
             />
           </StepContainer>
         )}
@@ -222,8 +224,6 @@ export function NewExpenseClient({
       {/* Summary Dialog */}
       {uploadData && campusData && (
         <SummaryDialog
-          open={showSummary}
-          onOpenChange={setShowSummary}
           data={{
             profile,
             campus: campusData.campusName || "",
@@ -232,8 +232,10 @@ export function NewExpenseClient({
             description: uploadData.description,
             total: uploadData.total,
           }}
-          onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
+          onOpenChange={setShowSummary}
+          onSubmit={handleSubmit}
+          open={showSummary}
         />
       )}
     </div>

@@ -5,16 +5,16 @@ import type {
 
 export type ProductCustomFieldType = "text" | "textarea" | "number" | "select";
 
-export interface ProductCustomField {
+export type ProductCustomField = {
   id: string;
   label: string;
   type: ProductCustomFieldType;
   required?: boolean;
   placeholder?: string;
   options?: string[];
-}
+};
 
-export interface ProductVariation {
+export type ProductVariation = {
   id: string;
   name: string;
   description?: string;
@@ -22,7 +22,7 @@ export interface ProductVariation {
   sku?: string;
   stock_quantity?: number;
   is_default?: boolean;
-}
+};
 
 export type Product = WebshopProducts;
 
@@ -70,12 +70,12 @@ export interface ProductMetadata extends Record<string, unknown> {
   variations?: ProductVariation[];
 }
 
-export interface ProductTranslation {
+export type ProductTranslation = {
   title: string;
   description: string;
-}
+};
 
-export interface CreateProductData {
+export type CreateProductData = {
   slug: string;
   status: "draft" | "published" | "archived";
   campus_id: string;
@@ -84,9 +84,9 @@ export interface CreateProductData {
     en?: ProductTranslation;
     no?: ProductTranslation;
   };
-}
+};
 
-export interface UpdateProductData {
+export type UpdateProductData = {
   slug?: string;
   status?: "draft" | "published" | "archived";
   campus_id?: string;
@@ -95,13 +95,13 @@ export interface UpdateProductData {
     en?: ProductTranslation;
     no?: ProductTranslation;
   };
-}
+};
 
-export interface ListProductsParams {
+export type ListProductsParams = {
   status?: "draft" | "published" | "archived";
   campus_id?: string;
   locale?: "en" | "no";
   limit?: number;
   offset?: number;
   search?: string;
-}
+};

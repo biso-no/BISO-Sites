@@ -56,14 +56,22 @@ const FALLBACK_COLORS = [
 ];
 
 const formatNumber = (value: number) => {
-  if (value === undefined || value === null) return "0";
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  if (value === undefined || value === null) {
+    return "0";
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`;
+  }
   return value.toLocaleString();
 };
 
 const formatPercent = (value: number) => {
-  if (!Number.isFinite(value)) return "0%";
+  if (!Number.isFinite(value)) {
+    return "0%";
+  }
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 };
 
@@ -150,7 +158,9 @@ export default function AdminDashboard({
 
   // Filter data based on selected date range
   const getDateCutoff = (range: DateRange): Date | null => {
-    if (range === "all") return null;
+    if (range === "all") {
+      return null;
+    }
     const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -188,6 +198,7 @@ export default function AdminDashboard({
     postEngagement,
     audienceGrowth,
     jobApplications,
+    getDateCutoff,
   ]);
 
   // Use optimized counts from $sequence field
@@ -195,7 +206,7 @@ export default function AdminDashboard({
     (best, current) => (current.views > (best?.views ?? 0) ? current : best),
     filteredData.pageViews[0] ?? null
   );
-  const previousUsers = userGrowth[userGrowth.length - 2]?.users ?? totalUsers;
+  const previousUsers = userGrowth.at(-2)?.users ?? totalUsers;
   const userGrowthRate =
     previousUsers > 0
       ? ((totalUsers - previousUsers) / previousUsers) * 100
@@ -213,7 +224,7 @@ export default function AdminDashboard({
   );
 
   const totalAlerts = systemAlerts.length;
-  const totalRevenue = revenueByProduct.reduce(
+  const _totalRevenue = revenueByProduct.reduce(
     (sum, product) => sum + product.revenue,
     0
   );
@@ -315,7 +326,7 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <BarChart data={filteredData.pageViews}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
@@ -337,24 +348,24 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <PieChart>
                     <Pie
-                      data={userDistribution}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
+                      data={userDistribution}
                       dataKey="value"
+                      fill="#8884d8"
                       label={({ name, percent }) =>
                         `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
                       }
+                      labelLine={false}
+                      outerRadius={80}
                     >
-                      {userDistribution.map((entry, index) => (
+                      {userDistribution.map((_entry, index) => (
                         <Cell
-                          key={`cell-${index}`}
                           fill={chartColors[index % chartColors.length]}
+                          key={`cell-${index}`}
                         />
                       ))}
                     </Pie>
@@ -371,14 +382,14 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <LineChart data={userGrowth}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="users" stroke="#8884d8" />
+                    <Line dataKey="users" stroke="#8884d8" type="monotone" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -399,17 +410,17 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">
+                <div className="font-bold text-3xl">
                   {totalPageViews.toLocaleString()}
                 </div>
                 {topPage ? (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-muted-foreground text-sm">
                     {t("dashboard.analytics.topPageLabel", {
                       page: topPage.name,
                     })}
                   </div>
                 ) : (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-muted-foreground text-sm">
                     {t("dashboard.analytics.noPageData")}
                   </div>
                 )}
@@ -423,7 +434,7 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">
+                <div className="font-bold text-3xl">
                   {totalUsers.toLocaleString()}
                 </div>
                 <div
@@ -446,15 +457,15 @@ export default function AdminDashboard({
               <CardContent>
                 {topTrafficSource ? (
                   <>
-                    <div className="text-3xl font-bold">
+                    <div className="font-bold text-3xl">
                       {topTrafficSource.name}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-muted-foreground text-sm">
                       {topTrafficSource.value.toLocaleString()} sessions
                     </div>
                   </>
                 ) : (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-muted-foreground text-sm">
                     No traffic data available
                   </div>
                 )}
@@ -472,24 +483,24 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <PieChart>
                     <Pie
-                      data={trafficSources}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      outerRadius={100}
-                      fill="#8884d8"
+                      data={trafficSources}
                       dataKey="value"
+                      fill="#8884d8"
                       label={({ name, percent }) =>
                         `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
                       }
+                      labelLine={false}
+                      outerRadius={100}
                     >
-                      {trafficSources.map((entry, index) => (
+                      {trafficSources.map((_entry, index) => (
                         <Cell
-                          key={`traffic-cell-${index}`}
                           fill={chartColors[index % chartColors.length]}
+                          key={`traffic-cell-${index}`}
                         />
                       ))}
                     </Pie>
@@ -547,10 +558,10 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-red-600">
+                <div className="font-bold text-3xl text-red-600">
                   {alertCounts.error ?? 0}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-gray-600 text-sm">
                   {t("dashboard.notifications.errors.description")}
                 </div>
               </CardContent>
@@ -563,10 +574,10 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-yellow-600">
+                <div className="font-bold text-3xl text-yellow-600">
                   {alertCounts.warning ?? 0}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-gray-600 text-sm">
                   {t("dashboard.notifications.warnings.description")}
                 </div>
               </CardContent>
@@ -579,10 +590,10 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
+                <div className="font-bold text-3xl text-blue-600">
                   {alertCounts.info ?? 0}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-gray-600 text-sm">
                   {t("dashboard.notifications.info.description")}
                 </div>
               </CardContent>
@@ -595,10 +606,10 @@ export default function AdminDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600">
+                <div className="font-bold text-3xl text-green-600">
                   {alertCounts.success ?? 0}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-gray-600 text-sm">
                   {t("dashboard.notifications.success.description")}
                 </div>
               </CardContent>
@@ -618,8 +629,8 @@ export default function AdminDashboard({
                 <ScrollArea className="h-[400px]">
                   {systemAlerts.map((alert) => (
                     <div
-                      key={alert.id}
                       className="mb-4 flex items-center space-x-4"
+                      key={alert.id}
                     >
                       {alert.type === "error" && (
                         <AlertCircleIcon className="h-6 w-6 text-red-500" />
@@ -635,7 +646,7 @@ export default function AdminDashboard({
                       )}
                       <div>
                         <p className="font-medium">{alert.message}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-gray-500 text-sm">
                           {alert.timestamp}
                         </p>
                       </div>
@@ -666,7 +677,7 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <BarChart data={filteredData.postEngagement}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
@@ -690,7 +701,7 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <LineChart data={filteredData.audienceGrowth}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
@@ -698,9 +709,9 @@ export default function AdminDashboard({
                     <Tooltip />
                     <Legend />
                     <Line
-                      type="monotone"
                       dataKey="followers"
                       stroke="#8884d8"
+                      type="monotone"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -729,7 +740,7 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <BarChart data={filteredData.revenueByProduct}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
@@ -751,24 +762,24 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <PieChart>
                     <Pie
-                      data={filteredData.expenseCategories}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
+                      data={filteredData.expenseCategories}
                       dataKey="amount"
+                      fill="#8884d8"
                       label={({ name, percent }) =>
                         `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
                       }
+                      labelLine={false}
+                      outerRadius={80}
                     >
-                      {expenseCategories.map((entry, index) => (
+                      {expenseCategories.map((_entry, index) => (
                         <Cell
-                          key={`cell-${index}`}
                           fill={chartColors[index % chartColors.length]}
+                          key={`cell-${index}`}
                         />
                       ))}
                     </Pie>
@@ -800,23 +811,23 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <BarChart data={filteredData.jobApplications}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="position" />
-                    <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+                    <YAxis orientation="left" stroke="#8884d8" yAxisId="left" />
                     <YAxis
-                      yAxisId="right"
                       orientation="right"
                       stroke="#82ca9d"
+                      yAxisId="right"
                     />
                     <Tooltip />
                     <Legend />
-                    <Bar yAxisId="left" dataKey="applications" fill="#8884d8" />
+                    <Bar dataKey="applications" fill="#8884d8" yAxisId="left" />
                     <Bar
-                      yAxisId="right"
                       dataKey="openPositions"
                       fill="#82ca9d"
+                      yAxisId="right"
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -832,24 +843,24 @@ export default function AdminDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <PieChart>
                     <Pie
-                      data={employeeDistribution}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
+                      data={employeeDistribution}
                       dataKey="value"
+                      fill="#8884d8"
                       label={({ name, percent }) =>
                         `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
                       }
+                      labelLine={false}
+                      outerRadius={80}
                     >
-                      {employeeDistribution.map((entry, index) => (
+                      {employeeDistribution.map((_entry, index) => (
                         <Cell
-                          key={`cell-${index}`}
                           fill={chartColors[index % chartColors.length]}
+                          key={`cell-${index}`}
                         />
                       ))}
                     </Pie>
@@ -868,20 +879,20 @@ export default function AdminDashboard({
 
   return (
     <div className="space-y-8">
-      <section className="surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 sm:px-8 sm:py-8">
+      <section className="surface-spotlight glass-panel relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 accent-ring sm:px-8 sm:py-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
             <Badge
+              className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 font-semibold text-[0.65rem] text-foreground uppercase tracking-[0.2em]"
               variant="outline"
-              className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground"
             >
               {t("dashboard.hero.badge")}
             </Badge>
             <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              <h1 className="font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
                 {t("dashboard.hero.title")}
               </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+              <p className="max-w-2xl text-muted-foreground text-sm sm:text-base">
                 {t("dashboard.hero.description")}
               </p>
             </div>
@@ -890,12 +901,8 @@ export default function AdminDashboard({
                 const isSelected = role === option.value;
                 return (
                   <Button
-                    key={option.value}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setRole(option.value)}
                     className={cn(
-                      "rounded-full border border-primary/10 bg-white/70 px-3 py-1 text-xs font-semibold text-foreground shadow-sm transition dark:bg-white/10",
+                      "rounded-full border border-primary/10 bg-white/70 px-3 py-1 font-semibold text-foreground text-xs shadow-sm transition dark:bg-white/10",
                       isSelected &&
                         cn(
                           option.accent,
@@ -903,6 +910,10 @@ export default function AdminDashboard({
                         ),
                       !isSelected && "hover:bg-primary/5"
                     )}
+                    key={option.value}
+                    onClick={() => setRole(option.value)}
+                    size="sm"
+                    variant="ghost"
                   >
                     {option.label}
                   </Button>
@@ -913,21 +924,21 @@ export default function AdminDashboard({
           <div className="grid w-full max-w-md grid-cols-2 gap-3 sm:grid-cols-2 lg:w-auto">
             {summaryMetrics.map((metric) => (
               <div
-                key={metric.label}
                 className="rounded-2xl border border-primary/10 bg-white/75 px-4 py-4 shadow-[0_22px_45px_-32px_rgba(0,23,49,0.5)] backdrop-blur dark:bg-white/5"
+                key={metric.label}
               >
-                <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="text-muted-foreground text-xs uppercase tracking-[0.18em]">
                   {metric.label}
                 </span>
-                <div className="mt-1 text-xl font-semibold text-foreground">
+                <div className="mt-1 font-semibold text-foreground text-xl">
                   {metric.value}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-muted-foreground text-xs">
                   {metric.description}
                 </div>
                 <span
                   className={cn(
-                    "mt-1 inline-block text-[11px] font-semibold",
+                    "mt-1 inline-block font-semibold text-[11px]",
                     metric.badgeTone
                   )}
                 >
@@ -942,10 +953,10 @@ export default function AdminDashboard({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">
+            <h2 className="font-semibold text-foreground text-lg">
               {t("dashboard.focus.title")}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {t("dashboard.focus.description")}
             </p>
           </div>
@@ -956,15 +967,15 @@ export default function AdminDashboard({
                 const isSelected = dateRange === option.value;
                 return (
                   <Button
-                    key={option.value}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setDateRange(option.value)}
                     className={cn(
-                      "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
+                      "rounded-xl px-3 py-1.5 font-semibold text-xs transition",
                       isSelected && "bg-primary-40 text-white shadow-sm",
                       !isSelected && "text-muted-foreground hover:bg-primary/5"
                     )}
+                    key={option.value}
+                    onClick={() => setDateRange(option.value)}
+                    size="sm"
+                    variant="ghost"
                   >
                     {option.label}
                   </Button>
@@ -972,8 +983,8 @@ export default function AdminDashboard({
               })}
             </div>
             <Badge
+              className="rounded-full border-primary/10 bg-primary/5 px-3 py-1 font-semibold text-[0.65rem] text-foreground uppercase tracking-[0.16em]"
               variant="outline"
-              className="rounded-full border-primary/10 bg-primary/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-foreground"
             >
               {ROLE_OPTIONS.find((option) => option.value === role)?.label ??
                 "Admin"}
@@ -981,16 +992,16 @@ export default function AdminDashboard({
           </div>
         </div>
         <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
           className="space-y-4"
+          onValueChange={setActiveTab}
+          value={activeTab}
         >
           <TabsList className="glass-panel flex flex-wrap gap-2 rounded-2xl border border-primary/10 bg-white/80 p-1">
             {SECTION_TABS.map((tab) => (
               <TabsTrigger
+                className="rounded-xl px-3 py-1.5 font-semibold text-muted-foreground text-sm data-[state=active]:bg-primary-40 data-[state=active]:text-white data-[state=active]:shadow-[0_15px_30px_-25px_rgba(0,23,49,0.55)]"
                 key={tab.value}
                 value={tab.value}
-                className="rounded-xl px-3 py-1.5 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary-40 data-[state=active]:text-white data-[state=active]:shadow-[0_15px_30px_-25px_rgba(0,23,49,0.55)]"
               >
                 {tab.label}
               </TabsTrigger>
@@ -998,9 +1009,9 @@ export default function AdminDashboard({
           </TabsList>
           {SECTION_TABS.map((tab) => (
             <TabsContent
+              className="space-y-4 focus-visible:outline-none"
               key={tab.value}
               value={tab.value}
-              className="space-y-4 focus-visible:outline-none"
             >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {renderRoleSpecificContent(role, tab.value)}

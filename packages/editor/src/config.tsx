@@ -1,6 +1,5 @@
 "use client";
 import { type Config, registerOverlayPortal, type Slot } from "@measured/puck";
-import { FileUpload } from "@repo/ui/components/file-upload";
 import {
   AccordionBlock,
   type AccordionBlockProps,
@@ -41,10 +40,10 @@ import {
   type TeamGridProps,
 } from "@repo/ui/components/puck/team-grid";
 import { About, type AboutProps } from "@repo/ui/components/sections/about";
-import { Events, type EventsProps } from "@repo/ui/components/sections/events";
+import type { EventsProps } from "@repo/ui/components/sections/events";
 import { Hero, type HeroProps } from "@repo/ui/components/sections/hero";
 import { JoinUs, type JoinUsProps } from "@repo/ui/components/sections/join-us";
-import { News, type NewsProps } from "@repo/ui/components/sections/news";
+import type { NewsProps } from "@repo/ui/components/sections/news";
 import { useEffect, useRef } from "react";
 
 type EditorJoinUsProps = Omit<JoinUsProps, "memberFeatures"> & {
@@ -160,16 +159,16 @@ export const config: Config<Props> = {
         ...props
       }) => {
         const ref = useRef<HTMLDivElement>(null);
-        useEffect(() => registerOverlayPortal(ref.current), [ref.current]);
+        useEffect(() => registerOverlayPortal(ref.current), []);
         return (
           <Tabs
             ref={ref as any}
             {...props}
-            tabs={tabs}
             tab0={Tab0 && <Tab0 />}
             tab1={Tab1 && <Tab1 />}
             tab2={Tab2 && <Tab2 />}
             tab3={Tab3 && <Tab3 />}
+            tabs={tabs}
           />
         );
       },

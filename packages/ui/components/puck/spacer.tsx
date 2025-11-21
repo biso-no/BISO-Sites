@@ -1,9 +1,8 @@
-import React from "react";
 import { cn } from "../../lib/utils";
 
-export interface SpacerProps {
+export type SpacerProps = {
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
-}
+};
 
 export function Spacer({ size = "md" }: SpacerProps) {
   const heightClasses = {

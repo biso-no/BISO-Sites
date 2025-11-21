@@ -31,7 +31,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Hydrate initial selection from localStorage so the choice persists between visits.
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       // Handle "all" selection
@@ -48,7 +50,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     const loadCampuses = async () => {
       try {
         const response = (await getCampuses()) as Campus[];
-        if (!isMounted) return;
+        if (!isMounted) {
+          return;
+        }
         setCampuses(response);
         setLoading(false);
 
@@ -75,7 +79,9 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
     if (activeCampusId) {
       window.localStorage.setItem(STORAGE_KEY, activeCampusId);
     } else {

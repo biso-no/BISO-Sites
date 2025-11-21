@@ -62,20 +62,20 @@ export default async function BIFundPage() {
       <section className="grid gap-8 rounded-3xl border border-primary/10 bg-white/90 p-8 shadow-lg md:grid-cols-[3fr_2fr]">
         <div className="space-y-4">
           <Badge
+            className="border-primary/20 text-primary-70 text-xs uppercase tracking-wide"
             variant="outline"
-            className="border-primary/20 text-xs uppercase tracking-wide text-primary-70"
           >
             {t("hero.badge")}
           </Badge>
-          <h1 className="text-3xl font-semibold text-primary-100 md:text-4xl">
+          <h1 className="font-semibold text-3xl text-primary-100 md:text-4xl">
             {title}
           </h1>
           <p className="text-base text-primary-70">{intro}</p>
           <div className="flex flex-wrap gap-3">
             {grantPoints?.map((point) => (
               <span
+                className="rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-primary-70 text-sm"
                 key={point}
-                className="rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-sm text-primary-70"
               >
                 {point}
               </span>
@@ -86,16 +86,16 @@ export default async function BIFundPage() {
               <Button asChild size="lg">
                 <a
                   href={applicationUrl}
+                  rel="noreferrer"
                   target={
                     applicationUrl.startsWith("http") ? "_blank" : undefined
                   }
-                  rel="noreferrer"
                 >
                   {t("hero.apply")}
                 </a>
               </Button>
             )}
-            <Button asChild variant="outline" size="lg">
+            <Button asChild size="lg" variant="outline">
               <a href="mailto:au.finance@biso.no">{t("hero.contact")}</a>
             </Button>
           </div>
@@ -106,7 +106,7 @@ export default async function BIFundPage() {
               {t("overview.title")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-primary-70">
+          <CardContent className="space-y-3 text-primary-70 text-sm">
             <div className="flex items-start justify-between gap-3">
               <span className="font-medium text-primary-90">
                 {t("overview.status")}
@@ -123,10 +123,10 @@ export default async function BIFundPage() {
                   {t("overview.template")}
                 </span>
                 <a
-                  href={program.document_url}
-                  target="_blank"
-                  rel="noreferrer"
                   className="text-primary-40 underline-offset-2 hover:underline"
+                  href={program.document_url}
+                  rel="noreferrer"
+                  target="_blank"
                 >
                   {t("overview.download")}
                 </a>
@@ -146,10 +146,10 @@ export default async function BIFundPage() {
                     }) => (
                       <li key={doc.url}>
                         <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noreferrer"
                           className="text-primary-40 underline-offset-2 hover:underline"
+                          href={doc.url}
+                          rel="noreferrer"
+                          target="_blank"
                         >
                           {pickByLocale(doc.label_nb, doc.label_en, locale)}
                         </a>
@@ -166,8 +166,8 @@ export default async function BIFundPage() {
               <p>{program?.contact_name ?? t("overview.contactFallback")}</p>
               {program?.contact_email ? (
                 <a
-                  href={`mailto:${program.contact_email}`}
                   className="text-primary-40 underline-offset-2 hover:underline"
+                  href={`mailto:${program.contact_email}`}
                 >
                   {program.contact_email}
                 </a>
@@ -178,9 +178,9 @@ export default async function BIFundPage() {
         {heroImage && (
           <div className="md:col-span-2">
             <Image
-              src={heroImage}
               alt={title}
               className="h-64 w-full rounded-2xl object-cover"
+              src={heroImage}
             />
           </div>
         )}
@@ -194,14 +194,14 @@ export default async function BIFundPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-3 text-sm text-primary-70">
+            <ul className="space-y-3 text-primary-70 text-sm">
               {eligibility?.map((item) => (
-                <li key={item} className="flex gap-2">
+                <li className="flex gap-2" key={item}>
                   <span className="mt-1 h-2 w-2 rounded-full bg-primary-40" />
                   <span>{item}</span>
                 </li>
               )) ?? (
-                <li className="text-sm text-muted-foreground">
+                <li className="text-muted-foreground text-sm">
                   {t("eligibility.empty")}
                 </li>
               )}
@@ -215,16 +215,16 @@ export default async function BIFundPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ol className="space-y-3 text-sm text-primary-70">
+            <ol className="space-y-3 text-primary-70 text-sm">
               {steps?.map((step, index) => (
-                <li key={step} className="flex gap-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary-50">
+                <li className="flex gap-3" key={step}>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary-50 text-xs">
                     {index + 1}
                   </span>
                   <span>{step}</span>
                 </li>
               )) ?? (
-                <li className="text-sm text-muted-foreground">
+                <li className="text-muted-foreground text-sm">
                   {t("steps.empty")}
                 </li>
               )}
@@ -235,19 +235,19 @@ export default async function BIFundPage() {
 
       {faqs.length > 0 && (
         <section className="space-y-6">
-          <h2 className="text-2xl font-semibold text-primary-100">
+          <h2 className="font-semibold text-2xl text-primary-100">
             {t("faq.title")}
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
             {faqs.map((faq) => (
-              <Card key={faq.question} className="border-primary/10 bg-white">
+              <Card className="border-primary/10 bg-white" key={faq.question}>
                 <CardHeader>
                   <CardTitle className="text-base text-primary-100">
                     {faq.question}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-primary-70">{faq.answer}</p>
+                  <p className="text-primary-70 text-sm">{faq.answer}</p>
                 </CardContent>
               </Card>
             ))}
@@ -256,7 +256,7 @@ export default async function BIFundPage() {
       )}
 
       <section className="rounded-2xl border border-primary/10 bg-primary/5 p-6 text-primary-80">
-        <h2 className="text-xl font-semibold text-primary-90">
+        <h2 className="font-semibold text-primary-90 text-xl">
           {t("contact.title")}
         </h2>
         <p className="mt-2 text-sm leading-6">{contact}</p>

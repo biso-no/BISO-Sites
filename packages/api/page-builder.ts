@@ -88,7 +88,7 @@ function serializePublished(
   return JSON.stringify(cloneDocument(document));
 }
 
-export interface PageTranslationRecord {
+export type PageTranslationRecord = {
   id: string;
   pageId: string;
   locale: Locale;
@@ -101,9 +101,9 @@ export interface PageTranslationRecord {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
-}
+};
 
-export interface PageRecord {
+export type PageRecord = {
   id: string;
   slug: string;
   title: string;
@@ -114,13 +114,13 @@ export interface PageRecord {
   createdAt: string;
   updatedAt: string;
   translations: PageTranslationRecord[];
-}
+};
 
-export interface PublishedPage {
+export type PublishedPage = {
   page: PageRecord;
   translation: PageTranslationRecord;
   document: PageDocument;
-}
+};
 
 function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
   const draft = decodeDocument(
@@ -198,13 +198,13 @@ async function fetchTranslationRow(translationId: string) {
   });
 }
 
-export interface ListPagesParams {
+export type ListPagesParams = {
   search?: string;
   status?: PageStatus[];
   visibility?: PageVisibility[];
   limit?: number;
   campusId?: string | null;
-}
+};
 
 export async function listPages(
   params: ListPagesParams = {}
@@ -254,11 +254,11 @@ export async function getPageById(pageId: string): Promise<PageRecord | null> {
   }
 }
 
-export interface GetPageBySlugParams {
+export type GetPageBySlugParams = {
   slug: string;
   locale: Locale;
   preview?: boolean;
-}
+};
 
 export async function getPublishedPage({
   slug,
@@ -315,16 +315,16 @@ export async function getPublishedPage({
   };
 }
 
-export interface CreatePageTranslationInput {
+export type CreatePageTranslationInput = {
   locale: Locale;
   title: string;
   slug?: string | null;
   description?: string | null;
   draftDocument?: PageDocument | null;
   publish?: boolean;
-}
+};
 
-export interface CreatePageInput {
+export type CreatePageInput = {
   slug: string;
   title: string;
   status?: PageStatus;
@@ -332,7 +332,7 @@ export interface CreatePageInput {
   template?: string | null;
   campusId?: string | null;
   translations: CreatePageTranslationInput[];
-}
+};
 
 export async function createPage(input: CreatePageInput): Promise<PageRecord> {
   const { db } = await createAdminClient();
@@ -382,7 +382,7 @@ export async function createPage(input: CreatePageInput): Promise<PageRecord> {
   return (await getPageById(pageId))!;
 }
 
-export interface UpdatePageInput {
+export type UpdatePageInput = {
   pageId: string;
   slug?: string;
   title?: string;
@@ -390,7 +390,7 @@ export interface UpdatePageInput {
   visibility?: PageVisibility;
   template?: string | null;
   campusId?: string | null;
-}
+};
 
 export async function updatePage({
   pageId,
@@ -399,12 +399,24 @@ export async function updatePage({
   const { db } = await createAdminClient();
   const data: Record<string, unknown> = {};
 
-  if (changes.slug !== undefined) data.slug = changes.slug;
-  if (changes.title !== undefined) data.title = changes.title;
-  if (changes.status !== undefined) data.status = changes.status;
-  if (changes.visibility !== undefined) data.visibility = changes.visibility;
-  if (changes.template !== undefined) data.template = changes.template;
-  if (changes.campusId !== undefined) data.campus_id = changes.campusId;
+  if (changes.slug !== undefined) {
+    data.slug = changes.slug;
+  }
+  if (changes.title !== undefined) {
+    data.title = changes.title;
+  }
+  if (changes.status !== undefined) {
+    data.status = changes.status;
+  }
+  if (changes.visibility !== undefined) {
+    data.visibility = changes.visibility;
+  }
+  if (changes.template !== undefined) {
+    data.template = changes.template;
+  }
+  if (changes.campusId !== undefined) {
+    data.campus_id = changes.campusId;
+  }
 
   if (Object.keys(data).length > 0) {
     await db.updateRow({
@@ -418,13 +430,13 @@ export async function updatePage({
   return (await getPageById(pageId))!;
 }
 
-export interface UpdatePageTranslationDraftInput {
+export type UpdatePageTranslationDraftInput = {
   translationId: string;
   title?: string;
   slug?: string | null;
   description?: string | null;
   draftDocument?: PageDocument | null;
-}
+};
 
 export async function updatePageTranslationDraft({
   translationId,
@@ -436,11 +448,18 @@ export async function updatePageTranslationDraft({
   const { db } = await createAdminClient();
   const data: Record<string, unknown> = {};
 
-  if (title !== undefined) data.title = title;
-  if (slug !== undefined) data.slug = slug;
-  if (description !== undefined) data.description = description;
-  if (draftDocument !== undefined)
+  if (title !== undefined) {
+    data.title = title;
+  }
+  if (slug !== undefined) {
+    data.slug = slug;
+  }
+  if (description !== undefined) {
+    data.description = description;
+  }
+  if (draftDocument !== undefined) {
     data.draft_document = serializeDraft(draftDocument);
+  }
 
   if (Object.keys(data).length > 0) {
     await db.updateRow({
@@ -455,14 +474,14 @@ export async function updatePageTranslationDraft({
   return normalizeTranslation(updated);
 }
 
-export interface PublishPageTranslationInput {
+export type PublishPageTranslationInput = {
   translationId: string;
   document?: PageDocument | null;
   title?: string;
   slug?: string | null;
   description?: string | null;
   pageStatus?: PageStatus;
-}
+};
 
 export async function publishPageTranslation({
   translationId,
@@ -489,9 +508,15 @@ export async function publishPageTranslation({
     published_at: new Date().toISOString(),
   };
 
-  if (title !== undefined) data.title = title;
-  if (slug !== undefined) data.slug = slug;
-  if (description !== undefined) data.description = description;
+  if (title !== undefined) {
+    data.title = title;
+  }
+  if (slug !== undefined) {
+    data.slug = slug;
+  }
+  if (description !== undefined) {
+    data.description = description;
+  }
   if (publishedDocument) {
     data.puck_document = serializePublished(publishedDocument);
     data.draft_document = serializeDraft(publishedDocument);
@@ -537,13 +562,13 @@ export async function deletePageTranslation(
   });
 }
 
-export interface EnsurePageTranslationParams {
+export type EnsurePageTranslationParams = {
   pageId: string;
   locale: Locale;
   title?: string;
   description?: string | null;
   sourceTranslationId?: string;
-}
+};
 
 export async function ensurePageTranslation({
   pageId,

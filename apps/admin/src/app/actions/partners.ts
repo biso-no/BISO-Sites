@@ -1,13 +1,15 @@
 "use server";
 
-import { Models, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Partners } from "@repo/api/types/appwrite";
 
 export async function listPartners(level?: "national" | "campus") {
   const { db } = await createSessionClient();
   const queries = [Query.limit(200), Query.orderAsc("name")];
-  if (level) queries.push(Query.equal("level", level));
+  if (level) {
+    queries.push(Query.equal("level", level));
+  }
   const res = await db.listRows<Partners>("app", "partners", queries);
   return res.rows;
 }
@@ -31,7 +33,7 @@ export async function createPartner(formData: FormData) {
     (data as any).campus = campusId;
   }
 
-  if (!data.name || !data.level || !data.image_bucket || !data.image_file_id) {
+  if (!(data.name && data.level && data.image_bucket && data.image_file_id)) {
     throw new Error("Missing required fields");
   }
 
@@ -41,6 +43,8 @@ export async function createPartner(formData: FormData) {
 export async function deletePartner(formData: FormData) {
   const { db } = await createSessionClient();
   const id = String(formData.get("id") || "").trim();
-  if (!id) throw new Error("Missing id");
+  if (!id) {
+    throw new Error("Missing id");
+  }
   await db.deleteRow("app", "partners", id);
 }

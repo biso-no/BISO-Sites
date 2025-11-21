@@ -65,8 +65,8 @@ export default async function CustomersPage() {
             <TableBody>
               {customers.map((c) => (
                 <TableRow
-                  key={(c.email || c.name) + c.orders}
                   className="hover:bg-muted/50"
+                  key={(c.email || c.name) + c.orders}
                 >
                   <TableCell>{c.name}</TableCell>
                   <TableCell>{c.email || "-"}</TableCell>
@@ -79,8 +79,8 @@ export default async function CustomersPage() {
               {customers.length === 0 && (
                 <TableRow>
                   <TableCell
+                    className="text-center text-muted-foreground text-sm"
                     colSpan={4}
-                    className="text-center text-sm text-muted-foreground"
                   >
                     {t("customers.empty")}
                   </TableCell>

@@ -20,15 +20,15 @@ import type {
 } from "@/lib/types/job-application";
 import { JOB_SELECT_FIELDS, normalizeJobRow } from "./_utils/translatable";
 
-export interface ListJobsParams {
+export type ListJobsParams = {
   limit?: number;
   status?: string;
   campus?: string;
   search?: string;
   locale?: "en" | "no";
-}
+};
 
-export interface CreateJobData {
+export type CreateJobData = {
   slug: string;
   status: "draft" | "published" | "closed";
   campus_id: string;
@@ -54,7 +54,7 @@ export interface CreateJobData {
       short_description?: string;
     };
   };
-}
+};
 
 export async function listJobs(
   params: ListJobsParams = {}
@@ -112,7 +112,7 @@ export async function getJob(id: string): Promise<AdminJob | null> {
   }
 }
 
-async function getJobBySlug(slug: string): Promise<AdminJob | null> {
+async function _getJobBySlug(slug: string): Promise<AdminJob | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -124,7 +124,9 @@ async function getJobBySlug(slug: string): Promise<AdminJob | null> {
 
     const job = jobsResponse.rows[0];
 
-    if (!job) return null;
+    if (!job) {
+      return null;
+    }
 
     return normalizeJobRow(job);
   } catch (error) {
@@ -207,7 +209,9 @@ export async function updateJob(
     // Build update object
     const updateData: Record<string, unknown> = {};
 
-    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.slug !== undefined) {
+      updateData.slug = data.slug;
+    }
     if (data.status !== undefined) {
       updateData.status =
         data.status === "draft"
@@ -216,11 +220,15 @@ export async function updateJob(
             ? Status.PUBLISHED
             : Status.CLOSED;
     }
-    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.department_id !== undefined)
+    if (data.campus_id !== undefined) {
+      updateData.campus_id = data.campus_id;
+    }
+    if (data.department_id !== undefined) {
       updateData.department_id = data.department_id;
-    if (data.metadata !== undefined)
+    }
+    if (data.metadata !== undefined) {
       updateData.metadata = data.metadata ?? null;
+    }
 
     // Build translation_refs array from provided translations only
     if (data.translations) {
@@ -265,7 +273,7 @@ export async function updateJob(
   }
 }
 
-async function deleteJob(id: string): Promise<boolean> {
+async function _deleteJob(id: string): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 
@@ -363,7 +371,7 @@ Please respond with a JSON object containing the translated title and descriptio
       translationRecord = (await db.updateRow(
         "app",
         "content_translations",
-        existingTranslationResponse.rows[0]!.$id,
+        existingTranslationResponse.rows[0]?.$id,
         {
           title: translated.title,
           description: translated.description,
@@ -394,7 +402,7 @@ Please respond with a JSON object containing the translated title and descriptio
 }
 
 // Helper functions remain the same
-async function listDepartments(campusId?: string) {
+async function _listDepartments(campusId?: string) {
   const queries = [Query.equal("active", true)];
 
   if (campusId) {
@@ -411,7 +419,7 @@ async function listDepartments(campusId?: string) {
   }
 }
 
-async function listCampuses() {
+async function _listCampuses() {
   try {
     const { db } = await createSessionClient();
     const response = await db.listRows("app", "campus");
@@ -423,7 +431,7 @@ async function listCampuses() {
 }
 
 // Job application functions remain the same but reference the new job structure
-async function createJobApplication(
+async function _createJobApplication(
   data: JobApplicationFormData & { job_id: string }
 ): Promise<JobApplication | null> {
   try {

@@ -17,8 +17,8 @@ export default async function NewExpensePage() {
 
   return (
     <NewExpenseClient
-      initialProfile={userData.profile || {}}
       campuses={campuses}
+      initialProfile={userData.profile || {}}
     />
   );
 }

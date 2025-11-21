@@ -1,5 +1,4 @@
 import { getExpense } from "@/app/actions/admin";
-import { Expense } from "@/lib/types/expense";
 import { AdminExpenseDetails } from "./expenseDetails";
 
 export default async function AdminExpenseDetailsPage({
@@ -9,5 +8,5 @@ export default async function AdminExpenseDetailsPage({
 }) {
   const { expenseId } = await params;
   const expenseData = await getExpense(expenseId);
-  return <AdminExpenseDetails expenseData={expenseData}></AdminExpenseDetails>;
+  return <AdminExpenseDetails expenseData={expenseData} />;
 }

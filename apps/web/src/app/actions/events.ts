@@ -7,18 +7,16 @@ import {
   type ContentTranslations,
   ContentType,
   type Departments,
-  Events,
   type Locale,
-  Status,
 } from "@repo/api/types/appwrite";
 
-export interface ListEventsParams {
+export type ListEventsParams = {
   limit?: number;
   status?: string;
   campus?: string;
   search?: string;
   locale?: "en" | "no";
-}
+};
 
 export async function listEvents(
   params: ListEventsParams = {}
@@ -110,14 +108,14 @@ export async function getEvent(
   }
 }
 
-async function getEventImageViewUrl(fileId: string) {
+async function _getEventImageViewUrl(fileId: string) {
   const { storage } = await createSessionClient();
   const url = await storage.getFileView("events", fileId);
   return url;
 }
 
 // Helper function to get departments for a specific campus
-async function listDepartments(campusId?: string) {
+async function _listDepartments(campusId?: string) {
   const queries = [Query.equal("active", true)];
 
   if (campusId) {
@@ -139,7 +137,7 @@ async function listDepartments(campusId?: string) {
 }
 
 // Helper function to get campuses
-async function listCampuses() {
+async function _listCampuses() {
   try {
     const { db } = await createSessionClient();
     const response = await db.listRows<Campus>("app", "campus");

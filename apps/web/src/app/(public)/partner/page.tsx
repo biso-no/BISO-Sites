@@ -7,7 +7,6 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import {
-  Briefcase,
   Building2,
   Calendar,
   Handshake,
@@ -154,33 +153,33 @@ export default function PartnerPage() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
-        <div className="absolute inset-0 bg-grid-slate-100 mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:bg-grid-slate-700/25 dark:mask-[linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]" />
+        <div className="mask-[linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:mask-[linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))] absolute inset-0 bg-grid-slate-100 dark:bg-grid-slate-700/25" />
         <div className="relative">
           <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:flex lg:items-center lg:gap-x-10 lg:px-8 lg:py-40">
             <div className="mx-auto max-w-2xl lg:mx-0 lg:flex-auto">
               <div className="flex">
-                <Badge variant="secondary" className="mb-6 text-sm font-medium">
+                <Badge className="mb-6 font-medium text-sm" variant="secondary">
                   {t("hero.subtitle")}
                 </Badge>
               </div>
-              <h1 className="mt-10 max-w-lg text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-6xl">
+              <h1 className="mt-10 max-w-lg font-bold text-4xl text-gray-900 tracking-tight sm:text-6xl dark:text-white">
                 {t("hero.title")}
               </h1>
-              <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+              <p className="mt-6 text-gray-600 text-lg leading-8 dark:text-gray-300">
                 {t("hero.description")}
               </p>
               <div className="mt-10 flex items-center gap-x-6">
                 <Button
                   asChild
-                  size="lg"
                   className="bg-blue-600 hover:bg-blue-700"
+                  size="lg"
                 >
                   <Link href="/contact">
                     <Mail className="mr-2 h-4 w-4" />
                     {t("buttons.contact")}
                   </Link>
                 </Button>
-                <Button variant="outline" size="lg" asChild>
+                <Button asChild size="lg" variant="outline">
                   <Link href="#benefits">{t("buttons.readMore")}</Link>
                 </Button>
               </div>
@@ -188,12 +187,12 @@ export default function PartnerPage() {
             <div className="mt-16 sm:mt-24 lg:mt-0 lg:shrink-0 lg:grow">
               <div className="mx-auto w-91.5 max-w-full lg:mx-0">
                 <Image
-                  src="/images/bedrift.png"
                   alt="Partnership illustration"
-                  width={366}
-                  height={366}
                   className="w-full rounded-2xl shadow-2xl ring-1 ring-gray-400/10"
+                  height={366}
                   priority
+                  src="/images/bedrift.png"
+                  width={366}
                 />
               </div>
             </div>
@@ -205,10 +204,10 @@ export default function PartnerPage() {
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+            <h2 className="font-bold text-3xl text-gray-900 tracking-tight sm:text-4xl dark:text-white">
               {t("benefits.title")}
             </h2>
-            <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+            <p className="mt-6 text-gray-600 text-lg leading-8 dark:text-gray-300">
               {t("benefits.subtitle")}
             </p>
           </div>
@@ -217,15 +216,15 @@ export default function PartnerPage() {
               {benefits.map((benefit) => {
                 const Icon = benefit.icon;
                 return (
-                  <div key={benefit.key} className="flex flex-col">
-                    <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900 dark:text-white">
+                  <div className="flex flex-col" key={benefit.key}>
+                    <dt className="flex items-center gap-x-3 font-semibold text-base text-gray-900 leading-7 dark:text-white">
                       <Icon
-                        className="h-5 w-5 flex-none text-blue-600"
                         aria-hidden="true"
+                        className="h-5 w-5 flex-none text-blue-600"
                       />
                       {benefit.title}
                     </dt>
-                    <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600 dark:text-gray-300">
+                    <dd className="mt-4 flex flex-auto flex-col text-base text-gray-600 leading-7 dark:text-gray-300">
                       <p className="flex-auto">{benefit.description}</p>
                     </dd>
                   </div>
@@ -237,21 +236,21 @@ export default function PartnerPage() {
       </section>
 
       {/* Career Days Section */}
-      <section className="bg-gray-50 dark:bg-gray-900 py-24 sm:py-32">
+      <section className="bg-gray-50 py-24 sm:py-32 dark:bg-gray-900">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+            <h2 className="font-bold text-3xl text-gray-900 tracking-tight sm:text-4xl dark:text-white">
               {t("careerDays.title")}
             </h2>
-            <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+            <p className="mt-6 text-gray-600 text-lg leading-8 dark:text-gray-300">
               {t("careerDays.description")}
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 xl:grid-cols-4">
             {careerDays.map((career) => (
               <Card
+                className="transition-shadow hover:shadow-lg"
                 key={career.key}
-                className="hover:shadow-lg transition-shadow"
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -274,30 +273,30 @@ export default function PartnerPage() {
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <Badge variant="secondary" className="mb-4">
+            <Badge className="mb-4" variant="secondary">
               {t("opportunities.title")}
             </Badge>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+            <h2 className="font-bold text-3xl text-gray-900 tracking-tight sm:text-4xl dark:text-white">
               {t("opportunities.businessHotspot.title")}
             </h2>
-            <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+            <p className="mt-6 text-gray-600 text-lg leading-8 dark:text-gray-300">
               {t("opportunities.businessHotspot.description")}
             </p>
           </div>
 
           <div className="mx-auto mt-16 lg:mx-0 lg:max-w-none">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
               <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {businessHotspotFeatures.map((feature) => {
                     const Icon = feature.icon;
                     return (
                       <div
+                        className="flex items-center gap-3 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20"
                         key={feature.key}
-                        className="flex items-center gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20"
                       >
                         <Icon className="h-5 w-5 text-blue-600" />
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        <span className="font-medium text-gray-900 text-sm dark:text-white">
                           {feature.text}
                         </span>
                       </div>
@@ -305,24 +304,24 @@ export default function PartnerPage() {
                   })}
                 </div>
                 <div className="text-center lg:text-left">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  <h3 className="mb-2 font-bold text-2xl text-gray-900 dark:text-white">
                     {t("opportunities.businessHotspot.concept.title")}
                   </h3>
-                  <p className="text-xl text-blue-600 font-semibold mb-6">
+                  <p className="mb-6 font-semibold text-blue-600 text-xl">
                     {t("opportunities.businessHotspot.concept.subtitle")}
                   </p>
-                  <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                  <Button className="bg-blue-600 hover:bg-blue-700" size="lg">
                     {t("buttons.readMore")}
                   </Button>
                 </div>
               </div>
               <div className="relative">
                 <Image
-                  src="/images/business-hotspot.png"
                   alt="Business Hotspot"
-                  width={600}
-                  height={400}
                   className="w-full rounded-2xl shadow-2xl"
+                  height={400}
+                  src="/images/business-hotspot.png"
+                  width={600}
                 />
                 <div className="absolute top-4 right-4">
                   <Badge className="bg-orange-500 hover:bg-orange-600">
@@ -336,48 +335,48 @@ export default function PartnerPage() {
       </section>
 
       {/* Contact Section */}
-      <section className="bg-gray-50 dark:bg-gray-900 py-24 sm:py-32">
+      <section className="bg-gray-50 py-24 sm:py-32 dark:bg-gray-900">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+            <h2 className="font-bold text-3xl text-gray-900 tracking-tight sm:text-4xl dark:text-white">
               {t("contact.title")}
             </h2>
-            <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
+            <p className="mt-6 text-gray-600 text-lg leading-8 dark:text-gray-300">
               {t("contact.description")}
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 xl:grid-cols-4">
             {campuses.map((campus) => (
               <Card
+                className="transition-shadow hover:shadow-lg"
                 key={campus.key}
-                className="hover:shadow-lg transition-shadow"
               >
                 <CardHeader>
                   <CardTitle className="text-center">{campus.title}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-blue-600 shrink-0" />
+                    <Phone className="h-4 w-4 shrink-0 text-blue-600" />
                     <span className="text-gray-600 dark:text-gray-300">
                       {campus.phone}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-4 w-4 text-blue-600 shrink-0" />
+                    <Mail className="h-4 w-4 shrink-0 text-blue-600" />
                     <Link
+                      className="text-blue-600 underline hover:text-blue-700"
                       href={`mailto:${campus.email}`}
-                      className="text-blue-600 hover:text-blue-700 underline"
                     >
                       {campus.email}
                     </Link>
                   </div>
                   <div className="flex items-start gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                     <span className="text-gray-600 dark:text-gray-300">
                       {campus.address}
                     </span>
                   </div>
-                  <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
+                  <Button className="mt-4 w-full bg-blue-600 hover:bg-blue-700">
                     <Mail className="mr-2 h-4 w-4" />
                     {t("buttons.contact")}
                   </Button>

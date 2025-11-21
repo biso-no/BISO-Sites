@@ -1,9 +1,8 @@
-import type { Data } from "@measured/puck";
 import type { Locale } from "@repo/api/types/appwrite";
 import { PageRender } from "@repo/editor";
 import { notFound } from "next/navigation";
 import { getLocale } from "@/app/actions/locale";
-import { getDemoPage, getPublicPage } from "@/app/actions/pages";
+import { getDemoPage } from "@/app/actions/pages";
 
 type PageProps = {
   params: Promise<{

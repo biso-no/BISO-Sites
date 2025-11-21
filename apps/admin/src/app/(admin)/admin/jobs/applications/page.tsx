@@ -1,11 +1,5 @@
-import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
+import { Card, CardContent } from "@repo/ui/components/ui/card";
 import Link from "next/link";
 import { listJobApplications, listJobs } from "@/app/actions/jobs";
 import { ApplicationActions } from "./components/application-actions";
@@ -30,7 +24,7 @@ export default async function JobApplicationsPage({
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Job Applications</h1>
+          <h1 className="font-bold text-2xl">Job Applications</h1>
           <p className="text-muted-foreground">
             {applications.length} application
             {applications.length !== 1 ? "s" : ""} total
@@ -55,15 +49,15 @@ export default async function JobApplicationsPage({
                       </h3>
                       <ApplicationStatusBadge status={application.status} />
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                       {application.applicant_email}
                     </p>
                     {application.applicant_phone && (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-muted-foreground text-sm">
                         {application.applicant_phone}
                       </p>
                     )}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
                       <span>
                         Applied:{" "}
                         {new Date(application.$createdAt).toLocaleDateString()}
@@ -78,17 +72,17 @@ export default async function JobApplicationsPage({
                 </div>
 
                 {application.cover_letter && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h4 className="font-medium mb-2">Cover Letter</h4>
-                    <p className="text-sm whitespace-pre-wrap">
+                  <div className="mt-4 border-t pt-4">
+                    <h4 className="mb-2 font-medium">Cover Letter</h4>
+                    <p className="whitespace-pre-wrap text-sm">
                       {application.cover_letter}
                     </p>
                   </div>
                 )}
 
                 {/* GDPR Information */}
-                <div className="mt-4 pt-4 border-t bg-muted/30 -mx-6 -mb-6 px-6 py-4">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="-mx-6 -mb-6 mt-4 border-t bg-muted/30 px-6 py-4 pt-4">
+                  <div className="flex items-center justify-between text-muted-foreground text-xs">
                     <span>
                       Data retention until:{" "}
                       {new Date(

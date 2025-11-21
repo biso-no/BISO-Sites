@@ -1,14 +1,6 @@
 "use client";
 
-import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import {
   Building2,
@@ -23,7 +15,7 @@ import { AnimatedBadge } from "@/components/shared/animated-badge";
 import { GlassCard } from "@/components/shared/glass-card";
 import { LogoUploadPreview } from "./logo-upload-preview";
 
-interface DepartmentEditorSidebarProps {
+type DepartmentEditorSidebarProps = {
   departmentName: string;
   logoUrl?: string;
   onLogoChange: (url: string) => void;
@@ -36,7 +28,7 @@ interface DepartmentEditorSidebarProps {
     socialsCount?: number;
   };
   isNew?: boolean;
-}
+};
 
 export function DepartmentEditorSidebar({
   departmentName,
@@ -53,9 +45,9 @@ export function DepartmentEditorSidebar({
       {/* Status Badge */}
       <div className="flex justify-end">
         <AnimatedBadge
-          variant={isNew ? "default" : "secondary"}
-          icon={Building2}
           gradient={isNew}
+          icon={Building2}
+          variant={isNew ? "default" : "secondary"}
         >
           {isNew ? "New Unit" : "Editing"}
         </AnimatedBadge>
@@ -63,10 +55,10 @@ export function DepartmentEditorSidebar({
 
       {/* Settings Card */}
       <GlassCard
-        title="Settings"
-        description="Configure department settings"
-        variant="premium"
         className="sticky top-6"
+        description="Configure department settings"
+        title="Settings"
+        variant="premium"
       >
         <div className="space-y-4">
           {statusControl}
@@ -79,56 +71,56 @@ export function DepartmentEditorSidebar({
 
       {/* Logo Preview */}
       <LogoUploadPreview
+        departmentName={departmentName || "New Department"}
         logoUrl={logoUrl}
         onChange={onLogoChange}
-        departmentName={departmentName || "New Department"}
       />
 
       {/* Quick Stats (only show for existing departments) */}
       {!isNew && stats && (
         <GlassCard
-          title="Quick Stats"
           description="Current department metrics"
+          title="Quick Stats"
           variant="subtle"
         >
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+            <div className="flex items-center justify-between rounded-lg border border-green-500/20 bg-green-500/10 p-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-md bg-green-500/20">
+                <div className="rounded-md bg-green-500/20 p-2">
                   <Users className="h-4 w-4 text-green-600" />
                 </div>
-                <span className="text-sm font-medium text-green-600">
+                <span className="font-medium text-green-600 text-sm">
                   Members
                 </span>
               </div>
-              <span className="text-lg font-bold">{stats.userCount || 0}</span>
+              <span className="font-bold text-lg">{stats.userCount || 0}</span>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <div className="flex items-center justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 p-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-md bg-purple-500/20">
+                <div className="rounded-md bg-purple-500/20 p-2">
                   <Users2 className="h-4 w-4 text-purple-600" />
                 </div>
-                <span className="text-sm font-medium text-purple-600">
+                <span className="font-medium text-purple-600 text-sm">
                   Board
                 </span>
               </div>
-              <span className="text-lg font-bold">
+              <span className="font-bold text-lg">
                 {stats.boardMemberCount || 0}
               </span>
             </div>
 
             {stats.socialsCount && stats.socialsCount > 0 && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <div className="flex items-center justify-between rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-md bg-blue-500/20">
+                  <div className="rounded-md bg-blue-500/20 p-2">
                     <MessageSquare className="h-4 w-4 text-blue-600" />
                   </div>
-                  <span className="text-sm font-medium text-blue-600">
+                  <span className="font-medium text-blue-600 text-sm">
                     Socials
                   </span>
                 </div>
-                <span className="text-lg font-bold">{stats.socialsCount}</span>
+                <span className="font-bold text-lg">{stats.socialsCount}</span>
               </div>
             )}
           </div>
@@ -140,19 +132,19 @@ export function DepartmentEditorSidebar({
         <GlassCard variant="subtle">
           <div className="space-y-2">
             <Button
-              variant="outline"
-              size="sm"
               className="w-full justify-start bg-card/60 hover:bg-card/80"
+              size="sm"
+              variant="outline"
             >
-              <Eye className="h-4 w-4 mr-2" />
+              <Eye className="mr-2 h-4 w-4" />
               Preview Web Page
             </Button>
             <Button
-              variant="outline"
-              size="sm"
               className="w-full justify-start bg-card/60 hover:bg-card/80"
+              size="sm"
+              variant="outline"
             >
-              <Globe className="h-4 w-4 mr-2" />
+              <Globe className="mr-2 h-4 w-4" />
               View Public Page
             </Button>
           </div>

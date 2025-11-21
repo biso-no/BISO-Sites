@@ -1,7 +1,6 @@
 "use client";
 
 import type { Users } from "@repo/api/types/appwrite";
-import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -53,7 +52,6 @@ import {
 } from "@repo/ui/components/ui/tooltip";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Check,
   ChevronDown,
   ChevronUp,
   Download,
@@ -177,7 +175,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
   // Handle row click to navigate to user detail
   const handleRowClick = (userId: string, e: React.MouseEvent) => {
     // Don't navigate if clicking on checkbox or action buttons
-    if ((e.target as HTMLElement).closest(".row-action")) return;
+    if ((e.target as HTMLElement).closest(".row-action")) {
+      return;
+    }
     router.push(`/admin/users/${userId}`);
   };
 
@@ -194,7 +194,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
 
   // Get sort icon for column
   const getSortIcon = (field: string) => {
-    if (sortField !== field) return null;
+    if (sortField !== field) {
+      return null;
+    }
 
     return sortDirection === "asc" ? (
       <ChevronUp className="ml-1 h-4 w-4" />
@@ -214,7 +216,7 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
   };
 
   // Handle bulk actions
-  const handleBulkAction = (action: string) => {
+  const _handleBulkAction = (action: string) => {
     // Implement bulk actions like activate/deactivate, delete, export, etc.
     console.log(`Bulk action: ${action} on users:`, selectedUsers);
   };
@@ -264,8 +266,8 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
       items.push(
         <PaginationItem key={i}>
           <PaginationLink
-            onClick={() => setCurrentPage(i)}
             isActive={currentPage === i}
+            onClick={() => setCurrentPage(i)}
           >
             {i}
           </PaginationLink>
@@ -315,7 +317,6 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
     <div className="space-y-6">
       <AdminSummary
         badge={t("title")}
-        title={t("title")}
         description={t("description")}
         metrics={summaryMetrics.map((metric) => ({
           label: metric.label,
@@ -328,15 +329,15 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
               const active = filterRole === chip.value;
               return (
                 <Button
-                  key={chip.value}
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setFilterRole(chip.value)}
                   className={cn(
-                    "rounded-full border border-primary/10 px-3 py-1 text-xs font-semibold text-primary-80 shadow-sm transition",
+                    "rounded-full border border-primary/10 px-3 py-1 font-semibold text-primary-80 text-xs shadow-sm transition",
                     active &&
                       "bg-primary-40 text-white shadow-[0_18px_40px_-25px_rgba(0,23,49,0.6)] hover:bg-primary-30 hover:text-white"
                   )}
+                  key={chip.value}
+                  onClick={() => setFilterRole(chip.value)}
+                  size="sm"
+                  variant="ghost"
                 >
                   {chip.label}
                 </Button>
@@ -344,16 +345,17 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
             })}
           </div>
         }
+        title={t("title")}
       />
 
       <Card className="glass-panel border border-primary/10 shadow-[0_30px_55px_-40px_rgba(0,23,49,0.55)]">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle className="text-xl font-semibold text-primary-100">
+              <CardTitle className="font-semibold text-primary-100 text-xl">
                 {t("title")}
               </CardTitle>
-              <CardDescription className="mt-1.5 text-sm text-primary-60">
+              <CardDescription className="mt-1.5 text-primary-60 text-sm">
                 {t("description")}
               </CardDescription>
             </div>
@@ -362,10 +364,10 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleRefresh}
                       disabled={isLoading}
+                      onClick={handleRefresh}
+                      size="icon"
+                      variant="outline"
                     >
                       <RefreshCw
                         className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -379,8 +381,8 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
               </TooltipProvider>
 
               <Button
-                variant="default"
                 className="gap-1.5 rounded-xl bg-primary-40 px-4 py-2 text-white shadow-[0_18px_45px_-30px_rgba(0,23,49,0.7)] hover:bg-primary-30"
+                variant="default"
               >
                 <UserPlus className="h-4 w-4" />
                 <span>{t("form.create")}</span>
@@ -390,21 +392,21 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="border-y border-primary/10 py-4 px-6 backdrop-blur">
+          <div className="border-primary/10 border-y px-6 py-4 backdrop-blur">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full sm:max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-primary-40" />
+                <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-primary-40" />
                 <Input
-                  type="text"
-                  placeholder={t("filters.search")}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full rounded-xl border-primary/20 pl-9 text-sm shadow-inner focus-visible:ring-primary-40"
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={t("filters.search")}
+                  type="text"
+                  value={searchTerm}
                 />
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={filterRole} onValueChange={setFilterRole}>
+                <Select onValueChange={setFilterRole} value={filterRole}>
                   <SelectTrigger className="w-[180px] rounded-xl border-primary/20">
                     <SelectValue placeholder={t("filters.role")} />
                   </SelectTrigger>
@@ -424,8 +426,8 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      variant="outline"
                       className="gap-1.5 rounded-xl border-primary/20text-sm"
+                      variant="outline"
                     >
                       <SlidersHorizontal className="h-4 w-4" />
                       <span className="hidden sm:inline">
@@ -447,8 +449,8 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      variant="outline"
                       className="gap-1.5 rounded-xl border-primary/20 text-sm"
+                      variant="outline"
                     >
                       <Download className="h-4 w-4" />
                       <span className="hidden sm:inline">
@@ -475,9 +477,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
           <div className="relative">
             {isLoading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur">
-                <div className="animate-pulse flex flex-col items-center">
-                  <RefreshCw className="animate-spin h-8 w-8 text-primary mb-2" />
-                  <span className="text-sm text-muted-foreground">
+                <div className="flex animate-pulse flex-col items-center">
+                  <RefreshCw className="mb-2 h-8 w-8 animate-spin text-primary" />
+                  <span className="text-muted-foreground text-sm">
                     {t("messages.loading")}
                   </span>
                 </div>
@@ -490,10 +492,10 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                   <TableRow className="bg-primary/5">
                     <TableHead className="w-[40px]">
                       <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={handleSelectAll}
                         aria-label={t("labels.selectAllUsers")}
+                        checked={allSelected}
                         className="row-action"
+                        onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
                     <TableHead
@@ -539,22 +541,22 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                   <AnimatePresence>
                     {currentUsers.map((user) => (
                       <motion.tr
-                        key={user.$id}
-                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        onClick={(e) => handleRowClick(user.$id, e)}
                         className="group cursor-pointerbg-white/70 transition hover:bg-primary/5"
+                        exit={{ opacity: 0 }}
+                        initial={{ opacity: 0, y: 10 }}
+                        key={user.$id}
+                        onClick={(e) => handleRowClick(user.$id, e)}
+                        transition={{ duration: 0.2 }}
                       >
                         <TableCell className="w-[40px]">
                           <Checkbox
+                            aria-label={`Select ${user.name}`}
                             checked={selectedUsers.includes(user.$id)}
+                            className="row-action"
                             onCheckedChange={() =>
                               toggleUserSelection(user.$id)
                             }
-                            aria-label={`Select ${user.name}`}
-                            className="row-action"
                             onClick={(e) => e.stopPropagation()}
                           />
                         </TableCell>
@@ -563,13 +565,13 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                             <UserAvatar user={user} />
                             <div>
                               <div className="font-medium">{user.name}</div>
-                              <div className="text-sm text-muted-foreground">
+                              <div className="text-muted-foreground text-sm">
                                 ID: {user.$id.substring(0, 8)}
                               </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-primary-70">
+                        <TableCell className="font-mono text-primary-70 text-xs">
                           {user.email}
                         </TableCell>
                         <TableCell>
@@ -585,9 +587,9 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
 
                   {currentUsers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center">
+                      <TableCell className="h-32 text-center" colSpan={6}>
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
-                          <Search className="h-8 w-8 mb-2 opacity-50" />
+                          <Search className="mb-2 h-8 w-8 opacity-50" />
                           <h3 className="font-medium text-lg">
                             {t("messages.noUsers")}
                           </h3>
@@ -606,16 +608,16 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col items-center justify-between gap-4 border-t border-primary/10 px-6 py-4 sm:flex-row">
-          <div className="text-sm text-muted-foreground">
+        <CardFooter className="flex flex-col items-center justify-between gap-4 border-primary/10 border-t px-6 py-4 sm:flex-row">
+          <div className="text-muted-foreground text-sm">
             {selectedUsers.length > 0 ? (
               <div className="flex items-center gap-2">
                 <span>{selectionText}</span>
                 <Button
-                  variant="ghost"
-                  size="sm"
                   className="h-8 gap-1.5 text-sm"
                   onClick={() => selectAllUsers(false)}
+                  size="sm"
+                  variant="ghost"
                 >
                   <span>{t("messages.clearSelection")}</span>
                 </Button>
@@ -629,8 +631,8 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  onClick={() => setCurrentPage(currentPage - 1)}
                   disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
                 />
               </PaginationItem>
 
@@ -638,8 +640,8 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
 
               <PaginationItem>
                 <PaginationNext
-                  onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(currentPage + 1)}
                 />
               </PaginationItem>
             </PaginationContent>

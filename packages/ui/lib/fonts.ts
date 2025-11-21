@@ -1,4 +1,3 @@
-import { cn } from "@repo/ui/lib/utils";
 import localFont from "next/font/local";
 
 export const museoSans = localFont({

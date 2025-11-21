@@ -17,10 +17,10 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/memberPortal";
 
-interface BenefitCardProps {
+type BenefitCardProps = {
   benefit: MemberBenefit;
   isRevealed: boolean;
-}
+};
 
 const getCategoryColor = (category: string) => {
   const colors: Record<string, string> = {
@@ -71,7 +71,9 @@ export function BenefitCard({
   const Icon = getBenefitIcon(benefit.type);
 
   const handleReveal = async () => {
-    if (revealed || isRevealing) return;
+    if (revealed || isRevealing) {
+      return;
+    }
 
     setIsRevealing(true);
     try {
@@ -98,27 +100,27 @@ export function BenefitCard({
   };
 
   return (
-    <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all dark:bg-gray-900/50 dark:backdrop-blur-sm">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-start gap-4 flex-1">
+    <Card className="border-0 p-6 shadow-lg transition-all hover:shadow-xl dark:bg-gray-900/50 dark:backdrop-blur-sm">
+      <div className="mb-4 flex items-start justify-between">
+        <div className="flex flex-1 items-start gap-4">
           {benefit.partnerLogo ? (
             <img
-              src={benefit.partnerLogo}
               alt={benefit.partner}
-              className="w-12 h-12 rounded-lg object-cover"
+              className="h-12 w-12 rounded-lg object-cover"
+              src={benefit.partnerLogo}
             />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-[#3DA9E0]/10 dark:bg-[#3DA9E0]/20 flex items-center justify-center shrink-0">
-              <Icon className="w-6 h-6 text-[#3DA9E0]" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#3DA9E0]/10 dark:bg-[#3DA9E0]/20">
+              <Icon className="h-6 w-6 text-[#3DA9E0]" />
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1 truncate">
+          <div className="min-w-0 flex-1">
+            <h3 className="mb-1 truncate font-semibold text-gray-900 text-lg dark:text-gray-100">
               {benefit.title}
             </h3>
             {benefit.partner && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <Store className="w-3 h-3" />
+              <p className="flex items-center gap-1 text-gray-500 text-sm dark:text-gray-400">
+                <Store className="h-3 w-3" />
                 {benefit.partner}
               </p>
             )}
@@ -129,7 +131,7 @@ export function BenefitCard({
         </Badge>
       </div>
 
-      <p className="text-gray-600 dark:text-gray-400 mb-4">
+      <p className="mb-4 text-gray-600 dark:text-gray-400">
         {benefit.description}
       </p>
 
@@ -137,31 +139,31 @@ export function BenefitCard({
         <div className="mb-4">
           {!revealed && (
             <Button
-              variant="outline"
               className="w-full"
-              onClick={handleReveal}
               disabled={isRevealing}
+              onClick={handleReveal}
+              variant="outline"
             >
-              <Icon className="w-4 h-4 mr-2" />
+              <Icon className="mr-2 h-4 w-4" />
               {isRevealing ? "Revealing..." : t("reveal")}
             </Button>
           )}
 
           {revealed && benefit.type === "code" && value && (
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+            <div className="rounded-lg border-2 border-gray-300 border-dashed bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800">
               <div className="flex items-center justify-between">
-                <code className="text-lg font-mono text-gray-900 dark:text-gray-100">
+                <code className="font-mono text-gray-900 text-lg dark:text-gray-100">
                   {value}
                 </code>
-                <Button size="sm" variant="outline" onClick={handleCopyCode}>
+                <Button onClick={handleCopyCode} size="sm" variant="outline">
                   {copiedCode ? (
                     <>
-                      <Check className="w-4 h-4 mr-2" />
+                      <Check className="mr-2 h-4 w-4" />
                       {t("copied")}
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4 mr-2" />
+                      <Copy className="mr-2 h-4 w-4" />
                       {t("copy")}
                     </>
                   )}
@@ -171,21 +173,21 @@ export function BenefitCard({
           )}
 
           {revealed && benefit.type === "qr" && value && (
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg flex justify-center">
-              <div className="w-32 h-32 bg-white dark:bg-gray-900 rounded-lg border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center">
+            <div className="flex justify-center rounded-lg bg-gray-50 p-6 dark:bg-gray-800">
+              <div className="flex h-32 w-32 items-center justify-center rounded-lg border-2 border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900">
                 {/* QR code would be rendered here with a library like qrcode.react */}
-                <QrCode className="w-20 h-20 text-gray-400 dark:text-gray-500" />
+                <QrCode className="h-20 w-20 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
           )}
 
           {revealed && benefit.type === "link" && value && (
             <Button
-              variant="outline"
               className="w-full"
               onClick={() => window.open(value, "_blank")}
+              variant="outline"
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
+              <ExternalLink className="mr-2 h-4 w-4" />
               {t("activateBenefit")}
             </Button>
           )}
@@ -193,14 +195,14 @@ export function BenefitCard({
       )}
 
       {benefit.terms && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-700 pt-3">
+        <div className="border-t pt-3 text-gray-500 text-xs dark:border-gray-700 dark:text-gray-400">
           <strong>{t("terms")}</strong> {benefit.terms}
         </div>
       )}
 
       {benefit.expiresAt && (
-        <div className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400 mt-2">
-          <Clock className="w-3 h-3" />
+        <div className="mt-2 flex items-center gap-2 text-orange-600 text-xs dark:text-orange-400">
+          <Clock className="h-3 w-3" />
           {t("expires", {
             date: new Date(benefit.expiresAt).toLocaleDateString("en-US", {
               month: "short",

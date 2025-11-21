@@ -10,13 +10,13 @@ export default function CheckoutPage() {
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title="Checkout"
-        subtitle="Secure payment with Vipps or card"
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Shop", href: "/shop" },
           { label: "Checkout" },
         ]}
+        subtitle="Secure payment with Vipps or card"
+        title="Checkout"
       />
       <CheckoutPageClient />
     </div>

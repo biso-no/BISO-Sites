@@ -29,7 +29,7 @@ export function PrivacyControls({ userId }: { userId: string }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [requestingData, setRequestingData] = useState(false);
   const [deletingData, setDeletingData] = useState(false);
-  const router = useRouter();
+  const _router = useRouter();
 
   const handleDataRequest = async () => {
     setRequestingData(true);
@@ -45,7 +45,7 @@ export function PrivacyControls({ userId }: { userId: string }) {
         description:
           "We'll prepare your data and send it to your email within 30 days.",
       });
-    } catch (error) {
+    } catch (_error) {
       toast.error("Data Request Failed", {
         description:
           "There was a problem requesting your data. Please try again.",
@@ -70,7 +70,7 @@ export function PrivacyControls({ userId }: { userId: string }) {
       }
 
       setDeleteDialogOpen(false);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Deletion Failed", {
         description:
           "There was a problem deleting your account. Please try again.",
@@ -82,10 +82,10 @@ export function PrivacyControls({ userId }: { userId: string }) {
 
   return (
     <>
-      <Card className="bg-white border border-gray-200 shadow-sm">
-        <CardHeader className="border-b border-gray-100">
+      <Card className="border border-gray-200 bg-white shadow-sm">
+        <CardHeader className="border-gray-100 border-b">
           <CardTitle className="flex items-center text-gray-900">
-            <Shield className="h-5 w-5 mr-2 text-blue-600" />
+            <Shield className="mr-2 h-5 w-5 text-blue-600" />
             Your Privacy Rights
           </CardTitle>
           <CardDescription className="text-gray-600">
@@ -94,10 +94,10 @@ export function PrivacyControls({ userId }: { userId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
-          <div className="p-3 border border-blue-200 rounded-md bg-blue-50 mb-4">
-            <p className="text-sm text-gray-700">
+          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+            <p className="text-gray-700 text-sm">
               We process your data in accordance with our{" "}
-              <a href="/privacy" className="text-blue-600 hover:underline">
+              <a className="text-blue-600 hover:underline" href="/privacy">
                 privacy policy
               </a>{" "}
               and applicable data protection laws. You have the right to access,
@@ -106,60 +106,60 @@ export function PrivacyControls({ userId }: { userId: string }) {
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 transition-colors">
+            <div className="flex items-center justify-between rounded-md p-3 transition-colors hover:bg-gray-50">
               <div>
-                <h3 className="text-sm font-medium text-gray-900">
+                <h3 className="font-medium text-gray-900 text-sm">
                   Request Your Data
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-gray-500 text-xs">
                   Get a copy of all personal data we store about you
                 </p>
               </div>
               <Button
-                variant="outline"
-                size="sm"
                 className="flex items-center border-gray-200 text-gray-800 hover:bg-gray-100"
-                onClick={handleDataRequest}
                 disabled={requestingData}
+                onClick={handleDataRequest}
+                size="sm"
+                variant="outline"
               >
                 {requestingData ? (
-                  <div className="h-4 w-4 border-2 border-b-transparent border-gray-400 rounded-full animate-spin mr-2" />
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-b-transparent" />
                 ) : (
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="mr-2 h-4 w-4" />
                 )}
                 Export Data
               </Button>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 transition-colors">
+            <div className="flex items-center justify-between rounded-md p-3 transition-colors hover:bg-gray-50">
               <div>
-                <h3 className="text-sm font-medium text-red-600 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-1" />
+                <h3 className="flex items-center font-medium text-red-600 text-sm">
+                  <AlertCircle className="mr-1 h-4 w-4" />
                   Delete Your Data
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-gray-500 text-xs">
                   Request permanent deletion of your account and data
                 </p>
               </div>
               <Button
-                variant="destructive"
-                size="sm"
                 className="flex items-center bg-red-600 hover:bg-red-700"
                 onClick={() => setDeleteDialogOpen(true)}
+                size="sm"
+                variant="destructive"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="mr-2 h-4 w-4" />
                 Delete Account
               </Button>
             </div>
           </div>
         </CardContent>
-        <CardFooter className="border-t border-gray-100 pt-4 text-xs text-gray-500">
+        <CardFooter className="border-gray-100 border-t pt-4 text-gray-500 text-xs">
           Data requests are processed within 30 days as required by GDPR
         </CardFooter>
       </Card>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-white text-gray-900 border border-gray-200">
+      <AlertDialog onOpenChange={setDeleteDialogOpen} open={deleteDialogOpen}>
+        <AlertDialogContent className="border border-gray-200 bg-white text-gray-900">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-gray-900">
               Are you absolutely sure?
@@ -169,23 +169,23 @@ export function PrivacyControls({ userId }: { userId: string }) {
               account and remove all your data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="border-t border-gray-100 pt-4">
+          <AlertDialogFooter className="border-gray-100 border-t pt-4">
             <AlertDialogCancel
-              disabled={deletingData}
               className="border-gray-200 text-gray-700 hover:bg-gray-100"
+              disabled={deletingData}
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deletingData}
               onClick={(e) => {
                 e.preventDefault();
                 handleDataDeletion();
               }}
-              className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={deletingData}
             >
               {deletingData ? (
-                <div className="h-4 w-4 border-2 border-b-transparent border-white rounded-full animate-spin mr-2" />
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-b-transparent" />
               ) : null}
               Delete Account
             </AlertDialogAction>

@@ -34,7 +34,7 @@ export function baseOptions(): BaseLayoutProps {
       title: (
         <>
           {logo}
-          <span className="font-medium in-[.uwu]:hidden in-[header]:text-[15px]">
+          <span className="in-[.uwu]:hidden font-medium in-[header]:text-[15px]">
             BISO
           </span>
         </>
@@ -47,10 +47,10 @@ export const logo = (
   <>
     <Image
       alt="Fumadocs"
-      src={Logo}
-      sizes="100px"
-      className="hidden w-22 in-[.uwu]:block"
       aria-label="Fumadocs"
+      className="in-[.uwu]:block hidden w-22"
+      sizes="100px"
+      src={Logo}
     />
   </>
 );

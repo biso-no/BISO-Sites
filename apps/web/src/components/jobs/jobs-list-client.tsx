@@ -19,17 +19,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { JobCard } from "./job-card";
 
-interface JobsListClientProps {
+type JobsListClientProps = {
   jobs: ContentTranslations[];
-}
-
-const getJobCategory = (metadata: Record<string, any>) => {
-  return metadata.category || "General";
 };
 
-const parseJobMetadata = (metadata: Record<string, any>) => {
-  return metadata || {};
-};
+const getJobCategory = (metadata: Record<string, any>) =>
+  metadata.category || "General";
+
+const _parseJobMetadata = (metadata: Record<string, any>) => metadata || {};
 
 const categories = [
   { name: "All", icon: Briefcase, color: "from-[#3DA9E0] to-[#001731]" },
@@ -80,48 +77,48 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
   return (
     <>
       {/* Filters & Search */}
-      <div className="sticky top-20 z-40 bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="sticky top-20 z-40 border-gray-100 border-b bg-white/95 shadow-lg backdrop-blur-lg">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4">
             {/* Search */}
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-gray-400" />
               <Input
-                type="text"
-                placeholder="Search positions by title, department, or description..."
-                value={searchQuery}
+                className="w-full border-[#3DA9E0]/20 pr-10 pl-10 focus:border-[#3DA9E0]"
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10 w-full border-[#3DA9E0]/20 focus:border-[#3DA9E0]"
+                placeholder="Search positions by title, department, or description..."
+                type="text"
+                value={searchQuery}
               />
               {searchQuery && (
                 <button
+                  className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 hover:text-gray-600"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               )}
             </div>
 
             {/* Category Filter */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <Filter className="w-5 h-5 text-[#001731]" />
+            <div className="flex flex-wrap items-center gap-3">
+              <Filter className="h-5 w-5 text-[#001731]" />
               {categories.map((category) => {
                 const Icon = category.icon;
                 return (
                   <Button
+                    className={
+                      selectedCategory === category.name
+                        ? `bg-linear-to-r ${category.color} border-0 text-white`
+                        : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
+                    }
                     key={category.name}
                     onClick={() => setSelectedCategory(category.name)}
                     variant={
                       selectedCategory === category.name ? "default" : "outline"
                     }
-                    className={
-                      selectedCategory === category.name
-                        ? `bg-linear-to-r ${category.color} text-white border-0`
-                        : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
-                    }
                   >
-                    <Icon className="w-4 h-4 mr-2" />
+                    <Icon className="mr-2 h-4 w-4" />
                     {category.name}
                   </Button>
                 );
@@ -130,15 +127,15 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
               {/* Paid Filter */}
               <div className="ml-auto flex items-center gap-2">
                 <Button
-                  onClick={() => setShowPaidOnly(!showPaidOnly)}
-                  variant={showPaidOnly ? "default" : "outline"}
                   className={
                     showPaidOnly
-                      ? "bg-linear-to-r from-green-500 to-emerald-600 text-white border-0"
+                      ? "border-0 bg-linear-to-r from-green-500 to-emerald-600 text-white"
                       : "border-green-500/20 text-green-700 hover:bg-green-50"
                   }
+                  onClick={() => setShowPaidOnly(!showPaidOnly)}
+                  variant={showPaidOnly ? "default" : "outline"}
                 >
-                  <DollarSign className="w-4 h-4 mr-2" />
+                  <DollarSign className="mr-2 h-4 w-4" />
                   Paid Positions Only
                 </Button>
               </div>
@@ -153,20 +150,20 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
       </div>
 
       {/* Positions Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
           <motion.div
-            key={selectedCategory + searchQuery + showPaidOnly}
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            className="grid gap-8 md:grid-cols-2"
             exit={{ opacity: 0, y: -20 }}
-            className="grid md:grid-cols-2 gap-8"
+            initial={{ opacity: 0, y: 20 }}
+            key={selectedCategory + searchQuery + showPaidOnly}
           >
             {filteredJobs.map((job, index) => (
               <JobCard
-                key={job.$id}
-                job={job}
                 index={index}
+                job={job}
+                key={job.$id}
                 onViewDetails={handleViewDetails}
               />
             ))}
@@ -176,25 +173,25 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
         {/* No Results */}
         {filteredJobs.length === 0 && (
           <motion.div
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-20"
+            className="py-20 text-center"
+            initial={{ opacity: 0 }}
           >
-            <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="mb-2 text-gray-900 text-2xl font-bold">
+            <Briefcase className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+            <h3 className="mb-2 font-bold text-2xl text-gray-900">
               No positions found
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="mb-6 text-gray-600">
               Try adjusting your filters or search query
             </p>
             <Button
+              className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
               onClick={() => {
                 setSelectedCategory("All");
                 setSearchQuery("");
                 setShowPaidOnly(false);
               }}
               variant="outline"
-              className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
             >
               Clear All Filters
             </Button>
@@ -204,21 +201,21 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
 
       {/* CTA Section */}
       <div className="bg-linear-to-r from-[#001731] to-[#3DA9E0] py-16">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-white mb-4 text-3xl font-bold">
+        <div className="mx-auto max-w-4xl px-4 text-center">
+          <h2 className="mb-4 font-bold text-3xl text-white">
             Questions About Applying?
           </h2>
-          <p className="text-white/90 mb-8 text-lg">
+          <p className="mb-8 text-lg text-white/90">
             Our recruitment team is here to help! Reach out if you have any
             questions about positions or the application process.
           </p>
-          <div className="flex flex-wrap gap-4 justify-center">
+          <div className="flex flex-wrap justify-center gap-4">
             <Button className="bg-white text-[#001731] hover:bg-white/90">
               Contact Recruitment Team
             </Button>
             <Button
-              variant="outline"
               className="border-white text-white hover:bg-white/10"
+              variant="outline"
             >
               Download Information Pack
             </Button>

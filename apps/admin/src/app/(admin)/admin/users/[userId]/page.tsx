@@ -1,4 +1,3 @@
-import { createSessionClient } from "@repo/api/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCampuses } from "@/app/actions/campus";
@@ -22,7 +21,7 @@ async function UserDetails({ userId }: { userId: string }) {
       notFound();
     }
 
-    return <UserForm user={user} campuses={campusesData} />;
+    return <UserForm campuses={campusesData} user={user} />;
   } catch (error) {
     console.error("Error fetching user data:", error);
     notFound();
@@ -35,7 +34,7 @@ export default async function UserDetailsPage({
   params: { userId: string };
 }) {
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto max-w-4xl px-4 py-8">
       <Suspense fallback={<div>Loading user details...</div>}>
         <UserDetails userId={params.userId} />
       </Suspense>

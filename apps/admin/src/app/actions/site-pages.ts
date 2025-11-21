@@ -9,18 +9,18 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-interface SitePageTranslation {
+type SitePageTranslation = {
   title: string;
   body: string;
-}
+};
 
-interface UpsertSitePageInput {
+type UpsertSitePageInput = {
   slug: string;
   status: string;
   translations: {
     [key in Locale]?: SitePageTranslation;
   };
-}
+};
 
 export async function getSitePageTranslation(
   slug: string,
@@ -100,7 +100,9 @@ export async function upsertSitePage(
 
     // Upsert translations
     for (const [locale, translation] of Object.entries(input.translations)) {
-      if (!translation) continue;
+      if (!translation) {
+        continue;
+      }
 
       const existingTranslationResponse =
         await db.listRows<ContentTranslations>("app", "content_translations", [
@@ -124,7 +126,7 @@ export async function upsertSitePage(
         // Create new translation
         await db.createRow("app", "content_translations", ID.unique(), {
           content_id: sitePageId,
-          locale: locale,
+          locale,
           title: translation.title,
           description: translation.body,
           content_type: "site_page" as any,

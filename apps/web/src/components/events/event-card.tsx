@@ -24,12 +24,12 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-interface EventCardProps {
+type EventCardProps = {
   event: ContentTranslations;
   index: number;
   isMember?: boolean;
   onViewDetails: (event: ContentTranslations) => void;
-}
+};
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",
@@ -83,18 +83,18 @@ export function EventCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 20 }}
       transition={{ delay: index * 0.1 }}
     >
-      <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group h-full flex flex-col">
+      <Card className="group flex h-full flex-col overflow-hidden border-0 shadow-lg transition-all duration-300 hover:shadow-2xl">
         {/* Image */}
         <div className="relative h-56 overflow-hidden">
           <ImageWithFallback
-            src={imageUrl}
             alt={event.title}
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
             fill
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            src={imageUrl}
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
 
@@ -106,116 +106,116 @@ export function EventCard({
                 {category}
               </Badge>
               {eventData?.is_collection && (
-                <Badge className="bg-[#3DA9E0] text-white border-0 flex items-center gap-1">
-                  <Layers className="w-3 h-3" />
+                <Badge className="flex items-center gap-1 border-0 bg-[#3DA9E0] text-white">
+                  <Layers className="h-3 w-3" />
                   Collection
                 </Badge>
               )}
             </div>
             {eventData?.member_only && (
-              <Badge className="bg-orange-500 text-white border-0 flex items-center gap-1 w-fit">
-                <Users className="w-3 h-3" />
+              <Badge className="flex w-fit items-center gap-1 border-0 bg-orange-500 text-white">
+                <Users className="h-3 w-3" />
                 Members Only
               </Badge>
             )}
             {!eventData?.member_only && memberPrice && (
-              <Badge className="bg-green-500 text-white border-0 flex items-center gap-1 w-fit">
-                <Tag className="w-3 h-3" />
+              <Badge className="flex w-fit items-center gap-1 border-0 bg-green-500 text-white">
+                <Tag className="h-3 w-3" />
                 Member Discount
               </Badge>
             )}
             {eventData?.ticket_url && (
-              <Badge className="bg-purple-500 text-white border-0 flex items-center gap-1 w-fit">
-                <ExternalLink className="w-3 h-3" />
+              <Badge className="flex w-fit items-center gap-1 border-0 bg-purple-500 text-white">
+                <ExternalLink className="h-3 w-3" />
                 Tickster
               </Badge>
             )}
           </div>
 
-          <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm">
-            <span className="text-[#001731] font-medium">{price}</span>
+          <div className="absolute right-4 bottom-4 rounded-full bg-white/90 px-3 py-1 backdrop-blur-sm">
+            <span className="font-medium text-[#001731]">{price}</span>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 flex flex-col grow">
-          <h3 className="mb-3 text-gray-900 text-xl font-semibold">
+        <div className="flex grow flex-col p-6">
+          <h3 className="mb-3 font-semibold text-gray-900 text-xl">
             {event.title}
           </h3>
-          <p className="text-gray-600 mb-4 grow line-clamp-2 text-sm">
+          <p className="mb-4 line-clamp-2 grow text-gray-600 text-sm">
             {event.description}
           </p>
 
           {eventData?.is_collection && (
-            <div className="mb-4 p-3 bg-[#3DA9E0]/10 rounded-lg border border-[#3DA9E0]/20">
-              <p className="text-sm text-[#001731] mb-1">
-                <Layers className="w-4 h-4 inline mr-1" />
+            <div className="mb-4 rounded-lg border border-[#3DA9E0]/20 bg-[#3DA9E0]/10 p-3">
+              <p className="mb-1 text-[#001731] text-sm">
+                <Layers className="mr-1 inline h-4 w-4" />
                 Multi-day event collection
               </p>
               {eventData.collection_pricing === "bundle" && (
-                <p className="text-sm text-[#3DA9E0] mt-1">
+                <p className="mt-1 text-[#3DA9E0] text-sm">
                   • Bundle pricing: One ticket for all events
                 </p>
               )}
               {eventData.collection_pricing === "individual" && (
-                <p className="text-sm text-[#3DA9E0] mt-1">
+                <p className="mt-1 text-[#3DA9E0] text-sm">
                   • Individual pricing: Register for each event separately
                 </p>
               )}
             </div>
           )}
 
-          <div className="space-y-2 mb-6">
+          <div className="mb-6 space-y-2">
             <div className="flex items-center gap-2 text-gray-600 text-sm">
-              <Calendar className="w-4 h-4 text-[#3DA9E0]" />
+              <Calendar className="h-4 w-4 text-[#3DA9E0]" />
               <span>{startDate}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600 text-sm">
-              <Clock className="w-4 h-4 text-[#3DA9E0]" />
+              <Clock className="h-4 w-4 text-[#3DA9E0]" />
               <span>{timeRange}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600 text-sm">
-              <MapPin className="w-4 h-4 text-[#3DA9E0]" />
+              <MapPin className="h-4 w-4 text-[#3DA9E0]" />
               <span>{eventData?.location || "Location TBA"}</span>
             </div>
             {attendees > 0 && (
               <div className="flex items-center gap-2 text-gray-600 text-sm">
-                <Users className="w-4 h-4 text-[#3DA9E0]" />
+                <Users className="h-4 w-4 text-[#3DA9E0]" />
                 <span>{attendees} attending</span>
               </div>
             )}
 
             {/* Price */}
-            <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="mt-3 border-gray-200 border-t pt-3">
               {memberPrice && !isMember ? (
                 <div>
-                  <div className="text-gray-900 font-medium">{price}</div>
-                  <div className="text-sm text-[#3DA9E0] mt-1">
+                  <div className="font-medium text-gray-900">{price}</div>
+                  <div className="mt-1 text-[#3DA9E0] text-sm">
                     Members: {memberPrice}
                   </div>
                 </div>
               ) : memberPrice && isMember ? (
                 <div>
-                  <div className="text-gray-400 line-through text-sm">
+                  <div className="text-gray-400 text-sm line-through">
                     {price}
                   </div>
-                  <div className="text-[#3DA9E0] font-medium">
+                  <div className="font-medium text-[#3DA9E0]">
                     {memberPrice}{" "}
                     <span className="text-sm">(Member Price)</span>
                   </div>
                 </div>
               ) : (
-                <div className="text-gray-900 font-medium">{price}</div>
+                <div className="font-medium text-gray-900">{price}</div>
               )}
             </div>
           </div>
 
           <Button
+            className="w-full border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
             onClick={() => onViewDetails(event)}
-            className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0"
           >
             {eventData?.is_collection ? "View Collection" : "View Details"}
-            <ArrowRight className="w-4 h-4 ml-2" />
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </Card>

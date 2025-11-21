@@ -2,10 +2,8 @@
 import { ID, type Models, OAuthProvider } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { create } from "domain";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { NextRequest, NextResponse } from "next/server";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 //
@@ -58,7 +56,7 @@ export async function getLoggedInUser(): Promise<{
   }
 }
 
-async function getCurrentSession() {
+async function _getCurrentSession() {
   const { account } = await createSessionClient();
   const session = await account.getSession("current");
   return session;
@@ -75,7 +73,7 @@ export async function getUserById(userId: string): Promise<Users | null> {
   }
 }
 
-async function signIn(email: string) {
+async function _signIn(email: string) {
   try {
     const { account } = await createSessionClient();
     const user = await account.createMagicURLToken(
@@ -90,7 +88,7 @@ async function signIn(email: string) {
   }
 }
 
-async function signInWithOauth() {
+async function _signInWithOauth() {
   const { account } = await createSessionClient();
 
   const origin = (await headers()).get("origin");
@@ -127,7 +125,7 @@ export async function removeIdentity(identityId: string) {
   }
 }
 
-interface ProfileDetails {
+type ProfileDetails = {
   department?: string;
   name?: string;
   email?: string;
@@ -137,7 +135,7 @@ interface ProfileDetails {
   zip?: string;
   bank_account?: string;
   swift?: string;
-}
+};
 
 export async function updateProfile(profile: Partial<Users>) {
   try {
@@ -172,7 +170,7 @@ export async function updateProfile(profile: Partial<Users>) {
   }
 }
 
-async function createProfile(profile: Partial<Users>, userId: string) {
+async function _createProfile(profile: Partial<Users>, userId: string) {
   try {
     const { account, db } = await createSessionClient();
 
@@ -180,17 +178,16 @@ async function createProfile(profile: Partial<Users>, userId: string) {
 
     if (existingProfile) {
       return await db.updateRow("app", "user", userId, profile);
-    } else {
-      return await db.createRow("app", "user", userId, profile);
     }
+    return await db.createRow("app", "user", userId, profile);
   } catch (error) {
     console.error(error);
     return null;
   }
 }
 
-async function getUserPreferences(
-  userId: string
+async function _getUserPreferences(
+  _userId: string
 ): Promise<Models.Preferences | null> {
   const { account, db } = await createSessionClient();
   const user = await account.get();
@@ -203,8 +200,8 @@ async function getUserPreferences(
   return prefs;
 }
 
-async function updateUserPreferences(
-  userId: string,
+async function _updateUserPreferences(
+  _userId: string,
   prefs: Record<string, any>
 ): Promise<Models.Preferences | null> {
   const { account, db } = await createSessionClient();
@@ -222,7 +219,7 @@ async function updateUserPreferences(
   return updatedPrefs;
 }
 
-async function createJWT(): Promise<string | null> {
+async function _createJWT(): Promise<string | null> {
   try {
     const { account } = await createSessionClient();
     const jwt = await account.createJWT();
@@ -262,8 +259,7 @@ export async function deleteUserData() {
     const deletedUser = await users.delete(user.$id);
     if (deletedUser) {
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 }

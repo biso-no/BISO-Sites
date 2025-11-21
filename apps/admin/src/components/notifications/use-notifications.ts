@@ -8,7 +8,7 @@ import type {
   NotificationType,
 } from "./notifications-dropdown";
 
-interface NotificationsState {
+type NotificationsState = {
   notifications: Notification[];
   unreadCount: number;
   addNotification: (
@@ -19,7 +19,7 @@ interface NotificationsState {
   deleteNotification: (id: string) => void;
   clearAll: () => void;
   setNotifications: (notifications: Notification[]) => void;
-}
+};
 
 export const useNotifications = create<NotificationsState>()(
   persist(

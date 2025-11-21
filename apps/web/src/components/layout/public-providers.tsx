@@ -70,7 +70,7 @@ function PublicAssistantContext() {
       // Compact, generative-style status line while running
       if (status.type === "running") {
         return (
-          <div className="my-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="my-1 inline-flex items-center gap-2 text-muted-foreground text-xs">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
             <span>Searching documents…</span>
           </div>
@@ -78,18 +78,20 @@ function PublicAssistantContext() {
       }
       if (status.type === "incomplete" && status.reason === "error") {
         return (
-          <div className="my-1 text-xs text-red-600">
+          <div className="my-1 text-red-600 text-xs">
             Failed to search documents.
           </div>
         );
       }
-      if (!result) return null;
+      if (!result) {
+        return null;
+      }
 
       const items = (result.results || []).slice(0, 4);
 
       // Summary line + tiny chips for top results
       return (
-        <div className="my-1 text-xs text-muted-foreground">
+        <div className="my-1 text-muted-foreground text-xs">
           <span className="inline-flex items-center gap-1">
             <FileText className="h-3.5 w-3.5 text-primary" />
             <span>
@@ -103,11 +105,11 @@ function PublicAssistantContext() {
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {items.map((r, idx) => (
               <a
-                key={idx}
+                className="max-w-[220px] truncate rounded-full bg-primary/5 px-2 py-1 font-medium text-[11px] text-primary hover:bg-primary/10"
                 href={r.documentViewerUrl}
-                target="_blank"
+                key={idx}
                 rel="noreferrer"
-                className="max-w-[220px] truncate rounded-full bg-primary/5 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
+                target="_blank"
                 title={r.title || "Document"}
               >
                 {r.title || "Document"}
@@ -115,24 +117,24 @@ function PublicAssistantContext() {
             ))}
           </div>
           <button
-            type="button"
             className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-primary hover:underline"
             onClick={() => setShow((s) => !s)}
+            type="button"
           >
             {show ? "Hide details" : "Show details"}
           </button>
           {show ? (
             <ul className="mt-1 flex flex-col gap-1.5">
               {summarizeSharePointResults(result, 2).map((s, i) => (
-                <li key={i} className="rounded-md bg-primary/5 p-2">
+                <li className="rounded-md bg-primary/5 p-2" key={i}>
                   <div className="mb-0.5 flex items-center gap-1">
                     <Search className="h-3 w-3 text-primary/80" />
                     {s.href ? (
                       <a
-                        href={s.href}
-                        target="_blank"
-                        rel="noreferrer"
                         className="font-medium text-primary hover:underline"
+                        href={s.href}
+                        rel="noreferrer"
+                        target="_blank"
                       >
                         {s.title}
                       </a>
@@ -191,7 +193,7 @@ function PublicAssistantContext() {
       const [show, setShow] = useState(false);
       if (status.type === "running") {
         return (
-          <div className="my-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="my-1 inline-flex items-center gap-2 text-muted-foreground text-xs">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
             <span>Searching the site…</span>
           </div>
@@ -199,12 +201,14 @@ function PublicAssistantContext() {
       }
       if (status.type === "incomplete" && status.reason === "error") {
         return (
-          <div className="my-1 text-xs text-red-600">
+          <div className="my-1 text-red-600 text-xs">
             Failed to search the site.
           </div>
         );
       }
-      if (!result) return null;
+      if (!result) {
+        return null;
+      }
 
       const iconFor = (index?: string) => {
         switch (index) {
@@ -223,7 +227,7 @@ function PublicAssistantContext() {
 
       const items = (result.results || []).slice(0, 5);
       return (
-        <div className="my-1 text-xs text-muted-foreground">
+        <div className="my-1 text-muted-foreground text-xs">
           <span className="inline-flex items-center gap-1">
             <Globe className="h-3.5 w-3.5 text-primary" />
             <span>
@@ -237,9 +241,9 @@ function PublicAssistantContext() {
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {items.map((r, idx) => (
               <a
-                key={idx}
+                className="max-w-[220px] truncate rounded-full bg-primary/5 px-2 py-1 font-medium text-[11px] text-primary hover:bg-primary/10"
                 href={r.href}
-                className="max-w-[220px] truncate rounded-full bg-primary/5 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
+                key={idx}
                 title={r.title}
               >
                 <span className="mr-1 inline-flex items-center text-primary/70">
@@ -250,22 +254,22 @@ function PublicAssistantContext() {
             ))}
           </div>
           <button
-            type="button"
             className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-primary hover:underline"
             onClick={() => setShow((s) => !s)}
+            type="button"
           >
             {show ? "Hide details" : "Show details"}
           </button>
           {show ? (
             <ul className="mt-1 flex flex-col gap-1.5">
               {summarizeSiteResults(result, 3).map((s, i) => (
-                <li key={i} className="rounded-md bg-primary/5 p-2">
+                <li className="rounded-md bg-primary/5 p-2" key={i}>
                   <div className="mb-0.5 flex items-center gap-1">
                     <span className="text-primary/80">{iconFor(s.index)}</span>
                     {s.href ? (
                       <a
-                        href={s.href}
                         className="font-medium text-primary hover:underline"
+                        href={s.href}
                       >
                         {s.title}
                       </a>

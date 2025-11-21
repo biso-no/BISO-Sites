@@ -80,11 +80,15 @@ async function fetchAllOrders(
       queries
     );
     const batch = response.rows ?? [];
-    if (!batch.length) break;
+    if (!batch.length) {
+      break;
+    }
 
     allOrders.push(...batch);
-    if (batch.length < batchSize) break;
-    cursor = batch[batch.length - 1].$id;
+    if (batch.length < batchSize) {
+      break;
+    }
+    cursor = batch.at(-1).$id;
   }
 
   return allOrders;
@@ -147,7 +151,9 @@ function buildCsvRows(orders: Orders[]) {
 }
 
 function parseOrderItems(json?: string | null): ParsedOrderItem[] {
-  if (!json) return [];
+  if (!json) {
+    return [];
+  }
   try {
     const parsed = JSON.parse(json);
     return Array.isArray(parsed) ? (parsed as ParsedOrderItem[]) : [];

@@ -40,7 +40,7 @@ import { uploadImage } from "./upload-image";
 // Use the standard hook
 const usePuck = usePuckOriginal;
 
-export interface PageEditorProps {
+export type PageEditorProps = {
   initialData: Data;
   title: string;
   slug: string;
@@ -58,7 +58,7 @@ export interface PageEditorProps {
   ) => Promise<void>;
   onLocaleChange: (locale: Locale) => void;
   onBack: () => void;
-}
+};
 
 export function PageEditor({
   initialData,
@@ -119,24 +119,24 @@ export function PageEditor({
   };
 
   return (
-    <div className="h-screen w-full flex flex-col">
+    <div className="flex h-screen w-full flex-col">
       <Puck
         config={config as Config}
         data={data}
-        onPublish={handleSave}
-        headerTitle={title}
         headerPath={`/${locale}/${slug}`}
+        headerTitle={title}
+        onPublish={handleSave}
         overrides={{
           fieldTypes: {
             image: ({ name, onChange, value }) => (
               <FileUpload
+                name={name}
                 onChange={(file) => {
                   if (file) {
                     handleImageUpload(file).then((url) => onChange(url));
                   }
                 }}
                 value={value}
-                name={name}
               />
             ),
           },
@@ -150,11 +150,11 @@ export function PageEditor({
                 <div className="flex items-center gap-2">
                   {/* Locale Switcher */}
                   <Select
-                    value={locale}
                     onValueChange={(v) => onLocaleChange(v as Locale)}
+                    value={locale}
                   >
-                    <SelectTrigger className="w-[140px] h-9 bg-white/10 border-white/20 text-white">
-                      <Globe className="w-4 h-4 mr-2" />
+                    <SelectTrigger className="h-9 w-[140px] border-white/20 bg-white/10 text-white">
+                      <Globe className="mr-2 h-4 w-4" />
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -169,9 +169,9 @@ export function PageEditor({
                   <Sheet>
                     <SheetTrigger asChild>
                       <Button
-                        variant="outline"
-                        size="icon"
                         className="ml-2 h-9 w-9"
+                        size="icon"
+                        variant="outline"
                       >
                         <Settings className="h-4 w-4" />
                       </Button>
@@ -188,21 +188,21 @@ export function PageEditor({
                           <Label htmlFor="title">Title</Label>
                           <Input
                             id="title"
-                            value={title}
                             onChange={(e) => setTitle(e.target.value)}
+                            value={title}
                           />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="slug">Slug</Label>
                           <Input
                             id="slug"
-                            value={slug}
                             onChange={(e) => setSlug(e.target.value)}
+                            value={slug}
                           />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="status">Status</Label>
-                          <Select value={initialStatus as string} disabled>
+                          <Select disabled value={initialStatus as string}>
                             <SelectTrigger id="status">
                               <SelectValue />
                             </SelectTrigger>
@@ -218,7 +218,7 @@ export function PageEditor({
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="visibility">Visibility</Label>
-                          <Select value={initialVisibility as string} disabled>
+                          <Select disabled value={initialVisibility as string}>
                             <SelectTrigger id="visibility">
                               <SelectValue />
                             </SelectTrigger>
@@ -236,24 +236,24 @@ export function PageEditor({
                     </SheetContent>
                   </Sheet>
 
-                  <div className="h-6 w-px bg-white/20 mx-2" />
+                  <div className="mx-2 h-6 w-px bg-white/20" />
 
-                  <Button variant="outline" onClick={onBack} className="mr-2">
+                  <Button className="mr-2" onClick={onBack} variant="outline">
                     Back
                   </Button>
 
                   <Button
-                    variant="secondary"
                     disabled={saving}
                     onClick={() => handleSave(currentData)}
+                    variant="secondary"
                   >
                     Save Draft
                   </Button>
 
                   <Button
+                    className="bg-[#001731] text-white hover:bg-[#001731]/90"
                     disabled={saving}
                     onClick={() => handlePublish(currentData)}
-                    className="bg-[#001731] text-white hover:bg-[#001731]/90"
                   >
                     Publish
                   </Button>

@@ -16,22 +16,22 @@ export default async function ContactPage() {
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title={t("title")}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: t("title") }]}
+        title={t("title")}
       />
-      <p className="text-sm text-muted-foreground">{t("intro")}</p>
-      <div className="rounded-lg border p-4 bg-white">
+      <p className="text-muted-foreground text-sm">{t("intro")}</p>
+      <div className="rounded-lg border bg-white p-4">
         <div className="font-semibold">{t("national.title")}</div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           {t("national.body")}
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {campuses.map((c) => (
-          <div key={c.$id} className="rounded-lg border p-4 bg-white">
+          <div className="rounded-lg border bg-white p-4" key={c.$id}>
             <div className="font-semibold">{c.name}</div>
             {c.email && (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 <a className="underline" href={`mailto:${c.email}`}>
                   {c.email}
                 </a>
@@ -40,7 +40,7 @@ export default async function ContactPage() {
           </div>
         ))}
         {campuses.length === 0 && (
-          <div className="text-sm text-muted-foreground">
+          <div className="text-muted-foreground text-sm">
             {t("campuses.empty")}
           </div>
         )}

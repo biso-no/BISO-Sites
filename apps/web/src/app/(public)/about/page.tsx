@@ -22,7 +22,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getOrgChartUrl, getPartners, type Partner } from "@/app/actions/about";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 
@@ -44,7 +44,7 @@ const tiles: Array<{
 
 export default function AboutPage() {
   const t = useTranslations("about");
-  const [partners, setPartners] = useState<Array<Partner>>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [orgChartUrl, setOrgChartUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,16 +64,16 @@ export default function AboutPage() {
   return (
     <div className="space-y-8">
       <PublicPageHeader
-        title={t("hub.title")}
-        subtitle={t("hub.subtitle")}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: t("hub.title") }]}
+        subtitle={t("hub.subtitle")}
+        title={t("hub.title")}
       />
 
       {/* General intro */}
       <div className="prose prose-primary max-w-none space-y-6">
         <p className="text-primary-70">{t("hub.description")}</p>
         <div>
-          <h3 className="text-xl font-semibold text-primary-90">
+          <h3 className="font-semibold text-primary-90 text-xl">
             {t("general.strategy.title", { default: "Strategi" })}
           </h3>
           <p className="text-primary-70">
@@ -81,7 +81,7 @@ export default function AboutPage() {
               default: "Vi jobber aktivt mot våre strategiske mål",
             })}
           </p>
-          <div className="grid gap-4 sm:grid-cols-3 mt-3">
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
             <Card>
               <CardHeader>
                 <CardTitle>
@@ -131,7 +131,7 @@ export default function AboutPage() {
         </div>
 
         <div>
-          <h3 className="text-xl font-semibold text-primary-90">
+          <h3 className="font-semibold text-primary-90 text-xl">
             {t("general.whatWeDo.title", { default: "Hva gjør vi" })}
           </h3>
           <p className="text-primary-70">
@@ -140,9 +140,9 @@ export default function AboutPage() {
                 "Alle midler i BISO skal gå tilbake til studentvelferd...",
             })}
           </p>
-          <ul className="grid gap-2 sm:grid-cols-2 mt-3">
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {[0, 1, 2, 3, 4].map((i) => (
-              <li key={i} className="text-primary-70">
+              <li className="text-primary-70" key={i}>
                 {t(`general.whatWeDo.items.${i}`, { default: "" })}
               </li>
             ))}
@@ -150,13 +150,13 @@ export default function AboutPage() {
         </div>
 
         <div>
-          <h3 className="text-xl font-semibold text-primary-90">
+          <h3 className="font-semibold text-primary-90 text-xl">
             {t("general.academics.title", { default: "Academics" })}
           </h3>
           <p className="text-primary-70">{t("general.academics.lead")}</p>
-          <ul className="grid gap-2 sm:grid-cols-2 mt-3">
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {[0, 1, 2, 3, 4].map((i) => (
-              <li key={i} className="text-primary-70">
+              <li className="text-primary-70" key={i}>
                 {t(`general.academics.items.${i}`)}
               </li>
             ))}
@@ -165,7 +165,7 @@ export default function AboutPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-semibold text-primary-90">
+            <h3 className="font-semibold text-primary-90 text-xl">
               {t("general.politics.title")}
             </h3>
             <p className="text-primary-70">{t("general.politics.lead")}</p>
@@ -177,14 +177,14 @@ export default function AboutPage() {
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-primary-90">
+        <h2 className="font-semibold text-primary-90 text-xl">
           {t("hub.browse")}
         </h2>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map(({ key, href, icon: Icon }) => (
-          <Card key={key} className="h-full">
+          <Card className="h-full" key={key}>
             <CardHeader className="space-y-1">
               <div className="flex items-center gap-2">
                 <Icon className="h-5 w-5 text-primary-60" />
@@ -204,16 +204,16 @@ export default function AboutPage() {
       {/* Org chart */}
       {orgChartUrl && (
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-primary-90">
+          <h3 className="font-semibold text-primary-90 text-xl">
             {t("general.orgChart.title", { default: "Organisasjonsstruktur" })}
           </h3>
           <div className="relative w-full overflow-hidden rounded-md border border-primary-10">
             <Image
-              src={orgChartUrl}
               alt="BISO org chart"
-              width={1600}
+              className="h-auto w-full"
               height={900}
-              className="w-full h-auto"
+              src={orgChartUrl}
+              width={1600}
             />
           </div>
         </div>
@@ -222,34 +222,34 @@ export default function AboutPage() {
       {/* National partners */}
       {partners.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-primary-90">
+          <h3 className="font-semibold text-primary-90 text-xl">
             {t("general.partners.title", {
               default: "Våre nasjonale partnere",
             })}
           </h3>
-          <div className="grid gap-6 sm:grid-cols-3 items-center">
+          <div className="grid items-center gap-6 sm:grid-cols-3">
             {partners.map((p) => (
               <div
+                className="flex items-center justify-center rounded-lg border border-primary-10 bg-white p-6"
                 key={p.name}
-                className="flex items-center justify-center p-6 rounded-lg border border-primary-10 bg-white"
               >
                 {p.url ? (
-                  <a href={p.url} target="_blank" rel="noreferrer">
+                  <a href={p.url} rel="noreferrer" target="_blank">
                     <Image
-                      src={p.image_url}
                       alt={p.name}
-                      width={300}
-                      height={120}
                       className="h-20 w-auto object-contain"
+                      height={120}
+                      src={p.image_url}
+                      width={300}
                     />
                   </a>
                 ) : (
                   <Image
-                    src={p.image_url}
                     alt={p.name}
-                    width={300}
-                    height={120}
                     className="h-20 w-auto object-contain"
+                    height={120}
+                    src={p.image_url}
+                    width={300}
                   />
                 )}
               </div>

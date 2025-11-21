@@ -10,12 +10,12 @@ export interface Department extends Omit<Departments, "Name"> {
 }
 
 // Re-export for compatibility
-async function getDepartmentTypes(): Promise<string[]> {
+async function _getDepartmentTypes(): Promise<string[]> {
   // This is now handled in the page component
   return [];
 }
 
-async function updateDepartment({ id, data }: { id: string; data: any }) {
+async function _updateDepartment({ id, data }: { id: string; data: any }) {
   const { createSessionClient } = await import("@repo/api/server");
   const { db } = await createSessionClient();
 

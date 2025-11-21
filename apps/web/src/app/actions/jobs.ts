@@ -3,10 +3,8 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
-  Campus,
   type ContentTranslations,
   ContentType,
-  Departments,
   type Jobs,
   Locale,
   Status,
@@ -18,15 +16,15 @@ import type {
   JobApplicationFormData,
 } from "@/lib/types/job-application";
 
-export interface ListJobsParams {
+export type ListJobsParams = {
   limit?: number;
   status?: string;
   campus?: string;
   search?: string;
   locale?: "en" | "no";
-}
+};
 
-export interface CreateJobData {
+export type CreateJobData = {
   slug: string;
   status: "draft" | "published" | "closed";
   campus_id: string;
@@ -52,7 +50,7 @@ export interface CreateJobData {
       short_description?: string;
     };
   };
-}
+};
 
 export async function listJobs(
   params: ListJobsParams = {}
@@ -106,7 +104,7 @@ export async function listJobs(
   }
 }
 
-async function getJob(
+async function _getJob(
   id: string,
   locale: "en" | "no"
 ): Promise<ContentTranslations | null> {
@@ -159,7 +157,9 @@ export async function getJobBySlug(
       Query.limit(1),
     ]);
 
-    if (jobsResponse.rows.length === 0) return null;
+    if (jobsResponse.rows.length === 0) {
+      return null;
+    }
 
     const job = jobsResponse.rows[0] ?? null;
 
@@ -185,7 +185,9 @@ export async function getJobBySlug(
       ]
     );
 
-    if (translationsResponse.rows.length === 0) return null;
+    if (translationsResponse.rows.length === 0) {
+      return null;
+    }
 
     return translationsResponse.rows[0] ?? null;
   } catch (error) {
@@ -194,7 +196,7 @@ export async function getJobBySlug(
   }
 }
 
-async function createJob(
+async function _createJob(
   data: CreateJobData,
   skipRevalidation = false
 ): Promise<Jobs | null> {
@@ -255,7 +257,7 @@ async function createJob(
   }
 }
 
-async function updateJob(
+async function _updateJob(
   id: string,
   data: Partial<CreateJobData>
 ): Promise<Jobs | null> {
@@ -265,7 +267,9 @@ async function updateJob(
     // Build update object
     const updateData: Record<string, unknown> = {};
 
-    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.slug !== undefined) {
+      updateData.slug = data.slug;
+    }
     if (data.status !== undefined) {
       updateData.status =
         data.status === "draft"
@@ -274,13 +278,17 @@ async function updateJob(
             ? Status.PUBLISHED
             : Status.CLOSED;
     }
-    if (data.campus_id !== undefined) updateData.campus_id = data.campus_id;
-    if (data.department_id !== undefined)
+    if (data.campus_id !== undefined) {
+      updateData.campus_id = data.campus_id;
+    }
+    if (data.department_id !== undefined) {
       updateData.department_id = data.department_id;
-    if (data.metadata !== undefined)
+    }
+    if (data.metadata !== undefined) {
       updateData.metadata = data.metadata
         ? JSON.stringify(data.metadata)
         : null;
+    }
 
     // Build translation_refs array from provided translations only
     if (data.translations) {
@@ -325,7 +333,7 @@ async function updateJob(
   }
 }
 
-async function deleteJob(id: string): Promise<boolean> {
+async function _deleteJob(id: string): Promise<boolean> {
   try {
     const { db } = await createSessionClient();
 
@@ -357,7 +365,7 @@ async function deleteJob(id: string): Promise<boolean> {
 }
 
 // AI Translation function using your existing AI setup
-async function translateJobContent(
+async function _translateJobContent(
   jobId: string,
   fromLocale: "en" | "no",
   toLocale: "en" | "no"
@@ -423,7 +431,7 @@ Please respond with a JSON object containing the translated title and descriptio
       translationRecord = (await db.updateRow(
         "app",
         "content_translations",
-        existingTranslationResponse.rows[0]!.$id,
+        existingTranslationResponse.rows[0]?.$id,
         {
           title: translated.title,
           description: translated.description,
@@ -454,7 +462,7 @@ Please respond with a JSON object containing the translated title and descriptio
 }
 
 // Helper functions remain the same
-async function listDepartments(campusId?: string) {
+async function _listDepartments(campusId?: string) {
   const queries = [Query.equal("active", true)];
 
   if (campusId) {
@@ -471,7 +479,7 @@ async function listDepartments(campusId?: string) {
   }
 }
 
-async function listCampuses() {
+async function _listCampuses() {
   try {
     const { db } = await createSessionClient();
     const response = await db.listRows("app", "campus");
@@ -483,7 +491,7 @@ async function listCampuses() {
 }
 
 // Job application functions remain the same but reference the new job structure
-async function createJobApplication(
+async function _createJobApplication(
   data: JobApplicationFormData & { job_id: string }
 ): Promise<JobApplication | null> {
   try {
@@ -537,7 +545,7 @@ async function createJobApplication(
   }
 }
 
-async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
+async function _listJobApplications(jobId?: string): Promise<JobApplication[]> {
   try {
     const { db } = await createSessionClient();
     const queries = [Query.orderDesc("$createdAt")];
@@ -558,7 +566,7 @@ async function listJobApplications(jobId?: string): Promise<JobApplication[]> {
   }
 }
 
-async function updateJobApplicationStatus(
+async function _updateJobApplicationStatus(
   applicationId: string,
   status: JobApplication["status"]
 ): Promise<JobApplication | null> {
@@ -578,7 +586,7 @@ async function updateJobApplicationStatus(
   }
 }
 
-async function exportJobApplicationData(
+async function _exportJobApplicationData(
   applicationId: string
 ): Promise<JobApplication | null> {
   try {
@@ -595,7 +603,7 @@ async function exportJobApplicationData(
   }
 }
 
-async function deleteJobApplicationData(
+async function _deleteJobApplicationData(
   applicationId: string
 ): Promise<boolean> {
   try {

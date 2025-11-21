@@ -3,8 +3,8 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Campus } from "@repo/api/types/appwrite";
 
-const databaseId = "app";
-const collectionId = "campuses";
+const _databaseId = "app";
+const _collectionId = "campuses";
 
 export async function getCampuses() {
   const { db } = await createSessionClient();

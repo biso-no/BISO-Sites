@@ -3,7 +3,6 @@ import {
   Pinecone,
   type QueryResponse,
   type RecordMetadata,
-  ScoredPineconeRecord,
 } from "@pinecone-database/pinecone";
 import { embed, embedMany } from "ai";
 import { encode } from "gpt-tokenizer";
@@ -20,13 +19,13 @@ const EMBEDDING_MODELS = {
   "text-embedding-3-small": {
     vectorSize: 1536,
     maxTokens: 8191,
-    costPer1kTokens: 0.00002,
+    costPer1kTokens: 0.000_02,
     description: "Fast and cost-effective for most use cases",
   },
   "text-embedding-3-large": {
     vectorSize: 3072,
     maxTokens: 8191,
-    costPer1kTokens: 0.00013,
+    costPer1kTokens: 0.000_13,
     description: "Higher quality embeddings for complex documents",
   },
 } as const;
@@ -54,46 +53,46 @@ const CONFIG = {
 
 const SHAREPOINT_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
-interface BatchItem {
+type BatchItem = {
   doc: VectorDocument;
   text: string;
   originalIndex: number;
   tokenCount: number;
-}
+};
 
-interface ProcessingBatch {
+type ProcessingBatch = {
   indices: number[];
   texts: string[];
   tokenSum: number;
-}
+};
 
-interface PineconeVector {
+type PineconeVector = {
   id: string;
   values: number[];
   metadata: RecordMetadata;
-}
+};
 
-interface ModelStats {
+type ModelStats = {
   model: string;
   vectorSize: number;
   estimatedCostPer1kTokens: number;
   totalTokensProcessed: number;
   estimatedCost: number;
-}
+};
 
 export class PineconeVectorStore implements IVectorStore {
-  private client: Pinecone;
-  private indexName: string;
-  private namespace: string;
-  private embeddingModel: any;
-  private modelConfig: (typeof EMBEDDING_MODELS)[EmbeddingModelName];
+  private readonly client: Pinecone;
+  private readonly indexName: string;
+  private readonly namespace: string;
+  private readonly embeddingModel: any;
+  private readonly modelConfig: (typeof EMBEDDING_MODELS)[EmbeddingModelName];
   private isInitialized = false;
-  private stats: ModelStats;
+  private readonly stats: ModelStats;
   private index: any;
 
   constructor(
     indexName?: string,
-    namespace: string = "default",
+    namespace = "default",
     modelName: EmbeddingModelName = CONFIG.EMBEDDING.DEFAULT_MODEL
   ) {
     // Get index name from environment or use default
@@ -150,7 +149,9 @@ export class PineconeVectorStore implements IVectorStore {
         lastError = error;
         console.error(`${context} - Attempt ${attempt} failed:`, error.message);
 
-        if (attempt === CONFIG.RETRY.MAX_ATTEMPTS) break;
+        if (attempt === CONFIG.RETRY.MAX_ATTEMPTS) {
+          break;
+        }
 
         const delay =
           CONFIG.RETRY.INITIAL_DELAY *
@@ -163,7 +164,9 @@ export class PineconeVectorStore implements IVectorStore {
   }
 
   async initialize(): Promise<void> {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      return;
+    }
 
     await this.withRetry(async () => {
       // List existing indexes
@@ -213,14 +216,18 @@ export class PineconeVectorStore implements IVectorStore {
   }
 
   async addDocuments(documents: VectorDocument[]): Promise<void> {
-    if (!documents.length) return;
+    if (!documents.length) {
+      return;
+    }
     await this.initialize();
 
     // Prepare documents
     const items = documents
       .map((doc, originalIndex) => {
         const text = String(doc.content || "").trim();
-        if (!text) return null;
+        if (!text) {
+          return null;
+        }
 
         const truncated =
           text.length > CONFIG.EMBEDDING.MAX_TOKENS_PER_INPUT * 4
@@ -236,7 +243,9 @@ export class PineconeVectorStore implements IVectorStore {
       })
       .filter((item): item is BatchItem => item !== null);
 
-    if (!items.length) return;
+    if (!items.length) {
+      return;
+    }
 
     // Create batches for embedding
     const batches: ProcessingBatch[] = [];
@@ -244,14 +253,13 @@ export class PineconeVectorStore implements IVectorStore {
 
     for (const [idx, item] of Array.from(items.entries())) {
       if (
-        current.indices.length >= CONFIG.EMBEDDING.MAX_ITEMS_PER_BATCH ||
-        current.tokenSum + item.tokenCount >
-          CONFIG.EMBEDDING.MAX_TOKENS_PER_REQUEST
+        (current.indices.length >= CONFIG.EMBEDDING.MAX_ITEMS_PER_BATCH ||
+          current.tokenSum + item.tokenCount >
+            CONFIG.EMBEDDING.MAX_TOKENS_PER_REQUEST) &&
+        current.indices.length > 0
       ) {
-        if (current.indices.length > 0) {
-          batches.push(current);
-          current = { indices: [], texts: [], tokenSum: 0 };
-        }
+        batches.push(current);
+        current = { indices: [], texts: [], tokenSum: 0 };
       }
 
       current.indices.push(idx);
@@ -342,7 +350,9 @@ export class PineconeVectorStore implements IVectorStore {
       );
     }
 
-    if (!query) throw new Error("Query required for semantic search");
+    if (!query) {
+      throw new Error("Query required for semantic search");
+    }
 
     const queryTokens = this.countTokens(query);
     this.updateStats(queryTokens);
@@ -414,7 +424,9 @@ export class PineconeVectorStore implements IVectorStore {
   }
 
   async deleteDocuments(ids: string[]): Promise<void> {
-    if (!ids.length) return;
+    if (!ids.length) {
+      return;
+    }
     await this.initialize();
 
     const convertedIds = ids.map((id) => uuidv5(id, SHAREPOINT_NAMESPACE));

@@ -1,20 +1,8 @@
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { verifyMembershipStatus } from "@/app/actions/memberPortal";
 import {
-  calculateEstimatedSavings,
-  getBenefitReveals,
-  getMemberBenefits,
-  getPublicProfile,
-  getUserProfile,
-  verifyMembershipStatus,
-} from "@/app/actions/memberPortal";
-import {
-  MemberPortalHeader,
   MemberPortalSkeleton,
-  NoBIEmailState,
-  NotMemberState,
   SignedOutState,
-  TabNavigation,
 } from "@/components/member-portal";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { MemberPortalContent } from "./MemberPortalContent";
@@ -53,9 +41,9 @@ export default async function MemberPortalPage() {
   return (
     <Suspense fallback={<MemberPortalSkeleton />}>
       <MemberPortalContent
-        user={userData}
-        membership={membershipStatus}
         hasBIIdentity={hasBIIdentity}
+        membership={membershipStatus}
+        user={userData}
       />
     </Suspense>
   );

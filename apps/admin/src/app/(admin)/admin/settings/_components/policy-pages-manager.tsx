@@ -55,7 +55,7 @@ export function PolicyPagesManager() {
   useEffect(() => {
     void load(activePage, activeLocale);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePage, activeLocale]);
+  }, [activePage, activeLocale, load]);
 
   const handleChangePage = (slug: PageSlug) => {
     setActivePage(slug);
@@ -74,13 +74,15 @@ export function PolicyPagesManager() {
         status: "published",
         translations: { [localeEnum]: { title, body } },
       });
-      if (updated) toast({ title: "Saved", description: "Page updated" });
-      else
+      if (updated) {
+        toast({ title: "Saved", description: "Page updated" });
+      } else {
         toast({
           title: "Save failed",
           description: "Please try again",
           variant: "destructive",
         });
+      }
     });
   };
 
@@ -117,9 +119,9 @@ export function PolicyPagesManager() {
           {PAGES.map((p) => (
             <Button
               key={p.slug}
-              variant={activePage === p.slug ? "default" : "outline"}
-              size="sm"
               onClick={() => handleChangePage(p.slug)}
+              size="sm"
+              variant={activePage === p.slug ? "default" : "outline"}
             >
               {p.label}
             </Button>
@@ -127,49 +129,49 @@ export function PolicyPagesManager() {
         </div>
 
         <Tabs
-          value={activeLocale}
           onValueChange={(v) => handleChangeLocale(v as LocaleString)}
+          value={activeLocale}
         >
           <TabsList>
             <TabsTrigger value="no">NO</TabsTrigger>
             <TabsTrigger value="en">EN</TabsTrigger>
           </TabsList>
-          <TabsContent value="no" className="space-y-3">
+          <TabsContent className="space-y-3" value="no">
             <Input
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Tittel"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
             />
             <Textarea
-              placeholder="Innhold (HTML eller tekst)"
-              value={body}
               onChange={(e) => setBody(e.target.value)}
+              placeholder="Innhold (HTML eller tekst)"
               rows={12}
+              value={body}
             />
           </TabsContent>
-          <TabsContent value="en" className="space-y-3">
+          <TabsContent className="space-y-3" value="en">
             <Input
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
             />
             <Textarea
-              placeholder="Body (HTML or text)"
-              value={body}
               onChange={(e) => setBody(e.target.value)}
+              placeholder="Body (HTML or text)"
               rows={12}
+              value={body}
             />
           </TabsContent>
         </Tabs>
 
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleSave} disabled={pending}>
+          <Button disabled={pending} onClick={handleSave}>
             Save
           </Button>
           <Button
-            variant="outline"
-            onClick={() => handleTranslate(activeLocale === "no" ? "en" : "no")}
             disabled={pending}
+            onClick={() => handleTranslate(activeLocale === "no" ? "en" : "no")}
+            variant="outline"
           >
             Translate to {activeLocale === "no" ? "EN" : "NO"}
           </Button>

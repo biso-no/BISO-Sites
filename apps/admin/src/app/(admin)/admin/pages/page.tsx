@@ -8,9 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/ui/table";
-import { Edit, Eye, Plus, Trash } from "lucide-react";
+import { Edit, Eye, Plus } from "lucide-react";
 import Link from "next/link";
-import { deletePage, listManagedPages } from "@/app/actions/pages";
+import { listManagedPages } from "@/app/actions/pages";
 import { CreatePageDialog } from "./create-page-dialog";
 import { DeletePageButton } from "./delete-page-button";
 
@@ -19,8 +19,8 @@ export default async function PagesList() {
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Pages</h1>
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="font-bold text-3xl">Pages</h1>
         <CreatePageDialog>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
@@ -30,7 +30,7 @@ export default async function PagesList() {
       </div>
 
       <div className="rounded-md border">
-        <Table className="surface-spotlight glass-panel accent-ring relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 sm:px-8 sm:py-8">
+        <Table className="surface-spotlight glass-panel relative overflow-hidden rounded-3xl border border-primary/10 px-6 py-6 accent-ring sm:px-8 sm:py-8">
           <TableHeader>
             <TableRow>
               <TableHead>Title</TableHead>
@@ -44,8 +44,8 @@ export default async function PagesList() {
             {pages.length === 0 ? (
               <TableRow>
                 <TableCell
+                  className="h-24 text-center text-muted-foreground"
                   colSpan={5}
-                  className="text-center h-24 text-muted-foreground"
                 >
                   No pages found. Create one to get started.
                 </TableCell>
@@ -54,7 +54,7 @@ export default async function PagesList() {
               pages.map((page) => (
                 <TableRow key={page.id}>
                   <TableCell className="font-medium">{page.title}</TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">
+                  <TableCell className="font-mono text-muted-foreground text-sm">
                     /{page.slug}
                   </TableCell>
                   <TableCell>
@@ -71,13 +71,13 @@ export default async function PagesList() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" asChild>
+                      <Button asChild size="icon" variant="ghost">
                         <Link href={`/admin/pages/${page.id}/no/editor`}>
                           <Edit className="h-4 w-4" />
                         </Link>
                       </Button>
                       {page.status === "published" && (
-                        <Button variant="ghost" size="icon" asChild>
+                        <Button asChild size="icon" variant="ghost">
                           <Link
                             href={`https://biso.no/${page.slug}`}
                             target="_blank"

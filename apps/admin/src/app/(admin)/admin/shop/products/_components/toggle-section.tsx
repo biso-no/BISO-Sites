@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-interface ToggleSectionProps {
+type ToggleSectionProps = {
   title: string;
   description: string;
   enabled: boolean;
@@ -13,7 +13,7 @@ interface ToggleSectionProps {
   children: ReactNode;
   icon?: React.ElementType;
   className?: string;
-}
+};
 
 export function ToggleSection({
   title,
@@ -36,28 +36,28 @@ export function ToggleSection({
         opacity: enabled ? 1 : 0.85,
       }}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2 flex-1">
-          {Icon && <Icon className="h-5 w-5 text-primary shrink-0 mt-0.5" />}
+      <div className="mb-2 flex items-start justify-between">
+        <div className="flex flex-1 items-center gap-2">
+          {Icon && <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />}
           <div className="flex-1">
             <h4 className="font-semibold text-base">{title}</h4>
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+            <p className="mt-1 text-muted-foreground text-sm">{description}</p>
           </div>
         </div>
         <Switch
           checked={enabled}
+          className="ml-4 shrink-0"
           onCheckedChange={onToggle}
-          className="shrink-0 ml-4"
         />
       </div>
       <AnimatePresence initial={false}>
         {enabled && (
           <motion.div
-            initial={{ height: 0, opacity: 0, marginTop: 0 }}
             animate={{ height: "auto", opacity: 1, marginTop: 16 }}
-            exit={{ height: 0, opacity: 0, marginTop: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden"
+            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
           >
             {children}
           </motion.div>

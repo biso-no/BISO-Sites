@@ -49,15 +49,15 @@ export async function getManagedPage(pageId: string) {
   return getPageById(pageId);
 }
 
-export interface ManagedPageTranslationInput {
+export type ManagedPageTranslationInput = {
   locale: Locale;
   title?: string;
   description?: string | null;
   draftDocument?: PageBuilderDocument | null;
   publish?: boolean;
-}
+};
 
-export interface CreateManagedPageInput {
+export type CreateManagedPageInput = {
   slug: string;
   title: string;
   status?: PageStatus;
@@ -65,7 +65,7 @@ export interface CreateManagedPageInput {
   template?: string | null;
   campusId?: string | null;
   translations: ManagedPageTranslationInput[];
-}
+};
 
 export async function createManagedPage(input: CreateManagedPageInput) {
   const payload: CreatePageInput = {
@@ -89,7 +89,7 @@ export async function createManagedPage(input: CreateManagedPageInput) {
   return page;
 }
 
-export interface UpdateManagedPageInput {
+export type UpdateManagedPageInput = {
   pageId: string;
   slug?: string;
   title?: string;
@@ -97,7 +97,7 @@ export interface UpdateManagedPageInput {
   visibility?: PageVisibility;
   template?: string | null;
   campusId?: string | null;
-}
+};
 
 export async function updateManagedPage(input: UpdateManagedPageInput) {
   const existing = await getPageById(input.pageId);
@@ -111,13 +111,13 @@ export async function updateManagedPage(input: UpdateManagedPageInput) {
   return updated;
 }
 
-export interface SavePageDraftInput {
+export type SavePageDraftInput = {
   translationId: string;
   title?: string;
   slug?: string | null;
   description?: string | null;
   draftDocument?: PageBuilderDocument | null;
-}
+};
 
 export async function savePageDraft(input: SavePageDraftInput) {
   return updatePageTranslationDraft({
@@ -129,14 +129,14 @@ export async function savePageDraft(input: SavePageDraftInput) {
   });
 }
 
-export interface PublishPageInput {
+export type PublishPageInput = {
   translationId: string;
   document?: PageBuilderDocument | null;
   title?: string;
   slug?: string | null;
   description?: string | null;
   pageStatus?: PageStatus;
-}
+};
 
 export async function publishPage(input: PublishPageInput) {
   const translation = await publishPageTranslation({
@@ -164,13 +164,13 @@ export async function deletePage(pageId: string) {
   revalidatePath(ADMIN_LIST_PATH);
 }
 
-export interface EnsureTranslationInput {
+export type EnsureTranslationInput = {
   pageId: string;
   locale: Locale;
   title?: string;
   description?: string | null;
   sourceTranslationId?: string;
-}
+};
 
 export async function ensureTranslation(input: EnsureTranslationInput) {
   const translation = await ensurePageTranslation(input);

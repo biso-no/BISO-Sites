@@ -1,5 +1,5 @@
 "use server";
-import { Client, type CreatePaymentRequest } from "@vippsmobilepay/sdk";
+import { Client } from "@vippsmobilepay/sdk";
 import { v4 as uuidv4 } from "uuid";
 
 const clientId = process.env.VIPPS_CLIENT_ID!;
@@ -10,14 +10,14 @@ const subscriptionKey = process.env.VIPPS_SUBSCRIPTION_KEY!;
 const testMode = process.env.VIPPS_TEST_MODE === "true";
 
 const vipps = Client({
-  merchantSerialNumber: merchantSerialNumber,
-  subscriptionKey: subscriptionKey,
+  merchantSerialNumber,
+  subscriptionKey,
   useTestMode: testMode,
   retryRequests: false,
 });
 
-async function getVippsAccessToken() {
-  if (!clientId || !clientSecret) {
+async function _getVippsAccessToken() {
+  if (!(clientId && clientSecret)) {
     throw new Error("VIPPS_CLIENT_ID and VIPPS_CLIENT_SECRET are not set");
   }
 
@@ -56,8 +56,8 @@ export async function createVippsCheckout({
         currency: "NOK",
         value: amount,
       },
-      reference: reference,
-      paymentDescription: paymentDescription,
+      reference,
+      paymentDescription,
     },
     configuration: {
       customerInteraction: "CUSTOMER_NOT_PRESENT",
@@ -65,10 +65,10 @@ export async function createVippsCheckout({
       showOrderSummary: true,
     },
     prefillCustomer: {
-      email: email,
-      firstName: firstName,
-      lastName: lastName,
-      phoneNumber: phoneNumber,
+      email,
+      firstName,
+      lastName,
+      phoneNumber,
     },
   });
   return checkout;

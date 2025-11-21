@@ -13,12 +13,12 @@ import {
   getDisplayPrice,
 } from "@/lib/types/webshop";
 
-interface ProductCardProps {
+type ProductCardProps = {
   product: ContentTranslations;
   index: number;
   isMember?: boolean;
   onViewDetails: (product: ContentTranslations) => void;
-}
+};
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",
@@ -35,7 +35,9 @@ export function ProductCard({
 }: ProductCardProps) {
   const productData = product.product_ref;
 
-  if (!productData) return null;
+  if (!productData) {
+    return null;
+  }
 
   const displayPrice = getDisplayPrice(
     productData.regular_price,
@@ -61,19 +63,19 @@ export function ProductCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 20 }}
       transition={{ delay: index * 0.1 }}
     >
-      <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 group h-full flex flex-col">
+      <Card className="group flex h-full flex-col overflow-hidden border-0 shadow-lg transition-all duration-300 hover:shadow-2xl">
         {/* Image */}
         <div className="relative h-64 overflow-hidden">
           <ImageWithFallback
-            src={imageUrl}
             alt={product.title}
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
             fill
             sizes="(max-width: 768px) 100vw, 400px"
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            src={imageUrl}
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
 
@@ -84,14 +86,14 @@ export function ProductCard({
               {productData.category}
             </Badge>
             {productData.member_only && (
-              <Badge className="bg-orange-500 text-white border-0 flex items-center gap-1">
-                <Users className="w-3 h-3" />
+              <Badge className="flex items-center gap-1 border-0 bg-orange-500 text-white">
+                <Users className="h-3 w-3" />
                 Members Only
               </Badge>
             )}
             {hasDiscount && savings > 0 && (
-              <Badge className="bg-green-500 text-white border-0 flex items-center gap-1">
-                <Tag className="w-3 h-3" />
+              <Badge className="flex items-center gap-1 border-0 bg-green-500 text-white">
+                <Tag className="h-3 w-3" />
                 Save {savings} NOK
               </Badge>
             )}
@@ -100,16 +102,16 @@ export function ProductCard({
           {productData.stock !== null &&
             productData.stock <= 10 &&
             productData.stock > 0 && (
-              <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-red-500/90 backdrop-blur-sm">
-                <span className="text-white text-sm font-medium">
+              <div className="absolute right-4 bottom-4 rounded-full bg-red-500/90 px-3 py-1 backdrop-blur-sm">
+                <span className="font-medium text-sm text-white">
                   Only {productData.stock} left!
                 </span>
               </div>
             )}
 
           {productData.stock === 0 && (
-            <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-gray-900/90 backdrop-blur-sm">
-              <span className="text-white text-sm font-medium">
+            <div className="absolute right-4 bottom-4 rounded-full bg-gray-900/90 px-3 py-1 backdrop-blur-sm">
+              <span className="font-medium text-sm text-white">
                 Out of Stock
               </span>
             </div>
@@ -117,11 +119,11 @@ export function ProductCard({
         </div>
 
         {/* Content */}
-        <div className="p-6 flex flex-col grow">
-          <h3 className="mb-3 text-gray-900 text-xl font-semibold">
+        <div className="flex grow flex-col p-6">
+          <h3 className="mb-3 font-semibold text-gray-900 text-xl">
             {product.title}
           </h3>
-          <p className="text-gray-600 mb-4 grow line-clamp-2 text-sm">
+          <p className="mb-4 line-clamp-2 grow text-gray-600 text-sm">
             {shortDescription}
           </p>
 
@@ -129,15 +131,15 @@ export function ProductCard({
           <div className="mb-6">
             {hasDiscount ? (
               <div className="flex items-center gap-2">
-                <span className="text-gray-400 line-through text-lg">
+                <span className="text-gray-400 text-lg line-through">
                   {formatPrice(productData.regular_price)}
                 </span>
-                <span className="text-[#3DA9E0] text-xl font-bold">
+                <span className="font-bold text-[#3DA9E0] text-xl">
                   {formatPrice(displayPrice)}
                 </span>
               </div>
             ) : (
-              <div className="text-gray-900 text-xl font-bold">
+              <div className="font-bold text-gray-900 text-xl">
                 {formatPrice(displayPrice)}
               </div>
             )}
@@ -145,16 +147,16 @@ export function ProductCard({
             {!isMember &&
               productData.member_price &&
               productData.member_price < productData.regular_price && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="mt-1 text-gray-500 text-sm">
                   Members pay only {formatPrice(productData.member_price)}
                 </p>
               )}
           </div>
 
           <Button
-            onClick={() => onViewDetails(product)}
+            className="w-full border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={productData.stock === 0}
-            className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => onViewDetails(product)}
           >
             {productData.stock === 0 ? "Out of Stock" : "View Details"}
           </Button>

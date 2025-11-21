@@ -22,7 +22,6 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import React from "react";
 import { cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -53,23 +52,23 @@ const IconMap = {
 
 export type IconName = keyof typeof IconMap;
 
-export interface FeatureItem {
+export type FeatureItem = {
   title: string;
   description: string;
   icon?: IconName;
   image?: string;
   href?: string;
   badge?: string;
-}
+};
 
-export interface FeatureGridProps {
+export type FeatureGridProps = {
   title?: string;
   subtitle?: string;
   items: FeatureItem[];
   columns?: 2 | 3 | 4;
   variant?: "card" | "icon" | "simple" | "checklist" | "project" | "process";
   align?: "center" | "left";
-}
+};
 
 export function FeatureGrid({
   title,
@@ -95,7 +94,7 @@ export function FeatureGrid({
       {(title || subtitle) && (
         <div className={cn("mb-12 max-w-3xl", alignClasses[align])}>
           {title && (
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl mb-4">
+            <h2 className="mb-4 font-bold text-3xl text-foreground tracking-tight sm:text-4xl">
               {title}
             </h2>
           )}
@@ -112,30 +111,30 @@ export function FeatureGrid({
           if (variant === "card") {
             return (
               <Card
+                className="flex h-full flex-col p-6 transition-all hover:shadow-lg"
                 key={index}
-                className="p-6 h-full flex flex-col transition-all hover:shadow-lg"
               >
                 <div
                   className={cn(
-                    "flex flex-col gap-4 h-full",
+                    "flex h-full flex-col gap-4",
                     align === "center"
                       ? "items-center text-center"
                       : "items-start text-left"
                   )}
                 >
                   {Icon && (
-                    <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                      <Icon className="w-6 h-6" />
+                    <div className="rounded-lg bg-primary/10 p-3 text-primary">
+                      <Icon className="h-6 w-6" />
                     </div>
                   )}
-                  <div className="space-y-2 flex-1">
+                  <div className="flex-1 space-y-2">
                     <h3 className="font-semibold text-xl">{item.title}</h3>
                     <p className="text-muted-foreground">{item.description}</p>
                   </div>
                   {item.href && (
                     <Link
+                      className="mt-4 font-medium text-primary text-sm hover:underline"
                       href={item.href}
-                      className="text-sm font-medium text-primary hover:underline mt-4"
                     >
                       Learn more →
                     </Link>
@@ -148,35 +147,35 @@ export function FeatureGrid({
           if (variant === "project") {
             return (
               <Card
+                className="group flex h-full flex-col overflow-hidden border-primary/10 bg-white transition-all hover:shadow-lg"
                 key={index}
-                className="h-full flex flex-col overflow-hidden transition-all hover:shadow-lg group border-primary/10 bg-white"
               >
                 {/* Gradient Bar */}
                 <div className="h-2 w-full bg-linear-to-r from-[#3DA9E0] to-[#001731]" />
 
-                <div className="p-6 flex flex-col h-full">
+                <div className="flex h-full flex-col p-6">
                   {item.badge && (
                     <Badge
+                      className="mb-4 w-fit border-primary/10 bg-primary/5 text-primary"
                       variant="secondary"
-                      className="w-fit mb-4 bg-primary/5 text-primary border-primary/10"
                     >
                       {item.badge}
                     </Badge>
                   )}
 
-                  <h3 className="font-bold text-xl mb-2 group-hover:text-primary transition-colors">
+                  <h3 className="mb-2 font-bold text-xl transition-colors group-hover:text-primary">
                     {item.title}
                   </h3>
 
-                  <p className="text-muted-foreground mb-6 flex-1">
+                  <p className="mb-6 flex-1 text-muted-foreground">
                     {item.description}
                   </p>
 
                   {item.href && (
                     <Button
                       asChild
+                      className="group/btn w-full"
                       variant="outline"
-                      className="w-full group/btn"
                     >
                       <Link href={item.href}>
                         View Project{" "}
@@ -193,16 +192,16 @@ export function FeatureGrid({
             const CheckIcon = Icon || CheckCircle;
             return (
               <div
+                className="flex items-start gap-3 rounded-xl border border-border bg-white p-4 transition-all hover:border-primary/30 hover:shadow-sm"
                 key={index}
-                className="flex items-start gap-3 p-4 rounded-xl bg-white border border-border hover:border-primary/30 hover:shadow-sm transition-all"
               >
-                <div className="shrink-0 mt-0.5 text-green-500">
-                  <CheckIcon className="w-5 h-5" />
+                <div className="mt-0.5 shrink-0 text-green-500">
+                  <CheckIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{item.title}</h3>
                   {item.description && (
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="mt-1 text-muted-foreground text-sm">
                       {item.description}
                     </p>
                   )}
@@ -214,17 +213,17 @@ export function FeatureGrid({
           if (variant === "process") {
             return (
               <div
+                className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-white p-6 transition-all hover:shadow-md"
                 key={index}
-                className="flex flex-col gap-4 p-6 rounded-2xl bg-white border border-border hover:shadow-md transition-all relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl font-bold leading-none -mt-4 -mr-4 select-none">
+                <div className="-mt-4 -mr-4 absolute top-0 right-0 select-none p-4 font-bold text-9xl leading-none opacity-10">
                   {index + 1}
                 </div>
                 <div className="relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xl mb-4">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-xl">
                     {index + 1}
                   </div>
-                  <h3 className="font-bold text-xl mb-2">{item.title}</h3>
+                  <h3 className="mb-2 font-bold text-xl">{item.title}</h3>
                   <p className="text-muted-foreground">{item.description}</p>
                 </div>
               </div>
@@ -234,25 +233,25 @@ export function FeatureGrid({
           if (variant === "icon") {
             return (
               <div
-                key={index}
                 className={cn(
                   "flex flex-col gap-4",
                   align === "center"
                     ? "items-center text-center"
                     : "items-start text-left"
                 )}
+                key={index}
               >
                 {Icon && (
-                  <div className="p-4 rounded-full bg-primary/5 text-primary mb-2">
-                    <Icon className="w-8 h-8" />
+                  <div className="mb-2 rounded-full bg-primary/5 p-4 text-primary">
+                    <Icon className="h-8 w-8" />
                   </div>
                 )}
                 <h3 className="font-semibold text-xl">{item.title}</h3>
                 <p className="text-muted-foreground">{item.description}</p>
                 {item.href && (
                   <Link
+                    className="font-medium text-primary hover:underline"
                     href={item.href}
-                    className="text-primary hover:underline font-medium"
                   >
                     Learn more
                   </Link>
@@ -263,15 +262,15 @@ export function FeatureGrid({
 
           // Simple variant (good for lists/checks)
           return (
-            <div key={index} className="flex gap-4">
+            <div className="flex gap-4" key={index}>
               {Icon && (
-                <div className="shrink-0 mt-1 text-primary">
-                  <Icon className="w-5 h-5" />
+                <div className="mt-1 shrink-0 text-primary">
+                  <Icon className="h-5 w-5" />
                 </div>
               )}
               <div>
                 <h3 className="font-semibold">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   {item.description}
                 </p>
               </div>

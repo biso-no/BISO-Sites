@@ -1,22 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
 import { cn } from "../../lib/utils";
 import { ImageWithFallback } from "../image";
 
-export interface LogoItem {
+export type LogoItem = {
   image: string;
   alt: string;
   href?: string;
-}
+};
 
-export interface LogoGridProps {
+export type LogoGridProps = {
   items: LogoItem[];
   columns?: 3 | 4 | 5 | 6;
   variant?: "simple" | "bordered" | "card";
   grayscale?: boolean;
-}
+};
 
 export function LogoGrid({
   items = [],
@@ -33,26 +32,26 @@ export function LogoGrid({
 
   return (
     <div className="w-full py-8">
-      <div className={cn("grid gap-6 items-center", gridCols[columns])}>
+      <div className={cn("grid items-center gap-6", gridCols[columns])}>
         {items.map((item, index) => {
           const Content = (
             <div
               className={cn(
                 "relative flex items-center justify-center p-6 transition-all duration-300",
                 variant === "bordered" &&
-                  "border border-border rounded-xl bg-white hover:border-primary/20 hover:shadow-md",
+                  "rounded-xl border border-border bg-white hover:border-primary/20 hover:shadow-md",
                 variant === "card" &&
-                  "bg-white rounded-xl shadow-sm hover:shadow-md p-8",
+                  "rounded-xl bg-white p-8 shadow-sm hover:shadow-md",
                 grayscale &&
-                  "grayscale hover:grayscale-0 opacity-70 hover:opacity-100"
+                  "opacity-70 grayscale hover:opacity-100 hover:grayscale-0"
               )}
             >
-              <div className="relative w-full h-12 sm:h-16">
+              <div className="relative h-12 w-full sm:h-16">
                 <ImageWithFallback
-                  src={item.image}
                   alt={item.alt}
-                  fill
                   className="object-contain"
+                  fill
+                  src={item.image}
                 />
               </div>
             </div>
@@ -61,11 +60,11 @@ export function LogoGrid({
           if (item.href) {
             return (
               <Link
-                key={index}
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block h-full"
+                href={item.href}
+                key={index}
+                rel="noopener noreferrer"
+                target="_blank"
               >
                 {Content}
               </Link>
@@ -73,7 +72,7 @@ export function LogoGrid({
           }
 
           return (
-            <div key={index} className="h-full">
+            <div className="h-full" key={index}>
               {Content}
             </div>
           );

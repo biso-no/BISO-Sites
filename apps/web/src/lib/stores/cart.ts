@@ -8,7 +8,7 @@ import type {
   ProductWithTranslations,
 } from "@/lib/types/product";
 
-export interface CartItem {
+export type CartItem = {
   id: string;
   productId: string;
   slug: string;
@@ -38,34 +38,38 @@ export interface CartItem {
   maxPerUser?: number;
   memberDiscountPercent?: number;
   memberDiscountEnabled?: boolean;
-}
+};
 
-interface AddItemInput {
+type AddItemInput = {
   product: ProductWithTranslations;
   quantity?: number;
   variation?: ProductVariation;
   customFieldResponses?: Record<string, string>;
-}
+};
 
-interface CartState {
+type CartState = {
   items: CartItem[];
   addItem: (input: AddItemInput) => { success: boolean; message?: string };
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   setCustomFieldResponse: (id: string, fieldId: string, value: string) => void;
   clear: () => void;
-}
+};
 
 const STORAGE_KEY = "biso-webshop-cart";
 
 const normalizeResponses = (responses?: Record<string, string>) => {
-  if (!responses) return undefined;
+  if (!responses) {
+    return;
+  }
   const entries = Object.entries(responses)
     .filter(([, value]) => typeof value === "string")
     .map(([key, value]) => [key, value.trim()] as const)
     .filter(([, value]) => value.length > 0)
     .sort(([a], [b]) => a.localeCompare(b));
-  if (entries.length === 0) return undefined;
+  if (entries.length === 0) {
+    return;
+  }
   return Object.fromEntries(entries);
 };
 
@@ -75,7 +79,9 @@ const createItemId = () =>
     : `item_${Math.random().toString(36).slice(2)}`;
 
 const buildCustomFieldDefinitions = (fields?: ProductCustomField[]) => {
-  if (!fields || fields.length === 0) return undefined;
+  if (!fields || fields.length === 0) {
+    return;
+  }
   return fields.reduce<Record<string, { label: string; required?: boolean }>>(
     (acc, field) => {
       acc[field.id] = { label: field.label, required: field.required };
@@ -89,11 +95,15 @@ const buildCustomFieldEntries = (
   fields?: ProductCustomField[],
   responses?: Record<string, string>
 ) => {
-  if (!fields || !responses) return undefined;
+  if (!(fields && responses)) {
+    return;
+  }
   const entries = fields
     .map((field) => {
       const value = responses[field.id];
-      if (!value) return null;
+      if (!value) {
+        return null;
+      }
       return {
         id: field.id,
         label: field.label,
@@ -126,7 +136,7 @@ export const useCartStore = create<CartState>()(
         const productItems = items.filter(
           (item) => item.productId === product.$id
         );
-        const matchingItems = productItems.filter(
+        const _matchingItems = productItems.filter(
           (item) => (item.variation?.id || null) === (variationId || null)
         );
         const totalForProduct = productItems.reduce(
@@ -149,9 +159,12 @@ export const useCartStore = create<CartState>()(
         }
 
         const existingIndex = items.findIndex((item) => {
-          if (item.productId !== product.$id) return false;
-          if ((item.variation?.id || null) !== (variationId || null))
+          if (item.productId !== product.$id) {
             return false;
+          }
+          if ((item.variation?.id || null) !== (variationId || null)) {
+            return false;
+          }
           const itemResponses = normalizeResponses(item.customFieldResponses);
           return (
             JSON.stringify(itemResponses) ===
@@ -233,7 +246,9 @@ export const useCartStore = create<CartState>()(
       updateQuantity: (id, quantity) => {
         set((state) => {
           const nextItems = state.items.map((item) => {
-            if (item.id !== id) return item;
+            if (item.id !== id) {
+              return item;
+            }
             const safeQuantity = Math.max(1, Math.floor(quantity));
             if (item.maxPerUser === 1) {
               return { ...item, quantity: 1 };
@@ -256,7 +271,9 @@ export const useCartStore = create<CartState>()(
       setCustomFieldResponse: (id, fieldId, value) => {
         set((state) => ({
           items: state.items.map((item) => {
-            if (item.id !== id) return item;
+            if (item.id !== id) {
+              return item;
+            }
             const responses = { ...(item.customFieldResponses || {}) };
             const trimmed = value.trim();
             if (trimmed.length === 0) {

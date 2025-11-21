@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -20,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   const origin = "https://app.biso.no";
 
-  if (!userId || !secret || !membershipId || !teamId) {
+  if (!(userId && secret && membershipId && teamId)) {
     return redirect("/auth/login?error=invalid_parameters");
   }
 

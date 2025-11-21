@@ -20,10 +20,10 @@ export default function NotFound() {
         </div>
 
         <div className="space-y-4">
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-white/70">
+          <p className="font-medium text-sm text-white/70 uppercase tracking-[0.25em]">
             404
           </p>
-          <h1 className="max-w-xl text-4xl font-semibold leading-tight text-white md:text-5xl">
+          <h1 className="max-w-xl font-semibold text-4xl text-white leading-tight md:text-5xl">
             Vi fant ikke siden du lette etter.
           </h1>
           <p className="max-w-2xl text-base text-white/80 md:text-lg">
@@ -35,8 +35,8 @@ export default function NotFound() {
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button
             asChild
-            size="lg"
             className="bg-white text-primary-100 hover:bg-white/90"
+            size="lg"
           >
             <Link href="/">
               <Home className="mr-2 h-5 w-5" />
@@ -45,9 +45,9 @@ export default function NotFound() {
           </Button>
           <Button
             asChild
+            className="border border-white/40 bg-white/10 text-white hover:bg-white/20"
             size="lg"
             variant="ghost"
-            className="border border-white/40 bg-white/10 text-white hover:bg-white/20"
           >
             <Link href="/campus">
               <ArrowLeft className="mr-2 h-5 w-5" />
@@ -60,8 +60,8 @@ export default function NotFound() {
           <p>
             Trenger du hjelp? Kontakt oss på{" "}
             <a
-              href="mailto:contact@biso.no"
               className="font-semibold underline-offset-4 hover:underline"
+              href="mailto:contact@biso.no"
             >
               contact@biso.no
             </a>{" "}

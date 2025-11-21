@@ -25,9 +25,9 @@ export async function AboutSection() {
 
   return (
     <AboutClient
+      departmentsCount={departments}
       eventCount={events.length}
       jobCount={jobs.length}
-      departmentsCount={departments}
     />
   );
 }

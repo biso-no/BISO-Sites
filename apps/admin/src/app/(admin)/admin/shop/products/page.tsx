@@ -1,9 +1,4 @@
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@repo/ui/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -46,7 +41,7 @@ export default async function DashboardPage({
                 <TabsTrigger value="draft">
                   {t("products.tabs.draft")}
                 </TabsTrigger>
-                <TabsTrigger value="archived" className="hidden sm:flex">
+                <TabsTrigger className="hidden sm:flex" value="archived">
                   {t("products.tabs.archived")}
                 </TabsTrigger>
               </TabsList>
@@ -72,13 +67,19 @@ function buildProductFilters(
   const filters: Parameters<typeof listProducts>[0] = {};
 
   const search = getParam(params, "q");
-  if (search) filters.search = search;
+  if (search) {
+    filters.search = search;
+  }
 
   const campus = getParam(params, "campus");
-  if (campus && campus !== "all") filters.campus_id = campus;
+  if (campus && campus !== "all") {
+    filters.campus_id = campus;
+  }
 
   const category = getParam(params, "category");
-  if (category && category !== "all") filters.category = category;
+  if (category && category !== "all") {
+    filters.category = category;
+  }
 
   const stock = getParam(params, "stock");
   if (stock === "in-stock") {
@@ -152,7 +153,9 @@ function getParam(
 }
 
 function toNumber(value?: string | null) {
-  if (!value) return undefined;
+  if (!value) {
+    return;
+  }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 }

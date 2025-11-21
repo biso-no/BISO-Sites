@@ -18,7 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@repo/ui/components/ui/dialog";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
@@ -56,13 +55,13 @@ import {
   updateVarslingSettings,
 } from "@/app/actions/varsling";
 
-interface VarslingFormData {
+type VarslingFormData = {
   campus_id: string;
   role_name: string;
   email: string;
   is_active: boolean;
   sort_order: number;
-}
+};
 
 export default function VarslingAdminPage() {
   const t = useTranslations("varsling.admin");
@@ -134,7 +133,7 @@ export default function VarslingAdminPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.campus_id || !formData.role_name || !formData.email) {
+    if (!(formData.campus_id && formData.role_name && formData.email)) {
       setSubmitStatus({
         type: "error",
         message: t("messages.validation"),
@@ -174,7 +173,7 @@ export default function VarslingAdminPage() {
           message: result.error || t("messages.error"),
         });
       }
-    } catch (error) {
+    } catch (_error) {
       setSubmitStatus({
         type: "error",
         message: t("messages.error"),
@@ -197,7 +196,7 @@ export default function VarslingAdminPage() {
       } else {
         alert(t("messages.deleteError"));
       }
-    } catch (error) {
+    } catch (_error) {
       alert(t("messages.deleteUnexpected"));
     }
   };
@@ -237,12 +236,12 @@ export default function VarslingAdminPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Shield className="h-6 w-6 text-primary-60" />
-            <h1 className="text-2xl font-bold">{t("title")}</h1>
+            <h1 className="font-bold text-2xl">{t("title")}</h1>
           </div>
           <p className="text-primary-60">{t("subtitle")}</p>
         </div>
         <Button onClick={openCreateDialog}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           {t("addContact")}
         </Button>
       </div>
@@ -255,11 +254,11 @@ export default function VarslingAdminPage() {
         </CardHeader>
         <CardContent>
           {settings.length === 0 ? (
-            <div className="text-center py-8 text-primary-60">
-              <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <div className="py-8 text-center text-primary-60">
+              <Shield className="mx-auto mb-4 h-12 w-12 opacity-50" />
               <p>{t("table.empty.title")}</p>
-              <Button onClick={openCreateDialog} className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button className="mt-4" onClick={openCreateDialog}>
+                <Plus className="mr-2 h-4 w-4" />
                 {t("table.empty.button")}
               </Button>
             </div>
@@ -304,17 +303,17 @@ export default function VarslingAdminPage() {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button
-                          variant="outline"
-                          size="sm"
                           onClick={() => openEditDialog(setting)}
+                          size="sm"
+                          variant="outline"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(setting.$id!)}
                           className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDelete(setting.$id!)}
+                          size="sm"
+                          variant="outline"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -329,7 +328,7 @@ export default function VarslingAdminPage() {
       </Card>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog onOpenChange={setIsDialogOpen} open={isDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
@@ -342,15 +341,15 @@ export default function VarslingAdminPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             {/* Campus Selection */}
             <div className="space-y-2">
               <Label>{t("dialog.fields.campus.label")} *</Label>
               <Select
-                value={formData.campus_id}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, campus_id: value }))
                 }
+                value={formData.campus_id}
               >
                 <SelectTrigger>
                   <SelectValue
@@ -371,7 +370,6 @@ export default function VarslingAdminPage() {
             <div className="space-y-2">
               <Label>{t("dialog.fields.role.label")} *</Label>
               <Input
-                value={formData.role_name}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -379,6 +377,7 @@ export default function VarslingAdminPage() {
                   }))
                 }
                 placeholder={t("dialog.fields.role.placeholder")}
+                value={formData.role_name}
               />
             </div>
 
@@ -386,12 +385,12 @@ export default function VarslingAdminPage() {
             <div className="space-y-2">
               <Label>{t("dialog.fields.email.label")} *</Label>
               <Input
-                type="email"
-                value={formData.email}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, email: e.target.value }))
                 }
                 placeholder={t("dialog.fields.email.placeholder")}
+                type="email"
+                value={formData.email}
               />
             </div>
 
@@ -399,17 +398,17 @@ export default function VarslingAdminPage() {
             <div className="space-y-2">
               <Label>{t("dialog.fields.sortOrder.label")}</Label>
               <Input
-                type="number"
-                value={formData.sort_order}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    sort_order: parseInt(e.target.value) || 0,
+                    sort_order: Number.parseInt(e.target.value, 10) || 0,
                   }))
                 }
                 placeholder={t("dialog.fields.sortOrder.placeholder")}
+                type="number"
+                value={formData.sort_order}
               />
-              <p className="text-xs text-primary-60">
+              <p className="text-primary-60 text-xs">
                 {t("dialog.fields.sortOrder.description")}
               </p>
             </div>
@@ -455,14 +454,14 @@ export default function VarslingAdminPage() {
 
             <DialogFooter>
               <Button
+                disabled={isSubmitting}
+                onClick={() => setIsDialogOpen(false)}
                 type="button"
                 variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                disabled={isSubmitting}
               >
                 {t("dialog.buttons.cancel")}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button disabled={isSubmitting} type="submit">
                 {isSubmitting
                   ? t("dialog.buttons.saving")
                   : editingId

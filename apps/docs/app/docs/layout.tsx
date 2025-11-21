@@ -9,18 +9,18 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <DocsLayout
       {...base}
-      tree={source.pageTree}
       nav={{
         ...base.nav,
         title: (
           <>
             {logo}
-            <span className="font-medium in-[.uwu]:hidden in-[header]:text-[15px]">
+            <span className="in-[.uwu]:hidden font-medium in-[header]:text-[15px]">
               BISO Sites
             </span>
           </>
         ),
       }}
+      tree={source.pageTree}
     >
       {children}
     </DocsLayout>

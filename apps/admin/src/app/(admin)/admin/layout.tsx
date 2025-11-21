@@ -17,7 +17,7 @@ export default async function AdminLayout({
   // First check if user is authenticated (not anonymous)
   const authStatus = await getAuthStatus();
 
-  if (!authStatus.hasSession || !authStatus.isAuthenticated) {
+  if (!(authStatus.hasSession && authStatus.isAuthenticated)) {
     return redirect("/auth/login");
   }
 
@@ -33,15 +33,14 @@ export default async function AdminLayout({
   }
 
   // Add fallback for when name is undefined
-  const firstName =
-    user && user.user.name ? user.user.name.split(" ")[0] : "User";
+  const firstName = user?.user.name ? user.user.name.split(" ")[0] : "User";
 
   // Fetch initial notifications
   const initialNotifications = await fetchNotifications();
 
   return (
     <AdminProviders initialNotifications={initialNotifications}>
-      <Component roles={roles} firstName={firstName || "User"}>
+      <Component firstName={firstName || "User"} roles={roles}>
         {children}
       </Component>
     </AdminProviders>

@@ -4,10 +4,10 @@ import { Award } from "lucide-react";
 import { motion } from "motion/react";
 import type { Locale } from "@/i18n/config";
 
-interface FocusAreasProps {
+type FocusAreasProps = {
   campusMetadata: CampusMetadata | null;
   locale: Locale;
-}
+};
 
 export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
   const focusAreas = campusMetadata
@@ -26,32 +26,32 @@ export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
   return (
     <section>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
+        className="mb-8 text-center"
+        initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="text-gray-900 mb-4">
+        <h2 className="mb-4 text-gray-900">
           {locale === "en" ? "Our Focus Areas" : "Våre fokusområder"}
         </h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-gray-600">
           {locale === "en"
             ? "We're dedicated to creating exceptional experiences across these key areas"
             : "Vi er dedikerte til å skape eksepsjonelle opplevelser innenfor disse nøkkelområdene"}
         </p>
       </motion.div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {focusAreas.map((area, index) => (
           <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            key={index}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer bg-linear-to-br from-white to-[#3DA9E0]/5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] flex items-center justify-center">
-                  <Award className="w-6 h-6 text-white" />
+            <Card className="cursor-pointer border-0 bg-linear-to-br from-white to-[#3DA9E0]/5 p-6 shadow-lg transition-all hover:scale-105 hover:shadow-xl">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+                  <Award className="h-6 w-6 text-white" />
                 </div>
                 <h3 className="text-gray-900">{area}</h3>
               </div>

@@ -49,35 +49,35 @@ const ROLE_COLORS: RoleColors = {
   },
 };
 
-interface RoleBadgeProps {
+type RoleBadgeProps = {
   role: string;
   className?: string;
-}
+};
 
 export function RoleBadge({ role, className }: RoleBadgeProps) {
   const colors = ROLE_COLORS[role] || ROLE_COLORS.default;
 
   return (
     <Badge
-      variant="outline"
       className={cn(
-        "rounded-md font-medium border",
+        "rounded-md border font-medium",
         colors.bg,
         colors.text,
         colors.border,
         className
       )}
+      variant="outline"
     >
       {role}
     </Badge>
   );
 }
 
-interface RoleBadgeListProps {
+type RoleBadgeListProps = {
   roles: string[];
   limit?: number;
   className?: string;
-}
+};
 
 export function RoleBadgeList({
   roles,
@@ -95,8 +95,8 @@ export function RoleBadgeList({
 
       {extraCount > 0 && (
         <Badge
+          className="rounded-md border border-gray-200 bg-gray-100 font-medium text-gray-800"
           variant="outline"
-          className="rounded-md font-medium border bg-gray-100 text-gray-800 border-gray-200"
         >
           +{extraCount} more
         </Badge>

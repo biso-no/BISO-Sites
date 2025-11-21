@@ -20,10 +20,10 @@ import {
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 
-interface OrderDetailsClientProps {
+type OrderDetailsClientProps = {
   order: Orders;
   isSuccess: boolean;
-}
+};
 
 const statusConfig = {
   pending: {
@@ -97,39 +97,39 @@ export function OrderDetailsClient({
       {/* Hero Section */}
       <div className="relative h-[40vh] overflow-hidden">
         <ImageWithFallback
-          src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?w=1080"
           alt="Order Confirmation"
-          fill
           className="object-cover"
+          fill
+          src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?w=1080"
         />
         <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
 
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="mx-auto max-w-4xl px-4 text-center">
             <motion.button
-              onClick={() => router.push("/shop")}
-              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="absolute top-8 left-8 flex items-center gap-2 text-white hover:text-[#3DA9E0] transition-colors"
+              className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-[#3DA9E0]"
+              initial={{ opacity: 0, x: -20 }}
+              onClick={() => router.push("/shop")}
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
               Back to Shop
             </motion.button>
 
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 30 }}
               transition={{ duration: 0.8 }}
             >
               <StatusIcon
-                className={`w-20 h-20 mx-auto mb-4 ${config.color}`}
+                className={`mx-auto mb-4 h-20 w-20 ${config.color}`}
               />
-              <h1 className="mb-4 text-white text-4xl md:text-5xl font-bold">
+              <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
                 {isSuccess && order.status === "paid"
                   ? "Order Confirmed!"
                   : "Order Details"}
               </h1>
-              <p className="text-white/90 text-lg">
+              <p className="text-lg text-white/90">
                 Order #{order.$id.slice(-8).toUpperCase()}
               </p>
             </motion.div>
@@ -137,21 +137,21 @@ export function OrderDetailsClient({
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="mx-auto max-w-4xl px-4 py-12">
         {/* Success Message */}
         {isSuccess && order.status === "paid" && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 20 }}
           >
-            <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
+            <Card className={`mb-8 p-6 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
-                <CheckCircle2 className="w-8 h-8 text-green-600 shrink-0" />
+                <CheckCircle2 className="h-8 w-8 shrink-0 text-green-600" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="mb-2 font-bold text-2xl text-gray-900">
                     Thank You for Your Purchase!
                   </h2>
-                  <p className="text-gray-700 mb-4">
+                  <p className="mb-4 text-gray-700">
                     Your payment has been confirmed and your order is being
                     processed. You&apos;ll receive a confirmation email shortly
                     with pickup details.
@@ -159,16 +159,16 @@ export function OrderDetailsClient({
                   <div className="flex flex-wrap gap-2">
                     {order.vipps_receipt_url && (
                       <Button
-                        variant="outline"
-                        size="sm"
+                        className="border-green-300 text-green-700 hover:bg-green-100"
                         onClick={() =>
                           window.open(order.vipps_receipt_url!, "_blank")
                         }
-                        className="border-green-300 text-green-700 hover:bg-green-100"
+                        size="sm"
+                        variant="outline"
                       >
-                        <Receipt className="w-4 h-4 mr-2" />
+                        <Receipt className="mr-2 h-4 w-4" />
                         View Vipps Receipt
-                        <ExternalLink className="w-3 h-3 ml-2" />
+                        <ExternalLink className="ml-2 h-3 w-3" />
                       </Button>
                     )}
                   </div>
@@ -181,26 +181,26 @@ export function OrderDetailsClient({
         {/* Failed/Cancelled Message */}
         {(order.status === "failed" || order.status === "cancelled") && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 20 }}
           >
-            <Card className={`p-6 mb-8 ${config.bg} ${config.border} border-2`}>
+            <Card className={`mb-8 p-6 ${config.bg} ${config.border} border-2`}>
               <div className="flex items-start gap-4">
-                <XCircle className={`w-8 h-8 ${config.color} shrink-0`} />
+                <XCircle className={`h-8 w-8 ${config.color} shrink-0`} />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="mb-2 font-bold text-2xl text-gray-900">
                     {order.status === "cancelled"
                       ? "Order Cancelled"
                       : "Payment Failed"}
                   </h2>
-                  <p className="text-gray-700 mb-4">
+                  <p className="mb-4 text-gray-700">
                     {order.status === "cancelled"
                       ? "This order was cancelled. Your items are still in your cart if you'd like to try again."
                       : "The payment for this order failed. Please try again or contact support if the problem persists."}
                   </p>
                   <Button
+                    className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
                     onClick={() => router.push("/shop/cart")}
-                    className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
                   >
                     Return to Cart
                   </Button>
@@ -210,20 +210,20 @@ export function OrderDetailsClient({
           </motion.div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid gap-8 md:grid-cols-3">
           {/* Order Information */}
-          <div className="md:col-span-2 space-y-8">
+          <div className="space-y-8 md:col-span-2">
             {/* Order Status */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="p-6 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-4 text-xl font-bold">
+              <Card className="border-0 p-6 shadow-lg">
+                <h2 className="mb-4 font-bold text-gray-900 text-xl">
                   Order Status
                 </h2>
-                <div className="flex items-center gap-3 mb-4">
+                <div className="mb-4 flex items-center gap-3">
                   <Badge
                     className={`${config.bg} ${config.color} border-0 px-4 py-2 text-base`}
                   >
@@ -231,7 +231,7 @@ export function OrderDetailsClient({
                   </Badge>
                   <span className="text-gray-600">{config.description}</span>
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-gray-600 text-sm">
                   <div>
                     <strong>Order Date:</strong> {orderDate}
                   </div>
@@ -246,25 +246,25 @@ export function OrderDetailsClient({
 
             {/* Order Items */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="p-6 border-0 shadow-lg">
-                <h2 className="text-gray-900 mb-6 text-xl font-bold">
+              <Card className="border-0 p-6 shadow-lg">
+                <h2 className="mb-6 font-bold text-gray-900 text-xl">
                   Order Items
                 </h2>
                 <div className="space-y-4">
                   {items.map((item: any, index: number) => (
                     <div
+                      className="flex gap-4 rounded-lg bg-gray-50 p-4"
                       key={index}
-                      className="flex gap-4 p-4 bg-gray-50 rounded-lg"
                     >
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">
                           {item.name}
                         </h3>
-                        <div className="text-sm text-gray-600 mt-1">
+                        <div className="mt-1 text-gray-600 text-sm">
                           Quantity: {item.quantity}
                         </div>
                       </div>
@@ -273,7 +273,7 @@ export function OrderDetailsClient({
                           {(item.price * item.quantity).toFixed(2)}{" "}
                           {order.currency}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-gray-600 text-sm">
                           {item.price.toFixed(2)} {order.currency} each
                         </div>
                       </div>
@@ -299,7 +299,7 @@ export function OrderDetailsClient({
                     </div>
                   )}
                   {order.membership_applied && (
-                    <div className="text-sm text-[#3DA9E0]">
+                    <div className="text-[#3DA9E0] text-sm">
                       ✓ Member discount applied (
                       {order.member_discount_percent || 0}%)
                     </div>
@@ -309,7 +309,7 @@ export function OrderDetailsClient({
                     <span className="text-green-600">Free (Campus Pickup)</span>
                   </div>
                   <Separator className="my-2" />
-                  <div className="flex justify-between text-xl font-bold text-gray-900">
+                  <div className="flex justify-between font-bold text-gray-900 text-xl">
                     <span>Total</span>
                     <span>
                       {order.total.toFixed(2)} {order.currency}
@@ -325,12 +325,12 @@ export function OrderDetailsClient({
             {/* Customer Information */}
             {(order.buyer_name || order.buyer_email || order.buyer_phone) && (
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: 20 }}
                 transition={{ delay: 0.3 }}
               >
-                <Card className="p-6 border-0 shadow-lg">
-                  <h3 className="font-bold text-gray-900 mb-4">
+                <Card className="border-0 p-6 shadow-lg">
+                  <h3 className="mb-4 font-bold text-gray-900">
                     Customer Information
                   </h3>
                   <div className="space-y-2 text-sm">
@@ -357,31 +357,31 @@ export function OrderDetailsClient({
             {/* Pickup Information */}
             {order.status === "paid" && (
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: 20 }}
                 transition={{ delay: 0.4 }}
               >
-                <Card className="p-6 border-0 shadow-lg bg-blue-50">
+                <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                   <div className="flex items-start gap-3">
-                    <Package className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <Package className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
                     <div>
-                      <h4 className="mb-2 text-gray-900 font-semibold">
+                      <h4 className="mb-2 font-semibold text-gray-900">
                         Pickup Details
                       </h4>
-                      <p className="text-sm text-gray-700 mb-2">
+                      <p className="mb-2 text-gray-700 text-sm">
                         Your order will be available for pickup at the BISO
                         office.
                       </p>
-                      <div className="text-sm text-gray-600">
-                        <div className="flex items-center gap-2 mb-1">
-                          <MapPin className="w-4 h-4 text-blue-600" />
+                      <div className="text-gray-600 text-sm">
+                        <div className="mb-1 flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-blue-600" />
                           <span>Main Building, Ground Floor</span>
                         </div>
                         <strong>Hours:</strong> Monday-Friday, 10:00-16:00
                         <br />
                         <strong>Pickup:</strong> Within 5 working days
                       </div>
-                      <p className="text-xs text-gray-500 mt-3">
+                      <p className="mt-3 text-gray-500 text-xs">
                         You&apos;ll receive an email when your order is ready
                         for pickup.
                       </p>
@@ -393,23 +393,23 @@ export function OrderDetailsClient({
 
             {/* Actions */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20 }}
               transition={{ delay: 0.5 }}
             >
               <div className="space-y-3">
                 <Button
+                  className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
                   onClick={() => router.push("/shop")}
-                  className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
                 >
                   Continue Shopping
                 </Button>
                 <Button
+                  className="w-full border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
                   onClick={() => window.print()}
                   variant="outline"
-                  className="w-full border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
                 >
-                  <Receipt className="w-4 h-4 mr-2" />
+                  <Receipt className="mr-2 h-4 w-4" />
                   Print Order
                 </Button>
               </div>

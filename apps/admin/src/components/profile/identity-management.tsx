@@ -39,29 +39,44 @@ export function IdentityManagement({
       provider === "email" ||
       provider === "magic-url" ||
       provider === "magicurl"
-    )
+    ) {
       return false;
+    }
     // Avoid removing the last remaining identity
-    if ((identities?.length || 0) <= 1) return false;
+    if ((identities?.length || 0) <= 1) {
+      return false;
+    }
     return true;
   };
 
   const providerLabel = (p: string) => {
     const key = (p || "").toLowerCase();
-    if (key === "microsoft") return "BISO";
-    if (key === "oidc") return "BI Student";
-    if (key === "email") return "Email";
-    if (key === "magic-url" || key === "magicurl") return "Magic URL";
+    if (key === "microsoft") {
+      return "BISO";
+    }
+    if (key === "oidc") {
+      return "BI Student";
+    }
+    if (key === "email") {
+      return "Email";
+    }
+    if (key === "magic-url" || key === "magicurl") {
+      return "Magic URL";
+    }
     return p;
   };
 
   const successUrl = useMemo(() => {
-    if (typeof window === "undefined") return "";
+    if (typeof window === "undefined") {
+      return "";
+    }
     return `${window.location.origin}/profile?linked=1`;
   }, []);
 
   const failureUrl = useMemo(() => {
-    if (typeof window === "undefined") return "";
+    if (typeof window === "undefined") {
+      return "";
+    }
     return `${window.location.origin}/profile?error=oauth_failed`;
   }, []);
 
@@ -76,13 +91,15 @@ export function IdentityManagement({
         );
         // Browser will redirect; no-op here
       } catch (err: any) {
-        toast.error("Linking failed: " + String(err?.message || err));
+        toast.error(`Linking failed: ${String(err?.message || err)}`);
       }
     });
   };
 
   const onRemove = async (identity: Identity) => {
-    if (!canRemove(identity)) return;
+    if (!canRemove(identity)) {
+      return;
+    }
     setRemovingId(identity.$id);
     try {
       const res = await removeIdentity(identity.$id);
@@ -119,22 +136,22 @@ export function IdentityManagement({
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <Button
-              onClick={() => linkProvider(OAuthProvider.Microsoft)}
-              disabled={isLinking}
               className="rounded-lg"
+              disabled={isLinking}
+              onClick={() => linkProvider(OAuthProvider.Microsoft)}
             >
               <Link2 className="mr-2 h-4 w-4" /> Link BISO
             </Button>
             <Button
-              variant="outline"
-              onClick={() => linkProvider(OAuthProvider.Oidc)}
-              disabled={isLinking}
               className="rounded-lg"
+              disabled={isLinking}
+              onClick={() => linkProvider(OAuthProvider.Oidc)}
+              variant="outline"
             >
               <Link2 className="mr-2 h-4 w-4" /> Link BI Student
             </Button>
           </div>
-          <p className="text-xs text-primary-60">
+          <p className="text-primary-60 text-xs">
             When linking, you will be redirected to complete the OAuth flow.
           </p>
         </CardContent>
@@ -149,32 +166,32 @@ export function IdentityManagement({
         </CardHeader>
         <CardContent className="space-y-3">
           {(identities?.length || 0) === 0 ? (
-            <div className="text-sm text-primary-60">
+            <div className="text-primary-60 text-sm">
               No identities linked yet.
             </div>
           ) : (
-            identities!.map((id) => (
+            identities?.map((id) => (
               <div
-                key={id.$id}
                 className="flex items-center justify-between rounded-lg border border-primary/10 bg-white px-3 py-2"
+                key={id.$id}
               >
                 <div className="flex items-center gap-3">
                   <Badge variant="secondary">
                     {providerLabel(id.provider)}
                   </Badge>
                   <div
-                    className="text-sm text-primary-80 truncate max-w-[28ch]"
+                    className="max-w-[28ch] truncate text-primary-80 text-sm"
                     title={id.providerUid || id.$id}
                   >
                     {id.providerUid || id.$id}
                   </div>
                 </div>
                 <Button
-                  variant="ghost"
-                  size="sm"
                   className="text-red-600 hover:bg-red-50"
-                  onClick={() => onRemove(id)}
                   disabled={!canRemove(id) || removingId === id.$id}
+                  onClick={() => onRemove(id)}
+                  size="sm"
+                  variant="ghost"
                 >
                   <Trash2 className="mr-1 h-4 w-4" /> Remove
                 </Button>

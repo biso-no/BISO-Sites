@@ -14,14 +14,16 @@ type ListParams = {
 const parseJsonSafely = <T>(
   value?: string | string[] | null
 ): T | undefined => {
-  if (!value) return undefined;
+  if (!value) {
+    return;
+  }
   try {
     return JSON.parse(
       typeof value === "string" ? value : JSON.stringify(value)
     ) as T;
   } catch (error) {
     console.error("Failed to parse JSON field for large event", error);
-    return undefined;
+    return;
   }
 };
 
@@ -37,7 +39,7 @@ const toParsedEvent = (event: LargeEvent): ParsedLargeEvent => {
     parsedMetadata: parseJsonSafely<Record<string, unknown>>(
       event.contentMetadata
     ),
-    parsedCampusConfigs: parseJsonSafely<Array<Record<string, unknown>>>(
+    parsedCampusConfigs: parseJsonSafely<Record<string, unknown>[]>(
       event.campusConfigs
     ),
   };
@@ -75,7 +77,9 @@ export async function listLargeEvents(
 export async function getLargeEventBySlug(
   slug: string
 ): Promise<ParsedLargeEvent | null> {
-  if (!slug) return null;
+  if (!slug) {
+    return null;
+  }
   try {
     const { db } = await createSessionClient();
 
@@ -105,8 +109,10 @@ export async function getLargeEventBySlug(
   }
 }
 
-async function getLargeEventItems(eventId: string): Promise<LargeEventItem[]> {
-  if (!eventId) return [];
+async function _getLargeEventItems(eventId: string): Promise<LargeEventItem[]> {
+  if (!eventId) {
+    return [];
+  }
   try {
     const { db } = await createSessionClient();
 

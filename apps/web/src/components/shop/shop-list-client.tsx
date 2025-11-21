@@ -12,10 +12,10 @@ import { listProducts } from "@/app/actions/webshop";
 import { useCampus } from "@/components/context/campus";
 import { ProductCard } from "./product-card";
 
-interface ShopListClientProps {
+type ShopListClientProps = {
   products: ContentTranslations[];
   isMember?: boolean;
-}
+};
 
 const categories = ["All", "Merch", "Trips", "Lockers", "Membership"];
 
@@ -60,7 +60,9 @@ export function ShopListClient({
     const productData = product.product_ref;
 
     // Filter out member-only products if user is not a member
-    if (productData?.member_only && !isMember) return false;
+    if (productData?.member_only && !isMember) {
+      return false;
+    }
 
     const matchesCategory =
       selectedCategory === "All" || productData?.category === selectedCategory;
@@ -82,45 +84,45 @@ export function ShopListClient({
   return (
     <>
       {/* Filters & Search */}
-      <div className="sticky top-20 z-40 bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="sticky top-20 z-40 border-gray-100 border-b bg-white/95 shadow-lg backdrop-blur-lg">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             {/* Search */}
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-gray-400" />
               <Input
-                type="text"
-                placeholder="Search products..."
-                value={searchQuery}
+                className="w-full border-[#3DA9E0]/20 pr-10 pl-10 focus:border-[#3DA9E0]"
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10 w-full border-[#3DA9E0]/20 focus:border-[#3DA9E0]"
+                placeholder="Search products..."
+                type="text"
+                value={searchQuery}
               />
               {searchQuery && (
                 <button
+                  className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 hover:text-gray-600"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               )}
             </div>
 
             {/* Category Filter */}
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              <Filter className="w-5 h-5 text-[#001731]" />
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Filter className="h-5 w-5 text-[#001731]" />
               {categories.map((category) => (
                 <Button
+                  className={
+                    selectedCategory === category
+                      ? "border-0 bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90"
+                      : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
+                  }
                   key={category}
                   onClick={() => setSelectedCategory(category)}
+                  size="sm"
                   variant={
                     selectedCategory === category ? "default" : "outline"
                   }
-                  className={
-                    selectedCategory === category
-                      ? "bg-[#3DA9E0] text-white hover:bg-[#3DA9E0]/90 border-0"
-                      : "border-[#3DA9E0]/20 text-[#001731] hover:bg-[#3DA9E0]/10"
-                  }
-                  size="sm"
                 >
                   {category}
                 </Button>
@@ -136,29 +138,29 @@ export function ShopListClient({
       </div>
 
       {/* Products Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-[#3DA9E0]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#3DA9E0]" />
             <span className="ml-3 text-gray-600">Loading products...</span>
           </div>
         ) : (
           <>
             <AnimatePresence mode="wait">
               <motion.div
-                key={selectedCategory + searchQuery}
-                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                className="grid gap-8 md:grid-cols-2 lg:grid-cols-3"
                 exit={{ opacity: 0, y: -20 }}
-                className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+                initial={{ opacity: 0, y: 20 }}
+                key={selectedCategory + searchQuery}
               >
                 {filteredProducts.map((product, index) => (
                   <ProductCard
-                    key={product.$id}
-                    product={product}
                     index={index}
                     isMember={isMember}
+                    key={product.$id}
                     onViewDetails={handleViewDetails}
+                    product={product}
                   />
                 ))}
               </motion.div>
@@ -167,24 +169,24 @@ export function ShopListClient({
             {/* No Results */}
             {filteredProducts.length === 0 && (
               <motion.div
-                initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-center py-16"
+                className="py-16 text-center"
+                initial={{ opacity: 0 }}
               >
-                <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-gray-900 mb-2 text-2xl font-bold">
+                <ShoppingBag className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                <h3 className="mb-2 font-bold text-2xl text-gray-900">
                   No products found
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="mb-6 text-gray-600">
                   Try adjusting your search or filters
                 </p>
                 <Button
+                  className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
                   onClick={() => {
                     setSelectedCategory("All");
                     setSearchQuery("");
                   }}
                   variant="outline"
-                  className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
                 >
                   Clear Filters
                 </Button>
@@ -195,17 +197,17 @@ export function ShopListClient({
       </div>
 
       {/* Pickup Info */}
-      <div className="bg-[#001731] text-white py-12">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h3 className="mb-4 text-2xl font-bold">
+      <div className="bg-[#001731] py-12 text-white">
+        <div className="mx-auto max-w-4xl px-4 text-center">
+          <h3 className="mb-4 font-bold text-2xl">
             All Products Available for Campus Pickup
           </h3>
-          <p className="text-white/80 mb-4 text-lg">
+          <p className="mb-4 text-lg text-white/80">
             All items purchased in the BISO Shop are available for pickup at the
             BISO office during opening hours. No shipping fees, no hassle - just
             convenient campus pickup!
           </p>
-          <p className="text-[#3DA9E0] font-semibold text-lg">
+          <p className="font-semibold text-[#3DA9E0] text-lg">
             <strong>BISO Office Hours:</strong> Monday-Friday, 10:00-16:00
           </p>
         </div>

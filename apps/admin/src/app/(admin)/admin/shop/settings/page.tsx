@@ -42,8 +42,8 @@ export default async function ShopSettingsPage() {
   return (
     <div className="flex w-full flex-col">
       <div className="mb-4">
-        <h1 className="text-xl font-semibold">{t("settings.title")}</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="font-semibold text-xl">{t("settings.title")}</h1>
+        <p className="text-muted-foreground text-sm">
           {t("settings.description")}
         </p>
       </div>
@@ -59,9 +59,9 @@ export default async function ShopSettingsPage() {
             <div className="grid gap-2">
               <Label htmlFor="shopName">{t("settings.fields.shopName")}</Label>
               <Input
+                defaultValue={general.shopName || "BISO Shop"}
                 id="shopName"
                 name="shopName"
-                defaultValue={general.shopName || "BISO Shop"}
               />
             </div>
             <div className="grid gap-2">
@@ -69,10 +69,10 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.contactEmail")}
               </Label>
               <Input
+                defaultValue={general.contactEmail || ""}
                 id="contactEmail"
                 name="contactEmail"
                 type="email"
-                defaultValue={general.contactEmail || ""}
               />
             </div>
             <div className="grid gap-2">
@@ -80,15 +80,15 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.defaultCampus")}
               </Label>
               <Input
+                defaultValue={general.defaultCampusId || ""}
                 id="defaultCampusId"
                 name="defaultCampusId"
-                defaultValue={general.defaultCampusId || ""}
               />
             </div>
           </CardContent>
           <CardFooter>
             <form action={saveSettings}>
-              <input type="hidden" name="section" value="general" />
+              <input name="section" type="hidden" value="general" />
               <Button type="submit">{t("settings.actions.saveGeneral")}</Button>
             </form>
           </CardFooter>
@@ -105,9 +105,9 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.vippsMerchantSerialNumber")}
               </Label>
               <Input
+                defaultValue={vipps.merchantSerialNumber || ""}
                 id="vipps_merchantSerialNumber"
                 name="vipps_merchantSerialNumber"
-                defaultValue={vipps.merchantSerialNumber || ""}
               />
             </div>
             <div className="grid gap-2">
@@ -115,9 +115,9 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.vippsSubscriptionKey")}
               </Label>
               <Input
+                defaultValue={vipps.subscriptionKey || ""}
                 id="vipps_subscriptionKey"
                 name="vipps_subscriptionKey"
-                defaultValue={vipps.subscriptionKey || ""}
               />
             </div>
             <div className="grid gap-2">
@@ -125,9 +125,9 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.vippsClientId")}
               </Label>
               <Input
+                defaultValue={vipps.clientId || ""}
                 id="vipps_clientId"
                 name="vipps_clientId"
-                defaultValue={vipps.clientId || ""}
               />
             </div>
             <div className="grid gap-2">
@@ -135,10 +135,10 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.vippsClientSecret")}
               </Label>
               <Input
+                defaultValue={vipps.clientSecret || ""}
                 id="vipps_clientSecret"
                 name="vipps_clientSecret"
                 type="password"
-                defaultValue={vipps.clientSecret || ""}
               />
             </div>
             <div className="grid gap-2">
@@ -146,9 +146,9 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.vippsReturnUrl")}
               </Label>
               <Input
+                defaultValue={vipps.returnUrl || ""}
                 id="vipps_returnUrl"
                 name="vipps_returnUrl"
-                defaultValue={vipps.returnUrl || ""}
               />
             </div>
             <div className="grid gap-2">
@@ -156,15 +156,15 @@ export default async function ShopSettingsPage() {
                 {t("settings.fields.vippsCallbackPrefix")}
               </Label>
               <Input
+                defaultValue={vipps.callbackPrefix || ""}
                 id="vipps_callbackPrefix"
                 name="vipps_callbackPrefix"
-                defaultValue={vipps.callbackPrefix || ""}
               />
             </div>
           </CardContent>
           <CardFooter>
             <form action={saveSettings}>
-              <input type="hidden" name="section" value="vipps" />
+              <input name="section" type="hidden" value="vipps" />
               <Button type="submit">{t("settings.actions.saveVipps")}</Button>
             </form>
           </CardFooter>

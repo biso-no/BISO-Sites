@@ -2,20 +2,19 @@ import "server-only";
 import { encode } from "gpt-tokenizer";
 import TurndownService from "turndown";
 import { extractTextFromPdf } from "@/lib/pdf-text-extractor";
-import { isSupportedContentType } from "./content-types";
 import { correctMimeType } from "./mime-utils";
 
-export interface ProcessedDocument {
+export type ProcessedDocument = {
   content: string;
   metadata: Record<string, any>;
   chunks: DocumentChunk[];
-}
+};
 
-export interface DocumentChunk {
+export type DocumentChunk = {
   content: string;
   metadata: Record<string, any>;
   chunkIndex: number;
-}
+};
 
 // Simple, effective chunking configuration
 const CHUNKING_CONFIG = {
@@ -26,7 +25,7 @@ const CHUNKING_CONFIG = {
 } as const;
 
 export class DocumentProcessor {
-  private turndownService: TurndownService;
+  private readonly turndownService: TurndownService;
 
   constructor() {
     this.turndownService = new TurndownService({
@@ -109,7 +108,7 @@ export class DocumentProcessor {
     const slideTexts: string[] = [];
 
     for (const [index, file] of Array.from(slideFiles.entries())) {
-      const xml = await zip.file(file)!.async("string");
+      const xml = await zip.file(file)?.async("string");
       const parsed = await parseStringPromise(xml);
 
       const texts: string[] = [];
@@ -164,7 +163,9 @@ export class DocumentProcessor {
       .filter((line) => line.trim())
       .slice(0, 1000); // Limit for safety
 
-    if (lines.length < 2) return text;
+    if (lines.length < 2) {
+      return text;
+    }
 
     const rows = lines.map((line) =>
       line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""))
@@ -178,7 +179,9 @@ export class DocumentProcessor {
   }
 
   private arrayToMarkdownTable(rows: any[][]): string | null {
-    if (rows.length === 0) return null;
+    if (rows.length === 0) {
+      return null;
+    }
 
     const header = rows[0].map((cell) =>
       String(cell || "").replace(/\|/g, "\\|")
@@ -189,7 +192,9 @@ export class DocumentProcessor {
         row.map((cell) => String(cell || "").replace(/\|/g, "\\|"))
       );
 
-    if (header.every((cell) => !cell)) return null;
+    if (header.every((cell) => !cell)) {
+      return null;
+    }
 
     const separator = header.map(() => "---");
     return [
@@ -256,7 +261,9 @@ export class DocumentProcessor {
       });
     }
 
-    if (sections.length < 2 || sections.length > 50) return [];
+    if (sections.length < 2 || sections.length > 50) {
+      return [];
+    }
 
     // Create chunks from sections
     for (let i = 0; i < sections.length; i++) {
@@ -267,7 +274,9 @@ export class DocumentProcessor {
       const sectionEnd = nextSection ? nextSection.start : content.length;
       const sectionContent = content.substring(sectionStart, sectionEnd).trim();
 
-      if (sectionContent.length < 50) continue;
+      if (sectionContent.length < 50) {
+        continue;
+      }
 
       const tokenCount = this.countTokens(sectionContent);
 
@@ -332,7 +341,9 @@ export class DocumentProcessor {
       }
 
       chunkContent = chunkContent.trim();
-      if (chunkContent.length < 50) break;
+      if (chunkContent.length < 50) {
+        break;
+      }
 
       chunks.push({
         content: chunkContent,
@@ -348,7 +359,9 @@ export class DocumentProcessor {
       position += chunkContent.length - overlapSize;
       partIndex++;
 
-      if (partIndex > 20) break; // Safety limit
+      if (partIndex > 20) {
+        break; // Safety limit
+      }
     }
 
     return chunks;
@@ -414,7 +427,9 @@ export class DocumentProcessor {
         chunkIndex++;
       }
 
-      if (endPos >= content.length) break;
+      if (endPos >= content.length) {
+        break;
+      }
 
       startPos = Math.max(startPos + 1, endPos - overlapChars);
     }
@@ -424,9 +439,11 @@ export class DocumentProcessor {
 
   private validateChunks(
     chunks: DocumentChunk[],
-    contentLength: number
+    _contentLength: number
   ): boolean {
-    if (chunks.length === 0 || chunks.length > 200) return false;
+    if (chunks.length === 0 || chunks.length > 200) {
+      return false;
+    }
 
     const tokenCounts = chunks.map((chunk) => this.countTokens(chunk.content));
     const avgTokens =

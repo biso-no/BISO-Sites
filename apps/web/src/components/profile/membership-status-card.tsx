@@ -35,9 +35,15 @@ export function MembershipStatusCard({
   const hasError = state && "ok" in state && !state.ok;
 
   const subtitle = useMemo(() => {
-    if (!hasBIIdentity) return "Link your BI Student account to verify.";
-    if (hasError) return "We couldn’t verify your status right now.";
-    if (isActive) return "Your BI Student membership is active.";
+    if (!hasBIIdentity) {
+      return "Link your BI Student account to verify.";
+    }
+    if (hasError) {
+      return "We couldn’t verify your status right now.";
+    }
+    if (isActive) {
+      return "Your BI Student membership is active.";
+    }
     return "No active membership found.";
   }, [isActive, hasError, hasBIIdentity]);
 
@@ -65,7 +71,7 @@ export function MembershipStatusCard({
         })();
         if (payload?.error) {
           setState({ ok: false, error: String(payload.error) });
-          toast.error("Verification failed: " + String(payload.error));
+          toast.error(`Verification failed: ${String(payload.error)}`);
           return;
         }
         const active =
@@ -82,7 +88,7 @@ export function MembershipStatusCard({
         });
       } catch (err: any) {
         setState({ ok: false, error: String(err?.message || err) });
-        toast.error("Verification error: " + String(err?.message || err));
+        toast.error(`Verification error: ${String(err?.message || err)}`);
       }
     });
   };
@@ -92,8 +98,8 @@ export function MembershipStatusCard({
       <h2 className="sr-only">BI Student Membership</h2>
       {/* Background flair */}
       <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-secondary-30 blur-3xl" />
-        <div className="absolute -bottom-28 -left-28 h-64 w-64 rounded-full bg-blue-accent/30 blur-3xl" />
+        <div className="-top-24 -right-24 absolute h-64 w-64 rounded-full bg-secondary-30 blur-3xl" />
+        <div className="-bottom-28 -left-28 absolute h-64 w-64 rounded-full bg-blue-accent/30 blur-3xl" />
       </div>
       <CardContent className="relative z-10 flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between">
         {/* Left: logos + title */}
@@ -118,41 +124,41 @@ export function MembershipStatusCard({
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <Image
-                  src="/images/logo-light.png"
                   alt="BISO"
-                  width={28}
-                  height={28}
                   className="rounded-sm"
+                  height={28}
+                  src="/images/logo-light.png"
+                  width={28}
                 />
-                <span className="text-primary-100 font-semibold">BISO</span>
+                <span className="font-semibold text-primary-100">BISO</span>
               </div>
               <span className="text-primary-40">•</span>
               <div className="flex items-center gap-2">
                 <img
-                  src="/images/BI_POSITIVE.svg"
                   alt="BI"
                   className="h-8 w-8"
+                  src="/images/BI_POSITIVE.svg"
                 />
-                <span className="text-primary-100 font-semibold">
+                <span className="font-semibold text-primary-100">
                   BI Student
                 </span>
               </div>
             </div>
             <div className="mt-1 flex items-center gap-2">
               <Badge
-                variant={
-                  isActive
-                    ? "secondary"
-                    : hasError
-                      ? "destructive"
-                      : "secondary"
-                }
                 className={
                   isActive
                     ? "bg-green-600 text-white hover:bg-green-600"
                     : hasError
                       ? "bg-red-600 text-white hover:bg-red-600"
                       : "bg-amber-500 text-white hover:bg-amber-500"
+                }
+                variant={
+                  isActive
+                    ? "secondary"
+                    : hasError
+                      ? "destructive"
+                      : "secondary"
                 }
               >
                 {isActive
@@ -161,7 +167,7 @@ export function MembershipStatusCard({
                     ? "Verification Error"
                     : "Not Verified"}
               </Badge>
-              <span className="truncate text-sm text-primary-70">
+              <span className="truncate text-primary-70 text-sm">
                 {subtitle}
               </span>
             </div>
@@ -172,24 +178,24 @@ export function MembershipStatusCard({
         <div className="flex flex-col items-start gap-2 md:items-end">
           <div className="flex flex-wrap items-center gap-2">
             <Button
-              onClick={onRefresh}
-              disabled={isRefreshing || !hasBIIdentity}
               className="rounded-lg"
+              disabled={isRefreshing || !hasBIIdentity}
+              onClick={onRefresh}
             >
               <RefreshCw className="mr-2 h-4 w-4" />{" "}
               {isRefreshing ? "Refreshing" : "Refresh status"}
             </Button>
             {isActive ? (
-              <Button asChild variant="outline" className="rounded-lg">
+              <Button asChild className="rounded-lg" variant="outline">
                 <Link href="/membership">View benefits</Link>
               </Button>
             ) : (
-              <Button asChild variant="outline" className="rounded-lg">
+              <Button asChild className="rounded-lg" variant="outline">
                 <Link href="/membership">Become a member</Link>
               </Button>
             )}
           </div>
-          <p className="text-xs text-primary-60">
+          <p className="text-primary-60 text-xs">
             {hasBIIdentity
               ? "Membership status is linked to your BI Student account."
               : "Link your BI Student account under Linked Accounts to verify."}

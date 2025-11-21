@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/ui/card";
@@ -42,7 +41,6 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
-  Building,
   Mail,
   RefreshCw,
   Save,
@@ -55,10 +53,10 @@ import { useState } from "react";
 import { updateProfile } from "@/lib/actions/user";
 import { toast } from "@/lib/hooks/use-toast";
 
-export interface UserFormProps {
+export type UserFormProps = {
   user: Users;
   campuses: Campus[];
-}
+};
 
 export function UserForm({ user: initialUser, campuses }: UserFormProps) {
   const [user, setUser] = useState<Users>(initialUser);
@@ -67,7 +65,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
   const t = useTranslations("adminUsers");
 
   const handleRoleChange = (role: string) => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     const currentRoles = user.roles || [];
     const newRoles = currentRoles.includes(role)
@@ -137,15 +137,15 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
   const bgColor = colors[nameHash % colors.length];
 
   return (
-    <Card className="shadow-sm max-w-4xl mx-auto">
+    <Card className="mx-auto max-w-4xl shadow-sm">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <Button
-              variant="ghost"
-              size="icon"
+              className="h-8 w-8 rounded-full"
               onClick={handleGoBack}
-              className="rounded-full h-8 w-8"
+              size="icon"
+              variant="ghost"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -163,9 +163,9 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={handleSave}
                   className="gap-2"
                   disabled={isSaving}
+                  onClick={handleSave}
                 >
                   {isSaving ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
@@ -184,72 +184,72 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
       </CardHeader>
 
       <CardContent className="space-y-8 pb-6">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-background/50">
+        <div className="flex flex-col items-start gap-6 md:flex-row">
+          <div className="flex flex-col items-center gap-3 rounded-lg border bg-background/50 p-4">
             <Avatar className="h-24 w-24">
-              <AvatarImage src="" alt={user.name || ""} />
+              <AvatarImage alt={user.name || ""} src="" />
               <AvatarFallback
-                className={`text-xl font-semibold text-white ${bgColor}`}
+                className={`font-semibold text-white text-xl ${bgColor}`}
               >
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="text-center">
               <h3 className="font-medium text-lg">{user.name}</h3>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
+              <p className="text-muted-foreground text-sm">{user.email}</p>
             </div>
             <Badge
-              variant={user.isActive ? "default" : "secondary"}
               className={
                 user.isActive
                   ? "bg-green-100 text-green-800 hover:bg-green-100"
                   : "bg-gray-100 text-gray-800 hover:bg-gray-100"
               }
+              variant={user.isActive ? "default" : "secondary"}
             >
               {user.isActive ? t("status.active") : t("status.inactive")}
             </Badge>
           </div>
 
           <div className="flex-1">
-            <Tabs defaultValue="profile" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-4">
-                <TabsTrigger value="profile" className="gap-2">
+            <Tabs className="w-full" defaultValue="profile">
+              <TabsList className="mb-4 grid grid-cols-3">
+                <TabsTrigger className="gap-2" value="profile">
                   <UserCog className="h-4 w-4" />
                   <span>{t("editor.profileTab")}</span>
                 </TabsTrigger>
-                <TabsTrigger value="roles" className="gap-2">
+                <TabsTrigger className="gap-2" value="roles">
                   <Shield className="h-4 w-4" />
                   <span>{t("editor.rolesTab")}</span>
                 </TabsTrigger>
-                <TabsTrigger value="security" className="gap-2">
+                <TabsTrigger className="gap-2" value="security">
                   <AlertTriangle className="h-4 w-4" />
                   <span>{t("editor.securityTab")}</span>
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="profile" className="space-y-4">
+              <TabsContent className="space-y-4" value="profile">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <Label htmlFor="name">{t("editor.fullName")}</Label>
                     <Input
+                      className="mt-1"
                       id="name"
-                      value={user.name || ""}
                       onChange={(e) =>
                         setUser({ ...user, name: e.target.value })
                       }
-                      className="mt-1"
+                      value={user.name || ""}
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="email">{t("form.email")}</Label>
                     <div className="relative mt-1">
-                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Mail className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
                       <Input
+                        className="pl-10"
+                        disabled
                         id="email"
                         value={user.email || ""}
-                        disabled
-                        className="pl-10"
                       />
                     </div>
                   </div>
@@ -257,10 +257,10 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                   <div>
                     <Label htmlFor="campus">{t("editor.campus")}</Label>
                     <Select
-                      value={user.campus_id || undefined}
                       onValueChange={(value) =>
                         setUser({ ...user, campus_id: value })
                       }
+                      value={user.campus_id || undefined}
                     >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder={t("editor.selectCampus")} />
@@ -279,17 +279,17 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                     <Label htmlFor="account-status">
                       {t("editor.accountStatus")}
                     </Label>
-                    <div className="flex items-center space-x-2 mt-3">
+                    <div className="mt-3 flex items-center space-x-2">
                       <Switch
-                        id="account-status"
                         checked={user.isActive}
+                        id="account-status"
                         onCheckedChange={(checked) =>
                           setUser({ ...user, isActive: checked })
                         }
                       />
                       <Label
+                        className="font-normal text-sm"
                         htmlFor="account-status"
-                        className="text-sm font-normal"
                       >
                         {user.isActive ? "Active" : "Inactive"}
                       </Label>
@@ -298,12 +298,12 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                 </div>
               </TabsContent>
 
-              <TabsContent value="roles" className="space-y-4">
-                <div className="bg-muted/40 p-4 rounded-lg">
-                  <h3 className="font-medium mb-1">
+              <TabsContent className="space-y-4" value="roles">
+                <div className="rounded-lg bg-muted/40 p-4">
+                  <h3 className="mb-1 font-medium">
                     {t("editor.userRolesTitle")}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="mb-4 text-muted-foreground text-sm">
                     {t("editor.userRolesDescription")}
                   </p>
 
@@ -313,26 +313,24 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                         const currentRoles = user.roles || [];
                         return (
                           <div
-                            key={role}
-                            className={`
-                            flex items-center gap-2 p-2 rounded-md transition-colors
-                            ${
+                            className={`flex items-center gap-2 rounded-md p-2 transition-colors ${
                               currentRoles.includes(role)
-                                ? "bg-primary/10 border border-primary/30"
-                                : "bg-muted border border-transparent"
+                                ? "border border-primary/30 bg-primary/10"
+                                : "border border-transparent bg-muted"
                             }
                           `}
+                            key={role}
                             onClick={() => handleRoleChange(role)}
                           >
                             <Checkbox
-                              id={`role-${role}`}
                               checked={currentRoles.includes(role)}
-                              onCheckedChange={() => handleRoleChange(role)}
                               className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                              id={`role-${role}`}
+                              onCheckedChange={() => handleRoleChange(role)}
                             />
                             <label
+                              className="flex-1 cursor-pointer font-medium text-sm leading-none"
                               htmlFor={`role-${role}`}
-                              className="text-sm font-medium leading-none cursor-pointer flex-1"
                             >
                               {role}
                             </label>
@@ -344,18 +342,17 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                 </div>
               </TabsContent>
 
-              <TabsContent value="security" className="space-y-4">
-                <div className="bg-muted/40 p-4 rounded-lg">
-                  <h3 className="font-medium mb-1">
+              <TabsContent className="space-y-4" value="security">
+                <div className="rounded-lg bg-muted/40 p-4">
+                  <h3 className="mb-1 font-medium">
                     {t("editor.accountSecurityTitle")}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="mb-4 text-muted-foreground text-sm">
                     {t("editor.accountSecurityDescription")}
                   </p>
 
                   <div className="space-y-2">
                     <Button
-                      variant="outline"
                       className="w-full sm:w-auto"
                       onClick={() => {
                         toast({
@@ -363,6 +360,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                           description: t("messages.passwordResetDescription"),
                         });
                       }}
+                      variant="outline"
                     >
                       {t("editor.passwordReset")}
                     </Button>

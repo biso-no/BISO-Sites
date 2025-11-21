@@ -26,16 +26,16 @@ export function FileUpload({
         <Label htmlFor={name}>{name}</Label>
         <Input
           id={name}
-          type="file"
           onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+          type="file"
         />
         {previewUrl && (
           <Image
-            src={previewUrl}
             alt={name ?? "Uploaded image"}
-            width={200}
-            height={200}
             className="rounded-md object-cover"
+            height={200}
+            src={previewUrl}
+            width={200}
           />
         )}
       </div>

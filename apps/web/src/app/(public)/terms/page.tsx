@@ -10,12 +10,12 @@ export const metadata: Metadata = {
 
 export default async function TermsPage() {
   const t = await getTranslations("terms");
-  const locale = (await getLocale()) as "no" | "en";
+  const _locale = (await getLocale()) as "no" | "en";
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title={t("title")}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Terms" }]}
+        title={t("title")}
       />
       <div className="prose max-w-none space-y-4">
         <p>{t("intro")}</p>

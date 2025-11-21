@@ -10,12 +10,12 @@ export const metadata: Metadata = {
 
 export default async function PrivacyPage() {
   const t = await getTranslations("privacy");
-  const locale = (await getLocale()) as "no" | "en";
+  const _locale = (await getLocale()) as "no" | "en";
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title={t("title")}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Privacy" }]}
+        title={t("title")}
       />
       <div className="prose max-w-none space-y-4">
         <p>{t("intro")}</p>

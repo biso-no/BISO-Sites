@@ -17,8 +17,8 @@ export default async function BusinessHotspotPage() {
   return (
     <div className="space-y-6">
       <PublicPageHeader
-        title={t("title")}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: t("title") }]}
+        title={t("title")}
       />
       <div className="prose max-w-none">
         <p>{t("intro")}</p>

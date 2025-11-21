@@ -1,14 +1,14 @@
-import React, { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
 
-export interface SectionProps {
+export type SectionProps = {
   children?: ReactNode;
   className?: string;
   backgroundColor?: "white" | "gray" | "primary" | "primary-strong" | "dark";
   padding?: "none" | "sm" | "md" | "lg" | "xl";
   maxWidth?: "default" | "full" | "narrow";
   id?: string;
-}
+};
 
 export function Section({
   children,
@@ -42,13 +42,13 @@ export function Section({
 
   return (
     <section
-      id={id}
       className={cn(
         "relative w-full",
         bgClasses[backgroundColor],
         paddingClasses[padding],
         className
       )}
+      id={id}
     >
       <div
         className={cn("mx-auto px-4 sm:px-6 lg:px-8", widthClasses[maxWidth])}

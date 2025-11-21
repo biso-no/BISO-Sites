@@ -15,10 +15,10 @@ import {
 import { motion } from "motion/react";
 import Link from "next/link";
 
-interface DepartmentCardProps {
+type DepartmentCardProps = {
   department: ContentTranslations;
   index: number;
-}
+};
 
 const typeColors: Record<string, string> = {
   committee: "bg-[#3DA9E0]/10 text-[#3DA9E0] border-[#3DA9E0]/30",
@@ -33,7 +33,9 @@ const typeIcons: Record<string, any> = {
 };
 
 const stripHtml = (html?: string | null) => {
-  if (!html) return "";
+  if (!html) {
+    return "";
+  }
   return html
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
@@ -54,28 +56,28 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 20 }}
       transition={{ delay: index * 0.1 }}
     >
-      <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group overflow-hidden">
+      <Card className="group h-full cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
         {/* Card Header */}
         <div className="relative h-32 bg-linear-to-br from-[#3DA9E0] to-[#001731] p-6">
           <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
+            <div className="-translate-y-1/2 absolute top-0 right-0 h-32 w-32 translate-x-1/2 rounded-full bg-white" />
+            <div className="-translate-x-1/2 absolute bottom-0 left-0 h-24 w-24 translate-y-1/2 rounded-full bg-white" />
           </div>
 
           <div className="relative flex items-start justify-between">
-            <div className="w-16 h-16 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/30 bg-white/20 backdrop-blur-sm transition-transform group-hover:scale-110">
               {dept?.logo ? (
                 <img
-                  src={dept.logo}
                   alt={department.title}
-                  className="w-10 h-10 object-contain"
+                  className="h-10 w-10 object-contain"
+                  src={dept.logo}
                 />
               ) : (
-                <TypeIcon className="w-8 h-8 text-white" />
+                <TypeIcon className="h-8 w-8 text-white" />
               )}
             </div>
 
@@ -89,31 +91,31 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
 
         {/* Card Body */}
         <div className="p-6">
-          <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+          <h3 className="mb-2 font-semibold text-foreground text-xl transition-colors group-hover:text-primary">
             {department.title}
           </h3>
 
-          <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+          <p className="mb-4 line-clamp-3 text-muted-foreground text-sm">
             {plainDescription ||
               "Denne enheten oppdaterer sin profil. Ta kontakt med campusstyret for å høre hvordan du kan bidra."}
           </p>
 
           {/* Meta Info */}
-          <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+          <div className="mb-4 flex items-center justify-between text-muted-foreground text-sm">
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-primary" />
+              <MapPin className="h-4 w-4 text-primary" />
               <span>{dept?.campus?.name || "Ukjent"}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
+              <Users className="h-4 w-4 text-primary" />
               <span>{boardMembersCount} medlemmer</span>
             </div>
           </div>
 
           {/* Social Links Count */}
           {socialsCount > 0 && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Sparkles className="h-4 w-4 text-primary" />
               <span>
                 Aktiv på {socialsCount} plattform
                 {socialsCount !== 1 ? "er" : ""}
@@ -125,12 +127,12 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
         {/* Card Footer */}
         <div className="px-6 pb-6">
           <Link
-            href={`/units/${dept?.$id || department.content_id}`}
             className="block"
+            href={`/units/${dept?.$id || department.content_id}`}
           >
-            <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white group">
+            <Button className="group w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
               Les mer
-              <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </Link>
         </div>

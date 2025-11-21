@@ -21,7 +21,6 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import React from "react";
 import { cn } from "../../lib/utils";
 import { Card } from "../ui/card";
 
@@ -49,19 +48,19 @@ const IconMap = {
 
 export type IconName = keyof typeof IconMap;
 
-export interface StatItem {
+export type StatItem = {
   value: string;
   label: string;
   icon?: IconName;
   description?: string;
-}
+};
 
-export interface StatsGridProps {
+export type StatsGridProps = {
   items: StatItem[];
   columns?: 2 | 3 | 4;
   variant?: "simple" | "card" | "floating";
   align?: "center" | "left";
-}
+};
 
 export function StatsGrid({
   items = [],
@@ -89,23 +88,23 @@ export function StatsGrid({
           if (variant === "card") {
             return (
               <Card
+                className="flex flex-col gap-4 p-6 transition-shadow hover:shadow-md"
                 key={index}
-                className="p-6 flex flex-col gap-4 hover:shadow-md transition-shadow"
               >
                 <div className={cn("flex flex-col gap-2", alignClasses[align])}>
                   {Icon && (
-                    <div className="p-3 rounded-lg bg-primary/5 text-primary mb-2">
-                      <Icon className="w-6 h-6" />
+                    <div className="mb-2 rounded-lg bg-primary/5 p-3 text-primary">
+                      <Icon className="h-6 w-6" />
                     </div>
                   )}
-                  <div className="text-3xl md:text-4xl font-bold text-primary">
+                  <div className="font-bold text-3xl text-primary md:text-4xl">
                     {item.value}
                   </div>
                   <div className="font-medium text-muted-foreground">
                     {item.label}
                   </div>
                   {item.description && (
-                    <div className="text-sm text-muted-foreground mt-1">
+                    <div className="mt-1 text-muted-foreground text-sm">
                       {item.description}
                     </div>
                   )}
@@ -117,16 +116,16 @@ export function StatsGrid({
           if (variant === "floating") {
             return (
               <div
-                key={index}
                 className={cn(
-                  "relative flex flex-col p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm shadow-xl",
+                  "relative flex flex-col rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-sm",
                   alignClasses[align]
                 )}
+                key={index}
               >
-                <div className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-linear-to-r from-primary to-primary/60 mb-2">
+                <div className="mb-2 bg-linear-to-r from-primary to-primary/60 bg-clip-text font-bold text-4xl text-transparent md:text-5xl">
                   {item.value}
                 </div>
-                <div className="text-lg font-medium text-foreground/80">
+                <div className="font-medium text-foreground/80 text-lg">
                   {item.label}
                 </div>
               </div>
@@ -136,18 +135,18 @@ export function StatsGrid({
           // Simple variant
           return (
             <div
-              key={index}
               className={cn("flex flex-col gap-2", alignClasses[align])}
+              key={index}
             >
               {Icon && (
                 <div className="mb-2 text-primary/80">
-                  <Icon className="w-8 h-8" />
+                  <Icon className="h-8 w-8" />
                 </div>
               )}
-              <div className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+              <div className="font-bold text-4xl text-foreground tracking-tight md:text-5xl">
                 {item.value}
               </div>
-              <div className="text-base font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="font-medium text-base text-muted-foreground uppercase tracking-wide">
                 {item.label}
               </div>
             </div>

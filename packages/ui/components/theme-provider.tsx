@@ -2,7 +2,7 @@
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import type * as React from "react";
 
-export interface ThemeProviderProps {
+export type ThemeProviderProps = {
   children: React.ReactNode;
   /** Default theme, e.g. 'system' | 'light' | 'dark' */
   defaultTheme?: string;
@@ -10,7 +10,7 @@ export interface ThemeProviderProps {
   enableSystem?: boolean;
   /** Storage key for theme */
   storageKey?: string;
-}
+};
 
 export function ThemeProvider({
   children,
@@ -23,9 +23,9 @@ export function ThemeProvider({
     <NextThemesProvider
       attribute="class"
       defaultTheme={defaultTheme}
+      disableTransitionOnChange
       enableSystem={enableSystem}
       storageKey={storageKey}
-      disableTransitionOnChange
       {...props}
     >
       {children}
