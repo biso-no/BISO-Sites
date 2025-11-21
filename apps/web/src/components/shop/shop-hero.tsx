@@ -1,37 +1,37 @@
-'use client'
+"use client";
 
-import { motion } from 'motion/react'
-import { ChevronDown, ShoppingBag, Sparkles, Users } from 'lucide-react'
-import { ImageWithFallback } from '@repo/ui/components/image'
-import { Badge } from '@repo/ui/components/ui/badge'
+import { ImageWithFallback } from "@repo/ui/components/image";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { ChevronDown, ShoppingBag, Sparkles, Users } from "lucide-react";
+import { motion } from "motion/react";
 
-interface ShopHeroProps {
-  isMember?: boolean
-}
+type ShopHeroProps = {
+  isMember?: boolean;
+};
 
 export function ShopHero({ isMember = false }: ShopHeroProps) {
   return (
     <div className="relative h-[50vh] overflow-hidden">
-            <ImageWithFallback
-              src="/images/logo-home.png"
-              alt="BISO logo"
-              width={140}               // pick the intrinsic pixel width
-              height={40}               // and height that matches your asset ratio
-              sizes="(max-width: 768px) 120px, 140px"
-              priority                   // above-the-fold
-              className="h-10 w-auto"    // control display size via CSS
-            />
+      <ImageWithFallback
+        alt="BISO logo"
+        className="h-10 w-auto"
+        height={40} // pick the intrinsic pixel width
+        priority // and height that matches your asset ratio
+        sizes="(max-width: 768px) 120px, 140px"
+        src="/images/logo-home.png" // above-the-fold
+        width={140} // control display size via CSS
+      />
       <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/70 to-[#001731]/90" />
-      
+
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="max-w-4xl mx-auto px-4 text-center">
+        <div className="mx-auto max-w-4xl px-4 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 30 }}
             transition={{ duration: 0.8 }}
           >
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <ShoppingBag className="w-12 h-12 text-[#3DA9E0]" />
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <ShoppingBag className="h-12 w-12 text-[#3DA9E0]" />
             </div>
             <h1 className="mb-6 text-white">
               BISO Shop
@@ -40,33 +40,35 @@ export function ShopHero({ isMember = false }: ShopHeroProps) {
                 Everything You Need
               </span>
             </h1>
-            <p className="text-white/90 max-w-2xl mx-auto">
-              From exclusive merch to trip deductibles and campus lockers - all available for pickup at BISO office.
+            <p className="mx-auto max-w-2xl text-white/90">
+              From exclusive merch to trip deductibles and campus lockers - all
+              available for pickup at BISO office.
             </p>
-            
+
             {!isMember && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
                 className="mt-6 inline-block"
+                initial={{ opacity: 0, y: 10 }}
+                transition={{ delay: 0.3 }}
               >
-                <Badge className="bg-[#3DA9E0] text-white border-0 px-4 py-2 text-base">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Join BISO from just 350 NOK/semester - unlock exclusive discounts!
+                <Badge className="border-0 bg-[#3DA9E0] px-4 py-2 text-base text-white">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Join BISO from just 350 NOK/semester - unlock exclusive
+                  discounts!
                 </Badge>
               </motion.div>
             )}
-            
+
             {isMember && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
                 className="mt-6 inline-block"
+                initial={{ opacity: 0, y: 10 }}
+                transition={{ delay: 0.3 }}
               >
-                <Badge className="bg-green-500 text-white border-0 px-4 py-2 text-base">
-                  <Users className="w-4 h-4 mr-2" />
+                <Badge className="border-0 bg-green-500 px-4 py-2 text-base text-white">
+                  <Users className="mr-2 h-4 w-4" />
                   Member prices activated!
                 </Badge>
               </motion.div>
@@ -76,13 +78,12 @@ export function ShopHero({ isMember = false }: ShopHeroProps) {
       </div>
 
       <motion.div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
         animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
+        className="-translate-x-1/2 absolute bottom-8 left-1/2"
+        transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
       >
-        <ChevronDown className="w-8 h-8 text-white/70" />
+        <ChevronDown className="h-8 w-8 text-white/70" />
       </motion.div>
     </div>
-  )
+  );
 }
-

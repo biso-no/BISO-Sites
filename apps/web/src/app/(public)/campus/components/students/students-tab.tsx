@@ -1,13 +1,13 @@
-import { motion } from "motion/react";
-import { Users, TrendingUp, Heart, Shield } from "lucide-react";
-import { BenefitsSection } from "./benefits-section";
 import type { CampusData } from "@repo/api/types/appwrite";
+import { Heart, Shield, TrendingUp, Users } from "lucide-react";
+import { motion } from "motion/react";
 import type { Locale } from "@/i18n/config";
+import { BenefitsSection } from "./benefits-section";
 
-interface StudentsTabProps {
+type StudentsTabProps = {
   campusData: CampusData | null;
   locale: Locale;
-}
+};
 
 export function StudentsTab({ campusData, locale }: StudentsTabProps) {
   const studentBenefits = campusData
@@ -29,7 +29,9 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
     : [];
 
   const socialNetwork = campusData
-    ? (locale === "en" ? campusData.socialNetwork_en : campusData.socialNetwork_nb) ||
+    ? (locale === "en"
+        ? campusData.socialNetwork_en
+        : campusData.socialNetwork_nb) ||
       campusData.socialNetwork_en ||
       campusData.socialNetwork_nb ||
       []
@@ -50,7 +52,7 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
 
   if (!hasBenefits) {
     return (
-      <div className="text-center py-12">
+      <div className="py-12 text-center">
         <p className="text-gray-600">
           {locale === "en"
             ? "No benefits information available for this campus yet."
@@ -63,16 +65,16 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
+        className="mb-12 text-center"
+        initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="text-gray-900 mb-4">
+        <h2 className="mb-4 text-gray-900">
           {locale === "en"
             ? "Member Benefits & Advantages"
             : "Medlemsfordeler og -fordeler"}
         </h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-gray-600">
           {locale === "en"
             ? "Unlock exclusive opportunities and support throughout your student journey"
             : "Lås opp eksklusive muligheter og støtte gjennom hele studietiden"}
@@ -82,7 +84,7 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
       <div className="space-y-8">
         {studentBenefits.length > 0 && (
           <BenefitsSection
-            title={locale === "en" ? "Membership Benefits" : "Medlemsfordeler"}
+            colorScheme="blue"
             description={
               locale === "en"
                 ? "Exclusive perks and discounts for BISO members"
@@ -90,13 +92,13 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
             }
             icon={Users}
             items={studentBenefits}
-            colorScheme="blue"
+            title={locale === "en" ? "Membership Benefits" : "Medlemsfordeler"}
           />
         )}
 
         {careerAdvantages.length > 0 && (
           <BenefitsSection
-            title={locale === "en" ? "Career Advantages" : "Karrierefordeler"}
+            colorScheme="green"
             description={
               locale === "en"
                 ? "Build your professional network and enhance your CV"
@@ -104,13 +106,13 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
             }
             icon={TrendingUp}
             items={careerAdvantages}
-            colorScheme="green"
+            title={locale === "en" ? "Career Advantages" : "Karrierefordeler"}
           />
         )}
 
         {socialNetwork.length > 0 && (
           <BenefitsSection
-            title={locale === "en" ? "Social Network" : "Sosialt nettverk"}
+            colorScheme="pink"
             description={
               locale === "en"
                 ? "Connect with fellow students and build lasting friendships"
@@ -118,13 +120,13 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
             }
             icon={Heart}
             items={socialNetwork}
-            colorScheme="pink"
+            title={locale === "en" ? "Social Network" : "Sosialt nettverk"}
           />
         )}
 
         {safety.length > 0 && (
           <BenefitsSection
-            title={locale === "en" ? "Safety & Support" : "Trygghet og støtte"}
+            colorScheme="purple"
             description={
               locale === "en"
                 ? "We ensure a safe and supportive environment for all members"
@@ -132,11 +134,10 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
             }
             icon={Shield}
             items={safety}
-            colorScheme="purple"
+            title={locale === "en" ? "Safety & Support" : "Trygghet og støtte"}
           />
         )}
       </div>
     </>
   );
 }
-

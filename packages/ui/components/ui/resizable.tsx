@@ -1,14 +1,16 @@
 "use client";
 
-import * as React from "react";
+import { cn } from "@repo/ui/lib/utils";
+import type * as React from "react";
 import {
+  PanelResizeHandle as ResizableHandlePrimitive,
   PanelGroup as ResizablePanelGroupPrimitive,
   Panel as ResizablePanelPrimitive,
-  PanelResizeHandle as ResizableHandlePrimitive,
 } from "react-resizable-panels";
-import { cn } from "@repo/ui/lib/utils";;
 
-type PanelGroupProps = React.ComponentProps<typeof ResizablePanelGroupPrimitive>;
+type PanelGroupProps = React.ComponentProps<
+  typeof ResizablePanelGroupPrimitive
+>;
 type PanelProps = React.ComponentProps<typeof ResizablePanelPrimitive>;
 type HandleProps = React.HTMLAttributes<HTMLDivElement>;
 
@@ -23,7 +25,10 @@ export function ResizablePanelGroup({ className, ...props }: PanelGroupProps) {
 
 export function ResizablePanel({ className, ...props }: PanelProps) {
   return (
-    <ResizablePanelPrimitive className={cn("h-full w-full", className)} {...props} />
+    <ResizablePanelPrimitive
+      className={cn("h-full w-full", className)}
+      {...props}
+    />
   );
 }
 
@@ -34,11 +39,9 @@ export function ResizableHandle({ className, ...props }: HandleProps) {
         "group relative flex w-2 items-center justify-center",
         "after:absolute after:inset-y-0 after:left-0 after:w-0.5 after:bg-border after:opacity-60",
         "hover:after:bg-primary/60",
-        className,
+        className
       )}
       {...(props as any)}
     />
   );
 }
-
-

@@ -1,19 +1,28 @@
 "use server";
-import { Client, Account, Teams, Storage, Users, Functions, Messaging, TablesDB } from "node-appwrite";
 import { cookies } from "next/headers";
-
+import {
+  Account,
+  Client,
+  Functions,
+  Messaging,
+  Storage,
+  TablesDB,
+  Teams,
+  Users,
+} from "node-appwrite";
 
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
-const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso"
-const NEXT_PUBLIC_APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1";
+const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
+const NEXT_PUBLIC_APPWRITE_ENDPOINT =
+  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+  "https://appwrite.biso.no/v1";
 
 export async function createSessionClient() {
   const client = new Client()
     .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
-    .setProject(APPWRITE_PROJECT)
+    .setProject(APPWRITE_PROJECT);
 
   const session = (await cookies()).get("a_session_biso");
-
 
   if (session) {
     client.setSession(session.value);
@@ -37,7 +46,7 @@ export async function createSessionClient() {
     },
     get messaging() {
       return new Messaging(client);
-    }
+    },
   };
 }
 
@@ -68,6 +77,6 @@ export async function createAdminClient() {
     },
     get messaging() {
       return new Messaging(client);
-    }
+    },
   };
 }

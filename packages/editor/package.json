@@ -1,0 +1,33 @@
+{
+  "name": "@repo/editor",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./config": "./src/config.tsx",
+    "./render": "./src/render.tsx",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "check-types": "tsc --noEmit",
+    "lint": "biome lint ."
+  },
+  "dependencies": {
+    "@measured/puck": "^0.20.2",
+    "@repo/ui": "workspace:*",
+    "@repo/api": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "lucide-react": "^0.552.0",
+    "sonner": "^1.4.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "5.9.2"
+  }
+}

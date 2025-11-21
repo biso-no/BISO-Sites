@@ -1,9 +1,9 @@
-import { searchSharePoint, getDocumentStats, listSharePointSites } from './rag';
-import { searchSiteContent } from './site-search';
+import { getDocumentStats, listSharePointSites, searchSharePoint } from "./rag";
+import { searchSiteContent } from "./site-search";
 
 export const tools = {
-	searchSharePoint,
-	getDocumentStats,
-	listSharePointSites,
+  searchSharePoint,
+  getDocumentStats,
+  listSharePointSites,
   searchSiteContent,
 };

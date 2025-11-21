@@ -1,9 +1,9 @@
-import 'server-only';
-import { Client, ResponseType } from '@microsoft/microsoft-graph-client';
-import { ConfidentialClientApplication } from '@azure/msal-node';
-import { z } from 'zod';
+import "server-only";
+import { ConfidentialClientApplication } from "@azure/msal-node";
+import { Client, ResponseType } from "@microsoft/microsoft-graph-client";
+import { z } from "zod";
 
-export interface SharePointConfig {
+export type SharePointConfig = {
   clientId: string;
   clientSecret: string;
   tenantId: string;
@@ -15,9 +15,9 @@ export interface SharePointConfig {
    * When provided, site listing will resolve only these sites instead of attempting to enumerate all sites.
    */
   siteIdentifiers?: string[];
-}
+};
 
-export interface SharePointDocument {
+export type SharePointDocument = {
   id: string;
   name: string;
   webUrl: string;
@@ -31,19 +31,19 @@ export interface SharePointDocument {
   createdBy: string;
   content?: string;
   metadata: Record<string, any>;
-}
+};
 
-export interface SharePointSite {
+export type SharePointSite = {
   id: string;
   name: string;
   displayName: string;
   webUrl: string;
-}
+};
 
 export class SharePointService {
-  private msalClient: ConfidentialClientApplication;
+  private readonly msalClient: ConfidentialClientApplication;
 
-  constructor(private config: SharePointConfig) {
+  constructor(private readonly config: SharePointConfig) {
     this.msalClient = new ConfidentialClientApplication({
       auth: {
         clientId: config.clientId,
@@ -55,11 +55,11 @@ export class SharePointService {
 
   private async getAccessToken(): Promise<string> {
     const result = await this.msalClient.acquireTokenByClientCredential({
-      scopes: ['https://graph.microsoft.com/.default'],
+      scopes: ["https://graph.microsoft.com/.default"],
     });
 
     if (!result?.accessToken) {
-      throw new Error('Failed to acquire access token');
+      throw new Error("Failed to acquire access token");
     }
 
     return result.accessToken;
@@ -82,11 +82,7 @@ export class SharePointService {
     if (configured.length > 0) {
       const resolvedSites: SharePointSite[] = [];
       const uniqueIdentifiers = Array.from(
-        new Set(
-          configured
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0)
-        )
+        new Set(configured.map((s) => s.trim()).filter((s) => s.length > 0))
       );
       for (const identifier of uniqueIdentifiers) {
         try {
@@ -106,7 +102,10 @@ export class SharePointService {
             });
           }
         } catch (error) {
-          console.error(`Failed to resolve configured site identifier: ${identifier}`, error);
+          console.error(
+            `Failed to resolve configured site identifier: ${identifier}`,
+            error
+          );
         }
       }
       // De-duplicate by site ID
@@ -119,7 +118,7 @@ export class SharePointService {
     // Fallback: attempt to enumerate sites (requires Sites.Read.All). With Sites.Selected this
     // will typically return 403 or empty; handle gracefully.
     try {
-      const response = await client.api('/sites').get();
+      const response = await client.api("/sites").get();
       const sites: SharePointSite[] = response.value.map((site: any) => ({
         id: site.id,
         name: site.name,
@@ -131,16 +130,18 @@ export class SharePointService {
         sites.map((s: SharePointSite) => [s.id, s])
       );
       return Array.from(uniqueSitesMap.values());
-    } catch (error) {
-      console.warn('Site enumeration failed. Provide SHAREPOINT_SITES to list specific sites.');
+    } catch (_error) {
+      console.warn(
+        "Site enumeration failed. Provide SHAREPOINT_SITES to list specific sites."
+      );
       return [];
     }
   }
 
   async listDocuments(
     siteId: string,
-    folderPath: string = '/',
-    recursive: boolean = false
+    folderPath = "/",
+    recursive = false
   ): Promise<SharePointDocument[]> {
     const client = await this.getAuthenticatedClient();
     const documents: SharePointDocument[] = [];
@@ -149,7 +150,12 @@ export class SharePointService {
       const drivesResponse = await client.api(`/sites/${siteId}/drives`).get();
 
       for (const drive of drivesResponse.value) {
-        const items = await this.getDriveItems(client, drive.id, folderPath, recursive);
+        const items = await this.getDriveItems(
+          client,
+          drive.id,
+          folderPath,
+          recursive
+        );
         documents.push(
           ...items.map((item) => ({
             ...item,
@@ -159,7 +165,7 @@ export class SharePointService {
         );
       }
     } catch (error) {
-      console.error('Error listing documents:', error);
+      console.error("Error listing documents:", error);
     }
 
     return documents;
@@ -174,22 +180,24 @@ export class SharePointService {
     const documents: SharePointDocument[] = [];
 
     try {
-      if (folderPath === '/') {
-        const response = await client.api(`/drives/${driveId}/root/children`).get();
+      if (folderPath === "/") {
+        const response = await client
+          .api(`/drives/${driveId}/root/children`)
+          .get();
         for (const item of response.value) {
           if (item.file) {
             documents.push({
               id: item.id,
               name: item.name,
               webUrl: item.webUrl,
-              siteId: '',
-              siteName: '',
-              driveId: '',
+              siteId: "",
+              siteName: "",
+              driveId: "",
               folderPath,
               contentType: item.file.mimeType,
               size: item.size,
               lastModified: item.lastModifiedDateTime,
-              createdBy: item.createdBy?.user?.displayName || 'Unknown',
+              createdBy: item.createdBy?.user?.displayName || "Unknown",
               metadata: {
                 fileName: item.name,
                 fileType: item.file.mimeType,
@@ -201,12 +209,19 @@ export class SharePointService {
             });
           } else if (item.folder && recursive) {
             const subPath = `/${item.name}`;
-            const subItems = await this.getDriveItems(client, driveId, subPath, recursive);
+            const subItems = await this.getDriveItems(
+              client,
+              driveId,
+              subPath,
+              recursive
+            );
             documents.push(...subItems);
           }
         }
       } else {
-        const response = await client.api(`/drives/${driveId}/root:${folderPath}:/children`).get();
+        const response = await client
+          .api(`/drives/${driveId}/root:${folderPath}:/children`)
+          .get();
 
         for (const item of response.value) {
           if (item.file) {
@@ -214,14 +229,14 @@ export class SharePointService {
               id: item.id,
               name: item.name,
               webUrl: item.webUrl,
-              siteId: '',
-              siteName: '',
-              driveId: '',
+              siteId: "",
+              siteName: "",
+              driveId: "",
               folderPath,
               contentType: item.file.mimeType,
               size: item.size,
               lastModified: item.lastModifiedDateTime,
-              createdBy: item.createdBy?.user?.displayName || 'Unknown',
+              createdBy: item.createdBy?.user?.displayName || "Unknown",
               metadata: {
                 fileName: item.name,
                 fileType: item.file.mimeType,
@@ -233,19 +248,27 @@ export class SharePointService {
             });
           } else if (item.folder && recursive) {
             const subPath = `${folderPath}/${item.name}`;
-            const subItems = await this.getDriveItems(client, driveId, subPath, recursive);
+            const subItems = await this.getDriveItems(
+              client,
+              driveId,
+              subPath,
+              recursive
+            );
             documents.push(...subItems);
           }
         }
       }
     } catch (error) {
-      console.error('Error getting drive items:', error);
+      console.error("Error getting drive items:", error);
     }
 
     return documents;
   }
 
-  async downloadDocument(driveId: string, itemId: string): Promise<ArrayBuffer> {
+  async downloadDocument(
+    driveId: string,
+    itemId: string
+  ): Promise<ArrayBuffer> {
     const client = await this.getAuthenticatedClient();
     const data = await client
       .api(`/drives/${driveId}/items/${itemId}/content`)
@@ -253,31 +276,45 @@ export class SharePointService {
       .get();
 
     // Normalize to ArrayBuffer regardless of environment
-    if (data instanceof ArrayBuffer) return data as ArrayBuffer;
+    if (data instanceof ArrayBuffer) {
+      return data as ArrayBuffer;
+    }
     if (Buffer.isBuffer(data)) {
       const buf: Buffer = data;
-      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      const ab = buf.buffer.slice(
+        buf.byteOffset,
+        buf.byteOffset + buf.byteLength
+      );
       return ab as ArrayBuffer;
     }
     // If for any reason a stream is returned, read it fully
-    if (typeof (data as any)?.pipe === 'function') {
+    if (typeof (data as any)?.pipe === "function") {
       const stream: NodeJS.ReadableStream = data as any;
       const chunks: Buffer[] = await new Promise((resolve, reject) => {
         const acc: Buffer[] = [];
-        stream.on('data', (chunk) => acc.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-        stream.on('end', () => resolve(acc));
-        stream.on('error', reject);
+        stream.on("data", (chunk) =>
+          acc.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+        );
+        stream.on("end", () => resolve(acc));
+        stream.on("error", reject);
       });
       const buf = Buffer.concat(chunks);
       return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
     }
 
-    throw new Error('Unexpected response type when downloading document content');
+    throw new Error(
+      "Unexpected response type when downloading document content"
+    );
   }
 
-  async getDocumentMetadata(driveId: string, itemId: string): Promise<Record<string, any>> {
+  async getDocumentMetadata(
+    driveId: string,
+    itemId: string
+  ): Promise<Record<string, any>> {
     const client = await this.getAuthenticatedClient();
-    const response = await client.api(`/drives/${driveId}/items/${itemId}`).get();
+    const response = await client
+      .api(`/drives/${driveId}/items/${itemId}`)
+      .get();
 
     return {
       fileName: response.name,
@@ -311,8 +348,10 @@ export class SharePointService {
     const parsed = new URL(siteUrl);
     const hostname = parsed.hostname; // e.g., contoso.sharepoint.com
     // Relative path after host, without leading slash
-    const relativePath = parsed.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
-    const pathSegment = relativePath.length > 0 ? `:/${relativePath}` : '';
+    const relativePath = parsed.pathname
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "");
+    const pathSegment = relativePath.length > 0 ? `:/${relativePath}` : "";
     // Graph expects /sites/{hostname}:/{site-path}
     const apiPath = `/sites/${hostname}${pathSegment}`;
     return await client.api(apiPath).get();
@@ -334,32 +373,34 @@ export function getSharePointConfig(): SharePointConfig {
   const tenantId = process.env.SHAREPOINT_TENANT_ID;
   const clientId = process.env.SHAREPOINT_CLIENT_ID;
   const clientSecret = process.env.SHAREPOINT_CLIENT_SECRET;
-  
-  if (!tenantId || !clientId || !clientSecret) {
+
+  if (!(tenantId && clientId && clientSecret)) {
     throw new Error(
-      'Missing required SharePoint configuration. Please ensure SHAREPOINT_TENANT_ID, ' +
-      'SHAREPOINT_CLIENT_ID, and SHAREPOINT_CLIENT_SECRET environment variables are set.'
+      "Missing required SharePoint configuration. Please ensure SHAREPOINT_TENANT_ID, " +
+        "SHAREPOINT_CLIENT_ID, and SHAREPOINT_CLIENT_SECRET environment variables are set."
     );
   }
-  
+
   const rawSites = process.env.SHAREPOINT_SITES;
-  let siteIdentifiers: string[] | undefined = undefined;
+  let siteIdentifiers: string[] | undefined;
   if (rawSites) {
     try {
       const trimmed = rawSites.trim();
-      if (trimmed.startsWith('[')) {
+      if (trimmed.startsWith("[")) {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
           siteIdentifiers = parsed.map((s) => String(s)).filter(Boolean);
         }
       } else {
         siteIdentifiers = trimmed
-          .split(',')
+          .split(",")
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
       }
-    } catch (err) {
-      console.warn('Failed to parse SHAREPOINT_SITES; expected JSON array or comma-separated list.');
+    } catch (_err) {
+      console.warn(
+        "Failed to parse SHAREPOINT_SITES; expected JSON array or comma-separated list."
+      );
     }
   }
 

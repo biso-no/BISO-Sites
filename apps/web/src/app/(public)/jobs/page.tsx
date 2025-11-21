@@ -1,65 +1,68 @@
-import { Suspense } from 'react'
-import { listJobs } from '@/app/actions/jobs'
-import { getLocale } from '@/app/actions/locale'
-import { JobsListClient } from '@/components/jobs/jobs-list-client'
-import { JobsHero } from '@/components/jobs/jobs-hero'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
-import { BookOpen, PartyPopper, Cog, Rocket } from 'lucide-react'
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { BookOpen, Cog, PartyPopper, Rocket } from "lucide-react";
+import { Suspense } from "react";
+import { listJobs } from "@/app/actions/jobs";
+import { getLocale } from "@/app/actions/locale";
+import { JobsHero } from "@/components/jobs/jobs-hero";
+import { JobsListClient } from "@/components/jobs/jobs-list-client";
 
 const jobCategories = [
-  { name: 'Academic Associations', icon: BookOpen, color: 'from-blue-500 to-indigo-600' },
-  { name: 'Societies', icon: PartyPopper, color: 'from-[#3DA9E0] to-cyan-500' },
-  { name: 'Staff Functions', icon: Cog, color: 'from-[#001731] to-slate-700' },
-  { name: 'Projects', icon: Rocket, color: 'from-purple-500 to-pink-500' },
-]
-
+  {
+    name: "Academic Associations",
+    icon: BookOpen,
+    color: "from-blue-500 to-indigo-600",
+  },
+  { name: "Societies", icon: PartyPopper, color: "from-[#3DA9E0] to-cyan-500" },
+  { name: "Staff Functions", icon: Cog, color: "from-[#001731] to-slate-700" },
+  { name: "Projects", icon: Rocket, color: "from-purple-500 to-pink-500" },
+];
 
 // This is a server component
 export const metadata = {
-  title: 'Join Our Team | BISO',
-  description: 'Discover open positions at BISO and join our team',
-}
+  title: "Join Our Team | BISO",
+  description: "Discover open positions at BISO and join our team",
+};
 
-async function JobsList({ locale }: { locale: 'en' | 'no' }) {
+async function JobsList({ locale }: { locale: "en" | "no" }) {
   // Fetch jobs on the server
   const jobs = await listJobs({
     locale,
-    status: 'published',
+    status: "published",
     limit: 100,
-  })
+  });
 
   // Calculate stats for hero
-  const paidPositions = jobs.filter(job => {
-    const metadata = job.job_ref?.metadata as Record<string, any>
-    return metadata.paid === true
-  }).length
+  const paidPositions = jobs.filter((job) => {
+    const metadata = job.job_ref?.metadata as Record<string, any>;
+    return metadata.paid === true;
+  }).length;
 
-  const departmentCount = new Set(
-    jobs.map(job => job.job_ref?.department_id).filter(Boolean)
-  ).size || jobCategories.length
+  const departmentCount =
+    new Set(jobs.map((job) => job.job_ref?.department_id).filter(Boolean))
+      .size || jobCategories.length;
 
   return (
     <>
-      <JobsHero 
-        totalPositions={jobs.length}
-        paidPositions={paidPositions}
+      <JobsHero
         departmentCount={departmentCount}
+        paidPositions={paidPositions}
+        totalPositions={jobs.length}
       />
       <JobsListClient jobs={jobs} />
     </>
-  )
+  );
 }
 
 function JobsListSkeleton() {
   return (
     <>
       <div className="relative h-[60vh]">
-        <Skeleton className="w-full h-full" />
+        <Skeleton className="h-full w-full" />
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid md:grid-cols-2 gap-8">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="space-y-4">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid gap-8 md:grid-cols-2">
+          {[...new Array(6)].map((_, i) => (
+            <div className="space-y-4" key={i}>
               <Skeleton className="h-48 w-full" />
               <Skeleton className="h-6 w-3/4" />
               <Skeleton className="h-4 w-full" />
@@ -70,11 +73,11 @@ function JobsListSkeleton() {
         </div>
       </div>
     </>
-  )
+  );
 }
 
 export default async function JobsPage() {
-  const locale = await getLocale()
+  const locale = await getLocale();
 
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
@@ -82,5 +85,5 @@ export default async function JobsPage() {
         <JobsList locale={locale} />
       </Suspense>
     </div>
-  )
+  );
 }

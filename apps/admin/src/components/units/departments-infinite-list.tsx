@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import type { Departments } from '@repo/api/types/appwrite';
-import { DepartmentCard } from './department-card';
-import { Button } from '@repo/ui/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
-import { getDepartmentsClient } from '@/lib/actions/departments';
+import type { Departments } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Loader2, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getDepartmentsClient } from "@/lib/actions/departments";
+import { DepartmentCard } from "./department-card";
 
-interface DepartmentsInfiniteListProps {
+type DepartmentsInfiniteListProps = {
   initialDepartments: (Departments & {
     campusName?: string;
     displayTitle?: string;
@@ -24,13 +24,13 @@ interface DepartmentsInfiniteListProps {
     type?: string;
     search?: string;
   };
-}
+};
 
 export function DepartmentsInfiniteList({
   initialDepartments,
   hasMore: initialHasMore,
   pageSize,
-  filters
+  filters,
 }: DepartmentsInfiniteListProps) {
   const router = useRouter();
   const [departments, setDepartments] = useState(initialDepartments);
@@ -42,8 +42,9 @@ export function DepartmentsInfiniteList({
 
   // Reset when filters change (using JSON.stringify for deep comparison)
   useEffect(() => {
-    const filtersChanged = JSON.stringify(filtersRef.current) !== JSON.stringify(filters);
-    
+    const filtersChanged =
+      JSON.stringify(filtersRef.current) !== JSON.stringify(filters);
+
     if (filtersChanged) {
       filtersRef.current = filters;
       setDepartments(initialDepartments);
@@ -53,25 +54,27 @@ export function DepartmentsInfiniteList({
   }, [filters, initialDepartments, initialHasMore, pageSize]);
 
   const loadMore = useCallback(async () => {
-    if (isLoading || !hasMore) return;
+    if (isLoading || !hasMore) {
+      return;
+    }
 
     setIsLoading(true);
     try {
       const result = await getDepartmentsClient({
         ...filters,
         limit: pageSize,
-        offset: offset
+        offset,
       });
 
       if (result.departments.length > 0) {
-        setDepartments(prev => [...prev, ...result.departments]);
-        setOffset(prev => prev + pageSize);
+        setDepartments((prev) => [...prev, ...result.departments]);
+        setOffset((prev) => prev + pageSize);
         setHasMore(result.departments.length === pageSize);
       } else {
         setHasMore(false);
       }
     } catch (error) {
-      console.error('Error loading more departments:', error);
+      console.error("Error loading more departments:", error);
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -87,15 +90,17 @@ export function DepartmentsInfiniteList({
   // Intersection Observer for infinite scroll
   useEffect(() => {
     // Don't set up observer until after initial render
-    if (!hasInitialized.current) return;
-    
+    if (!hasInitialized.current) {
+      return;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoading) {
           loadMore();
         }
       },
-      { threshold: 0.1, rootMargin: '100px' }
+      { threshold: 0.1, rootMargin: "100px" }
     );
 
     const currentTarget = observerTarget.current;
@@ -116,17 +121,22 @@ export function DepartmentsInfiniteList({
 
   if (departments.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
-        <div className="text-muted-foreground text-lg">No departments found</div>
-        <p className="text-sm text-muted-foreground max-w-md">
-          {filters.search || filters.campus_id || filters.type || filters.active !== undefined
+      <div className="flex flex-col items-center justify-center space-y-4 py-16 text-center">
+        <div className="text-lg text-muted-foreground">
+          No departments found
+        </div>
+        <p className="max-w-md text-muted-foreground text-sm">
+          {filters.search ||
+          filters.campus_id ||
+          filters.type ||
+          filters.active !== undefined
             ? "Try adjusting your filters to see more results."
             : "Get started by creating your first department."}
         </p>
-        <Button 
-          variant="outline" 
-          onClick={() => router.push('/admin/units/new')}
-          className="gap-2 mt-4"
+        <Button
+          className="mt-4 gap-2"
+          onClick={() => router.push("/admin/units/new")}
+          variant="outline"
         >
           <Plus className="h-4 w-4" />
           Create Department
@@ -137,18 +147,18 @@ export function DepartmentsInfiniteList({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {departments.map((department) => (
           <DepartmentCard
-            key={department.$id}
             department={department}
+            key={department.$id}
             onEdit={handleEditDepartment}
           />
         ))}
       </div>
 
       {/* Infinite scroll trigger */}
-      <div ref={observerTarget} className="flex justify-center py-8">
+      <div className="flex justify-center py-8" ref={observerTarget}>
         {isLoading && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -156,7 +166,7 @@ export function DepartmentsInfiniteList({
           </div>
         )}
         {!hasMore && departments.length > 0 && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             All departments loaded ({departments.length} total)
           </p>
         )}
@@ -164,4 +174,3 @@ export function DepartmentsInfiniteList({
     </div>
   );
 }
-

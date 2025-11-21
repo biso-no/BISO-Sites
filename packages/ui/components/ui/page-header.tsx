@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import * as React from "react"
 import { cn } from "@repo/ui/lib/utils";
+import type * as React from "react";
 
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
-  heading: string
-  subheading?: string
-  gradient?: boolean
-  golden?: boolean
-  actions?: React.ReactNode
+  heading: string;
+  subheading?: string;
+  gradient?: boolean;
+  golden?: boolean;
+  actions?: React.ReactNode;
 }
 
 export function PageHeader({
@@ -23,25 +23,20 @@ export function PageHeader({
   return (
     <div className={cn("grid gap-1 pb-8", className)} {...props}>
       <div className="flex items-center justify-between gap-4">
-        <h1 
+        <h1
           className={cn(
-            "text-3xl font-bold tracking-tight md:text-4xl",
+            "font-bold text-3xl tracking-tight md:text-4xl",
             gradient && "gradient-text",
-            golden && "gradient-text-gold",
+            golden && "gradient-text-gold"
           )}
         >
           {heading}
         </h1>
-        {actions && (
-          <div className="flex items-center gap-2">
-            {actions}
-          </div>
-        )}
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
       {subheading && (
         <p className="text-muted-foreground md:text-lg">{subheading}</p>
       )}
     </div>
-  )
+  );
 }
-

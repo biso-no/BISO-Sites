@@ -7,13 +7,17 @@ export default function SAIHPage() {
   return (
     <div className="space-y-6">
       <PublicPageHeader
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "About BISO", href: "/about" },
+          { label: t("title") },
+        ]}
         title={t("title")}
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "About BISO", href: "/about" }, { label: t("title") }]}
       />
       <p className="text-primary-70">{t("intro")}</p>
-      <div className="prose prose-primary max-w-none whitespace-pre-line">{t("content")}</div>
+      <div className="prose prose-primary max-w-none whitespace-pre-line">
+        {t("content")}
+      </div>
     </div>
   );
 }
-
-

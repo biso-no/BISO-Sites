@@ -1,18 +1,18 @@
 "use client";
 
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@repo/ui/components/ui/dialog";
-import { Button } from "@repo/ui/components/ui/button";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { Building2 } from "lucide-react";
 
-interface SummaryDialogProps {
+type SummaryDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: {
@@ -38,7 +38,7 @@ interface SummaryDialogProps {
   };
   onSubmit: () => void;
   isSubmitting?: boolean;
-}
+};
 
 export function SummaryDialog({
   open,
@@ -48,8 +48,8 @@ export function SummaryDialog({
   isSubmitting,
 }: SummaryDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Review Your Reimbursement</DialogTitle>
           <DialogDescription>
@@ -60,7 +60,9 @@ export function SummaryDialog({
         <div className="space-y-6">
           {/* Contact Info */}
           <div>
-            <h4 className="mb-3 text-gray-900 font-semibold">Contact Information</h4>
+            <h4 className="mb-3 font-semibold text-gray-900">
+              Contact Information
+            </h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-gray-500">Name:</span>
@@ -97,9 +99,9 @@ export function SummaryDialog({
 
           {/* Campus & Department */}
           <div>
-            <h4 className="mb-3 text-gray-900 font-semibold">Assignment</h4>
+            <h4 className="mb-3 font-semibold text-gray-900">Assignment</h4>
             <div className="flex items-center gap-2 text-sm">
-              <Building2 className="w-4 h-4 text-[#3DA9E0]" />
+              <Building2 className="h-4 w-4 text-[#3DA9E0]" />
               <span className="text-gray-900">
                 {data.campus} - {data.department}
               </span>
@@ -110,20 +112,20 @@ export function SummaryDialog({
 
           {/* Receipts */}
           <div>
-            <h4 className="mb-3 text-gray-900 font-semibold">
+            <h4 className="mb-3 font-semibold text-gray-900">
               Receipts ({data.attachments.length})
             </h4>
             <div className="space-y-2">
               {data.attachments.map((att, index) => (
                 <div
+                  className="flex items-center justify-between rounded bg-gray-50 p-2 text-sm"
                   key={index}
-                  className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded"
                 >
                   <div>
                     <p className="text-gray-900">{att.description}</p>
                     <p className="text-gray-500 text-xs">{att.date}</p>
                   </div>
-                  <span className="text-gray-900 font-medium">
+                  <span className="font-medium text-gray-900">
                     {att.amount.toFixed(2)} NOK
                   </span>
                 </div>
@@ -137,30 +139,38 @@ export function SummaryDialog({
           {data.description && (
             <>
               <div>
-                <h4 className="mb-3 text-gray-900 font-semibold">Description</h4>
-                <p className="text-sm text-gray-700">{data.description}</p>
+                <h4 className="mb-3 font-semibold text-gray-900">
+                  Description
+                </h4>
+                <p className="text-gray-700 text-sm">{data.description}</p>
               </div>
               <Separator />
             </>
           )}
 
           {/* Total */}
-          <div className="flex justify-between items-center p-4 bg-[#3DA9E0]/10 rounded-lg">
-            <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
-            <span className="text-2xl font-bold text-[#3DA9E0]">
+          <div className="flex items-center justify-between rounded-lg bg-[#3DA9E0]/10 p-4">
+            <span className="font-semibold text-gray-900 text-lg">
+              Total Amount:
+            </span>
+            <span className="font-bold text-2xl text-[#3DA9E0]">
               {data.total.toFixed(2)} NOK
             </span>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            disabled={isSubmitting}
+            onClick={() => onOpenChange(false)}
+            variant="outline"
+          >
             Go Back
           </Button>
           <Button
-            onClick={onSubmit}
+            className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
             disabled={isSubmitting}
-            className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+            onClick={onSubmit}
           >
             {isSubmitting ? "Submitting..." : "Submit Reimbursement"}
           </Button>
@@ -169,4 +179,3 @@ export function SummaryDialog({
     </Dialog>
   );
 }
-

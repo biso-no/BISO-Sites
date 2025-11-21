@@ -1,18 +1,24 @@
 "use client";
 
-import { ReactNode } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
-import { cn } from '@repo/ui/lib/utils';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { cn } from "@repo/ui/lib/utils";
+import type { ReactNode } from "react";
 
-interface GlassCardProps {
+type GlassCardProps = {
   title?: string;
   description?: string;
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  variant?: 'default' | 'premium' | 'subtle';
+  variant?: "default" | "premium" | "subtle";
   hover?: boolean;
-}
+};
 
 export function GlassCard({
   title,
@@ -20,13 +26,14 @@ export function GlassCard({
   children,
   className,
   contentClassName,
-  variant = 'default',
-  hover = false
+  variant = "default",
+  hover = false,
 }: GlassCardProps) {
   const variantStyles = {
     default: "bg-card/60 backdrop-blur-sm border-border/50",
-    premium: "bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-md border-primary/20 shadow-lg",
-    subtle: "bg-card/40 backdrop-blur-sm border-border/30"
+    premium:
+      "bg-linear-to-br from-card/80 to-card/40 backdrop-blur-md border-primary/20 shadow-lg",
+    subtle: "bg-card/40 backdrop-blur-sm border-border/30",
   };
 
   const hoverStyles = hover
@@ -43,21 +50,26 @@ export function GlassCard({
       )}
     >
       {/* Gradient overlay effect */}
-      {variant === 'premium' && (
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+      {variant === "premium" && (
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5" />
       )}
 
       {(title || description) && (
         <CardHeader className="relative z-10">
-          {title && <CardTitle className="text-xl font-semibold">{title}</CardTitle>}
-          {description && <CardDescription className="text-sm text-muted-foreground">{description}</CardDescription>}
+          {title && (
+            <CardTitle className="font-semibold text-xl">{title}</CardTitle>
+          )}
+          {description && (
+            <CardDescription className="text-muted-foreground text-sm">
+              {description}
+            </CardDescription>
+          )}
         </CardHeader>
       )}
-      
+
       <CardContent className={cn("relative z-10", contentClassName)}>
         {children}
       </CardContent>
     </Card>
   );
 }
-

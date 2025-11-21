@@ -1,50 +1,67 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { Mail, Bell, Calendar, Newspaper, Gift, Shield, AlertCircle, X } from 'lucide-react'
-import { TabsContent } from '@repo/ui/components/ui/tabs'
-import { Card } from '@repo/ui/components/ui/card'
-import { Button } from '@repo/ui/components/ui/button'
-import { Switch } from '@repo/ui/components/ui/switch'
-import { Label } from '@repo/ui/components/ui/label'
-import { Input } from '@repo/ui/components/ui/input'
-import { Separator } from '@repo/ui/components/ui/separator'
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
+import { Separator } from "@repo/ui/components/ui/separator";
+import { Switch } from "@repo/ui/components/ui/switch";
+import { TabsContent } from "@repo/ui/components/ui/tabs";
+import {
+  AlertCircle,
+  Bell,
+  Calendar,
+  Gift,
+  Mail,
+  Newspaper,
+  Shield,
+  X,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 
-interface SettingsTabProps {
-  bankAccount?: string
-}
+type SettingsTabProps = {
+  bankAccount?: string;
+};
 
-export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProps) {
-  const t = useTranslations('memberPortal.settings')
-  
+export function SettingsTab({
+  bankAccount: initialBankAccount,
+}: SettingsTabProps) {
+  const t = useTranslations("memberPortal.settings");
+
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
     events: true,
     news: false,
     benefits: true,
-  })
+  });
 
-  const [bankAccount, setBankAccount] = useState(initialBankAccount || '')
+  const [bankAccount, setBankAccount] = useState(initialBankAccount || "");
 
   return (
-    <TabsContent value="settings" className="space-y-8">
-      <Card className="p-8 border-0 shadow-lg dark:bg-gray-900/50 dark:backdrop-blur-sm">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{t('notificationPreferences')}</h3>
-        
+    <TabsContent className="space-y-8" value="settings">
+      <Card className="border-0 p-8 shadow-lg dark:bg-gray-900/50 dark:backdrop-blur-sm">
+        <h3 className="mb-6 font-bold text-gray-900 text-xl dark:text-gray-100">
+          {t("notificationPreferences")}
+        </h3>
+
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-gray-400" />
+              <Mail className="h-5 w-5 text-gray-400" />
               <div>
-                <Label className="text-base">{t('emailNotifications')}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('emailDescription')}</p>
+                <Label className="text-base">{t("emailNotifications")}</Label>
+                <p className="text-gray-600 text-sm dark:text-gray-400">
+                  {t("emailDescription")}
+                </p>
               </div>
             </div>
-            <Switch 
+            <Switch
               checked={notifications.email}
-              onCheckedChange={(checked) => setNotifications({...notifications, email: checked})}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, email: checked })
+              }
             />
           </div>
 
@@ -52,15 +69,19 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Bell className="w-5 h-5 text-gray-400" />
+              <Bell className="h-5 w-5 text-gray-400" />
               <div>
-                <Label className="text-base">{t('pushNotifications')}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('pushDescription')}</p>
+                <Label className="text-base">{t("pushNotifications")}</Label>
+                <p className="text-gray-600 text-sm dark:text-gray-400">
+                  {t("pushDescription")}
+                </p>
               </div>
             </div>
-            <Switch 
+            <Switch
               checked={notifications.push}
-              onCheckedChange={(checked) => setNotifications({...notifications, push: checked})}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, push: checked })
+              }
             />
           </div>
 
@@ -68,15 +89,19 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-gray-400" />
+              <Calendar className="h-5 w-5 text-gray-400" />
               <div>
-                <Label className="text-base">{t('eventUpdates')}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('eventDescription')}</p>
+                <Label className="text-base">{t("eventUpdates")}</Label>
+                <p className="text-gray-600 text-sm dark:text-gray-400">
+                  {t("eventDescription")}
+                </p>
               </div>
             </div>
-            <Switch 
+            <Switch
               checked={notifications.events}
-              onCheckedChange={(checked) => setNotifications({...notifications, events: checked})}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, events: checked })
+              }
             />
           </div>
 
@@ -84,15 +109,19 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Newspaper className="w-5 h-5 text-gray-400" />
+              <Newspaper className="h-5 w-5 text-gray-400" />
               <div>
-                <Label className="text-base">{t('newsUpdates')}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('newsDescription')}</p>
+                <Label className="text-base">{t("newsUpdates")}</Label>
+                <p className="text-gray-600 text-sm dark:text-gray-400">
+                  {t("newsDescription")}
+                </p>
               </div>
             </div>
-            <Switch 
+            <Switch
               checked={notifications.news}
-              onCheckedChange={(checked) => setNotifications({...notifications, news: checked})}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, news: checked })
+              }
             />
           </div>
 
@@ -100,61 +129,80 @@ export function SettingsTab({ bankAccount: initialBankAccount }: SettingsTabProp
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Gift className="w-5 h-5 text-gray-400" />
+              <Gift className="h-5 w-5 text-gray-400" />
               <div>
-                <Label className="text-base">{t('benefitsDiscounts')}</Label>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('benefitsDescription')}</p>
+                <Label className="text-base">{t("benefitsDiscounts")}</Label>
+                <p className="text-gray-600 text-sm dark:text-gray-400">
+                  {t("benefitsDescription")}
+                </p>
               </div>
             </div>
-            <Switch 
+            <Switch
               checked={notifications.benefits}
-              onCheckedChange={(checked) => setNotifications({...notifications, benefits: checked})}
+              onCheckedChange={(checked) =>
+                setNotifications({ ...notifications, benefits: checked })
+              }
             />
           </div>
         </div>
       </Card>
 
-      <Card className="p-8 border-0 shadow-lg dark:bg-gray-900/50 dark:backdrop-blur-sm">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{t('paymentInformation')}</h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{t('paymentDescription')}</p>
+      <Card className="border-0 p-8 shadow-lg dark:bg-gray-900/50 dark:backdrop-blur-sm">
+        <h3 className="mb-6 font-bold text-gray-900 text-xl dark:text-gray-100">
+          {t("paymentInformation")}
+        </h3>
+        <p className="mb-6 text-gray-600 dark:text-gray-400">
+          {t("paymentDescription")}
+        </p>
 
         <div className="space-y-4">
           <div>
-            <Label className="text-base">{t('bankAccount')}</Label>
-            <Input 
-              value={bankAccount} 
-              onChange={(e) => setBankAccount(e.target.value)}
-              placeholder={t('bankAccountPlaceholder')}
+            <Label className="text-base">{t("bankAccount")}</Label>
+            <Input
               className="mt-2"
+              onChange={(e) => setBankAccount(e.target.value)}
+              placeholder={t("bankAccountPlaceholder")}
+              value={bankAccount}
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              {t('bankAccountNote')}
+            <p className="mt-2 text-gray-500 text-xs dark:text-gray-400">
+              {t("bankAccountNote")}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <Shield className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-            <p className="text-sm text-green-700 dark:text-green-300">{t('securePayment')}</p>
+          <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+            <Shield className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+            <p className="text-green-700 text-sm dark:text-green-300">
+              {t("securePayment")}
+            </p>
           </div>
         </div>
       </Card>
 
-      <Card className="p-8 border-0 shadow-lg border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-900/20">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">{t('dangerZone')}</h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{t('dangerDescription')}</p>
+      <Card className="border-0 border-red-200 bg-red-50/30 p-8 shadow-lg dark:border-red-800 dark:bg-red-900/20">
+        <h3 className="mb-4 font-bold text-gray-900 text-xl dark:text-gray-100">
+          {t("dangerZone")}
+        </h3>
+        <p className="mb-6 text-gray-600 dark:text-gray-400">
+          {t("dangerDescription")}
+        </p>
 
         <div className="space-y-3">
-          <Button variant="outline" className="w-full justify-start border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20">
-            <AlertCircle className="w-4 h-4 mr-2" />
-            {t('cancelMembership')}
+          <Button
+            className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
+            variant="outline"
+          >
+            <AlertCircle className="mr-2 h-4 w-4" />
+            {t("cancelMembership")}
           </Button>
-          <Button variant="outline" className="w-full justify-start border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-            <X className="w-4 h-4 mr-2" />
-            {t('deleteAccount')}
+          <Button
+            className="w-full justify-start border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+            variant="outline"
+          >
+            <X className="mr-2 h-4 w-4" />
+            {t("deleteAccount")}
           </Button>
         </div>
       </Card>
     </TabsContent>
-  )
+  );
 }
-

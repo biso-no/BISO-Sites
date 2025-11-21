@@ -1,38 +1,38 @@
-import { Suspense } from 'react'
-import { notFound } from 'next/navigation'
-import { getJobBySlug } from '@/app/actions/jobs'
-import { getLocale } from '@/app/actions/locale'
-import { JobDetailsClient } from '@/components/jobs/job-details-client'
-import { Skeleton } from '@repo/ui/components/ui/skeleton'
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { getJobBySlug } from "@/app/actions/jobs";
+import { getLocale } from "@/app/actions/locale";
+import { JobDetailsClient } from "@/components/jobs/job-details-client";
 
-interface JobPageProps {
+type JobPageProps = {
   params: {
-    slug: string
-  }
-}
+    slug: string;
+  };
+};
 
 async function JobDetails({ slug }: { slug: string }) {
-  const locale = await getLocale()
-  
+  const locale = await getLocale();
+
   // Fetch the job
-  const job = await getJobBySlug(slug, locale)
-  
+  const job = await getJobBySlug(slug, locale);
+
   if (!job) {
-    notFound()
+    notFound();
   }
-  
-  return <JobDetailsClient job={job} />
+
+  return <JobDetailsClient job={job} />;
 }
 
 function JobDetailsSkeleton() {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
       <div className="relative h-[40vh]">
-        <Skeleton className="w-full h-full" />
+        <Skeleton className="h-full w-full" />
       </div>
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
             <Skeleton className="h-48 w-full" />
             <Skeleton className="h-64 w-full" />
             <Skeleton className="h-64 w-full" />
@@ -45,7 +45,7 @@ function JobDetailsSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default async function JobPage({ params }: JobPageProps) {
@@ -53,22 +53,22 @@ export default async function JobPage({ params }: JobPageProps) {
     <Suspense fallback={<JobDetailsSkeleton />}>
       <JobDetails slug={params.slug} />
     </Suspense>
-  )
+  );
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: JobPageProps) {
-  const locale = await getLocale()
-  const job = await getJobBySlug(params.slug, locale)
-  
+  const locale = await getLocale();
+  const job = await getJobBySlug(params.slug, locale);
+
   if (!job) {
     return {
-      title: 'Position Not Found | BISO',
-    }
+      title: "Position Not Found | BISO",
+    };
   }
-  
+
   return {
     title: `${job.title} | BISO Careers`,
     description: job.description,
-  }
+  };
 }

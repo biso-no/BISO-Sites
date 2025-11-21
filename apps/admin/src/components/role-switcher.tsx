@@ -1,26 +1,38 @@
-'use client';
-import { Select, SelectContent, SelectItem, SelectGroup, SelectTrigger, SelectValue } from '@repo/ui/components/ui/select';
+"use client";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
 
-interface RoleSwitcherProps {
+type RoleSwitcherProps = {
   roles: string[];
   selectedRole: string;
   setSelectedRole: (role: string) => void;
-}
+};
 
-export function RoleSwitcher({ roles, selectedRole, setSelectedRole }: RoleSwitcherProps) {
+export function RoleSwitcher({
+  roles,
+  selectedRole,
+  setSelectedRole,
+}: RoleSwitcherProps) {
+  if (!roles.includes("Admin")) {
+    return null; // Only show to Admins
+  }
 
-  if (!roles.includes('Admin')) return null; // Only show to Admins
-
-  const availableRoles = ['Admin', 'pr', 'finance', 'Control Committee', 'hr']; // Define all possible roles
+  const availableRoles = ["Admin", "pr", "finance", "Control Committee", "hr"]; // Define all possible roles
 
   // During SSR and initial hydration, use a consistent value to avoid mismatch
   const selectValue = selectedRole;
 
   return (
-    <div className="p-4 flex justify-between items-center">
+    <div className="flex items-center justify-between p-4">
       <span className="text-gray-700">View site as:</span>
-      <Select value={selectValue} onValueChange={setSelectedRole}>
-        <SelectTrigger className="w-full p-2 border rounded">
+      <Select onValueChange={setSelectedRole} value={selectValue}>
+        <SelectTrigger className="w-full rounded border p-2">
           <SelectValue placeholder="Select a role" />
         </SelectTrigger>
         <SelectContent>

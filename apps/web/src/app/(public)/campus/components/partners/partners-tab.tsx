@@ -1,18 +1,22 @@
-import { motion } from "motion/react";
-import { Briefcase, Globe, ExternalLink, CheckCircle } from "lucide-react";
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
-import { Button } from "@repo/ui/components/ui/button";
 import type { CampusData } from "@repo/api/types/appwrite";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
+import { Briefcase, CheckCircle, ExternalLink, Globe } from "lucide-react";
+import { motion } from "motion/react";
+import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 
-interface PartnersTabProps {
+type PartnersTabProps = {
   campusData: CampusData | null;
   campusName: string | null;
   locale: Locale;
-}
+};
 
-export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps) {
+export function PartnersTab({
+  campusData,
+  campusName,
+  locale,
+}: PartnersTabProps) {
   const businessBenefits = campusData
     ? (locale === "en"
         ? campusData.businessBenefits_en
@@ -24,7 +28,7 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
 
   if (!businessBenefits || businessBenefits.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="py-12 text-center">
         <p className="text-gray-600">
           {locale === "en"
             ? "No partnership information available for this campus yet."
@@ -37,14 +41,14 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
+        className="mb-12 text-center"
+        initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="text-gray-900 mb-4">
+        <h2 className="mb-4 text-gray-900">
           {locale === "en" ? "Partner With Us" : "Samarbeid med oss"}
         </h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-gray-600">
           {locale === "en"
             ? `Connect with talented students and build your brand visibility${campusName ? ` at ${campusName}` : ""}`
             : `Få kontakt med talentfulle studenter og bygg din merkevaresynlighet${campusName ? ` ved ${campusName}` : ""}`}
@@ -52,25 +56,27 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
       </motion.div>
 
       <section className="space-y-8">
-        <Card className="p-8 border-0 shadow-xl bg-gradient-to-br from-[#001731]/5 to-white">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#001731] to-[#3DA9E0] flex items-center justify-center">
-              <Briefcase className="w-6 h-6 text-white" />
+        <Card className="border-0 bg-linear-to-br from-[#001731]/5 to-white p-8 shadow-xl">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#001731] to-[#3DA9E0]">
+              <Briefcase className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-gray-900">
-              {locale === "en" ? "Partnership Benefits" : "Partnerskapsfordeler"}
+              {locale === "en"
+                ? "Partnership Benefits"
+                : "Partnerskapsfordeler"}
             </h3>
           </div>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
             {businessBenefits.map((benefit, index) => (
               <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
+                className="flex items-start gap-3 rounded-lg bg-white p-4"
+                initial={{ opacity: 0, x: -20 }}
+                key={index}
                 transition={{ delay: index * 0.05 }}
-                className="flex items-start gap-3 p-4 bg-white rounded-lg"
               >
-                <CheckCircle className="w-5 h-5 text-[#001731] shrink-0 mt-0.5" />
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#001731]" />
                 <span className="text-gray-700">{benefit}</span>
               </motion.div>
             ))}
@@ -78,30 +84,30 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
         </Card>
 
         {/* CTA Card */}
-        <Card className="p-12 text-center border-0 shadow-xl bg-gradient-to-br from-[#3DA9E0]/10 to-[#001731]/10">
+        <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 p-12 text-center shadow-xl">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             transition={{ delay: 0.2 }}
           >
-            <Globe className="w-16 h-16 text-[#3DA9E0] mx-auto mb-6" />
-            <h3 className="text-gray-900 mb-4">
+            <Globe className="mx-auto mb-6 h-16 w-16 text-[#3DA9E0]" />
+            <h3 className="mb-4 text-gray-900">
               {locale === "en" ? "Ready to Partner?" : "Klar til å samarbeide?"}
             </h3>
-            <p className="text-gray-600 mb-8 max-w-xl mx-auto">
+            <p className="mx-auto mb-8 max-w-xl text-gray-600">
               {locale === "en"
                 ? "Get in touch with our partnership team to explore collaboration opportunities and create meaningful connections with students."
                 : "Ta kontakt med vårt partnerskapsteam for å utforske samarbeidsmuligheter og skape meningsfulle forbindelser med studenter."}
             </p>
             <Button
               asChild
-              className="bg-gradient-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white"
+              className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
             >
               <Link href="/contact">
                 {locale === "en"
                   ? "Contact Partnership Team"
                   : "Kontakt partnerskapsteamet"}
-                <ExternalLink className="w-4 h-4 ml-2" />
+                <ExternalLink className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </motion.div>
@@ -110,4 +116,3 @@ export function PartnersTab({ campusData, campusName, locale }: PartnersTabProps
     </>
   );
 }
-

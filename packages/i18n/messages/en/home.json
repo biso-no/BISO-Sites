@@ -33,10 +33,10 @@
       "events": "Events",
       "jobs": "Opportunities",
       "news": "News"
-      },
-      "featuredContent": "Featured {contentType}",
-      "featuredEvent": "Event",
-      "featuredNews": "News"
+    },
+    "featuredContent": "Featured {contentType}",
+    "featuredEvent": "Event",
+    "featuredNews": "News"
   },
   "about": {
     "upcomingEvents": "Upcoming events",

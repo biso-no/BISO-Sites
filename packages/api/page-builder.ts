@@ -2,8 +2,8 @@
 
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "./server";
-import { PageStatus } from "./types/appwrite";
-import type { Locale, PageVisibility, Pages, PageTranslations } from "./types/appwrite";
+import type { Locale, Pages, PageTranslations } from "./types/appwrite";
+import { PageStatus, PageVisibility } from "./types/appwrite";
 
 const DATABASE_ID = "app";
 const PAGES_TABLE_ID = "pages";
@@ -44,7 +44,9 @@ function cloneDocument(document: PageDocument): PageDocument {
   return JSON.parse(JSON.stringify(document));
 }
 
-function ensureDocument(document: PageDocument | null | undefined): PageDocument {
+function ensureDocument(
+  document: PageDocument | null | undefined
+): PageDocument {
   if (!document) {
     return cloneDocument(EMPTY_DOCUMENT);
   }
@@ -76,7 +78,9 @@ function serializeDraft(document: PageDocument | null | undefined): string {
   return JSON.stringify(document ? cloneDocument(document) : EMPTY_DOCUMENT);
 }
 
-function serializePublished(document: PageDocument | null | undefined): string | null {
+function serializePublished(
+  document: PageDocument | null | undefined
+): string | null {
   if (!document) {
     return null;
   }
@@ -84,7 +88,7 @@ function serializePublished(document: PageDocument | null | undefined): string |
   return JSON.stringify(cloneDocument(document));
 }
 
-export interface PageTranslationRecord {
+export type PageTranslationRecord = {
   id: string;
   pageId: string;
   locale: Locale;
@@ -97,9 +101,9 @@ export interface PageTranslationRecord {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
-}
+};
 
-export interface PageRecord {
+export type PageRecord = {
   id: string;
   slug: string;
   title: string;
@@ -110,37 +114,52 @@ export interface PageRecord {
   createdAt: string;
   updatedAt: string;
   translations: PageTranslationRecord[];
-}
+};
 
-export interface PublishedPage {
+export type PublishedPage = {
   page: PageRecord;
   translation: PageTranslationRecord;
   document: PageDocument;
-}
+};
 
 function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
-  const draft = decodeDocument((row as unknown as { draft_document?: unknown }).draft_document);
-  const published = decodeDocument((row as unknown as { puck_document?: unknown }).puck_document);
+  const draft = decodeDocument(
+    (row as unknown as { draft_document?: unknown }).draft_document
+  );
+  const published = decodeDocument(
+    (row as unknown as { puck_document?: unknown }).puck_document
+  );
 
   return {
     id: row.$id,
-    pageId: (row as unknown as { page_id?: string }).page_id ?? (row as unknown as { page?: { $id: string } }).page?.$id ?? "",
+    pageId:
+      (row as unknown as { page_id?: string }).page_id ??
+      (row as unknown as { page?: { $id: string } }).page?.$id ??
+      "",
     locale: row.locale,
     title: row.title,
     slug: (row as unknown as { slug?: string | null }).slug ?? null,
-    description: (row as unknown as { description?: string | null }).description ?? null,
+    description:
+      (row as unknown as { description?: string | null }).description ?? null,
     draftDocument: ensureDocument(draft ?? published),
     publishedDocument: published ? cloneDocument(published) : null,
     isPublished: !!(row as unknown as { is_published?: boolean }).is_published,
-    publishedAt: (row as unknown as { published_at?: string | null }).published_at ?? null,
+    publishedAt:
+      (row as unknown as { published_at?: string | null }).published_at ?? null,
     createdAt: row.$createdAt,
     updatedAt: row.$updatedAt,
   };
 }
 
 function normalizePage(row: Pages): PageRecord {
-  const translations = Array.isArray((row as unknown as { translation_refs?: PageTranslations[] }).translation_refs)
-    ? ((row as unknown as { translation_refs?: PageTranslations[] }).translation_refs ?? []).map(normalizeTranslation)
+  const translations = Array.isArray(
+    (row as unknown as { translation_refs?: PageTranslations[] })
+      .translation_refs
+  )
+    ? (
+        (row as unknown as { translation_refs?: PageTranslations[] })
+          .translation_refs ?? []
+      ).map(normalizeTranslation)
     : [];
 
   return {
@@ -150,7 +169,8 @@ function normalizePage(row: Pages): PageRecord {
     status: row.status as PageStatus,
     visibility: row.visibility as PageVisibility,
     template: (row as unknown as { template?: string | null }).template ?? null,
-    campusId: (row as unknown as { campus_id?: string | null }).campus_id ?? null,
+    campusId:
+      (row as unknown as { campus_id?: string | null }).campus_id ?? null,
     createdAt: row.$createdAt,
     updatedAt: row.$updatedAt,
     translations,
@@ -178,15 +198,17 @@ async function fetchTranslationRow(translationId: string) {
   });
 }
 
-export interface ListPagesParams {
+export type ListPagesParams = {
   search?: string;
   status?: PageStatus[];
   visibility?: PageVisibility[];
   limit?: number;
   campusId?: string | null;
-}
+};
 
-export async function listPages(params: ListPagesParams = {}): Promise<PageRecord[]> {
+export async function listPages(
+  params: ListPagesParams = {}
+): Promise<PageRecord[]> {
   const { db } = await createAdminClient();
 
   const queries = [
@@ -232,13 +254,17 @@ export async function getPageById(pageId: string): Promise<PageRecord | null> {
   }
 }
 
-export interface GetPageBySlugParams {
+export type GetPageBySlugParams = {
   slug: string;
   locale: Locale;
   preview?: boolean;
-}
+};
 
-export async function getPublishedPage({ slug, locale, preview = false }: GetPageBySlugParams): Promise<PublishedPage | null> {
+export async function getPublishedPage({
+  slug,
+  locale,
+  preview = false,
+}: GetPageBySlugParams): Promise<PublishedPage | null> {
   const { db } = await createSessionClient();
 
   const response = await db.listRows<Pages>({
@@ -275,7 +301,7 @@ export async function getPublishedPage({ slug, locale, preview = false }: GetPag
   }
 
   const baseDocument = preview
-    ? translation.draftDocument ?? translation.publishedDocument
+    ? (translation.draftDocument ?? translation.publishedDocument)
     : translation.publishedDocument;
 
   if (!baseDocument) {
@@ -289,16 +315,16 @@ export async function getPublishedPage({ slug, locale, preview = false }: GetPag
   };
 }
 
-export interface CreatePageTranslationInput {
+export type CreatePageTranslationInput = {
   locale: Locale;
   title: string;
   slug?: string | null;
   description?: string | null;
   draftDocument?: PageDocument | null;
   publish?: boolean;
-}
+};
 
-export interface CreatePageInput {
+export type CreatePageInput = {
   slug: string;
   title: string;
   status?: PageStatus;
@@ -306,7 +332,7 @@ export interface CreatePageInput {
   template?: string | null;
   campusId?: string | null;
   translations: CreatePageTranslationInput[];
-}
+};
 
 export async function createPage(input: CreatePageInput): Promise<PageRecord> {
   const { db } = await createAdminClient();
@@ -356,7 +382,7 @@ export async function createPage(input: CreatePageInput): Promise<PageRecord> {
   return (await getPageById(pageId))!;
 }
 
-export interface UpdatePageInput {
+export type UpdatePageInput = {
   pageId: string;
   slug?: string;
   title?: string;
@@ -364,18 +390,33 @@ export interface UpdatePageInput {
   visibility?: PageVisibility;
   template?: string | null;
   campusId?: string | null;
-}
+};
 
-export async function updatePage({ pageId, ...changes }: UpdatePageInput): Promise<PageRecord> {
+export async function updatePage({
+  pageId,
+  ...changes
+}: UpdatePageInput): Promise<PageRecord> {
   const { db } = await createAdminClient();
   const data: Record<string, unknown> = {};
 
-  if (changes.slug !== undefined) data.slug = changes.slug;
-  if (changes.title !== undefined) data.title = changes.title;
-  if (changes.status !== undefined) data.status = changes.status;
-  if (changes.visibility !== undefined) data.visibility = changes.visibility;
-  if (changes.template !== undefined) data.template = changes.template;
-  if (changes.campusId !== undefined) data.campus_id = changes.campusId;
+  if (changes.slug !== undefined) {
+    data.slug = changes.slug;
+  }
+  if (changes.title !== undefined) {
+    data.title = changes.title;
+  }
+  if (changes.status !== undefined) {
+    data.status = changes.status;
+  }
+  if (changes.visibility !== undefined) {
+    data.visibility = changes.visibility;
+  }
+  if (changes.template !== undefined) {
+    data.template = changes.template;
+  }
+  if (changes.campusId !== undefined) {
+    data.campus_id = changes.campusId;
+  }
 
   if (Object.keys(data).length > 0) {
     await db.updateRow({
@@ -389,13 +430,13 @@ export async function updatePage({ pageId, ...changes }: UpdatePageInput): Promi
   return (await getPageById(pageId))!;
 }
 
-export interface UpdatePageTranslationDraftInput {
+export type UpdatePageTranslationDraftInput = {
   translationId: string;
   title?: string;
   slug?: string | null;
   description?: string | null;
   draftDocument?: PageDocument | null;
-}
+};
 
 export async function updatePageTranslationDraft({
   translationId,
@@ -407,10 +448,18 @@ export async function updatePageTranslationDraft({
   const { db } = await createAdminClient();
   const data: Record<string, unknown> = {};
 
-  if (title !== undefined) data.title = title;
-  if (slug !== undefined) data.slug = slug;
-  if (description !== undefined) data.description = description;
-  if (draftDocument !== undefined) data.draft_document = serializeDraft(draftDocument);
+  if (title !== undefined) {
+    data.title = title;
+  }
+  if (slug !== undefined) {
+    data.slug = slug;
+  }
+  if (description !== undefined) {
+    data.description = description;
+  }
+  if (draftDocument !== undefined) {
+    data.draft_document = serializeDraft(draftDocument);
+  }
 
   if (Object.keys(data).length > 0) {
     await db.updateRow({
@@ -425,14 +474,14 @@ export async function updatePageTranslationDraft({
   return normalizeTranslation(updated);
 }
 
-export interface PublishPageTranslationInput {
+export type PublishPageTranslationInput = {
   translationId: string;
   document?: PageDocument | null;
   title?: string;
   slug?: string | null;
   description?: string | null;
   pageStatus?: PageStatus;
-}
+};
 
 export async function publishPageTranslation({
   translationId,
@@ -445,16 +494,29 @@ export async function publishPageTranslation({
   const { db } = await createAdminClient();
   const translationRow = await fetchTranslationRow(translationId);
 
-  const baseDraft = decodeDocument((translationRow as unknown as { draft_document?: unknown }).draft_document);
-  const publishedDocument = document ?? baseDraft ?? decodeDocument((translationRow as unknown as { puck_document?: unknown }).puck_document);
+  const baseDraft = decodeDocument(
+    (translationRow as unknown as { draft_document?: unknown }).draft_document
+  );
+  const publishedDocument =
+    document ??
+    baseDraft ??
+    decodeDocument(
+      (translationRow as unknown as { puck_document?: unknown }).puck_document
+    );
   const data: Record<string, unknown> = {
     is_published: true,
     published_at: new Date().toISOString(),
   };
 
-  if (title !== undefined) data.title = title;
-  if (slug !== undefined) data.slug = slug;
-  if (description !== undefined) data.description = description;
+  if (title !== undefined) {
+    data.title = title;
+  }
+  if (slug !== undefined) {
+    data.slug = slug;
+  }
+  if (description !== undefined) {
+    data.description = description;
+  }
   if (publishedDocument) {
     data.puck_document = serializePublished(publishedDocument);
     data.draft_document = serializeDraft(publishedDocument);
@@ -489,7 +551,9 @@ export async function deletePage(pageId: string): Promise<void> {
   });
 }
 
-export async function deletePageTranslation(translationId: string): Promise<void> {
+export async function deletePageTranslation(
+  translationId: string
+): Promise<void> {
   const { db } = await createAdminClient();
   await db.deleteRow({
     databaseId: DATABASE_ID,
@@ -498,13 +562,13 @@ export async function deletePageTranslation(translationId: string): Promise<void
   });
 }
 
-export interface EnsurePageTranslationParams {
+export type EnsurePageTranslationParams = {
   pageId: string;
   locale: Locale;
   title?: string;
   description?: string | null;
   sourceTranslationId?: string;
-}
+};
 
 export async function ensurePageTranslation({
   pageId,
@@ -536,8 +600,12 @@ export async function ensurePageTranslation({
     try {
       const source = await fetchTranslationRow(sourceTranslationId);
       baseDocument =
-        decodeDocument((source as unknown as { draft_document?: unknown }).draft_document) ??
-        decodeDocument((source as unknown as { puck_document?: unknown }).puck_document);
+        decodeDocument(
+          (source as unknown as { draft_document?: unknown }).draft_document
+        ) ??
+        decodeDocument(
+          (source as unknown as { puck_document?: unknown }).puck_document
+        );
     } catch {
       baseDocument = null;
     }

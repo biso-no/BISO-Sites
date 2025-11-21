@@ -1,7 +1,5 @@
 {
-  "localesPaths": [
-    "messages"
-  ],
+  "localesPaths": ["messages"],
   "keystyle": "nested",
   "sourceLanguage": "en",
   "displayLanguage": "en",

@@ -1,19 +1,21 @@
-import Link from "next/link";
-import { Card } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { FileX } from "lucide-react";
+import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white flex items-center justify-center p-4">
-      <Card className="p-12 text-center border-0 shadow-xl max-w-md">
-        <FileX className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Expense Not Found</h2>
-        <p className="text-gray-600 mb-6">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-gray-50 to-white p-4">
+      <Card className="max-w-md border-0 p-12 text-center shadow-xl">
+        <FileX className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+        <h2 className="mb-2 font-bold text-2xl text-gray-900">
+          Expense Not Found
+        </h2>
+        <p className="mb-6 text-gray-600">
           The expense you're looking for doesn't exist or has been removed.
         </p>
         <Link href="/fs">
-          <Button className="bg-linear-to-r from-[#3DA9E0] to-[#001731] hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 text-white">
+          <Button className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
             Back to Expenses
           </Button>
         </Link>
@@ -21,4 +23,3 @@ export default function NotFound() {
     </div>
   );
 }
-

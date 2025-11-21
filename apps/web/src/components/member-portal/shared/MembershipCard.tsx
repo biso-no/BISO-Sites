@@ -1,55 +1,54 @@
-import { QrCode } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { Card } from '@repo/ui/components/ui/card'
-import { Badge } from '@repo/ui/components/ui/badge'
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Card } from "@repo/ui/components/ui/card";
+import { QrCode } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-interface MembershipCardProps {
-  userName: string
-  studentId: string
-  membershipType: string
-  expiryDate: string
-}
+type MembershipCardProps = {
+  userName: string;
+  studentId: string;
+  membershipType: string;
+  expiryDate: string;
+};
 
 export function MembershipCard({
   userName,
   studentId,
   membershipType,
-  expiryDate
+  expiryDate,
 }: MembershipCardProps) {
-  const t = useTranslations('memberPortal.membership')
+  const t = useTranslations("memberPortal.membership");
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-[#001731] to-[#3DA9E0] text-white border-0">
-      <div className="flex justify-between items-start mb-8">
+    <Card className="border-0 bg-linear-to-br from-[#001731] to-[#3DA9E0] p-6 text-white">
+      <div className="mb-8 flex items-start justify-between">
         <div>
-          <div className="text-white/70 text-sm mb-1">{t('bisoMember')}</div>
-          <div className="text-white font-semibold">{userName}</div>
+          <div className="mb-1 text-sm text-white/70">{t("bisoMember")}</div>
+          <div className="font-semibold text-white">{userName}</div>
         </div>
-        <Badge className="bg-white/20 text-white border-white/30">
+        <Badge className="border-white/30 bg-white/20 text-white">
           {membershipType}
         </Badge>
       </div>
-      
-      <div className="space-y-2 mb-8">
-        <div className="text-white/70 text-sm">{t('studentId')}</div>
-        <div className="text-white text-lg font-mono">{studentId}</div>
+
+      <div className="mb-8 space-y-2">
+        <div className="text-sm text-white/70">{t("studentId")}</div>
+        <div className="font-mono text-lg text-white">{studentId}</div>
       </div>
 
-      <div className="flex justify-between items-end">
+      <div className="flex items-end justify-between">
         <div>
-          <div className="text-white/70 text-xs">{t('validUntil')}</div>
-          <div className="text-white text-sm">
-            {new Date(expiryDate).toLocaleDateString('en-US', { 
-              month: 'short', 
-              year: 'numeric' 
+          <div className="text-white/70 text-xs">{t("validUntil")}</div>
+          <div className="text-sm text-white">
+            {new Date(expiryDate).toLocaleDateString("en-US", {
+              month: "short",
+              year: "numeric",
             })}
           </div>
         </div>
-        <div className="w-16 h-16 bg-white/20 rounded-lg flex items-center justify-center">
-          <QrCode className="w-10 h-10 text-white" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white/20">
+          <QrCode className="h-10 w-10 text-white" />
         </div>
       </div>
     </Card>
-  )
+  );
 }
-

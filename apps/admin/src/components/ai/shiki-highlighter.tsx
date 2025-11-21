@@ -1,9 +1,12 @@
 "use client";
 
-import { FC } from "react";
-import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
-import { cn } from '@repo/ui/lib/utils';
+import { cn } from "@repo/ui/lib/utils";
+import dynamic from "next/dynamic";
+import type { FC } from "react";
+import type { ShikiHighlighterProps } from "react-shiki";
+
+const ShikiHighlighter = dynamic(() => import("react-shiki"), { ssr: false });
 
 /**
  * Props for the SyntaxHighlighter component
@@ -38,17 +41,17 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   ...props
 }) => {
   const BASE_STYLES =
-    "aui-shiki-base [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:!bg-muted/75 [&_pre]:p-4";
+    "aui-shiki-base [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-muted/75! [&_pre]:p-4";
 
   return (
     <ShikiHighlighter
       {...props}
-      language={language}
-      theme={theme}
       addDefaultStyles={addDefaultStyles}
-      showLanguage={showLanguage}
-      defaultColor="light-dark()"
       className={cn(BASE_STYLES, className)}
+      defaultColor="light-dark()"
+      language={language}
+      showLanguage={showLanguage}
+      theme={theme}
     >
       {code.trim()}
     </ShikiHighlighter>
