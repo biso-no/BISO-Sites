@@ -157,7 +157,7 @@ export async function cleanupExpiredReservations(): Promise<number> {
     let deletedCount = 0;
     for (const reservation of expiredReservations.rows) {
       await db.deleteRow("app", "cart_reservations", reservation.$id);
-      deletedCount++;
+      deletedCount += 1;
     }
 
     return deletedCount;
@@ -236,7 +236,7 @@ export async function getCartItemsWithDetails(
     const reservations = await getUserCartReservations();
     const { db } = await createSessionClient();
 
-    const cartItems = [];
+    const cartItems: any[] = [];
 
     for (const reservation of reservations) {
       try {

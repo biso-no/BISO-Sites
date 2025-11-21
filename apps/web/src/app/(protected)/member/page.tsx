@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { verifyMembershipStatus } from "@/app/actions/memberPortal";
 import {
-  MemberPortalSkeleton,
-  SignedOutState,
-} from "@/components/member-portal";
+  MemberPortalSkeleton
+} from "@/components/member-portal/shared/MemberPortalSkeleton"
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { MemberPortalContent } from "./MemberPortalContent";
+
 
 export const metadata = {
   title: "Member Portal | BISO",
@@ -15,10 +15,6 @@ export const metadata = {
 export default async function MemberPortalPage() {
   // Get user data and authentication state
   const userData = await getLoggedInUser();
-
-  if (!userData) {
-    return <SignedOutState />;
-  }
 
   // Check if user has BI identity linked
   const identitiesResp = await listIdentities();

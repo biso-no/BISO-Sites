@@ -1,25 +1,37 @@
 "use client";
 
+// External libraries
+import { useCallback, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ChevronLeft } from "lucide-react";
+
+// UI components
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Form } from "@repo/ui/components/ui/form";
-import { ChevronLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+
+// Internal server actions
 import { getCampuses, getCampusWithDepartments } from "@/app/actions/campus";
 import { createEvent, updateEvent } from "@/app/actions/events";
+
+// Internal hooks & types
 import { toast } from "@/lib/hooks/use-toast";
 import type { AdminEvent } from "@/lib/types/event";
 import type { Campus } from "@/lib/types/post";
+
+// Local components
 import { EventOptions } from "./EventOptions";
 import { EventSchedule } from "./EventSchedule";
 import { EventSidebar } from "./EventSidebar";
 import { EventTranslations } from "./EventTranslations";
+
+// Local schema
 import { formSchema, getEventDefaultValues, mapFormValuesToPayload } from "./schema";
 import type { FormValues } from "./schema";
+
 
 type EventEditorProps = {
   event?: AdminEvent | null;

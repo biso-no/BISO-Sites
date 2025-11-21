@@ -51,7 +51,7 @@ export default function ImageUploadCard({
 
     try {
       const result = await uploadEventImage(formData);
-      const url = `https://appwrite.biso.no/v1/storage/buckets/content/files/${result.$id}/view?project=biso`;
+      const url = `https://appwrite.biso.no/v1/storage/buckets/content/files/${result.id}/view?project=biso`;
       onChange([...validImages, url]);
       toast({ title: "Image uploaded" });
     } catch (error) {
@@ -100,6 +100,11 @@ export default function ImageUploadCard({
 
   const isUploading = uploadingFiles.size > 0;
   const uploadingArray = Array.from(uploadingFiles);
+  const placeholderSlots = ["first", "second", "third"] as const;
+  const availablePlaceholderSlots = placeholderSlots.slice(
+    0,
+    Math.max(0, 3 - thumbnails.length)
+  );
 
   return (
     <Card className="glass-card overflow-hidden">
@@ -186,27 +191,25 @@ export default function ImageUploadCard({
               </Button>
             </div>
           ))}
-          {[...new Array(Math.max(0, 3 - thumbnails.length))].map(
-            (_, index) => {
-              const isThisTileLoading = index < uploadingArray.length;
-              return (
-                <button
-                  className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-muted-foreground text-xs transition-colors hover:border-primary/40 hover:bg-primary/5"
-                  disabled={isUploading}
-                  key={`empty-${index}`}
-                  onClick={() => fileInputRef.current?.click()}
-                  type="button"
-                >
-                  {isThisTileLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4" />
-                  )}
-                  Add
-                </button>
-              );
-            }
-          )}
+          {availablePlaceholderSlots.map((slot, index) => {
+            const isThisTileLoading = index < uploadingArray.length;
+            return (
+              <button
+                className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-muted-foreground text-xs transition-colors hover:border-primary/40 hover:bg-primary/5"
+                disabled={isUploading}
+                key={`placeholder-${slot}`}
+                onClick={() => fileInputRef.current?.click()}
+                type="button"
+              >
+                {isThisTileLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Add
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

@@ -1,5 +1,10 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type UseFormReturn, type WatchObserver, useFormContext } from "react-hook-form";
+import { useTranslations } from "next-intl";
+import { Check, Edit2, Eye, X } from "lucide-react";
+import type { Campus } from "@/lib/types/post";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -29,15 +34,9 @@ import {
   TabsList,
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
-import { Check, Edit2, Eye, X } from "lucide-react";
-import { useTranslations } from "next-intl";
-import * as React from "react";
-import { useFormContext } from "react-hook-form";
-import type { Campus } from "@/lib/types/post";
 import { EventPreview } from "./event-preview";
 import ImageUploadCard from "./image-upload-card";
-import { slugify } from "./schema";
-import type { FormValues } from "./schema";
+import { type FormValues, slugify } from "./schema";
 
 type EventSidebarProps = {
   campuses: Campus[];
@@ -45,117 +44,196 @@ type EventSidebarProps = {
   loadingDepartments: boolean;
 };
 
-export function EventSidebar({
-  campuses,
-  departments,
-  loadingDepartments,
-}: EventSidebarProps) {
+type SlugSource = "en" | "no" | null;
+type TitleWatchValue = {
+  translations?: {
+    en?: { title?: string | null };
+    no?: { title?: string | null };
+  };
+};
+
+const determineSlugUpdate = (enTitle: string, noTitle: string, currentSource: SlugSource) => {
+  let newSource = currentSource;
+  let newSlug = "";
+
+  if (!currentSource) {
+    if (noTitle && !enTitle) {
+      newSource = "no";
+    } else if (enTitle && !noTitle) {
+      newSource = "en";
+    }
+  } else if (currentSource === "no" && !noTitle && enTitle) {
+    newSource = "en";
+  } else if (currentSource === "en" && !enTitle && noTitle) {
+    newSource = "no";
+  }
+
+  if (newSource === "no" && noTitle) {
+    newSlug = slugify(noTitle);
+  } else if (newSource === "en" && enTitle) {
+    newSlug = slugify(enTitle);
+  }
+
+  return { newSource, newSlug };
+};
+
+const getDepartmentPlaceholder = (
+  loadingDepartments: boolean,
+  selectedCampus?: Campus,
+  t?: ReturnType<typeof useTranslations>
+) => {
+  if (loadingDepartments) {
+    return t?.("editor.placeholders.loading") ?? "";
+  }
+  if (selectedCampus) {
+    return t?.("editor.placeholders.selectDepartmentOptional") ?? "";
+  }
+  return t?.("editor.placeholders.selectCampusFirst") ?? "";
+};
+
+const getSlugSourceLabel = (slugSource: SlugSource, t: ReturnType<typeof useTranslations>) => {
+  if (!slugSource) {
+    return t("editor.title");
+  }
+  return slugSource === "no" ? t("editor.norwegian") : t("editor.english");
+};
+
+const getSlugDescription = (
+  slugSource: SlugSource,
+  slugSourceLabel: string,
+  t: ReturnType<typeof useTranslations>
+) => {
+  if (slugSource) {
+    return t("editor.slugDescriptionAuto", { source: slugSourceLabel });
+  }
+  return t("editor.slugDescriptionFallback");
+};
+
+const shouldHandleTitleChange = (name?: string) =>
+  Boolean(name?.startsWith("translations.")) && Boolean(name?.endsWith(".title"));
+
+const applySlugUpdateFromTitles = (
+  value: TitleWatchValue,
+  form: UseFormReturn<FormValues>,
+  slugSource: SlugSource,
+  setSlugSource: (next: SlugSource) => void
+) => {
+  const enTitle = value.translations?.en?.title || "";
+  const noTitle = value.translations?.no?.title || "";
+  const currentSlug = form.getValues("slug") || "";
+
+  const hasExistingSlug = currentSlug && currentSlug.length > 0;
+  const matchesEn = slugify(enTitle) === currentSlug;
+  const matchesNo = slugify(noTitle) === currentSlug;
+
+  if (hasExistingSlug && !slugSource && !matchesEn && !matchesNo) {
+    return;
+  }
+
+  const { newSource, newSlug } = determineSlugUpdate(enTitle, noTitle, slugSource);
+
+  if (newSource !== slugSource) {
+    setSlugSource(newSource);
+  }
+  if (newSlug) {
+    form.setValue("slug", newSlug, { shouldValidate: true });
+  }
+};
+
+const useSlugAutoUpdate = (
+  form: UseFormReturn<FormValues>,
+  isEditingSlug: boolean,
+  slugSource: SlugSource,
+  setSlugSource: (next: SlugSource) => void
+) => {
+  useEffect(() => {
+    if (isEditingSlug) {
+      return;
+    }
+
+    const handleTitleChange: WatchObserver<FormValues> = (value, { name }) => {
+      if (!shouldHandleTitleChange(name)) {
+        return;
+      }
+      applySlugUpdateFromTitles(value, form, slugSource, setSlugSource);
+    };
+
+    const subscription = form.watch(handleTitleChange);
+    return () => subscription.unsubscribe();
+  }, [form, isEditingSlug, setSlugSource, slugSource]);
+};
+
+export function EventSidebar({ campuses, departments, loadingDepartments }: EventSidebarProps) {
   const t = useTranslations("adminEvents");
   const form = useFormContext<FormValues>();
-  const [previewLocale, setPreviewLocale] = React.useState<"en" | "no">("en");
+  const [previewLocale, setPreviewLocale] = useState<"en" | "no">("en");
 
   // Slug state
-  const [isEditingSlug, setIsEditingSlug] = React.useState(false);
-  const [slugSource, setSlugSource] = React.useState<"en" | "no" | null>(null);
-  const slugInputRef = React.useRef<HTMLInputElement>(null);
+  const [isEditingSlug, setIsEditingSlug] = useState(false);
+  const [slugSource, setSlugSource] = useState<SlugSource>(null);
+  const slugInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCampus = campuses.find(
     (c) => c.$id === form.watch("campus_id")
   );
 
-  const departmentPlaceholder = loadingDepartments
-    ? t("editor.placeholders.loading")
-    : selectedCampus
-      ? t("editor.placeholders.selectDepartmentOptional")
-      : t("editor.placeholders.selectCampusFirst");
+  const departmentPlaceholder = useMemo(
+    () => getDepartmentPlaceholder(loadingDepartments, selectedCampus, t),
+    [loadingDepartments, selectedCampus, t]
+  );
 
-  const slugSourceLabel = slugSource
-    ? slugSource === "no"
-      ? t("editor.norwegian")
-      : t("editor.english")
-    : t("editor.title");
-  
-  const slugDescription = slugSource
-    ? t("editor.slugDescriptionAuto", { source: slugSourceLabel })
-    : t("editor.slugDescriptionFallback");
-    
+  const slugSourceLabel = useMemo(
+    () => getSlugSourceLabel(slugSource, t),
+    [slugSource, t]
+  );
+
+  const slugDescription = useMemo(
+    () => getSlugDescription(slugSource, slugSourceLabel, t),
+    [slugSource, slugSourceLabel, t]
+  );
+
   const slugEditingHint = t("editor.slugEditingHint");
 
   // Auto-generate slug from title
-  React.useEffect(() => {
-    if (isEditingSlug) {
-      return;
-    }
-    // Check if we should auto-generate (only if slug is empty or we are tracking source)
-    // Note: logic slightly modified from original to work without "event" prop check for existing
-    // We can check if form is dirty or similar, but here we rely on the watch.
-    // Actually original checked "if (event) return".
-    // If we don't pass event prop, we don't know if it's new or edit.
-    // But we can check if slug has a value initially?
-    // The form default values are set in parent.
-    
-    // For now, let's replicate the watch logic.
-    // We need to know if it's an existing event to avoid overwriting slug.
-    // But since we don't have that info, maybe we can check if slug is empty?
-    // Or just rely on the user manually editing if they want to change it.
-    
-    const subscription = form.watch((value, { name }) => {
-      if (!name?.startsWith("translations.")) {
-        return;
-      }
-      if (!name?.endsWith(".title")) {
-        return;
-      }
-
-      const enTitle = value.translations?.en?.title || "";
-      const noTitle = value.translations?.no?.title || "";
-      const currentSlug = form.getValues("slug");
-
-      // If slug is already set and we haven't established a source, don't overwrite
-      // unless it looks like we are just starting (e.g. empty slug)
-      if (currentSlug && !slugSource && currentSlug.length > 0) {
-         // If the slug matches one of the titles slugified, maybe we can adopt it?
-         // For safety, let's only auto-generate if slug is empty or we are already tracking.
-         if (slugify(enTitle) !== currentSlug && slugify(noTitle) !== currentSlug) {
-             return;
-         }
-      }
-
-      if (!slugSource) {
-        if (noTitle && !enTitle) {
-          setSlugSource("no");
-          form.setValue("slug", slugify(noTitle), { shouldValidate: true });
-        } else if (enTitle && !noTitle) {
-          setSlugSource("en");
-          form.setValue("slug", slugify(enTitle), { shouldValidate: true });
-        }
-      } else if (slugSource === "no") {
-        if (noTitle) {
-          form.setValue("slug", slugify(noTitle), { shouldValidate: true });
-        } else if (!noTitle && enTitle) {
-          setSlugSource("en");
-          form.setValue("slug", slugify(enTitle), { shouldValidate: true });
-        }
-      } else if (slugSource === "en") {
-        if (enTitle) {
-          form.setValue("slug", slugify(enTitle), { shouldValidate: true });
-        } else if (!enTitle && noTitle) {
-          setSlugSource("no");
-          form.setValue("slug", slugify(noTitle), { shouldValidate: true });
-        }
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [form, isEditingSlug, slugSource]);
+  useSlugAutoUpdate(form, isEditingSlug, slugSource, setSlugSource);
 
   // Focus input when entering edit mode
-  React.useEffect(() => {
+  useEffect(() => {
     if (isEditingSlug && slugInputRef.current) {
       slugInputRef.current.focus();
       slugInputRef.current.select();
     }
   }, [isEditingSlug]);
+
+  const handleSlugKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setIsEditingSlug(false);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setIsEditingSlug(false);
+      const enTitle = form.getValues("translations.en.title");
+      const noTitle = form.getValues("translations.no.title");
+      const titleToUse = slugSource === "no" ? noTitle : enTitle;
+      if (titleToUse) {
+        form.setValue("slug", slugify(titleToUse));
+      }
+    }
+  };
+
+  const handleSaveSlug = () => {
+    setIsEditingSlug(false);
+  };
+
+  const handleCancelSlug = () => {
+    setIsEditingSlug(false);
+    const enTitle = form.getValues("translations.en.title");
+    const noTitle = form.getValues("translations.no.title");
+    const titleToUse = slugSource === "no" ? noTitle : enTitle;
+    if (titleToUse) {
+      form.setValue("slug", slugify(titleToUse));
+    }
+  };
 
   return (
     <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
@@ -179,26 +257,7 @@ export function EventSidebar({
                         placeholder={t("editor.slugPlaceholder")}
                         {...field}
                         className="glass-input flex-1"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            setIsEditingSlug(false);
-                          } else if (e.key === "Escape") {
-                            e.preventDefault();
-                            setIsEditingSlug(false);
-                            const enTitle = form.getValues(
-                              "translations.en.title"
-                            );
-                            const noTitle = form.getValues(
-                              "translations.no.title"
-                            );
-                            const titleToUse =
-                              slugSource === "no" ? noTitle : enTitle;
-                            if (titleToUse) {
-                              form.setValue("slug", slugify(titleToUse));
-                            }
-                          }
-                        }}
+                        onKeyDown={handleSlugKeyDown}
                         ref={(e) => {
                           field.ref(e);
                           slugInputRef.current = e;
@@ -206,7 +265,7 @@ export function EventSidebar({
                       />
                       <Button
                         className="h-9 w-9 p-0 text-green-600 hover:bg-green-50 hover:text-green-700"
-                        onClick={() => setIsEditingSlug(false)}
+                        onClick={handleSaveSlug}
                         size="sm"
                         type="button"
                         variant="ghost"
@@ -216,20 +275,7 @@ export function EventSidebar({
                       </Button>
                       <Button
                         className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
-                        onClick={() => {
-                          setIsEditingSlug(false);
-                          const enTitle = form.getValues(
-                            "translations.en.title"
-                          );
-                          const noTitle = form.getValues(
-                            "translations.no.title"
-                          );
-                          const titleToUse =
-                            slugSource === "no" ? noTitle : enTitle;
-                          if (titleToUse) {
-                            form.setValue("slug", slugify(titleToUse));
-                          }
-                        }}
+                        onClick={handleCancelSlug}
                         size="sm"
                         type="button"
                         variant="ghost"

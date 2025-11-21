@@ -138,17 +138,23 @@ type EditProductProps = {
   product?: ProductWithTranslations;
 };
 
+const MULTIPLE_SPACES_REGEX = /\s+/g;
+const NON_WORD_REGEX = /[^\w-]+/g;
+const MULTIPLE_DASHES_REGEX = /--+/g;
+const LEADING_DASHES_REGEX = /^-+/;
+const TRAILING_DASHES_REGEX = /-+$/;
+
 // Slugify function
 function slugify(text: string): string {
   return text
     .toString()
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, "-") // Replace spaces with -
-    .replace(/[^\w-]+/g, "") // Remove all non-word chars
-    .replace(/--+/g, "-") // Replace multiple - with single -
-    .replace(/^-+/, "") // Trim - from start of text
-    .replace(/-+$/, ""); // Trim - from end of text
+    .replace(MULTIPLE_SPACES_REGEX, "-") // Replace spaces with -
+    .replace(NON_WORD_REGEX, "") // Remove all non-word chars
+    .replace(MULTIPLE_DASHES_REGEX, "-") // Replace multiple - with single -
+    .replace(LEADING_DASHES_REGEX, "") // Trim - from start of text
+    .replace(TRAILING_DASHES_REGEX, ""); // Trim - from end of text
 }
 
 export function EditProduct({ product }: EditProductProps) {
