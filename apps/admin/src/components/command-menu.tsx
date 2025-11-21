@@ -28,12 +28,12 @@ import {
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type ComponentType,
   Fragment,
   useCallback,
   useEffect,
   useMemo,
   useState,
-  type ComponentType,
 } from "react";
 
 type CommandMenuItem = {

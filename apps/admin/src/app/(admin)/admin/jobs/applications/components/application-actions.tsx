@@ -168,7 +168,7 @@ export function ApplicationActions({ application }: ApplicationActionsProps) {
         </DropdownMenu>
       </div>
 
-      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+      <AlertDialog onOpenChange={setShowDeleteAlert} open={showDeleteAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>

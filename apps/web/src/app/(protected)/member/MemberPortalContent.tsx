@@ -8,7 +8,6 @@ import {
 import { MemberPortalTabs } from "@/components/member-portal/MemberPortalTabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/MemberPortalHeader";
 
-
 type MemberPortalContentProps = {
   user: any;
   membership: any;

@@ -90,7 +90,13 @@ function StatusOverlay({ status }: { status: EventFormData["status"] }) {
   );
 }
 
-function PriceBadge({ price, locale }: { price?: number; locale: "en" | "no" }) {
+function PriceBadge({
+  price,
+  locale,
+}: {
+  price?: number;
+  locale: "en" | "no";
+}) {
   if (price === undefined || price === null) {
     return null;
   }
@@ -155,8 +161,8 @@ function EventImage({
         sizes="400px"
         src={imageUrl}
       />
-      <MemberBadge memberOnly={data.member_only} locale={locale} />
-      <PriceBadge price={data.price} locale={locale} />
+      <MemberBadge locale={locale} memberOnly={data.member_only} />
+      <PriceBadge locale={locale} price={data.price} />
     </div>
   );
 }
@@ -253,15 +259,15 @@ export function EventPreview({ data, locale }: EventPreviewProps) {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md">
         <EventImage
           data={data}
-          locale={locale}
           imageUrl={imageUrl}
+          locale={locale}
           title={translation.title}
         />
         <EventInfo
           data={data}
           locale={locale}
-          translation={translation}
           shortDescription={shortDescription}
+          translation={translation}
         />
       </div>
 

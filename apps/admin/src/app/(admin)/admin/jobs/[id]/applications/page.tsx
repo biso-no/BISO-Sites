@@ -1,7 +1,7 @@
-import { getTranslations } from "next-intl/server";
-import { listJobApplications } from "@/app/actions/jobs";
 import { Button } from "@repo/ui/components/ui/button";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { listJobApplications } from "@/app/actions/jobs";
 
 export default async function AdminJobApplications({
   params,
