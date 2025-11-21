@@ -3,14 +3,12 @@
 import {
   type CreatePageInput,
   createPage,
-  deletePageTranslation,
   ensurePageTranslation,
   getPageById,
   getPublishedPage,
   listPages,
   type PageDocument,
   type PageRecord,
-  type PageTranslationRecord,
   publishPageTranslation,
   updatePage,
   updatePageTranslationDraft,
@@ -101,7 +99,7 @@ export async function updateManagedPage(input: UpdateManagedPageInput) {
   const existing = await getPageById(input.pageId);
   const updated = await updatePage(input);
 
-  if (existing && existing.slug && existing.slug !== updated.slug) {
+  if (existing?.slug && existing.slug !== updated.slug) {
     revalidatePath(`/${existing.slug}`);
   }
 
@@ -162,10 +160,6 @@ export async function deletePage(pageId: string) {
   revalidatePath(ADMIN_LIST_PATH);
 }
 
-async function deleteManagedTranslation(translationId: string) {
-  await deletePageTranslation(translationId);
-  revalidatePath(ADMIN_LIST_PATH);
-}
 
 export interface EnsureTranslationInput {
   pageId: string;
