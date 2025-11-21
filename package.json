@@ -2,12 +2,12 @@
   "name": "biso-sites",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "build": "bunx turbo run build",
+    "dev": "bunx turbo run dev",
+    "lint": "bunx turbo run lint",
     "format": "biome format --write .",
     "check": "biome check --write .",
-    "check-types": "turbo run check-types"
+    "check-types": "bunx turbo run check-types"
   },
   "devDependencies": {
     "turbo": "^2.6.1",
