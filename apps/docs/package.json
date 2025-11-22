@@ -9,7 +9,7 @@
     "lint": "biome lint ."
   },
   "dependencies": {
-    "@repo/ui": "*",
+    "@repo/ui": "workspace:*",
     "fumadocs-core": "15.8.3",
     "fumadocs-mdx": "12.0.2",
     "fumadocs-typescript": "^4.0.13",
@@ -22,7 +22,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*",
+    "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.16",
     "@types/mdx": "^2.0.13",
     "@types/node": "^24.10.0",

@@ -13,7 +13,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "check-types": "tsc --noEmit",
-    "translate": "bun run scripts/translate.ts",
+    "translate": "tsx scripts/translate.ts",
     "lint": "biome lint ."
   },
   "dependencies": {
@@ -22,7 +22,8 @@
     "openai": "^6.9.0"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*",
+    "@repo/typescript-config": "workspace:*",
+    "tsx": "^4.19.1",
     "typescript": "^5.9.3"
   }
 }

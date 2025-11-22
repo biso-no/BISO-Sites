@@ -14,7 +14,7 @@
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*"
+    "@repo/typescript-config": "workspace:*"
   },
   "dependencies": {
     "@types/node": "^24.9.2",

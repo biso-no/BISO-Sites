@@ -5,7 +5,7 @@
       "name": "Web: debug server-side",
       "type": "node-terminal",
       "request": "launch",
-      "command": "bun run dev",
+      "command": "pnpm run dev",
       "cwd": "${workspaceFolder}/apps/web",
       "env": {
         "NODE_OPTIONS": "--inspect"
@@ -28,7 +28,7 @@
       "name": "Docs: debug server-side",
       "type": "node-terminal",
       "request": "launch",
-      "command": "bun run dev",
+      "command": "pnpm run dev",
       "cwd": "${workspaceFolder}/apps/docs",
       "env": {
         "NODE_OPTIONS": "--inspect"

@@ -10,7 +10,7 @@
     "./actions": "./actions.ts"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*"
+    "@repo/typescript-config": "workspace:*"
   },
   "dependencies": {
     "@repo/api": "workspace:*",
