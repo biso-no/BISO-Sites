@@ -38,6 +38,10 @@ export function getDocumentViewerUrl(
   return `/document/${encodedFileName}`;
 }
 
+const PATTERN_DOCUMENT_VIEWER_URL = /\/document\/([^/?]+)/;
+const PATTERN_DISP_FORM_URL = /DispForm\.aspx\?ID=([^&]+)/;
+const PATTERN_ITEM_URL = /\/items\/([^/?]+)/;
+
 /**
  * Extract document ID from a SharePoint web URL or document viewer URL
  * @param url - The URL to parse
@@ -45,20 +49,20 @@ export function getDocumentViewerUrl(
  */
 function _extractDocumentId(url: string): string | null {
   // Check if it's already a document viewer URL
-  const viewerMatch = url.match(/\/document\/([^/?]+)/);
+  const viewerMatch = url.match(PATTERN_DOCUMENT_VIEWER_URL);
   if (viewerMatch) {
     return viewerMatch[1];
   }
 
   // Try to extract from SharePoint URL patterns
   // Pattern 1: /sites/{site}/Shared Documents/Forms/DispForm.aspx?ID={id}
-  const dispFormMatch = url.match(/DispForm\.aspx\?ID=([^&]+)/);
+  const dispFormMatch = url.match(PATTERN_DISP_FORM_URL);
   if (dispFormMatch) {
     return dispFormMatch[1];
   }
 
   // Pattern 2: Direct link with item ID in path
-  const itemMatch = url.match(/\/items\/([^/?]+)/);
+  const itemMatch = url.match(PATTERN_ITEM_URL);
   if (itemMatch) {
     return itemMatch[1];
   }
@@ -97,64 +101,6 @@ function _canRenderInline(contentType: string): boolean {
   // Most other types (Office documents, etc.) need to be downloaded
   return false;
 }
-
-/**
- * Get a user-friendly document type name from MIME type
- * @param contentType - The MIME type
- * @returns A user-friendly type name
- */
-function _getDocumentTypeName(contentType: string): string {
-  const lowerType = contentType.toLowerCase();
-
-  if (lowerType.includes("pdf")) {
-    return "PDF Document";
-  }
-  if (lowerType.includes("word") || lowerType.includes("document")) {
-    return "Word Document";
-  }
-  if (lowerType.includes("excel") || lowerType.includes("spreadsheet")) {
-    return "Excel Spreadsheet";
-  }
-  if (lowerType.includes("powerpoint") || lowerType.includes("presentation")) {
-    return "PowerPoint Presentation";
-  }
-  if (lowerType.includes("image")) {
-    if (lowerType.includes("jpeg") || lowerType.includes("jpg")) {
-      return "JPEG Image";
-    }
-    if (lowerType.includes("png")) {
-      return "PNG Image";
-    }
-    if (lowerType.includes("gif")) {
-      return "GIF Image";
-    }
-    if (lowerType.includes("svg")) {
-      return "SVG Image";
-    }
-    return "Image";
-  }
-  if (lowerType.includes("text")) {
-    if (lowerType.includes("plain")) {
-      return "Text File";
-    }
-    if (lowerType.includes("csv")) {
-      return "CSV File";
-    }
-    return "Text Document";
-  }
-  if (lowerType.includes("video")) {
-    return "Video File";
-  }
-  if (lowerType.includes("audio")) {
-    return "Audio File";
-  }
-  if (lowerType.includes("zip") || lowerType.includes("compressed")) {
-    return "Archive File";
-  }
-
-  return "Document";
-}
-
 /**
  * Format file size in human-readable format
  * @param bytes - File size in bytes

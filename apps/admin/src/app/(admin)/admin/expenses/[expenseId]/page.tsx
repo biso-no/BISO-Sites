@@ -1,5 +1,5 @@
 import { getExpense } from "@/app/actions/admin";
-import { AdminExpenseDetails } from "./expenseDetails";
+import { AdminExpenseDetails } from "./expense-details";
 
 export default async function AdminExpenseDetailsPage({
   params,

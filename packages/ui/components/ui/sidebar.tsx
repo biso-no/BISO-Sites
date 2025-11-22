@@ -15,11 +15,10 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeft, PanelRight } from "lucide-react";
-import * as React from "react";
+import React from "react";
 import { useIsMobile } from "../../hooks/use-mobile";
 
-const SIDEBAR_COOKIE_NAME = "sidebar:state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+const SIDEBAR_STORAGE_KEY = "sidebar:state";
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
@@ -66,25 +65,46 @@ const SidebarProvider = ({
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
-  const [_open, _setOpen] = React.useState(defaultOpen);
+  const [_open, _setOpen] = React.useState(() => {
+    if (typeof window === "undefined") {
+      return defaultOpen;
+    }
+
+    const storedState = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (storedState === "expanded") {
+      return true;
+    }
+
+    if (storedState === "collapsed") {
+      return false;
+    }
+
+    return defaultOpen;
+  });
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
-    (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === "function" ? value(open) : value;
+    (nextOpen: boolean | ((currentOpen: boolean) => boolean)) => {
+      const openState =
+        typeof nextOpen === "function" ? nextOpen(open) : nextOpen;
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
         _setOpen(openState);
       }
 
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+      if (typeof window !== "undefined") {
+        const storageState = openState ? "expanded" : "collapsed";
+        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, storageState);
+      }
     },
     [setOpenProp, open]
   );
 
   const toggleSidebar = React.useCallback(
     () =>
-      isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open),
+      isMobile
+        ? setOpenMobile((previousOpen) => !previousOpen)
+        : setOpen((previousOpen) => !previousOpen),
     [isMobile, setOpen]
   );
 

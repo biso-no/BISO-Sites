@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
   const _url = request.nextUrl.protocol + request.headers.get("host");
 
   const { account } = await createAdminClient();
-  const session = await account.createSession(userId!, secret!);
+  if (!(userId && secret)) {
+    return new Response("Missing userId or secret", { status: 400 });
+  }
+
+  const session = await account.createSession(userId, secret);
 
   // Session logging for debugging
   console.debug?.("Session:", session);

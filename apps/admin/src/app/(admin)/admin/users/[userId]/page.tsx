@@ -28,7 +28,7 @@ async function UserDetails({ userId }: { userId: string }) {
   }
 }
 
-export default async function UserDetailsPage({
+export default function UserDetailsPage({
   params,
 }: {
   params: { userId: string };

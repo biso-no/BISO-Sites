@@ -24,7 +24,7 @@ import {
 } from "@repo/ui/components/ui/tabs";
 import { Languages, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
-import * as React from "react";
+import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { translateEventContent } from "@/app/actions/events";
 import { RichTextEditor } from "@/components/rich-text-editor";
@@ -34,9 +34,7 @@ import type { FormValues } from "./schema";
 export function EventTranslations() {
   const t = useTranslations("adminEvents");
   const form = useFormContext<FormValues>();
-  const [isTranslating, setIsTranslating] = React.useState<"en" | "no" | null>(
-    null
-  );
+  const [isTranslating, setIsTranslating] = useState<"en" | "no" | null>(null);
 
   const handleTranslate = async (
     fromLocale: "en" | "no",

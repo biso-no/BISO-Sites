@@ -118,7 +118,7 @@ Norwegian (Bokmål) translation:`;
     return parsed;
   } catch (error) {
     console.error("  ❌ Translation failed:", error);
-    stats.errors++;
+    stats.errors += 1;
     throw error;
   }
 }
@@ -132,7 +132,7 @@ function countKeys(obj: any): number {
     if (typeof value === "object" && value !== null) {
       count += countKeys(value);
     } else {
-      count++;
+      count += 1;
     }
   }
   return count;
@@ -178,10 +178,10 @@ async function translateFile(fileName: string): Promise<void> {
       console.log(`  💾 Saved to: ${targetPath}`);
     }
 
-    stats.filesProcessed++;
+    stats.filesProcessed += 1;
   } catch (error) {
     console.error(`  ❌ Failed to process ${fileName}:`, error);
-    stats.errors++;
+    stats.errors += 1;
   }
 }
 

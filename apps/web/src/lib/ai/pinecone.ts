@@ -202,7 +202,7 @@ export class PineconeVectorStore implements IVectorStore {
             break;
           }
           await new Promise((resolve) => setTimeout(resolve, 1000));
-          retries++;
+          retries += 1;
         }
       }
 

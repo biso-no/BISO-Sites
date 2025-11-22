@@ -27,7 +27,7 @@ import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import * as React from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { createPost, updatePost } from "@/app/actions/admin";
@@ -67,10 +67,10 @@ export default function PostEditor({
   campuses,
 }: PostEditorProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const t = useTranslations("adminPosts");
 
-  const formSchema = React.useMemo(
+  const formSchema = useMemo(
     () =>
       baseFormSchema.extend({
         title: z.string().min(1, t("formValidation.titleRequired")),
@@ -82,7 +82,7 @@ export default function PostEditor({
     [t]
   );
 
-  const getInitialValues = React.useMemo((): FormValues => {
+  const getInitialValues = useMemo((): FormValues => {
     if (!post) {
       return {
         title: "",
@@ -107,7 +107,7 @@ export default function PostEditor({
     defaultValues: getInitialValues,
   });
 
-  const handleSubmit = React.useCallback(
+  const handleSubmit = useCallback(
     async (values: FormValues) => {
       setIsSubmitting(true);
       try {
@@ -150,7 +150,7 @@ export default function PostEditor({
     [post, router, t]
   );
 
-  const editorConfig = React.useMemo(() => ({ height: 500 }), []);
+  const editorConfig = useMemo(() => ({ height: 500 }), []);
 
   return (
     <SidebarProvider side="right">

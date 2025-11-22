@@ -48,6 +48,7 @@ export function UserTableSkeleton({ rowCount = 10 }: UserTableSkeletonProps) {
           </TableHeader>
           <TableBody>
             {Array.from({ length: rowCount }).map((_, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: Skeletons are static
               <TableRow key={index}>
                 <TableCell className="w-[40px]">
                   <Skeleton className="h-4 w-4" />

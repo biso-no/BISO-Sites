@@ -25,18 +25,23 @@ type PageProps = {
 
 const PAGE_SIZE = 20;
 
+function parseActiveParam(active?: string): boolean | undefined {
+  if (active === "true") {
+    return true;
+  }
+  if (active === "false") {
+    return false;
+  }
+  return;
+}
+
 export default async function UnitsPage({ searchParams }: PageProps) {
   // Await searchParams before using its properties
   const params = await searchParams;
 
   // Prepare filter values from search params
   const filters: FilterState = {
-    active:
-      params.active === "false"
-        ? false
-        : params.active === "true"
-          ? true
-          : undefined,
+    active: parseActiveParam(params.active),
     campus_id: params.campus_id,
     type: params.type,
     searchTerm: params.search,

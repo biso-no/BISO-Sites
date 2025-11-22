@@ -16,13 +16,27 @@ export type DocumentChunk = {
   chunkIndex: number;
 };
 
-// Simple, effective chunking configuration
+// Configuration constants
 const CHUNKING_CONFIG = {
   TARGET_CHUNK_SIZE: 512, // tokens
   MIN_CHUNK_SIZE: 100, // minimum viable chunk
   MAX_CHUNK_SIZE: 1024, // maximum before splitting
   OVERLAP_PERCENTAGE: 0.15, // 15% overlap for context
 } as const;
+
+// Regex patterns
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally matching control characters to remove them
+const CONTROL_CHARS_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+const TRAILING_SPACES_REGEX = /[ \t]+$/gm;
+const MAX_NEWLINES_REGEX = /\n{4,}/g;
+// Matches headings (#), legal sections (§), or numbered items (1. Title)
+const SECTION_REGEX =
+  /^(#{1,4}\s+.+|§\s*\d+(?:\.\d+)*\s+.+|\d+\.\s+[A-ZÆØÅ].{10,})$/gm;
+
+// Other constants
+const MAX_CHUNKS_LIMIT = 200;
+const MIN_CONTENT_LENGTH = 10;
+const CSV_PREVIEW_LINES = 1000;
 
 export class DocumentProcessor {
   private readonly turndownService: TurndownService;
@@ -51,6 +65,9 @@ export class DocumentProcessor {
     return encode(text).length;
   }
 
+  /**
+   * Process a document buffer into clean text and chunks
+   */
   async processDocument(
     buffer: ArrayBuffer,
     contentType: string,
@@ -109,6 +126,12 @@ export class DocumentProcessor {
 
     for (const [index, file] of Array.from(slideFiles.entries())) {
       const xml = await zip.file(file)?.async("string");
+
+      // Fix: Ensure xml is defined before parsing
+      if (!xml) {
+        continue;
+      }
+
       const parsed = await parseStringPromise(xml);
 
       const texts: string[] = [];
@@ -119,7 +142,7 @@ export class DocumentProcessor {
             : String(obj["a:t"]);
           texts.push(text);
         }
-        if (typeof obj === "object") {
+        if (typeof obj === "object" && obj !== null) {
           Object.values(obj).forEach(extractTexts);
         }
       };
@@ -156,26 +179,26 @@ export class DocumentProcessor {
     return sheets.join("\n\n");
   }
 
-  private async extractCsvText(buffer: ArrayBuffer): Promise<string> {
+  private extractCsvText(buffer: ArrayBuffer): Promise<string> {
     const text = new TextDecoder().decode(buffer);
     const lines = text
       .split("\n")
       .filter((line) => line.trim())
-      .slice(0, 1000); // Limit for safety
+      .slice(0, CSV_PREVIEW_LINES); // Limit for safety
 
     if (lines.length < 2) {
-      return text;
+      return Promise.resolve(text);
     }
 
     const rows = lines.map((line) =>
       line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""))
     );
-    return this.arrayToMarkdownTable(rows) || text;
+    return Promise.resolve(this.arrayToMarkdownTable(rows) || text);
   }
 
-  private async extractHtmlText(buffer: ArrayBuffer): Promise<string> {
+  private extractHtmlText(buffer: ArrayBuffer): Promise<string> {
     const html = new TextDecoder().decode(buffer);
-    return this.turndownService.turndown(html);
+    return Promise.resolve(this.turndownService.turndown(html));
   }
 
   private arrayToMarkdownTable(rows: any[][]): string | null {
@@ -210,14 +233,14 @@ export class DocumentProcessor {
     }
 
     const cleaned = content
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "") // Remove control chars
+      .replace(CONTROL_CHARS_REGEX, "") // Remove control chars
       .replace(/\r\n/g, "\n")
       .replace(/\r/g, "\n")
-      .replace(/[ \t]+$/gm, "") // Remove trailing spaces
-      .replace(/\n{4,}/g, "\n\n\n") // Max 3 consecutive newlines
+      .replace(TRAILING_SPACES_REGEX, "") // Remove trailing spaces
+      .replace(MAX_NEWLINES_REGEX, "\n\n\n") // Max 3 consecutive newlines
       .trim();
 
-    if (cleaned.length < 10) {
+    if (cleaned.length < MIN_CONTENT_LENGTH) {
       throw new Error("Content too short after cleaning");
     }
 
@@ -230,10 +253,7 @@ export class DocumentProcessor {
   ): DocumentChunk[] {
     // Try structure-aware chunking first
     const structuredChunks = this.tryStructuredChunking(content, metadata);
-    if (
-      structuredChunks.length > 0 &&
-      this.validateChunks(structuredChunks, content.length)
-    ) {
+    if (structuredChunks.length > 0 && this.validateChunks(structuredChunks)) {
       return structuredChunks;
     }
 
@@ -248,17 +268,17 @@ export class DocumentProcessor {
     const chunks: DocumentChunk[] = [];
 
     // Look for clear document structure
-    const sectionRegex =
-      /^(#{1,4}\s+.+|§\s*\d+(?:\.\d+)*\s+.+|\d+\.\s+[A-ZÆØÅ].{10,})$/gm;
     const sections: Array<{ title: string; start: number; end: number }> = [];
 
-    let match;
-    while ((match = sectionRegex.exec(content)) !== null) {
+    // Fix: Avoid assignment in expression loop
+    let match = SECTION_REGEX.exec(content);
+    while (match !== null) {
       sections.push({
         title: match[1].trim(),
         start: match.index,
         end: match.index + match[0].length,
       });
+      match = SECTION_REGEX.exec(content);
     }
 
     if (sections.length < 2 || sections.length > 50) {
@@ -357,7 +377,7 @@ export class DocumentProcessor {
       });
 
       position += chunkContent.length - overlapSize;
-      partIndex++;
+      partIndex += 1;
 
       if (partIndex > 20) {
         break; // Safety limit
@@ -424,7 +444,7 @@ export class DocumentProcessor {
           },
           chunkIndex,
         });
-        chunkIndex++;
+        chunkIndex += 1;
       }
 
       if (endPos >= content.length) {
@@ -437,11 +457,8 @@ export class DocumentProcessor {
     return chunks;
   }
 
-  private validateChunks(
-    chunks: DocumentChunk[],
-    _contentLength: number
-  ): boolean {
-    if (chunks.length === 0 || chunks.length > 200) {
+  private validateChunks(chunks: DocumentChunk[]): boolean {
+    if (chunks.length === 0 || chunks.length > MAX_CHUNKS_LIMIT) {
       return false;
     }
 

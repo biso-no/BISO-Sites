@@ -1,5 +1,5 @@
 import { EditProduct } from "../_components/edit-product";
 
-export default async function Page() {
+export default function Page() {
   return <EditProduct />;
 }

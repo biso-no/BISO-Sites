@@ -11,23 +11,39 @@ export type ExtractedDocumentData = {
   exchangeRate?: number | null;
 };
 
+const DATE_PATTERNS: readonly RegExp[] = [
+  /\b\d{2}[-./]\d{2}[-./]\d{4}\b/, // DD/MM/YYYY
+  /\b\d{4}[-./]\d{2}[-./]\d{2}\b/, // YYYY/MM/DD
+  /\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/i,
+];
+
+const AMOUNT_PATTERNS: readonly RegExp[] = [
+  /(?:NOK|kr\.?|KR)\s*(\d+(?:[.,]\d{2})?)/i,
+  /(\d+(?:[.,]\d{2})?)\s*(?:NOK|kr\.?|KR)/i,
+  /(\d+(?:[.,]\d{2})?)/,
+];
+
+const DESCRIPTION_HEADER_REGEX = /(?:invoice|receipt|kvittering).*?\n/gi;
+const DESCRIPTION_TOTAL_REGEX = /\b(?:total|sum|amount|beløp).*?\n/gi;
+const AMOUNT_LINE_REGEX = /^\d+[.,]\d{2}$/;
+const DATE_LINE_REGEX = /^\d{2}[-./]\d{2}[-./]\d{4}$/;
+
 // Helper function to extract dates using various formats
 function extractDate(text: string): string | null {
-  const datePatterns = [
-    /\b\d{2}[-./]\d{2}[-./]\d{4}\b/, // DD/MM/YYYY
-    /\b\d{4}[-./]\d{2}[-./]\d{2}\b/, // YYYY/MM/DD
-    /\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/i,
-  ];
-
-  for (const pattern of datePatterns) {
+  for (const pattern of DATE_PATTERNS) {
     const match = text.match(pattern);
-    if (match) {
-      try {
-        const date = new Date(match[0]);
-        if (!Number.isNaN(date.getTime())) {
-          return date.toISOString().split("T")[0] || null;
-        }
-      } catch (_e) {}
+    if (!match) {
+      continue;
+    }
+
+    const timestamp = Date.parse(match[0]);
+    if (Number.isNaN(timestamp)) {
+      continue;
+    }
+
+    const serialized = new Date(timestamp).toISOString().split("T")[0];
+    if (serialized) {
+      return serialized;
     }
   }
   return null;
@@ -36,13 +52,7 @@ function extractDate(text: string): string | null {
 // Helper function to extract amounts
 function extractAmount(text: string): number | null {
   // Look for currency amounts with various formats
-  const amountPatterns = [
-    /(?:NOK|kr\.?|KR)\s*(\d+(?:[.,]\d{2})?)/i,
-    /(\d+(?:[.,]\d{2})?)\s*(?:NOK|kr\.?|KR)/i,
-    /(\d+(?:[.,]\d{2})?)/,
-  ];
-
-  for (const pattern of amountPatterns) {
+  for (const pattern of AMOUNT_PATTERNS) {
     const match = text.match(pattern);
     if (match) {
       const amount = Number.parseFloat(match[1]?.replace(",", ".") || "0");
@@ -58,8 +68,8 @@ function extractAmount(text: string): number | null {
 function extractDescription(text: string): string | null {
   // Remove common headers and footers
   const cleanText = text
-    .replace(/(?:invoice|receipt|kvittering).*?\n/gi, "")
-    .replace(/\b(?:total|sum|amount|beløp).*?\n/gi, "")
+    .replace(DESCRIPTION_HEADER_REGEX, "")
+    .replace(DESCRIPTION_TOTAL_REGEX, "")
     .trim();
 
   // Get the first non-empty line that's not a date or amount
@@ -68,8 +78,8 @@ function extractDescription(text: string): string | null {
     const trimmedLine = line.trim();
     if (
       trimmedLine &&
-      !trimmedLine.match(/^\d+[.,]\d{2}$/) && // not just an amount
-      !trimmedLine.match(/^\d{2}[-./]\d{2}[-./]\d{4}$/) // not just a date
+      !trimmedLine.match(AMOUNT_LINE_REGEX) && // not just an amount
+      !trimmedLine.match(DATE_LINE_REGEX) // not just a date
     ) {
       return trimmedLine;
     }

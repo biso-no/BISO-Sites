@@ -34,43 +34,35 @@ export default async function EditorPage({ params }: EditorPageProps) {
   // Or just let the client handle the creation logic via the "Switch Locale" UI.
   // But if we land here directly, we need a translation record to edit.
 
-  if (!translation) {
-    // Check if we can default to another existing translation?
-    // Or show a "Create Translation" UI?
-    // Actually, the user said: "Switching locale will update the editor... changes are either created or updated"
+  if (!translation && SUPPORTED_LOCALES.includes(locale as Locale)) {
+    // We can use ensureTranslation here?
+    // But ensureTranslation is an action, can we call it in Server Component?
+    // It uses createAdminClient, so yes.
+    try {
+      const _newTranslation = await ensureTranslation({
+        pageId,
+        locale: locale as Locale,
+        title: page.title, // Default title
+        // We could copy content from another locale if desired, but for now blank
+      });
+      // Redirect to self to reload with new data
+      // actually we can just continue with newTranslation
+      // but let's just redirect to be safe and clean state
+      // redirect(`/admin/pages/${pageId}/${locale}/editor`);
+      // (Redirect might cause loop if ensure fails, so let's just use the object)
 
-    // If we are here, we probably want to ensure it exists.
-    // Let's auto-create a blank one if it's valid locale?
-    if (SUPPORTED_LOCALES.includes(locale as Locale)) {
-      // We can use ensureTranslation here?
-      // But ensureTranslation is an action, can we call it in Server Component?
-      // It uses createAdminClient, so yes.
-      try {
-        const _newTranslation = await ensureTranslation({
-          pageId,
-          locale: locale as Locale,
-          title: page.title, // Default title
-          // We could copy content from another locale if desired, but for now blank
-        });
-        // Redirect to self to reload with new data
-        // actually we can just continue with newTranslation
-        // but let's just redirect to be safe and clean state
-        // redirect(`/admin/pages/${pageId}/${locale}/editor`);
-        // (Redirect might cause loop if ensure fails, so let's just use the object)
+      // Let's just pass this new object down
+      // But for safety and simplicity let's return the client with this new data
+      // Actually, better to just let the client handle "not found" state if we want to be explicit?
+      // But the request implies a smooth flow.
 
-        // Let's just pass this new object down
-        // But for safety and simplicity let's return the client with this new data
-        // Actually, better to just let the client handle "not found" state if we want to be explicit?
-        // But the request implies a smooth flow.
+      // Let's fallback to "Translation not found" UI if we really can't find it,
+      // but since we are in the "editor" route, we expect to edit.
 
-        // Let's fallback to "Translation not found" UI if we really can't find it,
-        // but since we are in the "editor" route, we expect to edit.
-
-        // Let's return a special state or auto-create.
-        // I'll implement auto-create in the action `ensureTranslation` and call it here.
-      } catch (e) {
-        console.error("Failed to ensure translation", e);
-      }
+      // Let's return a special state or auto-create.
+      // I'll implement auto-create in the action `ensureTranslation` and call it here.
+    } catch (e) {
+      console.error("Failed to ensure translation", e);
     }
   }
 
