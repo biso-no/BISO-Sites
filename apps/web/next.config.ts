@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import path from "path";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -8,6 +9,7 @@ const baseConfig: NextConfig = {
   reactStrictMode: false,
   productionBrowserSourceMaps: false,
   output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "..", ".."),
   images: {
     remotePatterns: [
       {
@@ -32,7 +34,7 @@ const baseConfig: NextConfig = {
   },
 
   experimental: {
-    authInterrupts: true,
+    authInterrupts: true
   },
   // No framework-level redirects at this time (user preference)
 };
