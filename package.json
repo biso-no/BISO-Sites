@@ -2,13 +2,13 @@
   "name": "biso-sites",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
+    "build": "bunx turbo run build",
+    "dev": "bunx turbo run dev",
     "lint": "biome lint --log-level=tracing --log-kind=json --log-file=tracing.json",
     "format": "biome format --write .",
     "check": "ultracite check",
     "fix": "ultracite fix",
-    "check-types": "turbo run check-types"
+    "check-types": "bunx turbo run check-types"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.7",
