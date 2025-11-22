@@ -3,6 +3,10 @@ import { ConfidentialClientApplication } from "@azure/msal-node";
 import { Client, ResponseType } from "@microsoft/microsoft-graph-client";
 import { z } from "zod";
 
+const SITE_URL_REGEX = /^https?:\/\//i;
+const LEADING_SLASHES_REGEX = /^\/+/;
+const TRAILING_SLASHES_REGEX = /\/+$/;
+
 export type SharePointConfig = {
   clientId: string;
   clientSecret: string;
@@ -42,8 +46,10 @@ export type SharePointSite = {
 
 export class SharePointService {
   private readonly msalClient: ConfidentialClientApplication;
+  private readonly config: SharePointConfig;
 
-  constructor(private readonly config: SharePointConfig) {
+  constructor(config: SharePointConfig) {
+    this.config = config;
     this.msalClient = new ConfidentialClientApplication({
       auth: {
         clientId: config.clientId,
@@ -87,7 +93,7 @@ export class SharePointService {
       for (const identifier of uniqueIdentifiers) {
         try {
           let site: any;
-          if (/^https?:\/\//i.test(identifier)) {
+          if (SITE_URL_REGEX.test(identifier)) {
             site = await this.getSiteByUrl(client, identifier);
           } else {
             // Treat as site ID
@@ -180,89 +186,87 @@ export class SharePointService {
     const documents: SharePointDocument[] = [];
 
     try {
-      if (folderPath === "/") {
-        const response = await client
-          .api(`/drives/${driveId}/root/children`)
-          .get();
-        for (const item of response.value) {
-          if (item.file) {
-            documents.push({
-              id: item.id,
-              name: item.name,
-              webUrl: item.webUrl,
-              siteId: "",
-              siteName: "",
-              driveId: "",
-              folderPath,
-              contentType: item.file.mimeType,
-              size: item.size,
-              lastModified: item.lastModifiedDateTime,
-              createdBy: item.createdBy?.user?.displayName || "Unknown",
-              metadata: {
-                fileName: item.name,
-                fileType: item.file.mimeType,
-                fileSize: item.size,
-                lastModified: item.lastModifiedDateTime,
-                createdBy: item.createdBy?.user?.displayName,
-                webUrl: item.webUrl,
-              },
-            });
-          } else if (item.folder && recursive) {
-            const subPath = `/${item.name}`;
-            const subItems = await this.getDriveItems(
-              client,
-              driveId,
-              subPath,
-              recursive
-            );
-            documents.push(...subItems);
-          }
+      const apiPath =
+        folderPath === "/"
+          ? `/drives/${driveId}/root/children`
+          : `/drives/${driveId}/root:${folderPath}:/children`;
+      const response = await client.api(apiPath).get();
+      await this.processDriveItemsResponse(
+        response.value,
+        folderPath,
+        documents,
+        {
+          client,
+          driveId,
+          recursive,
         }
-      } else {
-        const response = await client
-          .api(`/drives/${driveId}/root:${folderPath}:/children`)
-          .get();
-
-        for (const item of response.value) {
-          if (item.file) {
-            documents.push({
-              id: item.id,
-              name: item.name,
-              webUrl: item.webUrl,
-              siteId: "",
-              siteName: "",
-              driveId: "",
-              folderPath,
-              contentType: item.file.mimeType,
-              size: item.size,
-              lastModified: item.lastModifiedDateTime,
-              createdBy: item.createdBy?.user?.displayName || "Unknown",
-              metadata: {
-                fileName: item.name,
-                fileType: item.file.mimeType,
-                fileSize: item.size,
-                lastModified: item.lastModifiedDateTime,
-                createdBy: item.createdBy?.user?.displayName,
-                webUrl: item.webUrl,
-              },
-            });
-          } else if (item.folder && recursive) {
-            const subPath = `${folderPath}/${item.name}`;
-            const subItems = await this.getDriveItems(
-              client,
-              driveId,
-              subPath,
-              recursive
-            );
-            documents.push(...subItems);
-          }
-        }
-      }
+      );
     } catch (error) {
       console.error("Error getting drive items:", error);
     }
 
     return documents;
+  }
+
+  private async processDriveItemsResponse(
+    items: any[],
+    folderPath: string,
+    documents: SharePointDocument[],
+    context: {
+      client: Client;
+      driveId: string;
+      recursive: boolean;
+    }
+  ): Promise<void> {
+    const { client, driveId, recursive } = context;
+    for (const item of items) {
+      if (item.file) {
+        documents.push(
+          this.buildDocumentFromDriveItem(item, folderPath, driveId)
+        );
+        continue;
+      }
+
+      if (recursive && item.folder) {
+        const subPath =
+          folderPath === "/" ? `/${item.name}` : `${folderPath}/${item.name}`;
+        const subItems = await this.getDriveItems(
+          client,
+          driveId,
+          subPath,
+          recursive
+        );
+        documents.push(...subItems);
+      }
+    }
+  }
+
+  private buildDocumentFromDriveItem(
+    item: any,
+    folderPath: string,
+    driveId: string
+  ): SharePointDocument {
+    return {
+      id: item.id,
+      name: item.name,
+      webUrl: item.webUrl,
+      siteId: "",
+      siteName: "",
+      driveId,
+      folderPath,
+      contentType: item.file.mimeType,
+      size: item.size,
+      lastModified: item.lastModifiedDateTime,
+      createdBy: item.createdBy?.user?.displayName || "Unknown",
+      metadata: {
+        fileName: item.name,
+        fileType: item.file.mimeType,
+        fileSize: item.size,
+        lastModified: item.lastModifiedDateTime,
+        createdBy: item.createdBy?.user?.displayName,
+        webUrl: item.webUrl,
+      },
+    };
   }
 
   async downloadDocument(
@@ -277,29 +281,27 @@ export class SharePointService {
 
     // Normalize to ArrayBuffer regardless of environment
     if (data instanceof ArrayBuffer) {
-      return data as ArrayBuffer;
+      return data;
     }
     if (Buffer.isBuffer(data)) {
-      const buf: Buffer = data;
-      const ab = buf.buffer.slice(
-        buf.byteOffset,
-        buf.byteOffset + buf.byteLength
-      );
-      return ab as ArrayBuffer;
+      return new Uint8Array(data).buffer;
     }
     // If for any reason a stream is returned, read it fully
     if (typeof (data as any)?.pipe === "function") {
       const stream: NodeJS.ReadableStream = data as any;
-      const chunks: Buffer[] = await new Promise((resolve, reject) => {
-        const acc: Buffer[] = [];
-        stream.on("data", (chunk) =>
-          acc.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-        );
+      const chunks: Uint8Array[] = await new Promise((resolve, reject) => {
+        const acc: Uint8Array[] = [];
+        stream.on("data", (chunk) => {
+          const normalizedChunk = Buffer.isBuffer(chunk)
+            ? chunk
+            : Buffer.from(chunk);
+          acc.push(new Uint8Array(normalizedChunk));
+        });
         stream.on("end", () => resolve(acc));
         stream.on("error", reject);
       });
       const buf = Buffer.concat(chunks);
-      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      return new Uint8Array(buf).buffer;
     }
 
     throw new Error(
@@ -349,8 +351,8 @@ export class SharePointService {
     const hostname = parsed.hostname; // e.g., contoso.sharepoint.com
     // Relative path after host, without leading slash
     const relativePath = parsed.pathname
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "");
+      .replace(LEADING_SLASHES_REGEX, "")
+      .replace(TRAILING_SLASHES_REGEX, "");
     const pathSegment = relativePath.length > 0 ? `:/${relativePath}` : "";
     // Graph expects /sites/{hostname}:/{site-path}
     const apiPath = `/sites/${hostname}${pathSegment}`;

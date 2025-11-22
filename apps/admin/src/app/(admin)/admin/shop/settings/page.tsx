@@ -174,6 +174,27 @@ export default async function ShopSettingsPage() {
   );
 }
 
+function getGeneralSettings(formData: FormData) {
+  return {
+    shopName: String(formData.get("shopName") || ""),
+    contactEmail: String(formData.get("contactEmail") || ""),
+    defaultCampusId: String(formData.get("defaultCampusId") || ""),
+  };
+}
+
+function getVippsSettings(formData: FormData) {
+  return {
+    merchantSerialNumber: String(
+      formData.get("vipps_merchantSerialNumber") || ""
+    ),
+    subscriptionKey: String(formData.get("vipps_subscriptionKey") || ""),
+    clientId: String(formData.get("vipps_clientId") || ""),
+    clientSecret: String(formData.get("vipps_clientSecret") || ""),
+    returnUrl: String(formData.get("vipps_returnUrl") || ""),
+    callbackPrefix: String(formData.get("vipps_callbackPrefix") || ""),
+  };
+}
+
 export async function saveSettings(formData: FormData) {
   "use server";
   const section = formData.get("section") as string;
@@ -182,22 +203,9 @@ export async function saveSettings(formData: FormData) {
   const next = existing || { $id: "singleton", vipps: {}, general: {} };
 
   if (section === "general") {
-    next.general = {
-      shopName: String(formData.get("shopName") || ""),
-      contactEmail: String(formData.get("contactEmail") || ""),
-      defaultCampusId: String(formData.get("defaultCampusId") || ""),
-    };
+    next.general = getGeneralSettings(formData);
   } else if (section === "vipps") {
-    next.vipps = {
-      merchantSerialNumber: String(
-        formData.get("vipps_merchantSerialNumber") || ""
-      ),
-      subscriptionKey: String(formData.get("vipps_subscriptionKey") || ""),
-      clientId: String(formData.get("vipps_clientId") || ""),
-      clientSecret: String(formData.get("vipps_clientSecret") || ""),
-      returnUrl: String(formData.get("vipps_returnUrl") || ""),
-      callbackPrefix: String(formData.get("vipps_callbackPrefix") || ""),
-    };
+    next.vipps = getVippsSettings(formData);
   }
 
   try {

@@ -1,5 +1,5 @@
-import EventEditor from "../shared/EventEditor";
+import EventEditor from "../shared/event-editor";
 
-export default async function NewEventPage() {
+export default function NewEventPage() {
   return <EventEditor />;
 }

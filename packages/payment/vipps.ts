@@ -69,6 +69,43 @@ export type VippsPaymentState = {
   };
 };
 
+function buildPrefillCustomer(
+  info?: CheckoutSessionParams["customerInfo"]
+): Record<string, string> | null {
+  if (!info) {
+    return null;
+  }
+
+  const prefill: Record<string, string> = {};
+
+  if (info.firstName) {
+    prefill.firstName = info.firstName;
+  }
+  if (info.lastName) {
+    prefill.lastName = info.lastName;
+  }
+  if (info.email) {
+    prefill.email = info.email;
+  }
+  if (info.phone) {
+    prefill.phoneNumber = info.phone;
+  }
+  if (info.streetAddress) {
+    prefill.streetAddress = info.streetAddress;
+  }
+  if (info.city) {
+    prefill.city = info.city;
+  }
+  if (info.postalCode) {
+    prefill.postalCode = info.postalCode;
+  }
+  if (info.country) {
+    prefill.country = info.country;
+  }
+
+  return Object.keys(prefill).length > 0 ? prefill : null;
+}
+
 // ============= Order Management =============
 
 /**
@@ -152,167 +189,29 @@ async function updateOrderStatus(
   sessionData: any,
   databases: any
 ): Promise<void> {
-  const updateData: Partial<Orders> = {};
-  let newStatus: OrderStatus;
-
-  // Get current order to check old status
   const currentOrder = (await databases.getRow(
     process.env.APPWRITE_DATABASE_ID!,
     process.env.APPWRITE_ORDERS_COLLECTION_ID!,
     orderId
   )) as Orders;
 
-  const oldStatus = currentOrder.status;
-
-  switch (paymentState.state) {
-    case "CREATED":
-      // Payment initiated but no action yet
-      newStatus = OrderStatus.PENDING;
-      break;
-    case "AUTHORIZED":
-      // Payment authorized by user
-      newStatus = OrderStatus.AUTHORIZED;
-      updateData.vipps_order_id =
-        sessionData.payment?.aggregate?.authorizedAmount?.value?.toString() ||
-        null;
-      break;
-    case "ABORTED":
-      // User cancelled the payment
-      newStatus = OrderStatus.CANCELLED;
-      break;
-    case "EXPIRED":
-      // Payment timed out
-      newStatus = OrderStatus.CANCELLED;
-      break;
-    case "TERMINATED":
-      // Merchant cancelled or payment completed
-      newStatus = OrderStatus.CANCELLED;
-      break;
-    default:
-      newStatus = OrderStatus.PENDING;
-  }
-
-  // Check if payment is captured (fully paid)
-  if (sessionData.payment?.aggregate?.capturedAmount?.value > 0) {
-    newStatus = OrderStatus.PAID;
-    updateData.vipps_receipt_url =
-      sessionData.payment?.aggregate?.receipt?.url || null;
-  }
-
-  // Parse order items
-  let orderItems: any[] = [];
-  if (currentOrder.items_json) {
-    try {
-      orderItems = JSON.parse(currentOrder.items_json);
-    } catch (e) {
-      console.error("Error parsing order items:", e);
-    }
-  }
+  const oldStatus: OrderStatus = currentOrder.status || OrderStatus.PENDING;
+  const { status: newStatus, updateData } = determineStatusFromPaymentState(
+    paymentState,
+    sessionData
+  );
+  const orderItems = parseOrderItems(currentOrder.items_json);
 
   try {
-    // Handle stock decrements when payment is authorized or paid
-    if (
-      (newStatus === OrderStatus.AUTHORIZED ||
-        newStatus === OrderStatus.PAID) &&
-      oldStatus !== OrderStatus.AUTHORIZED &&
-      oldStatus !== OrderStatus.PAID
-    ) {
-      console.log(`[Stock] Decrementing stock for order ${orderId}`);
+    await adjustStockForOrder({
+      newStatus,
+      oldStatus,
+      orderItems,
+      databases,
+      orderId,
+      userId: currentOrder.userId ?? undefined,
+    });
 
-      for (const item of orderItems) {
-        try {
-          const product = await databases.getRow(
-            process.env.APPWRITE_DATABASE_ID!,
-            process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-            item.product_id
-          );
-
-          // Only decrement if stock is tracked (not null)
-          if (product.stock !== null && product.stock !== undefined) {
-            const newStock = Math.max(0, product.stock - item.quantity);
-            await databases.updateRow(
-              process.env.APPWRITE_DATABASE_ID!,
-              process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-              item.product_id,
-              { stock: newStock }
-            );
-            console.log(
-              `[Stock] Product ${item.product_id}: ${product.stock} -> ${newStock}`
-            );
-          }
-        } catch (error) {
-          console.error(
-            `Error decrementing stock for product ${item.product_id}:`,
-            error
-          );
-          // Continue with other items even if one fails
-        }
-      }
-
-      // Delete cart reservations for this user
-      if (currentOrder.userId) {
-        try {
-          const reservations = await databases.listRows(
-            process.env.APPWRITE_DATABASE_ID!,
-            "cart_reservations",
-            [`equal("user_id", "${currentOrder.userId}")`]
-          );
-
-          for (const reservation of reservations.rows) {
-            await databases.deleteRow(
-              process.env.APPWRITE_DATABASE_ID!,
-              "cart_reservations",
-              reservation.$id
-            );
-          }
-          console.log(
-            `[Stock] Deleted cart reservations for user ${currentOrder.userId}`
-          );
-        } catch (error) {
-          console.error("Error deleting cart reservations:", error);
-        }
-      }
-    }
-
-    // Handle stock restoration when order is cancelled (and was previously authorized/paid)
-    if (
-      newStatus === OrderStatus.CANCELLED &&
-      (oldStatus === OrderStatus.AUTHORIZED || oldStatus === OrderStatus.PAID)
-    ) {
-      console.log(`[Stock] Restoring stock for cancelled order ${orderId}`);
-
-      for (const item of orderItems) {
-        try {
-          const product = await databases.getRow(
-            process.env.APPWRITE_DATABASE_ID!,
-            process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-            item.product_id
-          );
-
-          // Only restore if stock is tracked (not null)
-          if (product.stock !== null && product.stock !== undefined) {
-            const newStock = product.stock + item.quantity;
-            await databases.updateRow(
-              process.env.APPWRITE_DATABASE_ID!,
-              process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-              item.product_id,
-              { stock: newStock }
-            );
-            console.log(
-              `[Stock] Restored product ${item.product_id}: ${product.stock} -> ${newStock}`
-            );
-          }
-        } catch (error) {
-          console.error(
-            `Error restoring stock for product ${item.product_id}:`,
-            error
-          );
-          // Continue with other items even if one fails
-        }
-      }
-    }
-
-    // Update order status
     await databases.updateRow(
       process.env.APPWRITE_DATABASE_ID!,
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
@@ -327,6 +226,198 @@ async function updateOrderStatus(
   } catch (error) {
     console.error("Error updating order status:", error);
     throw new Error("Failed to update order status");
+  }
+}
+
+function determineStatusFromPaymentState(
+  paymentState: VippsPaymentState,
+  sessionData: any
+): { status: OrderStatus; updateData: Partial<Orders> } {
+  const updateData: Partial<Orders> = {};
+  let newStatus: OrderStatus;
+
+  switch (paymentState.state) {
+    case "CREATED":
+      newStatus = OrderStatus.PENDING;
+      break;
+    case "AUTHORIZED":
+      newStatus = OrderStatus.AUTHORIZED;
+      updateData.vipps_order_id =
+        sessionData.payment?.aggregate?.authorizedAmount?.value?.toString() ||
+        null;
+      break;
+    case "ABORTED":
+      newStatus = OrderStatus.CANCELLED;
+      break;
+    case "EXPIRED":
+      newStatus = OrderStatus.CANCELLED;
+      break;
+    case "TERMINATED":
+      newStatus = OrderStatus.CANCELLED;
+      break;
+    default:
+      newStatus = OrderStatus.PENDING;
+  }
+
+  if (sessionData.payment?.aggregate?.capturedAmount?.value > 0) {
+    newStatus = OrderStatus.PAID;
+    updateData.vipps_receipt_url =
+      sessionData.payment?.aggregate?.receipt?.url || null;
+  }
+
+  return { status: newStatus, updateData };
+}
+
+function parseOrderItems(itemsJson?: string | null): any[] {
+  if (!itemsJson) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(itemsJson);
+  } catch (error) {
+    console.error("Error parsing order items:", error);
+    return [];
+  }
+}
+
+type StockAdjustmentParams = {
+  newStatus: OrderStatus;
+  oldStatus: OrderStatus;
+  orderItems: any[];
+  databases: any;
+  orderId: string;
+  userId?: string;
+};
+
+async function adjustStockForOrder({
+  newStatus,
+  oldStatus,
+  orderItems,
+  databases,
+  orderId,
+  userId,
+}: StockAdjustmentParams): Promise<void> {
+  const shouldDecrement =
+    (newStatus === OrderStatus.AUTHORIZED || newStatus === OrderStatus.PAID) &&
+    oldStatus !== OrderStatus.AUTHORIZED &&
+    oldStatus !== OrderStatus.PAID;
+
+  if (shouldDecrement) {
+    console.log(`[Stock] Decrementing stock for order ${orderId}`);
+    await decrementStockForItems({ orderItems, databases });
+
+    if (userId) {
+      await deleteUserReservations({ databases, userId });
+    }
+  }
+
+  const shouldRestore =
+    newStatus === OrderStatus.CANCELLED &&
+    (oldStatus === OrderStatus.AUTHORIZED || oldStatus === OrderStatus.PAID);
+
+  if (shouldRestore) {
+    console.log(`[Stock] Restoring stock for cancelled order ${orderId}`);
+    await restoreStockForItems({ orderItems, databases });
+  }
+}
+
+async function decrementStockForItems({
+  orderItems,
+  databases,
+}: {
+  orderItems: any[];
+  databases: any;
+}): Promise<void> {
+  for (const item of orderItems) {
+    try {
+      const product = await databases.getRow(
+        process.env.APPWRITE_DATABASE_ID!,
+        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        item.product_id
+      );
+
+      if (product.stock !== null && product.stock !== undefined) {
+        const newStock = Math.max(0, product.stock - item.quantity);
+        await databases.updateRow(
+          process.env.APPWRITE_DATABASE_ID!,
+          process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+          item.product_id,
+          { stock: newStock }
+        );
+        console.log(
+          `[Stock] Product ${item.product_id}: ${product.stock} -> ${newStock}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error decrementing stock for product ${item.product_id}:`,
+        error
+      );
+    }
+  }
+}
+
+async function restoreStockForItems({
+  orderItems,
+  databases,
+}: {
+  orderItems: any[];
+  databases: any;
+}): Promise<void> {
+  for (const item of orderItems) {
+    try {
+      const product = await databases.getRow(
+        process.env.APPWRITE_DATABASE_ID!,
+        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        item.product_id
+      );
+
+      if (product.stock !== null && product.stock !== undefined) {
+        const newStock = product.stock + item.quantity;
+        await databases.updateRow(
+          process.env.APPWRITE_DATABASE_ID!,
+          process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+          item.product_id,
+          { stock: newStock }
+        );
+        console.log(
+          `[Stock] Restored product ${item.product_id}: ${product.stock} -> ${newStock}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error restoring stock for product ${item.product_id}:`,
+        error
+      );
+    }
+  }
+}
+
+async function deleteUserReservations({
+  databases,
+  userId,
+}: {
+  databases: any;
+  userId: string;
+}): Promise<void> {
+  try {
+    const reservations = await databases.listRows(
+      process.env.APPWRITE_DATABASE_ID!,
+      "cart_reservations",
+      [`equal("user_id", "${userId}")`]
+    );
+
+    for (const reservation of reservations.rows) {
+      await databases.deleteRow(
+        process.env.APPWRITE_DATABASE_ID!,
+        "cart_reservations",
+        reservation.$id
+      );
+    }
+    console.log(`[Stock] Deleted cart reservations for user ${userId}`);
+  } catch (error) {
+    console.error("Error deleting cart reservations:", error);
   }
 }
 
@@ -360,6 +451,8 @@ export async function createCheckoutSession(
     const shippingCost = params.shippingCost || 300; // Default 300 NOK shipping
     const totalAmount = params.total + shippingCost;
     const amountInOre = totalAmount * 100;
+
+    const prefillCustomer = buildPrefillCustomer(params.customerInfo);
 
     // Step 4: Prepare checkout session request
     const checkoutRequest = {
@@ -400,33 +493,7 @@ export async function createCheckoutSession(
           },
         ],
       },
-      ...(params.customerInfo &&
-        Object.keys(params.customerInfo).length > 0 && {
-          prefillCustomer: {
-            ...(params.customerInfo.firstName && {
-              firstName: params.customerInfo.firstName,
-            }),
-            ...(params.customerInfo.lastName && {
-              lastName: params.customerInfo.lastName,
-            }),
-            ...(params.customerInfo.email && {
-              email: params.customerInfo.email,
-            }),
-            ...(params.customerInfo.phone && {
-              phoneNumber: params.customerInfo.phone,
-            }),
-            ...(params.customerInfo.streetAddress && {
-              streetAddress: params.customerInfo.streetAddress,
-            }),
-            ...(params.customerInfo.city && { city: params.customerInfo.city }),
-            ...(params.customerInfo.postalCode && {
-              postalCode: params.customerInfo.postalCode,
-            }),
-            ...(params.customerInfo.country && {
-              country: params.customerInfo.country,
-            }),
-          },
-        }),
+      ...(prefillCustomer && { prefillCustomer }),
       merchantInfo: {
         callbackUrl: `${baseUrl}/api/payment/vipps/callback`,
         returnUrl: `${baseUrl}/checkout/return?orderId=${orderId}`,

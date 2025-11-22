@@ -10,6 +10,39 @@ import { getDocumentViewerUrl } from "./document-utils";
 import { correctMimeType } from "./mime-utils";
 import type { VectorDocument } from "./vector-store.types";
 
+// Module-level constants for regex patterns and configuration
+const SYSTEM_FILE_PATTERNS = [
+  /^~\$/, // Word temp files
+  /^\./, // Hidden files
+  /thumbs\.db$/i,
+  /desktop\.ini$/i,
+  /\.tmp$/i,
+  /\.temp$/i,
+  /^_vti_/, // SharePoint system folders
+];
+
+const SEARCH_PATTERNS = {
+  paragraph: /§\s*(\d+(?:\.\d+)*)/g,
+  section: /(?:paragraf|paragraph|avsnitt|section)\s*(\d+(?:\.\d+)*)/gi,
+  article: /(?:artikkel|article)\s*(\d+(?:\.\d+)*)/gi,
+};
+
+const STATUTES_REGEX = /(vedtekt|vedtektene|statute|statutes)/i;
+const LOCAL_LAWS_REGEX = /(lokal(e)?\s+lov(er)?|local\s+law(s)?)/i;
+
+const CAMPUS_CANDIDATES = [
+  "oslo",
+  "bergen",
+  "trondheim",
+  "stavanger",
+  "drammen",
+  "kristiansand",
+  "ålesund",
+  "alesund",
+  "bodø",
+  "bodoe",
+];
+
 export type IndexingJob = {
   id: string;
   status: "pending" | "processing" | "completed" | "failed";
@@ -56,6 +89,104 @@ export type ProcessedDocumentResult = {
   skipReason?: string;
 };
 
+type SearchContext = {
+  category?: string;
+  campus?: string;
+  language?: "norwegian" | "english" | "mixed";
+};
+
+// Helper functions extracted to reduce complexity
+function resolveCategoryTerm(
+  category: string | undefined,
+  language: string | undefined
+): string {
+  if (category === "statutes") {
+    return language === "norwegian" ? "vedtekter" : "statutes";
+  }
+  if (category === "local-laws") {
+    return language === "norwegian" ? "lokale lover" : "local laws";
+  }
+  return "";
+}
+
+function detectCategory(query: string): "statutes" | "local-laws" | undefined {
+  if (STATUTES_REGEX.test(query)) {
+    return "statutes";
+  }
+  if (LOCAL_LAWS_REGEX.test(query)) {
+    return "local-laws";
+  }
+}
+
+function compareKeywordMatches(a: any, b: any, numberOnly: string): number {
+  const aMetadata = a.metadata || {};
+  const bMetadata = b.metadata || {};
+
+  // Prioritize structured chunks
+  const aStructured = aMetadata.isStructured ? 2 : 0;
+  const bStructured = bMetadata.isStructured ? 2 : 0;
+  if (aStructured !== bStructured) {
+    return bStructured - aStructured;
+  }
+
+  // Prioritize exact matches
+  const aExact = aMetadata.sectionNumber === numberOnly ? 1 : 0;
+  const bExact = bMetadata.sectionNumber === numberOnly ? 1 : 0;
+  if (aExact !== bExact) {
+    return bExact - aExact;
+  }
+
+  // Fall back to similarity score
+  return (b.score || 0) - (a.score || 0);
+}
+
+function calculateQualityScore(
+  metadata: any,
+  content: string,
+  queryLanguage: string
+): number {
+  let score = 0;
+
+  // Structure bonus
+  if (metadata.isStructured) {
+    score += 0.2;
+  }
+
+  // Language matching
+  const docLang = metadata.documentLanguage || "unknown";
+  if (docLang === "norwegian") {
+    score += queryLanguage === "norwegian" ? 0.3 : 0.25;
+  } else if (docLang === "english" && queryLanguage === "english") {
+    score += 0.2;
+  }
+
+  // Authority scoring
+  if (metadata.isAuthoritative) {
+    score += 0.2;
+  }
+  if (metadata.isLatest) {
+    score += 0.15;
+  }
+  if (metadata.isTranslation) {
+    score -= 0.1;
+  }
+
+  // Content length preference
+  const length = content.length;
+  if (length >= 500 && length <= 1500) {
+    score += 0.1;
+  } else if (length < 100) {
+    score -= 0.1;
+  }
+
+  // Processing quality indicators
+  if (metadata.tokenCount && metadata.tokenCount > 50) {
+    score += 0.05;
+  }
+
+  return score;
+}
+
 export class IndexingService {
   private readonly sharePointService: SharePointService;
   private readonly documentProcessor: DocumentProcessor;
@@ -71,7 +202,7 @@ export class IndexingService {
     this.vectorStore = vectorStore;
   }
 
-  async startIndexing(options: IndexingOptions): Promise<string> {
+  startIndexing(options: IndexingOptions): Promise<string> {
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const job: IndexingJob = {
@@ -80,7 +211,7 @@ export class IndexingService {
       siteId: options.siteId,
       siteName: "Unknown",
       folderPath: options.folderPath || "/",
-      recursive: options.recursive,
+      recursive: options.recursive ?? false,
       totalDocuments: 0,
       processedDocuments: 0,
       failedDocuments: 0,
@@ -103,15 +234,16 @@ export class IndexingService {
     // Start processing in background
     this.processIndexingJob(jobId, options).catch((error) => {
       console.error("❌ Indexing job failed:", error);
-      const job = this.jobs.get(jobId);
-      if (job) {
-        job.status = "failed";
-        job.error = error instanceof Error ? error.message : "Unknown error";
-        job.endTime = new Date();
+      const failedJob = this.jobs.get(jobId);
+      if (failedJob) {
+        failedJob.status = "failed";
+        failedJob.error =
+          error instanceof Error ? error.message : "Unknown error";
+        failedJob.endTime = new Date();
       }
     });
 
-    return jobId;
+    return Promise.resolve(jobId);
   }
 
   private async processIndexingJob(
@@ -134,7 +266,11 @@ export class IndexingService {
       if (!site) {
         try {
           site = await this.sharePointService.getSiteById(options.siteId);
-        } catch {}
+        } catch (error) {
+          console.warn(
+            `Could not fetch site info for ${options.siteId}: ${error}`
+          );
+        }
       }
       if (site) {
         job.siteName = site.displayName;
@@ -167,10 +303,7 @@ export class IndexingService {
       );
 
       // Process documents in batches with enhanced monitoring
-      const batchSize = options.batchSize || 5; // Reduced for better quality control
-      const _maxConcurrency = options.maxConcurrency || 2; // Reduced to avoid overwhelming services
-
-      const processingResults: ProcessedDocumentResult[] = [];
+      const batchSize = options.batchSize || 5;
 
       for (let i = 0; i < prioritizedDocuments.length; i += batchSize) {
         const batch = prioritizedDocuments.slice(i, i + batchSize);
@@ -178,68 +311,7 @@ export class IndexingService {
           `📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(prioritizedDocuments.length / batchSize)}`
         );
 
-        // Process batch with concurrency limit
-        const promises = batch.map((doc) =>
-          this.processDocumentWithValidation(doc, jobId, options)
-        );
-        const results = await Promise.allSettled(promises);
-
-        // Collect and analyze results
-        for (const result of results) {
-          if (result.status === "fulfilled") {
-            const docResult = result.value;
-            processingResults.push(docResult);
-
-            if (docResult.skipped) {
-              job.skippedDocuments++;
-              console.log(`⏭️ Skipped: ${docResult.skipReason}`);
-            } else if (docResult.error) {
-              job.failedDocuments++;
-              console.error(`❌ Failed: ${docResult.error}`);
-            } else {
-              job.processedDocuments++;
-
-              // Update processing statistics
-              job.processingDetails.chunksCreated += docResult.chunksCreated;
-              job.processingDetails.tokenCounts.total +=
-                docResult.tokensProcessed;
-              job.processingDetails.tokenCounts.min = Math.min(
-                job.processingDetails.tokenCounts.min,
-                docResult.tokensProcessed
-              );
-              job.processingDetails.tokenCounts.max = Math.max(
-                job.processingDetails.tokenCounts.max,
-                docResult.tokensProcessed
-              );
-
-              console.log(
-                `✅ Processed: ${docResult.chunksCreated} chunks, ${docResult.tokensProcessed} tokens, ${docResult.processingTimeMs}ms`
-              );
-            }
-          } else {
-            job.failedDocuments++;
-            console.error("❌ Document processing failed:", result.reason);
-          }
-        }
-
-        // Calculate running averages
-        if (job.processedDocuments > 0) {
-          job.processingDetails.avgChunksPerDocument =
-            job.processingDetails.chunksCreated / job.processedDocuments;
-          job.processingDetails.tokenCounts.average =
-            job.processingDetails.tokenCounts.total / job.processedDocuments;
-        }
-
-        // Progress update
-        const totalProcessed =
-          job.processedDocuments + job.failedDocuments + job.skippedDocuments;
-        const progressPercent = (
-          (totalProcessed / job.totalDocuments) *
-          100
-        ).toFixed(1);
-        console.log(
-          `📊 Progress: ${progressPercent}% (${totalProcessed}/${job.totalDocuments})`
-        );
+        await this.processBatch(batch, job, jobId, options);
 
         // Add delay between batches to avoid overwhelming services
         if (i + batchSize < prioritizedDocuments.length) {
@@ -247,24 +319,7 @@ export class IndexingService {
         }
       }
 
-      // Final statistics calculation
-      if (job.processingDetails.tokenCounts.min === Number.MAX_SAFE_INTEGER) {
-        job.processingDetails.tokenCounts.min = 0;
-      }
-
-      job.status = "completed";
-      job.endTime = new Date();
-
-      const duration = (job.endTime.getTime() - job.startTime.getTime()) / 1000;
-      console.log(
-        `🎉 Indexing job ${jobId} completed in ${duration.toFixed(1)}s`
-      );
-      console.log(
-        `📊 Final stats: ${job.processedDocuments} processed, ${job.failedDocuments} failed, ${job.skippedDocuments} skipped`
-      );
-      console.log(
-        `📦 Chunks created: ${job.processingDetails.chunksCreated} (avg: ${job.processingDetails.avgChunksPerDocument.toFixed(1)} per doc)`
-      );
+      this.finalizeJob(job, jobId);
     } catch (error) {
       job.status = "failed";
       job.error = error instanceof Error ? error.message : "Unknown error";
@@ -272,6 +327,98 @@ export class IndexingService {
       console.error(`❌ Job ${jobId} failed:`, error);
       throw error;
     }
+  }
+
+  private async processBatch(
+    batch: SharePointDocument[],
+    job: IndexingJob,
+    jobId: string,
+    options: IndexingOptions
+  ): Promise<void> {
+    const promises = batch.map((doc) =>
+      this.processDocumentWithValidation(doc, jobId, options)
+    );
+    const results = await Promise.allSettled(promises);
+
+    // Collect and analyze results
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        this.handleProcessingSuccess(result.value, job);
+      } else {
+        job.failedDocuments += 1;
+        console.error("❌ Document processing failed:", result.reason);
+      }
+    }
+
+    // Calculate running averages
+    if (job.processedDocuments > 0) {
+      job.processingDetails.avgChunksPerDocument =
+        job.processingDetails.chunksCreated / job.processedDocuments;
+      job.processingDetails.tokenCounts.average =
+        job.processingDetails.tokenCounts.total / job.processedDocuments;
+    }
+
+    // Progress update
+    const totalProcessed =
+      job.processedDocuments + job.failedDocuments + job.skippedDocuments;
+    const progressPercent = (
+      (totalProcessed / job.totalDocuments) *
+      100
+    ).toFixed(1);
+    console.log(
+      `📊 Progress: ${progressPercent}% (${totalProcessed}/${job.totalDocuments})`
+    );
+  }
+
+  private handleProcessingSuccess(
+    docResult: ProcessedDocumentResult,
+    job: IndexingJob
+  ): void {
+    if (docResult.skipped) {
+      job.skippedDocuments += 1;
+      console.log(`⏭️ Skipped: ${docResult.skipReason}`);
+    } else if (docResult.error) {
+      job.failedDocuments += 1;
+      console.error(`❌ Failed: ${docResult.error}`);
+    } else {
+      job.processedDocuments += 1;
+
+      // Update processing statistics
+      job.processingDetails.chunksCreated += docResult.chunksCreated;
+      job.processingDetails.tokenCounts.total += docResult.tokensProcessed;
+      job.processingDetails.tokenCounts.min = Math.min(
+        job.processingDetails.tokenCounts.min,
+        docResult.tokensProcessed
+      );
+      job.processingDetails.tokenCounts.max = Math.max(
+        job.processingDetails.tokenCounts.max,
+        docResult.tokensProcessed
+      );
+
+      console.log(
+        `✅ Processed: ${docResult.chunksCreated} chunks, ${docResult.tokensProcessed} tokens, ${docResult.processingTimeMs}ms`
+      );
+    }
+  }
+
+  private finalizeJob(job: IndexingJob, jobId: string): void {
+    if (job.processingDetails.tokenCounts.min === Number.MAX_SAFE_INTEGER) {
+      job.processingDetails.tokenCounts.min = 0;
+    }
+
+    job.status = "completed";
+    job.endTime = new Date();
+
+    const duration = (job.endTime.getTime() - job.startTime.getTime()) / 1000;
+    console.log(
+      `🎉 Indexing job ${jobId} completed in ${duration.toFixed(1)}s`
+    );
+    console.log(
+      `📊 Final stats: ${job.processedDocuments} processed, ${job.failedDocuments} failed, ${job.skippedDocuments} skipped`
+    );
+    console.log(
+      `📦 Chunks created: ${job.processingDetails.chunksCreated} (avg: ${job.processingDetails.avgChunksPerDocument.toFixed(1)} per doc)`
+    );
   }
 
   private filterAndValidateDocuments(documents: SharePointDocument[]): {
@@ -316,17 +463,7 @@ export class IndexingService {
   }
 
   private isSystemOrTempFile(fileName: string): boolean {
-    const systemPatterns = [
-      /^~\$/, // Word temp files
-      /^\./, // Hidden files
-      /thumbs\.db$/i,
-      /desktop\.ini$/i,
-      /\.tmp$/i,
-      /\.temp$/i,
-      /^_vti_/, // SharePoint system folders
-    ];
-
-    return systemPatterns.some((pattern) => pattern.test(fileName));
+    return SYSTEM_FILE_PATTERNS.some((pattern) => pattern.test(fileName));
   }
 
   private prioritizeDocuments(
@@ -335,7 +472,7 @@ export class IndexingService {
     // Group documents by base name to find versions
     const documentGroups = new Map<string, SharePointDocument[]>();
 
-    documents.forEach((doc) => {
+    for (const doc of documents) {
       const baseName = this.getDocumentBaseName(doc.name);
       const key = `${baseName}_${doc.folderPath}`.toLowerCase();
 
@@ -343,7 +480,7 @@ export class IndexingService {
         documentGroups.set(key, []);
       }
       documentGroups.get(key)?.push(doc);
-    });
+    }
 
     const prioritizedDocuments: SharePointDocument[] = [];
 
@@ -352,47 +489,56 @@ export class IndexingService {
       if (groupDocs.length === 1) {
         prioritizedDocuments.push(groupDocs[0]);
       } else {
-        // Multiple documents - apply prioritization
-        const classified = groupDocs.map((doc) => ({
-          doc,
-          classification: documentClassifier.classifyDocument(
-            doc.name,
-            doc.folderPath || "/"
-          ),
-        }));
-
-        // Sort by authority
-        classified.sort((a, b) =>
-          documentClassifier.compareAuthority(
-            a.classification,
-            b.classification
-          )
-        );
-
-        // Include the most authoritative
-        prioritizedDocuments.push(classified[0].doc);
-
-        // Also include English version if Norwegian is primary
-        if (classified[0].classification.language === "norwegian") {
-          const englishVersion = classified.find(
-            (c) =>
-              c.classification.language === "english" &&
-              c.classification.authority.isTranslation
-          );
-          if (englishVersion) {
-            prioritizedDocuments.push(englishVersion.doc);
-          }
-        }
-
-        if (groupDocs.length > 2) {
-          console.log(
-            `📋 Group ${groupKey}: Selected ${classified[0].doc.name} from ${groupDocs.length} versions`
-          );
-        }
+        const bestDocs = this.selectBestVersion(groupDocs, groupKey);
+        prioritizedDocuments.push(...bestDocs);
       }
     }
 
     return prioritizedDocuments;
+  }
+
+  private selectBestVersion(
+    groupDocs: SharePointDocument[],
+    groupKey: string
+  ): SharePointDocument[] {
+    const selectedDocs: SharePointDocument[] = [];
+
+    // Multiple documents - apply prioritization
+    const classified = groupDocs.map((doc) => ({
+      doc,
+      classification: documentClassifier.classifyDocument(
+        doc.name,
+        doc.folderPath || "/"
+      ),
+    }));
+
+    // Sort by authority
+    classified.sort((a, b) =>
+      documentClassifier.compareAuthority(a.classification, b.classification)
+    );
+
+    // Include the most authoritative
+    selectedDocs.push(classified[0].doc);
+
+    // Also include English version if Norwegian is primary
+    if (classified[0].classification.language === "norwegian") {
+      const englishVersion = classified.find(
+        (c) =>
+          c.classification.language === "english" &&
+          c.classification.authority.isTranslation
+      );
+      if (englishVersion) {
+        selectedDocs.push(englishVersion.doc);
+      }
+    }
+
+    if (groupDocs.length > 2) {
+      console.log(
+        `📋 Group ${groupKey}: Selected ${classified[0].doc.name} from ${groupDocs.length} versions`
+      );
+    }
+
+    return selectedDocs;
   }
 
   private getDocumentBaseName(fileName: string): string {
@@ -604,13 +750,15 @@ export class IndexingService {
   }
 
   // Keep existing methods but add enhanced error handling and logging
-  async getJobStatus(jobId: string): Promise<IndexingJob | null> {
-    return this.jobs.get(jobId) || null;
+  getJobStatus(jobId: string): Promise<IndexingJob | null> {
+    return Promise.resolve(this.jobs.get(jobId) || null);
   }
 
-  async listJobs(): Promise<IndexingJob[]> {
-    return Array.from(this.jobs.values()).sort(
-      (a, b) => b.startTime.getTime() - a.startTime.getTime()
+  listJobs(): Promise<IndexingJob[]> {
+    return Promise.resolve(
+      Array.from(this.jobs.values()).sort(
+        (a, b) => b.startTime.getTime() - a.startTime.getTime()
+      )
     );
   }
 
@@ -630,29 +778,10 @@ export class IndexingService {
       const queryLanguage = documentClassifier.detectQueryLanguage(query);
       const qLower = query.toLowerCase();
 
-      // Enhanced context detection
-      const isStatutes = /(vedtekt|vedtektene|statute|statutes)/i.test(query);
-      const isLocalLaws = /(lokal(e)?\s+lov(er)?|local\s+law(s)?)/i.test(query);
-      const detectedCategory = isStatutes
-        ? "statutes"
-        : isLocalLaws
-          ? "local-laws"
-          : undefined;
+      const detectedCategory = detectCategory(query);
 
       // Campus detection
-      const campusCandidates = [
-        "oslo",
-        "bergen",
-        "trondheim",
-        "stavanger",
-        "drammen",
-        "kristiansand",
-        "ålesund",
-        "alesund",
-        "bodø",
-        "bodoe",
-      ];
-      const detectedCampus = campusCandidates.find((c) => qLower.includes(c));
+      const detectedCampus = CAMPUS_CANDIDATES.find((c) => qLower.includes(c));
 
       // Enhanced filters for quality
       const finalFilter: Record<string, any> = {
@@ -665,61 +794,19 @@ export class IndexingService {
       }
 
       // Enhanced query augmentation
-      const categoryTerm =
-        detectedCategory === "statutes"
-          ? queryLanguage === "norwegian"
-            ? "vedtekter"
-            : "statutes"
-          : detectedCategory === "local-laws"
-            ? queryLanguage === "norwegian"
-              ? "lokale lover"
-              : "local laws"
-            : "";
+      const categoryTerm = resolveCategoryTerm(detectedCategory, queryLanguage);
       const campusTerm = detectedCampus ? detectedCampus : "";
       const augmentedQuery = [query, "BISO", categoryTerm, campusTerm]
         .filter(Boolean)
         .join(" ")
         .trim();
 
-      // Pattern detection for specific references
-      const patterns = {
-        paragraph: /§\s*(\d+(?:\.\d+)*)/g,
-        section: /(?:paragraf|paragraph|avsnitt|section)\s*(\d+(?:\.\d+)*)/gi,
-        article: /(?:artikkel|article)\s*(\d+(?:\.\d+)*)/gi,
-      };
-
-      let hasSpecificPattern = false;
-      const keywordResults: any[] = [];
-
-      // Enhanced pattern matching
-      for (const [patternType, regex] of Object.entries(patterns)) {
-        const matches = Array.from(query.matchAll(regex));
-        if (matches.length > 0) {
-          hasSpecificPattern = true;
-          console.log(
-            `🎯 Detected ${patternType} pattern:`,
-            matches.map((m) => m[0])
-          );
-
-          for (const match of matches) {
-            const keywordQuery = match[0];
-            const numberOnly = match[1];
-
-            const keywordSearchResults = await this.searchByKeyword(
-              keywordQuery,
-              numberOnly,
-              k * 2,
-              {
-                category: detectedCategory,
-                campus: detectedCampus,
-                language: queryLanguage,
-              }
-            );
-            keywordResults.push(...keywordSearchResults);
-          }
-          break;
-        }
-      }
+      const { hasSpecificPattern, keywordResults } =
+        await this.performPatternSearch(query, k, {
+          category: detectedCategory,
+          campus: detectedCampus,
+          language: queryLanguage,
+        });
 
       // Semantic search
       const semanticResults = await this.vectorStore.search({
@@ -729,52 +816,12 @@ export class IndexingService {
         includeMetadata: options.includeMetadata !== false,
       });
 
-      let combinedResults;
-
-      if (hasSpecificPattern && keywordResults.length > 0) {
-        // Hybrid search combination
-        const resultMap = new Map();
-
-        // Add keyword results first (higher priority)
-        keywordResults.forEach((result) => {
-          if (!resultMap.has(result.id)) {
-            resultMap.set(result.id, {
-              ...result,
-              searchType: "keyword",
-              originalScore: result.score,
-            });
-          }
-        });
-
-        // Add semantic results with score boosting for hybrid matches
-        semanticResults.forEach((result) => {
-          const id = result.id;
-          if (resultMap.has(id)) {
-            const existing = resultMap.get(id);
-            existing.score = Math.min(
-              1.0,
-              (existing.originalScore || 0) + result.score * 0.3
-            );
-            existing.searchType = "hybrid";
-          } else {
-            resultMap.set(id, {
-              ...result,
-              searchType: "semantic",
-              originalScore: result.score,
-            });
-          }
-        });
-
-        combinedResults = Array.from(resultMap.values())
-          .sort((a, b) => (b.score || 0) - (a.score || 0))
-          .slice(0, k);
-
-        console.log(
-          `🔍 Hybrid search: ${keywordResults.length} keyword + ${semanticResults.length} semantic = ${combinedResults.length} combined`
-        );
-      } else {
-        combinedResults = semanticResults.slice(0, k);
-      }
+      const combinedResults = this.combineHybridResults(
+        keywordResults,
+        semanticResults,
+        hasSpecificPattern,
+        k
+      );
 
       // Enhanced reranking
       const rerankedResults = this.rerankResults(
@@ -802,28 +849,107 @@ export class IndexingService {
     }
   }
 
+  private combineHybridResults(
+    keywordResults: any[],
+    semanticResults: any[],
+    hasSpecificPattern: boolean,
+    k: number
+  ): any[] {
+    if (hasSpecificPattern && keywordResults.length > 0) {
+      // Hybrid search combination
+      const resultMap = new Map();
+
+      // Add keyword results first (higher priority)
+      for (const result of keywordResults) {
+        if (!resultMap.has(result.id)) {
+          resultMap.set(result.id, {
+            ...result,
+            searchType: "keyword",
+            originalScore: result.score,
+          });
+        }
+      }
+
+      // Add semantic results with score boosting for hybrid matches
+      for (const result of semanticResults) {
+        const id = result.id;
+        if (resultMap.has(id)) {
+          const existing = resultMap.get(id);
+          existing.score = Math.min(
+            1.0,
+            (existing.originalScore || 0) + result.score * 0.3
+          );
+          existing.searchType = "hybrid";
+        } else {
+          resultMap.set(id, {
+            ...result,
+            searchType: "semantic",
+            originalScore: result.score,
+          });
+        }
+      }
+
+      const combined = Array.from(resultMap.values())
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, k);
+
+      console.log(
+        `🔍 Hybrid search: ${keywordResults.length} keyword + ${semanticResults.length} semantic = ${combined.length} combined`
+      );
+      return combined;
+    }
+
+    return semanticResults.slice(0, k);
+  }
+
+  private async performPatternSearch(
+    query: string,
+    k: number,
+    context: SearchContext
+  ): Promise<{ hasSpecificPattern: boolean; keywordResults: any[] }> {
+    let hasSpecificPattern = false;
+    const keywordResults: any[] = [];
+
+    // Enhanced pattern matching
+    for (const [patternType, regex] of Object.entries(SEARCH_PATTERNS)) {
+      const matches = Array.from(query.matchAll(regex));
+      if (matches.length > 0) {
+        hasSpecificPattern = true;
+        console.log(
+          `🎯 Detected ${patternType} pattern:`,
+          matches.map((m) => m[0])
+        );
+
+        for (const match of matches) {
+          const keywordQuery = match[0];
+          const numberOnly = match[1];
+
+          const keywordSearchResults = await this.searchByKeyword(
+            keywordQuery,
+            numberOnly,
+            k * 2,
+            context
+          );
+          keywordResults.push(...keywordSearchResults);
+        }
+        break;
+      }
+    }
+    return { hasSpecificPattern, keywordResults };
+  }
+
   // Keep existing search methods with enhanced error handling
   private async searchByKeyword(
     keywordQuery: string,
     numberOnly: string,
     limit: number,
-    context?: {
-      category?: string;
-      campus?: string;
-      language?: "norwegian" | "english" | "mixed";
-    }
+    context?: SearchContext
   ): Promise<any[]> {
     try {
-      const categoryTerm =
-        context?.category === "statutes"
-          ? context?.language === "norwegian"
-            ? "vedtekter"
-            : "statutes"
-          : context?.category === "local-laws"
-            ? context?.language === "norwegian"
-              ? "lokale lover"
-              : "local laws"
-            : "";
+      const categoryTerm = resolveCategoryTerm(
+        context?.category,
+        context?.language
+      );
       const campusTerm = context?.campus ? context.campus : "";
       const broadQueryString = [
         `paragraph ${numberOnly} section ${keywordQuery}`,
@@ -879,27 +1005,9 @@ export class IndexingService {
       });
 
       // Enhanced sorting with quality metrics
-      const sortedMatches = keywordMatches.sort((a, b) => {
-        const aMetadata = a.metadata || {};
-        const bMetadata = b.metadata || {};
-
-        // Prioritize structured chunks
-        const aStructured = aMetadata.isStructured ? 2 : 0;
-        const bStructured = bMetadata.isStructured ? 2 : 0;
-        if (aStructured !== bStructured) {
-          return bStructured - aStructured;
-        }
-
-        // Prioritize exact matches
-        const aExact = aMetadata.sectionNumber === numberOnly ? 1 : 0;
-        const bExact = bMetadata.sectionNumber === numberOnly ? 1 : 0;
-        if (aExact !== bExact) {
-          return bExact - aExact;
-        }
-
-        // Fall back to similarity score
-        return (b.score || 0) - (a.score || 0);
-      });
+      const sortedMatches = keywordMatches.sort((a, b) =>
+        compareKeywordMatches(a, b, numberOnly)
+      );
 
       console.log(
         `🔍 Keyword search "${keywordQuery}": ${keywordMatches.length}/${broadResults.length} matches`
@@ -938,52 +1046,16 @@ export class IndexingService {
       const aMetadata = a.metadata || {};
       const bMetadata = b.metadata || {};
 
-      // Enhanced scoring factors
-      const getQualityScore = (metadata: any, content: string) => {
-        let score = 0;
-
-        // Structure bonus
-        if (metadata.isStructured) {
-          score += 0.2;
-        }
-
-        // Language matching
-        const docLang = metadata.documentLanguage || "unknown";
-        if (docLang === "norwegian") {
-          score += queryLanguage === "norwegian" ? 0.3 : 0.25;
-        } else if (docLang === "english" && queryLanguage === "english") {
-          score += 0.2;
-        }
-
-        // Authority scoring
-        if (metadata.isAuthoritative) {
-          score += 0.2;
-        }
-        if (metadata.isLatest) {
-          score += 0.15;
-        }
-        if (metadata.isTranslation) {
-          score -= 0.1;
-        }
-
-        // Content length preference
-        const length = content.length;
-        if (length >= 500 && length <= 1500) {
-          score += 0.1;
-        } else if (length < 100) {
-          score -= 0.1;
-        }
-
-        // Processing quality indicators
-        if (metadata.tokenCount && metadata.tokenCount > 50) {
-          score += 0.05;
-        }
-
-        return score;
-      };
-
-      const aQualityScore = getQualityScore(aMetadata, a.content || "");
-      const bQualityScore = getQualityScore(bMetadata, b.content || "");
+      const aQualityScore = calculateQualityScore(
+        aMetadata,
+        a.content || "",
+        queryLanguage
+      );
+      const bQualityScore = calculateQualityScore(
+        bMetadata,
+        b.content || "",
+        queryLanguage
+      );
 
       const aFinalScore = (a.score || 0) + aQualityScore;
       const bFinalScore = (b.score || 0) + bQualityScore;

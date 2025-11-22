@@ -261,20 +261,20 @@ export function Hero({ featuredContent, labels }: HeroProps) {
         {/* Navigation arrows */}
         {featuredContent.length > 1 && (
           <>
-            <button
+            <Button
               aria-label="Previous slide"
               className="-translate-y-1/2 absolute top-1/2 left-4 z-20 cursor-pointer rounded-full border border-white/20 bg-white/10 p-3 backdrop-blur-md transition-colors hover:bg-white/20"
               onClick={prevSlide}
             >
               <ChevronLeft className="h-6 w-6 text-white" />
-            </button>
-            <button
+            </Button>
+            <Button
               aria-label="Next slide"
               className="-translate-y-1/2 absolute top-1/2 right-4 z-20 cursor-pointer rounded-full border border-white/20 bg-white/10 p-3 backdrop-blur-md transition-colors hover:bg-white/20"
               onClick={nextSlide}
             >
               <ChevronRight className="h-6 w-6 text-white" />
-            </button>
+            </Button>
           </>
         )}
 
@@ -282,7 +282,7 @@ export function Hero({ featuredContent, labels }: HeroProps) {
         {featuredContent.length > 1 && (
           <div className="-translate-x-1/2 absolute bottom-24 left-1/2 z-20 flex gap-2">
             {featuredContent.map((_, index) => (
-              <button
+              <Button
                 aria-label={`Go to slide ${index + 1}`}
                 className={`h-2 w-2 cursor-pointer rounded-full transition-all ${
                   index === currentIndex

@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import * as z from "zod";
+import { z } from "zod";
 import { createManagedPage } from "@/app/actions/pages";
 
 const formSchema = z.object({

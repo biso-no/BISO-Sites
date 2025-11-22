@@ -24,6 +24,11 @@ export type DocumentClassification = {
   };
 };
 
+const REG_EXP_VERSION = /v(\d+)\.(\d+)\.(\d+)/i;
+const REG_EXP_VERSION_MAJOR = /version\s*(\d+)\.(\d+)\.(\d+)/i;
+const REG_EXP_VERSION_PATCH = /version\s*(\d+)/i;
+const REG_EXP_NORWEGIAN_CHARS = /[æøå]/;
+
 export class DocumentClassifier {
   /**
    * Classify a document based on filename, path, and content patterns
@@ -224,12 +229,9 @@ export class DocumentClassifier {
   private parseVersion(fileName: string): DocumentClassification["version"] {
     // Patterns for version detection
     const versionPatterns = [
-      /v(\d+)\.(\d+)\.(\d+)/i, // v1.2.3
-      /v(\d+)\.(\d+)/i, // v1.2
-      /v(\d+)/i, // v1
-      /version\s*(\d+)\.(\d+)\.(\d+)/i,
-      /version\s*(\d+)\.(\d+)/i,
-      /version\s*(\d+)/i,
+      REG_EXP_VERSION,
+      REG_EXP_VERSION_MAJOR,
+      REG_EXP_VERSION_PATCH,
     ];
 
     for (const pattern of versionPatterns) {
@@ -283,13 +285,16 @@ export class DocumentClassifier {
       category = "organizational";
     }
 
+    let languageFolder: "norwegian" | "english" | undefined;
+    if (hasNorwegianFolder) {
+      languageFolder = "norwegian";
+    } else if (hasEnglishFolder) {
+      languageFolder = "english";
+    }
+
     return {
       isInLanguageFolder: hasNorwegianFolder || hasEnglishFolder,
-      languageFolder: hasNorwegianFolder
-        ? "norwegian"
-        : hasEnglishFolder
-          ? "english"
-          : undefined,
+      languageFolder,
       category,
     };
   }
@@ -300,52 +305,89 @@ export class DocumentClassifier {
     path: DocumentClassification["path"],
     fileName: string
   ): DocumentClassification["authority"] {
-    let priority = 0;
-    let isAuthoritative = true;
-    let isTranslation = false;
+    const langResult = this.calculateLanguageScore(language);
+    const versionScore = this.calculateVersionScore(version);
+    const pathResult = this.calculatePathScore(path);
+    const fileResult = this.calculateFileNameScore(fileName);
 
-    // Language priority (Norwegian is authoritative as per statute)
+    const priority =
+      langResult.score + versionScore + pathResult.score + fileResult.score;
+
+    // If either indicates translation, it is a translation
+    const isTranslation = langResult.isTranslation || pathResult.isTranslation;
+
+    // Determine if this is the latest version (simplified heuristic)
+    const isLatest = version.detected ? version.major >= 5 : true; // Rough heuristic
+
+    return {
+      isAuthoritative: fileResult.isAuthoritative,
+      isLatest,
+      isTranslation,
+      priority,
+    };
+  }
+
+  private calculateLanguageScore(
+    language: DocumentClassification["language"]
+  ): { score: number; isTranslation: boolean } {
     if (language === "norwegian") {
-      priority += 100;
-    } else if (language === "english") {
-      priority += 50;
-      isTranslation = true; // English is likely a translation
-    } else if (language === "mixed") {
-      priority += 75;
+      return { score: 100, isTranslation: false };
+    }
+    if (language === "english") {
+      return { score: 50, isTranslation: true };
+    }
+    if (language === "mixed") {
+      return { score: 75, isTranslation: false };
+    }
+    return { score: 0, isTranslation: false };
+  }
+
+  private calculateVersionScore(
+    version: DocumentClassification["version"]
+  ): number {
+    if (!version.detected) {
+      return -5;
     }
 
-    // Version priority (higher versions are more authoritative)
-    if (version.detected) {
-      priority += version.major * 10;
-      if (version.minor !== undefined) {
-        priority += version.minor;
-      }
-      if (version.patch !== undefined) {
-        priority += version.patch * 0.1;
-      }
-    } else {
-      // No version detected, might be less authoritative
-      priority -= 5;
+    let score = version.major * 10;
+    if (version.minor !== undefined) {
+      score += version.minor;
     }
+    if (version.patch !== undefined) {
+      score += version.patch * 0.1;
+    }
+    return score;
+  }
 
-    // Path-based priority
+  private calculatePathScore(path: DocumentClassification["path"]): {
+    score: number;
+    isTranslation: boolean;
+  } {
     if (path.isInLanguageFolder && path.languageFolder === "norwegian") {
-      priority += 20;
-    } else if (path.isInLanguageFolder && path.languageFolder === "english") {
-      priority += 10;
-      isTranslation = true;
+      return { score: 20, isTranslation: false };
     }
+    if (path.isInLanguageFolder && path.languageFolder === "english") {
+      return { score: 10, isTranslation: true };
+    }
+    return { score: 0, isTranslation: false };
+  }
 
-    // File name patterns that indicate authority
+  private calculateFileNameScore(fileName: string): {
+    score: number;
+    isAuthoritative: boolean;
+  } {
+    let score = 0;
+    let isAuthoritative = true;
     const fileNameLower = fileName.toLowerCase();
+
     if (
       fileNameLower.includes("current") ||
       fileNameLower.includes("gjeldende")
     ) {
-      priority += 15;
+      score += 15;
     }
     if (fileNameLower.includes("draft") || fileNameLower.includes("utkast")) {
-      priority -= 20;
+      score -= 20;
       isAuthoritative = false;
     }
     if (
@@ -353,19 +395,11 @@ export class DocumentClassifier {
       fileNameLower.includes("previous") ||
       fileNameLower.includes("gammel")
     ) {
-      priority -= 15;
+      score -= 15;
       isAuthoritative = false;
     }
 
-    // Determine if this is the latest version (simplified heuristic)
-    const isLatest = version.detected ? version.major >= 5 : true; // Rough heuristic
-
-    return {
-      isAuthoritative,
-      isLatest,
-      isTranslation,
-      priority,
-    };
+    return { score, isAuthoritative };
   }
 
   /**
@@ -439,7 +473,7 @@ export class DocumentClassifier {
     }
 
     // Check for specific Norwegian characters
-    if (/[æøå]/.test(queryLower)) {
+    if (REG_EXP_NORWEGIAN_CHARS.test(queryLower)) {
       return "norwegian";
     }
 

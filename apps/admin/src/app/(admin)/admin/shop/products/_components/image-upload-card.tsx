@@ -70,11 +70,11 @@ export default function ImageUploadCard({
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    files.forEach((file) => {
+    for (const file of files) {
       if (file) {
         handleUpload(file);
       }
-    });
+    }
   };
 
   const removeImage = (index: number) => {
@@ -193,6 +193,7 @@ export default function ImageUploadCard({
                 <button
                   className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-muted-foreground text-xs transition-colors hover:border-primary/40 hover:bg-primary/5"
                   disabled={isUploading}
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Placeholders are static
                   key={`empty-${index}`}
                   onClick={() => fileInputRef.current?.click()}
                   type="button"

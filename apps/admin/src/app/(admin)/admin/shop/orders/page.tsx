@@ -36,7 +36,7 @@ import { ListFilter } from "lucide-react";
 
 import { getTranslations } from "next-intl/server";
 
-export const description =
+export const pageDescription =
   "Monitor Vipps orders, revenue trends, and customer details in real time.";
 
 import type { Orders } from "@repo/api/types/appwrite";

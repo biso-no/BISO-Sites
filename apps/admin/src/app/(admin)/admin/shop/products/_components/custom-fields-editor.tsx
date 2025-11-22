@@ -105,11 +105,11 @@ export function CustomFieldsEditor({
                   <div className="space-y-1">
                     <Label>Field type</Label>
                     <Select
-                      onValueChange={(value: ProductCustomFieldType) =>
+                      onValueChange={(selectedValue: ProductCustomFieldType) =>
                         updateField(index, {
-                          type: value,
+                          type: selectedValue,
                           options:
-                            value === "select"
+                            selectedValue === "select"
                               ? (field.options ?? [])
                               : undefined,
                         })

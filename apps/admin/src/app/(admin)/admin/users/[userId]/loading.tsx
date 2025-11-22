@@ -35,6 +35,7 @@ export default function UserDetailsLoading() {
                 <div className="space-y-4 pt-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {Array.from({ length: 4 }).map((_, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: Skeletons are static
                       <div className="space-y-2" key={i}>
                         <Skeleton className="h-4 w-24" />
                         <Skeleton className="h-10 w-full" />

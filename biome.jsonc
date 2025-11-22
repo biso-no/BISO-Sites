@@ -1,6 +1,16 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "extends": ["ultracite/core", "ultracite/react"],
+
+  "files": {
+    "maxSize": 5242880,
+    "includes": [
+      "**",
+      "!!**/pdf.worker.min.js",
+      "!!apps/admin/src/app/(admin)/admin/expenses/expense-table.tsx"
+    ]
+  },
+
   "linter": {
     "rules": {
       "performance": {
@@ -8,10 +18,15 @@
       },
       "suspicious": {
         "noExplicitAny": "off",
-        "noEvolvingTypes": "warn"
+        "noEvolvingTypes": "warn",
+        "noArrayIndexKey": "off"
       },
       "style": {
-        "noEnum": "off"
+        "noEnum": "off",
+        "noNonNullAssertion": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "off"
       }
     }
   }

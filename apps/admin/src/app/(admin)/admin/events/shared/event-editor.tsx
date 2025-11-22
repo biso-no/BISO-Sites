@@ -22,10 +22,10 @@ import type { AdminEvent } from "@/lib/types/event";
 import type { Campus } from "@/lib/types/post";
 
 // Local components
-import { EventOptions } from "./EventOptions";
-import { EventSchedule } from "./EventSchedule";
-import { EventSidebar } from "./EventSidebar";
-import { EventTranslations } from "./EventTranslations";
+import { EventOptions } from "./event-options";
+import { EventSchedule } from "./event-schedule";
+import { EventSidebar } from "./event-sidebar";
+import { EventTranslations } from "./event-translations";
 import type { FormValues } from "./schema";
 // Local schema
 import {

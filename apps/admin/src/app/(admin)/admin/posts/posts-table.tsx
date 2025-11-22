@@ -45,14 +45,14 @@ import type { Campus, Department, Post } from "@/lib/types/post";
 const getUniqueDepartments = (posts: Post[]): Department[] => {
   const uniqueMap = new Map<string, Department>();
 
-  posts.forEach((post) => {
+  for (const post of posts) {
     const department = post.department;
 
     // Check if the department has a valid 'id' and add to the map if it's not already present
     if (department?.Name && !uniqueMap.has(department.Name)) {
       uniqueMap.set(department.Name, department);
     }
-  });
+  }
 
   return Array.from(uniqueMap.values());
 };
@@ -60,14 +60,14 @@ const getUniqueDepartments = (posts: Post[]): Department[] => {
 const getUniqueCampuses = (posts: Post[]): Campus[] => {
   const uniqueMap = new Map<string, Campus>();
 
-  posts.forEach((post) => {
+  for (const post of posts) {
     const campus = post.campus;
 
     // Check if the department has a valid 'id' and add to the map if it's not already present
     if (campus?.name && !uniqueMap.has(campus.name)) {
       uniqueMap.set(campus.name, campus);
     }
-  });
+  }
 
   return Array.from(uniqueMap.values());
 };
@@ -95,10 +95,10 @@ export function PostTable({ posts }: { posts: Post[] }) {
 
   // Extract unique campuses and departments when the component loads
   useEffect(() => {
-    const uniqueDepartments = getUniqueDepartments(posts);
-    const uniqueCampuses = getUniqueCampuses(posts);
-    setUniqueCampuses(uniqueCampuses);
-    setUniqueDepartments(uniqueDepartments);
+    const departmentsList = getUniqueDepartments(posts);
+    const campusesList = getUniqueCampuses(posts);
+    setUniqueCampuses(campusesList);
+    setUniqueDepartments(departmentsList);
   }, [posts]);
 
   const filteredPosts = useMemo(
@@ -129,18 +129,18 @@ export function PostTable({ posts }: { posts: Post[] }) {
   const handleChange = (eOrField) => {
     if (typeof eOrField === "string") {
       // This is for the Select components
-      return (value) => {
+      return (newValue) => {
         setFormData({
           ...formData,
-          [eOrField]: value,
+          [eOrField]: newValue,
         });
       };
     }
     // This is for the Input fields
-    const { name, value } = eOrField.target;
+    const { name, value: inputValue } = eOrField.target;
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: inputValue,
     });
   };
 

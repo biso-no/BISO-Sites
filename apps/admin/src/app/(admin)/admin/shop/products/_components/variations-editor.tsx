@@ -42,11 +42,18 @@ export function VariationsEditor({
   };
 
   const setDefault = (index: number, isDefault: boolean) => {
-    const next = variations.map((variation, idx) => ({
-      ...variation,
-      is_default:
-        idx === index ? isDefault : isDefault ? false : variation.is_default,
-    }));
+    const next = variations.map((variation, idx) => {
+      let newIsDefault = variation.is_default;
+      if (idx === index) {
+        newIsDefault = isDefault;
+      } else if (isDefault) {
+        newIsDefault = false;
+      }
+      return {
+        ...variation,
+        is_default: newIsDefault,
+      };
+    });
     onChange(next);
   };
 

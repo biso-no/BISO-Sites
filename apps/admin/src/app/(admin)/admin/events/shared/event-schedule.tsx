@@ -48,11 +48,12 @@ export function EventSchedule({
     (c) => c.$id === form.watch("campus_id")
   );
 
-  const unitPlaceholder = loadingDepartments
-    ? t("editor.placeholders.loading")
-    : selectedCampus
-      ? t("editor.placeholders.addUnit")
-      : t("editor.placeholders.selectCampusFirst");
+  let unitPlaceholder = t("editor.placeholders.selectCampusFirst");
+  if (loadingDepartments) {
+    unitPlaceholder = t("editor.placeholders.loading");
+  } else if (selectedCampus) {
+    unitPlaceholder = t("editor.placeholders.addUnit");
+  }
 
   return (
     <Card className="glass-card">

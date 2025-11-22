@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listCampuses, listDepartments } from "@/app/actions/events";
 import { getJob } from "@/app/actions/jobs";
-import JobEditor from "../shared/JobEditor";
+import JobEditor from "../shared/job-editor";
 
 export default async function EditJobPage({
   params,

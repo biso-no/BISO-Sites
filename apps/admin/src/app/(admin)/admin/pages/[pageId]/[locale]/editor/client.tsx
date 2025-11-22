@@ -75,7 +75,9 @@ export function EditorClient({
     newLocale: Locale,
     context: { title: string; slug: string }
   ) => {
-    if (newLocale === locale) { return; }
+    if (newLocale === locale) {
+      return;
+    }
 
     const existingTranslation = pageTranslations.find(
       (t) => t.locale === newLocale

@@ -13,12 +13,13 @@ export function FileUpload({
   name?: string;
   value?: File | string | null;
 }) {
-  const previewUrl =
-    value instanceof File
-      ? URL.createObjectURL(value)
-      : typeof value === "string"
-        ? value
-        : null;
+  let previewUrl: string | null = null;
+
+  if (value instanceof File) {
+    previewUrl = URL.createObjectURL(value);
+  } else if (typeof value === "string") {
+    previewUrl = value;
+  }
 
   return (
     <div className="flex justify-center">

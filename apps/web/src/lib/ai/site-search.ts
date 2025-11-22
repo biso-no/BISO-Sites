@@ -76,14 +76,18 @@ export const searchSiteContent = tool({
       }));
 
       const count = items.length;
-      const msg =
-        locale === "no"
-          ? count > 0
-            ? `Fant ${count} relevante treff på nettsiden.`
-            : "Fant ingen relevante treff på nettsiden."
-          : count > 0
-            ? `Found ${count} relevant results on the site.`
-            : "No relevant site results found.";
+      const hasResults = count > 0;
+      let msg: string;
+
+      if (locale === "no") {
+        msg = hasResults
+          ? `Fant ${count} relevante treff på nettsiden.`
+          : "Fant ingen relevante treff på nettsiden.";
+      } else {
+        msg = hasResults
+          ? `Found ${count} relevant results on the site.`
+          : "No relevant site results found.";
+      }
 
       return { results: items, totalResults: count, message: msg };
     } catch (error) {

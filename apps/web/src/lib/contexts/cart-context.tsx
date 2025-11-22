@@ -4,6 +4,7 @@ import { useLocale } from "next-intl";
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -76,6 +77,28 @@ function generateCartItemId(
   return `${contentId}${optionsHash ? `-${btoa(optionsHash)}` : ""}`;
 }
 
+function clampQuantity({
+  quantity,
+  metadata,
+  stock,
+}: {
+  quantity: number;
+  metadata?: CartItem["metadata"];
+  stock: number | null;
+}): number {
+  let result = quantity;
+
+  if (metadata?.max_per_order && result > metadata.max_per_order) {
+    result = metadata.max_per_order;
+  }
+
+  if (stock !== null) {
+    result = Math.min(result, stock);
+  }
+
+  return result;
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +106,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const locale = useLocale() as "en" | "no";
 
   // Load cart from database on mount
-  const refreshCart = async () => {
+  const refreshCart = useCallback(async () => {
     try {
       setIsLoading(true);
       const cartData = await getCartItemsWithDetails(locale);
@@ -111,7 +134,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [locale]);
 
   useEffect(() => {
     setMounted(true);
@@ -122,65 +145,41 @@ export function CartProvider({ children }: { children: ReactNode }) {
     item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
   ) => {
     const id = generateCartItemId(item.contentId, item.selectedOptions);
-    const quantity = item.quantity || 1;
+    const baseQuantity = item.quantity ?? 1;
 
-    // Check if item exists
     const existingItem = items.find((i) => i.id === id);
 
     if (existingItem) {
-      // Update quantity
-      let newQuantity = existingItem.quantity + quantity;
+      const newQuantity = clampQuantity({
+        quantity: existingItem.quantity + baseQuantity,
+        metadata: item.metadata,
+        stock: item.stock,
+      });
 
-      // Check max_per_order limit
-      if (
-        item.metadata?.max_per_order &&
-        newQuantity > item.metadata.max_per_order
-      ) {
-        newQuantity = item.metadata.max_per_order;
-      }
-
-      // Check stock limit
-      if (item.stock !== null) {
-        newQuantity = Math.min(newQuantity, item.stock);
-      }
-
-      // Update in database
       await createOrUpdateReservation(item.productId, newQuantity);
 
-      // Update local state
       setItems((prevItems) =>
         prevItems.map((i) =>
           i.id === id ? { ...i, quantity: newQuantity } : i
         )
       );
-    } else {
-      // Add new item
-      let initialQuantity = quantity;
-
-      // Check max_per_order limit for new item
-      if (
-        item.metadata?.max_per_order &&
-        initialQuantity > item.metadata.max_per_order
-      ) {
-        initialQuantity = item.metadata.max_per_order;
-      }
-
-      // Check stock limit for new item
-      if (item.stock !== null && initialQuantity > item.stock) {
-        initialQuantity = item.stock;
-      }
-
-      // Create in database
-      await createOrUpdateReservation(item.productId, initialQuantity);
-
-      // Add to local state
-      const newItem: CartItem = {
-        ...item,
-        id,
-        quantity: initialQuantity,
-      };
-      setItems((prevItems) => [...prevItems, newItem]);
+      return;
     }
+
+    const initialQuantity = clampQuantity({
+      quantity: baseQuantity,
+      metadata: item.metadata,
+      stock: item.stock,
+    });
+
+    await createOrUpdateReservation(item.productId, initialQuantity);
+
+    const newItem: CartItem = {
+      ...item,
+      id,
+      quantity: initialQuantity,
+    };
+    setItems((prevItems) => [...prevItems, newItem]);
   };
 
   const removeItem = async (itemId: string) => {
@@ -191,7 +190,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       await deleteReservation(item.productId);
 
       // Remove from local state
-      setItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+      setItems((prevItems) =>
+        prevItems.filter((cartItem) => cartItem.id !== itemId)
+      );
     }
   };
 

@@ -107,7 +107,7 @@ function buildFilterOptions(products: ProductWithTranslations[]) {
   const campusMap = new Map<string, string>();
   const categories = new Set<string>();
 
-  products.forEach((product) => {
+  for (const product of products) {
     if (product.campus_id) {
       campusMap.set(
         product.campus_id,
@@ -117,7 +117,7 @@ function buildFilterOptions(products: ProductWithTranslations[]) {
     if (product.category) {
       categories.add(product.category);
     }
-  });
+  }
 
   return {
     campuses: Array.from(campusMap.entries()).map(([id, name]) => ({

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEvent } from "@/app/actions/events";
-import EventEditor from "../shared/EventEditor";
+import EventEditor from "../shared/event-editor";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
