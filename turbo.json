@@ -4,6 +4,30 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "WEBDOCK_API_KEY",
+        "PINECONE_API_KEY",
+        "AZURE_CERT_THUMBPRINT",
+        "SHAREPOINT_TENANT_ID",
+        "SHAREPOINT_CLIENT_ID",
+        "APPWRITE_API_KEY",
+        "APPWRITE_PROJECT_ID",
+        "VIPPS_CLIENT_SECRET",
+        "SHAREPOINT_SITES",
+        "PINECONE_INDEX_NAME",
+        "AZURE_APP_ID",
+        "VIPPS_CLIENT_ID",
+        "APPWRITE_ENDPOINT",
+        "AZURE_ORG",
+        "VIPPS_SUBSCRIPTION_KEY",
+        "AZURE_TENANT_ID",
+        "APPWRITE_BUCKET_ID",
+        "OPENAI_API_KEY",
+        "AZURE_CERT_PASS",
+        "SHAREPOINT_CLIENT_SECRET",
+        "VIPPS_TEST_MODE",
+        "VIPPS_MERCHANT_SERIAL_NUMBER"
+      ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["**/.next/**", "!**/.next/cache/**", "**/dist/**"]
     },
