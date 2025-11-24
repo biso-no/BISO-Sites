@@ -5,7 +5,7 @@ import { getLocale } from "@/app/actions/locale";
 import { getDemoPage } from "@/app/actions/pages";
 
 const PageRender = dynamic(() =>
-  import("@repo/editor").then((mod) => mod.PageRender)
+  import("@repo/editor/render").then((mod) => mod.PageRender),
 );
 
 type PageProps = {

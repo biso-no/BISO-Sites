@@ -16,7 +16,7 @@ import {
 } from "@/app/actions/pages";
 
 const PageEditor = dynamic(
-  () => import("@repo/editor").then((mod) => mod.PageEditor),
+  () => import("@repo/editor/editor").then((mod) => mod.PageEditor),
   { ssr: false }
 );
 

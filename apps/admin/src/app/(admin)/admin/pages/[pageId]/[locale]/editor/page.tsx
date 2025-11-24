@@ -1,4 +1,4 @@
-import type { Data } from "@measured/puck";
+import type { Data } from "@repo/editor";
 import type { Locale } from "@repo/api/types/appwrite";
 import { notFound } from "next/navigation";
 import { ensureTranslation, getManagedPage } from "@/app/actions/pages";
@@ -97,7 +97,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
       pageTranslations={freshPage?.translations.map((t) => ({
         locale: t.locale,
         id: t.id,
-      }))}
+      })) ?? []}
       slug={freshTranslation.slug || page.slug}
       status={page.status}
       title={freshTranslation.title}
