@@ -1,6 +1,6 @@
-export { type Config, createUsePuck, type Data, Puck } from "@measured/puck";
+// Server-safe entry for the editor package.
+// Only re-export types here so this module can be imported from Server Components
+// without pulling in client-only Puck runtime APIs.
+export type { Config, Data } from "@measured/puck";
 
-export * from "./config";
-export * from "./editor";
-export * from "./render";
-export * from "./types";
+export type { PageBuilderDocument } from "./types";

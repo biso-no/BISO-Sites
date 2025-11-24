@@ -8,6 +8,7 @@
     ".": "./src/index.tsx",
     "./config": "./src/config.tsx",
     "./render": "./src/render.tsx",
+    "./editor": "./src/editor.tsx",
     "./types": "./src/types.ts"
   },
   "scripts": {
@@ -17,12 +18,12 @@
   },
   "dependencies": {
     "@measured/puck": "^0.20.2",
-    "@repo/ui": "workspace:*",
     "@repo/api": "workspace:*",
+    "@repo/ui": "workspace:*",
+    "lucide-react": "^0.552.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "lucide-react": "^0.552.0",
-    "sonner": "^1.4.0"
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
