@@ -1,3 +1,10 @@
 {
-  "i18n-ally.localesPaths": ["apps/web/messages", "apps/web/src/i18n"]
+  "i18n-ally.localesPaths": ["apps/web/messages", "apps/web/src/i18n"],
+  "search.exclude": {
+    "**/bun.lockb": true,
+    "**/*.lockb": true,
+    "**/dist/**": true,
+    "**/build/**": true
+  },
+  "tailwindCSS.experimental.configFile": "./packages/ui/styles/globals.css"
 }

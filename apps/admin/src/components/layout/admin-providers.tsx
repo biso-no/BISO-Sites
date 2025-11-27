@@ -1,6 +1,7 @@
 "use client";
 import "@assistant-ui/styles/index.css";
 import "@assistant-ui/styles/markdown.css";
+import "./assistant-ui-overrides.css"; // Override v3-format CSS vars with oklch() for Tailwind v4 compatibility
 import {
   AssistantRuntimeProvider,
   makeAssistantToolUI,

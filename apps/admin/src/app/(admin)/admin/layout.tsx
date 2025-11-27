@@ -1,4 +1,3 @@
-import "@/app/globals.css";
 import { redirect } from "next/navigation";
 import { getUserRoles } from "@/app/actions/admin";
 import { AdminLayout as Component } from "@/components/admin-layout";

@@ -1,5 +1,3 @@
-import "@/app/globals.css";
-
 import { AssistantModal } from "@/components/ai/public";
 import { Footer } from "@/components/layout/footer";
 import { Navigation } from "@/components/layout/nav";

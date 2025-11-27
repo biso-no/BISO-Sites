@@ -33,7 +33,6 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/user";
-import { AssistantModal } from "./ai/admin";
 import { AssistantSidebar } from "./ai/admin-sidebar";
 import { useAssistantUIStore } from "./ai/assistant-ui-store";
 import Breadcrumb from "./breadcrumb";
@@ -551,11 +550,6 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             </div>
           )}
         </main>
-
-        {/* Assistant Modal */}
-        <div className="fixed right-6 bottom-6 z-40">
-          <AssistantModal />
-        </div>
       </div>
     </div>
   );
