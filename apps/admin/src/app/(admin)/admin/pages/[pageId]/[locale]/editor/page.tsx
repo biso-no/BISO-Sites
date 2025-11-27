@@ -1,5 +1,5 @@
-import type { Data } from "@repo/editor";
 import type { Locale } from "@repo/api/types/appwrite";
+import type { Data } from "@repo/editor";
 import { notFound } from "next/navigation";
 import { ensureTranslation, getManagedPage } from "@/app/actions/pages";
 import { EditorClient } from "./client";
@@ -94,10 +94,12 @@ export default async function EditorPage({ params }: EditorPageProps) {
       initialData={initialData}
       locale={locale as Locale}
       pageId={pageId}
-      pageTranslations={freshPage?.translations.map((t) => ({
-        locale: t.locale,
-        id: t.id,
-      })) ?? []}
+      pageTranslations={
+        freshPage?.translations.map((t) => ({
+          locale: t.locale,
+          id: t.id,
+        })) ?? []
+      }
       slug={freshTranslation.slug || page.slug}
       status={page.status}
       title={freshTranslation.title}

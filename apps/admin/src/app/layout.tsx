@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { inter, museoSans } from "./fonts";
 import Providers from "./providers";
-import "@/app/globals.css";
+import "@/app/styles.css";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { getLocale } from "@/app/actions/locale";
