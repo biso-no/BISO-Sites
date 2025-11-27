@@ -17,7 +17,6 @@ export async function AboutSection() {
       includeNational: false,
     }),
   ]);
-  console.log("Campus data: ", campuses);
   const departments = campuses.reduce(
     (acc, campus) => acc + campus.departments.length,
     0
