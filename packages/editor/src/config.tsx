@@ -4,6 +4,7 @@ import {
   AccordionBlock,
   type AccordionBlockProps,
 } from "@repo/ui/components/puck/accordion";
+import { getDynamicContent } from "./get-dynamic-content";
 import { Columns, type ColumnsProps } from "@repo/ui/components/puck/columns";
 import { CTA, type CTAProps } from "@repo/ui/components/puck/cta";
 import {
@@ -64,7 +65,14 @@ type TabsPropsWithSlots = TabsProps & {
   tab3?: Slot;
 };
 
-type GenericHeroPropsWithSlot = GenericHeroProps & { rightSlot?: Slot };
+type GenericHeroPropsWithSlot = GenericHeroProps & {
+  rightSlot?: Slot;
+  slidesSource?: any;
+  statsSource?: any;
+  slidesMode?: "manual" | "dynamic";
+  statsMode?: "manual" | "dynamic";
+  styling?: { padding?: string; className?: string };
+};
 
 type Props = {
   Hero: HeroProps;
@@ -234,8 +242,8 @@ export const config: Config<Props> = {
     },
     FeatureGrid: {
       fields: {
-        title: { type: "text" },
-        subtitle: { type: "textarea" },
+        title: { type: "text", contentEditable: true } as any,
+        subtitle: { type: "textarea", contentEditable: true },
         columns: {
           type: "select",
           options: [
@@ -293,7 +301,7 @@ export const config: Config<Props> = {
                 { label: "ArrowRight", value: "ArrowRight" },
               ],
             },
-            href: { type: "text" },
+            href: { type: "link" } as any,
           },
         },
       },
@@ -462,7 +470,7 @@ export const config: Config<Props> = {
           arrayFields: {
             image: { type: "image" } as any,
             alt: { type: "text" },
-            href: { type: "text" },
+            href: { type: "link" } as any,
           },
         },
       },
@@ -493,8 +501,8 @@ export const config: Config<Props> = {
     },
     CTA: {
       fields: {
-        title: { type: "text" },
-        description: { type: "textarea" },
+        title: { type: "text", contentEditable: true } as any,
+        description: { type: "textarea", contentEditable: true },
         variant: {
           type: "select",
           options: [
@@ -515,7 +523,7 @@ export const config: Config<Props> = {
           type: "array",
           arrayFields: {
             label: { type: "text" },
-            href: { type: "text" },
+            href: { type: "link" } as any,
             variant: {
               type: "select",
               options: [
@@ -584,118 +592,177 @@ export const config: Config<Props> = {
       },
     },
     GenericHero: {
-      fields: {
-        layout: {
-          type: "select",
-          options: [
-            { label: "Center", value: "center" },
-            { label: "Left", value: "left" },
-            { label: "Split", value: "split" },
-            { label: "Carousel", value: "carousel" },
-          ],
-        },
-        height: {
-          type: "select",
-          options: [
-            { label: "Full Screen", value: "full" },
-            { label: "Large", value: "large" },
-            { label: "Medium", value: "medium" },
-            { label: "Small", value: "small" },
-          ],
-        },
-        title: { type: "text" },
-        subtitle: { type: "textarea" },
-        badge: { type: "text" },
-        backgroundImage: { type: "image" } as any,
-        image: { type: "image" } as any,
-        overlay: {
-          type: "radio",
-          options: [
-            { label: "Yes", value: true },
-            { label: "No", value: false },
-          ],
-        },
-        buttons: {
-          type: "array",
-          arrayFields: {
-            label: { type: "text" },
-            href: { type: "text" },
-            variant: {
-              type: "select",
-              options: [
-                { label: "Default", value: "default" },
-                { label: "Outline", value: "outline" },
-                { label: "Ghost", value: "ghost" },
-                { label: "Link", value: "link" },
-                { label: "Glass", value: "glass" },
-                { label: "Gradient", value: "gradient" },
-              ],
+      resolveFields: (data) => {
+        const fields: any = {
+          layout: {
+            type: "select",
+            options: [
+              { label: "Center", value: "center" },
+              { label: "Left", value: "left" },
+              { label: "Split", value: "split" },
+              { label: "Carousel", value: "carousel" },
+            ],
+          },
+          height: {
+            type: "select",
+            options: [
+              { label: "Full Screen", value: "full" },
+              { label: "Large", value: "large" },
+              { label: "Medium", value: "medium" },
+              { label: "Small", value: "small" },
+            ],
+          },
+          title: { type: "text" },
+          subtitle: { type: "textarea", contentEditable: true },
+          badge: { type: "text" },
+          backgroundImage: { type: "image" },
+          image: { type: "image" },
+          overlay: {
+            type: "radio",
+            options: [
+              { label: "Yes", value: true },
+              { label: "No", value: false },
+            ],
+          },
+          buttons: {
+            type: "array",
+            arrayFields: {
+              label: { type: "text" },
+              href: { type: "link" },
+              variant: {
+                type: "select",
+                options: [
+                  { label: "Default", value: "default" },
+                  { label: "Outline", value: "outline" },
+                  { label: "Ghost", value: "ghost" },
+                  { label: "Link", value: "link" },
+                  { label: "Glass", value: "glass" },
+                  { label: "Gradient", value: "gradient" },
+                ],
+              },
+            },
+            defaultItemProps: {
+              label: "New Button",
+              href: "#",
+              variant: "default",
             },
           },
-          defaultItemProps: {
-            label: "New Button",
-            href: "#",
-            variant: "default",
+          styling: {
+            type: "object",
+            label: "Styling & Design",
+            objectFields: {
+              padding: {
+                type: "select",
+                options: [
+                  { label: "Default", value: "default" },
+                  { label: "Small", value: "py-8" },
+                  { label: "Medium", value: "py-16" },
+                  { label: "Large", value: "py-24" },
+                ],
+              },
+              className: { type: "text", label: "Custom CSS Class" },
+            },
           },
-        },
-        // Carousel Slides
-        slides: {
-          type: "array",
-          getItemSummary: (item) => item.title || "Slide",
-          arrayFields: {
-            title: { type: "text" },
-            subtitle: { type: "textarea" },
-            image: { type: "image" } as any,
-            buttons: {
+        };
+
+        // Conditional fields
+        if (data.props.layout === "split") {
+          fields.rightSlot = { type: "slot" };
+        }
+
+        if (data.props.layout === "carousel") {
+          fields.slidesMode = {
+            type: "radio",
+            label: "Slides Source",
+            options: [
+              { label: "Manual", value: "manual" },
+              { label: "Dynamic", value: "dynamic" },
+            ],
+          };
+
+          if (data.props.slidesMode === "dynamic") {
+            fields.slidesSource = {
+              type: "table-picker",
+              label: "Dynamic Slides (Database)",
+            };
+          } else {
+            fields.slides = {
               type: "array",
+              getItemSummary: (item: any) => item.title || "Slide",
               arrayFields: {
-                label: { type: "text" },
-                href: { type: "text" },
-                variant: {
-                  type: "select",
-                  options: [
-                    { label: "Default", value: "default" },
-                    { label: "Outline", value: "outline" },
-                    { label: "Ghost", value: "ghost" },
-                    { label: "Link", value: "link" },
-                    { label: "Glass", value: "glass" },
-                    { label: "Gradient", value: "gradient" },
-                  ],
+                title: { type: "text" },
+                subtitle: { type: "textarea" },
+                image: { type: "image" },
+                buttons: {
+                  type: "array",
+                  arrayFields: {
+                    label: { type: "text" },
+                    href: { type: "link" },
+                    variant: {
+                      type: "select",
+                      options: [
+                        { label: "Default", value: "default" },
+                        { label: "Outline", value: "outline" },
+                        { label: "Ghost", value: "ghost" },
+                        { label: "Link", value: "link" },
+                        { label: "Glass", value: "glass" },
+                        { label: "Gradient", value: "gradient" },
+                      ],
+                    },
+                  },
+                  defaultItemProps: {
+                    label: "New Button",
+                    href: "#",
+                    variant: "default",
+                  },
                 },
               },
               defaultItemProps: {
-                label: "New Button",
-                href: "#",
-                variant: "default",
+                title: "New Slide",
+                subtitle: "Description",
+                buttons: [],
               },
-            },
-          },
-          defaultItemProps: {
-            title: "New Slide",
-            subtitle: "Description",
-            buttons: [],
-          },
-        },
-        // Stats Overlay
-        stats: {
-          type: "array",
-          getItemSummary: (item) => item.label,
-          arrayFields: {
-            value: { type: "text" },
-            label: { type: "text" },
-          },
-        },
-        statsVariant: {
+            };
+          }
+        }
+
+        // Stats
+        fields.statsMode = {
           type: "radio",
+          label: "Stats Source",
           options: [
-            { label: "Pills", value: "pills" },
-            { label: "Simple", value: "simple" },
+            { label: "Manual", value: "manual" },
+            { label: "Dynamic", value: "dynamic" },
           ],
-        },
-        // Highlights List
-        highlights: {
+        };
+
+        if (data.props.statsMode === "dynamic") {
+          fields.statsSource = {
+            type: "table-picker",
+            label: "Dynamic Stats (Database)",
+          };
+        } else {
+          fields.stats = {
+            type: "array",
+            getItemSummary: (item: any) => item.label,
+            arrayFields: {
+              value: { type: "text" },
+              label: { type: "text" },
+            },
+          };
+          fields.statsVariant = {
+            type: "radio",
+            options: [
+              { label: "Pills", value: "pills" },
+              { label: "Simple", value: "simple" },
+            ],
+          };
+        }
+
+        // Highlights
+        fields.highlights = {
           type: "array",
-          getItemSummary: (item) => item.text,
+          getItemSummary: (item: any) => item.text,
           arrayFields: {
             text: { type: "text" },
             icon: {
@@ -714,9 +781,55 @@ export const config: Config<Props> = {
               ],
             },
           },
+        };
+
+        return fields;
+      },
+      resolveData: async ({ props }) => {
+        const { slidesMode, slidesSource, statsMode, statsSource } = props;
+        const resolvedProps: Partial<GenericHeroPropsWithSlot> = {};
+
+        if (slidesMode === "dynamic" && slidesSource) {
+          try {
+            const items = await getDynamicContent(slidesSource);
+            resolvedProps.slides = items.map((item) => ({
+              title: item.title,
+              subtitle: item.subtitle || "",
+              image: item.image,
+              buttons: item.href
+                ? [{ label: "Learn More", href: item.href, variant: "default" }]
+                : [],
+            }));
+          } catch (e) {
+            console.error("Failed to resolve slides", e);
+          }
+        }
+
+        if (statsMode === "dynamic" && statsSource) {
+          try {
+            const items = await getDynamicContent(statsSource);
+            resolvedProps.stats = items.map((item) => ({
+              value: item.value || "0",
+              label: item.label || item.title,
+            }));
+          } catch (e) {
+            console.error("Failed to resolve stats", e);
+          }
+        }
+
+        return { props: resolvedProps };
+      },
+      fields: {
+        layout: {
+          type: "select",
+          options: [
+            { label: "Center", value: "center" },
+            { label: "Left", value: "left" },
+            { label: "Split", value: "split" },
+            { label: "Carousel", value: "carousel" },
+          ],
         },
-        // Slot for Split Layout
-        rightSlot: { type: "slot" },
+        // Default initial fields if needed, but resolveFields handles mostly
       },
       render: ({ rightSlot: RightSlot, ...props }) => (
         <GenericHero rightSlot={RightSlot && <RightSlot />} {...props} />
@@ -729,7 +842,9 @@ export const config: Config<Props> = {
         buttons: [{ label: "Get Started", href: "/", variant: "default" }],
         overlay: true,
         slides: [],
+        slidesMode: "manual",
         stats: [],
+        statsMode: "manual",
         highlights: [],
       },
     },
@@ -828,10 +943,10 @@ export const config: Config<Props> = {
           type: "object",
           objectFields: {
             tag: { type: "text" },
-            titleLine1: { type: "text" },
-            titleLine2: { type: "text" },
-            paragraph1: { type: "textarea" },
-            paragraph2: { type: "textarea" },
+            titleLine1: { type: "text", contentEditable: true } as any,
+            titleLine2: { type: "text", contentEditable: true } as any,
+            paragraph1: { type: "textarea", contentEditable: true },
+            paragraph2: { type: "textarea", contentEditable: true },
           },
         },
         videoUrl: { type: "text" },

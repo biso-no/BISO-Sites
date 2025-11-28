@@ -25,6 +25,7 @@ type EditorClientProps = {
   translationId: string;
   initialData: Data;
   title: string;
+  description?: string | null;
   locale: Locale;
   availableLocales: Locale[];
   slug: string;
@@ -38,6 +39,7 @@ export function EditorClient({
   translationId,
   initialData,
   title,
+  description,
   locale,
   availableLocales,
   slug,
@@ -49,25 +51,27 @@ export function EditorClient({
 
   const handleSave = async (
     data: Data,
-    metadata: { title: string; slug: string }
+    metadata: { title: string; slug: string; description?: string }
   ) => {
     await savePageDraft({
       translationId,
       draftDocument: data,
       title: metadata.title,
       slug: metadata.slug,
+      description: metadata.description,
     });
   };
 
   const handlePublish = async (
     data: Data,
-    metadata: { title: string; slug: string }
+    metadata: { title: string; slug: string; description?: string }
   ) => {
     await publishPage({
       translationId,
       document: data,
       title: metadata.title,
       slug: metadata.slug,
+      description: metadata.description,
     });
   };
 
@@ -106,6 +110,7 @@ export function EditorClient({
   return (
     <PageEditor
       availableLocales={availableLocales}
+      description={description ?? undefined}
       initialData={initialData}
       locale={locale}
       onBack={() => router.back()}

@@ -91,6 +91,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
   return (
     <EditorClient
       availableLocales={SUPPORTED_LOCALES}
+      description={freshTranslation.description}
       initialData={initialData}
       locale={locale as Locale}
       pageId={pageId}

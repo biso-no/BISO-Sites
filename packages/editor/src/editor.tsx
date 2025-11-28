@@ -19,6 +19,7 @@ import {
 import { FileUpload } from "@repo/ui/components/file-upload";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
+import { Textarea } from "@repo/ui/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -34,8 +35,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@repo/ui/components/ui/sheet";
-import { Globe, Settings } from "lucide-react";
+import { Globe, Settings, Monitor, Tablet, Smartphone, ExternalLink } from "lucide-react";
 import { listImages, uploadImage } from "./upload-image";
+import { LinkPicker } from "@repo/ui/components/link-picker";
+import { TablePicker } from "@repo/ui/components/table-picker";
+import { getPages } from "./get-pages";
+import { getTables } from "./get-tables";
 
 // Use the standard hook
 const usePuck = usePuckOriginal;
@@ -44,17 +49,18 @@ export type PageEditorProps = {
   initialData: Data;
   title: string;
   slug: string;
+  description?: string;
   locale: Locale;
   availableLocales: Locale[];
   status: PageStatus;
   visibility: PageVisibility;
   onSave: (
     data: Data,
-    metadata: { title: string; slug: string }
+    metadata: { title: string; slug: string; description?: string }
   ) => Promise<void>;
   onPublish: (
     data: Data,
-    metadata: { title: string; slug: string }
+    metadata: { title: string; slug: string; description?: string }
   ) => Promise<void>;
   onLocaleChange: (locale: Locale) => void;
   onBack: () => void;
@@ -64,6 +70,7 @@ export function PageEditor({
   initialData,
   title: initialTitle,
   slug: initialSlug,
+  description: initialDescription = "",
   locale,
   availableLocales,
   status: initialStatus,
@@ -77,18 +84,20 @@ export function PageEditor({
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
+  const [description, setDescription] = useState(initialDescription);
 
   // Update local state when props change (e.g. after navigation)
   useEffect(() => {
     setData(initialData);
     setTitle(initialTitle);
     setSlug(initialSlug);
-  }, [initialData, initialTitle, initialSlug]);
+    setDescription(initialDescription);
+  }, [initialData, initialTitle, initialSlug, initialDescription]);
 
   const handleSave = async (newData: Data) => {
     setSaving(true);
     try {
-      await onSave(newData, { title, slug });
+      await onSave(newData, { title, slug, description });
       setData(newData);
       toast.success("Draft saved successfully");
     } catch (error) {
@@ -102,7 +111,7 @@ export function PageEditor({
   const handlePublish = async (newData: Data) => {
     setSaving(true);
     try {
-      await onPublish(newData, { title, slug });
+      await onPublish(newData, { title, slug, description });
       setData(newData);
       toast.success("Page published successfully");
     } catch (error) {
@@ -126,8 +135,27 @@ export function PageEditor({
         headerPath={`/${locale}/${slug}`}
         headerTitle={title}
         onPublish={handleSave}
+        viewports={[
+          { label: "Desktop", width: 1280, height: "auto", icon: <Monitor size={20} /> },
+          { label: "Tablet", width: 768, height: "auto", icon: <Tablet size={20} /> },
+          { label: "Mobile", width: 375, height: "auto", icon: <Smartphone size={20} /> },
+        ]}
         overrides={{
           fieldTypes: {
+            link: ({ onChange, value }) => (
+              <LinkPicker
+                getPages={getPages}
+                onChange={onChange}
+                value={value}
+              />
+            ),
+            "table-picker": ({ onChange, value }) => (
+              <TablePicker
+                getTables={getTables}
+                onChange={onChange}
+                value={value}
+              />
+            ),
             image: ({ name, onChange, value }) => (
               <FileUpload
                 getImages={listImages}
@@ -204,6 +232,16 @@ export function PageEditor({
                           />
                         </div>
                         <div className="grid gap-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea
+                            id="description"
+                            onChange={(e) => setDescription(e.target.value)}
+                            value={description}
+                            className="resize-none"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="grid gap-2">
                           <Label htmlFor="status">Status</Label>
                           <Select disabled value={initialStatus as string}>
                             <SelectTrigger id="status">
@@ -244,6 +282,19 @@ export function PageEditor({
                   <Button className="mr-2" onClick={onBack} variant="outline">
                     Back
                   </Button>
+
+                  {initialStatus === PageStatus.PUBLISHED && (
+                    <Button
+                      className="mr-2"
+                      variant="outline"
+                      onClick={() =>
+                        window.open(`/${locale}/${slug}`, "_blank")
+                      }
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      View
+                    </Button>
+                  )}
 
                   <Button
                     disabled={saving}
