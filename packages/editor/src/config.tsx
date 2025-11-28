@@ -526,6 +526,11 @@ export const config: Config<Props> = {
               ],
             },
           },
+          defaultItemProps: {
+            label: "Button",
+            href: "#",
+            variant: "default",
+          },
         },
       },
       render: (props) => <CTA {...props} />,
@@ -627,6 +632,11 @@ export const config: Config<Props> = {
               ],
             },
           },
+          defaultItemProps: {
+            label: "New Button",
+            href: "#",
+            variant: "default",
+          },
         },
         // Carousel Slides
         slides: {
@@ -653,7 +663,17 @@ export const config: Config<Props> = {
                   ],
                 },
               },
+              defaultItemProps: {
+                label: "New Button",
+                href: "#",
+                variant: "default",
+              },
             },
+          },
+          defaultItemProps: {
+            title: "New Slide",
+            subtitle: "Description",
+            buttons: [],
           },
         },
         // Stats Overlay

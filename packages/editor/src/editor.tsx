@@ -35,7 +35,7 @@ import {
   SheetTrigger,
 } from "@repo/ui/components/ui/sheet";
 import { Globe, Settings } from "lucide-react";
-import { uploadImage } from "./upload-image";
+import { listImages, uploadImage } from "./upload-image";
 
 // Use the standard hook
 const usePuck = usePuckOriginal;
@@ -130,10 +130,13 @@ export function PageEditor({
           fieldTypes: {
             image: ({ name, onChange, value }) => (
               <FileUpload
+                getImages={listImages}
                 name={name}
-                onChange={(file) => {
-                  if (file) {
-                    handleImageUpload(file).then((url) => onChange(url));
+                onChange={(fileOrUrl) => {
+                  if (fileOrUrl instanceof File) {
+                    handleImageUpload(fileOrUrl).then((url) => onChange(url));
+                  } else if (typeof fileOrUrl === "string") {
+                    onChange(fileOrUrl);
                   }
                 }}
                 value={value}

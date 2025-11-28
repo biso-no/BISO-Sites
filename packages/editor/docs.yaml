@@ -1,0 +1,391 @@
+puck_ai_reference:
+  version: "2025-11-28"
+  goal: >
+    Provide AI agents a complete, implementation-oriented map of Puck features and APIs
+    to build robust blocks, data-driven content, nested layouts (Slots only), and custom editor UX.
+
+  core_concepts:
+    - name: Config
+      purpose: Declares editor + renderer capabilities (components, root, categories, metadata, plugins, overrides).
+      key_apis:
+        - config.components
+        - config.root
+        - config.categories
+        - config.metadata
+      categories_api:
+        category:
+          components: "string[]"
+          title: "string (optional)"
+          visible: "boolean (default true)"
+          defaultExpanded: "boolean (default true)"
+        notes:
+          - "Components not listed in any category appear in a default 'other' group."
+      when_to_use: Always. Every Puck setup starts from Config.
+      gotchas:
+        - Slots require config to identify which props are slots.
+        - Keep Config stable across versions; use migrations for changes.
+
+    - name: Data
+      purpose: Serialized page tree edited by Puck and rendered by Render.
+      shape:
+        root:
+          props: object
+        content: "ComponentData[]"
+      when_to_use: Store in DB (Appwrite), send to editor, render in web app.
+      gotchas:
+        - IDs must be stable for tree ops/migrations.
+        - Decide snapshot vs live-resolution behavior up front.
+
+  editor_and_renderer:
+    - name: "<Puck>"
+      purpose: Visual editor that edits Data using Config.
+      props:
+        required:
+          - config
+          - data  # note: cannot be changed after mount
+        callbacks:
+          - onPublish(data): "save/publish action"
+          - onChange(data): "fires on every edit"
+          - onAction(action, appState, prevState): "low-level event stream"
+        optional:
+          - dnd: "DndConfig for custom drag-drop backend/behavior"
+          - fieldTransforms: "FieldTransforms object (editor-only transforms)"
+          - headerTitle: "String title shown in header"
+          - headerPath: "String path shown in header/breadcrumb"
+          - iframe: "IframeConfig for iframe preview behavior"
+          - initialHistory: "InitialHistory to seed/reset undo stack"
+          - ui: "Partial AppState.ui to set initial UI visibility"
+          - metadata: "Object merged into puck.metadata"
+          - permissions: "Global permissions"
+          - overrides: "UI overrides"
+          - plugins: "Plugin[] bundles overrides + fieldTransforms"
+          - viewports: "Viewport[]"
+          - children: "Composition mode root"
+      when_to_use:
+        - Admin app (editing UI).
+      gotchas:
+        - onChange can be noisy; debounce for autosave.
+        - data is static after mount; remount to swap documents.
+        - Resolvers run frequently; cache/gate remote calls.
+
+    - name: "<Render>"
+      purpose: Runtime renderer for Data outside editor.
+      key_apis:
+        - Render({ config, data })
+        - resolveAllData(data, config, ctx)
+      when_to_use:
+        - Web app (public pages).
+        - SSR/RSC rendering.
+      gotchas:
+        - Call resolveAllData server-side if you rely on resolveData for fetching.
+        - Ensure ctx/metadata provides required services.
+
+  components:
+    definition: "config.components[type] = ComponentConfig"
+    required_fields:
+      - render(props, puck): "React render for editor + runtime"
+      - fields: "schema for editing props"
+    optional_fields:
+      - label: "drawer name"
+      - defaultProps: "defaults for new instances (incl slot defaults)"
+      - inline: "removes wrapper for flex/grid true descendants"
+      - resolveData(data, ctx): "dynamic props resolver"
+      - resolveFields(data, ctx): "dynamic fields resolver"
+      - resolvePermissions(data, ctx): "per-instance permissions"
+      - metadata: "per-component injection merged with config.metadata"
+      - ai.instructions: "native Puck AI hints"
+      - ai.schema: "override JSON schema for native Puck AI"
+    puck_render_helpers:
+      - puck.dragRef: "attach to draggable root if inline or custom wrappers"
+      - puck.isEditing: "true inside editor"
+      - puck.metadata: "merged metadata"
+    gotchas:
+      - If layout CSS not applying to children, set inline:true and use dragRef.
+      - Avoid huge resolved blobs in props; store IDs + resolve at runtime.
+
+  fields_system:
+    purpose: Define editable prop UI.
+    built_in_types:
+      text:
+        value: string
+        use_for: "single-line strings"
+      textarea:
+        value: string
+        use_for: "multi-line strings"
+        extra_params:
+          contentEditable: "boolean (inline editing in editor only)"
+      number:
+        value: number
+        use_for: "numeric props"
+      radio:
+        value: string
+        use_for: "small fixed choice sets"
+      select:
+        value: string
+        use_for: "dropdown choice sets"
+      object:
+        value: object
+        use_for: "grouped/nested props"
+      array:
+        value: array
+        use_for: "repeatable items"
+      external:
+        value: "id|key from external source"
+        use_for: "pick entities from CMS/DB"
+        pairing: "use resolveData to hydrate full record"
+      custom:
+        value: any
+        use_for: "fully custom UI"
+      slot:
+        value: "ComponentData[]"
+        use_for: "nested children; modern nesting API"
+    not_supported_as_builtin:
+      boolean:
+        guidance: "use radio/select true|false or a custom field"
+    dynamic_fields:
+      resolveFields:
+        purpose: "change field schema by props/state, sync or async"
+        use_for:
+          - conditional fields
+          - async options
+          - mode switching UIs
+    helper_components:
+      AutoField:
+        purpose: "Render a field from a Field object inside custom fields"
+        use_for: "Custom fields reusing Puck-native field UIs"
+    gotchas:
+      - Use readOnly map from resolveData to lock specific fields.
+      - external fields should store stable IDs, not full objects.
+
+  nesting_and_layout:
+    slots:
+      how:
+        - define prop field type slot (optionally allow/disallow)
+        - render Slot children in render()
+        - provide defaultProps with default children if needed
+      use_for:
+        - columns/grids
+        - cards with regions
+        - complex page templates
+      gotchas:
+        - Config required for traversal/migrations (walkTree).
+        - Prefer shallow slot trees where possible for performance.
+    deprecated:
+      dropzones:
+        status: "deprecated; do not use for new work"
+        agent_rule: "ignore"
+
+  resolve_features:
+    - name: resolveData
+      purpose: "Compute/hydrate props (async capable)."
+      use_for:
+        - fetch from Appwrite
+        - computed props
+        - syncing external selections
+        - setting read-only props
+      returns:
+        props_patch: object
+        optional_readOnly: "Record<propName, boolean>"
+      gotchas:
+        - Avoid heavy network on every keystroke; cache or gate.
+        - Ensure resolver is deterministic for SSR.
+    - name: resolveAllData
+      purpose: "Run every resolveData across the tree (SSR/RSC safe)."
+      use_for:
+        - runtime/production rendering
+        - pre-publish validation
+      gotchas:
+        - Provide ctx/metadata so resolvers can access services.
+    - name: resolveFields
+      purpose: "Dynamically reconfigure field schema."
+      use_for:
+        - conditional editing UI
+        - async option lists
+      gotchas:
+        - Keep schema stable to avoid editor flicker.
+    - name: resolvePermissions
+      purpose: "Per-instance access control."
+      use_for:
+        - lock specific blocks by role/state
+      gotchas:
+        - Keep fast; avoid remote fetch unless cached.
+
+  permissions:
+    global:
+      location: "<Puck permissions={...} />"
+      typical_flags: [insert, delete, duplicate, drag, edit, paste, etc]
+    per_component:
+      location: "ComponentConfig.permissions or resolvePermissions"
+    use_for:
+      - role-based edit modes
+      - locking critical layout blocks
+    gotchas:
+      - Combine global + per-instance permissions.
+
+  ui_customization:
+    overrides:
+      purpose: "Replace parts of default UI."
+      targets:
+        - actionBar
+        - componentOverlay
+        - drawer / drawerItem
+        - fields / fieldLabel / fieldTypes
+        - header / headerActions
+        - iframe: >
+            Override iframe root. Use document to inject CSS into iframe head/body.
+            Preferred way to ensure Tailwind/CSS works in preview.
+        - outline
+        - preview
+        - puckWrapper
+      use_for:
+        - custom admin UX
+        - app-specific flows
+    composition_mode:
+      purpose: "Build editor layout yourself."
+      primitives:
+        - Puck.Preview
+        - Puck.Components
+        - Puck.Fields
+        - Puck.Outline
+        - Puck.ActionBar
+        - Puck.ViewportSwitch
+      use_for:
+        - fully custom editing shells
+        - multi-pane or wizard editors
+      gotchas:
+        - You must include needed primitives; nothing is auto-mounted.
+    plugins:
+      purpose: "Reusable bundle of overrides + fieldTransforms."
+      use_for:
+        - sharing editor capabilities across apps/packages
+        - versioning editor features independently
+    fieldTransforms:
+      purpose: "Editor-only value transforms for display/editing."
+      use_for:
+        - inline editing UX
+        - formatting without changing stored data
+      gotchas:
+        - Not applied in runtime Render.
+
+  tree_and_migration_utils:
+    - name: walkTree
+      purpose: "Traverse Slots recursively and rewrite children arrays."
+      signature: "walkTree(dataOrNode, config, callback(children, {parentId, propName}))"
+      use_for:
+        - structural migrations
+        - bulk nested edits
+        - linting/validation across tree
+      gotchas:
+        - Config required to detect Slots.
+        - Callback must return new children array.
+    - name: transformProps
+      purpose: "Rewrite prop shapes (rename, default, reshape)."
+      use_for:
+        - prop migrations after block schema changes
+      gotchas:
+        - Doesn’t change structure; pair with walkTree if needed.
+    - name: migrate
+      purpose: "Upgrade legacy payload shapes."
+      use_for:
+        - loading old saved pages
+      gotchas:
+        - Only relevant if your DB contains pre-slot legacy data.
+
+  interactivity_in_editor:
+    overlay_portals:
+      purpose: "Mark preview regions interactive (overlay disabled)."
+      use_for:
+        - rich-text inline editors
+        - embedded widgets needing clicks/scroll
+      gotchas:
+        - Ensure portals don’t break drag targets.
+
+  metadata_injection:
+    purpose: "Pass shared services/config to renders/resolvers without context wiring."
+    levels:
+      - config.metadata: "global"
+      - component.metadata: "per component"
+    use_for:
+      - Appwrite client
+      - auth/session
+      - feature flags
+      - routing helpers
+    gotchas:
+      - Provide equivalent ctx when running resolveAllData on server.
+
+  viewports:
+    purpose: "Responsive preview switcher."
+    config:
+      viewports:
+        - label: string
+          width: number
+          height: "number | 'auto'"
+          icon: "ReactNode or icon id"
+    use_for:
+      - quick mobile/tablet/desktop checks
+    gotchas:
+      - In composition, mount ViewportSwitch explicitly.
+
+  rsc_and_ssr:
+    supported_in:
+      - Render
+      - resolveAllData
+    use_for:
+      - server-driven pages
+      - streaming RSC apps
+    gotchas:
+      - Avoid client-only APIs in resolveData when running server-side.
+
+  recommended_agent_workflows:
+    create_block:
+      steps:
+        - define ComponentConfig with render + fields
+        - decide nesting:
+            if_nested_children: "use slot fields"
+        - set defaultProps for good UX
+        - if_data_driven:
+            use_external_field_plus_resolveData: true
+        - if_mode_dependent_ui:
+            use_resolveFields: true
+        - if_restricted:
+            set_permissions_or_resolvePermissions: true
+        - if_layout_css_needs_real_descendants:
+            set_inline_true_and_use_dragRef: true
+        - if_editor_inline_interaction_needed:
+            use_overlay_portals_or_fieldTransforms: true
+
+    edit_existing_block:
+      steps:
+        - confirm type exists in config
+        - adjust fields schema, preserve backward compat
+        - add migrations:
+            - transformProps for prop-level changes
+            - walkTree for structural/slot changes
+            - migrate if legacy data exists
+
+    runtime_rendering:
+      steps:
+        - load Data from Appwrite
+        - run migrate(data) only if legacy data possible
+        - run resolveAllData(data, config, ctx/metadata)
+        - Render(config, resolvedData)
+
+  appwrite_specific_notes_for_your_repo:
+    patterns:
+      - "Provide Appwrite client in config.metadata so resolveData can fetch."
+      - "Use external fields to store document IDs; resolveData hydrates full records."
+      - "Debounce resolveData fetches; cache per ID to avoid re-fetch storms."
+    storage_advice:
+      - "Store raw user props in Appwrite; optionally store resolved props for snapshot behavior."
+      - "If you want always-fresh runtime, re-resolve on server via resolveAllData."
+
+  quick_decision_matrix:
+    - need_nested_children?: "slot"
+    - need_external_data?: "external field + resolveData + resolveAllData"
+    - need_conditional_fields?: "resolveFields"
+    - need_structural_migration?: "walkTree"
+    - need_prop_migration?: "transformProps"
+    - need_locking?: "permissions / resolvePermissions"
+    - need_custom_editor_ux?: "overrides (light) or composition (heavy) + plugins"
+    - need_inline_interactive_area?: "overlay portals + fieldTransforms/custom fields"
+    - need_legacy_support?: "migrate (only if old data exists)"

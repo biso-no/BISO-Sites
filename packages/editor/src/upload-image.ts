@@ -14,6 +14,23 @@ export async function uploadImage(file: File) {
     "/storage/buckets/content/files/" +
     result.$id +
     "/view?project=" +
-    process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+    process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
   return url;
+}
+
+export async function listImages() {
+  const { storage } = await createSessionClient();
+  const result = await storage.listFiles("content");
+  console.log("Images result", result);
+  
+  return result.files.map((file) => ({
+    id: file.$id,
+    name: file.name,
+    url:
+      process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT +
+      "/storage/buckets/content/files/" +
+      file.$id +
+      "/view?project=" +
+      process.env.NEXT_PUBLIC_APPWRITE_PROJECT,
+  }));
 }
