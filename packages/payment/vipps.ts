@@ -9,6 +9,7 @@ const merchantSerialNumber = process.env.VIPPS_MERCHANT_SERIAL_NUMBER!;
 const subscriptionKey = process.env.VIPPS_SUBSCRIPTION_KEY!;
 const testMode = process.env.VIPPS_TEST_MODE === "true";
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
 export const client: ReturnType<typeof Client> = Client({
   merchantSerialNumber,
@@ -495,7 +496,7 @@ export async function createCheckoutSession(
       },
       ...(prefillCustomer && { prefillCustomer }),
       merchantInfo: {
-        callbackUrl: `${baseUrl}/api/payment/vipps/callback`,
+        callbackUrl: `${apiBaseUrl}/api/payment/vipps/callback`,
         returnUrl: `${baseUrl}/checkout/return?orderId=${orderId}`,
         callbackAuthorizationToken:
           process.env.VIPPS_CALLBACK_TOKEN || ID.unique(),

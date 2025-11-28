@@ -1,0 +1,35 @@
+{
+  "name": "api",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "next build",
+    "start": "next start",
+    "analyze": "ANALYZE=true npm run build",
+    "test": "NODE_ENV=test vitest run",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "@repo/ui": "workspace:*",
+    "@repo/api": "workspace:*",
+    "@repo/payment": "workspace:*",
+    "@sentry/nextjs": "^10.22.0",
+    "@t3-oss/env-nextjs": "^0.13.8",
+    "next": "15.5.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "svix": "^1.80.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "24.9.1",
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.3"
+  }
+}
