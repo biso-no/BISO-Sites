@@ -7,6 +7,8 @@ export type FormFieldUpdate = {
   fieldId: string;
   fieldName: string;
   value: string;
+  streaming?: boolean;
+  isComplete?: boolean;
 };
 
 type FormFieldListener = (update: FormFieldUpdate) => void;
