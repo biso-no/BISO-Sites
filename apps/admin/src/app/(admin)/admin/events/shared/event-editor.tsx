@@ -17,6 +17,7 @@ import { getCampuses, getCampusWithDepartments } from "@/app/actions/campus";
 import { createEvent, updateEvent } from "@/app/actions/events";
 
 // Internal hooks & types
+import { formEvents, type FormFieldUpdate } from "@/lib/form-events";
 import { toast } from "@/lib/hooks/use-toast";
 import type { AdminEvent } from "@/lib/types/event";
 import type { Campus } from "@/lib/types/post";
@@ -68,6 +69,43 @@ export default function EventEditor({ event }: EventEditorProps) {
     }
     fetchCampuses();
   }, []);
+
+  // Listen for AI assistant form field updates
+  useEffect(() => {
+    const handleFormUpdate = (update: FormFieldUpdate) => {
+      console.log("Received form update from AI:", update);
+      
+      // Map the field ID to the form field path
+      // The AI uses field IDs like "translations.en.title" which match our form structure
+      const { fieldId, value } = update;
+      
+      // Handle different field types
+      if (fieldId === "price") {
+        // Price should be a number
+        const numValue = Number.parseFloat(value);
+        if (!Number.isNaN(numValue)) {
+          form.setValue("price", numValue, { shouldValidate: true, shouldDirty: true });
+        }
+      } else if (fieldId === "member_only") {
+        // Boolean field
+        const boolValue = value === "true" || value === "yes";
+        form.setValue("member_only", boolValue, { shouldValidate: true, shouldDirty: true });
+      } else if (fieldId === "is_collection") {
+        const boolValue = value === "true" || value === "yes";
+        form.setValue("is_collection", boolValue, { shouldValidate: true, shouldDirty: true });
+      } else {
+        // String fields - use type assertion for nested paths
+        // react-hook-form handles dot notation paths like "translations.en.title"
+        // For description fields, the RichTextEditor with Markdown extension will handle
+        // markdown-to-HTML conversion automatically when the content is set
+        // biome-ignore lint/suspicious/noExplicitAny: react-hook-form accepts dot notation paths
+        form.setValue(fieldId as any, value, { shouldValidate: true, shouldDirty: true });
+      }
+    };
+
+    const unsubscribe = formEvents.subscribe(handleFormUpdate);
+    return unsubscribe;
+  }, [form]);
 
   // Load departments when campus changes
   const loadDepartmentsForCampus = useCallback(async (campusId: string) => {

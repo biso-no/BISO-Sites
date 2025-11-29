@@ -1,3 +1,4 @@
+"use server"
 import { createSessionClient } from "@repo/api/server";
 
 /**
@@ -66,7 +67,7 @@ export async function getAuthStatus(): Promise<{
 
     return {
       hasSession: true,
-      isAuthenticated,
+      isAuthenticated: !!isAuthenticated,
       isAnonymous: !isAuthenticated,
     };
   } catch (error) {

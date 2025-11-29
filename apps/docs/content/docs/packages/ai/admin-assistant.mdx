@@ -1,0 +1,432 @@
+---
+title: Admin Assistant Guide
+description: Building the AI-powered admin assistant with navigation and form-filling capabilities.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+import { Mermaid } from 'components/mdx/mermaid';
+
+# Admin Assistant Guide
+
+The Admin Assistant is an AI-powered sidebar that helps administrators navigate the dashboard and fill out forms. It uses the Vercel AI SDK with streaming responses for a responsive user experience.
+
+## Features
+
+- **Conversational Interface** - Natural language chat in a slide-out sidebar
+- **Smart Navigation** - AI can redirect users to relevant pages
+- **Form Autopilot** - AI can fill form fields with generated content
+- **Streaming Responses** - Real-time typewriter effect for responses
+- **Context Awareness** - Knows which page and form the user is on
+
+## Architecture
+
+<Mermaid chart={`
+sequenceDiagram
+    participant User
+    participant Sidebar
+    participant API
+    participant OpenAI
+    
+    User->>Sidebar: "Create a networking event"
+    Sidebar->>API: POST /api/admin-assistant
+    API->>OpenAI: streamText with tools
+    OpenAI-->>API: Tool call: navigate
+    API-->>Sidebar: Stream navigation action
+    Sidebar->>User: Redirect to /admin/events/new
+    OpenAI-->>API: Stream text response
+    API-->>Sidebar: "I've taken you to the event page..."
+`} />
+
+## Components
+
+### Assistant Sidebar
+
+The main chat interface that slides in from the right:
+
+```tsx title="components/assistant/assistant-sidebar.tsx"
+'use client';
+
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@repo/ui/components/ui/sheet';
+import { Button } from '@repo/ui/components/ui/button';
+import { Input } from '@repo/ui/components/ui/input';
+import { ScrollArea } from '@repo/ui/components/ui/scroll-area';
+import { useChatStream } from './use-chat-stream';
+
+export function AssistantSidebar({ isOpen, onClose }) {
+  const router = useRouter();
+  const [input, setInput] = useState('');
+  
+  const { messages, isLoading, sendMessage, clearMessages } = useChatStream({
+    api: '/api/admin-assistant',
+    onNavigate: (path) => router.push(path),
+    onFormField: (update) => {
+      // Handle form field updates
+    },
+  });
+
+  return (
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="w-[400px]">
+        <SheetHeader>
+          <SheetTitle>BISO Assistant</SheetTitle>
+        </SheetHeader>
+        
+        <ScrollArea className="flex-1">
+          {messages.map((message) => (
+            <AssistantMessage key={message.id} message={message} />
+          ))}
+        </ScrollArea>
+        
+        <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); setInput(''); }}>
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask me anything..."
+          />
+          <Button type="submit" disabled={isLoading}>Send</Button>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+### Assistant Trigger
+
+A button in the header to open the assistant:
+
+```tsx title="components/assistant/assistant-trigger.tsx"
+'use client';
+
+import { Button } from '@repo/ui/components/ui/button';
+import { Sparkles } from 'lucide-react';
+
+export function AssistantTrigger({ onClick }) {
+  return (
+    <Button variant="ghost" size="icon" onClick={onClick}>
+      <Sparkles className="h-5 w-5" />
+      <span className="sr-only">Open AI Assistant</span>
+    </Button>
+  );
+}
+```
+
+### Chat Stream Hook
+
+Handles streaming responses and action parsing:
+
+```tsx title="components/assistant/use-chat-stream.ts"
+'use client';
+
+export function useChatStream({ api, onNavigate, onFormField, formContext }) {
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const sendMessage = useCallback(async (content: string) => {
+    // Add user message
+    const userMessage = { id: crypto.randomUUID(), role: 'user', parts: [{ type: 'text', text: content }] };
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(api, {
+        method: 'POST',
+        body: JSON.stringify({ messages: [...messages, userMessage], formContext }),
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      // Add assistant message placeholder
+      const assistantMessage = { id: crypto.randomUUID(), role: 'assistant', parts: [{ type: 'text', text: '' }] };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        // Parse SSE data and handle actions...
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, messages, formContext]);
+
+  return { messages, isLoading, sendMessage, clearMessages: () => setMessages([]) };
+}
+```
+
+## API Route
+
+The server-side handler that processes requests:
+
+```typescript title="app/api/admin-assistant/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
+import { createNavigationTool, defaultAdminRoutes } from "@repo/ai/tools/navigation";
+import { createFormFillerTool, eventFormFields } from "@repo/ai/tools/form-filler";
+import { ADMIN_ASSISTANT_PROMPT } from "@repo/ai/prompts";
+
+export const maxDuration = 60;
+
+export async function POST(req: Request) {
+  const { messages, formContext } = await req.json();
+
+  // Create tools
+  const navigate = createNavigationTool(defaultAdminRoutes);
+  const tools: Record<string, unknown> = { navigate };
+
+  // Add form filler if context provided
+  if (formContext) {
+    tools.fillFormFields = createFormFillerTool(formContext.fields);
+  } else {
+    tools.fillFormFields = createFormFillerTool(eventFormFields);
+  }
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: convertToModelMessages(messages),
+    stopWhen: stepCountIs(10),
+    system: ADMIN_ASSISTANT_PROMPT,
+    tools,
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+## Integration with Admin Layout
+
+Add the assistant to the admin layout:
+
+```tsx title="components/admin-layout.tsx"
+import { AssistantSidebar } from './assistant/assistant-sidebar';
+import { AssistantTrigger } from './assistant/assistant-trigger';
+
+export function AdminLayout({ children }) {
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+
+  return (
+    <div className="flex h-screen">
+      <nav>{/* Sidebar navigation */}</nav>
+      
+      <div className="flex-1">
+        <header className="flex items-center justify-between p-4">
+          <Breadcrumb />
+          <div className="flex items-center gap-2">
+            <AssistantTrigger onClick={() => setIsAssistantOpen(true)} />
+            <ModeToggle />
+          </div>
+        </header>
+        
+        <main>{children}</main>
+      </div>
+
+      <AssistantSidebar
+        isOpen={isAssistantOpen}
+        onClose={() => setIsAssistantOpen(false)}
+      />
+    </div>
+  );
+}
+```
+
+## Form Autopilot Integration
+
+Connect the assistant to forms for autopilot filling:
+
+<Steps>
+  <Step title="Define Form Fields">
+    Create a field definition for your form:
+    
+    ```typescript
+    const eventFields: FormFieldInfo[] = [
+      { id: 'translations.en.title', type: 'text', label: 'English Title', required: true },
+      { id: 'translations.en.description', type: 'textarea', label: 'English Description' },
+      // ... more fields
+    ];
+    ```
+  </Step>
+  
+  <Step title="Use the Form Autopilot Hook">
+    Connect the hook to your form:
+    
+    ```tsx
+    import { useFormAutopilot } from '@repo/ai/hooks/use-form-autopilot';
+    
+    function EventEditor() {
+      const form = useForm<FormValues>();
+      
+      const { getFormContext, handleFormStream, isActive } = useFormAutopilot({
+        formId: 'event-editor',
+        formName: 'Event Editor',
+        fields: eventFields,
+        onSetValue: (fieldId, value) => form.setValue(fieldId, value),
+        onGetValue: (fieldId) => form.getValues(fieldId),
+      });
+      
+      // Pass formContext to the assistant
+      // Handle form stream events from AI
+    }
+    ```
+  </Step>
+  
+  <Step title="Pass Context to Assistant">
+    Include form context in your chat requests:
+    
+    ```typescript
+    const { messages, sendMessage } = useChatStream({
+      api: '/api/admin-assistant',
+      formContext: getFormContext(),
+      onFormField: handleFormStream,
+    });
+    ```
+  </Step>
+</Steps>
+
+## System Prompt
+
+The admin assistant uses a specialized system prompt:
+
+```typescript title="packages/ai/src/prompts.ts"
+export const ADMIN_ASSISTANT_PROMPT = `You are BISO Assistant, an AI helper for the BISO admin dashboard.
+
+## Your Capabilities
+- Navigate users to different pages in the admin dashboard
+- Fill out forms with content based on user descriptions
+- Answer questions about the admin system
+- Provide guidance on creating events, posts, and other content
+
+## Guidelines
+- Be concise and helpful
+- When asked to create something, navigate to the appropriate page first
+- When filling forms, ask clarifying questions if needed
+- Support both English and Norwegian content
+- Always confirm actions before taking them
+
+## Available Pages
+- /admin - Dashboard
+- /admin/events - Events list
+- /admin/events/new - Create event
+- /admin/posts - Posts list
+- /admin/shop - Shop management
+- /admin/users - User management
+`;
+```
+
+## Example Interactions
+
+### Creating an Event
+
+```
+User: "Create a new event"
+Assistant: [Navigates to /admin/events/new]
+           "I've taken you to the event creation page. What kind of event would you like to create?"
+
+User: "A networking event for students on December 15th"
+Assistant: [Fills title, date fields]
+           "I've filled in the basic details. Would you like me to add a description?"
+
+User: "Yes, make it sound professional"
+Assistant: [Streams description into textarea]
+           "Done! I've added a professional description. Would you like to add a location or ticket price?"
+```
+
+### Navigating the Dashboard
+
+```
+User: "Show me all orders"
+Assistant: [Navigates to /admin/shop/orders]
+           "Here are all your orders. You can filter by status or search for specific orders."
+
+User: "How do I add a new product?"
+Assistant: "To add a new product, go to Shop → Products → Add Product. Would you like me to take you there?"
+
+User: "Yes please"
+Assistant: [Navigates to /admin/shop/products/new]
+           "Here's the product creation form. What product would you like to add?"
+```
+
+## Customization
+
+### Custom System Prompt
+
+Extend the default prompt with additional context:
+
+```typescript
+import { ADMIN_ASSISTANT_PROMPT } from '@repo/ai/prompts';
+
+const customPrompt = `${ADMIN_ASSISTANT_PROMPT}
+
+## Additional Context
+- Current user: ${userName}
+- User role: ${userRole}
+- Current page: ${currentPath}
+- Organization: BISO (Business and IT Student Organization)
+`;
+```
+
+### Custom Routes
+
+Add routes for your specific application:
+
+```typescript
+const customRoutes: RouteInfo[] = [
+  ...defaultAdminRoutes,
+  {
+    path: '/admin/custom-feature',
+    label: 'Custom Feature',
+    description: 'Your custom admin feature',
+    requiredRoles: ['Admin'],
+  },
+];
+
+const navigate = createNavigationTool(customRoutes);
+```
+
+### Custom Form Fields
+
+Define fields for your specific forms:
+
+```typescript
+const productFormFields: FormFieldInfo[] = [
+  { id: 'name', type: 'text', label: 'Product Name', required: true },
+  { id: 'description', type: 'textarea', label: 'Description' },
+  { id: 'price', type: 'number', label: 'Price (NOK)' },
+  { id: 'category', type: 'select', label: 'Category', options: [...] },
+  { id: 'inStock', type: 'checkbox', label: 'In Stock' },
+];
+```
+
+## Troubleshooting
+
+### Assistant Not Responding
+
+1. Check that `OPENAI_API_KEY` is set in environment variables
+2. Verify the API route is accessible at `/api/admin-assistant`
+3. Check browser console for network errors
+
+### Navigation Not Working
+
+1. Ensure `onNavigate` callback is provided to `useChatStream`
+2. Verify the route exists in `defaultAdminRoutes` or custom routes
+3. Check that the user has permission to access the target page
+
+### Form Fields Not Filling
+
+1. Verify field IDs match between form and field definitions
+2. Check that `onFormField` callback is handling updates
+3. Ensure form context is being passed to the API
+
+<Callout type="warning" title="Rate Limits">
+OpenAI has rate limits. For production use, implement proper error handling and consider adding retry logic for failed requests.
+</Callout>
+
+## Next Steps
+
+- [AI Tools Reference](/docs/packages/ai/tools) - Detailed tool documentation
+- [AI Package Overview](/docs/packages/ai/overview) - Package introduction
+- [Admin App Overview](/docs/applications/admin-app) - Admin application guide

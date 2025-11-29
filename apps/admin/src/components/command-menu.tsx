@@ -51,6 +51,7 @@ export function CommandMenu() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -199,6 +200,10 @@ export function CommandMenu() {
     return groups;
   }, [commands]);
 
+  const onOpenChange = (open: boolean) => {
+    setOpen(open);
+  };
+
   return (
     <>
       <button
@@ -219,7 +224,7 @@ export function CommandMenu() {
         </div>
       </button>
 
-      <CommandDialog onOpenChange={setOpen} open={open}>
+      <CommandDialog onOpenChange={onOpenChange} open={open}>
         <DialogTitle>{t("commandMenuTitle")}</DialogTitle>
         <CommandInput placeholder={t("commandMenuSearchPlaceholder")} />
         <CommandList>
