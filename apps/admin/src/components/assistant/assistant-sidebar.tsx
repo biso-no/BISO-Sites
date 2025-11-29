@@ -10,7 +10,7 @@ import {
   SheetTitle,
 } from "@repo/ui/components/ui/sheet";
 import { Bot, Loader2, Send, Sparkles, Trash2, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formEvents } from "@/lib/form-events";
 import { AssistantMessage as MessageComponent } from "./assistant-message";
@@ -23,19 +23,25 @@ type AssistantSidebarProps = {
 
 export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleNavigate = useCallback(
     (path: string) => {
+      // Skip navigation if already on the target page
+      if (pathname === path) {
+        console.log("Already on page:", path);
+        return;
+      }
       router.push(path);
     },
-    [router]
+    [router, pathname]
   );
 
   const handleFormField = useCallback(
-    (update: { fieldId: string; fieldName: string; value: string }) => {
+    (update: { fieldId: string; fieldName: string; value: string; streaming?: boolean; isComplete?: boolean }) => {
       // Emit the form field update to any listening forms
       formEvents.emit(update);
     },
