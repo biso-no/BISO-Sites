@@ -16,10 +16,12 @@ import {
   PageStatus,
   PageVisibility,
 } from "@repo/api/types/appwrite";
+import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
 import { FileUpload } from "@repo/ui/components/file-upload";
+import { LinkPicker } from "@repo/ui/components/link-picker";
+import { TablePicker } from "@repo/ui/components/table-picker";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
-import { Textarea } from "@repo/ui/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -35,12 +37,21 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@repo/ui/components/ui/sheet";
-import { Globe, Settings, Monitor, Tablet, Smartphone, ExternalLink } from "lucide-react";
-import { listImages, uploadImage } from "./upload-image";
-import { LinkPicker } from "@repo/ui/components/link-picker";
-import { TablePicker } from "@repo/ui/components/table-picker";
+import { Textarea } from "@repo/ui/components/ui/textarea";
+import {
+  ExternalLink,
+  Globe,
+  Languages,
+  Loader2,
+  Monitor,
+  Settings,
+  Smartphone,
+  Tablet,
+} from "lucide-react";
+import { TABLE_SCHEMAS } from "./data/schemas";
 import { getPages } from "./get-pages";
 import { getTables } from "./get-tables";
+import { listImages, uploadImage } from "./upload-image";
 
 // Use the standard hook
 const usePuck = usePuckOriginal;
@@ -64,6 +75,11 @@ export type PageEditorProps = {
   ) => Promise<void>;
   onLocaleChange: (locale: Locale) => void;
   onBack: () => void;
+  onTranslate?: (
+    data: Data,
+    metadata: { title: string; slug: string; description?: string },
+    targetLocale: Locale
+  ) => Promise<void>;
 };
 
 export function PageEditor({
@@ -79,9 +95,11 @@ export function PageEditor({
   onPublish,
   onLocaleChange,
   onBack,
+  onTranslate,
 }: PageEditorProps) {
   const [data, setData] = useState<Data>(initialData);
   const [saving, setSaving] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
   const [description, setDescription] = useState(initialDescription);
@@ -127,6 +145,25 @@ export function PageEditor({
     return result;
   };
 
+  const handleTranslate = async (newData: Data, targetLocale: Locale) => {
+    if (!onTranslate) {
+      toast.error("Translation is not available");
+      return;
+    }
+    setTranslating(true);
+    try {
+      await onTranslate(newData, { title, slug, description }, targetLocale);
+      toast.success(
+        `Page translated to ${targetLocale === "no" ? "Norwegian" : "English"}`
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to translate page");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full flex-col">
       <Puck
@@ -135,11 +172,6 @@ export function PageEditor({
         headerPath={`/${locale}/${slug}`}
         headerTitle={title}
         onPublish={handleSave}
-        viewports={[
-          { label: "Desktop", width: 1280, height: "auto", icon: <Monitor size={20} /> },
-          { label: "Tablet", width: 768, height: "auto", icon: <Tablet size={20} /> },
-          { label: "Mobile", width: 375, height: "auto", icon: <Smartphone size={20} /> },
-        ]}
         overrides={{
           fieldTypes: {
             link: ({ onChange, value }) => (
@@ -154,6 +186,13 @@ export function PageEditor({
                 getTables={getTables}
                 onChange={onChange}
                 value={value}
+              />
+            ),
+            "data-source": ({ onChange, value }) => (
+              <DataSourcePicker
+                onChange={onChange}
+                schemas={TABLE_SCHEMAS}
+                value={value ?? {}}
               />
             ),
             image: ({ name, onChange, value }) => (
@@ -171,8 +210,9 @@ export function PageEditor({
               />
             ),
           },
-          headerActions: ({ children }) => {
+          headerActions: ({ children: _children }) => {
             // Get current app state (including data) from Puck
+            // biome-ignore lint/correctness/useHookAtTopLevel: usePuck is designed for Puck override functions
             const { appState } = usePuck();
             const currentData = appState.data as Data;
 
@@ -234,11 +274,11 @@ export function PageEditor({
                         <div className="grid gap-2">
                           <Label htmlFor="description">Description</Label>
                           <Textarea
+                            className="resize-none"
                             id="description"
                             onChange={(e) => setDescription(e.target.value)}
-                            value={description}
-                            className="resize-none"
                             rows={3}
+                            value={description}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -277,6 +317,43 @@ export function PageEditor({
                     </SheetContent>
                   </Sheet>
 
+                  {/* AI Translate Button */}
+                  {onTranslate && availableLocales.length > 1 && (
+                    <Select
+                      disabled={translating}
+                      onValueChange={(targetLocale) => {
+                        if (targetLocale !== locale) {
+                          handleTranslate(currentData, targetLocale as Locale);
+                        }
+                      }}
+                      value=""
+                    >
+                      <SelectTrigger className="h-9 w-[160px] border-white/20 bg-white/10 text-white">
+                        {translating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <span>Translating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Languages className="mr-2 h-4 w-4" />
+                            <span>AI Translate</span>
+                          </>
+                        )}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableLocales
+                          .filter((l) => l !== locale)
+                          .map((l) => (
+                            <SelectItem key={l} value={l}>
+                              Translate to{" "}
+                              {l === "no" ? "Norwegian" : "English"}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
                   <div className="mx-2 h-6 w-px bg-white/20" />
 
                   <Button className="mr-2" onClick={onBack} variant="outline">
@@ -286,10 +363,10 @@ export function PageEditor({
                   {initialStatus === PageStatus.PUBLISHED && (
                     <Button
                       className="mr-2"
-                      variant="outline"
                       onClick={() =>
                         window.open(`/${locale}/${slug}`, "_blank")
                       }
+                      variant="outline"
                     >
                       <ExternalLink className="mr-2 h-4 w-4" />
                       View
@@ -319,6 +396,26 @@ export function PageEditor({
             );
           },
         }}
+        viewports={[
+          {
+            label: "Desktop",
+            width: 1280,
+            height: "auto",
+            icon: <Monitor size={20} />,
+          },
+          {
+            label: "Tablet",
+            width: 768,
+            height: "auto",
+            icon: <Tablet size={20} />,
+          },
+          {
+            label: "Mobile",
+            width: 375,
+            height: "auto",
+            icon: <Smartphone size={20} />,
+          },
+        ]}
       />
     </div>
   );
