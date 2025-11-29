@@ -13,6 +13,7 @@ import {
   ensureTranslation,
   publishPage,
   savePageDraft,
+  saveTranslatedPage,
 } from "@/app/actions/pages";
 
 const PageEditor = dynamic(
@@ -107,6 +108,46 @@ export function EditorClient({
     }
   };
 
+  const handleTranslate = async (
+    data: Data,
+    metadata: { title: string; slug: string; description?: string },
+    targetLocale: Locale
+  ) => {
+    // Call the AI translation API
+    const response = await fetch("/api/translate-page", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pageData: data,
+        sourceLocale: locale,
+        targetLocale,
+        title: metadata.title,
+        description: metadata.description,
+        slug: metadata.slug,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Translation API failed");
+    }
+
+    const result = await response.json();
+
+    // Save the translated page to the target locale
+    const { redirectUrl } = await saveTranslatedPage({
+      pageId,
+      targetLocale,
+      translatedData: result.translatedData,
+      translatedTitle: result.translatedTitle,
+      translatedSlug: result.translatedSlug,
+      translatedDescription: result.translatedDescription,
+      sourceTranslationId: translationId,
+    });
+
+    // Redirect to the translated page editor
+    router.push(redirectUrl);
+  };
+
   return (
     <PageEditor
       availableLocales={availableLocales}
@@ -119,6 +160,7 @@ export function EditorClient({
       }
       onPublish={handlePublish}
       onSave={handleSave}
+      onTranslate={handleTranslate}
       slug={slug}
       status={status}
       title={title}

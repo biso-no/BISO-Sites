@@ -4,7 +4,9 @@ import {
   AccordionBlock,
   type AccordionBlockProps,
 } from "@repo/ui/components/puck/accordion";
-import { getDynamicContent } from "./get-dynamic-content";
+import { Collection } from "@repo/ui/components/puck/collection/collection";
+import type { CollectionProps } from "@repo/ui/components/puck/collection/types";
+import { LAYOUT_OPTIONS } from "@repo/ui/components/puck/collection/types";
 import { Columns, type ColumnsProps } from "@repo/ui/components/puck/columns";
 import { CTA, type CTAProps } from "@repo/ui/components/puck/cta";
 import {
@@ -17,10 +19,7 @@ import {
 } from "@repo/ui/components/puck/filter-bar";
 import { FilteredEvents } from "@repo/ui/components/puck/filtered-events";
 import { FilteredNews } from "@repo/ui/components/puck/filtered-news";
-import {
-  Hero as GenericHero,
-  type HeroProps as GenericHeroProps,
-} from "@repo/ui/components/puck/hero";
+import { Hero, type HeroProps } from "@repo/ui/components/puck/hero";
 import {
   JobsList,
   type JobsListProps,
@@ -29,12 +28,24 @@ import {
   LogoGrid,
   type LogoGridProps,
 } from "@repo/ui/components/puck/logo-grid";
+import {
+  PageHeader,
+  type PageHeaderProps,
+} from "@repo/ui/components/puck/page-header";
+import {
+  RichText,
+  type RichTextProps,
+} from "@repo/ui/components/puck/rich-text";
 import { Section, type SectionProps } from "@repo/ui/components/puck/section";
 import { Spacer, type SpacerProps } from "@repo/ui/components/puck/spacer";
 import {
   StatsGrid,
   type StatsGridProps,
 } from "@repo/ui/components/puck/stats-grid";
+import {
+  TableOfContents,
+  type TableOfContentsProps,
+} from "@repo/ui/components/puck/table-of-contents";
 import { Tabs, type TabsProps } from "@repo/ui/components/puck/tabs";
 import {
   TeamGrid,
@@ -42,13 +53,23 @@ import {
 } from "@repo/ui/components/puck/team-grid";
 import { About, type AboutProps } from "@repo/ui/components/sections/about";
 import type { EventsProps } from "@repo/ui/components/sections/events";
-import { Hero, type HeroProps } from "@repo/ui/components/sections/hero";
 import { JoinUs, type JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
 import { useEffect, useRef } from "react";
+import { getDynamicContent } from "./get-dynamic-content";
 
 type EditorJoinUsProps = Omit<JoinUsProps, "memberFeatures"> & {
   memberFeatures: { feature: string }[];
+};
+
+type EditorCollectionProps = CollectionProps & {
+  dataMode?: "manual" | "dynamic";
+  dataSource?: {
+    table?: string;
+    filters?: { field: string; operator: string; value: unknown }[];
+    sort?: { field: string; direction: "asc" | "desc" };
+    limit?: number;
+  };
 };
 
 type SectionPropsWithSlot = SectionProps & { content?: Slot };
@@ -65,7 +86,7 @@ type TabsPropsWithSlots = TabsProps & {
   tab3?: Slot;
 };
 
-type GenericHeroPropsWithSlot = GenericHeroProps & {
+type HeroPropsWithSlot = HeroProps & {
   rightSlot?: Slot;
   slidesSource?: any;
   statsSource?: any;
@@ -74,14 +95,32 @@ type GenericHeroPropsWithSlot = GenericHeroProps & {
   styling?: { padding?: string; className?: string };
 };
 
+type DataSourceValue = {
+  table?: string;
+  filters?: { field: string; operator: string; value: unknown }[];
+  sort?: { field: string; direction: "asc" | "desc" };
+  limit?: number;
+};
+
+type EditorEventsProps = EventsProps & {
+  dataMode?: "manual" | "dynamic";
+  dataSource?: DataSourceValue;
+  limit?: number;
+};
+
+type EditorNewsProps = NewsProps & {
+  dataMode?: "manual" | "dynamic";
+  dataSource?: DataSourceValue;
+  limit?: number;
+};
+
 type Props = {
-  Hero: HeroProps;
+  Hero: HeroPropsWithSlot;
   About: AboutProps;
   JoinUs: EditorJoinUsProps;
-  News: NewsProps;
-  Events: EventsProps;
+  News: EditorNewsProps;
+  Events: EditorEventsProps;
   Section: SectionPropsWithSlot;
-  GenericHero: GenericHeroPropsWithSlot;
   FeatureGrid: FeatureGridProps;
   CTA: CTAProps;
   Columns: ColumnsPropsWithSlots;
@@ -93,6 +132,10 @@ type Props = {
   LogoGrid: LogoGridProps;
   FilterBar: FilterBarProps;
   JobsList: JobsListProps;
+  Collection: EditorCollectionProps;
+  RichText: RichTextProps;
+  PageHeader: PageHeaderProps;
+  TableOfContents: TableOfContentsProps;
 };
 
 export const config: Config<Props> = {
@@ -591,7 +634,7 @@ export const config: Config<Props> = {
         maxWidth: "default",
       },
     },
-    GenericHero: {
+    Hero: {
       resolveFields: (data) => {
         const fields: any = {
           layout: {
@@ -787,7 +830,7 @@ export const config: Config<Props> = {
       },
       resolveData: async ({ props }) => {
         const { slidesMode, slidesSource, statsMode, statsSource } = props;
-        const resolvedProps: Partial<GenericHeroPropsWithSlot> = {};
+        const resolvedProps: Partial<HeroPropsWithSlot> = {};
 
         if (slidesMode === "dynamic" && slidesSource) {
           try {
@@ -832,7 +875,7 @@ export const config: Config<Props> = {
         // Default initial fields if needed, but resolveFields handles mostly
       },
       render: ({ rightSlot: RightSlot, ...props }) => (
-        <GenericHero rightSlot={RightSlot && <RightSlot />} {...props} />
+        <Hero rightSlot={RightSlot && <RightSlot />} {...props} />
       ),
       defaultProps: {
         layout: "center",
@@ -846,63 +889,6 @@ export const config: Config<Props> = {
         stats: [],
         statsMode: "manual",
         highlights: [],
-      },
-    },
-    Hero: {
-      fields: {
-        featuredContent: {
-          type: "array",
-          getItemSummary: (item) => item.title || "Content Item",
-          arrayFields: {
-            title: { type: "text" },
-            description: { type: "textarea" },
-            imageUrl: { type: "text" },
-            link: { type: "text" },
-            type: {
-              type: "select",
-              options: [
-                { label: "Event", value: "event" },
-                { label: "News", value: "news" },
-                { label: "Custom", value: "custom" },
-              ],
-            },
-            content_id: { type: "text" },
-          },
-        },
-        labels: {
-          type: "object",
-          objectFields: {
-            badge: { type: "text" },
-            badgeElevated: { type: "text" },
-            subtitle: { type: "textarea" },
-            ctaJoin: { type: "text" },
-            ctaViewEvents: { type: "text" },
-            featuredLabel: { type: "text" },
-            learnMore: { type: "text" },
-            viewAll: { type: "text" },
-          },
-        },
-      },
-      render: (props) => <Hero {...props} />,
-      defaultProps: {
-        featuredContent: [
-          {
-            title: "Welcome to BISO",
-            description:
-              "The student organisation for BI Norwegian Business School",
-            type: "custom",
-          },
-        ],
-        labels: {
-          badge: "Your Student",
-          badgeElevated: "Organisation",
-          subtitle: "We are here for you.",
-          ctaJoin: "Join Us",
-          ctaViewEvents: "View Events",
-          featuredLabel: "Featured",
-          learnMore: "Learn More",
-          viewAll: "View All",
-        },
       },
     },
     About: {
@@ -1073,20 +1059,44 @@ export const config: Config<Props> = {
       },
     },
     News: {
-      fields: {
-        news: {
-          type: "array",
-          getItemSummary: (item) => item.title,
-          arrayFields: {
-            title: { type: "text" },
-            description: { type: "textarea" },
-            image: { type: "image" } as any,
-            content_id: { type: "text" },
-            $id: { type: "text" },
-            $createdAt: { type: "text" }, // User would have to manually enter date string?
+      resolveFields: (data): any => {
+        const fields: Record<string, unknown> = {
+          dataMode: {
+            type: "radio",
+            label: "Data Source",
+            options: [
+              { label: "Manual Entry", value: "manual" },
+              { label: "Dynamic (Database)", value: "dynamic" },
+            ],
           },
-        },
-        labels: {
+        };
+
+        if (data.props.dataMode === "dynamic") {
+          fields.dataSource = {
+            type: "data-source",
+            label: "News Source",
+          };
+          fields.limit = {
+            type: "number",
+            label: "Max Articles",
+          };
+        } else {
+          fields.news = {
+            type: "array",
+            getItemSummary: (item: { title?: string }) =>
+              item.title || "Article",
+            arrayFields: {
+              title: { type: "text" },
+              description: { type: "textarea" },
+              image: { type: "image" },
+              content_id: { type: "text" },
+              $id: { type: "text" },
+              $createdAt: { type: "text" },
+            },
+          };
+        }
+
+        fields.labels = {
           type: "object",
           objectFields: {
             empty: { type: "text" },
@@ -1097,10 +1107,40 @@ export const config: Config<Props> = {
             readMore: { type: "text" },
             viewAllNews: { type: "text" },
           },
-        },
+        };
+
+        return fields;
+      },
+      resolveData: async ({ props }) => {
+        if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+          return { props: {} };
+        }
+
+        try {
+          const items = await getDynamicContent({
+            table: "news",
+            ...props.dataSource,
+            limit: props.limit || 6,
+          });
+
+          const news = items.map((item) => ({
+            $id: item.id || "",
+            content_id: item.id || "",
+            title: item.title,
+            description: item.description || "",
+            image: item.image || "",
+            $createdAt: item.date || new Date().toISOString(),
+          }));
+
+          return { props: { news } };
+        } catch (e) {
+          console.error("Failed to resolve news", e);
+          return { props: {} };
+        }
       },
       render: (props) => <FilteredNews {...props} />,
       defaultProps: {
+        dataMode: "manual",
         news: [],
         labels: {
           empty: "No news yet",
@@ -1199,30 +1239,53 @@ export const config: Config<Props> = {
       },
     },
     Events: {
-      fields: {
-        events: {
-          type: "array",
-          getItemSummary: (item) => item.title,
-          arrayFields: {
-            title: { type: "text" },
-            image: { type: "image" } as any,
-            start_date: { type: "text" }, // ISO string
-            end_date: { type: "text" },
-            location: { type: "text" },
-            category: {
-              type: "select",
-              options: [
-                { label: "Social", value: "Social" },
-                { label: "Career", value: "Career" },
-                { label: "Academic", value: "Academic" },
-              ],
-            },
-            attendees: { type: "number" },
-            content_id: { type: "text" },
-            $id: { type: "text" },
+      resolveFields: (data): any => {
+        const fields: Record<string, unknown> = {
+          dataMode: {
+            type: "radio",
+            label: "Data Source",
+            options: [
+              { label: "Manual Entry", value: "manual" },
+              { label: "Dynamic (Database)", value: "dynamic" },
+            ],
           },
-        },
-        labels: {
+        };
+
+        if (data.props.dataMode === "dynamic") {
+          fields.dataSource = {
+            type: "data-source",
+            label: "Events Source",
+          };
+          fields.limit = {
+            type: "number",
+            label: "Max Events",
+          };
+        } else {
+          fields.events = {
+            type: "array",
+            getItemSummary: (item: { title?: string }) => item.title || "Event",
+            arrayFields: {
+              title: { type: "text" },
+              image: { type: "image" },
+              start_date: { type: "text" },
+              end_date: { type: "text" },
+              location: { type: "text" },
+              category: {
+                type: "select",
+                options: [
+                  { label: "Social", value: "Social" },
+                  { label: "Career", value: "Career" },
+                  { label: "Academic", value: "Academic" },
+                ],
+              },
+              attendees: { type: "number" },
+              content_id: { type: "text" },
+              $id: { type: "text" },
+            },
+          };
+        }
+
+        fields.labels = {
           type: "object",
           objectFields: {
             empty: { type: "text" },
@@ -1234,10 +1297,41 @@ export const config: Config<Props> = {
             registerNow: { type: "text" },
             viewAllEvents: { type: "text" },
           },
-        },
+        };
+
+        return fields;
+      },
+      resolveData: async ({ props }) => {
+        if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+          return { props: {} };
+        }
+
+        try {
+          const items = await getDynamicContent({
+            table: "events",
+            ...props.dataSource,
+            limit: props.limit || 6,
+          });
+
+          const events = items.map((item) => ({
+            $id: item.id || "",
+            content_id: item.id || "",
+            title: item.title,
+            image: item.image,
+            start_date: item.date,
+            location: item.location,
+            category: item.category,
+          }));
+
+          return { props: { events } };
+        } catch (e) {
+          console.error("Failed to resolve events", e);
+          return { props: {} };
+        }
       },
       render: (props) => <FilteredEvents {...props} />,
       defaultProps: {
+        dataMode: "manual",
         events: [],
         labels: {
           empty: "No events",
@@ -1249,6 +1343,256 @@ export const config: Config<Props> = {
           registerNow: "Register Now",
           viewAllEvents: "View All Events",
         },
+      },
+    },
+    Collection: {
+      label: "Collection",
+      resolveFields: (data): any => {
+        const fields: Record<string, unknown> = {
+          title: { type: "text", label: "Title" },
+          subtitle: { type: "textarea", label: "Subtitle" },
+          layout: {
+            type: "select",
+            label: "Layout",
+            options: LAYOUT_OPTIONS,
+          },
+          columns: {
+            type: "select",
+            label: "Columns",
+            options: [
+              { label: "2 Columns", value: 2 },
+              { label: "3 Columns", value: 3 },
+              { label: "4 Columns", value: 4 },
+              { label: "5 Columns", value: 5 },
+              { label: "6 Columns", value: 6 },
+            ],
+          },
+          dataMode: {
+            type: "radio",
+            label: "Data Source",
+            options: [
+              { label: "Manual Entry", value: "manual" },
+              { label: "Dynamic (Database)", value: "dynamic" },
+            ],
+          },
+        };
+
+        if (data.props.dataMode === "dynamic") {
+          fields.dataSource = {
+            type: "data-source",
+            label: "Data Source",
+          };
+        } else {
+          fields.items = {
+            type: "array",
+            label: "Items",
+            getItemSummary: (item: { title?: string }) => item.title || "Item",
+            arrayFields: {
+              title: { type: "text", label: "Title" },
+              subtitle: { type: "text", label: "Subtitle" },
+              description: { type: "textarea", label: "Description" },
+              image: { type: "image", label: "Image" },
+              icon: { type: "text", label: "Icon (e.g., star, heart, users)" },
+              href: { type: "text", label: "Link URL" },
+              date: { type: "text", label: "Date" },
+              badge: { type: "text", label: "Badge" },
+            },
+          };
+        }
+
+        // Display options
+        fields.emptyMessage = { type: "text", label: "Empty Message" };
+        fields.ctaLabel = { type: "text", label: "CTA Button Label" };
+        fields.ctaHref = { type: "text", label: "CTA Button Link" };
+
+        // Layout-specific options
+        if (data.props.layout === "logo-grid") {
+          fields.grayscale = {
+            type: "radio",
+            label: "Grayscale",
+            options: [
+              { label: "Yes", value: true },
+              { label: "No", value: false },
+            ],
+          };
+        }
+
+        if (data.props.layout === "card-grid") {
+          fields.cardVariant = {
+            type: "select",
+            label: "Card Style",
+            options: [
+              { label: "Default", value: "default" },
+              { label: "Bordered", value: "bordered" },
+              { label: "Elevated", value: "elevated" },
+            ],
+          };
+          fields.imageAspect = {
+            type: "select",
+            label: "Image Aspect",
+            options: [
+              { label: "Video (16:9)", value: "video" },
+              { label: "Square", value: "square" },
+              { label: "Portrait (3:4)", value: "portrait" },
+            ],
+          };
+        }
+
+        return fields;
+      },
+      resolveData: async ({ props }) => {
+        if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+          return { props: {} };
+        }
+
+        try {
+          const items = await getDynamicContent({
+            ...props.dataSource,
+          });
+
+          const collectionItems = items.map((item) => ({
+            id: item.id || crypto.randomUUID(),
+            title: item.title,
+            subtitle: item.subtitle,
+            description: item.description,
+            image: item.image,
+            href: item.href,
+            date: item.date,
+            badge: item.badge,
+          }));
+
+          return { props: { items: collectionItems } };
+        } catch (e) {
+          console.error("Failed to resolve collection", e);
+          return { props: {} };
+        }
+      },
+      render: (props) => <Collection {...props} />,
+      defaultProps: {
+        layout: "card-grid",
+        dataMode: "manual",
+        items: [],
+        emptyMessage: "No items to display",
+        emptyDescription: "Check back later.",
+      },
+    },
+    RichText: {
+      fields: {
+        content: {
+          type: "textarea",
+          label: "Content (Markdown)",
+        },
+        variant: {
+          type: "select",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Compact", value: "compact" },
+            { label: "Legal Document", value: "legal" },
+          ],
+        },
+        columns: {
+          type: "radio",
+          options: [
+            { label: "Single Column", value: 1 },
+            { label: "Two Columns", value: 2 },
+          ],
+        },
+      },
+      render: (props) => <RichText {...props} />,
+      defaultProps: {
+        content:
+          "## Section Title\n\nThis is a paragraph of text. You can use **bold** and *italic* formatting.\n\n### Subsection\n\n- List item 1\n- List item 2\n- List item 3\n\nLearn more at [our website](https://example.com).",
+        variant: "default",
+        columns: 1,
+      },
+    },
+    PageHeader: {
+      fields: {
+        title: { type: "text" },
+        subtitle: { type: "textarea" },
+        lastUpdated: { type: "text", label: "Last Updated Date" },
+        breadcrumbs: {
+          type: "array",
+          getItemSummary: (item) => item.label || "Breadcrumb",
+          arrayFields: {
+            label: { type: "text" },
+            href: { type: "text" },
+          },
+        },
+        variant: {
+          type: "select",
+          options: [
+            { label: "Default (Left)", value: "default" },
+            { label: "Centered", value: "centered" },
+            { label: "Minimal", value: "minimal" },
+          ],
+        },
+        showDivider: {
+          type: "radio",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+      },
+      render: (props) => <PageHeader {...props} />,
+      defaultProps: {
+        title: "Privacy Policy",
+        subtitle:
+          "This policy describes how we collect, use, and protect your personal information.",
+        lastUpdated: "November 2024",
+        breadcrumbs: [{ label: "Privacy Policy" }],
+        variant: "default",
+        showDivider: true,
+      },
+    },
+    TableOfContents: {
+      fields: {
+        title: { type: "text" },
+        items: {
+          type: "array",
+          getItemSummary: (item) => item.title || "Section",
+          arrayFields: {
+            title: { type: "text" },
+            anchor: { type: "text", label: "Anchor ID (without #)" },
+            level: {
+              type: "select",
+              options: [
+                { label: "Level 1 (Main)", value: 1 },
+                { label: "Level 2 (Sub)", value: 2 },
+                { label: "Level 3 (Nested)", value: 3 },
+              ],
+            },
+          },
+        },
+        variant: {
+          type: "select",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Card", value: "card" },
+            { label: "Sticky Sidebar", value: "sticky" },
+          ],
+        },
+        showIcon: {
+          type: "radio",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+      },
+      render: (props) => <TableOfContents {...props} />,
+      defaultProps: {
+        title: "Table of Contents",
+        items: [
+          { title: "Introduction", anchor: "introduction", level: 1 },
+          { title: "Data Collection", anchor: "data-collection", level: 1 },
+          { title: "Personal Information", anchor: "personal-info", level: 2 },
+          { title: "Your Rights", anchor: "your-rights", level: 1 },
+          { title: "Contact Us", anchor: "contact", level: 1 },
+        ],
+        variant: "card",
+        showIcon: true,
       },
     },
   },

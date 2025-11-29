@@ -9,7 +9,11 @@
     "./config": "./src/config.tsx",
     "./render": "./src/render.tsx",
     "./editor": "./src/editor.tsx",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./data/types": "./src/data/types.ts",
+    "./data/schemas": "./src/data/schemas.ts",
+    "./data/fetch": "./src/data/fetch-data.ts",
+    "./data/normalizers": "./src/data/normalizers.ts"
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",

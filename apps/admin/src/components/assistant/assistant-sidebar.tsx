@@ -3,12 +3,8 @@
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@repo/ui/components/ui/sheet";
+import { cn } from "@repo/ui/lib/utils";
+import { motion } from "framer-motion";
 import { Bot, Loader2, Send, Sparkles, Trash2, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -41,7 +37,13 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
   );
 
   const handleFormField = useCallback(
-    (update: { fieldId: string; fieldName: string; value: string; streaming?: boolean; isComplete?: boolean }) => {
+    (update: {
+      fieldId: string;
+      fieldName: string;
+      value: string;
+      streaming?: boolean;
+      isComplete?: boolean;
+    }) => {
       // Emit the form field update to any listening forms
       formEvents.emit(update);
     },
@@ -56,7 +58,7 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && messages.length >= 0) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
@@ -82,82 +84,96 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent
-        className="flex w-[400px] flex-col gap-0 p-0 sm:max-w-[400px]"
-        side="right"
-      >
+    <motion.div
+      animate={{
+        width: isOpen ? 400 : 0,
+        opacity: isOpen ? 1 : 0,
+        marginRight: isOpen ? 16 : 0, // m-4 equivalent
+      }}
+      className={cn(
+        "relative z-10 my-4 flex shrink-0 flex-col overflow-hidden rounded-[32px] border border-primary/10 bg-white/80 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-[#001731]/95 dark:text-white dark:shadow-[0_45px_80px_-45px_rgba(0,23,49,0.9)]",
+        // Ensure it's hidden when closed to avoid pointer events
+        !isOpen && "pointer-events-none border-none"
+      )}
+      initial={false}
+      transition={{
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+      }}
+    >
+      <div className="flex h-full w-[400px] flex-col">
         {/* Header */}
-        <SheetHeader className="shrink-0 border-b px-4 py-3">
+        <div className="shrink-0 border-b px-4 py-3 dark:border-white/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <Sparkles className="h-4 w-4 text-primary" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 dark:bg-white/10">
+                <Sparkles className="h-4 w-4 text-primary dark:text-white" />
               </div>
               <div>
-                <SheetTitle className="text-base">BISO Assistant</SheetTitle>
-                <p className="text-muted-foreground text-xs">
+                <h3 className="font-semibold text-base">BISO Assistant</h3>
+                <p className="text-muted-foreground text-xs dark:text-white/60">
                   Your AI-powered admin helper
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
               <Button
-                variant="ghost"
-                size="icon"
                 className="h-8 w-8"
                 onClick={clearMessages}
+                size="icon"
                 title="Clear chat"
+                variant="ghost"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
               <Button
-                variant="ghost"
-                size="icon"
                 className="h-8 w-8"
                 onClick={onClose}
+                size="icon"
+                variant="ghost"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
-        </SheetHeader>
+        </div>
 
         {/* Messages */}
         <ScrollArea className="flex-1 px-4" ref={scrollRef}>
           <div className="space-y-4 py-4">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <Bot className="h-6 w-6 text-primary" />
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 dark:bg-white/10">
+                  <Bot className="h-6 w-6 text-primary dark:text-white" />
                 </div>
                 <h3 className="mb-2 font-medium">How can I help you today?</h3>
-                <p className="max-w-[280px] text-muted-foreground text-sm">
-                  I can help you create events, navigate the admin dashboard,
-                  and answer questions about BISO.
+                <p className="max-w-[280px] text-muted-foreground text-sm dark:text-white/60">
+                  I can help you create events, navigate the admin dashboard, and
+                  answer questions about BISO.
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   <Button
-                    variant="outline"
-                    size="sm"
                     className="text-xs"
                     onClick={() => sendMessage("Create a new event")}
+                    size="sm"
+                    variant="outline"
                   >
                     Create event
                   </Button>
                   <Button
-                    variant="outline"
-                    size="sm"
                     className="text-xs"
                     onClick={() => sendMessage("Show me all events")}
+                    size="sm"
+                    variant="outline"
                   >
                     View events
                   </Button>
                   <Button
-                    variant="outline"
-                    size="sm"
                     className="text-xs"
                     onClick={() => sendMessage("Help me with the dashboard")}
+                    size="sm"
+                    variant="outline"
                   >
                     Dashboard help
                   </Button>
@@ -169,7 +185,7 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
               ))
             )}
             {isLoading && (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm dark:text-white/60">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Thinking...</span>
               </div>
@@ -178,26 +194,26 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
         </ScrollArea>
 
         {/* Input */}
-        <div className="shrink-0 border-t p-4">
-          <form onSubmit={handleSubmit} className="flex gap-2">
+        <div className="shrink-0 border-t p-4 dark:border-white/10">
+          <form className="flex gap-2" onSubmit={handleSubmit}>
             <Input
-              ref={inputRef}
-              value={input}
+              className="flex-1 dark:bg-white/5 dark:text-white"
+              disabled={isLoading}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask me anything..."
-              disabled={isLoading}
-              className="flex-1"
+              ref={inputRef}
+              value={input}
             />
             <Button
-              type="submit"
-              size="icon"
               disabled={!input.trim() || isLoading}
+              size="icon"
+              type="submit"
             >
               <Send className="h-4 w-4" />
             </Button>
           </form>
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </motion.div>
   );
 }

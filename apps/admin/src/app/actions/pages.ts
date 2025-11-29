@@ -190,3 +190,40 @@ export async function getPublishedPagePreview(
 ) {
   return getPublishedPage({ slug, locale, preview });
 }
+
+export type SaveTranslatedPageInput = {
+  pageId: string;
+  targetLocale: Locale;
+  translatedData: PageBuilderDocument;
+  translatedTitle: string;
+  translatedSlug: string;
+  translatedDescription?: string | null;
+  sourceTranslationId: string;
+};
+
+export async function saveTranslatedPage(input: SaveTranslatedPageInput) {
+  // Ensure the translation exists for the target locale
+  const translation = await ensurePageTranslation({
+    pageId: input.pageId,
+    locale: input.targetLocale,
+    title: input.translatedTitle,
+    sourceTranslationId: input.sourceTranslationId,
+  });
+
+  // Save the translated content as a draft
+  const updated = await updatePageTranslationDraft({
+    translationId: translation.id,
+    title: input.translatedTitle,
+    slug: input.translatedSlug,
+    description: input.translatedDescription,
+    draftDocument: cloneDocument(input.translatedData),
+  });
+
+  const page = await getPageById(input.pageId);
+
+  if (page) {
+    revalidateForPage(page);
+  }
+
+  return { translation: updated, redirectUrl: `/admin/pages/${input.pageId}/${input.targetLocale}/editor` };
+}
