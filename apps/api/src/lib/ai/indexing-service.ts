@@ -1,0 +1,1151 @@
+import "server-only";
+import { type SharePointDocument, SharePointService } from "@/lib/sharepoint";
+import { isSupportedContentType } from "./content-types";
+import { documentClassifier } from "./document-classifier";
+import {
+  DocumentProcessor,
+  type ProcessedDocument,
+} from "./document-processor";
+import { getDocumentViewerUrl } from "./document-utils";
+import { correctMimeType } from "./mime-utils";
+import type { VectorDocument } from "./vector-store.types";
+
+// Module-level constants for regex patterns and configuration
+const SYSTEM_FILE_PATTERNS = [
+  /^~\$/, // Word temp files
+  /^\./, // Hidden files
+  /thumbs\.db$/i,
+  /desktop\.ini$/i,
+  /\.tmp$/i,
+  /\.temp$/i,
+  /^_vti_/, // SharePoint system folders
+];
+
+const SEARCH_PATTERNS = {
+  paragraph: /§\s*(\d+(?:\.\d+)*)/g,
+  section: /(?:paragraf|paragraph|avsnitt|section)\s*(\d+(?:\.\d+)*)/gi,
+  article: /(?:artikkel|article)\s*(\d+(?:\.\d+)*)/gi,
+};
+
+const STATUTES_REGEX = /(vedtekt|vedtektene|statute|statutes)/i;
+const LOCAL_LAWS_REGEX = /(lokal(e)?\s+lov(er)?|local\s+law(s)?)/i;
+
+const CAMPUS_CANDIDATES = [
+  "oslo",
+  "bergen",
+  "trondheim",
+  "stavanger",
+  "drammen",
+  "kristiansand",
+  "ålesund",
+  "alesund",
+  "bodø",
+  "bodoe",
+];
+
+export type IndexingJob = {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  siteId: string;
+  siteName: string;
+  folderPath: string;
+  recursive: boolean;
+  totalDocuments: number;
+  processedDocuments: number;
+  failedDocuments: number;
+  skippedDocuments: number; // New: track skipped docs
+  startTime: Date;
+  endTime?: Date;
+  error?: string;
+  processingDetails: {
+    chunksCreated: number;
+    avgChunksPerDocument: number;
+    tokenCounts: {
+      total: number;
+      average: number;
+      min: number;
+      max: number;
+    };
+  };
+};
+
+export type IndexingOptions = {
+  siteId: string;
+  folderPath?: string;
+  recursive?: boolean;
+  batchSize?: number;
+  maxConcurrency?: number;
+  validateChunks?: boolean; // New: enable chunk validation
+};
+
+export type ProcessedDocumentResult = {
+  documentId: string;
+  chunks: VectorDocument[];
+  chunksCreated: number;
+  tokensProcessed: number;
+  processingTimeMs: number;
+  error?: string;
+  skipped?: boolean;
+  skipReason?: string;
+};
+
+type SearchContext = {
+  category?: string;
+  campus?: string;
+  language?: "norwegian" | "english" | "mixed";
+};
+
+// Helper functions extracted to reduce complexity
+function resolveCategoryTerm(
+  category: string | undefined,
+  language: string | undefined
+): string {
+  if (category === "statutes") {
+    return language === "norwegian" ? "vedtekter" : "statutes";
+  }
+  if (category === "local-laws") {
+    return language === "norwegian" ? "lokale lover" : "local laws";
+  }
+  return "";
+}
+
+function detectCategory(query: string): "statutes" | "local-laws" | undefined {
+  if (STATUTES_REGEX.test(query)) {
+    return "statutes";
+  }
+  if (LOCAL_LAWS_REGEX.test(query)) {
+    return "local-laws";
+  }
+}
+
+function compareKeywordMatches(a: any, b: any, numberOnly: string): number {
+  const aMetadata = a.metadata || {};
+  const bMetadata = b.metadata || {};
+
+  // Prioritize structured chunks
+  const aStructured = aMetadata.isStructured ? 2 : 0;
+  const bStructured = bMetadata.isStructured ? 2 : 0;
+  if (aStructured !== bStructured) {
+    return bStructured - aStructured;
+  }
+
+  // Prioritize exact matches
+  const aExact = aMetadata.sectionNumber === numberOnly ? 1 : 0;
+  const bExact = bMetadata.sectionNumber === numberOnly ? 1 : 0;
+  if (aExact !== bExact) {
+    return bExact - aExact;
+  }
+
+  // Fall back to similarity score
+  return (b.score || 0) - (a.score || 0);
+}
+
+function calculateQualityScore(
+  metadata: any,
+  content: string,
+  queryLanguage: string
+): number {
+  let score = 0;
+
+  // Structure bonus
+  if (metadata.isStructured) {
+    score += 0.2;
+  }
+
+  // Language matching
+  const docLang = metadata.documentLanguage || "unknown";
+  if (docLang === "norwegian") {
+    score += queryLanguage === "norwegian" ? 0.3 : 0.25;
+  } else if (docLang === "english" && queryLanguage === "english") {
+    score += 0.2;
+  }
+
+  // Authority scoring
+  if (metadata.isAuthoritative) {
+    score += 0.2;
+  }
+  if (metadata.isLatest) {
+    score += 0.15;
+  }
+  if (metadata.isTranslation) {
+    score -= 0.1;
+  }
+
+  // Content length preference
+  const length = content.length;
+  if (length >= 500 && length <= 1500) {
+    score += 0.1;
+  } else if (length < 100) {
+    score -= 0.1;
+  }
+
+  // Processing quality indicators
+  if (metadata.tokenCount && metadata.tokenCount > 50) {
+    score += 0.05;
+  }
+
+  return score;
+}
+
+export class IndexingService {
+  private readonly sharePointService: SharePointService;
+  private readonly documentProcessor: DocumentProcessor;
+  private readonly vectorStore: import("./vector-store.types").IVectorStore;
+  private readonly jobs: Map<string, IndexingJob> = new Map();
+
+  constructor(
+    sharePointService: SharePointService,
+    vectorStore: import("./vector-store.types").IVectorStore
+  ) {
+    this.sharePointService = sharePointService;
+    this.documentProcessor = new DocumentProcessor();
+    this.vectorStore = vectorStore;
+  }
+
+  startIndexing(options: IndexingOptions): Promise<string> {
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const job: IndexingJob = {
+      id: jobId,
+      status: "pending",
+      siteId: options.siteId,
+      siteName: "Unknown",
+      folderPath: options.folderPath || "/",
+      recursive: options.recursive ?? false,
+      totalDocuments: 0,
+      processedDocuments: 0,
+      failedDocuments: 0,
+      skippedDocuments: 0,
+      startTime: new Date(),
+      processingDetails: {
+        chunksCreated: 0,
+        avgChunksPerDocument: 0,
+        tokenCounts: {
+          total: 0,
+          average: 0,
+          min: Number.MAX_SAFE_INTEGER,
+          max: 0,
+        },
+      },
+    };
+
+    this.jobs.set(jobId, job);
+
+    // Start processing in background
+    this.processIndexingJob(jobId, options).catch((error) => {
+      console.error("❌ Indexing job failed:", error);
+      const failedJob = this.jobs.get(jobId);
+      if (failedJob) {
+        failedJob.status = "failed";
+        failedJob.error =
+          error instanceof Error ? error.message : "Unknown error";
+        failedJob.endTime = new Date();
+      }
+    });
+
+    return Promise.resolve(jobId);
+  }
+
+  private async processIndexingJob(
+    jobId: string,
+    options: IndexingOptions
+  ): Promise<void> {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      throw new Error("Job not found");
+    }
+
+    console.log(`🚀 Starting indexing job ${jobId}`);
+
+    try {
+      job.status = "processing";
+
+      // Get site information
+      const sites = await this.sharePointService.listSites();
+      let site = sites.find((s) => s.id === options.siteId);
+      if (!site) {
+        try {
+          site = await this.sharePointService.getSiteById(options.siteId);
+        } catch (error) {
+          console.warn(
+            `Could not fetch site info for ${options.siteId}: ${error}`
+          );
+        }
+      }
+      if (site) {
+        job.siteName = site.displayName;
+      }
+
+      // List documents from SharePoint
+      const allDocuments = await this.sharePointService.listDocuments(
+        options.siteId,
+        options.folderPath || "/",
+        options.recursive
+      );
+
+      console.log(`📂 Found ${allDocuments.length} total documents`);
+
+      // Enhanced document filtering
+      const { supportedDocuments, filteredDocuments } =
+        this.filterAndValidateDocuments(allDocuments);
+
+      console.log(`✅ ${supportedDocuments.length} supported documents`);
+      console.log(
+        `❌ ${allDocuments.length - supportedDocuments.length} unsupported/filtered documents`
+      );
+
+      // Apply intelligent document prioritization
+      const prioritizedDocuments = this.prioritizeDocuments(supportedDocuments);
+
+      job.totalDocuments = prioritizedDocuments.length;
+      console.log(
+        `🎯 Processing ${prioritizedDocuments.length} prioritized documents`
+      );
+
+      // Process documents in batches with enhanced monitoring
+      const batchSize = options.batchSize || 5;
+
+      for (let i = 0; i < prioritizedDocuments.length; i += batchSize) {
+        const batch = prioritizedDocuments.slice(i, i + batchSize);
+        console.log(
+          `📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(prioritizedDocuments.length / batchSize)}`
+        );
+
+        await this.processBatch(batch, job, jobId, options);
+
+        // Add delay between batches to avoid overwhelming services
+        if (i + batchSize < prioritizedDocuments.length) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+
+      this.finalizeJob(job, jobId);
+    } catch (error) {
+      job.status = "failed";
+      job.error = error instanceof Error ? error.message : "Unknown error";
+      job.endTime = new Date();
+      console.error(`❌ Job ${jobId} failed:`, error);
+      throw error;
+    }
+  }
+
+  private async processBatch(
+    batch: SharePointDocument[],
+    job: IndexingJob,
+    jobId: string,
+    options: IndexingOptions
+  ): Promise<void> {
+    const promises = batch.map((doc) =>
+      this.processDocumentWithValidation(doc, jobId, options)
+    );
+    const results = await Promise.allSettled(promises);
+
+    // Collect and analyze results
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        this.handleProcessingSuccess(result.value, job);
+      } else {
+        job.failedDocuments += 1;
+        console.error("❌ Document processing failed:", result.reason);
+      }
+    }
+
+    // Calculate running averages
+    if (job.processedDocuments > 0) {
+      job.processingDetails.avgChunksPerDocument =
+        job.processingDetails.chunksCreated / job.processedDocuments;
+      job.processingDetails.tokenCounts.average =
+        job.processingDetails.tokenCounts.total / job.processedDocuments;
+    }
+
+    // Progress update
+    const totalProcessed =
+      job.processedDocuments + job.failedDocuments + job.skippedDocuments;
+    const progressPercent = (
+      (totalProcessed / job.totalDocuments) *
+      100
+    ).toFixed(1);
+    console.log(
+      `📊 Progress: ${progressPercent}% (${totalProcessed}/${job.totalDocuments})`
+    );
+  }
+
+  private handleProcessingSuccess(
+    docResult: ProcessedDocumentResult,
+    job: IndexingJob
+  ): void {
+    if (docResult.skipped) {
+      job.skippedDocuments += 1;
+      console.log(`⏭️ Skipped: ${docResult.skipReason}`);
+    } else if (docResult.error) {
+      job.failedDocuments += 1;
+      console.error(`❌ Failed: ${docResult.error}`);
+    } else {
+      job.processedDocuments += 1;
+
+      // Update processing statistics
+      job.processingDetails.chunksCreated += docResult.chunksCreated;
+      job.processingDetails.tokenCounts.total += docResult.tokensProcessed;
+      job.processingDetails.tokenCounts.min = Math.min(
+        job.processingDetails.tokenCounts.min,
+        docResult.tokensProcessed
+      );
+      job.processingDetails.tokenCounts.max = Math.max(
+        job.processingDetails.tokenCounts.max,
+        docResult.tokensProcessed
+      );
+
+      console.log(
+        `✅ Processed: ${docResult.chunksCreated} chunks, ${docResult.tokensProcessed} tokens, ${docResult.processingTimeMs}ms`
+      );
+    }
+  }
+
+  private finalizeJob(job: IndexingJob, jobId: string): void {
+    if (job.processingDetails.tokenCounts.min === Number.MAX_SAFE_INTEGER) {
+      job.processingDetails.tokenCounts.min = 0;
+    }
+
+    job.status = "completed";
+    job.endTime = new Date();
+
+    const duration = (job.endTime.getTime() - job.startTime.getTime()) / 1000;
+    console.log(
+      `🎉 Indexing job ${jobId} completed in ${duration.toFixed(1)}s`
+    );
+    console.log(
+      `📊 Final stats: ${job.processedDocuments} processed, ${job.failedDocuments} failed, ${job.skippedDocuments} skipped`
+    );
+    console.log(
+      `📦 Chunks created: ${job.processingDetails.chunksCreated} (avg: ${job.processingDetails.avgChunksPerDocument.toFixed(1)} per doc)`
+    );
+  }
+
+  private filterAndValidateDocuments(documents: SharePointDocument[]): {
+    supportedDocuments: SharePointDocument[];
+    filteredDocuments: SharePointDocument[];
+  } {
+    const supportedDocuments: SharePointDocument[] = [];
+    const filteredDocuments: SharePointDocument[] = [];
+
+    for (const doc of documents) {
+      // Size validation (skip very large files that might cause issues)
+      if (doc.size > 50 * 1024 * 1024) {
+        // 50MB limit
+        console.log(
+          `⚠️ Skipping large file: ${doc.name} (${(doc.size / 1024 / 1024).toFixed(1)}MB)`
+        );
+        filteredDocuments.push(doc);
+        continue;
+      }
+
+      // Content type validation
+      const correctedType = correctMimeType(doc.contentType, doc.name);
+      if (!isSupportedContentType(correctedType, doc.name)) {
+        console.log(
+          `⚠️ Skipping unsupported file: ${doc.name} (${correctedType})`
+        );
+        filteredDocuments.push(doc);
+        continue;
+      }
+
+      // File name validation (skip temporary/system files)
+      if (this.isSystemOrTempFile(doc.name)) {
+        console.log(`⚠️ Skipping system/temp file: ${doc.name}`);
+        filteredDocuments.push(doc);
+        continue;
+      }
+
+      supportedDocuments.push(doc);
+    }
+
+    return { supportedDocuments, filteredDocuments };
+  }
+
+  private isSystemOrTempFile(fileName: string): boolean {
+    return SYSTEM_FILE_PATTERNS.some((pattern) => pattern.test(fileName));
+  }
+
+  private prioritizeDocuments(
+    documents: SharePointDocument[]
+  ): SharePointDocument[] {
+    // Group documents by base name to find versions
+    const documentGroups = new Map<string, SharePointDocument[]>();
+
+    for (const doc of documents) {
+      const baseName = this.getDocumentBaseName(doc.name);
+      const key = `${baseName}_${doc.folderPath}`.toLowerCase();
+
+      if (!documentGroups.has(key)) {
+        documentGroups.set(key, []);
+      }
+      documentGroups.get(key)?.push(doc);
+    }
+
+    const prioritizedDocuments: SharePointDocument[] = [];
+
+    // For each group, select the most authoritative document(s)
+    for (const [groupKey, groupDocs] of Array.from(documentGroups.entries())) {
+      if (groupDocs.length === 1) {
+        prioritizedDocuments.push(groupDocs[0]);
+      } else {
+        const bestDocs = this.selectBestVersion(groupDocs, groupKey);
+        prioritizedDocuments.push(...bestDocs);
+      }
+    }
+
+    return prioritizedDocuments;
+  }
+
+  private selectBestVersion(
+    groupDocs: SharePointDocument[],
+    groupKey: string
+  ): SharePointDocument[] {
+    const selectedDocs: SharePointDocument[] = [];
+
+    // Multiple documents - apply prioritization
+    const classified = groupDocs.map((doc) => ({
+      doc,
+      classification: documentClassifier.classifyDocument(
+        doc.name,
+        doc.folderPath || "/"
+      ),
+    }));
+
+    // Sort by authority
+    classified.sort((a, b) =>
+      documentClassifier.compareAuthority(a.classification, b.classification)
+    );
+
+    // Include the most authoritative
+    selectedDocs.push(classified[0].doc);
+
+    // Also include English version if Norwegian is primary
+    if (classified[0].classification.language === "norwegian") {
+      const englishVersion = classified.find(
+        (c) =>
+          c.classification.language === "english" &&
+          c.classification.authority.isTranslation
+      );
+      if (englishVersion) {
+        selectedDocs.push(englishVersion.doc);
+      }
+    }
+
+    if (groupDocs.length > 2) {
+      console.log(
+        `📋 Group ${groupKey}: Selected ${classified[0].doc.name} from ${groupDocs.length} versions`
+      );
+    }
+
+    return selectedDocs;
+  }
+
+  private getDocumentBaseName(fileName: string): string {
+    return fileName
+      .replace(/\s*v\d+(\.\d+)*(\.\d+)*/gi, "") // Remove version patterns
+      .replace(/\s*(nor|norsk|eng|english)\s*/gi, "") // Remove language indicators
+      .replace(/\s*\([^)]*\)\s*/g, "") // Remove parenthetical content
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private async processDocumentWithValidation(
+    document: SharePointDocument,
+    jobId: string,
+    _options: IndexingOptions
+  ): Promise<ProcessedDocumentResult> {
+    const startTime = Date.now();
+
+    try {
+      // Enhanced content type detection
+      const correctedContentType = correctMimeType(
+        document.contentType,
+        document.name
+      );
+
+      // Final validation at processing time
+      if (!isSupportedContentType(correctedContentType, document.name)) {
+        return {
+          documentId: document.id,
+          chunks: [],
+          chunksCreated: 0,
+          tokensProcessed: 0,
+          processingTimeMs: Date.now() - startTime,
+          skipped: true,
+          skipReason: `Unsupported content type: ${correctedContentType}`,
+        };
+      }
+
+      // Download document content
+      const buffer = await this.sharePointService.downloadDocument(
+        document.driveId,
+        document.id
+      );
+
+      // Process document with enhanced error handling
+      const processed = await this.documentProcessor.processDocument(
+        buffer,
+        correctedContentType,
+        {
+          ...document.metadata,
+          originalContentType: document.contentType,
+          correctedContentType,
+        }
+      );
+
+      // Validate processing results
+      const validationResult = this.validateProcessedDocument(
+        processed,
+        document.name
+      );
+      if (!validationResult.isValid) {
+        return {
+          documentId: document.id,
+          chunks: [],
+          chunksCreated: 0,
+          tokensProcessed: 0,
+          processingTimeMs: Date.now() - startTime,
+          error: validationResult.error,
+        };
+      }
+
+      // Document classification for enhanced metadata
+      const classification = documentClassifier.classifyDocument(
+        document.name,
+        document.folderPath || "/",
+        processed.content.substring(0, 5000)
+      );
+
+      // Generate document viewer URL
+      const documentViewerUrl = getDocumentViewerUrl({
+        fileName: document.name,
+        baseUrl: process.env.NEXT_PUBLIC_BASE_URL,
+      });
+
+      // Prepare vector documents with enhanced metadata
+      const vectorDocuments: VectorDocument[] = processed.chunks.map(
+        (chunk) => ({
+          id: `${document.id}_chunk_${chunk.chunkIndex}`,
+          content: chunk.content,
+          metadata: {
+            ...chunk.metadata,
+            // Core document metadata
+            documentId: document.id,
+            documentName: document.name,
+            fileName: document.name,
+            siteId: document.siteId,
+            siteName: document.siteName,
+            driveId: document.driveId,
+            webUrl: document.webUrl,
+            documentViewerUrl,
+            contentType: correctedContentType,
+            originalContentType: document.contentType,
+            fileSize: document.size,
+            lastModified: document.lastModified,
+            createdBy: document.createdBy,
+            jobId,
+
+            // Enhanced metadata from classification
+            documentLanguage: classification.language,
+            documentVersion: classification.version.version,
+            versionMajor: classification.version.major,
+            versionMinor: classification.version.minor,
+            isAuthoritative: classification.authority.isAuthoritative,
+            isLatest: classification.authority.isLatest,
+            isTranslation: classification.authority.isTranslation,
+            authorityPriority: classification.authority.priority,
+            documentCategory: classification.path.category,
+            isInLanguageFolder: classification.path.isInLanguageFolder,
+            languageFolder: classification.path.languageFolder,
+
+            // Processing metadata
+            processingTimestamp: new Date().toISOString(),
+            processingTimeMs: Date.now() - startTime,
+          },
+        })
+      );
+
+      // Add to vector store
+      await this.vectorStore.addDocuments(vectorDocuments);
+
+      const tokensProcessed = processed.chunks.reduce(
+        (sum, chunk) => sum + (chunk.metadata.tokenCount || 0),
+        0
+      );
+
+      return {
+        documentId: document.id,
+        chunks: vectorDocuments,
+        chunksCreated: processed.chunks.length,
+        tokensProcessed,
+        processingTimeMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      console.error(`❌ Failed to process document ${document.name}:`, error);
+      return {
+        documentId: document.id,
+        chunks: [],
+        chunksCreated: 0,
+        tokensProcessed: 0,
+        processingTimeMs: Date.now() - startTime,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  private validateProcessedDocument(
+    processed: ProcessedDocument,
+    _fileName: string
+  ): {
+    isValid: boolean;
+    error?: string;
+  } {
+    // Check if content is reasonable
+    if (!processed.content || processed.content.length < 10) {
+      return {
+        isValid: false,
+        error: "Document content too short or empty after processing",
+      };
+    }
+
+    // Check chunk count sanity
+    if (processed.chunks.length === 0) {
+      return {
+        isValid: false,
+        error: "No chunks created from document",
+      };
+    }
+
+    if (processed.chunks.length > 500) {
+      return {
+        isValid: false,
+        error: `Excessive chunks created: ${processed.chunks.length} (suggests processing error)`,
+      };
+    }
+
+    // Check for reasonable chunk content
+    const emptyChunks = processed.chunks.filter(
+      (chunk) => !chunk.content || chunk.content.trim().length < 10
+    );
+    if (emptyChunks.length > processed.chunks.length * 0.5) {
+      return {
+        isValid: false,
+        error: `Too many empty or very short chunks: ${emptyChunks.length}/${processed.chunks.length}`,
+      };
+    }
+
+    // Check for duplicate content (suggests processing loop)
+    const uniqueContents = new Set(
+      processed.chunks.map((chunk) => chunk.content.substring(0, 100))
+    );
+    if (uniqueContents.size < processed.chunks.length * 0.5) {
+      return {
+        isValid: false,
+        error: "High duplication in chunks suggests processing error",
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  // Keep existing methods but add enhanced error handling and logging
+  getJobStatus(jobId: string): Promise<IndexingJob | null> {
+    return Promise.resolve(this.jobs.get(jobId) || null);
+  }
+
+  listJobs(): Promise<IndexingJob[]> {
+    return Promise.resolve(
+      Array.from(this.jobs.values()).sort(
+        (a, b) => b.startTime.getTime() - a.startTime.getTime()
+      )
+    );
+  }
+
+  // Enhanced search with better error handling
+  async searchDocuments(
+    query: string,
+    options: {
+      k?: number;
+      filter?: Record<string, any>;
+      includeMetadata?: boolean;
+    } = {}
+  ): Promise<any[]> {
+    const k = options.k || 5;
+
+    try {
+      // Detect query context
+      const queryLanguage = documentClassifier.detectQueryLanguage(query);
+      const qLower = query.toLowerCase();
+
+      const detectedCategory = detectCategory(query);
+
+      // Campus detection
+      const detectedCampus = CAMPUS_CANDIDATES.find((c) => qLower.includes(c));
+
+      // Enhanced filters for quality
+      const finalFilter: Record<string, any> = {
+        ...(options.filter || {}),
+        isLatest: true,
+        isAuthoritative: true,
+      };
+      if (detectedCategory) {
+        finalFilter.documentCategory = detectedCategory;
+      }
+
+      // Enhanced query augmentation
+      const categoryTerm = resolveCategoryTerm(detectedCategory, queryLanguage);
+      const campusTerm = detectedCampus ? detectedCampus : "";
+      const augmentedQuery = [query, "BISO", categoryTerm, campusTerm]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      const { hasSpecificPattern, keywordResults } =
+        await this.performPatternSearch(query, k, {
+          category: detectedCategory,
+          campus: detectedCampus,
+          language: queryLanguage,
+        });
+
+      // Semantic search
+      const semanticResults = await this.vectorStore.search({
+        query: augmentedQuery,
+        k: hasSpecificPattern ? k * 2 : k,
+        filter: finalFilter,
+        includeMetadata: options.includeMetadata !== false,
+      });
+
+      const combinedResults = this.combineHybridResults(
+        keywordResults,
+        semanticResults,
+        hasSpecificPattern,
+        k
+      );
+
+      // Enhanced reranking
+      const rerankedResults = this.rerankResults(
+        combinedResults,
+        augmentedQuery
+      );
+
+      return rerankedResults.map((result) => ({
+        ...result,
+        source: result.metadata.documentViewerUrl || result.metadata.webUrl,
+        title: result.metadata.documentName,
+        site: result.metadata.siteName,
+        lastModified: result.metadata.lastModified,
+        documentViewerUrl: result.metadata.documentViewerUrl,
+        webUrl: result.metadata.webUrl,
+        // Add debugging info
+        searchType: result.searchType || "semantic",
+        processingTime: result.metadata.processingTimeMs,
+      }));
+    } catch (error) {
+      console.error("❌ Search failed:", error);
+      throw new Error(
+        `Search failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+
+  private combineHybridResults(
+    keywordResults: any[],
+    semanticResults: any[],
+    hasSpecificPattern: boolean,
+    k: number
+  ): any[] {
+    if (hasSpecificPattern && keywordResults.length > 0) {
+      // Hybrid search combination
+      const resultMap = new Map();
+
+      // Add keyword results first (higher priority)
+      for (const result of keywordResults) {
+        if (!resultMap.has(result.id)) {
+          resultMap.set(result.id, {
+            ...result,
+            searchType: "keyword",
+            originalScore: result.score,
+          });
+        }
+      }
+
+      // Add semantic results with score boosting for hybrid matches
+      for (const result of semanticResults) {
+        const id = result.id;
+        if (resultMap.has(id)) {
+          const existing = resultMap.get(id);
+          existing.score = Math.min(
+            1.0,
+            (existing.originalScore || 0) + result.score * 0.3
+          );
+          existing.searchType = "hybrid";
+        } else {
+          resultMap.set(id, {
+            ...result,
+            searchType: "semantic",
+            originalScore: result.score,
+          });
+        }
+      }
+
+      const combined = Array.from(resultMap.values())
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, k);
+
+      console.log(
+        `🔍 Hybrid search: ${keywordResults.length} keyword + ${semanticResults.length} semantic = ${combined.length} combined`
+      );
+      return combined;
+    }
+
+    return semanticResults.slice(0, k);
+  }
+
+  private async performPatternSearch(
+    query: string,
+    k: number,
+    context: SearchContext
+  ): Promise<{ hasSpecificPattern: boolean; keywordResults: any[] }> {
+    let hasSpecificPattern = false;
+    const keywordResults: any[] = [];
+
+    // Enhanced pattern matching
+    for (const [patternType, regex] of Object.entries(SEARCH_PATTERNS)) {
+      const matches = Array.from(query.matchAll(regex));
+      if (matches.length > 0) {
+        hasSpecificPattern = true;
+        console.log(
+          `🎯 Detected ${patternType} pattern:`,
+          matches.map((m) => m[0])
+        );
+
+        for (const match of matches) {
+          const keywordQuery = match[0];
+          const numberOnly = match[1];
+
+          const keywordSearchResults = await this.searchByKeyword(
+            keywordQuery,
+            numberOnly,
+            k * 2,
+            context
+          );
+          keywordResults.push(...keywordSearchResults);
+        }
+        break;
+      }
+    }
+    return { hasSpecificPattern, keywordResults };
+  }
+
+  // Keep existing search methods with enhanced error handling
+  private async searchByKeyword(
+    keywordQuery: string,
+    numberOnly: string,
+    limit: number,
+    context?: SearchContext
+  ): Promise<any[]> {
+    try {
+      const categoryTerm = resolveCategoryTerm(
+        context?.category,
+        context?.language
+      );
+      const campusTerm = context?.campus ? context.campus : "";
+      const broadQueryString = [
+        `paragraph ${numberOnly} section ${keywordQuery}`,
+        "BISO",
+        categoryTerm,
+        campusTerm,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      const broadResults = this.vectorStore.searchBroad
+        ? await this.vectorStore.searchBroad(broadQueryString, limit * 5)
+        : await this.vectorStore.search({
+            query: broadQueryString,
+            k: limit * 3,
+            includeMetadata: true,
+          });
+
+      // Enhanced filtering with validation
+      const keywordMatches = broadResults.filter((result) => {
+        const text = result.content.toLowerCase();
+        const metadata = result.metadata || {};
+
+        // Metadata validation
+        if (metadata.isLatest === false || metadata.isAuthoritative === false) {
+          return false;
+        }
+        if (
+          context?.category &&
+          metadata.documentCategory &&
+          metadata.documentCategory !== context.category
+        ) {
+          return false;
+        }
+
+        // Enhanced text matching
+        const searchTerms = [
+          keywordQuery.toLowerCase(),
+          `§${numberOnly}`,
+          `§ ${numberOnly}`,
+          `paragraf ${numberOnly}`,
+          `paragraph ${numberOnly}`,
+          `section ${numberOnly}`,
+          `avsnitt ${numberOnly}`,
+        ];
+
+        const textMatch = searchTerms.some((term) => text.includes(term));
+        const metadataMatch = metadata.sectionNumber
+          ?.toLowerCase()
+          .includes(numberOnly);
+
+        return textMatch || metadataMatch;
+      });
+
+      // Enhanced sorting with quality metrics
+      const sortedMatches = keywordMatches.sort((a, b) =>
+        compareKeywordMatches(a, b, numberOnly)
+      );
+
+      console.log(
+        `🔍 Keyword search "${keywordQuery}": ${keywordMatches.length}/${broadResults.length} matches`
+      );
+
+      // Enhanced scoring
+      return sortedMatches
+        .map((result) => {
+          const metadata = result.metadata || {};
+          let scoreBoost = 0.3; // Base keyword boost
+
+          if (metadata.isStructured) {
+            scoreBoost += 0.2;
+          }
+          if (metadata.sectionNumber === numberOnly) {
+            scoreBoost += 0.3;
+          }
+
+          return {
+            ...result,
+            score: Math.min(1.0, (result.score || 0) + scoreBoost),
+          };
+        })
+        .slice(0, limit);
+    } catch (error) {
+      console.error("❌ Keyword search failed:", error);
+      return [];
+    }
+  }
+
+  private rerankResults(results: any[], query: string): any[] {
+    // Enhanced reranking with quality metrics
+    const queryLanguage = documentClassifier.detectQueryLanguage(query);
+
+    return results.sort((a, b) => {
+      const aMetadata = a.metadata || {};
+      const bMetadata = b.metadata || {};
+
+      const aQualityScore = calculateQualityScore(
+        aMetadata,
+        a.content || "",
+        queryLanguage
+      );
+      const bQualityScore = calculateQualityScore(
+        bMetadata,
+        b.content || "",
+        queryLanguage
+      );
+
+      const aFinalScore = (a.score || 0) + aQualityScore;
+      const bFinalScore = (b.score || 0) + bQualityScore;
+
+      // Update scores for transparency
+      a.score = aFinalScore;
+      b.score = bFinalScore;
+
+      return bFinalScore - aFinalScore;
+    });
+  }
+
+  async getDocumentStats(): Promise<{
+    totalDocuments: number;
+    totalChunks: number;
+    modelStats?: any;
+  }> {
+    const stats = await this.vectorStore.getCollectionStats();
+    return {
+      totalDocuments: stats.count,
+      totalChunks: stats.count,
+      modelStats: "modelStats" in stats ? stats.modelStats : undefined,
+    };
+  }
+
+  async clearIndex(): Promise<void> {
+    await this.vectorStore.clearCollection();
+    this.jobs.clear();
+    console.log("🧹 Index cleared successfully");
+  }
+
+  async reindexDocument(
+    documentId: string,
+    siteId: string,
+    driveId: string
+  ): Promise<void> {
+    try {
+      const documents = await this.sharePointService.listDocuments(
+        siteId,
+        "/",
+        false
+      );
+      const document = documents.find((doc) => doc.id === documentId);
+
+      if (!document) {
+        throw new Error("Document not found");
+      }
+
+      document.driveId = driveId;
+
+      // Remove existing chunks
+      const existingChunks = await this.vectorStore.search({
+        query: "",
+        filter: { documentId },
+        k: 1000,
+      });
+
+      if (existingChunks.length > 0) {
+        const chunkIds = existingChunks.map((chunk) => chunk.id);
+        await this.vectorStore.deleteDocuments(chunkIds);
+      }
+
+      // Reprocess document
+      const jobId = `reindex_${Date.now()}`;
+      const result = await this.processDocumentWithValidation(document, jobId, {
+        siteId,
+      });
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      console.log(
+        `🔄 Document ${documentId} reindexed: ${result.chunksCreated} chunks`
+      );
+    } catch (error) {
+      console.error(`❌ Failed to reindex document ${documentId}:`, error);
+      throw error;
+    }
+  }
+}
+
+// Factory function remains the same
+export async function createIndexingService(): Promise<IndexingService> {
+  const { getSharePointConfig } = await import("@/lib/sharepoint");
+  const { getVectorStore } = await import("./vector-store-factory");
+
+  const config = getSharePointConfig();
+  const sharePointService = new SharePointService(config);
+  const vectorStore = await getVectorStore();
+
+  return new IndexingService(sharePointService, vectorStore);
+}
