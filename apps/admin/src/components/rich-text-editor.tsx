@@ -18,6 +18,7 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
+import { Markdown } from "tiptap-markdown";
 import {
   AlignCenter,
   AlignJustify,
@@ -48,6 +49,13 @@ type RichTextEditorProps = {
 };
 
 type Level = 1 | 2 | 3;
+
+// Regex patterns for markdown detection (defined at top level for performance)
+const MARKDOWN_HEADER_REGEX = /^#{1,6}\s/m;
+const MARKDOWN_BOLD_REGEX = /\*\*[^*]+\*\*/m;
+const MARKDOWN_ITALIC_REGEX = /\*[^*]+\*/m;
+const MARKDOWN_LIST_REGEX = /^[-*]\s/m;
+const MARKDOWN_NUMBERED_LIST_REGEX = /^\d+\.\s/m;
 
 export function RichTextEditor({
   content,
@@ -103,6 +111,11 @@ export function RichTextEditor({
       }),
       CodeBlockLowlight.configure({
         lowlight,
+      }),
+      Markdown.configure({
+        html: true, // Allow HTML in markdown
+        transformPastedText: true, // Transform pasted markdown
+        transformCopiedText: true, // Transform copied text to markdown
       }),
     ],
     content: initialContentRef.current,
@@ -183,6 +196,54 @@ export function RichTextEditor({
       editor.setEditable(editable);
     }
   }, [editor, editable]);
+
+  // Update editor content when content prop changes externally (e.g., from AI assistant)
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+    if (!content) {
+      return;
+    }
+
+    // Don't update if the content is the same as what's in the editor
+    const currentHtml = editor.getHTML();
+    if (content === currentHtml) {
+      return;
+    }
+
+    // Check if the incoming content looks like markdown
+    // (contains markdown syntax like **, ##, -, etc. but not HTML tags)
+    const startsWithHtml = content.startsWith("<");
+    const hasMarkdownSyntax =
+      MARKDOWN_HEADER_REGEX.test(content) ||
+      MARKDOWN_BOLD_REGEX.test(content) ||
+      MARKDOWN_ITALIC_REGEX.test(content) ||
+      MARKDOWN_LIST_REGEX.test(content) ||
+      MARKDOWN_NUMBERED_LIST_REGEX.test(content);
+    const looksLikeMarkdown = !startsWithHtml && hasMarkdownSyntax;
+
+    // Temporarily disable parent updates while we set content
+    shouldUpdateParentRef.current = false;
+
+    if (looksLikeMarkdown) {
+      // Use the Markdown extension to parse markdown content
+      // The editor.storage.markdown.getMarkdown() and setContent work together
+      editor.commands.setContent(content);
+    } else {
+      // It's HTML, set directly
+      editor.commands.setContent(content);
+    }
+
+    // Update our local state
+    setHtmlContent(editor.getHTML());
+    initialContentRef.current = content;
+
+    // Re-enable parent updates
+    setTimeout(() => {
+      shouldUpdateParentRef.current = true;
+    }, 0);
+  }, [content, editor]);
 
   // Safely handle format clearing
   const handleClearFormat = useCallback(

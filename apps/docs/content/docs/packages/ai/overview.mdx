@@ -1,0 +1,280 @@
+---
+title: AI Package Overview
+description: Complete guide to the @repo/ai package for AI-powered features in the BISO Sites monorepo.
+---
+
+import { Callout } from 'components/callout';
+import { Steps, Step } from 'components/steps';
+
+# AI Package Overview
+
+The `@repo/ai` package provides shared AI configuration, tools, and components for building intelligent features across the BISO Sites monorepo. Built on top of the [Vercel AI SDK](https://sdk.vercel.ai/docs), it enables streaming AI assistants with navigation and form-filling capabilities.
+
+## When to use this package
+
+- When building AI-powered chat interfaces or assistants
+- When you need AI to navigate users through the application
+- When implementing "autopilot" form-filling features
+- For consistent AI configuration across apps
+
+<Callout type="info">
+The AI package is designed for internal admin tools and public-facing chatbots. It provides tools that allow AI to take actions on behalf of users.
+</Callout>
+
+## Installation
+
+The package is already available as a workspace dependency:
+
+```json title="package.json"
+{
+  "dependencies": {
+    "@repo/ai": "*"
+  }
+}
+```
+
+## Package Structure
+
+```
+packages/ai/src/
+├── config.ts              # AI model configuration
+├── types.ts               # TypeScript type definitions
+├── provider.tsx           # React context provider
+├── prompts.ts             # System prompts for assistants
+├── hooks/
+│   ├── use-assistant.ts   # Chat hook for client components
+│   └── use-form-autopilot.ts  # Form filling hook
+└── tools/
+    ├── navigation.ts      # Navigation tool for AI
+    └── form-filler.ts     # Form filling tool for AI
+```
+
+## Core Concepts
+
+### AI Tools
+
+Tools are functions that the AI can call to take actions. The package provides three main tools:
+
+1. **Navigation Tool** - Redirects users to specific pages
+2. **Form Filler Tool** - Fills form fields with AI-generated content
+3. **Translate Tool** - Translates content between Norwegian and English
+
+### Streaming Responses
+
+All AI interactions use streaming for real-time responses. This provides:
+
+- Immediate feedback as the AI "thinks"
+- Typewriter effect for form filling
+- Better perceived performance
+
+### Form Autopilot
+
+The autopilot feature allows AI to:
+
+1. Detect which form the user is on
+2. Ask clarifying questions
+3. Stream responses directly into form fields
+
+## Quick Start
+
+### 1. Create an API Route
+
+```typescript title="app/api/assistant/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import { createNavigationTool, defaultAdminRoutes } from "@repo/ai/tools/navigation";
+import { createFormFillerTool, eventFormFields } from "@repo/ai/tools/form-filler";
+import { ADMIN_ASSISTANT_PROMPT } from "@repo/ai/prompts";
+
+export const maxDuration = 60;
+
+export async function POST(req: Request) {
+  const { messages, formContext } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: convertToModelMessages(messages),
+    system: ADMIN_ASSISTANT_PROMPT,
+    tools: {
+      navigate: createNavigationTool(defaultAdminRoutes),
+      fillFormFields: createFormFillerTool(
+        formContext?.fields || eventFormFields
+      ),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### 2. Build a Chat Component
+
+```tsx title="components/assistant-chat.tsx"
+'use client';
+
+import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+
+export function AssistantChat() {
+  const router = useRouter();
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+
+  const handleNavigate = useCallback((path: string) => {
+    router.push(path);
+  }, [router]);
+
+  const sendMessage = async (content: string) => {
+    // Add user message
+    const userMessage = { role: 'user', content };
+    setMessages(prev => [...prev, userMessage]);
+
+    // Stream response from API
+    const response = await fetch('/api/assistant', {
+      method: 'POST',
+      body: JSON.stringify({ messages: [...messages, userMessage] }),
+    });
+
+    // Handle streaming response...
+  };
+
+  return (
+    <div>
+      {messages.map((m, i) => (
+        <div key={i}>{m.content}</div>
+      ))}
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
+      />
+    </div>
+  );
+}
+```
+
+## Available Exports
+
+### Configuration
+
+```typescript
+import { createAIConfig, adminAssistantConfig, publicAssistantConfig } from '@repo/ai/config';
+
+// Create custom config
+const config = createAIConfig({
+  model: 'gpt-4o',
+  maxDuration: 60,
+});
+```
+
+### Types
+
+```typescript
+import type {
+  AssistantMessage,
+  NavigationAction,
+  FormFieldAction,
+  FormContext,
+  FormFieldInfo,
+} from '@repo/ai/types';
+```
+
+### Prompts
+
+```typescript
+import {
+  ADMIN_ASSISTANT_PROMPT,
+  PUBLIC_ASSISTANT_PROMPT,
+  getSystemPrompt,
+} from '@repo/ai/prompts';
+
+// Get prompt with additional context
+const prompt = getSystemPrompt('admin', 'User is on the events page');
+```
+
+### Tools
+
+```typescript
+import { createNavigationTool, defaultAdminRoutes } from '@repo/ai/tools/navigation';
+import { createFormFillerTool, eventFormFields } from '@repo/ai/tools/form-filler';
+```
+
+### Hooks
+
+```typescript
+import { useFormAutopilot } from '@repo/ai/hooks/use-form-autopilot';
+```
+
+## Environment Variables
+
+```bash
+# Required for OpenAI
+OPENAI_API_KEY=sk-...
+```
+
+<Callout type="warning" title="API Key Security">
+Never expose `OPENAI_API_KEY` to the client. All AI calls should go through server-side API routes.
+</Callout>
+
+## Best Practices
+
+### 1. Use Server-Side API Routes
+
+Always process AI requests on the server:
+
+```typescript
+// ✅ Good: Server-side API route
+export async function POST(req: Request) {
+  const result = streamText({ model: openai("gpt-4o"), ... });
+  return result.toUIMessageStreamResponse();
+}
+
+// ❌ Bad: Client-side API call
+const response = await openai.chat.completions.create(...);
+```
+
+### 2. Provide Context to the AI
+
+Include relevant context in your prompts:
+
+```typescript
+const system = `${ADMIN_ASSISTANT_PROMPT}
+
+Current page: ${currentPath}
+User role: ${userRole}
+Available actions: ${availableActions.join(', ')}
+`;
+```
+
+### 3. Handle Errors Gracefully
+
+```typescript
+try {
+  const response = await fetch('/api/assistant', { ... });
+  if (!response.ok) throw new Error('Request failed');
+  // Handle streaming...
+} catch (error) {
+  // Show user-friendly error message
+  setMessages(prev => [...prev, {
+    role: 'assistant',
+    content: 'Sorry, I encountered an error. Please try again.',
+  }]);
+}
+```
+
+### 4. Validate Tool Inputs
+
+The tools use Zod schemas for validation:
+
+```typescript
+const navigationSchema = z.object({
+  path: z.string().describe("The path to navigate to"),
+  reason: z.string().optional().describe("Why navigating here"),
+});
+```
+
+## Next Steps
+
+- [AI Tools Reference](/docs/packages/ai/tools) - Detailed tool documentation
+- [Admin Assistant Guide](/docs/packages/ai/admin-assistant) - Building the admin assistant
+- [Vercel AI SDK Docs](https://sdk.vercel.ai/docs) - Official SDK documentation

@@ -7,11 +7,6 @@ import {
   AvatarImage,
 } from "@repo/ui/components/ui/avatar";
 import { Button } from "@repo/ui/components/ui/button";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@repo/ui/components/ui/resizable";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { cn } from "@repo/ui/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -31,15 +26,15 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/user";
-import { AssistantSidebar } from "./ai/admin-sidebar";
-import { useAssistantUIStore } from "./ai/assistant-ui-store";
 import Breadcrumb from "./breadcrumb";
 import { CommandMenu } from "./command-menu";
 import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
+import { AssistantSidebar } from "./assistant/assistant-sidebar";
+import { AssistantTrigger } from "./assistant/assistant-trigger";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -179,11 +174,15 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
     roles.includes("Admin") ? "Admin" : roles[0] || ""
   );
   const [isLoading, setIsLoading] = useState(true);
-  const {
-    mode: assistantMode,
-    isSidebarOpen: assistantSidebarOpen,
-    setSidebarOpen,
-  } = useAssistantUIStore();
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+
+  const openAssistant = useCallback(() => {
+    setIsAssistantOpen(true);
+  }, []);
+
+  const closeAssistant = useCallback(() => {
+    setIsAssistantOpen(false);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1000);
@@ -468,6 +467,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             <LocaleSwitcher />
             <CommandMenu />
             <NotificationsDropdown />
+            <AssistantTrigger onClick={openAssistant} />
             <ModeToggle />
             <Avatar className="h-10 w-10 border border-primary/10 shadow-sm dark:border-primary/20">
               <AvatarImage
@@ -503,54 +503,14 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
         {/* Main Content with Single Scrollbar */}
         <main className="relative flex-1 overflow-y-auto">
           <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary-10/18 via-transparent to-secondary-10/30" />
-
-          {assistantMode === "sidebar" && assistantSidebarOpen ? (
-            <ResizablePanelGroup
-              className="relative z-10 h-full"
-              direction="horizontal"
-            >
-              <ResizablePanel className="min-w-0" defaultSize={70} minSize={40}>
-                <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
-                  {children}
-                </div>
-              </ResizablePanel>
-              <ResizableHandle className="bg-primary/10" />
-              <ResizablePanel
-                className="min-w-[280px] bg-white/70 backdrop-blur-xl"
-                defaultSize={30}
-                maxSize={50}
-                minSize={22}
-              >
-                <div className="flex h-full flex-col border-primary/10 border-l">
-                  <div className="flex items-center justify-between border-primary/10 border-b px-4 py-3">
-                    <span className="font-semibold text-primary-90 text-sm">
-                      {t("assistant.title")}
-                    </span>
-                    <Button
-                      onClick={() => setSidebarOpen(false)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      {t("assistant.close")}
-                    </Button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto">
-                    <AssistantSidebar
-                      docked
-                      onOpenChange={setSidebarOpen}
-                      open={assistantSidebarOpen}
-                    />
-                  </div>
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          ) : (
-            <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
-              {children}
-            </div>
-          )}
+          <div className="h-full overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
+            {children}
+          </div>
         </main>
       </div>
+
+      {/* AI Assistant Sidebar */}
+      <AssistantSidebar isOpen={isAssistantOpen} onClose={closeAssistant} />
     </div>
   );
 }

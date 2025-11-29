@@ -3,5 +3,5 @@
   "description": "Shared package documentation",
   "root": true,
   "icon": "Package",
-  "pages": ["index", "api", "editor", "payment", "ui"]
+  "pages": ["index", "ai", "api", "editor", "payment", "ui"]
 }

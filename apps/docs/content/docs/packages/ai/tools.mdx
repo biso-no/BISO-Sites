@@ -1,0 +1,306 @@
+---
+title: AI Tools Reference
+description: Complete reference for AI tools in the @repo/ai package - navigation and form filling capabilities.
+---
+
+import { Callout } from 'components/callout';
+
+# AI Tools Reference
+
+AI tools are functions that the language model can call to take actions on behalf of users. The `@repo/ai` package provides two primary tools for building intelligent admin interfaces.
+
+## How Tools Work
+
+When you provide tools to the AI:
+
+1. The AI analyzes the user's request
+2. If an action is needed, it calls the appropriate tool
+3. The tool executes and returns a result
+4. The AI incorporates the result into its response
+
+```typescript
+const result = streamText({
+  model: openai("gpt-4o"),
+  messages: [...],
+  tools: {
+    navigate: createNavigationTool(routes),
+    fillFormFields: createFormFillerTool(fields),
+  },
+});
+```
+
+## Navigation Tool
+
+The navigation tool allows the AI to redirect users to specific pages in the application.
+
+### Creating the Tool
+
+```typescript
+import { createNavigationTool, defaultAdminRoutes } from '@repo/ai/tools/navigation';
+
+// Use default admin routes
+const navigate = createNavigationTool(defaultAdminRoutes);
+
+// Or provide custom routes
+const navigate = createNavigationTool([
+  {
+    path: '/admin/events',
+    label: 'Events',
+    description: 'View and manage all events',
+    requiredRoles: ['Admin', 'pr'],
+  },
+  {
+    path: '/admin/events/new',
+    label: 'Create Event',
+    description: 'Create a new event',
+    requiredRoles: ['Admin', 'pr'],
+  },
+]);
+```
+
+### Route Definition
+
+```typescript
+type RouteInfo = {
+  path: string;           // URL path
+  label: string;          // Display name
+  description?: string;   // What this page does
+  requiredRoles?: string[]; // Who can access
+};
+```
+
+### Default Admin Routes
+
+The package includes pre-configured routes for the admin dashboard:
+
+| Path | Label | Description |
+|------|-------|-------------|
+| `/admin` | Dashboard | Main admin dashboard |
+| `/admin/events` | Events | View all events |
+| `/admin/events/new` | Create Event | Create a new event |
+| `/admin/posts` | Posts | View all posts |
+| `/admin/jobs` | Jobs | View job listings |
+| `/admin/shop` | Shop | Shop management |
+| `/admin/shop/products` | Products | Manage products |
+| `/admin/shop/orders` | Orders | View orders |
+| `/admin/units` | Units | Organizational units |
+| `/admin/users` | Users | User management |
+| `/admin/pages` | Pages | Website pages |
+| `/admin/settings` | Settings | Admin settings |
+
+### Tool Response
+
+When the AI calls the navigation tool, it returns:
+
+```typescript
+{
+  success: true,
+  action: {
+    type: "navigation",
+    path: "/admin/events/new",
+    description: "Taking you to create a new event"
+  },
+  message: "Navigating to /admin/events/new: Taking you to create a new event"
+}
+```
+
+### Handling Navigation on the Client
+
+```typescript
+const handleNavigate = useCallback((path: string) => {
+  router.push(path);
+}, [router]);
+
+// In your stream handler
+if (parsed.type === "navigation" && parsed.path) {
+  handleNavigate(parsed.path);
+}
+```
+
+## Form Filler Tool
+
+The form filler tool allows the AI to populate form fields with generated content.
+
+### Creating the Tool
+
+```typescript
+import { createFormFillerTool, eventFormFields } from '@repo/ai/tools/form-filler';
+
+// Use pre-defined event fields
+const fillForm = createFormFillerTool(eventFormFields);
+
+// Or define custom fields
+const fillForm = createFormFillerTool([
+  {
+    id: 'title',
+    name: 'title',
+    type: 'text',
+    label: 'Title',
+    required: true,
+  },
+  {
+    id: 'description',
+    name: 'description',
+    type: 'textarea',
+    label: 'Description',
+    required: true,
+  },
+]);
+```
+
+### Field Definition
+
+```typescript
+type FormFieldInfo = {
+  id: string;        // Field identifier (matches form field name)
+  name: string;      // Internal name
+  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
+  label: string;     // Display label
+  required?: boolean;
+  options?: { value: string; label: string }[]; // For select fields
+  currentValue?: unknown; // Current field value
+};
+```
+
+### Pre-defined Event Fields
+
+```typescript
+export const eventFormFields: FormFieldInfo[] = [
+  { id: 'translations.en.title', type: 'text', label: 'English Title', required: true },
+  { id: 'translations.no.title', type: 'text', label: 'Norwegian Title', required: true },
+  { id: 'translations.en.description', type: 'textarea', label: 'English Description', required: true },
+  { id: 'translations.no.description', type: 'textarea', label: 'Norwegian Description', required: true },
+  { id: 'slug', type: 'text', label: 'URL Slug', required: true },
+  { id: 'start_date', type: 'date', label: 'Start Date' },
+  { id: 'end_date', type: 'date', label: 'End Date' },
+  { id: 'location', type: 'text', label: 'Location' },
+  { id: 'price', type: 'number', label: 'Price (NOK)' },
+  { id: 'ticket_url', type: 'text', label: 'Ticket URL' },
+  { id: 'member_only', type: 'checkbox', label: 'Members Only' },
+  { id: 'status', type: 'select', label: 'Status', options: [...] },
+];
+```
+
+### Tool Response
+
+```typescript
+{
+  success: true,
+  results: [
+    { fieldId: 'translations.en.title', success: true },
+    { fieldId: 'translations.en.description', success: true },
+  ],
+  actions: [
+    {
+      type: 'form-field',
+      fieldId: 'translations.en.title',
+      fieldName: 'English Title',
+      value: 'Annual Networking Event',
+      streaming: false,
+    },
+  ],
+  message: 'Updated 2 field(s) successfully',
+}
+```
+
+### Handling Form Updates on the Client
+
+```typescript
+const handleFormField = useCallback((update: FormFieldUpdate) => {
+  const { fieldId, value, streaming } = update;
+  
+  if (streaming) {
+    // Typewriter effect for long content
+    streamToField(fieldId, value);
+  } else {
+    // Immediate update
+    form.setValue(fieldId, value);
+  }
+}, [form]);
+```
+
+## Streaming Form Filler Tool
+
+For longer content like descriptions, use the streaming variant:
+
+```typescript
+import { createStreamingFormFillerTool } from '@repo/ai/tools/form-filler';
+
+const streamForm = createStreamingFormFillerTool(fields);
+```
+
+This provides a typewriter effect as content is generated.
+
+## Dynamic Form Context
+
+Pass form context from the client to customize available fields:
+
+```typescript
+// Client-side
+const formContext = {
+  formId: 'event-editor',
+  formName: 'Event Editor',
+  fields: [
+    { id: 'title', name: 'title', type: 'text', label: 'Title', currentValue: '' },
+    // ... more fields with current values
+  ],
+};
+
+await fetch('/api/assistant', {
+  method: 'POST',
+  body: JSON.stringify({ messages, formContext }),
+});
+```
+
+```typescript
+// Server-side API route
+export async function POST(req: Request) {
+  const { messages, formContext } = await req.json();
+  
+  const tools = {
+    navigate: createNavigationTool(defaultAdminRoutes),
+  };
+  
+  if (formContext) {
+    tools.fillFormFields = createFormFillerTool(formContext.fields);
+  }
+  
+  // ... rest of handler
+}
+```
+
+## Creating Custom Tools
+
+You can create custom tools following the Vercel AI SDK pattern:
+
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+const customTool = tool({
+  description: 'Description of what this tool does',
+  inputSchema: z.object({
+    param1: z.string().describe('What this parameter is for'),
+    param2: z.number().optional().describe('Optional parameter'),
+  }),
+  execute: async ({ param1, param2 }) => {
+    // Tool logic here
+    return {
+      success: true,
+      result: 'Tool executed successfully',
+    };
+  },
+});
+```
+
+<Callout type="info" title="Tool Best Practices">
+- Keep tool descriptions clear and specific
+- Use Zod schemas for input validation
+- Return structured responses the AI can interpret
+- Handle errors gracefully
+</Callout>
+
+## Next Steps
+
+- [Admin Assistant Guide](/docs/packages/ai/admin-assistant) - Complete assistant implementation
+- [AI Package Overview](/docs/packages/ai/overview) - Package introduction
