@@ -7,11 +7,13 @@
     "includes": [
       "**",
       "!!**/pdf.worker.min.js",
-      "!!apps/admin/src/app/(admin)/admin/expenses/expense-table.tsx"
+      "!!apps/admin/src/app/(admin)/admin/expenses/expense-table.tsx",
+      "!!packages/ui/*"
     ]
   },
 
   "linter": {
+    
     "rules": {
       "performance": {
         "noNamespaceImport": "warn"

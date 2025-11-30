@@ -1,8 +1,8 @@
 import { listNews } from "@/app/actions/news";
+import { filterArticles } from "@/lib/utils";
 import { FeaturedArticles } from "./featured-articles";
 import { NoResults } from "./no-results";
 import { RegularArticles } from "./regular-articles";
-import { filterArticles } from "@/lib/utils";
 
 type NewsGridProps = {
   selectedCategory: string;

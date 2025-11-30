@@ -4,8 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { Models } from "@repo/api";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import {
+  type FieldErrors,
+  type UseFormRegister,
+  useForm,
+} from "react-hook-form";
 import { z } from "zod";
 import { updateProfile } from "@/lib/actions/user";
 
@@ -34,16 +38,92 @@ type ProfileFormProps = {
   email: string;
 };
 
+type ProfileFieldConfig = {
+  name: keyof ProfileFormValues;
+  label: string;
+  placeholder?: string;
+  type?: string;
+  required?: boolean;
+  colSpan?: boolean;
+  disabled?: boolean;
+};
+
+type ProfileInputFieldProps = ProfileFieldConfig & {
+  register: UseFormRegister<ProfileFormValues>;
+  errors: FieldErrors<ProfileFormValues>;
+};
+
+const ProfileInputField = ({
+  name,
+  label,
+  placeholder,
+  type = "text",
+  required,
+  colSpan,
+  disabled,
+  register,
+  errors,
+}: ProfileInputFieldProps) => {
+  const error = errors[name]?.message as string | undefined;
+  return (
+    <div className={colSpan ? "md:col-span-2" : undefined}>
+      <label
+        className="mb-1 block font-medium text-gray-700 text-sm"
+        htmlFor={name}
+      >
+        {label} {required ? "*" : null}
+      </label>
+      <input
+        {...register(name)}
+        className={`w-full rounded-lg border px-4 py-2.5 ${
+          error ? "border-red-500" : "border-gray-300"
+        } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        disabled={disabled}
+        id={name}
+        placeholder={placeholder}
+        type={type}
+      />
+      {error ? <p className="mt-1 text-red-500 text-sm">{error}</p> : null}
+    </div>
+  );
+};
+
+type FormMessagesProps = {
+  successMessage: string | null;
+  errorMessage: string | null;
+};
+
+const FormMessages = ({ successMessage, errorMessage }: FormMessagesProps) => (
+  <>
+    {successMessage ? (
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800"
+        exit={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -10 }}
+      >
+        {successMessage}
+      </motion.div>
+    ) : null}
+
+    {errorMessage ? (
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"
+        exit={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -10 }}
+      >
+        {errorMessage}
+      </motion.div>
+    ) : null}
+  </>
+);
+
 export function ProfileForm({ initialData, email }: ProfileFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const _router = useRouter();
-
-  // Log the initialData to understand its structure
-  useEffect(() => {
-    console.log("Profile form initial data:", initialData);
-  }, [initialData]);
 
   const {
     register,
@@ -63,25 +143,80 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
     },
   });
 
+  const contactFields: ProfileFieldConfig[] = [
+    {
+      name: "name",
+      label: "Full Name",
+      placeholder: "Enter your full name",
+      required: true,
+      colSpan: true,
+    },
+    {
+      name: "email",
+      label: "Email Address",
+      placeholder: "Enter your email address",
+      type: "email",
+      disabled: true,
+    },
+    {
+      name: "phone",
+      label: "Phone Number",
+      placeholder: "Enter your phone number",
+      type: "tel",
+      required: true,
+    },
+  ];
+
+  const addressFields: ProfileFieldConfig[] = [
+    {
+      name: "address",
+      label: "Street Address",
+      placeholder: "Enter your street address",
+      required: true,
+      colSpan: true,
+    },
+    {
+      name: "city",
+      label: "City",
+      placeholder: "Enter your city",
+      required: true,
+    },
+    {
+      name: "zip",
+      label: "ZIP/Postal code",
+      placeholder: "Enter your ZIP/Postal code",
+      required: true,
+    },
+  ];
+
+  const bankingFields: ProfileFieldConfig[] = [
+    {
+      name: "bank_account",
+      label: "Bank account",
+      placeholder: "Enter your bank account number",
+      required: true,
+    },
+    {
+      name: "swift",
+      label: "SWIFT Code (Optional)",
+      placeholder: "Enter your SWIFT code (if applicable)",
+    },
+  ];
+
   const onSubmit = async (data: ProfileFormValues) => {
     setIsSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
 
     try {
-      console.log("Submitting profile data:", data);
       const result = await updateProfile(data);
 
       if (result) {
-        console.log("Profile update result:", result);
-        // TODO: Update the profile in the database and revalidate the profile page
         setSuccessMessage("Profile updated successfully");
       } else {
         setErrorMessage("Failed to update profile. Server returned null.");
-        console.error("Profile update failed - null result returned");
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
       setErrorMessage(
         `Failed to update profile: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -93,234 +228,59 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg">
       <form className="space-y-6 p-6" onSubmit={handleSubmit(onSubmit)}>
-        {/* Success/Error Messages */}
-        {successMessage && (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800"
-            exit={{ opacity: 0, y: -10 }}
-            initial={{ opacity: 0, y: -10 }}
-          >
-            {successMessage}
-          </motion.div>
-        )}
+        <FormMessages
+          errorMessage={errorMessage}
+          successMessage={successMessage}
+        />
 
-        {errorMessage && (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"
-            exit={{ opacity: 0, y: -10 }}
-            initial={{ opacity: 0, y: -10 }}
-          >
-            {errorMessage}
-          </motion.div>
-        )}
-
-        {/* Form Fields */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Name Field */}
-          <div className="md:col-span-2">
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="name"
-            >
-              Full Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              {...register("name")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.name ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              id="name"
-              placeholder="Enter your full name"
-              type="text"
+          {contactFields.map((field) => (
+            <ProfileInputField
+              errors={errors}
+              key={field.name}
+              register={register}
+              {...field}
             />
-            {errors.name && (
-              <p className="mt-1 text-red-500 text-sm">{errors.name.message}</p>
-            )}
-          </div>
-
-          {/* Email Field */}
-          <div>
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="email"
-            >
-              Email Address
-            </label>
-            <input
-              {...register("email")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              disabled
-              id="email"
-              placeholder="Enter your email address"
-              type="email" // Email should typically not be editable
-            />
-            {errors.email && (
-              <p className="mt-1 text-red-500 text-sm">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          {/* Phone Field */}
-          <div>
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="phone"
-            >
-              Phone Number
-            </label>
-            <input
-              {...register("phone")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.phone ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              id="phone"
-              placeholder="Enter your phone number"
-              type="tel"
-            />
-            {errors.phone && (
-              <p className="mt-1 text-red-500 text-sm">
-                {errors.phone.message}
-              </p>
-            )}
-          </div>
-
-          <div className="border-gray-100 border-t pt-6 md:col-span-2">
-            <h3 className="mb-4 font-medium text-gray-800 text-lg">
-              Address Information
-            </h3>
-          </div>
-
-          {/* Address Field */}
-          <div className="md:col-span-2">
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="address"
-            >
-              Street Address
-            </label>
-            <input
-              {...register("address")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.address ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              id="address"
-              placeholder="Enter your street address"
-              type="text"
-            />
-            {errors.address && (
-              <p className="mt-1 text-red-500 text-sm">
-                {errors.address.message}
-              </p>
-            )}
-          </div>
-
-          {/* City Field */}
-          <div>
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="city"
-            >
-              City
-            </label>
-            <input
-              {...register("city")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.city ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              id="city"
-              placeholder="Enter your city"
-              type="text"
-            />
-            {errors.city && (
-              <p className="mt-1 text-red-500 text-sm">{errors.city.message}</p>
-            )}
-          </div>
-
-          {/* ZIP/Postal Code Field */}
-          <div>
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="zip"
-            >
-              ZIP/Postal Code
-            </label>
-            <input
-              {...register("zip")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.zip ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              id="zip"
-              placeholder="Enter your ZIP/Postal code"
-              type="text"
-            />
-            {errors.zip && (
-              <p className="mt-1 text-red-500 text-sm">{errors.zip.message}</p>
-            )}
-          </div>
-
-          <div className="border-gray-100 border-t pt-6 md:col-span-2">
-            <h3 className="mb-4 font-medium text-gray-800 text-lg">
-              Banking Information
-            </h3>
-          </div>
-
-          {/* Bank Account Field */}
-          <div>
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="bank_account"
-            >
-              Bank Account Number
-            </label>
-            <input
-              {...register("bank_account")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.bank_account ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              id="bank_account"
-              placeholder="Enter your bank account number"
-              type="text"
-            />
-            {errors.bank_account && (
-              <p className="mt-1 text-red-500 text-sm">
-                {errors.bank_account.message}
-              </p>
-            )}
-          </div>
-
-          {/* SWIFT Field */}
-          <div>
-            <label
-              className="mb-1 block font-medium text-gray-700 text-sm"
-              htmlFor="swift"
-            >
-              SWIFT/BIC Code
-            </label>
-            <input
-              {...register("swift")}
-              className={`w-full rounded-lg border px-4 py-2.5 ${
-                errors.swift ? "border-red-500" : "border-gray-300"
-              } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              id="swift"
-              placeholder="For international transfers (optional)"
-              type="text"
-            />
-            {errors.swift && (
-              <p className="mt-1 text-red-500 text-sm">
-                {errors.swift.message}
-              </p>
-            )}
-          </div>
+          ))}
         </div>
 
-        <div className="flex justify-end border-gray-100 border-t pt-4">
+        <div className="border-gray-100 border-t pt-6 md:col-span-2">
+          <h3 className="mb-4 font-medium text-gray-800 text-lg">
+            Address Information
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {addressFields.map((field) => (
+            <ProfileInputField
+              errors={errors}
+              key={field.name}
+              register={register}
+              {...field}
+            />
+          ))}
+        </div>
+
+        <div className="border-gray-100 border-t pt-6 md:col-span-2">
+          <h3 className="mb-4 font-medium text-gray-800 text-lg">
+            Banking Information
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {bankingFields.map((field) => (
+            <ProfileInputField
+              errors={errors}
+              key={field.name}
+              register={register}
+              {...field}
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3">
           <button
-            className="flex items-center rounded-lg bg-linear-to-r from-blue-500 to-indigo-600 px-6 py-3 font-medium text-white shadow-sm transition duration-200 hover:from-blue-600 hover:to-indigo-700 hover:shadow disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:opacity-50"
             disabled={isSubmitting}
             type="submit"
           >
@@ -332,6 +292,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  <title>Submitting profile</title>
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -346,10 +307,10 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                     fill="currentColor"
                   />
                 </svg>
-                Saving...
+                Submitting...
               </>
             ) : (
-              "Save Changes"
+              "Update Profile"
             )}
           </button>
         </div>

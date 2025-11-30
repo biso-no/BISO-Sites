@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 
 export const metadata: Metadata = {
   title: "Drugs and Alcohol Policy | BISO",

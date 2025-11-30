@@ -6,7 +6,7 @@ import { AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
-export default function Error({
+export default function ExpensesError({
   error,
   reset,
 }: {

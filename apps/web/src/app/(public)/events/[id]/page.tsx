@@ -1,15 +1,21 @@
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
-
 import { getCollectionEvents, getEvent } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
-import { EventDetailsClient } from "@/components/events/event-details-client";
-
-
-
+import { EventActions } from "@/components/events/event-actions";
+import { EventCollectionList } from "@/components/events/event-collection-list";
+import { EventContent } from "@/components/events/event-content";
+import { EventHero } from "@/components/events/event-hero";
+import {
+  EventContactCard,
+  EventDetailsCard,
+  EventImportantInfoCard,
+  EventPriceCard,
+} from "@/components/events/event-info-cards";
+import { formatEventPrice } from "@/lib/types/event";
 
 type EventPageProps = {
   params: {
@@ -45,11 +51,51 @@ async function EventDetails({ id }: { id: string }) {
     );
   }
 
+  const price = formatEventPrice(eventData?.price);
+
   return (
-    <EventDetailsClient
-      collectionEvents={collectionEvents || undefined}
-      event={event}
-    />
+    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+      <EventHero event={event} />
+
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Main Content */}
+          <div className="space-y-8 lg:col-span-2">
+            <EventContent event={event} />
+
+            {collectionEvents && collectionEvents.length > 0 && (
+              <EventCollectionList
+                collectionEvents={collectionEvents}
+                collectionPricing={eventData?.collection_pricing || null}
+                currentEventId={event.$id}
+                isCollectionParent={!!eventData?.is_collection}
+                priceDisplay={price}
+              />
+            )}
+
+            <EventImportantInfoCard price={price} />
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            <EventPriceCard
+              collectionCount={collectionEvents?.length || 0}
+              event={event}
+              isMember={false}
+            />
+
+            <EventActions
+              description={event.description}
+              ticketUrl={eventData?.ticket_url}
+              title={event.title}
+            />
+
+            <EventDetailsCard event={event} />
+            <EventContactCard />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

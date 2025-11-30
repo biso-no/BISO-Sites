@@ -33,8 +33,8 @@ async function JobsList({ locale }: { locale: "en" | "no" }) {
 
   // Calculate stats for hero
   const paidPositions = jobs.filter((job) => {
-    const metadata = job.job_ref?.metadata as Record<string, any>;
-    return metadata.paid === true;
+    const jobMetadata = job.job_ref?.metadata as Record<string, any>;
+    return jobMetadata.paid === true;
   }).length;
 
   const departmentCount =

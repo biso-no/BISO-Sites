@@ -34,6 +34,81 @@ type UseChatStreamOptions = {
   formContext?: FormContextType;
 };
 
+type ChatMessagePart = {
+  type: string;
+  input?: unknown;
+  toolCallId?: string;
+  state?: string;
+};
+
+type NavigateToolPart = ChatMessagePart & {
+  type: "tool-navigate";
+  input: { path?: string };
+  toolCallId: string;
+  state: string;
+};
+
+type FillFormFieldsToolPart = ChatMessagePart & {
+  type: "tool-fillFormFields";
+  input: { updates?: Array<{ fieldId: string; value: string }> };
+  toolCallId: string;
+  state: string;
+};
+
+type TranslateContentToolPart = ChatMessagePart & {
+  type: "tool-translateContent";
+  toolCallId: string;
+  state: string;
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isFormFieldUpdate = (
+  update: unknown
+): update is {
+  fieldId: string;
+  value: string;
+} => {
+  if (!isObject(update)) {
+    return false;
+  }
+  const fieldId = (update as { fieldId?: unknown }).fieldId;
+  const value = (update as { value?: unknown }).value;
+  return typeof fieldId === "string" && typeof value === "string";
+};
+
+const isNavigateToolPart = (part: ChatMessagePart): part is NavigateToolPart =>
+  part.type === "tool-navigate" &&
+  typeof part.toolCallId === "string" &&
+  typeof part.state === "string" &&
+  isObject(part.input);
+
+const isFillFormFieldsPart = (
+  part: ChatMessagePart
+): part is FillFormFieldsToolPart => {
+  if (
+    part.type !== "tool-fillFormFields" ||
+    typeof part.toolCallId !== "string" ||
+    typeof part.state !== "string" ||
+    !isObject(part.input)
+  ) {
+    return false;
+  }
+  const updates = (part.input as { updates?: unknown }).updates;
+  if (updates === undefined) {
+    return true;
+  }
+  return Array.isArray(updates) && updates.every(isFormFieldUpdate);
+};
+
+const isTranslateContentPart = (
+  part: ChatMessagePart
+): part is TranslateContentToolPart =>
+  part.type === "tool-translateContent" &&
+  typeof part.toolCallId === "string" &&
+  typeof part.state === "string";
+
 /**
  * Wrapper around the Vercel AI SDK's useChat hook
  * Adds support for navigation and form field actions
@@ -96,13 +171,95 @@ export function useChatStream({
   // Track which fields we've already started streaming for each tool call
   const streamedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
 
+  const getStreamedFields = useCallback((toolCallId: string) => {
+    if (!streamedFieldsRef.current.has(toolCallId)) {
+      streamedFieldsRef.current.set(toolCallId, new Set());
+    }
+    return streamedFieldsRef.current.get(toolCallId)!;
+  }, []);
+
+  const getFieldStreamingState = useCallback(
+    (fieldId: string, isDescriptionField: boolean) => {
+      const existing = streamingFieldsRef.current.get(fieldId);
+      if (existing) {
+        return existing;
+      }
+      const buffer = isDescriptionField
+        ? new MarkdownBuffer((content) => {
+            onFormFieldRef.current?.({
+              fieldId,
+              fieldName: fieldId,
+              value: content,
+              streaming: true,
+              isComplete: false,
+            });
+          })
+        : null;
+      const nextState = { lastValue: "", buffer };
+      streamingFieldsRef.current.set(fieldId, nextState);
+      return nextState;
+    },
+    []
+  );
+
+  const flushStreamingBuffers = useCallback(() => {
+    for (const [fieldId, state] of streamingFieldsRef.current.entries()) {
+      if (!state.buffer) {
+        continue;
+      }
+      state.buffer.flush();
+      onFormFieldRef.current?.({
+        fieldId,
+        fieldName: fieldId,
+        value: state.lastValue,
+        streaming: false,
+        isComplete: true,
+      });
+    }
+    streamingFieldsRef.current.clear();
+  }, []);
+
+  const processFieldUpdate = useCallback(
+    (
+      update: { fieldId: string; value: string },
+      isComplete: boolean,
+      streamedFields: Set<string>
+    ) => {
+      const { fieldId, value } = update;
+      const isDescriptionField = fieldId.includes("description");
+      const fieldState = getFieldStreamingState(fieldId, isDescriptionField);
+
+      if (value === fieldState.lastValue) {
+        return;
+      }
+
+      fieldState.lastValue = value;
+
+      if (isDescriptionField && fieldState.buffer) {
+        fieldState.buffer.reset();
+        fieldState.buffer.append(value);
+
+        if (isComplete) {
+          fieldState.buffer.flush();
+        }
+      } else {
+        onFormFieldRef.current?.({
+          fieldId,
+          fieldName: fieldId,
+          value,
+          streaming: !isComplete,
+          isComplete,
+        });
+      }
+
+      streamedFields.add(fieldId);
+    },
+    [getFieldStreamingState]
+  );
+
   // Handle navigation tool calls
   const handleNavigateTool = useCallback(
-    (toolPart: {
-      toolCallId: string;
-      input: { path?: string };
-      state: string;
-    }) => {
+    (toolPart: NavigateToolPart) => {
       if (toolPart.state !== "input-available") {
         return;
       }
@@ -135,93 +292,24 @@ export function useChatStream({
         return;
       }
 
-      // Get or create the set of streamed fields for this tool call
-      if (!streamedFieldsRef.current.has(toolCallId)) {
-        streamedFieldsRef.current.set(toolCallId, new Set());
-      }
-      const streamedFields = streamedFieldsRef.current.get(toolCallId)!;
+      const streamedFields = getStreamedFields(toolCallId);
 
       for (const update of updates) {
-        const { fieldId, value } = update;
-
-        // Check if this is a description field (needs markdown buffering)
-        const isDescriptionField = fieldId.includes("description");
-
-        // Get or create streaming state for this field
-        let fieldState = streamingFieldsRef.current.get(fieldId);
-        if (!fieldState) {
-          fieldState = {
-            lastValue: "",
-            buffer: isDescriptionField
-              ? new MarkdownBuffer((content) => {
-                  onFormFieldRef.current?.({
-                    fieldId,
-                    fieldName: fieldId,
-                    value: content,
-                    streaming: true,
-                    isComplete: false,
-                  });
-                })
-              : null,
-          };
-          streamingFieldsRef.current.set(fieldId, fieldState);
-        }
-
-        // Only emit if the value has changed
-        if (value === fieldState.lastValue) {
-          continue;
-        }
-
-        fieldState.lastValue = value;
-
-        if (isDescriptionField && fieldState.buffer) {
-          // For description fields, use the markdown buffer
-          // Reset and re-add the full content (since we get the full value each time)
-          fieldState.buffer.reset();
-          fieldState.buffer.append(value);
-
-          if (isComplete) {
-            fieldState.buffer.flush();
-          }
-        } else {
-          // For regular fields, emit directly
-          onFormFieldRef.current?.({
-            fieldId,
-            fieldName: fieldId,
-            value,
-            streaming: !isComplete,
-            isComplete,
-          });
-        }
-
-        streamedFields.add(fieldId);
+        processFieldUpdate(update, isComplete, streamedFields);
       }
 
       // If complete, flush all buffers and clean up
       if (isComplete) {
-        for (const [fieldId, state] of streamingFieldsRef.current.entries()) {
-          if (state.buffer) {
-            state.buffer.flush();
-            // Send final complete update
-            onFormFieldRef.current?.({
-              fieldId,
-              fieldName: fieldId,
-              value: state.lastValue,
-              streaming: false,
-              isComplete: true,
-            });
-          }
-        }
-        streamingFieldsRef.current.clear();
+        flushStreamingBuffers();
         streamedFieldsRef.current.delete(toolCallId);
       }
     },
-    []
+    [flushStreamingBuffers, getStreamedFields, processFieldUpdate]
   );
 
   // Handle translate tool calls
   const handleTranslateTool = useCallback(
-    (toolPart: { toolCallId: string; state: string }) => {
+    (toolPart: TranslateContentToolPart) => {
       if (toolPart.state !== "input-available") {
         return;
       }
@@ -239,6 +327,53 @@ export function useChatStream({
     [addToolResult]
   );
 
+  const handleFillFormFieldsPart = useCallback(
+    (toolPart: FillFormFieldsToolPart) => {
+      const isComplete = toolPart.state === "input-available";
+      const isStreaming = toolPart.state === "partial";
+
+      if ((isStreaming || isComplete) && toolPart.input?.updates) {
+        handleFormFieldStreaming(
+          toolPart.toolCallId,
+          toolPart.input.updates,
+          isComplete
+        );
+      }
+
+      if (isComplete && !handledToolCallsRef.current.has(toolPart.toolCallId)) {
+        handledToolCallsRef.current.add(toolPart.toolCallId);
+        addToolResult({
+          toolCallId: toolPart.toolCallId,
+          tool: "fillFormFields",
+          output: {
+            success: true,
+            fieldsUpdated: toolPart.input.updates?.length ?? 0,
+          },
+        });
+      }
+    },
+    [addToolResult, handleFormFieldStreaming]
+  );
+
+  const handleToolPart = useCallback(
+    (part: ChatMessagePart) => {
+      if (isNavigateToolPart(part)) {
+        handleNavigateTool(part);
+        return;
+      }
+
+      if (isFillFormFieldsPart(part)) {
+        handleFillFormFieldsPart(part);
+        return;
+      }
+
+      if (isTranslateContentPart(part)) {
+        handleTranslateTool(part);
+      }
+    },
+    [handleFillFormFieldsPart, handleNavigateTool, handleTranslateTool]
+  );
+
   // Watch for tool calls in message parts and handle them
   useEffect(() => {
     for (const msg of chatMessages) {
@@ -247,78 +382,10 @@ export function useChatStream({
       }
 
       for (const part of msg.parts) {
-        // Handle navigation tool calls
-        if (
-          part.type === "tool-navigate" &&
-          "input" in part &&
-          "toolCallId" in part
-        ) {
-          handleNavigateTool(
-            part as {
-              toolCallId: string;
-              input: { path?: string };
-              state: string;
-            }
-          );
-        }
-
-        // Handle form filler tool calls - both streaming (partial) and complete
-        if (
-          part.type === "tool-fillFormFields" &&
-          "input" in part &&
-          "toolCallId" in part
-        ) {
-          const toolPart = part as {
-            toolCallId: string;
-            input: { updates?: Array<{ fieldId: string; value: string }> };
-            state: string;
-          };
-
-          const isComplete = toolPart.state === "input-available";
-          const isStreaming = toolPart.state === "partial";
-
-          if ((isStreaming || isComplete) && toolPart.input?.updates) {
-            handleFormFieldStreaming(
-              toolPart.toolCallId,
-              toolPart.input.updates,
-              isComplete
-            );
-          }
-
-          // Only send tool result when complete
-          if (
-            isComplete &&
-            !handledToolCallsRef.current.has(toolPart.toolCallId)
-          ) {
-            handledToolCallsRef.current.add(toolPart.toolCallId);
-            addToolResult({
-              toolCallId: toolPart.toolCallId,
-              tool: "fillFormFields",
-              output: {
-                success: true,
-                fieldsUpdated: toolPart.input.updates?.length ?? 0,
-              },
-            });
-          }
-        }
-
-        // Handle translate tool calls
-        if (
-          part.type === "tool-translateContent" &&
-          "input" in part &&
-          "toolCallId" in part
-        ) {
-          handleTranslateTool(part as { toolCallId: string; state: string });
-        }
+        handleToolPart(part as ChatMessagePart);
       }
     }
-  }, [
-    chatMessages,
-    addToolResult,
-    handleNavigateTool,
-    handleFormFieldStreaming,
-    handleTranslateTool,
-  ]);
+  }, [chatMessages, handleToolPart]);
 
   // Convert AI SDK messages to our AssistantMessage format
   const messages: AssistantMessage[] = chatMessages.map((msg) => ({

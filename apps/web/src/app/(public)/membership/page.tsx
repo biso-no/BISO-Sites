@@ -1,7 +1,7 @@
+import type { Locale } from "@repo/i18n/config";
 import { getCampusData } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
 import { getGlobalMembershipBenefits } from "@/app/actions/membership";
-import type { Locale } from "@/i18n/config";
 import type { CampusData } from "@/lib/types/campus-data";
 import { MembershipPageClient } from "./membership-page-client";
 

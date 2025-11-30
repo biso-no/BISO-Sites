@@ -13,7 +13,9 @@
     "./page-builder": "./page-builder.ts",
     "./types/*": "./types/*.ts"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@repo/typescript-config": "^1.0.0"
+  },
   "dependencies": {
     "@types/node": "^24.9.2",
     "appwrite": "^21.3.0",

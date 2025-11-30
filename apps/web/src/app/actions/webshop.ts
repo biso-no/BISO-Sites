@@ -53,6 +53,56 @@ type CreateProductData = {
   };
 };
 
+const mapProductStatus = (status?: "draft" | "published" | "closed") => {
+  if (status === "draft") {
+    return Status.DRAFT;
+  }
+  if (status === "published") {
+    return Status.PUBLISHED;
+  }
+  if (status === "closed") {
+    return Status.CLOSED;
+  }
+};
+
+const serializeProductMetadata = (metadata?: CreateProductData["metadata"]) =>
+  metadata ? JSON.stringify(metadata) : null;
+
+function buildProductTranslationRefs(
+  translations: Partial<CreateProductData["translations"]> | undefined,
+  contentId: string
+) {
+  if (!translations) {
+    return [];
+  }
+
+  const translationRefs: ContentTranslations[] = [];
+
+  if (translations.en) {
+    translationRefs.push({
+      content_type: ContentType.PRODUCT,
+      content_id: contentId,
+      locale: Locale.EN,
+      title: translations.en.title,
+      description: translations.en.description,
+      short_description: translations.en.short_description || null,
+    } as ContentTranslations);
+  }
+
+  if (translations.no) {
+    translationRefs.push({
+      content_type: ContentType.PRODUCT,
+      content_id: contentId,
+      locale: Locale.NO,
+      title: translations.no.title,
+      description: translations.no.description,
+      short_description: translations.no.short_description || null,
+    } as ContentTranslations);
+  }
+
+  return translationRefs;
+}
+
 export async function listProducts(
   params: ListProductsParams = {}
 ): Promise<ContentTranslations[]> {
@@ -197,29 +247,10 @@ async function _createProduct(
   try {
     const { db } = await createSessionClient();
 
-    const translationRefs: ContentTranslations[] = [];
-
-    if (data.translations.en) {
-      translationRefs.push({
-        content_type: ContentType.PRODUCT,
-        content_id: "unique()",
-        locale: Locale.EN,
-        title: data.translations.en.title,
-        description: data.translations.en.description,
-        short_description: data.translations.en.short_description || null,
-      } as ContentTranslations);
-    }
-
-    if (data.translations.no) {
-      translationRefs.push({
-        content_type: ContentType.PRODUCT,
-        content_id: "unique()",
-        locale: Locale.NO,
-        title: data.translations.no.title,
-        description: data.translations.no.description,
-        short_description: data.translations.no.short_description || null,
-      } as ContentTranslations);
-    }
+    const translationRefs = buildProductTranslationRefs(
+      data.translations,
+      "unique()"
+    );
 
     const product =
       (await db.createRow<WebshopProducts>(
@@ -228,12 +259,7 @@ async function _createProduct(
         "unique()",
         {
           slug: data.slug,
-          status:
-            data.status === "draft"
-              ? Status.DRAFT
-              : data.status === "published"
-                ? Status.PUBLISHED
-                : Status.CLOSED,
+          status: mapProductStatus(data.status) ?? Status.CLOSED,
           campus_id: data.campus_id,
           category: data.category,
           regular_price: data.regular_price,
@@ -241,7 +267,7 @@ async function _createProduct(
           member_only: data.member_only ?? false,
           image: data.image ?? null,
           stock: data.stock ?? null,
-          metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+          metadata: serializeProductMetadata(data.metadata),
           departmentId: null,
           translation_refs: translationRefs,
         } as any
@@ -271,13 +297,9 @@ async function _updateProduct(
     if (data.slug !== undefined) {
       updateData.slug = data.slug;
     }
-    if (data.status !== undefined) {
-      updateData.status =
-        data.status === "draft"
-          ? Status.DRAFT
-          : data.status === "published"
-            ? Status.PUBLISHED
-            : Status.CLOSED;
+    const mappedStatus = mapProductStatus(data.status);
+    if (mappedStatus !== undefined) {
+      updateData.status = mappedStatus;
     }
     if (data.campus_id !== undefined) {
       updateData.campus_id = data.campus_id;
@@ -301,39 +323,12 @@ async function _updateProduct(
       updateData.stock = data.stock;
     }
     if (data.metadata !== undefined) {
-      updateData.metadata = data.metadata
-        ? JSON.stringify(data.metadata)
-        : null;
+      updateData.metadata = serializeProductMetadata(data.metadata);
     }
 
-    if (data.translations) {
-      const translationRefs: ContentTranslations[] = [];
-
-      if (data.translations.en) {
-        translationRefs.push({
-          content_type: ContentType.PRODUCT,
-          content_id: id,
-          locale: Locale.EN,
-          title: data.translations.en.title,
-          description: data.translations.en.description,
-          short_description: data.translations.en.short_description || null,
-        } as ContentTranslations);
-      }
-
-      if (data.translations.no) {
-        translationRefs.push({
-          content_type: ContentType.PRODUCT,
-          content_id: id,
-          locale: Locale.NO,
-          title: data.translations.no.title,
-          description: data.translations.no.description,
-          short_description: data.translations.no.short_description || null,
-        } as ContentTranslations);
-      }
-
-      if (translationRefs.length > 0) {
-        updateData.translation_refs = translationRefs;
-      }
+    const translationRefs = buildProductTranslationRefs(data.translations, id);
+    if (translationRefs.length > 0) {
+      updateData.translation_refs = translationRefs;
     }
 
     const product = (await db.updateRow(

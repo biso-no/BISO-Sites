@@ -24,6 +24,49 @@ const stripHtml = (html?: string | null) => {
     .trim();
 };
 
+const matchesCampus = (
+  deptRef: ContentTranslations["department_ref"] | undefined,
+  campusId: FilterState["campusId"]
+) => !campusId || deptRef?.campus_id === campusId;
+
+const matchesType = (
+  deptRef: ContentTranslations["department_ref"] | undefined,
+  type: FilterState["type"]
+) => !type || deptRef?.type === type;
+
+const matchesSearch = (dept: ContentTranslations, search: string) => {
+  if (!search) {
+    return true;
+  }
+  const searchLower = search.toLowerCase();
+  const searchableText = [
+    dept.title,
+    dept.department_ref?.type,
+    dept.department_ref?.campus?.name,
+    stripHtml(dept.short_description || dept.description),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return searchableText.includes(searchLower);
+};
+
+const departmentMatchesFilters = (
+  dept: ContentTranslations,
+  filters: FilterState
+) => {
+  const deptRef = dept.department_ref;
+  if (!deptRef) {
+    return false;
+  }
+
+  return (
+    matchesCampus(deptRef, filters.campusId) &&
+    matchesType(deptRef, filters.type) &&
+    matchesSearch(dept, filters.search)
+  );
+};
+
 export function DepartmentsListClient({
   departments,
   availableTypes,
@@ -39,43 +82,10 @@ export function DepartmentsListClient({
   }, []);
 
   // Filter departments based on current filters
-  const filteredDepartments = useMemo(() => {
-    return departments.filter((dept) => {
-      const deptRef = dept.department_ref;
-      if (!deptRef) {
-        return false;
-      }
-
-      // Campus filter
-      if (filters.campusId && deptRef.campus_id !== filters.campusId) {
-        return false;
-      }
-
-      // Type filter
-      if (filters.type && deptRef.type !== filters.type) {
-        return false;
-      }
-
-      // Search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const searchableText = [
-          dept.title,
-          deptRef.type,
-          deptRef.campus?.name,
-          stripHtml(dept.short_description || dept.description),
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!searchableText.includes(searchLower)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [departments, filters]);
+  const filteredDepartments = useMemo(
+    () => departments.filter((dept) => departmentMatchesFilters(dept, filters)),
+    [departments, filters]
+  );
 
   // Sort departments by campus name, then by department name
   const sortedDepartments = useMemo(

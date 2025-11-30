@@ -2,7 +2,6 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Orders, Users } from "@repo/api/types/appwrite";
-import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import type { OrderItem } from "@/lib/types/order";
 import { createVippsCheckout } from "@/lib/vipps";
@@ -11,7 +10,7 @@ export async function getOrders({
   limit = 100,
   userId = "",
   status = "",
-  path = "/admin/shop/orders",
+  _path = "/admin/shop/orders",
 }: {
   limit?: number;
   offset?: number;
@@ -128,174 +127,313 @@ function normalizeCustomFields(inputs?: Record<string, string>) {
   );
 }
 
+type DiscountInfo = { applied: boolean; percent: number };
+
+function sanitizeCartItems(data: CartCheckoutData): CheckoutLineItemInput[] {
+  if (!data.items || data.items.length === 0) {
+    throw new Error("Your cart is empty");
+  }
+
+  const sanitizedItems = data.items
+    .map((item) => ({
+      ...item,
+      quantity: Math.max(1, Math.floor(Number(item.quantity) || 0)),
+    }))
+    .filter((item) => item.quantity > 0 && item.productId);
+
+  if (sanitizedItems.length === 0) {
+    throw new Error("No valid items in cart");
+  }
+
+  return sanitizedItems;
+}
+
+function buildQuantityByProduct(items: CheckoutLineItemInput[]) {
+  const quantityByProduct = new Map<string, number>();
+  for (const item of items) {
+    quantityByProduct.set(
+      item.productId,
+      (quantityByProduct.get(item.productId) || 0) + item.quantity
+    );
+  }
+  return quantityByProduct;
+}
+
+async function getCachedProduct(
+  productCache: Map<string, any>,
+  productId: string,
+  slug: string
+) {
+  const cached = productCache.get(productId);
+  if (cached) {
+    return cached;
+  }
+
+  const product = await getProduct(productId);
+  if (!product) {
+    throw new Error(`Product ${slug || productId} is not available anymore.`);
+  }
+  productCache.set(productId, product);
+  return product;
+}
+
+function validateProductLimits(
+  product: any,
+  totalForProduct: number,
+  _input: CheckoutLineItemInput
+) {
+  if (!product.price) {
+    throw new Error(
+      `Product ${product.title || product.slug} is missing a price.`
+    );
+  }
+
+  if (product.max_per_order && totalForProduct > product.max_per_order) {
+    throw new Error(
+      `Only ${product.max_per_order} of ${product.title || product.slug} can be purchased per order.`
+    );
+  }
+
+  if (product.max_per_user === 1 && totalForProduct > 1) {
+    throw new Error(
+      `${product.title || product.slug} is limited to one per customer.`
+    );
+  }
+}
+
+async function resolvePricing(
+  product: any,
+  input: CheckoutLineItemInput,
+  discountCache: Map<string, DiscountInfo>
+) {
+  const variation = product.variations?.find(
+    (variant: any) => variant.id === input.variationId
+  );
+  const basePrice = Number(product.price || 0);
+  const variationModifier = Number(variation?.price_modifier || 0);
+  const originalUnit = Math.max(0, basePrice + variationModifier);
+
+  const discount =
+    discountCache.get(product.$id) || (await getMemberDiscountIfAny(product));
+  discountCache.set(product.$id, discount);
+
+  const discountedUnit = discount.applied
+    ? Math.max(0, originalUnit * (1 - discount.percent / 100))
+    : originalUnit;
+
+  return {
+    variation,
+    variationModifier,
+    originalUnit,
+    discountedUnit,
+    discount,
+  };
+}
+
+function validateCustomFieldsForProduct(
+  product: any,
+  customFieldResponses: Record<string, string>
+) {
+  if (!product.custom_fields) {
+    return;
+  }
+
+  const missingFields = product.custom_fields
+    .filter((field: any) => field.required)
+    .filter((field: any) => !customFieldResponses[field.id])
+    .map((field: any) => field.label);
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`
+    );
+  }
+}
+
+function buildOrderItemPayload({
+  product,
+  input,
+  discountedUnit,
+  variation,
+  variationModifier,
+  customFieldResponses,
+}: {
+  product: any;
+  input: CheckoutLineItemInput;
+  discountedUnit: number;
+  variation?: any;
+  variationModifier: number;
+  customFieldResponses: Record<string, string>;
+}): OrderItem {
+  const customFieldLabels = input.customFieldLabels || {};
+  const customFieldDetails = Object.entries(customFieldResponses).map(
+    ([fieldId, value]) => ({
+      id: fieldId,
+      label: customFieldLabels[fieldId] || fieldId,
+      value,
+    })
+  );
+
+  return {
+    product_id: product.$id,
+    product_slug: product.slug,
+    title: product.title || product.slug,
+    unit_price: discountedUnit,
+    quantity: input.quantity,
+    variation_id: variation?.id,
+    variation_name: variation?.name,
+    variation_price: variationModifier,
+    custom_field_responses: Object.keys(customFieldResponses).length
+      ? customFieldResponses
+      : undefined,
+    custom_fields: customFieldDetails.length ? customFieldDetails : undefined,
+  };
+}
+
+type CheckoutComputation = {
+  orderItems: OrderItem[];
+  subtotal: number;
+  originalTotal: number;
+  membershipApplied: boolean;
+  maxDiscountPercent: number;
+  campusIds: Set<string>;
+};
+
+async function buildOrderComputation(
+  items: CheckoutLineItemInput[],
+  quantityByProduct: Map<string, number>
+): Promise<CheckoutComputation> {
+  const discountCache = new Map<string, DiscountInfo>();
+  const productCache = new Map<string, any>();
+  const orderItems: OrderItem[] = [];
+  const campusIds = new Set<string>();
+  let subtotal = 0;
+  let originalTotal = 0;
+  let membershipApplied = false;
+  let maxDiscountPercent = 0;
+
+  for (const input of items) {
+    const productId = input.productId;
+    const product = await getCachedProduct(productCache, productId, input.slug);
+    const totalForProduct = quantityByProduct.get(productId) || 0;
+
+    validateProductLimits(product, totalForProduct, input);
+
+    const {
+      variation,
+      variationModifier,
+      originalUnit,
+      discountedUnit,
+      discount,
+    } = await resolvePricing(product, input, discountCache);
+
+    const customFieldResponses = normalizeCustomFields(input.customFields);
+    validateCustomFieldsForProduct(product, customFieldResponses);
+
+    const orderItem = buildOrderItemPayload({
+      product,
+      input,
+      discountedUnit,
+      variation,
+      variationModifier,
+      customFieldResponses,
+    });
+
+    orderItems.push(orderItem);
+    subtotal += discountedUnit * input.quantity;
+    originalTotal += originalUnit * input.quantity;
+    membershipApplied = membershipApplied || discount.applied;
+    if (discount.applied) {
+      maxDiscountPercent = Math.max(maxDiscountPercent, discount.percent || 0);
+    }
+    if (product.campus_id) {
+      campusIds.add(product.campus_id);
+    }
+  }
+
+  return {
+    orderItems,
+    subtotal,
+    originalTotal,
+    membershipApplied,
+    maxDiscountPercent,
+    campusIds,
+  };
+}
+
+async function createPendingOrder({
+  orderItems,
+  subtotal,
+  discountTotal,
+  data,
+  membershipApplied,
+  maxDiscountPercent,
+  campusIds,
+}: {
+  orderItems: OrderItem[];
+  subtotal: number;
+  discountTotal: number;
+  data: CartCheckoutData;
+  membershipApplied: boolean;
+  maxDiscountPercent: number;
+  campusIds: Set<string>;
+}) {
+  const { db } = await createSessionClient();
+  const order = await db.createRow("app", "orders", "unique()", {
+    status: "pending",
+    currency: "NOK",
+    subtotal,
+    discount_total: discountTotal,
+    total: subtotal,
+    buyer_name: data.name || "Guest",
+    buyer_email: data.email || "",
+    buyer_phone: data.phone || "",
+    membership_applied: membershipApplied,
+    member_discount_percent: membershipApplied ? maxDiscountPercent : 0,
+    items_json: JSON.stringify(orderItems),
+    campus_id: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
+  });
+
+  return { order, db };
+}
+
+function buildPaymentDescription(orderItems: OrderItem[]) {
+  return orderItems
+    .slice(0, 2)
+    .map((item) => `${item.title} x ${item.quantity}`)
+    .join(", ");
+}
+
 export async function createCartCheckoutSession(
   data: CartCheckoutData
 ): Promise<CheckoutResult> {
   try {
-    if (!data.items || data.items.length === 0) {
-      throw new Error("Your cart is empty");
-    }
-
-    const _locale = await getLocale();
-    const sanitizedItems = data.items
-      .map((item) => ({
-        ...item,
-        quantity: Math.max(1, Math.floor(Number(item.quantity) || 0)),
-      }))
-      .filter((item) => item.quantity > 0 && item.productId);
-
-    if (sanitizedItems.length === 0) {
-      throw new Error("No valid items in cart");
-    }
-
-    const quantityByProduct = new Map<string, number>();
-    for (const item of sanitizedItems) {
-      quantityByProduct.set(
-        item.productId,
-        (quantityByProduct.get(item.productId) || 0) + item.quantity
-      );
-    }
-
-    const discountCache = new Map<
-      string,
-      { applied: boolean; percent: number }
-    >();
-    const productCache = new Map<string, any>();
-    const orderItems: OrderItem[] = [];
-    const campusIds = new Set<string>();
-    let subtotal = 0;
-    let originalTotal = 0;
-    let membershipApplied = false;
-    let maxDiscountPercent = 0;
-
-    for (const input of sanitizedItems) {
-      const productId = input.productId;
-      if (!productId) {
-        continue;
-      }
-
-      let product = productCache.get(productId);
-      if (!product) {
-        product = await getProduct(productId);
-        if (!product) {
-          throw new Error(
-            `Product ${input.slug || productId} is not available anymore.`
-          );
-        }
-        productCache.set(productId, product);
-      }
-
-      if (!product.price) {
-        throw new Error(
-          `Product ${product.title || product.slug} is missing a price.`
-        );
-      }
-
-      const totalForProduct = quantityByProduct.get(productId) || 0;
-      if (product.max_per_order && totalForProduct > product.max_per_order) {
-        throw new Error(
-          `Only ${product.max_per_order} of ${product.title || product.slug} can be purchased per order.`
-        );
-      }
-
-      if (product.max_per_user === 1 && totalForProduct > 1) {
-        throw new Error(
-          `${product.title || product.slug} is limited to one per customer.`
-        );
-      }
-
-      const variation = product.variations?.find(
-        (variant: any) => variant.id === input.variationId
-      );
-      const basePrice = Number(product.price || 0);
-      const variationModifier = Number(variation?.price_modifier || 0);
-      const originalUnit = Math.max(0, basePrice + variationModifier);
-
-      const discount =
-        discountCache.get(productId) || (await getMemberDiscountIfAny(product));
-      discountCache.set(productId, discount);
-
-      const discountedUnit = discount.applied
-        ? Math.max(0, originalUnit * (1 - discount.percent / 100))
-        : originalUnit;
-
-      membershipApplied = membershipApplied || discount.applied;
-      maxDiscountPercent = discount.applied
-        ? Math.max(maxDiscountPercent, discount.percent || 0)
-        : maxDiscountPercent;
-
-      const customFieldResponses = normalizeCustomFields(input.customFields);
-      const customFieldLabels = input.customFieldLabels || {};
-      if (product.custom_fields) {
-        const missingFields = product.custom_fields
-          .filter((field: any) => field.required)
-          .filter((field: any) => !customFieldResponses[field.id])
-          .map((field: any) => field.label);
-        if (missingFields.length > 0) {
-          throw new Error(
-            `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`
-          );
-        }
-      }
-
-      const customFieldDetails = Object.entries(customFieldResponses).map(
-        ([fieldId, value]) => ({
-          id: fieldId,
-          label: customFieldLabels[fieldId] || fieldId,
-          value,
-        })
-      );
-
-      orderItems.push({
-        product_id: product.$id,
-        product_slug: product.slug,
-        title: product.title || product.slug,
-        unit_price: discountedUnit,
-        quantity: input.quantity,
-        variation_id: variation?.id,
-        variation_name: variation?.name,
-        variation_price: variationModifier,
-        custom_field_responses: Object.keys(customFieldResponses).length
-          ? customFieldResponses
-          : undefined,
-        custom_fields: customFieldDetails.length
-          ? customFieldDetails
-          : undefined,
-      });
-
-      subtotal += discountedUnit * input.quantity;
-      originalTotal += originalUnit * input.quantity;
-      if (product.campus_id) {
-        campusIds.add(product.campus_id);
-      }
-    }
+    const sanitizedItems = sanitizeCartItems(data);
+    const quantityByProduct = buildQuantityByProduct(sanitizedItems);
+    const {
+      orderItems,
+      subtotal,
+      originalTotal,
+      membershipApplied,
+      maxDiscountPercent,
+      campusIds,
+    } = await buildOrderComputation(sanitizedItems, quantityByProduct);
 
     const discountTotal = Math.max(0, originalTotal - subtotal);
-    const { db } = await createSessionClient();
-    const order = await db.createRow("app", "orders", "unique()", {
-      status: "pending",
-      currency: "NOK",
+    const { order, db } = await createPendingOrder({
+      orderItems,
       subtotal,
-      discount_total: discountTotal,
-      total: subtotal,
-      buyer_name: data.name || "Guest",
-      buyer_email: data.email || "",
-      buyer_phone: data.phone || "",
-      membership_applied: membershipApplied,
-      member_discount_percent: membershipApplied ? maxDiscountPercent : 0,
-      items_json: JSON.stringify(orderItems),
-      campus_id: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
+      discountTotal,
+      data,
+      membershipApplied,
+      maxDiscountPercent,
+      campusIds,
     });
-
-    const paymentDescription = orderItems
-      .slice(0, 2)
-      .map((item) => `${item.title} x ${item.quantity}`)
-      .join(", ");
 
     const vippsCheckout = await createVippsCheckout({
       amount: Math.round(subtotal * 100),
       reference: order.$id,
-      paymentDescription,
+      paymentDescription: buildPaymentDescription(orderItems),
       email: data.email,
       firstName: data.name.split(" ")[0] || data.name,
       lastName: data.name.split(" ").slice(1).join(" ") || "",
@@ -330,7 +468,7 @@ export async function createCartCheckoutSession(
   }
 }
 
-function _startCartCheckout(data: CartCheckoutData) {
+function _createCartCheckoutSession(data: CartCheckoutData) {
   return createCartCheckoutSession(data);
 }
 

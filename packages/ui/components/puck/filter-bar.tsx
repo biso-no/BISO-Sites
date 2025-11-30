@@ -96,9 +96,9 @@ function FilterBarContent({
               />
               {currentSearch && (
                 <button
-                  type="button"
                   className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground hover:text-foreground"
                   onClick={() => updateParams(searchParam, null)}
+                  type="button"
                 >
                   <X className="h-3 w-3" />
                 </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -71,10 +72,12 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
           <div className="relative flex items-start justify-between">
             <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/30 bg-white/20 backdrop-blur-sm transition-transform group-hover:scale-110">
               {dept?.logo ? (
-                <img
+                <ImageWithFallback
                   alt={department.title}
                   className="h-10 w-10 object-contain"
+                  height={40}
                   src={dept.logo}
+                  width={40}
                 />
               ) : (
                 <TypeIcon className="h-8 w-8 text-white" />

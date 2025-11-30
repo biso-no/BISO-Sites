@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 import { CheckoutPageClient } from "./checkout-page-client";
 
 export const metadata: Metadata = {

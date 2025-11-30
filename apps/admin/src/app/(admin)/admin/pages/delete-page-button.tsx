@@ -2,7 +2,7 @@
 
 import { Button } from "@repo/ui/components/ui/button";
 import { Trash } from "lucide-react";
-import { deletePage } from "@/app/actions/pages";
+import { deletePage } from "@/app/actions/pages/actions";
 
 type DeletePageButtonProps = {
   pageId: string;

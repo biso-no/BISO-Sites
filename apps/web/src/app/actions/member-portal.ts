@@ -239,12 +239,3 @@ export async function uploadAvatar(formData: FormData): Promise<{
     return { success: false, error: "Failed to upload avatar" };
   }
 }
-
-export async function calculateEstimatedSavings(
-  _userId: string
-): Promise<number> {
-  // Placeholder: Returns estimated savings in NOK
-  // Future enhancement: Calculate based on revealed benefits and usage patterns
-  // For now, return a static value
-  return Promise.resolve(2500);
-}

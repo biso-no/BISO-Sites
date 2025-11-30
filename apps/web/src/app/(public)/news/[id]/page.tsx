@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getLocale } from "@/app/actions/locale";
 import { getNewsItem } from "@/app/actions/news";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 
 function HtmlContent({ html }: { html: string }) {
   return (

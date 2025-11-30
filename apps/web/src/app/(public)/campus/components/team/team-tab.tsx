@@ -1,12 +1,12 @@
 "use client";
 
-import type { JSX } from "react";
 import type { DepartmentBoard } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { Card } from "@repo/ui/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
+import type { JSX } from "react";
 import { useEffect, useState } from "react";
-import type { Locale } from "@/i18n/config";
 import { TeamMemberCard } from "./team-member-card";
 
 type TeamTabProps = {

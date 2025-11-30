@@ -27,7 +27,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { AlertCircleIcon, BellIcon, CheckCircleIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -80,7 +80,7 @@ export type DateRange = "7d" | "30d" | "90d" | "all";
 export default function AdminDashboard({
   totalUsers,
   totalPageViews,
-  totalOrders,
+  totalOrders: _totalOrders,
   totalJobApplications,
   pageViews,
   userDistribution,
@@ -157,15 +157,23 @@ export default function AdminDashboard({
   }, []);
 
   // Filter data based on selected date range
-  const getDateCutoff = (range: DateRange): Date | null => {
+  const getDateCutoff = useCallback((range: DateRange): Date | null => {
     if (range === "all") {
       return null;
     }
-    const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+    const days = (() => {
+      if (range === "7d") {
+        return 7;
+      }
+      if (range === "30d") {
+        return 30;
+      }
+      return 90;
+    })();
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     return cutoff;
-  };
+  }, []);
 
   const filteredData = useMemo(() => {
     const cutoff = getDateCutoff(dateRange);
@@ -313,350 +321,335 @@ export default function AdminDashboard({
     }
   };
 
+  const renderAdminOverview = () => (
+    <>
+      <Card className={cn(baseCardClasses, "col-span-2")}>
+        <CardHeader>
+          <CardTitle>{t("dashboard.cards.pageViews.title")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.cards.pageViews.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-[300px]">
+          <ResponsiveContainer height="100%" width="100%">
+            <BarChart data={filteredData.pageViews}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="views" fill="#8884d8" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle>{t("dashboard.cards.userDistribution.title")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.cards.userDistribution.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-[300px]">
+          <ResponsiveContainer height="100%" width="100%">
+            <PieChart>
+              <Pie
+                cx="50%"
+                cy="50%"
+                data={userDistribution}
+                dataKey="value"
+                fill="#8884d8"
+                label={({ name, percent }) =>
+                  `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
+                }
+                labelLine={false}
+                outerRadius={80}
+              >
+                {userDistribution.map((_entry, index) => (
+                  <Cell
+                    fill={chartColors[index % chartColors.length]}
+                    key={`cell-${index}`}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <Card className={cn(baseCardClasses, "col-span-3")}>
+        <CardHeader>
+          <CardTitle>{t("dashboard.cards.userGrowth.title")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.cards.userGrowth.overviewDescription")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-[300px]">
+          <ResponsiveContainer height="100%" width="100%">
+            <LineChart data={userGrowth}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line dataKey="users" stroke="#8884d8" type="monotone" />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </>
+  );
+
+  const renderAdminAnalytics = () => (
+    <>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle>{t("dashboard.cards.totalPageViews.title")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.cards.totalPageViews.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="font-bold text-3xl">
+            {totalPageViews.toLocaleString()}
+          </div>
+          {topPage ? (
+            <div className="text-muted-foreground text-sm">
+              {t("dashboard.analytics.topPageLabel", {
+                page: topPage.name,
+              })}
+            </div>
+          ) : (
+            <div className="text-muted-foreground text-sm">
+              {t("dashboard.analytics.noPageData")}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle>{t("dashboard.cards.userGrowth.title")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.cards.userGrowth.analyticsDescription")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="font-bold text-3xl">
+            {totalUsers.toLocaleString()}
+          </div>
+          <div
+            className={`text-sm ${userGrowthRate >= 0 ? "text-green-600" : "text-red-600"}`}
+          >
+            {userGrowthRate >= 0 ? "+" : ""}
+            {userGrowthRate.toFixed(1)}%
+          </div>
+        </CardContent>
+      </Card>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle>{t("dashboard.cards.topTrafficSource.title")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.cards.topTrafficSource.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {topTrafficSource ? (
+            <>
+              <div className="font-bold text-3xl">{topTrafficSource.name}</div>
+              <div className="text-muted-foreground text-sm">
+                {topTrafficSource.value.toLocaleString()} sessions
+              </div>
+            </>
+          ) : (
+            <div className="text-muted-foreground text-sm">
+              No traffic data available
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className={cn(baseCardClasses, "col-span-2")}>
+        <CardHeader>
+          <CardTitle>{t("dashboard.cards.trafficBreakdown.title")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.cards.trafficBreakdown.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-[300px]">
+          <ResponsiveContainer height="100%" width="100%">
+            <PieChart>
+              <Pie
+                cx="50%"
+                cy="50%"
+                data={trafficSources}
+                dataKey="value"
+                fill="#8884d8"
+                label={({ name, percent }) =>
+                  `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
+                }
+                labelLine={false}
+                outerRadius={100}
+              >
+                {trafficSources.map((_entry, index) => (
+                  <Cell
+                    fill={chartColors[index % chartColors.length]}
+                    key={`traffic-cell-${index}`}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </>
+  );
+
+  const renderAdminReports = () => (
+    <Card className={cn(baseCardClasses, "col-span-3")}>
+      <CardHeader>
+        <CardTitle>{t("dashboard.cards.recentActivities.title")}</CardTitle>
+        <CardDescription>
+          {t("dashboard.cards.recentActivities.description")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("dashboard.cards.table.user")}</TableHead>
+              <TableHead>{t("dashboard.cards.table.action")}</TableHead>
+              <TableHead>{t("dashboard.cards.table.timestamp")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {recentActivities.map((activity) => (
+              <TableRow key={activity.id}>
+                <TableCell>{activity.user}</TableCell>
+                <TableCell>{activity.action}</TableCell>
+                <TableCell>{activity.timestamp}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
+  const renderAdminNotifications = () => (
+    <>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircleIcon className="h-5 w-5 text-red-500" />
+            {t("dashboard.notifications.errors.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="font-bold text-3xl text-red-600">
+            {alertCounts.error ?? 0}
+          </div>
+          <div className="text-gray-600 text-sm">
+            {t("dashboard.notifications.errors.description")}
+          </div>
+        </CardContent>
+      </Card>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BellIcon className="h-5 w-5 text-yellow-500" />
+            {t("dashboard.notifications.warnings.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="font-bold text-3xl text-yellow-600">
+            {alertCounts.warning ?? 0}
+          </div>
+          <div className="text-gray-600 text-sm">
+            {t("dashboard.notifications.warnings.description")}
+          </div>
+        </CardContent>
+      </Card>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BellIcon className="h-5 w-5 text-blue-500" />
+            {t("dashboard.notifications.info.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="font-bold text-3xl text-blue-600">
+            {alertCounts.info ?? 0}
+          </div>
+          <div className="text-gray-600 text-sm">
+            {t("dashboard.notifications.info.description")}
+          </div>
+        </CardContent>
+      </Card>
+      <Card className={baseCardClasses}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+            {t("dashboard.notifications.success.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="font-bold text-3xl text-green-600">
+            {alertCounts.success ?? 0}
+          </div>
+          <div className="text-gray-600 text-sm">
+            {t("dashboard.notifications.success.description")}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(baseCardClasses, "col-span-1")}>
+        <CardHeader>
+          <CardTitle>
+            {t("dashboard.notifications.systemAlerts.title")}
+          </CardTitle>
+          <CardDescription>
+            {t("dashboard.notifications.systemAlerts.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[400px]">
+            {systemAlerts.map((alert) => (
+              <div className="mb-4 flex items-center space-x-4" key={alert.id}>
+                {alert.type === "error" && (
+                  <AlertCircleIcon className="h-6 w-6 text-red-500" />
+                )}
+                {alert.type === "warning" && (
+                  <AlertCircleIcon className="h-6 w-6 text-yellow-500" />
+                )}
+                {alert.type === "info" && (
+                  <BellIcon className="h-6 w-6 text-blue-500" />
+                )}
+                {alert.type === "success" && (
+                  <CheckCircleIcon className="h-6 w-6 text-green-500" />
+                )}
+                <div>
+                  <p className="font-medium">{alert.message}</p>
+                  <p className="text-gray-500 text-sm">{alert.timestamp}</p>
+                </div>
+              </div>
+            ))}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </>
+  );
+
   const renderAdminContent = (tab: string) => {
     switch (tab) {
       case "overview":
-        return (
-          <>
-            <Card className={cn(baseCardClasses, "col-span-2")}>
-              <CardHeader>
-                <CardTitle>{t("dashboard.cards.pageViews.title")}</CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.pageViews.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <BarChart data={filteredData.pageViews}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="views" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.userDistribution.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.userDistribution.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <PieChart>
-                    <Pie
-                      cx="50%"
-                      cy="50%"
-                      data={userDistribution}
-                      dataKey="value"
-                      fill="#8884d8"
-                      label={({ name, percent }) =>
-                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                      outerRadius={80}
-                    >
-                      {userDistribution.map((_entry, index) => (
-                        <Cell
-                          fill={chartColors[index % chartColors.length]}
-                          key={`cell-${index}`}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className={cn(baseCardClasses, "col-span-3")}>
-              <CardHeader>
-                <CardTitle>{t("dashboard.cards.userGrowth.title")}</CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.userGrowth.overviewDescription")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <LineChart data={userGrowth}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line dataKey="users" stroke="#8884d8" type="monotone" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </>
-        );
+        return renderAdminOverview();
       case "analytics":
-        return (
-          <>
-            {/* High-level analytics cards */}
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.totalPageViews.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.totalPageViews.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-3xl">
-                  {totalPageViews.toLocaleString()}
-                </div>
-                {topPage ? (
-                  <div className="text-muted-foreground text-sm">
-                    {t("dashboard.analytics.topPageLabel", {
-                      page: topPage.name,
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground text-sm">
-                    {t("dashboard.analytics.noPageData")}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>{t("dashboard.cards.userGrowth.title")}</CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.userGrowth.analyticsDescription")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-3xl">
-                  {totalUsers.toLocaleString()}
-                </div>
-                <div
-                  className={`text-sm ${userGrowthRate >= 0 ? "text-green-600" : "text-red-600"}`}
-                >
-                  {userGrowthRate >= 0 ? "+" : ""}
-                  {userGrowthRate.toFixed(1)}%
-                </div>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.topTrafficSource.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.topTrafficSource.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {topTrafficSource ? (
-                  <>
-                    <div className="font-bold text-3xl">
-                      {topTrafficSource.name}
-                    </div>
-                    <div className="text-muted-foreground text-sm">
-                      {topTrafficSource.value.toLocaleString()} sessions
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-muted-foreground text-sm">
-                    No traffic data available
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Traffic Source Breakdown */}
-            <Card className={cn(baseCardClasses, "col-span-2")}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.trafficBreakdown.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.trafficBreakdown.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <PieChart>
-                    <Pie
-                      cx="50%"
-                      cy="50%"
-                      data={trafficSources}
-                      dataKey="value"
-                      fill="#8884d8"
-                      label={({ name, percent }) =>
-                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                      outerRadius={100}
-                    >
-                      {trafficSources.map((_entry, index) => (
-                        <Cell
-                          fill={chartColors[index % chartColors.length]}
-                          key={`traffic-cell-${index}`}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </>
-        );
+        return renderAdminAnalytics();
       case "reports":
-        return (
-          <Card className={cn(baseCardClasses, "col-span-3")}>
-            <CardHeader>
-              <CardTitle>
-                {t("dashboard.cards.recentActivities.title")}
-              </CardTitle>
-              <CardDescription>
-                {t("dashboard.cards.recentActivities.description")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("dashboard.cards.table.user")}</TableHead>
-                    <TableHead>{t("dashboard.cards.table.action")}</TableHead>
-                    <TableHead>
-                      {t("dashboard.cards.table.timestamp")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentActivities.map((activity) => (
-                    <TableRow key={activity.id}>
-                      <TableCell>{activity.user}</TableCell>
-                      <TableCell>{activity.action}</TableCell>
-                      <TableCell>{activity.timestamp}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        );
+        return renderAdminReports();
       case "notifications":
-        return (
-          <>
-            {/* Alert Summary Cards */}
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircleIcon className="h-5 w-5 text-red-500" />
-                  {t("dashboard.notifications.errors.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-3xl text-red-600">
-                  {alertCounts.error ?? 0}
-                </div>
-                <div className="text-gray-600 text-sm">
-                  {t("dashboard.notifications.errors.description")}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BellIcon className="h-5 w-5 text-yellow-500" />
-                  {t("dashboard.notifications.warnings.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-3xl text-yellow-600">
-                  {alertCounts.warning ?? 0}
-                </div>
-                <div className="text-gray-600 text-sm">
-                  {t("dashboard.notifications.warnings.description")}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BellIcon className="h-5 w-5 text-blue-500" />
-                  {t("dashboard.notifications.info.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-3xl text-blue-600">
-                  {alertCounts.info ?? 0}
-                </div>
-                <div className="text-gray-600 text-sm">
-                  {t("dashboard.notifications.info.description")}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                  {t("dashboard.notifications.success.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="font-bold text-3xl text-green-600">
-                  {alertCounts.success ?? 0}
-                </div>
-                <div className="text-gray-600 text-sm">
-                  {t("dashboard.notifications.success.description")}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* System Alerts */}
-            <Card className={cn(baseCardClasses, "col-span-1")}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.notifications.systemAlerts.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.notifications.systemAlerts.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[400px]">
-                  {systemAlerts.map((alert) => (
-                    <div
-                      className="mb-4 flex items-center space-x-4"
-                      key={alert.id}
-                    >
-                      {alert.type === "error" && (
-                        <AlertCircleIcon className="h-6 w-6 text-red-500" />
-                      )}
-                      {alert.type === "warning" && (
-                        <AlertCircleIcon className="h-6 w-6 text-yellow-500" />
-                      )}
-                      {alert.type === "info" && (
-                        <BellIcon className="h-6 w-6 text-blue-500" />
-                      )}
-                      {alert.type === "success" && (
-                        <CheckCircleIcon className="h-6 w-6 text-green-500" />
-                      )}
-                      <div>
-                        <p className="font-medium">{alert.message}</p>
-                        <p className="text-gray-500 text-sm">
-                          {alert.timestamp}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </>
-        );
+        return renderAdminNotifications();
       default:
         return <div>{t("dashboard.emptyContent")}</div>;
     }

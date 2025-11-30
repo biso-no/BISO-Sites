@@ -14,6 +14,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const stripHtmlTags = (html: string) => html.replace(/<[^>]*>/g, "");
+
 // Client-side only component for HTML content
 function _HTMLContent({
   html,
@@ -22,12 +24,11 @@ function _HTMLContent({
   html: string;
   className?: string;
 }) {
-  if (!html) {
+  const text = stripHtmlTags(html);
+  if (!text) {
     return null;
   }
-  return (
-    <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
-  );
+  return <div className={className}>{text}</div>;
 }
 
 type DepartmentCardProps = {

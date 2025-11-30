@@ -7,7 +7,7 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("press.meta");

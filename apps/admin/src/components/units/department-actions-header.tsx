@@ -11,8 +11,8 @@ type DepartmentActionsHeaderProps = {
 };
 
 export function DepartmentActionsHeader({
-  campuses,
-  types,
+  campuses: _campuses,
+  types: _types,
 }: DepartmentActionsHeaderProps) {
   const router = useRouter();
 

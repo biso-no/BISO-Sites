@@ -1,8 +1,8 @@
 import type { CampusMetadata } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { Card } from "@repo/ui/components/ui/card";
 import { Award } from "lucide-react";
 import { motion } from "motion/react";
-import type { Locale } from "@/i18n/config";
 
 type FocusAreasProps = {
   campusMetadata: CampusMetadata | null;

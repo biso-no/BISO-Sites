@@ -64,13 +64,18 @@ const CONFIG = {
 } as const;
 
 class AppwriteJobsError extends Error {
+  statusCode: number;
+  code: string;
+
   constructor(
     message: string,
-    public statusCode = 500,
-    public code = "INTERNAL_ERROR"
+    statusCode = 500,
+    code = "INTERNAL_ERROR"
   ) {
     super(message);
     this.name = "AppwriteJobsError";
+    this.statusCode = statusCode;
+    this.code = code;
   }
 }
 
@@ -98,7 +103,7 @@ function validateRequestBody(body: unknown): RequestBody {
     );
   }
 
-  let validatedPerPage = CONFIG.DEFAULT_PER_PAGE;
+  let validatedPerPage: number = CONFIG.DEFAULT_PER_PAGE;
   if (per_page !== undefined) {
     if (
       !Number.isInteger(per_page) ||
@@ -250,39 +255,90 @@ async function fetchCampusWithRetry(
   );
 }
 
+function buildJobsUrl(campus: Campus, params: RequestBody): URL {
+  const url = new URL(CONFIG.WORDPRESS_BASE_URL);
+  url.searchParams.append("campus", campus.name);
+  url.searchParams.append("per_page", params.per_page?.toString() || "10");
+  url.searchParams.append("page", params.page?.toString() || "1");
+  url.searchParams.append(
+    "includeExpired",
+    params.includeExpired ? "true" : "false"
+  );
+
+  if (params.departmentId) {
+    url.searchParams.append("departmentId", params.departmentId);
+  }
+
+  if (params.verv) {
+    url.searchParams.append("verv", params.verv);
+  }
+  return url;
+}
+
+async function parseJobsResponse(
+  response: Response,
+  log: (msg: string, ...args: unknown[]) => void,
+  params: RequestBody
+): Promise<WordPressJobsApiResponse> {
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (!contentType?.includes("application/json")) {
+    throw new Error("Response is not JSON");
+  }
+
+  const data = await response.json();
+
+  if (Array.isArray(data)) {
+    log(`Received ${data.length} jobs (old format)`);
+    return {
+      jobs: data,
+      pagination: {
+        current_page: params.page || 1,
+        per_page: params.per_page || 10,
+        total_jobs: data.length,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+    };
+  }
+
+  if (
+    data &&
+    typeof data === "object" &&
+    Array.isArray((data as any).jobs)
+  ) {
+    const typed = data as WordPressJobsApiResponse;
+    log(
+      `Received ${typed.jobs.length} jobs, ${
+        typed.pagination?.total_jobs || 0
+      } total`
+    );
+    return typed;
+  }
+
+  throw new Error("Invalid response format from WordPress API");
+}
+
 async function fetchJobsWithRetry(
   campus: Campus,
   params: RequestBody,
   log: (msg: string, ...args: unknown[]) => void,
   retries: number = CONFIG.MAX_RETRIES
 ): Promise<WordPressJobsApiResponse> {
+  const url = buildJobsUrl(campus, params);
+
   for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
     const controller = new AbortController();
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, CONFIG.TIMEOUT_MS);
 
     try {
-      const url = new URL(CONFIG.WORDPRESS_BASE_URL);
-      url.searchParams.append("campus", campus.name);
-      url.searchParams.append("per_page", params.per_page?.toString());
-      url.searchParams.append("page", params.page?.toString());
-      url.searchParams.append(
-        "includeExpired",
-        params.includeExpired ? "true" : "false"
-      );
-
-      if (params.departmentId) {
-        url.searchParams.append("departmentId", params.departmentId);
-      }
-
-      if (params.verv) {
-        url.searchParams.append("verv", params.verv);
-      }
-
       log(`Attempt ${attempt}: Fetching jobs from: ${url.toString()}`);
-
-      timeoutId = setTimeout(() => {
-        controller.abort();
-      }, CONFIG.TIMEOUT_MS);
 
       const response = await fetch(url.toString(), {
         signal: controller.signal,
@@ -292,55 +348,10 @@ async function fetchJobsWithRetry(
         },
       });
 
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const contentType = response.headers.get("content-type");
-      if (!contentType?.includes("application/json")) {
-        throw new Error("Response is not JSON");
-      }
-
-      const data = await response.json();
-
-      if (Array.isArray(data)) {
-        log(`Received ${data.length} jobs (old format)`);
-        return {
-          jobs: data,
-          pagination: {
-            current_page: params.page!,
-            per_page: params.per_page!,
-            total_jobs: data.length,
-            total_pages: 1,
-            has_next: false,
-            has_previous: false,
-          },
-        };
-      }
-
-      if (
-        data &&
-        typeof data === "object" &&
-        Array.isArray((data as any).jobs)
-      ) {
-        const typed = data as WordPressJobsApiResponse;
-        log(
-          `Received ${typed.jobs.length} jobs, ${
-            typed.pagination?.total_jobs || 0
-          } total`
-        );
-        return typed;
-      }
-
-      throw new Error("Invalid response format from WordPress API");
+      clearTimeout(timeoutId);
+      return await parseJobsResponse(response, log, params);
     } catch (err: any) {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
 
       if (attempt > retries) {
         if (err.name === "AbortError") {
@@ -378,15 +389,6 @@ function generateRequestId(): string {
 }
 
 export const runtime = "nodejs";
-
-type RequestBody = {
-  campusId: string;
-  per_page: number;
-  page: number;
-  includeExpired: boolean;
-  departmentId?: string;
-  verv?: string;
-};
 
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();

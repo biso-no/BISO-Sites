@@ -6,9 +6,9 @@ import type {
   ContentTranslations,
   DepartmentBoard,
 } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
-import type { Locale } from "@/i18n/config";
 import { CampusHero } from "./campus-hero";
 import { CampusTabs } from "./campus-tabs";
 import { DepartmentsGrid } from "./overview/departments-grid";
@@ -140,7 +140,7 @@ export function CampusPageClient({
       {/* Tabbed Content - Inside container */}
       <div className="mx-auto max-w-7xl px-4">
         <CampusTabs
-          children={{
+          content={{
             overview: (
               <div className="space-y-12 py-12">
                 <FocusAreas

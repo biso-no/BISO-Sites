@@ -49,7 +49,9 @@ export function AnalyticsTracker({ locale }: AnalyticsTrackerProps) {
           "Content-Type": "application/json",
         },
         keepalive: true,
-      }).catch(() => {});
+      }).catch(() => {
+        // Swallow errors to avoid blocking navigation when analytics fails
+      });
     };
 
     send();

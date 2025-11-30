@@ -39,6 +39,90 @@ const categoryColors: Record<EventCategory, string> = {
   Culture: "bg-pink-100 text-pink-700 border-pink-200",
 };
 
+type EventBadgesProps = {
+  category: EventCategory;
+  isCollection?: boolean;
+  memberOnly?: boolean;
+  hasMemberDiscount: boolean;
+  hasTicketUrl: boolean;
+};
+
+function EventBadges({
+  category,
+  isCollection,
+  memberOnly,
+  hasMemberDiscount,
+  hasTicketUrl,
+}: EventBadgesProps) {
+  return (
+    <div className="absolute top-4 left-4 flex flex-col gap-2">
+      <div className="flex gap-2">
+        <Badge
+          className={`${categoryColors[category] || categoryColors.Social}`}
+        >
+          {category}
+        </Badge>
+        {isCollection && (
+          <Badge className="flex items-center gap-1 border-0 bg-[#3DA9E0] text-white">
+            <Layers className="h-3 w-3" />
+            Collection
+          </Badge>
+        )}
+      </div>
+      {memberOnly && (
+        <Badge className="flex w-fit items-center gap-1 border-0 bg-orange-500 text-white">
+          <Users className="h-3 w-3" />
+          Members Only
+        </Badge>
+      )}
+      {!memberOnly && hasMemberDiscount && (
+        <Badge className="flex w-fit items-center gap-1 border-0 bg-green-500 text-white">
+          <Tag className="h-3 w-3" />
+          Member Discount
+        </Badge>
+      )}
+      {hasTicketUrl && (
+        <Badge className="flex w-fit items-center gap-1 border-0 bg-purple-500 text-white">
+          <ExternalLink className="h-3 w-3" />
+          Tickster
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+type PriceDisplayProps = {
+  price: string;
+  memberPrice: string | null;
+  isMember: boolean;
+};
+
+function PriceDisplay({ price, memberPrice, isMember }: PriceDisplayProps) {
+  if (memberPrice && !isMember) {
+    return (
+      <div>
+        <div className="font-medium text-gray-900">{price}</div>
+        <div className="mt-1 text-[#3DA9E0] text-sm">
+          Members: {memberPrice}
+        </div>
+      </div>
+    );
+  }
+
+  if (memberPrice && isMember) {
+    return (
+      <div>
+        <div className="text-gray-400 text-sm line-through">{price}</div>
+        <div className="font-medium text-[#3DA9E0]">
+          {memberPrice} <span className="text-sm">(Member Price)</span>
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="font-medium text-gray-900">{price}</div>;
+}
+
 export function EventCard({
   event,
   index,
@@ -98,39 +182,13 @@ export function EventCard({
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
 
-          <div className="absolute top-4 left-4 flex flex-col gap-2">
-            <div className="flex gap-2">
-              <Badge
-                className={`${categoryColors[category] || categoryColors.Social}`}
-              >
-                {category}
-              </Badge>
-              {eventData?.is_collection && (
-                <Badge className="flex items-center gap-1 border-0 bg-[#3DA9E0] text-white">
-                  <Layers className="h-3 w-3" />
-                  Collection
-                </Badge>
-              )}
-            </div>
-            {eventData?.member_only && (
-              <Badge className="flex w-fit items-center gap-1 border-0 bg-orange-500 text-white">
-                <Users className="h-3 w-3" />
-                Members Only
-              </Badge>
-            )}
-            {!eventData?.member_only && memberPrice && (
-              <Badge className="flex w-fit items-center gap-1 border-0 bg-green-500 text-white">
-                <Tag className="h-3 w-3" />
-                Member Discount
-              </Badge>
-            )}
-            {eventData?.ticket_url && (
-              <Badge className="flex w-fit items-center gap-1 border-0 bg-purple-500 text-white">
-                <ExternalLink className="h-3 w-3" />
-                Tickster
-              </Badge>
-            )}
-          </div>
+          <EventBadges
+            category={category}
+            hasMemberDiscount={Boolean(memberPrice)}
+            hasTicketUrl={Boolean(eventData?.ticket_url)}
+            isCollection={eventData?.is_collection}
+            memberOnly={eventData?.member_only}
+          />
 
           <div className="absolute right-4 bottom-4 rounded-full bg-white/90 px-3 py-1 backdrop-blur-sm">
             <span className="font-medium text-[#001731]">{price}</span>
@@ -187,26 +245,11 @@ export function EventCard({
 
             {/* Price */}
             <div className="mt-3 border-gray-200 border-t pt-3">
-              {memberPrice && !isMember ? (
-                <div>
-                  <div className="font-medium text-gray-900">{price}</div>
-                  <div className="mt-1 text-[#3DA9E0] text-sm">
-                    Members: {memberPrice}
-                  </div>
-                </div>
-              ) : memberPrice && isMember ? (
-                <div>
-                  <div className="text-gray-400 text-sm line-through">
-                    {price}
-                  </div>
-                  <div className="font-medium text-[#3DA9E0]">
-                    {memberPrice}{" "}
-                    <span className="text-sm">(Member Price)</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="font-medium text-gray-900">{price}</div>
-              )}
+              <PriceDisplay
+                isMember={isMember}
+                memberPrice={memberPrice}
+                price={price}
+              />
             </div>
           </div>
 

@@ -232,7 +232,7 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
 
   // Generate pagination items
   const getPaginationItems = () => {
-    const items = [];
+    const items: JSX.Element[] = [];
     const maxVisible = 5; // Max number of page links to show
 
     let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));

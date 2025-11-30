@@ -52,6 +52,56 @@ type CreateJobData = {
   };
 };
 
+const mapStatus = (status?: "draft" | "published" | "closed") => {
+  if (status === "draft") {
+    return Status.DRAFT;
+  }
+  if (status === "published") {
+    return Status.PUBLISHED;
+  }
+  if (status === "closed") {
+    return Status.CLOSED;
+  }
+};
+
+const serializeMetadata = (metadata?: CreateJobData["metadata"]) =>
+  metadata ? JSON.stringify(metadata) : null;
+
+function buildJobTranslationRefs(
+  translations: Partial<CreateJobData["translations"]> | undefined,
+  contentId: string
+) {
+  if (!translations) {
+    return [];
+  }
+
+  const translationRefs: ContentTranslations[] = [];
+
+  if (translations.en) {
+    translationRefs.push({
+      content_type: ContentType.JOB,
+      content_id: contentId,
+      locale: Locale.EN,
+      title: translations.en.title,
+      description: translations.en.description,
+      short_description: translations.en.short_description || null,
+    } as ContentTranslations);
+  }
+
+  if (translations.no) {
+    translationRefs.push({
+      content_type: ContentType.JOB,
+      content_id: contentId,
+      locale: Locale.NO,
+      title: translations.no.title,
+      description: translations.no.description,
+      short_description: translations.no.short_description || null,
+    } as ContentTranslations);
+  }
+
+  return translationRefs;
+}
+
 export async function listJobs(
   params: ListJobsParams = {}
 ): Promise<ContentTranslations[]> {
@@ -230,17 +280,12 @@ async function _createJob(
 
     const job = (await db.createRow("app", "jobs", "unique()", {
       slug: data.slug,
-      status:
-        data.status === "draft"
-          ? Status.DRAFT
-          : data.status === "published"
-            ? Status.PUBLISHED
-            : Status.CLOSED,
+      status: mapStatus(data.status) ?? Status.CLOSED,
       campus_id: data.campus_id,
       campus: data.campus_id,
       department_id: data.department_id ?? null,
       department: data.department_id ? data.department_id : null,
-      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      metadata: serializeMetadata(data.metadata),
       translations: [] as ContentTranslations[],
       translation_refs: translationRefs,
     })) as Jobs;
@@ -270,13 +315,9 @@ async function _updateJob(
     if (data.slug !== undefined) {
       updateData.slug = data.slug;
     }
-    if (data.status !== undefined) {
-      updateData.status =
-        data.status === "draft"
-          ? Status.DRAFT
-          : data.status === "published"
-            ? Status.PUBLISHED
-            : Status.CLOSED;
+    const mappedStatus = mapStatus(data.status);
+    if (mappedStatus !== undefined) {
+      updateData.status = mappedStatus;
     }
     if (data.campus_id !== undefined) {
       updateData.campus_id = data.campus_id;
@@ -285,40 +326,12 @@ async function _updateJob(
       updateData.department_id = data.department_id;
     }
     if (data.metadata !== undefined) {
-      updateData.metadata = data.metadata
-        ? JSON.stringify(data.metadata)
-        : null;
+      updateData.metadata = serializeMetadata(data.metadata);
     }
 
-    // Build translation_refs array from provided translations only
-    if (data.translations) {
-      const translationRefs: ContentTranslations[] = [];
-
-      if (data.translations.en) {
-        translationRefs.push({
-          content_type: ContentType.JOB,
-          content_id: id,
-          locale: Locale.EN,
-          title: data.translations.en.title,
-          description: data.translations.en.description,
-          short_description: data.translations.en.short_description || null,
-        } as ContentTranslations);
-      }
-
-      if (data.translations.no) {
-        translationRefs.push({
-          content_type: ContentType.JOB,
-          content_id: id,
-          locale: Locale.NO,
-          title: data.translations.no.title,
-          description: data.translations.no.description,
-          short_description: data.translations.no.short_description || null,
-        } as ContentTranslations);
-      }
-
-      if (translationRefs.length > 0) {
-        updateData.translation_refs = translationRefs;
-      }
+    const translationRefs = buildJobTranslationRefs(data.translations, id);
+    if (translationRefs.length > 0) {
+      updateData.translation_refs = translationRefs;
     }
 
     const job = (await db.updateRow("app", "jobs", id, updateData)) as Jobs;

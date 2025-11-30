@@ -10,7 +10,7 @@ import {
 } from "@repo/ui/components/ui/table";
 import { Edit, Eye, Plus } from "lucide-react";
 import Link from "next/link";
-import { listManagedPages } from "@/app/actions/pages";
+import { listManagedPages } from "@/app/actions/pages/actions";
 import { CreatePageDialog } from "./create-page-dialog";
 import { DeletePageButton } from "./delete-page-button";
 

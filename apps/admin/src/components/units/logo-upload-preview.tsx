@@ -79,6 +79,80 @@ export function LogoUploadPreview({
 
   const initials = departmentName.substring(0, 2).toUpperCase();
 
+  const renderPreview = () => {
+    if (isUploading) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-3">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">Uploading...</p>
+        </div>
+      );
+    }
+
+    if (logoUrl) {
+      return (
+        <>
+          <Image
+            alt={departmentName}
+            className="object-cover"
+            fill
+            src={logoUrl}
+          />
+          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 transition-all duration-300 group-hover:bg-black/60">
+            <Button
+              className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+              size="sm"
+              variant="secondary"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Change
+            </Button>
+            <Button
+              className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              disabled={isUploading}
+              onClick={handleClear}
+              size="sm"
+              variant="destructive"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/10">
+          <span className="font-bold text-3xl text-primary">{initials}</span>
+        </div>
+        <p className="text-muted-foreground text-sm">No logo uploaded</p>
+        <div className="flex gap-2">
+          <Button
+            className="bg-card/60 backdrop-blur-sm"
+            disabled={isUploading}
+            onClick={() => fileInputRef.current?.click()}
+            size="sm"
+            variant="outline"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Upload File
+          </Button>
+          <Button
+            disabled={isUploading}
+            onClick={() => setIsEditingUrl(true)}
+            size="sm"
+            variant="ghost"
+          >
+            Or use URL
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Card className="overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm">
       <CardHeader>
@@ -102,71 +176,7 @@ export function LogoUploadPreview({
 
         {/* Logo Preview */}
         <div className="group relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border-2 border-border/50 bg-linear-to-br from-primary/20 to-accent/20">
-          {isUploading ? (
-            <div className="flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-muted-foreground text-sm">Uploading...</p>
-            </div>
-          ) : logoUrl ? (
-            <>
-              <Image
-                alt={departmentName}
-                className="object-cover"
-                fill
-                src={logoUrl}
-              />
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 transition-all duration-300 group-hover:bg-black/60">
-                <Button
-                  className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  disabled={isUploading}
-                  onClick={() => fileInputRef.current?.click()}
-                  size="sm"
-                  variant="secondary"
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Change
-                </Button>
-                <Button
-                  className="opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  disabled={isUploading}
-                  onClick={handleClear}
-                  size="sm"
-                  variant="destructive"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/10">
-                <span className="font-bold text-3xl text-primary">
-                  {initials}
-                </span>
-              </div>
-              <p className="text-muted-foreground text-sm">No logo uploaded</p>
-              <div className="flex gap-2">
-                <Button
-                  className="bg-card/60 backdrop-blur-sm"
-                  disabled={isUploading}
-                  onClick={() => fileInputRef.current?.click()}
-                  size="sm"
-                  variant="outline"
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload File
-                </Button>
-                <Button
-                  disabled={isUploading}
-                  onClick={() => setIsEditingUrl(true)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  Or use URL
-                </Button>
-              </div>
-            </div>
-          )}
+          {renderPreview()}
         </div>
 
         {/* URL Input (alternative method) */}
@@ -179,7 +189,7 @@ export function LogoUploadPreview({
               <Input
                 className="h-9 bg-card/60 text-sm backdrop-blur-sm"
                 id="logo-url"
-                onChange={(e) => setUrlInput(e.target.value)}
+                onChange={(event) => setUrlInput(event.target.value)}
                 placeholder="https://example.com/logo.png"
                 type="url"
                 value={urlInput}

@@ -199,8 +199,8 @@ export function CommandMenu() {
     return groups;
   }, [commands]);
 
-  const onOpenChange = (open: boolean) => {
-    setOpen(open);
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
   };
 
   return (
@@ -223,7 +223,7 @@ export function CommandMenu() {
         </div>
       </button>
 
-      <CommandDialog onOpenChange={onOpenChange} open={open}>
+      <CommandDialog onOpenChange={handleOpenChange} open={open}>
         <DialogTitle>{t("commandMenuTitle")}</DialogTitle>
         <CommandInput placeholder={t("commandMenuSearchPlaceholder")} />
         <CommandList>

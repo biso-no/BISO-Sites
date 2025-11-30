@@ -9,8 +9,8 @@ import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { Check, Download, Share2, Smartphone, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { LockedContentOverlay } from "../shared/LockedContentOverlay";
-import { MembershipCard } from "../shared/MembershipCard";
+import { LockedContentOverlay } from "../shared/locked-content-overlay";
+import { MembershipCard } from "../shared/membership-card";
 
 type MembershipDuration = "semester" | "year" | "three-year";
 

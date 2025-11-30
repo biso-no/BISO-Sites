@@ -1,5 +1,6 @@
 "use client";
 
+import { type Locale, SUPPORTED_LOCALES } from "@repo/i18n/config";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -12,7 +13,6 @@ import { Check, ChevronDown, Globe } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { setLocale } from "@/app/actions/locale";
-import { type Locale, SUPPORTED_LOCALES } from "@/i18n/config";
 
 // Language configuration with display names and flag emojis
 const LANGUAGE_CONFIG = {

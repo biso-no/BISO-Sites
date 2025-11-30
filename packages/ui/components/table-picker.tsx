@@ -1,5 +1,6 @@
 "use client";
 
+import type { Models } from "@repo/api";
 import { useEffect, useState } from "react";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
@@ -10,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import type { Models } from "@repo/api";
 
 export type TablePickerProps = {
   value: {

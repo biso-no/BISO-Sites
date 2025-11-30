@@ -24,7 +24,7 @@ import {
   Info,
   XCircle,
 } from "lucide-react";
-import * as React from "react";
+import { type ComponentType, useState } from "react";
 import { useNotifications } from "./use-notifications";
 
 export type NotificationType = "success" | "error" | "warning" | "info";
@@ -45,7 +45,7 @@ export type Notification = {
 const typeConfig: Record<
   NotificationType,
   {
-    icon: React.ComponentType<{ className?: string }>;
+    icon: ComponentType<{ className?: string }>;
     color: string;
     bgColor: string;
   }
@@ -80,7 +80,7 @@ export function NotificationsDropdown() {
     markAllAsRead,
     deleteNotification,
   } = useNotifications();
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
 
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {

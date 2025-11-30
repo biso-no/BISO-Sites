@@ -41,10 +41,12 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
             <div className="mb-6 flex items-center gap-4">
               {dept.logo && (
                 <div className="h-20 w-20 rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
-                  <img
+                  <ImageWithFallback
                     alt={department.title}
                     className="h-full w-full object-contain"
+                    height={80}
                     src={dept.logo}
+                    width={80}
                   />
                 </div>
               )}

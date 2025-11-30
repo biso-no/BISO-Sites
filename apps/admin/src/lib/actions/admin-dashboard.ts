@@ -101,6 +101,11 @@ type ParsedOrderItem = {
 
 export type DateRangeFilter = "7d" | "30d" | "90d" | "all";
 
+const VIP_ROLE_REGEX = /admin|board|vip|control/i;
+const ORGANIC_SEARCH_REGEX = /google|bing|yahoo|duckduckgo/;
+const SOCIAL_MEDIA_REGEX =
+  /facebook|instagram|linkedin|twitter|tiktok|snapchat/;
+
 /**
  * Get date cutoff for filtering based on date range
  */
@@ -109,7 +114,15 @@ function getDateCutoff(dateRange: DateRangeFilter): Date | null {
     return null;
   }
 
-  const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
+  const days = (() => {
+    if (dateRange === "7d") {
+      return 7;
+    }
+    if (dateRange === "30d") {
+      return 30;
+    }
+    return 90;
+  })();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   return cutoff;
@@ -444,7 +457,7 @@ function buildUserDistribution(users: Users[]): UserDistributionMetric[] {
   for (const user of users) {
     const created = new Date(user.$createdAt).getTime();
     const roles = user.roles || [];
-    const isVip = roles.some((role) => /admin|board|vip|control/i.test(role));
+    const isVip = roles.some((role) => VIP_ROLE_REGEX.test(role));
     if (isVip) {
       counts.vip += 1;
       continue;
@@ -634,12 +647,15 @@ function buildJobApplicationMetrics(
   return Array.from(counts.entries())
     .map(([jobId, total]) => {
       const metadata = jobMetadataMap.get(jobId);
-      const openPositions =
-        metadata?.openPositions && metadata.openPositions > 0
-          ? metadata.openPositions
-          : metadata?.status === "published"
-            ? 1
-            : 0;
+      const openPositions = (() => {
+        if (metadata?.openPositions && metadata.openPositions > 0) {
+          return metadata.openPositions;
+        }
+        if (metadata?.status === "published") {
+          return 1;
+        }
+        return 0;
+      })();
       return {
         position: jobTitleMap.get(jobId) || `Job ${jobId.slice(-4)}`,
         applications: total,
@@ -816,10 +832,10 @@ function resolveTrafficSource(referrer?: string | null): string {
     if (host.includes("biso")) {
       return "Direct";
     }
-    if (/google|bing|yahoo|duckduckgo/.test(host)) {
+    if (ORGANIC_SEARCH_REGEX.test(host)) {
       return "Organic Search";
     }
-    if (/facebook|instagram|linkedin|twitter|tiktok|snapchat/.test(host)) {
+    if (SOCIAL_MEDIA_REGEX.test(host)) {
       return "Social Media";
     }
     if (

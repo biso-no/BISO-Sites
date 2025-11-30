@@ -99,46 +99,52 @@ const sortAndAttachChildren = (items: NavMenuAdminItem[], locale: Locale) => {
   }
 };
 
-const buildNavTree = (
+const normalizeTranslations = (
+  translationEntry: Record<Locale, string> | undefined
+) => {
+  const normalized = { ...(translationEntry ?? {}) } as Record<Locale, string>;
+  for (const supportedLocale of SUPPORTED_LOCALES) {
+    if (!normalized[supportedLocale]) {
+      normalized[supportedLocale] = "";
+    }
+  }
+  return normalized;
+};
+
+const createNavNode = (
+  doc: NavMenuDocument,
+  translationMap: Map<string, Record<Locale, string>>
+): NavMenuAdminItem => {
+  const translationEntry = translationMap.get(doc.$id);
+  const translations = normalizeTranslations(translationEntry);
+
+  return {
+    id: doc.$id,
+    slug: doc.slug,
+    parentId: doc.parent_id ?? null,
+    order: normalizeOrderValue(doc.order),
+    path: doc.path ?? null,
+    url: doc.url ?? null,
+    isExternal: Boolean(doc.is_external) || Boolean(doc.url && !doc.path),
+    translations,
+    children: [],
+  };
+};
+
+const buildNodeMap = (
   documents: NavMenuDocument[],
-  translations: NavMenuTranslationDocument[],
-  locale: Locale
-): NavMenuAdminTree => {
-  const translationMap = buildTranslationMap(translations);
+  translationMap: Map<string, Record<Locale, string>>
+) => {
   const nodeMap = new Map<string, NavMenuAdminItem>();
 
   for (const doc of documents) {
-    const translationEntry = translationMap.get(doc.$id) ?? {};
-    const normalizedTranslations = { ...translationEntry } as Record<
-      Locale,
-      string
-    >;
-    for (const supportedLocale of SUPPORTED_LOCALES) {
-      if (!normalizedTranslations[supportedLocale]) {
-        normalizedTranslations[supportedLocale] = "";
-      }
-    }
-
-    const _fallbackTitle =
-      normalizedTranslations[locale] ||
-      normalizedTranslations[DEFAULT_LOCALE] ||
-      normalizedTranslations.en ||
-      normalizedTranslations.no ||
-      doc.slug;
-
-    nodeMap.set(doc.$id, {
-      id: doc.$id,
-      slug: doc.slug,
-      parentId: doc.parent_id ?? null,
-      order: normalizeOrderValue(doc.order),
-      path: doc.path ?? null,
-      url: doc.url ?? null,
-      isExternal: Boolean(doc.is_external) || Boolean(doc.url && !doc.path),
-      translations: normalizedTranslations,
-      children: [],
-    });
+    nodeMap.set(doc.$id, createNavNode(doc, translationMap));
   }
 
+  return nodeMap;
+};
+
+const attachParents = (nodeMap: Map<string, NavMenuAdminItem>) => {
   const roots: NavMenuAdminItem[] = [];
 
   for (const node of nodeMap.values()) {
@@ -149,8 +155,10 @@ const buildNavTree = (
     }
   }
 
-  sortAndAttachChildren(roots, locale);
+  return roots;
+};
 
+const flattenNavTree = (roots: NavMenuAdminItem[]) => {
   const flat: NavMenuAdminItem[] = [];
   const stack = [...roots];
 
@@ -161,6 +169,22 @@ const buildNavTree = (
       stack.unshift(...current.children);
     }
   }
+
+  return flat;
+};
+
+const buildNavTree = (
+  documents: NavMenuDocument[],
+  translations: NavMenuTranslationDocument[],
+  locale: Locale
+): NavMenuAdminTree => {
+  const translationMap = buildTranslationMap(translations);
+  const nodeMap = buildNodeMap(documents, translationMap);
+  const roots = attachParents(nodeMap);
+
+  sortAndAttachChildren(roots, locale);
+
+  const flat = flattenNavTree(roots);
 
   return { tree: roots, flat };
 };

@@ -10,11 +10,72 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { AlertCircle, ChevronRight, Edit, Save } from "lucide-react";
 import { useState } from "react";
 
+const IBAN_REGEX = /^[A-Z]{2}/;
+
 type ProfileStepProps = {
   profile: Partial<Users>;
   onNext: (profile: Partial<Users>) => void;
   onUpdateProfile?: (profile: Partial<Users>) => Promise<void>;
 };
+
+type EditableFieldProps = {
+  label: string;
+  value?: string | null;
+  placeholder?: string;
+  required?: boolean;
+  helperText?: string;
+  inputType?: string;
+  showInput: boolean;
+  onChange: (value: string) => void;
+  className?: string;
+};
+
+type ReadonlyFieldProps = {
+  label: string;
+  value?: string | null;
+  helperText?: string;
+};
+
+const ReadonlyField = ({ label, value, helperText }: ReadonlyFieldProps) => (
+  <div>
+    <Label>{label}</Label>
+    <Input className="bg-gray-50" disabled value={value || ""} />
+    {helperText ? (
+      <p className="mt-1 text-gray-500 text-xs">{helperText}</p>
+    ) : null}
+  </div>
+);
+
+const EditableField = ({
+  label,
+  value,
+  placeholder,
+  required,
+  helperText,
+  inputType = "text",
+  showInput,
+  onChange,
+  className,
+}: EditableFieldProps) => (
+  <div className={className}>
+    <Label>
+      {label} {required ? "*" : ""}
+    </Label>
+    {showInput ? (
+      <Input
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        type={inputType}
+        value={value || ""}
+      />
+    ) : (
+      <div className="rounded-md bg-gray-50 p-3 text-gray-700">{value}</div>
+    )}
+    {helperText ? (
+      <p className="mt-1 text-gray-500 text-xs">{helperText}</p>
+    ) : null}
+  </div>
+);
 
 export function ProfileStep({
   profile: initialProfile,
@@ -26,7 +87,7 @@ export function ProfileStep({
   const [isSaving, setIsSaving] = useState(false);
 
   const isIBAN = (account: string) =>
-    /^[A-Z]{2}/.test(account?.replace(/\s/g, "") || "");
+    IBAN_REGEX.test(account?.replace(/\s/g, "") || "");
 
   const canProceed =
     profile.name &&
@@ -35,6 +96,9 @@ export function ProfileStep({
     profile.zip &&
     profile.city &&
     profile.bank_account;
+
+  const showInputs = editing || !canProceed;
+  const accountIsIBAN = isIBAN(profile.bank_account || "");
 
   const handleSave = async () => {
     if (onUpdateProfile) {
@@ -79,89 +143,49 @@ export function ProfileStep({
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <Label>Full Name</Label>
-            <Input className="bg-gray-50" disabled value={profile.name || ""} />
-            <p className="mt-1 text-gray-500 text-xs">Cannot be edited</p>
-          </div>
-
-          <div>
-            <Label>Email</Label>
-            <Input
-              className="bg-gray-50"
-              disabled
-              value={profile.email || ""}
-            />
-            <p className="mt-1 text-gray-500 text-xs">Cannot be edited</p>
-          </div>
-
-          <div>
-            <Label>Phone Number *</Label>
-            {editing || !canProceed ? (
-              <Input
-                onChange={(e) =>
-                  setProfile({ ...profile, phone: e.target.value })
-                }
-                placeholder="+47 123 45 678"
-                value={profile.phone || ""}
-              />
-            ) : (
-              <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                {profile.phone}
-              </div>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <Label>Address *</Label>
-            {editing || !canProceed ? (
-              <Input
-                onChange={(e) =>
-                  setProfile({ ...profile, address: e.target.value })
-                }
-                placeholder="Street name and number"
-                value={profile.address || ""}
-              />
-            ) : (
-              <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                {profile.address}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <Label>Postal Code *</Label>
-            {editing || !canProceed ? (
-              <Input
-                onChange={(e) =>
-                  setProfile({ ...profile, zip: e.target.value })
-                }
-                placeholder="0123"
-                value={profile.zip || ""}
-              />
-            ) : (
-              <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                {profile.zip}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <Label>City *</Label>
-            {editing || !canProceed ? (
-              <Input
-                onChange={(e) =>
-                  setProfile({ ...profile, city: e.target.value })
-                }
-                placeholder="Oslo"
-                value={profile.city || ""}
-              />
-            ) : (
-              <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                {profile.city}
-              </div>
-            )}
-          </div>
+          <ReadonlyField
+            helperText="Cannot be edited"
+            label="Full Name"
+            value={profile.name}
+          />
+          <ReadonlyField
+            helperText="Cannot be edited"
+            label="Email"
+            value={profile.email}
+          />
+          <EditableField
+            label="Phone Number"
+            onChange={(value) => setProfile({ ...profile, phone: value })}
+            placeholder="+47 123 45 678"
+            required
+            showInput={showInputs}
+            value={profile.phone}
+          />
+          <EditableField
+            className="md:col-span-2"
+            label="Address"
+            onChange={(value) => setProfile({ ...profile, address: value })}
+            placeholder="Street name and number"
+            required
+            showInput={showInputs}
+            value={profile.address}
+          />
+          <EditableField
+            label="Postal Code"
+            onChange={(value) => setProfile({ ...profile, zip: value })}
+            placeholder="0123"
+            required
+            showInput={showInputs}
+            value={profile.zip}
+          />
+          <EditableField
+            label="City"
+            onChange={(value) => setProfile({ ...profile, city: value })}
+            placeholder="Oslo"
+            required
+            showInput={showInputs}
+            value={profile.city}
+          />
         </div>
       </div>
 
@@ -174,53 +198,30 @@ export function ProfileStep({
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <div
-            className={
-              isIBAN(profile.bank_account || "")
-                ? "md:col-span-1"
-                : "md:col-span-2"
+          <EditableField
+            className={accountIsIBAN ? "md:col-span-1" : "md:col-span-2"}
+            helperText="Norwegian account number or IBAN"
+            label="Bank Account / IBAN"
+            onChange={(value) =>
+              setProfile({ ...profile, bank_account: value })
             }
-          >
-            <Label>Bank Account / IBAN *</Label>
-            {editing || !canProceed ? (
-              <Input
-                onChange={(e) =>
-                  setProfile({ ...profile, bank_account: e.target.value })
-                }
-                placeholder="1234 56 78901 or NO93 8601 1117 947"
-                value={profile.bank_account || ""}
-              />
-            ) : (
-              <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                {profile.bank_account}
-              </div>
-            )}
-            <p className="mt-1 text-gray-500 text-xs">
-              Norwegian account number or IBAN
-            </p>
-          </div>
+            placeholder="1234 56 78901 or NO93 8601 1117 947"
+            required
+            showInput={showInputs}
+            value={profile.bank_account}
+          />
 
-          {isIBAN(profile.bank_account || "") && (
-            <div>
-              <Label>SWIFT/BIC *</Label>
-              {editing || !canProceed ? (
-                <Input
-                  onChange={(e) =>
-                    setProfile({ ...profile, swift: e.target.value })
-                  }
-                  placeholder="DABANO22"
-                  value={profile.swift || ""}
-                />
-              ) : (
-                <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                  {profile.swift}
-                </div>
-              )}
-              <p className="mt-1 text-gray-500 text-xs">
-                Required for IBAN accounts
-              </p>
-            </div>
-          )}
+          {accountIsIBAN ? (
+            <EditableField
+              helperText="Required for IBAN accounts"
+              label="SWIFT/BIC"
+              onChange={(value) => setProfile({ ...profile, swift: value })}
+              placeholder="DABANO22"
+              required
+              showInput={showInputs}
+              value={profile.swift}
+            />
+          ) : null}
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 import { Button } from "@repo/ui/components/ui/button";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 
 export default function AboutAlumniPage() {
   const t = useTranslations("about.pages.alumni");

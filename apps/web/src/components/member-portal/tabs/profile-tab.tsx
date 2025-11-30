@@ -17,7 +17,7 @@ import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { Check, Eye, EyeOff, Facebook, Linkedin, Twitter } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
-import { updatePublicProfile, uploadAvatar } from "@/app/actions/memberPortal";
+import { updatePublicProfile, uploadAvatar } from "@/app/actions/member-portal";
 
 type ProfileTabProps = {
   user: Users;
@@ -30,7 +30,6 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState({
     name: user.name || "",
-    bio: publicProfile?.bio || user.bio || "",
     isPublic: publicProfile?.email_visible || publicProfile?.phone_visible,
     emailVisible: publicProfile?.email_visible,
     phoneVisible: publicProfile?.phone_visible,
@@ -42,17 +41,17 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
     .join("")
     .toUpperCase();
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("avatar", file);
+    const avatarData = new FormData();
+    avatarData.append("avatar", file);
 
     startTransition(async () => {
-      const result = await uploadAvatar(formData);
+      const result = await uploadAvatar(avatarData);
       if (result.success) {
         // Update user profile with new avatar URL
         await updatePublicProfile({ avatar: result.url });
@@ -65,7 +64,6 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
     startTransition(async () => {
       await updatePublicProfile({
         name: formData.name,
-        bio: formData.bio,
         email_visible: formData.emailVisible,
         phone_visible: formData.phoneVisible,
       });
@@ -141,16 +139,6 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
             <Label>{t("studentId")}</Label>
             <Input className="mt-2" disabled value={user.student_id || ""} />
           </div>
-        </div>
-
-        <div className="mb-6">
-          <Label>{t("bio")}</Label>
-          <Input
-            className="mt-2"
-            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-            placeholder={t("bioPlaceholder")}
-            value={formData.bio}
-          />
         </div>
 
         <div className="mb-6 flex items-center justify-between rounded-lg bg-gray-50 p-4 dark:bg-gray-800">

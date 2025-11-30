@@ -3,6 +3,7 @@ import { Account, Client, Databases, Functions, Storage } from "appwrite";
 // Re-export types (type-only) used by client code
 export type { Models, Payload, RealtimeResponseEvent } from "appwrite";
 // Re-export runtime classes and helpers so apps can import from '@repo/api/client'
+// biome-ignore lint/performance/noBarrelFile: false positive
 export {
   Account,
   Client,

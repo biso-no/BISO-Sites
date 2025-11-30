@@ -241,8 +241,8 @@ export default async function ExpenseViewPage({ params }: ExpenseDetailsProps) {
           <div className="mx-auto max-w-4xl px-4 text-center">
             <Link href="/fs">
               <button
-                type="button"
                 className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-[#3DA9E0]"
+                type="button"
               >
                 <ArrowLeft className="h-5 w-5" />
                 Back to Reimbursements

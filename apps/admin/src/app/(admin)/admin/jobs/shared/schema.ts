@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const formSchema = z.object({
   slug: z.string().min(1),
-  status: z.enum(["draft", "published", "closed"]).default("draft"),
+  status: z.enum(["draft", "published", "closed"]),
   campus_id: z.string().min(1),
   department_id: z.string().optional(),
   type: z.string().optional(),

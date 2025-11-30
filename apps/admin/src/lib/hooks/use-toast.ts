@@ -5,7 +5,7 @@ import type {
   ToastProps,
 } from "@repo/ui/components/ui/toast";
 // Inspired by react-hot-toast library
-import * as React from "react";
+import { useEffect, useState } from "react";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1_000_000;
@@ -125,6 +125,8 @@ export const reducer = (state: State, action: Action): State => {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       };
+    default:
+      return state;
   }
 };
 
@@ -144,10 +146,10 @@ type Toast = Omit<ToasterToast, "id">;
 function toast({ ...props }: Toast) {
   const id = genId();
 
-  const update = (props: ToasterToast) =>
+  const updateToast = (toastProps: ToasterToast) =>
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...toastProps, id },
     });
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
 
@@ -168,14 +170,14 @@ function toast({ ...props }: Toast) {
   return {
     id,
     dismiss,
-    update,
+    update: updateToast,
   };
 }
 
 function useToast() {
-  const [state, setState] = React.useState<State>(memoryState);
+  const [state, setState] = useState<State>(memoryState);
 
-  React.useEffect(() => {
+  useEffect(() => {
     listeners.push(setState);
     return () => {
       const index = listeners.indexOf(setState);

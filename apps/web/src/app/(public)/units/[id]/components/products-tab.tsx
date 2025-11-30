@@ -15,6 +15,145 @@ type ProductsTabProps = {
   isMember: boolean;
 };
 
+const StockBadge = ({ stock }: { stock?: number | null }) => {
+  if (stock === null || stock === undefined) {
+    return null;
+  }
+  if (stock === 0) {
+    return (
+      <Badge className="absolute right-4 bottom-4 border-0 bg-red-500 text-white">
+        Sold Out
+      </Badge>
+    );
+  }
+  if (stock < 20) {
+    return (
+      <Badge className="absolute right-4 bottom-4 border-0 bg-orange-500 text-white">
+        Only {stock} left!
+      </Badge>
+    );
+  }
+  return null;
+};
+
+const ProductPrice = ({
+  productRef,
+  isMember,
+}: {
+  productRef: ContentTranslations["product_ref"];
+  isMember: boolean;
+}) => {
+  if (!productRef) {
+    return null;
+  }
+  if (productRef.member_price && isMember) {
+    return (
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-foreground text-xl">
+            {productRef.member_price} NOK
+          </span>
+          <Badge
+            className="border-green-200 bg-green-50 text-green-700 text-xs dark:border-green-800 dark:bg-green-950 dark:text-green-400"
+            variant="outline"
+          >
+            Member
+          </Badge>
+        </div>
+        <span className="text-muted-foreground text-sm line-through">
+          {productRef.regular_price} NOK
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <span className="font-bold text-foreground text-xl">
+        {productRef.regular_price || 0} NOK
+      </span>
+      {productRef.member_price && !isMember && (
+        <div className="mt-1 text-muted-foreground text-xs">
+          {productRef.member_price} NOK for members
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ProductCard = ({
+  product,
+  isMember,
+  index,
+}: {
+  product: ContentTranslations;
+  isMember: boolean;
+  index: number;
+}) => {
+  const productRef = product.product_ref;
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 20 }}
+      key={product.$id}
+      transition={{ delay: index * 0.1 }}
+    >
+      <Link href={`/shop/${productRef?.slug || product.content_id}`}>
+        <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
+          <div className="relative h-64 overflow-hidden bg-muted">
+            {productRef?.image && (
+              <ImageWithFallback
+                alt={product.title || "Product"}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                fill
+                src={productRef.image}
+              />
+            )}
+            {productRef?.member_only && (
+              <Badge className="absolute top-4 left-4 border-0 bg-[#001731] text-white">
+                Members Only
+              </Badge>
+            )}
+            {productRef?.category && (
+              <Badge className="absolute top-4 right-4 border-0 bg-[#3DA9E0] text-white">
+                <Tag className="mr-1 h-3 w-3" />
+                {productRef.category}
+              </Badge>
+            )}
+            <StockBadge stock={productRef?.stock} />
+          </div>
+
+          <div className="p-6">
+            <h3 className="mb-2 font-semibold text-foreground text-xl transition-colors group-hover:text-[#3DA9E0]">
+              {product.title || "Untitled Product"}
+            </h3>
+            <p className="mb-4 line-clamp-2 text-muted-foreground text-sm">
+              {product.short_description || product.description || ""}
+            </p>
+
+            <Separator className="my-4" />
+
+            <div className="flex items-center justify-between">
+              <ProductPrice isMember={isMember} productRef={productRef} />
+              <Button
+                className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={productRef?.stock === 0}
+                size="sm"
+              >
+                {productRef?.stock === 0 ? "Sold Out" : "View"}
+                {productRef?.stock !== 0 && (
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </Link>
+    </motion.div>
+  );
+};
+
 export function ProductsTab({ products, isMember }: ProductsTabProps) {
   return (
     <div className="space-y-8">
@@ -33,117 +172,14 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
 
       {products.length > 0 ? (
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {products.map((product, index) => {
-            const productRef = product.product_ref;
-
-            return (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
-                initial={{ opacity: 0, y: 20 }}
-                key={product.$id}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Link href={`/shop/${productRef?.slug || product.content_id}`}>
-                  <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
-                    <div className="relative h-64 overflow-hidden bg-muted">
-                      {productRef?.image && (
-                        <ImageWithFallback
-                          alt={product.title || "Product"}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                          fill
-                          src={productRef.image}
-                        />
-                      )}
-                      {productRef?.member_only && (
-                        <Badge className="absolute top-4 left-4 border-0 bg-[#001731] text-white">
-                          Members Only
-                        </Badge>
-                      )}
-                      {productRef?.category && (
-                        <Badge className="absolute top-4 right-4 border-0 bg-[#3DA9E0] text-white">
-                          <Tag className="mr-1 h-3 w-3" />
-                          {productRef.category}
-                        </Badge>
-                      )}
-
-                      {productRef?.stock !== null &&
-                        productRef?.stock !== undefined &&
-                        productRef.stock < 20 &&
-                        productRef.stock > 0 && (
-                          <Badge className="absolute right-4 bottom-4 border-0 bg-orange-500 text-white">
-                            Only {productRef.stock} left!
-                          </Badge>
-                        )}
-
-                      {productRef?.stock !== null &&
-                        productRef?.stock !== undefined &&
-                        productRef.stock === 0 && (
-                          <Badge className="absolute right-4 bottom-4 border-0 bg-red-500 text-white">
-                            Sold Out
-                          </Badge>
-                        )}
-                    </div>
-
-                    <div className="p-6">
-                      <h3 className="mb-2 font-semibold text-foreground text-xl transition-colors group-hover:text-[#3DA9E0]">
-                        {product.title || "Untitled Product"}
-                      </h3>
-                      <p className="mb-4 line-clamp-2 text-muted-foreground text-sm">
-                        {product.short_description || product.description || ""}
-                      </p>
-
-                      <Separator className="my-4" />
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          {productRef?.member_price && isMember ? (
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-foreground text-xl">
-                                  {productRef.member_price} NOK
-                                </span>
-                                <Badge
-                                  className="border-green-200 bg-green-50 text-green-700 text-xs dark:border-green-800 dark:bg-green-950 dark:text-green-400"
-                                  variant="outline"
-                                >
-                                  Member
-                                </Badge>
-                              </div>
-                              <span className="text-muted-foreground text-sm line-through">
-                                {productRef.regular_price} NOK
-                              </span>
-                            </div>
-                          ) : (
-                            <div>
-                              <span className="font-bold text-foreground text-xl">
-                                {productRef?.regular_price || 0} NOK
-                              </span>
-                              {productRef?.member_price && !isMember && (
-                                <div className="mt-1 text-muted-foreground text-xs">
-                                  {productRef.member_price} NOK for members
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <Button
-                          className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90 disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={productRef?.stock === 0}
-                          size="sm"
-                        >
-                          {productRef?.stock === 0 ? "Sold Out" : "View"}
-                          {productRef?.stock !== 0 && (
-                            <ChevronRight className="ml-1 h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                </Link>
-              </motion.div>
-            );
-          })}
+          {products.map((product, index) => (
+            <ProductCard
+              index={index}
+              isMember={isMember}
+              key={product.$id}
+              product={product}
+            />
+          ))}
         </div>
       ) : (
         <Card className="border-0 p-12 text-center shadow-lg">

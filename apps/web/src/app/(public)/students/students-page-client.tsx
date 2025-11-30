@@ -4,6 +4,7 @@ import type {
   ContentTranslations,
   Departments,
 } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -19,7 +20,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
-import type { Locale } from "@/i18n/config";
 import type { CampusData } from "@/lib/types/campus-data";
 
 type BenefitKey =
@@ -37,6 +37,14 @@ type StudentsPageClientProps = {
   globalBenefits: CampusData | null;
   locale: Locale;
 };
+
+const stripHtml = (value?: string | null) =>
+  value
+    ? value
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+    : "";
 
 const benefitKeys: BenefitKey[] = [
   "studentBenefits",
@@ -69,11 +77,12 @@ const selectBenefitItems = (
   const localizedKey = `${key}${suffix}` as keyof CampusData;
   const localized = data[localizedKey];
   const fallback = data[key];
-  const list = Array.isArray(localized)
-    ? localized
-    : Array.isArray(fallback)
-      ? fallback
-      : [];
+  let list: unknown[] = [];
+  if (Array.isArray(localized)) {
+    list = localized;
+  } else if (Array.isArray(fallback)) {
+    list = fallback;
+  }
   return list.map((item) => (item ? String(item).trim() : "")).filter(Boolean);
 };
 
@@ -361,10 +370,9 @@ export const StudentsPageClient = ({
                 <CardTitle className="text-lg text-primary-100">
                   {event.title}
                 </CardTitle>
-                <p
-                  className="line-clamp-3 text-muted-foreground text-sm"
-                  dangerouslySetInnerHTML={{ __html: event.description || "" }}
-                />
+                <p className="line-clamp-3 text-muted-foreground text-sm">
+                  {stripHtml(event.description)}
+                </p>
               </CardHeader>
               <CardContent className="flex justify-between text-muted-foreground text-xs">
                 <span>
@@ -421,10 +429,7 @@ export const StudentsPageClient = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-muted-foreground text-sm">
-                <p
-                  className="line-clamp-3"
-                  dangerouslySetInnerHTML={{ __html: job.description || "" }}
-                />
+                <p className="line-clamp-3">{stripHtml(job.description)}</p>
                 <div className="flex items-center justify-between text-xs">
                   <span>
                     {job.job_ref?.campus?.name || job.job_ref?.campus_id}

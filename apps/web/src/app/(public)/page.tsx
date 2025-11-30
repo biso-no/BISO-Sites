@@ -11,7 +11,7 @@ import {
   NewsSkeleton,
 } from "@/components/home/skeletons";
 
-export default async function HomePage() {
+export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       <Suspense fallback={<HeroSkeleton />}>

@@ -56,6 +56,57 @@ export type CreateJobData = {
   };
 };
 
+const JOB_STATUS_MAP: Record<CreateJobData["status"], Status> = {
+  draft: Status.DRAFT,
+  published: Status.PUBLISHED,
+  closed: Status.CLOSED,
+};
+
+const mapJobStatus = (status: CreateJobData["status"]): Status =>
+  JOB_STATUS_MAP[status] ?? Status.CLOSED;
+
+const JOB_UPDATE_FIELDS: (keyof CreateJobData)[] = [
+  "slug",
+  "campus_id",
+  "department_id",
+  "metadata",
+];
+
+const collectJobUpdateData = (data: Partial<CreateJobData>) => {
+  const updateData: Record<string, unknown> = {};
+
+  for (const field of JOB_UPDATE_FIELDS) {
+    const value = data[field];
+    if (value !== undefined) {
+      updateData[field] = field === "metadata" ? (value ?? null) : value;
+    }
+  }
+
+  if (data.status !== undefined) {
+    updateData.status = mapJobStatus(data.status);
+  }
+
+  return updateData;
+};
+
+const buildJobTranslations = (
+  contentId: string,
+  translations: CreateJobData["translations"]
+) =>
+  [
+    { locale: Locale.EN, data: translations.en },
+    { locale: Locale.NO, data: translations.no },
+  ]
+    .filter(({ data }) => Boolean(data))
+    .map(({ locale, data }) => ({
+      content_type: ContentType.JOB,
+      content_id: contentId,
+      locale,
+      title: data?.title ?? "",
+      description: data?.description ?? "",
+      short_description: data?.short_description || null,
+    })) as ContentTranslations[];
+
 export async function listJobs(
   params: ListJobsParams = {}
 ): Promise<AdminJob[]> {
@@ -141,37 +192,10 @@ export async function createJob(
 ): Promise<Jobs | null> {
   try {
     const { db } = await createSessionClient();
-    const statusValue =
-      data.status === "draft"
-        ? Status.DRAFT
-        : data.status === "published"
-          ? Status.PUBLISHED
-          : Status.CLOSED;
+    const statusValue = mapJobStatus(data.status);
 
     // Build translation_refs array from provided translations only
-    const translationRefs: ContentTranslations[] = [];
-
-    if (data.translations.en) {
-      translationRefs.push({
-        content_type: ContentType.JOB,
-        content_id: "unique()",
-        locale: Locale.EN,
-        title: data.translations.en.title,
-        description: data.translations.en.description,
-        short_description: data.translations.en.short_description || null,
-      } as ContentTranslations);
-    }
-
-    if (data.translations.no) {
-      translationRefs.push({
-        content_type: ContentType.JOB,
-        content_id: "unique()",
-        locale: Locale.NO,
-        title: data.translations.no.title,
-        description: data.translations.no.description,
-        short_description: data.translations.no.short_description || null,
-      } as ContentTranslations);
-    }
+    const translationRefs = buildJobTranslations("unique()", data.translations);
 
     const job = (await db.createRow("app", "jobs", "unique()", {
       slug: data.slug,
@@ -206,56 +230,10 @@ export async function updateJob(
   try {
     const { db } = await createSessionClient();
 
-    // Build update object
-    const updateData: Record<string, unknown> = {};
+    const updateData = collectJobUpdateData(data);
 
-    if (data.slug !== undefined) {
-      updateData.slug = data.slug;
-    }
-    if (data.status !== undefined) {
-      updateData.status =
-        data.status === "draft"
-          ? Status.DRAFT
-          : data.status === "published"
-            ? Status.PUBLISHED
-            : Status.CLOSED;
-    }
-    if (data.campus_id !== undefined) {
-      updateData.campus_id = data.campus_id;
-    }
-    if (data.department_id !== undefined) {
-      updateData.department_id = data.department_id;
-    }
-    if (data.metadata !== undefined) {
-      updateData.metadata = data.metadata ?? null;
-    }
-
-    // Build translation_refs array from provided translations only
     if (data.translations) {
-      const translationRefs: ContentTranslations[] = [];
-
-      if (data.translations.en) {
-        translationRefs.push({
-          content_type: ContentType.JOB,
-          content_id: id,
-          locale: Locale.EN,
-          title: data.translations.en.title,
-          description: data.translations.en.description,
-          short_description: data.translations.en.short_description || null,
-        } as ContentTranslations);
-      }
-
-      if (data.translations.no) {
-        translationRefs.push({
-          content_type: ContentType.JOB,
-          content_id: id,
-          locale: Locale.NO,
-          title: data.translations.no.title,
-          description: data.translations.no.description,
-          short_description: data.translations.no.short_description || null,
-        } as ContentTranslations);
-      }
-
+      const translationRefs = buildJobTranslations(id, data.translations);
       if (translationRefs.length > 0) {
         updateData.translation_refs = translationRefs;
       }

@@ -1,10 +1,10 @@
 import type { CampusData } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Briefcase, CheckCircle, ExternalLink, Globe } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import type { Locale } from "@/i18n/config";
 
 type PartnersTabProps = {
   campusData: CampusData | null;
@@ -12,28 +12,62 @@ type PartnersTabProps = {
   locale: Locale;
 };
 
+const partnerCopy = {
+  en: {
+    heading: "Partner With Us",
+    lead: (campusName?: string | null) =>
+      `Connect with talented students and build your brand visibility${campusName ? ` at ${campusName}` : ""}`,
+    empty: "No partnership information available for this campus yet.",
+    benefitsTitle: "Partnership Benefits",
+    ctaHeading: "Ready to Partner?",
+    ctaBody:
+      "Get in touch with our partnership team to explore collaboration opportunities and create meaningful connections with students.",
+    ctaButton: "Contact Partnership Team",
+  },
+  no: {
+    heading: "Samarbeid med oss",
+    lead: (campusName?: string | null) =>
+      `Få kontakt med talentfulle studenter og bygg din merkevaresynlighet${campusName ? ` ved ${campusName}` : ""}`,
+    empty:
+      "Ingen partnerskapsinformasjon tilgjengelig for denne campusen ennå.",
+    benefitsTitle: "Partnerskapsfordeler",
+    ctaHeading: "Klar til å samarbeide?",
+    ctaBody:
+      "Ta kontakt med vårt partnerskapsteam for å utforske samarbeidsmuligheter og skape meningsfulle forbindelser med studenter.",
+    ctaButton: "Kontakt partnerskapsteamet",
+  },
+};
+
+const getBusinessBenefits = (
+  campusData: CampusData | null,
+  locale: Locale
+): string[] => {
+  if (!campusData) {
+    return [];
+  }
+  const primary =
+    locale === "en"
+      ? campusData.businessBenefits_en
+      : campusData.businessBenefits_nb;
+  const fallback =
+    locale === "en"
+      ? campusData.businessBenefits_nb
+      : campusData.businessBenefits_en;
+  return primary || fallback || [];
+};
+
 export function PartnersTab({
   campusData,
   campusName,
   locale,
 }: PartnersTabProps) {
-  const businessBenefits = campusData
-    ? (locale === "en"
-        ? campusData.businessBenefits_en
-        : campusData.businessBenefits_nb) ||
-      campusData.businessBenefits_en ||
-      campusData.businessBenefits_nb ||
-      []
-    : [];
+  const localeCopy = locale === "en" ? partnerCopy.en : partnerCopy.no;
+  const businessBenefits = getBusinessBenefits(campusData, locale);
 
   if (!businessBenefits || businessBenefits.length === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-gray-600">
-          {locale === "en"
-            ? "No partnership information available for this campus yet."
-            : "Ingen partnerskapsinformasjon tilgjengelig for denne campusen ennå."}
-        </p>
+        <p className="text-gray-600">{localeCopy.empty}</p>
       </div>
     );
   }
@@ -45,13 +79,9 @@ export function PartnersTab({
         className="mb-12 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-gray-900">
-          {locale === "en" ? "Partner With Us" : "Samarbeid med oss"}
-        </h2>
+        <h2 className="mb-4 text-gray-900">{localeCopy.heading}</h2>
         <p className="mx-auto max-w-2xl text-gray-600">
-          {locale === "en"
-            ? `Connect with talented students and build your brand visibility${campusName ? ` at ${campusName}` : ""}`
-            : `Få kontakt med talentfulle studenter og bygg din merkevaresynlighet${campusName ? ` ved ${campusName}` : ""}`}
+          {localeCopy.lead(campusName)}
         </p>
       </motion.div>
 
@@ -61,11 +91,7 @@ export function PartnersTab({
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#001731] to-[#3DA9E0]">
               <Briefcase className="h-6 w-6 text-white" />
             </div>
-            <h3 className="text-gray-900">
-              {locale === "en"
-                ? "Partnership Benefits"
-                : "Partnerskapsfordeler"}
-            </h3>
+            <h3 className="text-gray-900">{localeCopy.benefitsTitle}</h3>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {businessBenefits.map((benefit, index) => (
@@ -91,22 +117,16 @@ export function PartnersTab({
             transition={{ delay: 0.2 }}
           >
             <Globe className="mx-auto mb-6 h-16 w-16 text-[#3DA9E0]" />
-            <h3 className="mb-4 text-gray-900">
-              {locale === "en" ? "Ready to Partner?" : "Klar til å samarbeide?"}
-            </h3>
+            <h3 className="mb-4 text-gray-900">{localeCopy.ctaHeading}</h3>
             <p className="mx-auto mb-8 max-w-xl text-gray-600">
-              {locale === "en"
-                ? "Get in touch with our partnership team to explore collaboration opportunities and create meaningful connections with students."
-                : "Ta kontakt med vårt partnerskapsteam for å utforske samarbeidsmuligheter og skape meningsfulle forbindelser med studenter."}
+              {localeCopy.ctaBody}
             </p>
             <Button
               asChild
               className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
             >
               <Link href="/contact">
-                {locale === "en"
-                  ? "Contact Partnership Team"
-                  : "Kontakt partnerskapsteamet"}
+                {localeCopy.ctaButton}
                 <ExternalLink className="ml-2 h-4 w-4" />
               </Link>
             </Button>

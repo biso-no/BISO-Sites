@@ -14,7 +14,7 @@ import {
   publishPage,
   savePageDraft,
   saveTranslatedPage,
-} from "@/app/actions/pages";
+} from "@/app/actions/pages/actions";
 
 const PageEditor = dynamic(
   () => import("@repo/editor/editor").then((mod) => mod.PageEditor),

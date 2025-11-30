@@ -249,6 +249,20 @@ export function ProductsTable({
     selectedIds.length > 0 && selectedIds.length === products.length;
   const partiallySelected =
     selectedIds.length > 0 && selectedIds.length < products.length;
+  const showingText = t("products.table.showing", {
+    start: 1,
+    end: products.length,
+    total: products.length,
+  });
+  const bulkCheckboxState: boolean | "indeterminate" = (() => {
+    if (allSelected) {
+      return true;
+    }
+    if (partiallySelected) {
+      return "indeterminate";
+    }
+    return false;
+  })();
 
   return (
     <TabsContent value="all">
@@ -457,13 +471,7 @@ export function ProductsTable({
                   <TableHead className="w-10">
                     <Checkbox
                       aria-label={t("products.table.selectAll")}
-                      checked={
-                        allSelected
-                          ? true
-                          : partiallySelected
-                            ? "indeterminate"
-                            : false
-                      }
+                      checked={bulkCheckboxState}
                       onCheckedChange={(checked) =>
                         toggleSelectAll(Boolean(checked))
                       }
@@ -647,15 +655,7 @@ export function ProductsTable({
           </div>
         </CardContent>
         <CardFooter className="flex flex-col items-start justify-between gap-3 border-primary/10 border-t px-6 py-4 text-primary-60 text-xs sm:flex-row sm:items-center sm:text-sm">
-          <span
-            dangerouslySetInnerHTML={{
-              __html: t("products.table.showing", {
-                start: 1,
-                end: products.length,
-                total: products.length,
-              }),
-            }}
-          />
+          <span>{showingText}</span>
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 font-semibold text-primary-70 text-xs uppercase tracking-[0.14em]">
             {t("products.table.updated", {
               date: DATE_FORMATTER.format(new Date()),

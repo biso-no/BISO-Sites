@@ -265,16 +265,16 @@ export function Hero({
         {slides.length > 1 && (
           <>
             <button
-              type="button"
               className="-translate-y-1/2 absolute top-1/2 left-4 z-20 cursor-pointer rounded-full border border-white/20 bg-white/10 p-3 text-white backdrop-blur-md hover:bg-white/20"
               onClick={prevSlide}
+              type="button"
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
             <button
-              type="button"
               className="-translate-y-1/2 absolute top-1/2 right-4 z-20 cursor-pointer rounded-full border border-white/20 bg-white/10 p-3 text-white backdrop-blur-md hover:bg-white/20"
               onClick={nextSlide}
+              type="button"
             >
               <ChevronRight className="h-6 w-6" />
             </button>
@@ -282,13 +282,13 @@ export function Hero({
             <div className="-translate-x-1/2 absolute bottom-12 left-1/2 z-20 flex gap-2">
               {slides.map((_, idx) => (
                 <button
-                  type="button"
                   className={cn(
                     "h-2 cursor-pointer rounded-full transition-all",
                     idx === currentIndex ? "w-8 bg-white" : "w-2 bg-white/40"
                   )}
                   key={idx}
                   onClick={() => setCurrentIndex(idx)}
+                  type="button"
                 />
               ))}
             </div>

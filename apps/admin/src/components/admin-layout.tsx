@@ -111,13 +111,13 @@ const SidebarItem = ({
         </Link>
         {item.subItems && isExpanded && (
           <button
-            type="button"
             className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-primary/5 hover:text-primary dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setIsOpen(!isOpen);
             }}
+            type="button"
           >
             <ChevronRight
               className={cn(
@@ -425,9 +425,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             </p>
           </div>
           <button
-            type="button"
             className="flex h-11 w-full items-center justify-center rounded-2xl border border-primary/10 bg-white/50 font-medium text-foreground/80 text-sm transition hover:bg-white/80 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/20"
             onClick={toggleSidebar}
+            type="button"
           >
             <motion.div
               animate={{ rotate: isSidebarExpanded ? 0 : 180 }}
