@@ -20,6 +20,95 @@ type CampusHeroProps = {
   locale: Locale;
 };
 
+const DEFAULT_TAGLINE = "Where Innovation Meets Opportunity";
+const DEFAULT_DESCRIPTION =
+  "BISO is the heart of student life at BI Norwegian Business School. Join us to create unforgettable experiences, foster career growth, and build a vibrant community.";
+
+const getLocalizedContent = ({
+  locale,
+  enValue,
+  nbValue,
+  fallback,
+}: {
+  locale: Locale;
+  enValue?: string | null;
+  nbValue?: string | null;
+  fallback: string;
+}) => {
+  const englishFirst = locale === "en";
+  const preferred = englishFirst ? enValue : nbValue;
+  const secondary = englishFirst ? nbValue : enValue;
+  return preferred || secondary || fallback;
+};
+
+const getHighlights = ({
+  locale,
+  enHighlights,
+  nbHighlights,
+}: {
+  locale: Locale;
+  enHighlights?: string[] | null;
+  nbHighlights?: string[] | null;
+}) => {
+  const englishFirst = locale === "en";
+  const preferred = englishFirst ? enHighlights : nbHighlights;
+  const secondary = englishFirst ? nbHighlights : enHighlights;
+  return preferred || secondary || [];
+};
+
+const getLocation = ({
+  campusMetadata,
+  campusName,
+}: {
+  campusMetadata: CampusMetadata | null;
+  campusName: string | null;
+}) => {
+  if (campusMetadata?.campus_name) {
+    return `${campusMetadata.campus_name}, Norway`;
+  }
+  if (campusName) {
+    return `${campusName}, Norway`;
+  }
+  return "Norway";
+};
+
+const getHeroTitle = ({
+  campusName,
+  locale,
+}: {
+  campusName: string | null;
+  locale: Locale;
+}) => {
+  if (campusName) {
+    return `BISO ${campusName}`;
+  }
+  return locale === "en" ? "BISO - Student Life" : "BISO - Studentliv";
+};
+
+const getStatsData = ({
+  stats,
+  locale,
+}: {
+  stats: CampusHeroProps["stats"];
+  locale: Locale;
+}) => {
+  const english = locale === "en";
+  return [
+    {
+      label: english ? "Active Units" : "Aktive enheter",
+      value: stats.departments || "--",
+    },
+    {
+      label: english ? "Upcoming Events" : "Kommende arrangementer",
+      value: stats.events || "--",
+    },
+    {
+      label: english ? "Open Positions" : "Ledige verv",
+      value: stats.jobs || "--",
+    },
+  ];
+};
+
 const StatPill = ({
   label,
   value,
@@ -39,51 +128,31 @@ export function CampusHero({
   stats,
   locale,
 }: CampusHeroProps) {
-  const tagline = campusMetadata
-    ? (locale === "en"
-        ? campusMetadata.tagline_en
-        : campusMetadata.tagline_nb) ||
-      campusMetadata.tagline_en ||
-      campusMetadata.tagline_nb
-    : "Where Innovation Meets Opportunity";
+  const tagline = getLocalizedContent({
+    locale,
+    enValue: campusMetadata?.tagline_en,
+    nbValue: campusMetadata?.tagline_nb,
+    fallback: DEFAULT_TAGLINE,
+  });
 
-  const description = campusMetadata
-    ? (locale === "en"
-        ? campusMetadata.description_en
-        : campusMetadata.description_nb) ||
-      campusMetadata.description_en ||
-      campusMetadata.description_nb
-    : "BISO is the heart of student life at BI Norwegian Business School. Join us to create unforgettable experiences, foster career growth, and build a vibrant community.";
+  const description = getLocalizedContent({
+    locale,
+    enValue: campusMetadata?.description_en,
+    nbValue: campusMetadata?.description_nb,
+    fallback: DEFAULT_DESCRIPTION,
+  });
 
   const highlights = campusMetadata
-    ? (locale === "en"
-        ? campusMetadata.highlights_en
-        : campusMetadata.highlights_nb) ||
-      campusMetadata.highlights_en ||
-      campusMetadata.highlights_nb ||
-      []
+    ? getHighlights({
+        locale,
+        enHighlights: campusMetadata.highlights_en,
+        nbHighlights: campusMetadata.highlights_nb,
+      })
     : [];
 
-  const location = campusMetadata?.campus_name
-    ? `${campusMetadata.campus_name}, Norway`
-    : campusName
-      ? `${campusName}, Norway`
-      : "Norway";
-
-  const statsData = [
-    {
-      label: locale === "en" ? "Active Units" : "Aktive enheter",
-      value: stats.departments || "--",
-    },
-    {
-      label: locale === "en" ? "Upcoming Events" : "Kommende arrangementer",
-      value: stats.events || "--",
-    },
-    {
-      label: locale === "en" ? "Open Positions" : "Ledige verv",
-      value: stats.jobs || "--",
-    },
-  ];
+  const location = getLocation({ campusMetadata, campusName });
+  const heroTitle = getHeroTitle({ campusName, locale });
+  const statsData = getStatsData({ stats, locale });
 
   return (
     <div className="relative h-[70vh] overflow-hidden">
@@ -107,13 +176,7 @@ export function CampusHero({
               <MapPin className="mr-1 h-3 w-3" />
               {location}
             </Badge>
-            <h1 className="mb-6 font-bold text-5xl text-white">
-              {campusName
-                ? `BISO ${campusName}`
-                : locale === "en"
-                  ? "BISO - Student Life"
-                  : "BISO - Studentliv"}
-            </h1>
+            <h1 className="mb-6 font-bold text-5xl text-white">{heroTitle}</h1>
             <p className="mb-8 text-white/90 text-xl">{tagline}</p>
             <p className="mb-8 max-w-2xl text-lg text-white/80">
               {description}

@@ -22,7 +22,7 @@ const INCOMPLETE_INLINE_CODE = /`[^`]*$/m;
 function hasIncompleteMarkdown(text: string): boolean {
   const lastLine = text.split("\n").at(-1) ?? "";
   const trimmed = lastLine.trimEnd();
-  
+
   return (
     INCOMPLETE_HEADING.test(trimmed) ||
     INCOMPLETE_BOLD_ASTERISK.test(trimmed) ||
@@ -41,11 +41,11 @@ export class MarkdownBuffer {
   private buffer = "";
   private emittedLength = 0;
   private readonly onEmit: BufferCallback;
-  
+
   constructor(onEmit: BufferCallback) {
     this.onEmit = onEmit;
   }
-  
+
   /**
    * Append new content to the buffer
    */
@@ -53,7 +53,7 @@ export class MarkdownBuffer {
     this.buffer += chunk;
     this.tryEmit();
   }
-  
+
   /**
    * Try to emit safe content (complete markdown elements)
    */
@@ -61,7 +61,7 @@ export class MarkdownBuffer {
     // Find the safe point to emit up to
     // We look for the last complete line that doesn't have incomplete markdown
     const lines = this.buffer.split("\n");
-    
+
     // Always keep the last line in the buffer (it might be incomplete)
     if (lines.length <= 1) {
       // Single line - check if it has incomplete markdown
@@ -70,26 +70,26 @@ export class MarkdownBuffer {
       }
       return;
     }
-    
+
     // Find how many complete lines we can emit
     let safeEndIndex = 0;
     for (let i = 0; i < lines.length - 1; i++) {
       // Add the line length plus the newline
       safeEndIndex += lines[i].length + 1;
     }
-    
+
     // Check if the last line has incomplete markdown
     const lastLine = lines.at(-1) ?? "";
     if (!hasIncompleteMarkdown(lastLine)) {
       safeEndIndex = this.buffer.length;
     }
-    
+
     if (safeEndIndex > this.emittedLength) {
       const toEmit = this.buffer.substring(0, safeEndIndex);
       this.emit(toEmit);
     }
   }
-  
+
   /**
    * Emit content (markdown - the RichTextEditor will convert to HTML)
    */
@@ -97,7 +97,7 @@ export class MarkdownBuffer {
     this.emittedLength = content.length;
     this.onEmit(content);
   }
-  
+
   /**
    * Flush any remaining content (call when streaming is complete)
    */
@@ -106,14 +106,14 @@ export class MarkdownBuffer {
       this.emit(this.buffer);
     }
   }
-  
+
   /**
    * Get the current buffer content
    */
   getContent(): string {
     return this.buffer;
   }
-  
+
   /**
    * Reset the buffer
    */
@@ -126,7 +126,7 @@ export class MarkdownBuffer {
 /**
  * Create a markdown buffer for streaming content
  */
-export function createMarkdownBuffer(
+function createMarkdownBuffer(
   onUpdate: (content: string) => void
 ): MarkdownBuffer {
   return new MarkdownBuffer(onUpdate);

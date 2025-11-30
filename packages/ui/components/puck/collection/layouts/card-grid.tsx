@@ -78,11 +78,7 @@ function CardItem({
           )}
         </div>
         {item.href && (
-          <Button
-            className="mt-2 w-full gap-2"
-            size="sm"
-            variant="outline"
-          >
+          <Button className="mt-2 w-full gap-2" size="sm" variant="outline">
             View Details
             <ArrowRight className="h-4 w-4" />
           </Button>

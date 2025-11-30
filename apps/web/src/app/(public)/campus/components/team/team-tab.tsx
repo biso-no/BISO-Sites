@@ -1,5 +1,6 @@
 "use client";
 
+import type { JSX } from "react";
 import type { DepartmentBoard } from "@repo/api/types/appwrite";
 import { Card } from "@repo/ui/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -49,6 +50,38 @@ function mapToDepartmentBoard(leader: CampusLeader): DepartmentBoard {
   } as DepartmentBoard;
 }
 
+function getLeadershipUnavailableMessage(locale: Locale): string {
+  if (locale === "en") {
+    return "Campus leadership information is not available right now.";
+  }
+  return "Campusledelsens informasjon er ikke tilgjengelig akkurat nå.";
+}
+
+function getTeamDescription(locale: Locale, campusName: string | null): string {
+  const hasCampusName = Boolean(campusName);
+  if (locale === "en") {
+    const suffix = hasCampusName ? ` at ${campusName}` : "";
+    return `Dedicated students working to create the best campus experience${suffix}`;
+  }
+  const suffix = hasCampusName ? ` ved ${campusName}` : "";
+  return `Dedikerte studenter som jobber for å skape den beste campusopplevelsen${suffix}`;
+}
+
+function extractMembersFromPayload(payload: unknown): unknown[] {
+  const dataset = (payload as { data?: unknown; members?: unknown }) ?? {};
+  const rootMembers = (dataset as { members?: unknown }).members;
+  if (Array.isArray(rootMembers)) {
+    return rootMembers;
+  }
+
+  const nestedData = (dataset as { data?: { members?: unknown } }).data;
+  if (Array.isArray(nestedData?.members)) {
+    return nestedData.members;
+  }
+
+  return [];
+}
+
 export function TeamTab({
   fallbackTeam,
   campusId,
@@ -77,7 +110,7 @@ export function TeamTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ campus: campusId }),
     })
-      .then(async (response) => {
+      .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch campus leadership");
         }
@@ -87,12 +120,7 @@ export function TeamTab({
         if (cancelled) {
           return;
         }
-        const dataset = payload?.data ?? payload;
-        const members = Array.isArray(dataset?.members)
-          ? dataset.members
-          : Array.isArray(dataset?.data?.members)
-            ? dataset.data.members
-            : [];
+        const members = extractMembersFromPayload(payload);
         if (Array.isArray(members) && members.length) {
           const mapped = members
             .map(mapToLeader)
@@ -103,28 +131,20 @@ export function TeamTab({
         } else {
           setLeadership(fallbackTeam);
           if (!fallbackTeam.length) {
-            setError(
-              locale === "en"
-                ? "Campus leadership information is not available right now."
-                : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå."
-            );
+            setError(getLeadershipUnavailableMessage(locale));
           }
         }
       })
-      .catch((error) => {
+      .catch((fetchError) => {
         if (cancelled) {
           return;
         }
-        console.error("Failed to load campus leadership", error);
+        console.error("Failed to load campus leadership", fetchError);
         setLeadership(fallbackTeam);
         if (fallbackTeam.length) {
           setError(null);
         } else {
-          setError(
-            locale === "en"
-              ? "Campus leadership information is not available right now."
-              : "Campusledelsens informasjon er ikke tilgjengelig akkurat nå."
-          );
+          setError(getLeadershipUnavailableMessage(locale));
         }
       })
       .finally(() => {
@@ -139,6 +159,59 @@ export function TeamTab({
     };
   }, [campusId, fallbackTeam, locale]);
 
+  let content: JSX.Element;
+  if (loading) {
+    content = (
+      <div className="space-y-4">
+        <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-primary-50" />
+          <span>{locale === "en" ? "Loading team..." : "Laster team..."}</span>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Card
+              className="h-full animate-pulse rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-card"
+              key={index}
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-32 w-32 rounded-full bg-primary/10" />
+                <div className="flex w-full flex-col items-center gap-2">
+                  <div className="h-4 w-32 rounded bg-primary/10" />
+                  <div className="h-3 w-24 rounded bg-primary/10" />
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  } else if (leadership.length > 0) {
+    content = (
+      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        {leadership.map((member, index) => (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            key={index}
+            transition={{ delay: index * 0.1 }}
+          >
+            <TeamMemberCard member={member} />
+          </motion.div>
+        ))}
+      </div>
+    );
+  } else {
+    const fallbackMessage =
+      locale === "en"
+        ? "We will update team information soon."
+        : "Vi vil oppdatere teaminformasjon snart.";
+    content = (
+      <div className="rounded-3xl border border-primary/20 border-dashed p-8 text-center text-muted-foreground text-sm">
+        {error ?? fallbackMessage}
+      </div>
+    );
+  }
+
   return (
     <>
       <motion.div
@@ -150,58 +223,11 @@ export function TeamTab({
           {locale === "en" ? "Meet Our Team" : "Møt vårt team"}
         </h2>
         <p className="mx-auto max-w-2xl text-gray-600">
-          {locale === "en"
-            ? `Dedicated students working to create the best campus experience${campusName ? ` at ${campusName}` : ""}`
-            : `Dedikerte studenter som jobber for å skape den beste campusopplevelsen${campusName ? ` ved ${campusName}` : ""}`}
+          {getTeamDescription(locale, campusName)}
         </p>
       </motion.div>
 
-      {loading ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
-            <Loader2 className="h-4 w-4 animate-spin text-primary-50" />
-            <span>
-              {locale === "en" ? "Loading team..." : "Laster team..."}
-            </span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Card
-                className="h-full animate-pulse rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-card"
-                key={index}
-              >
-                <div className="flex flex-col items-center gap-4">
-                  <div className="h-32 w-32 rounded-full bg-primary/10" />
-                  <div className="flex w-full flex-col items-center gap-2">
-                    <div className="h-4 w-32 rounded bg-primary/10" />
-                    <div className="h-3 w-24 rounded bg-primary/10" />
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      ) : leadership.length > 0 ? (
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {leadership.map((member, index) => (
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              initial={{ opacity: 0, y: 20 }}
-              key={index}
-              transition={{ delay: index * 0.1 }}
-            >
-              <TeamMemberCard member={member} />
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-3xl border border-primary/20 border-dashed p-8 text-center text-muted-foreground text-sm">
-          {error ||
-            (locale === "en"
-              ? "We will update team information soon."
-              : "Vi vil oppdatere teaminformasjon snart.")}
-        </div>
-      )}
+      {content}
     </>
   );
 }

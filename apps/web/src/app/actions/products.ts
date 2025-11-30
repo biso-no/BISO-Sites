@@ -20,7 +20,7 @@ import type {
   UpdateProductData,
 } from "@/lib/types/product";
 
-export async function listProducts(
+async function listProducts(
   params: ListProductsParams = {}
 ): Promise<ContentTranslations[]> {
   try {

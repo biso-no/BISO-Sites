@@ -1,20 +1,20 @@
 import { openai } from "@ai-sdk/openai";
+import { ADMIN_ASSISTANT_PROMPT } from "@repo/ai/prompts";
+import {
+  createFormFillerTool,
+  eventFormFields,
+} from "@repo/ai/tools/form-filler";
+import {
+  createNavigationTool,
+  defaultAdminRoutes,
+} from "@repo/ai/tools/navigation";
+import { translateContentTool } from "@repo/ai/tools/translate";
 import {
   convertToModelMessages,
   stepCountIs,
   streamText,
   type UIMessage,
 } from "ai";
-import {
-  createNavigationTool,
-  defaultAdminRoutes,
-} from "@repo/ai/tools/navigation";
-import {
-  createFormFillerTool,
-  eventFormFields,
-} from "@repo/ai/tools/form-filler";
-import { translateContentTool } from "@repo/ai/tools/translate";
-import { ADMIN_ASSISTANT_PROMPT } from "@repo/ai/prompts";
 
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
@@ -47,7 +47,13 @@ export async function POST(req: Request) {
         formContext.fields.map((f) => ({
           id: f.id,
           name: f.name,
-          type: f.type as "text" | "textarea" | "number" | "date" | "select" | "checkbox",
+          type: f.type as
+            | "text"
+            | "textarea"
+            | "number"
+            | "date"
+            | "select"
+            | "checkbox",
           label: f.label,
           required: f.required,
           currentValue: f.currentValue,

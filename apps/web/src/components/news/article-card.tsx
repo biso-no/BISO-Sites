@@ -15,7 +15,7 @@ type ArticleCardProps = {
   index?: number;
 };
 
-export const categoryColors: Record<string, string> = {
+const categoryColors: Record<string, string> = {
   "Press Release": "bg-[#001731]/10 text-[#001731] border-[#001731]/20",
   "Student Life": "bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20",
   Achievements: "bg-cyan-100 text-[#001731] border-cyan-200",

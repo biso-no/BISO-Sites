@@ -58,7 +58,7 @@ export default async function Page(props: { params: Promise<Param> }) {
   );
 }
 
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return source.getPages().map((page) => ({
     slug: page.slugs,
   }));

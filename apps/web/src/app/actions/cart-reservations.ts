@@ -208,7 +208,7 @@ async function _getUserReservation(
  * Returns active (non-expired) reservations only
  * RLS automatically filters to current user
  */
-export async function getUserCartReservations(): Promise<any[]> {
+async function getUserCartReservations(): Promise<any[]> {
   try {
     const { db } = await createSessionClient();
 

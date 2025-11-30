@@ -1,9 +1,9 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import type { AssistantMessage } from "@repo/ai/types";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { AssistantMessage } from "@repo/ai/types";
 import { MarkdownBuffer } from "@/lib/markdown-buffer";
 
 type FormFieldUpdate = {
@@ -61,9 +61,7 @@ export function useChatStream({
       new DefaultChatTransport({
         api,
         body: () =>
-          formContextRef.current
-            ? { formContext: formContextRef.current }
-            : {},
+          formContextRef.current ? { formContext: formContextRef.current } : {},
       }),
     [api]
   );
@@ -83,147 +81,163 @@ export function useChatStream({
 
   // Track which tool calls we've already handled (completed)
   const handledToolCallsRef = useRef<Set<string>>(new Set());
-  
+
   // Track streaming state for each field
-  const streamingFieldsRef = useRef<Map<string, { 
-    lastValue: string;
-    buffer: MarkdownBuffer | null;
-  }>>(new Map());
-  
+  const streamingFieldsRef = useRef<
+    Map<
+      string,
+      {
+        lastValue: string;
+        buffer: MarkdownBuffer | null;
+      }
+    >
+  >(new Map());
+
   // Track which fields we've already started streaming for each tool call
   const streamedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
 
   // Handle navigation tool calls
-  const handleNavigateTool = useCallback((
-    toolPart: { toolCallId: string; input: { path?: string }; state: string }
-  ) => {
-    if (toolPart.state !== "input-available") {
-      return;
-    }
-    if (!toolPart.input?.path) {
-      return;
-    }
-    if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
-      return;
-    }
-    
-    handledToolCallsRef.current.add(toolPart.toolCallId);
-    onNavigateRef.current?.(toolPart.input.path);
-    addToolResult({
-      toolCallId: toolPart.toolCallId,
-      tool: "navigate",
-      output: { success: true, navigatedTo: toolPart.input.path },
-    });
-  }, [addToolResult]);
+  const handleNavigateTool = useCallback(
+    (toolPart: {
+      toolCallId: string;
+      input: { path?: string };
+      state: string;
+    }) => {
+      if (toolPart.state !== "input-available") {
+        return;
+      }
+      if (!toolPart.input?.path) {
+        return;
+      }
+      if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
+        return;
+      }
+
+      handledToolCallsRef.current.add(toolPart.toolCallId);
+      onNavigateRef.current?.(toolPart.input.path);
+      addToolResult({
+        toolCallId: toolPart.toolCallId,
+        tool: "navigate",
+        output: { success: true, navigatedTo: toolPart.input.path },
+      });
+    },
+    [addToolResult]
+  );
 
   // Handle streaming form field updates
-  const handleFormFieldStreaming = useCallback((
-    toolCallId: string,
-    updates: Array<{ fieldId: string; value: string }> | undefined,
-    isComplete: boolean
-  ) => {
-    if (!updates) {
-      return;
-    }
-    
-    // Get or create the set of streamed fields for this tool call
-    if (!streamedFieldsRef.current.has(toolCallId)) {
-      streamedFieldsRef.current.set(toolCallId, new Set());
-    }
-    const streamedFields = streamedFieldsRef.current.get(toolCallId)!;
-    
-    for (const update of updates) {
-      const { fieldId, value } = update;
-      
-      // Check if this is a description field (needs markdown buffering)
-      const isDescriptionField = fieldId.includes("description");
-      
-      // Get or create streaming state for this field
-      let fieldState = streamingFieldsRef.current.get(fieldId);
-      if (!fieldState) {
-        fieldState = {
-          lastValue: "",
-          buffer: isDescriptionField ? new MarkdownBuffer((content) => {
-            onFormFieldRef.current?.({
-              fieldId,
-              fieldName: fieldId,
-              value: content,
-              streaming: true,
-              isComplete: false,
-            });
-          }) : null,
-        };
-        streamingFieldsRef.current.set(fieldId, fieldState);
+  const handleFormFieldStreaming = useCallback(
+    (
+      toolCallId: string,
+      updates: Array<{ fieldId: string; value: string }> | undefined,
+      isComplete: boolean
+    ) => {
+      if (!updates) {
+        return;
       }
-      
-      // Only emit if the value has changed
-      if (value === fieldState.lastValue) {
-        continue;
+
+      // Get or create the set of streamed fields for this tool call
+      if (!streamedFieldsRef.current.has(toolCallId)) {
+        streamedFieldsRef.current.set(toolCallId, new Set());
       }
-      
-      fieldState.lastValue = value;
-      
-      if (isDescriptionField && fieldState.buffer) {
-        // For description fields, use the markdown buffer
-        // Reset and re-add the full content (since we get the full value each time)
-        fieldState.buffer.reset();
-        fieldState.buffer.append(value);
-        
-        if (isComplete) {
-          fieldState.buffer.flush();
+      const streamedFields = streamedFieldsRef.current.get(toolCallId)!;
+
+      for (const update of updates) {
+        const { fieldId, value } = update;
+
+        // Check if this is a description field (needs markdown buffering)
+        const isDescriptionField = fieldId.includes("description");
+
+        // Get or create streaming state for this field
+        let fieldState = streamingFieldsRef.current.get(fieldId);
+        if (!fieldState) {
+          fieldState = {
+            lastValue: "",
+            buffer: isDescriptionField
+              ? new MarkdownBuffer((content) => {
+                  onFormFieldRef.current?.({
+                    fieldId,
+                    fieldName: fieldId,
+                    value: content,
+                    streaming: true,
+                    isComplete: false,
+                  });
+                })
+              : null,
+          };
+          streamingFieldsRef.current.set(fieldId, fieldState);
         }
-      } else {
-        // For regular fields, emit directly
-        onFormFieldRef.current?.({
-          fieldId,
-          fieldName: fieldId,
-          value,
-          streaming: !isComplete,
-          isComplete,
-        });
-      }
-      
-      streamedFields.add(fieldId);
-    }
-    
-    // If complete, flush all buffers and clean up
-    if (isComplete) {
-      for (const [fieldId, state] of streamingFieldsRef.current.entries()) {
-        if (state.buffer) {
-          state.buffer.flush();
-          // Send final complete update
+
+        // Only emit if the value has changed
+        if (value === fieldState.lastValue) {
+          continue;
+        }
+
+        fieldState.lastValue = value;
+
+        if (isDescriptionField && fieldState.buffer) {
+          // For description fields, use the markdown buffer
+          // Reset and re-add the full content (since we get the full value each time)
+          fieldState.buffer.reset();
+          fieldState.buffer.append(value);
+
+          if (isComplete) {
+            fieldState.buffer.flush();
+          }
+        } else {
+          // For regular fields, emit directly
           onFormFieldRef.current?.({
             fieldId,
             fieldName: fieldId,
-            value: state.lastValue,
-            streaming: false,
-            isComplete: true,
+            value,
+            streaming: !isComplete,
+            isComplete,
           });
         }
+
+        streamedFields.add(fieldId);
       }
-      streamingFieldsRef.current.clear();
-      streamedFieldsRef.current.delete(toolCallId);
-    }
-  }, []);
+
+      // If complete, flush all buffers and clean up
+      if (isComplete) {
+        for (const [fieldId, state] of streamingFieldsRef.current.entries()) {
+          if (state.buffer) {
+            state.buffer.flush();
+            // Send final complete update
+            onFormFieldRef.current?.({
+              fieldId,
+              fieldName: fieldId,
+              value: state.lastValue,
+              streaming: false,
+              isComplete: true,
+            });
+          }
+        }
+        streamingFieldsRef.current.clear();
+        streamedFieldsRef.current.delete(toolCallId);
+      }
+    },
+    []
+  );
 
   // Handle translate tool calls
-  const handleTranslateTool = useCallback((
-    toolPart: { toolCallId: string; state: string }
-  ) => {
-    if (toolPart.state !== "input-available") {
-      return;
-    }
-    if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
-      return;
-    }
-    
-    handledToolCallsRef.current.add(toolPart.toolCallId);
-    addToolResult({
-      toolCallId: toolPart.toolCallId,
-      tool: "translateContent",
-      output: { success: true, message: "Translation ready" },
-    });
-  }, [addToolResult]);
+  const handleTranslateTool = useCallback(
+    (toolPart: { toolCallId: string; state: string }) => {
+      if (toolPart.state !== "input-available") {
+        return;
+      }
+      if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
+        return;
+      }
+
+      handledToolCallsRef.current.add(toolPart.toolCallId);
+      addToolResult({
+        toolCallId: toolPart.toolCallId,
+        tool: "translateContent",
+        output: { success: true, message: "Translation ready" },
+      });
+    },
+    [addToolResult]
+  );
 
   // Watch for tool calls in message parts and handle them
   useEffect(() => {
@@ -234,43 +248,77 @@ export function useChatStream({
 
       for (const part of msg.parts) {
         // Handle navigation tool calls
-        if (part.type === "tool-navigate" && "input" in part && "toolCallId" in part) {
-          handleNavigateTool(part as { toolCallId: string; input: { path?: string }; state: string });
+        if (
+          part.type === "tool-navigate" &&
+          "input" in part &&
+          "toolCallId" in part
+        ) {
+          handleNavigateTool(
+            part as {
+              toolCallId: string;
+              input: { path?: string };
+              state: string;
+            }
+          );
         }
 
         // Handle form filler tool calls - both streaming (partial) and complete
-        if (part.type === "tool-fillFormFields" && "input" in part && "toolCallId" in part) {
-          const toolPart = part as { 
-            toolCallId: string; 
-            input: { updates?: Array<{ fieldId: string; value: string }> }; 
-            state: string 
+        if (
+          part.type === "tool-fillFormFields" &&
+          "input" in part &&
+          "toolCallId" in part
+        ) {
+          const toolPart = part as {
+            toolCallId: string;
+            input: { updates?: Array<{ fieldId: string; value: string }> };
+            state: string;
           };
-          
+
           const isComplete = toolPart.state === "input-available";
           const isStreaming = toolPart.state === "partial";
-          
+
           if ((isStreaming || isComplete) && toolPart.input?.updates) {
-            handleFormFieldStreaming(toolPart.toolCallId, toolPart.input.updates, isComplete);
+            handleFormFieldStreaming(
+              toolPart.toolCallId,
+              toolPart.input.updates,
+              isComplete
+            );
           }
-          
+
           // Only send tool result when complete
-          if (isComplete && !handledToolCallsRef.current.has(toolPart.toolCallId)) {
+          if (
+            isComplete &&
+            !handledToolCallsRef.current.has(toolPart.toolCallId)
+          ) {
             handledToolCallsRef.current.add(toolPart.toolCallId);
             addToolResult({
               toolCallId: toolPart.toolCallId,
               tool: "fillFormFields",
-              output: { success: true, fieldsUpdated: toolPart.input.updates?.length ?? 0 },
+              output: {
+                success: true,
+                fieldsUpdated: toolPart.input.updates?.length ?? 0,
+              },
             });
           }
         }
 
         // Handle translate tool calls
-        if (part.type === "tool-translateContent" && "input" in part && "toolCallId" in part) {
+        if (
+          part.type === "tool-translateContent" &&
+          "input" in part &&
+          "toolCallId" in part
+        ) {
           handleTranslateTool(part as { toolCallId: string; state: string });
         }
       }
     }
-  }, [chatMessages, addToolResult, handleNavigateTool, handleFormFieldStreaming, handleTranslateTool]);
+  }, [
+    chatMessages,
+    addToolResult,
+    handleNavigateTool,
+    handleFormFieldStreaming,
+    handleTranslateTool,
+  ]);
 
   // Convert AI SDK messages to our AssistantMessage format
   const messages: AssistantMessage[] = chatMessages.map((msg) => ({

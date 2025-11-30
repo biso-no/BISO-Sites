@@ -1,18 +1,20 @@
 "use client";
 import { Button } from "@repo/ui/components/ui/button";
+import type { CarouselApi } from "@repo/ui/components/ui/carousel";
 import {
-  Calendar,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  Users,
-} from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@repo/ui/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
+import { Calendar, ChevronDown, Sparkles, Users } from "lucide-react";
+import { motion } from "motion/react";
 import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Drop-in robust ImageWithFallback that does NOT force 100x100.
@@ -23,17 +25,16 @@ import { useCallback, useEffect, useState } from "react";
 const ERROR_IMG_SRC =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4=";
 
-export type ImageWithFallbackProps = ImageProps & {
+type ImageWithFallbackProps = ImageProps & {
   fallbackSrc?: string;
 };
 
-export function ImageWithFallback({
+function ImageWithFallback({
   fallbackSrc = ERROR_IMG_SRC,
   onError,
   ...props
 }: ImageWithFallbackProps) {
   const [src, setSrc] = useState(props.src);
-  const _t = useTranslations("home.hero");
   const isDataUri = typeof src === "string" && src.startsWith("data:");
 
   return (
@@ -45,7 +46,6 @@ export function ImageWithFallback({
       }}
       src={src}
       unoptimized={isDataUri}
-      // allow callers to control priority/loading; provide sensible defaults below where used
     />
   );
 }
@@ -66,41 +66,116 @@ type HeroCarouselProps = {
   featuredContent: ContentTranslations[];
 };
 
+type HeroCarouselSlideProps = {
+  index: number;
+  item: ContentTranslations;
+  t: ReturnType<typeof useTranslations>;
+};
+
+function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
+  const isEvent = !!item?.event_ref;
+  const imageUrl = isEvent ? item?.event_ref?.image : item?.news_ref?.image;
+  const contentLink = isEvent
+    ? `/events/${item?.content_id}`
+    : `/news/${item?.content_id}`;
+
+  return (
+    <CarouselItem className="relative h-screen" key={index}>
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <ImageWithFallback
+          alt={item?.title || ""}
+          className="object-cover"
+          decoding="async"
+          fill
+          loading={index === 0 ? "eager" : "lazy"}
+          placeholder="empty"
+          priority={index === 0}
+          quality={85}
+          sizes="100vw"
+          src={
+            imageUrl ||
+            "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"
+          }
+        />
+        <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
+        <div className="absolute inset-0 bg-linear-to-t from-[#001731]/70 via-transparent to-transparent" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col items-center justify-center px-4">
+        <motion.div
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+          initial={{ opacity: 0, y: 30 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-md">
+            <Sparkles className="h-5 w-5 text-[#3DA9E0]" />
+            <span className="text-white/90">
+              {t("featuredContent", {
+                contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
+              })}
+            </span>
+          </div>
+
+          <h1 className="mx-auto mb-6 max-w-4xl text-white">
+            {item?.title || ""}
+          </h1>
+
+          <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
+            {(item?.description || "").replace(/<[^>]+>/g, "").slice(0, 180) ||
+              "..."}
+          </p>
+
+          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link href={contentLink}>
+              <Button
+                className="border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] px-8 py-6 text-white shadow-2xl shadow-[#3DA9E0]/50 hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
+                size="lg"
+              >
+                {t("learnMore")}
+              </Button>
+            </Link>
+            <Link href={isEvent ? "/events" : "/news"}>
+              <Button
+                className="border-white/30 bg-white/10 px-8 py-6 text-white backdrop-blur-md hover:bg-white/20"
+                size="lg"
+                variant="outline"
+              >
+                {t("viewAll", {
+                  contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
+                })}
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    </CarouselItem>
+  );
+}
+
 export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
   const t = useTranslations("home.hero");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
 
   const scrollToContent = () => {
     document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const nextSlide = useCallback(() => {
-    if (featuredContent.length === 0) {
-      return;
-    }
-    setCurrentIndex((prev) => (prev + 1) % featuredContent.length);
-  }, [featuredContent.length]);
-
-  const prevSlide = () => {
-    if (featuredContent.length === 0) {
-      return;
-    }
-    setCurrentIndex(
-      (prev) => (prev - 1 + featuredContent.length) % featuredContent.length
-    );
-  };
-
-  const goToSlide = (index: number) => setCurrentIndex(index);
-
-  // Auto-rotate
+  // Track current slide
   useEffect(() => {
-    if (isPaused || featuredContent.length <= 1) {
+    if (!api) {
       return;
     }
-    const interval = setInterval(nextSlide, 6000);
-    return () => clearInterval(interval);
-  }, [isPaused, nextSlide, featuredContent.length]);
+
+    setCurrent(api.selectedScrollSnap());
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap());
+    });
+  }, [api]);
 
   // ---- Static fallback hero when no content ----
   if (!featuredContent || featuredContent.length === 0) {
@@ -201,149 +276,63 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
   }
 
   // ---- Carousel rendering ----
-  const currentItem = featuredContent[currentIndex];
-  const isEvent = !!currentItem?.event_ref;
-  const imageUrl = isEvent
-    ? currentItem?.event_ref?.image
-    : currentItem?.news_ref?.image;
-  const contentLink = isEvent
-    ? `/events/${currentItem?.content_id}`
-    : `/news/${currentItem?.content_id}`;
-
   return (
-    <div
+    <Carousel
       className="relative h-screen w-full overflow-hidden"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      opts={{
+        loop: true,
+        align: "start",
+      }}
+      plugins={[
+        Autoplay({
+          delay: 6000,
+          stopOnInteraction: true,
+          stopOnMouseEnter: true,
+        }),
+      ]}
+      setApi={setApi}
     >
-      <AnimatePresence mode="wait">
-        <motion.div
-          animate={{ opacity: 1 }}
-          className="absolute inset-0"
-          exit={{ opacity: 0 }}
-          initial={{ opacity: 0 }}
-          key={currentIndex}
-          transition={{ duration: 0.7 }}
-        >
-          <ImageWithFallback
-            alt={currentItem?.title || ""}
-            className="object-cover"
-            decoding="async"
-            fill
-            loading={currentIndex === 0 ? "eager" : "lazy"}
-            placeholder="empty"
-            priority={currentIndex === 0}
-            quality={85}
-            sizes="100vw"
-            src={
-              imageUrl ||
-              "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"
-            }
-          />
-          <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />
-          <div className="absolute inset-0 bg-linear-to-t from-[#001731]/70 via-transparent to-transparent" />
-        </motion.div>
-      </AnimatePresence>
+      <CarouselContent>
+        {featuredContent.map((item, index) => (
+          <HeroCarouselSlide index={index} item={item} key={index} t={t} />
+        ))}
+      </CarouselContent>
 
-      {/* Content */}
-      <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col items-center justify-center px-4">
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center"
-          initial={{ opacity: 0, y: 30 }}
-          key={`content-${currentIndex}`}
-          transition={{ duration: 0.8, delay: 0.2 }}
-        >
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-md">
-            <Sparkles className="h-5 w-5 text-[#3DA9E0]" />
-            <span className="text-white/90">
-              {t("featuredContent", {
-                contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
-              })}
-            </span>
-          </div>
+      {/* Navigation arrows - only show if more than 1 item */}
+      {featuredContent.length > 1 && (
+        <>
+          <CarouselPrevious className="left-4 h-12 w-12 border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20" />
+          <CarouselNext className="right-4 h-12 w-12 border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20" />
+        </>
+      )}
 
-          <h1 className="mx-auto mb-6 max-w-4xl text-white">
-            {currentItem?.title || ""}
-          </h1>
+      {/* Dots navigation */}
+      {featuredContent.length > 1 && (
+        <div className="-translate-x-1/2 absolute bottom-24 left-1/2 z-20 flex gap-2">
+          {featuredContent.map((_, index) => (
+            <Button
+              aria-label={`Go to slide ${index + 1}`}
+              className={`h-2 w-2 rounded-full transition-all ${
+                index === current
+                  ? "w-8 bg-white"
+                  : "bg-white/40 hover:bg-white/60"
+              }`}
+              key={index}
+              onClick={() => api?.scrollTo(index)}
+            />
+          ))}
+        </div>
+      )}
 
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
-            {(currentItem?.description || "")
-              .replace(/<[^>]+>/g, "")
-              .slice(0, 180) || "..."}
-          </p>
-
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href={contentLink}>
-              <Button
-                className="border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] px-8 py-6 text-white shadow-2xl shadow-[#3DA9E0]/50 hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
-                size="lg"
-              >
-                {t("learnMore")}
-              </Button>
-            </Link>
-            <Link href={isEvent ? "/events" : "/news"}>
-              <Button
-                className="border-white/30 bg-white/10 px-8 py-6 text-white backdrop-blur-md hover:bg-white/20"
-                size="lg"
-                variant="outline"
-              >
-                {t("viewAll", {
-                  contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
-                })}
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
-
-        {/* Navigation arrows */}
-        {featuredContent.length > 1 && (
-          <>
-            <button
-              aria-label="Previous slide"
-              className="-translate-y-1/2 absolute top-1/2 left-4 z-20 rounded-full border border-white/20 bg-white/10 p-3 backdrop-blur-md transition-colors hover:bg-white/20"
-              onClick={prevSlide}
-            >
-              <ChevronLeft className="h-6 w-6 text-white" />
-            </button>
-            <button
-              aria-label="Next slide"
-              className="-translate-y-1/2 absolute top-1/2 right-4 z-20 rounded-full border border-white/20 bg-white/10 p-3 backdrop-blur-md transition-colors hover:bg-white/20"
-              onClick={nextSlide}
-            >
-              <ChevronRight className="h-6 w-6 text-white" />
-            </button>
-          </>
-        )}
-
-        {/* Dots navigation */}
-        {featuredContent.length > 1 && (
-          <div className="-translate-x-1/2 absolute bottom-24 left-1/2 z-20 flex gap-2">
-            {featuredContent.map((_, index) => (
-              <button
-                aria-label={`Go to slide ${index + 1}`}
-                className={`h-2 w-2 rounded-full transition-all ${
-                  index === currentIndex
-                    ? "w-8 bg-white"
-                    : "bg-white/40 hover:bg-white/60"
-                }`}
-                key={index}
-                onClick={() => goToSlide(index)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Scroll indicator */}
-        <motion.button
-          animate={{ y: [0, 10, 0] }}
-          className="-translate-x-1/2 absolute bottom-8 left-1/2 z-20 cursor-pointer"
-          onClick={scrollToContent}
-          transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
-        >
-          <ChevronDown className="h-8 w-8 text-white/70" />
-        </motion.button>
-      </div>
-    </div>
+      {/* Scroll indicator */}
+      <motion.button
+        animate={{ y: [0, 10, 0] }}
+        className="-translate-x-1/2 absolute bottom-8 left-1/2 z-20 cursor-pointer"
+        onClick={scrollToContent}
+        transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+      >
+        <ChevronDown className="h-8 w-8 text-white/70" />
+      </motion.button>
+    </Carousel>
   );
 }

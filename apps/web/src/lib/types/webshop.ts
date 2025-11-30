@@ -17,13 +17,8 @@ interface ProductWithTranslation extends ContentTranslations {
   product_ref: NonNullable<ContentTranslations["product_ref"]>;
 }
 
-export const productCategories = [
-  "Merch",
-  "Trips",
-  "Lockers",
-  "Membership",
-] as const;
-export type ProductCategory = (typeof productCategories)[number];
+const productCategories = ["Merch", "Trips", "Lockers", "Membership"] as const;
+type ProductCategory = (typeof productCategories)[number];
 
 export function parseProductMetadata(
   metadataString: string | null | undefined

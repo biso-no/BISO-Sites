@@ -45,7 +45,14 @@ function toDynamicContentItem(item: NormalizedItem): DynamicContentItem {
  * This is the main entry point for blocks using dynamic data
  */
 export async function getDynamicContent(
-  source: DataSourceConfig | { table?: string; filters?: unknown[]; operation?: string; limit?: number }
+  source:
+    | DataSourceConfig
+    | {
+        table?: string;
+        filters?: unknown[];
+        operation?: string;
+        limit?: number;
+      }
 ): Promise<DynamicContentItem[]> {
   if (!source?.table) {
     return [];
@@ -59,7 +66,12 @@ export async function getDynamicContent(
       const filter = f as { field: string; operator: string; value: unknown };
       return {
         field: filter.field,
-        operator: filter.operator as "equal" | "notEqual" | "lessThan" | "greaterThan" | "contains",
+        operator: filter.operator as
+          | "equal"
+          | "notEqual"
+          | "lessThan"
+          | "greaterThan"
+          | "contains",
         value: filter.value,
       };
     }),

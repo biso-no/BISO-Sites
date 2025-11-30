@@ -10,7 +10,7 @@ export interface Department extends Omit<Departments, "Name"> {
 }
 
 // Re-export for compatibility
-async function _getDepartmentTypes(): Promise<string[]> {
+function _getDepartmentTypes(): string[] {
   // This is now handled in the page component
   return [];
 }

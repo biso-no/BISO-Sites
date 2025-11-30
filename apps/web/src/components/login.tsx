@@ -124,6 +124,7 @@ export function Login() {
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  <title>Loading...</title>
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -182,6 +183,9 @@ export function Login() {
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  <title>
+                    {message.type === "error" ? "Error" : "Success"}
+                  </title>
                   {message.type === "error" ? (
                     <path
                       d="M6 18L18 6M6 6l12 12"

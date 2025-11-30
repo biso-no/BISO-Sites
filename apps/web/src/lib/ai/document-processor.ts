@@ -10,7 +10,7 @@ export type ProcessedDocument = {
   chunks: DocumentChunk[];
 };
 
-export type DocumentChunk = {
+type DocumentChunk = {
   content: string;
   metadata: Record<string, any>;
   chunkIndex: number;

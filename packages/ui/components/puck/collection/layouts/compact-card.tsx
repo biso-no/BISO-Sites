@@ -39,10 +39,7 @@ function CompactItem({ item }: { item: CollectionItem }) {
   );
 }
 
-export function CompactCardLayout({
-  items,
-  columns = 4,
-}: LayoutRendererProps) {
+export function CompactCardLayout({ items, columns = 4 }: LayoutRendererProps) {
   const gridClass = GRID_COLS[columns] || GRID_COLS[4];
 
   return (

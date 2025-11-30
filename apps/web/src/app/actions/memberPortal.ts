@@ -9,7 +9,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { checkMembership } from "@/lib/profile";
 
-export async function createOrUpdatePublicProfile(
+async function createOrUpdatePublicProfile(
   profile: Partial<PublicProfiles>,
   isPublic: boolean
 ): Promise<PublicProfiles | null> {

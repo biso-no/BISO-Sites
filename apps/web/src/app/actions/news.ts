@@ -10,9 +10,8 @@ import {
   type Status,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import type { NewsItem } from "@/lib/types/news";
 
-export type ListNewsParams = {
+type ListNewsParams = {
   limit?: number;
   status?: string;
   campus?: string;
@@ -20,7 +19,7 @@ export type ListNewsParams = {
   locale?: "en" | "no";
 };
 
-export type CreateNewsData = {
+type CreateNewsData = {
   status: string;
   campus_id: string;
   department_id: string;
@@ -163,12 +162,12 @@ async function _createNewsItem(
       campus_id: data.campus_id,
       campus: data.campus_id,
       department_id: data.department_id ?? null,
-      department: data.department_id ? data.department_id : null,
+      department: data.department_id,
       slug: data.slug ?? null,
       url: data.url ?? null,
       image: data.image ?? null,
       metadata: [],
-      sticky: data.sticky,
+      sticky: data.sticky ?? null,
       translation_refs: translationRefs,
     });
 
@@ -188,7 +187,7 @@ async function _updateNewsItem(
   id: string,
   data: Partial<CreateNewsData>,
   _skipRevalidation = false
-): Promise<NewsItem | null> {
+): Promise<News | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -254,14 +253,3 @@ async function _updateNewsItem(
   }
 }
 
-export async function filterArticles(
-  articles: ContentTranslations[],
-  category: string,
-  searchQuery: string
-) {
-  return articles.filter(
-    (article) =>
-      article.content_type === category &&
-      article.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-}

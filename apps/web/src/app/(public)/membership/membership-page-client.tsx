@@ -58,7 +58,7 @@ type BenefitSection = {
 type BenefitLocaleSuffix = "nb" | "en";
 type LocalizedBenefitKey = `${BenefitKey}_${BenefitLocaleSuffix}`;
 
-export type MembershipPageClientProps = {
+type MembershipPageClientProps = {
   campusData: CampusData[];
   globalBenefits: CampusData | null;
   locale: Locale;

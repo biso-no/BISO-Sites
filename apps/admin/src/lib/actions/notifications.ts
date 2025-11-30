@@ -1,6 +1,6 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { AppNotices } from "@repo/api/types/appwrite";
 import type {
@@ -34,7 +34,7 @@ export async function fetchNotifications(): Promise<Notification[]> {
       message: notice.description || notice.title,
       timestamp: notice.$createdAt,
       read: false, // Will be managed client-side
-      actionUrl: notice.link || undefined,
+      actionUrl: notice.actionUrl || undefined,
       metadata: {
         noticeId: notice.$id,
         color: notice.color,
@@ -70,7 +70,7 @@ export async function createNotification(data: {
       isActive: data.isActive !== false,
     };
 
-    const response = await db.createRow(DATABASE_ID, NOTICES_TABLE, noticeData);
+    const response = await db.createRow(DATABASE_ID, NOTICES_TABLE, ID.unique(), noticeData);
 
     return {
       success: true,
@@ -91,7 +91,7 @@ export async function createNotification(data: {
 /**
  * Mark a notification as inactive (soft delete)
  */
-export async function dismissNotification(
+async function dismissNotification(
   notificationId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -117,7 +117,7 @@ export async function dismissNotification(
 /**
  * Update notification priority
  */
-export async function updateNotificationPriority(
+async function updateNotificationPriority(
   notificationId: string,
   priority: number
 ): Promise<{ success: boolean; error?: string }> {
@@ -196,7 +196,7 @@ function mapPriorityToLevel(
 /**
  * Get notification statistics
  */
-export async function getNotificationStats(): Promise<{
+async function getNotificationStats(): Promise<{
   total: number;
   active: number;
   byType: Record<NotificationType, number>;
@@ -223,10 +223,10 @@ export async function getNotificationStats(): Promise<{
       info: 0,
     };
 
-    activeNotices.rows.forEach((notice) => {
+    for (const notice of activeNotices.rows) {
       const type = mapColorToType(notice.color);
-      byType[type]++;
-    });
+      byType[type] += 1;
+    }
 
     return {
       total: allNotices.rows.length,

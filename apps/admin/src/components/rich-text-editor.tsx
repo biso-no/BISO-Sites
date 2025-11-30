@@ -18,7 +18,6 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
-import { Markdown } from "tiptap-markdown";
 import {
   AlignCenter,
   AlignJustify,
@@ -41,6 +40,7 @@ import {
   Undo,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Markdown } from "tiptap-markdown";
 
 type RichTextEditorProps = {
   content: string;

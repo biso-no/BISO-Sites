@@ -3,7 +3,7 @@ import { z } from "zod";
 // Lazy import heavy indexing service to reduce initial bundle size
 import { documentClassifier } from "@/lib/ai/document-classifier";
 
-export type RagSearchResult = {
+type RagSearchResult = {
   text: string;
   source: string;
   title: string;

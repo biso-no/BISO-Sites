@@ -80,8 +80,8 @@ export function FileUpload({
             ) : (
               images.map((image) => (
                 <button
-                  key={image.id}
                   className="relative aspect-square w-full overflow-hidden rounded-md border hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary"
+                  key={image.id}
                   onClick={() => onChange(image.url)}
                   type="button"
                 >

@@ -118,6 +118,7 @@ export function DepartmentFilters({
           <Search className="-translate-y-1/2 absolute top-1/2 left-3.5 h-4 w-4 text-muted-foreground transition-colors duration-300 group-focus-within:text-primary" />
           {searchInputValue && (
             <button
+              type="button"
               className="-translate-y-1/2 absolute top-1/2 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-destructive/20 hover:text-destructive"
               onClick={clearSearch}
             >
@@ -388,6 +389,7 @@ export function DepartmentFilters({
                 <span className="text-primary">{filters.searchTerm}</span>
               </span>
               <button
+                type="button"
                 className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={clearSearch}
               >
@@ -405,6 +407,7 @@ export function DepartmentFilters({
                 </span>
               </span>
               <button
+                type="button"
                 className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={() => updateFilter("campus_id", undefined)}
               >
@@ -419,6 +422,7 @@ export function DepartmentFilters({
                 Type: <span className="text-purple-600">{filters.type}</span>
               </span>
               <button
+                type="button"
                 className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={() => updateFilter("type", undefined)}
               >
@@ -436,6 +440,7 @@ export function DepartmentFilters({
                 </span>
               </span>
               <button
+                type="button"
                 className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
                 onClick={() => updateFilter("active", true)}
               >

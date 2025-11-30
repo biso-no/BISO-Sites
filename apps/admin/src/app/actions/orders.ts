@@ -330,7 +330,7 @@ export async function createCartCheckoutSession(
   }
 }
 
-async function _startCartCheckout(data: CartCheckoutData) {
+function _startCartCheckout(data: CartCheckoutData) {
   return createCartCheckoutSession(data);
 }
 

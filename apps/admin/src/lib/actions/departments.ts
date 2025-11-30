@@ -135,11 +135,11 @@ export async function getDepartmentTypes(): Promise<string[]> {
   ]);
 
   const types = new Set<string>();
-  departments.rows.forEach((dept) => {
+  for (const dept of departments.rows) {
     if (dept.type && dept.type !== "") {
       types.add(dept.type);
     }
-  });
+  }
 
   return Array.from(types).sort();
 }

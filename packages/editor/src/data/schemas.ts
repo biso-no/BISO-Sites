@@ -87,7 +87,9 @@ export const TABLE_SCHEMAS: TableSchema[] = [
       },
       {
         label: "Active Deadline",
-        filters: [{ field: "deadline", operator: "greaterThan", value: "$now" }],
+        filters: [
+          { field: "deadline", operator: "greaterThan", value: "$now" },
+        ],
       },
     ],
   },

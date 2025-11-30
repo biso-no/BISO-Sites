@@ -87,7 +87,7 @@ async function getMemberDiscountIfAny(product: any) {
   }
 }
 
-export type CheckoutLineItemInput = {
+type CheckoutLineItemInput = {
   productId: string;
   slug: string;
   quantity: number;
@@ -96,21 +96,21 @@ export type CheckoutLineItemInput = {
   customFieldLabels?: Record<string, string>;
 };
 
-export type CartCheckoutData = {
+type CartCheckoutData = {
   items: CheckoutLineItemInput[];
   name: string;
   email: string;
   phone?: string;
 };
 
-export type CheckoutResult = {
+type CheckoutResult = {
   success: boolean;
   paymentUrl?: string;
   orderId?: string;
   error?: string;
 };
 
-export type CheckoutStatusResult = {
+type CheckoutStatusResult = {
   success: boolean;
   order?: Orders;
   vippsStatus?: any;
@@ -137,7 +137,7 @@ function normalizeCustomFields(inputs?: Record<string, string>) {
   );
 }
 
-export async function createCartCheckoutSession(
+async function createCartCheckoutSession(
   data: CartCheckoutData
 ): Promise<CheckoutResult> {
   try {

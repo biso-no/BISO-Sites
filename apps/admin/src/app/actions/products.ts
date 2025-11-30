@@ -567,7 +567,7 @@ export async function translateProductContent(
 }
 
 // Get products for public pages (published only)
-async function _getProducts(
+function _getProducts(
   _status: "in-stock" | "all" = "all",
   locale: "en" | "no" = "en"
 ): Promise<ProductWithTranslations[]> {

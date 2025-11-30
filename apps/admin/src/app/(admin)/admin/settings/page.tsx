@@ -1,9 +1,6 @@
-import { listNavMenuAdmin } from "@/app/actions/nav-menu";
-import { NavMenuManager } from "./_components/nav-menu-manager";
 import { PolicyPagesManager } from "./_components/policy-pages-manager";
 
-export default async function AdminSettingsPage() {
-  const navigation = await listNavMenuAdmin();
+export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
@@ -14,7 +11,6 @@ export default async function AdminSettingsPage() {
         </p>
       </div>
 
-      <NavMenuManager items={navigation.tree} />
 
       <div className="space-y-3">
         <h2 className="font-semibold text-xl">Content Pages</h2>

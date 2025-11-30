@@ -2,7 +2,7 @@
  * Utility functions for document handling and URL generation
  */
 
-export type DocumentViewerUrlOptions = {
+type DocumentViewerUrlOptions = {
   fileName: string;
   baseUrl?: string;
 };

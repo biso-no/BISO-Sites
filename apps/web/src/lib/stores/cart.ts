@@ -8,7 +8,7 @@ import type {
   ProductWithTranslations,
 } from "@/lib/types/product";
 
-export type CartItem = {
+type CartItem = {
   id: string;
   productId: string;
   slug: string;

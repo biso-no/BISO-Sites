@@ -16,7 +16,7 @@ import type {
   JobApplicationFormData,
 } from "@/lib/types/job-application";
 
-export type ListJobsParams = {
+type ListJobsParams = {
   limit?: number;
   status?: string;
   campus?: string;
@@ -24,7 +24,7 @@ export type ListJobsParams = {
   locale?: "en" | "no";
 };
 
-export type CreateJobData = {
+type CreateJobData = {
   slug: string;
   status: "draft" | "published" | "closed";
   campus_id: string;

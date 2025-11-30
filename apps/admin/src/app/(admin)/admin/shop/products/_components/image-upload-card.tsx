@@ -193,7 +193,6 @@ export default function ImageUploadCard({
                 <button
                   className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-muted-foreground text-xs transition-colors hover:border-primary/40 hover:bg-primary/5"
                   disabled={isUploading}
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Placeholders are static
                   key={`empty-${index}`}
                   onClick={() => fileInputRef.current?.click()}
                   type="button"

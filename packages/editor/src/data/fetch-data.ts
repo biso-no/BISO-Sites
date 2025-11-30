@@ -2,6 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { normalizeItem } from "./normalizers";
 import type {
   DataFetchResult,
   DataFilter,
@@ -9,7 +10,6 @@ import type {
   FilterOperator,
   NormalizedItem,
 } from "./types";
-import { normalizeItem } from "./normalizers";
 
 const DATABASE_ID = "app";
 
@@ -35,11 +35,15 @@ function buildQuery(filter: DataFilter): string | null {
 
   const operatorMap: Record<FilterOperator, () => string | null> = {
     equal: () => Query.equal(field, resolvedValue as string | number | boolean),
-    notEqual: () => Query.notEqual(field, resolvedValue as string | number | boolean),
+    notEqual: () =>
+      Query.notEqual(field, resolvedValue as string | number | boolean),
     lessThan: () => Query.lessThan(field, resolvedValue as string | number),
-    lessThanOrEqual: () => Query.lessThanEqual(field, resolvedValue as string | number),
-    greaterThan: () => Query.greaterThan(field, resolvedValue as string | number),
-    greaterThanOrEqual: () => Query.greaterThanEqual(field, resolvedValue as string | number),
+    lessThanOrEqual: () =>
+      Query.lessThanEqual(field, resolvedValue as string | number),
+    greaterThan: () =>
+      Query.greaterThan(field, resolvedValue as string | number),
+    greaterThanOrEqual: () =>
+      Query.greaterThanEqual(field, resolvedValue as string | number),
     contains: () => Query.contains(field, resolvedValue as string),
     startsWith: () => Query.startsWith(field, resolvedValue as string),
     endsWith: () => Query.endsWith(field, resolvedValue as string),
@@ -97,14 +101,16 @@ export async function fetchDynamicData(
     }
 
     // Include translation relations for content tables
-    const contentTables = ["events", "news", "jobs", "products", "departments", "pages"];
+    const contentTables = [
+      "events",
+      "news",
+      "jobs",
+      "products",
+      "departments",
+      "pages",
+    ];
     if (contentTables.includes(config.table)) {
-      queries.push(
-        Query.select([
-          "*",
-          "translation_refs.*",
-        ])
-      );
+      queries.push(Query.select(["*", "translation_refs.*"]));
     }
 
     const response = await db.listRows({
@@ -124,7 +130,10 @@ export async function fetchDynamicData(
       hasMore: response.total > (config.offset || 0) + items.length,
     };
   } catch (error) {
-    console.error(`[fetchDynamicData] Failed to fetch from ${config.table}:`, error);
+    console.error(
+      `[fetchDynamicData] Failed to fetch from ${config.table}:`,
+      error
+    );
     return { items: [], total: 0, hasMore: false };
   }
 }

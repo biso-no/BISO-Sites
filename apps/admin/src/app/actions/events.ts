@@ -468,7 +468,7 @@ export async function uploadEventImage(formData: FormData) {
   return { id: uploaded.$id, url };
 }
 
-async function _getEventImageViewUrl(fileId: string) {
+function _getEventImageViewUrl(fileId: string) {
   return getStorageFileUrl("content", fileId);
 }
 

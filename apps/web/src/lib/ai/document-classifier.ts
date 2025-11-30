@@ -2,7 +2,7 @@
  * Document classifier for language detection, version parsing, and authority ranking
  */
 
-export type DocumentClassification = {
+type DocumentClassification = {
   language: "norwegian" | "english" | "mixed" | "unknown";
   version: {
     detected: boolean;
@@ -29,7 +29,7 @@ const REG_EXP_VERSION_MAJOR = /version\s*(\d+)\.(\d+)\.(\d+)/i;
 const REG_EXP_VERSION_PATCH = /version\s*(\d+)/i;
 const REG_EXP_NORWEGIAN_CHARS = /[æøå]/;
 
-export class DocumentClassifier {
+class DocumentClassifier {
   /**
    * Classify a document based on filename, path, and content patterns
    */

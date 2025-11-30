@@ -7,7 +7,7 @@ const SITE_URL_REGEX = /^https?:\/\//i;
 const LEADING_SLASHES_REGEX = /^\/+/;
 const TRAILING_SLASHES_REGEX = /\/+$/;
 
-export type SharePointConfig = {
+type SharePointConfig = {
   clientId: string;
   clientSecret: string;
   tenantId: string;
@@ -37,7 +37,7 @@ export type SharePointDocument = {
   metadata: Record<string, any>;
 };
 
-export type SharePointSite = {
+type SharePointSite = {
   id: string;
   name: string;
   displayName: string;
@@ -361,7 +361,7 @@ export class SharePointService {
 }
 
 // Configuration schema
-export const SharePointConfigSchema = z.object({
+const SharePointConfigSchema = z.object({
   clientId: z.string(),
   clientSecret: z.string(),
   tenantId: z.string(),

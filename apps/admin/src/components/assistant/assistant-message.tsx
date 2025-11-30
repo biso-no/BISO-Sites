@@ -1,8 +1,8 @@
 "use client";
 
+import type { AssistantMessage as AssistantMessageType } from "@repo/ai/types";
 import { cn } from "@repo/ui/lib/utils";
 import { Bot, User } from "lucide-react";
-import type { AssistantMessage as AssistantMessageType } from "@repo/ai/types";
 
 type AssistantMessageProps = {
   message: AssistantMessageType;
@@ -14,7 +14,9 @@ function getMessageText(message: AssistantMessageType): string {
   }
 
   return message.parts
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .filter(
+      (part): part is { type: "text"; text: string } => part.type === "text"
+    )
     .map((part) => part.text)
     .join("");
 }
@@ -24,12 +26,7 @@ export function AssistantMessage({ message }: AssistantMessageProps) {
   const text = getMessageText(message);
 
   return (
-    <div
-      className={cn(
-        "flex gap-3",
-        isUser ? "flex-row-reverse" : "flex-row"
-      )}
-    >
+    <div className={cn("flex gap-3", isUser ? "flex-row-reverse" : "flex-row")}>
       {/* Avatar */}
       <div
         className={cn(
