@@ -3,9 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3003",
-    "build": "next build --turbopack",
+    "build": "next build",
     "deploy:build": "bun run build && bun run deploy:prep",
-    "deploy:prep": "mv .next/standalone/apps/api/.next .next/standalone/apps/api/.env .next/standalone/apps/api/package.json .next/standalone/apps/api/server.js .next/standalone/ && rm -rf .next/standalone/apps",
+    "deploy:prep": "find .next/standalone/apps/api -maxdepth 1 -name '.next' -o -name '.env' -o -name 'package.json' -o -name 'server.js' | xargs -I {} mv {} .next/standalone/ && rm -rf .next/standalone/apps",
     "start": "next start",
     "analyze": "ANALYZE=true npm run build",
     "test": "NODE_ENV=test vitest run",
