@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const baseConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
+  output:"standalone",
   productionBrowserSourceMaps: false,
   serverExternalPackages: ["tesseract.js"],
   experimental: {
