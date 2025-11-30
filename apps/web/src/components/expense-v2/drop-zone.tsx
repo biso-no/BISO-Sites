@@ -248,11 +248,11 @@ export function DropZone({
     <motion.div
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
-        "relative overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-300",
+        "relative overflow-hidden rounded-2xl border-2 border-dashed bg-white transition-all duration-300 dark:bg-gray-900",
         isDragActive
           ? "border-primary bg-primary/5 shadow-[0_0_40px_rgba(var(--primary-rgb),0.15)]"
           : "border-muted-foreground/20 hover:border-primary/40 hover:bg-muted/30",
-        isCompact ? "p-6" : "p-12"
+        isCompact ? "p-6" : "min-h-[280px] p-12"
       )}
       initial={{ opacity: 0, scale: 0.95 }}
       layout

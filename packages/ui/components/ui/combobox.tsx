@@ -21,17 +21,22 @@ export function Combobox({
   items,
   name,
   defaultValue,
+  onValueChange,
+  disabled,
 }: {
   items: { value: string; label: string }[];
   name: string;
   defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const [value, setValue] = React.useState(defaultValue || "");
+  
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild disabled={disabled}>
         <Button
           aria-expanded={open}
           className="w-full justify-between"
@@ -55,6 +60,7 @@ export function Combobox({
                 onSelect={() => {
                   setValue(item.value);
                   setOpen(false);
+                  onValueChange?.(item.value);
                 }}
               >
                 <Check
