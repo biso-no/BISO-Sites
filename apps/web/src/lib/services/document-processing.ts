@@ -1,5 +1,4 @@
 import "server-only";
-import { extractTextFromPdf } from "@/lib/pdf-text-extractor";
 
 export type ExtractedDocumentData = {
   date: string | null;
@@ -15,16 +14,19 @@ const DATE_PATTERNS: readonly RegExp[] = [
   /\b\d{2}[-./]\d{2}[-./]\d{4}\b/, // DD/MM/YYYY
   /\b\d{4}[-./]\d{2}[-./]\d{2}\b/, // YYYY/MM/DD
   /\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/i,
+  /\b\d{1,2}\s+(?:januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)\s+\d{4}\b/i,
 ];
 
 const AMOUNT_PATTERNS: readonly RegExp[] = [
   /(?:NOK|kr\.?|KR)\s*(\d+(?:[.,]\d{2})?)/i,
   /(\d+(?:[.,]\d{2})?)\s*(?:NOK|kr\.?|KR)/i,
+  /(?:total|sum|beløp|amount)[:\s]*(\d+(?:[.,]\d{2})?)/i,
   /(\d+(?:[.,]\d{2})?)/,
 ];
 
-const DESCRIPTION_HEADER_REGEX = /(?:invoice|receipt|kvittering).*?\n/gi;
-const DESCRIPTION_TOTAL_REGEX = /\b(?:total|sum|amount|beløp).*?\n/gi;
+const DESCRIPTION_HEADER_REGEX =
+  /(?:invoice|receipt|kvittering|faktura).*?\n/gi;
+const DESCRIPTION_TOTAL_REGEX = /\b(?:total|sum|amount|beløp|mva|vat).*?\n/gi;
 const AMOUNT_LINE_REGEX = /^\d+[.,]\d{2}$/;
 const DATE_LINE_REGEX = /^\d{2}[-./]\d{2}[-./]\d{4}$/;
 
@@ -87,16 +89,50 @@ function extractDescription(text: string): string | null {
   return null;
 }
 
-// Process PDF files
-async function processPDF(buffer: Buffer): Promise<ExtractedDocumentData> {
+// Process document using Scribe.js OCR
+async function processWithScribe(
+  buffer: Buffer,
+  mimeType: string
+): Promise<ExtractedDocumentData> {
+  const scribe = await import("scribe.js-ocr");
+
   try {
-    const text = await extractTextFromPdf(buffer);
+    // Initialize scribe with both PDF and OCR support
+    await scribe.default.init({ pdf: true, ocr: true });
 
-    const date = extractDate(text);
-    const amount = extractAmount(text);
-    const description = extractDescription(text);
+    // Determine file type and prepare input
+    const isPdf = mimeType === "application/pdf";
+    const arrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength
+    );
 
-    // Calculate confidence based on extracted data
+    // Import files based on type
+    if (isPdf) {
+      await scribe.default.importFiles({ pdfFiles: [arrayBuffer] });
+    } else {
+      await scribe.default.importFiles({ imageFiles: [arrayBuffer] });
+    }
+
+    // Run OCR recognition with Norwegian and English
+    await scribe.default.recognize({
+      langs: ["eng", "nor"],
+      mode: "quality",
+    });
+
+    // Export the text result
+    const text = await scribe.default.exportData("txt");
+
+    // Clean up
+    await scribe.default.terminate();
+
+    // Parse the extracted text
+    const extractedText = typeof text === "string" ? text : "";
+    const date = extractDate(extractedText);
+    const amount = extractAmount(extractedText);
+    const description = extractDescription(extractedText);
+
+    // Calculate confidence based on what we extracted
     let confidence = 0;
     if (date) {
       confidence += 0.3;
@@ -113,70 +149,18 @@ async function processPDF(buffer: Buffer): Promise<ExtractedDocumentData> {
       amount,
       description,
       confidence,
-      method: "pdf",
+      method: isPdf ? "pdf" : "ocr",
       currency: null,
       exchangeRate: null,
     };
   } catch (error) {
-    console.error("PDF processing failed:", error);
-    throw error;
-  }
-}
-
-async function processImage(buffer: Buffer): Promise<ExtractedDocumentData> {
-  try {
-    const [{ createWorker }, { Jimp }] = await Promise.all([
-      import("tesseract.js"),
-      import("jimp"),
-    ]);
-    const worker = await createWorker("eng+nor");
-
-    // Use Jimp to read the image with new v1.x API
-    const image = await Jimp.read(buffer);
-
-    // Resize the image (new API uses object with width/height)
-    image.resize({ w: 2000 }); // This will auto-calculate height to maintain aspect ratio
-
-    // Get buffer from the image using new API
-    const optimizedBuffer = await image.getBuffer("image/png");
-
-    // Perform OCR
-    const {
-      data: { text, confidence },
-    } = await worker.recognize(optimizedBuffer);
-
-    // Terminate worker
-    await worker.terminate();
-
-    const date = extractDate(text);
-    const amount = extractAmount(text);
-    const description = extractDescription(text);
-
-    let dataConfidence = 0;
-    if (date) {
-      dataConfidence += 0.3;
+    console.error("Scribe.js processing failed:", error);
+    // Try to terminate on error
+    try {
+      await scribe.default.terminate();
+    } catch {
+      // Ignore termination errors
     }
-    if (amount) {
-      dataConfidence += 0.4;
-    }
-    if (description) {
-      dataConfidence += 0.3;
-    }
-
-    const normalizedConfidence = confidence / 100;
-    const finalConfidence = (dataConfidence + normalizedConfidence) / 2;
-
-    return {
-      date,
-      amount,
-      description,
-      confidence: finalConfidence,
-      method: "ocr",
-      currency: null,
-      exchangeRate: null,
-    };
-  } catch (error) {
-    console.error("OCR processing failed:", error);
     throw error;
   }
 }
@@ -185,26 +169,33 @@ export async function processDocument(
   buffer: Buffer,
   mimeType: string
 ): Promise<ExtractedDocumentData> {
+  const supportedTypes = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+  ];
+
+  if (
+    !supportedTypes.some(
+      (t) => mimeType.startsWith(t.split("/")[0] || "") || mimeType === t
+    )
+  ) {
+    console.error("Unsupported file type:", mimeType);
+    return {
+      date: null,
+      amount: null,
+      description: null,
+      confidence: 0,
+      method: "manual",
+      currency: null,
+      exchangeRate: null,
+    };
+  }
+
   try {
-    // Try PDF processing first for PDF files
-    if (mimeType === "application/pdf") {
-      try {
-        const pdfResult = await processPDF(buffer);
-        // If PDF processing extracted enough data with good confidence, return it
-        if (pdfResult.confidence > 0.7) {
-          return pdfResult;
-        }
-      } catch (_error) {
-        console.log("PDF processing failed, falling back to OCR");
-      }
-    }
-
-    // Fall back to OCR for images or if PDF processing failed
-    if (mimeType.startsWith("image/") || mimeType === "application/pdf") {
-      return await processImage(buffer);
-    }
-
-    throw new Error("Unsupported file type");
+    return await processWithScribe(buffer, mimeType);
   } catch (error) {
     console.error("Document processing failed:", error);
     // Return a structure for manual input
