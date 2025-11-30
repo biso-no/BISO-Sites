@@ -39,6 +39,9 @@ const baseConfig: NextConfig = {
 
   experimental: {
     authInterrupts: true,
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
   },
   // No framework-level redirects at this time (user preference)
 };

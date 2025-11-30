@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCampuses } from "@/app/actions/campus";
+import { ExpenseCanvas } from "@/components/expense-v2/expense-canvas";
 import { getLoggedInUser } from "@/lib/actions/user";
-import { NewExpenseClient } from "./new-expense-client";
 
 export default async function NewExpensePage() {
   const userData = await getLoggedInUser();
@@ -16,7 +16,7 @@ export default async function NewExpensePage() {
   });
 
   return (
-    <NewExpenseClient
+    <ExpenseCanvas
       campuses={campuses}
       initialProfile={userData.profile || {}}
     />

@@ -47,7 +47,7 @@ export const SelectCampus = ({
   const selectedCampus =
     selectedId === "all"
       ? null
-      : campuses.find((c) => c.$id === selectedId) ?? null;
+      : (campuses.find((c) => c.$id === selectedId) ?? null);
 
   const label = selectedCampus?.name ?? placeholder;
 
@@ -146,8 +146,7 @@ export const SelectCampus = ({
                 "hover:bg-accent/50 focus:bg-accent/50",
                 "rounded-md",
                 "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset",
-                isSelected &&
-                  "bg-accent/30 font-medium text-accent-foreground",
+                isSelected && "bg-accent/30 font-medium text-accent-foreground",
                 loading && "cursor-not-allowed opacity-50"
               )}
               disabled={loading || isSelected}
