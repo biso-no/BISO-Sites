@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const baseConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
-  output:"standalone",
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../../"),
   productionBrowserSourceMaps: false,
   serverExternalPackages: ["tesseract.js"],
   experimental: {
