@@ -107,6 +107,7 @@ export function EventDetailModal({
 
             {/* Close Button */}
             <button
+              type="button"
               className="absolute top-4 right-4 rounded-full bg-white/90 p-2 transition-colors hover:bg-white"
               onClick={onClose}
             >

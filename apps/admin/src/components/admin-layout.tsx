@@ -28,13 +28,13 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/user";
+import { AssistantSidebar } from "./assistant/assistant-sidebar";
+import { AssistantTrigger } from "./assistant/assistant-trigger";
 import Breadcrumb from "./breadcrumb";
 import { CommandMenu } from "./command-menu";
 import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
-import { AssistantSidebar } from "./assistant/assistant-sidebar";
-import { AssistantTrigger } from "./assistant/assistant-trigger";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -111,6 +111,7 @@ const SidebarItem = ({
         </Link>
         {item.subItems && isExpanded && (
           <button
+            type="button"
             className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-primary/5 hover:text-primary dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
             onClick={(e) => {
               e.preventDefault();
@@ -424,6 +425,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             </p>
           </div>
           <button
+            type="button"
             className="flex h-11 w-full items-center justify-center rounded-2xl border border-primary/10 bg-white/50 font-medium text-foreground/80 text-sm transition hover:bg-white/80 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/20"
             onClick={toggleSidebar}
           >

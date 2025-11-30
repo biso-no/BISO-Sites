@@ -24,6 +24,7 @@ export function Tabs({ tabs, defaultValue }: TabsProps) {
       <div className="flex border-gray-200 border-b dark:border-gray-800">
         {tabs.map((tab) => (
           <button
+            type="button"
             className={cn(
               "px-4 py-2 font-medium text-sm transition-colors",
               "-mb-px border-b-2",

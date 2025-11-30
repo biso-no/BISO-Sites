@@ -3,9 +3,7 @@ import { z } from "zod";
 import type { RouteInfo } from "../types";
 
 const navigationSchema = z.object({
-  path: z
-    .string()
-    .describe("The path to navigate to, e.g., /admin/events/new"),
+  path: z.string().describe("The path to navigate to, e.g., /admin/events/new"),
   reason: z
     .string()
     .optional()

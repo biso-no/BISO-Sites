@@ -2,6 +2,16 @@
 
 import type { Campus, VarslingSettings } from "@repo/api/types/appwrite";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ui/components/ui/alert-dialog";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -70,6 +80,10 @@ export default function VarslingAdminPage() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState<VarslingFormData>({
     campus_id: "",
     role_name: "",
@@ -145,12 +159,9 @@ export default function VarslingAdminPage() {
     setSubmitStatus(null);
 
     try {
-      let result;
-      if (editingId) {
-        result = await updateVarslingSettings(editingId, formData);
-      } else {
-        result = await createVarslingSettings(formData);
-      }
+      const result = editingId
+        ? await updateVarslingSettings(editingId, formData)
+        : await createVarslingSettings(formData);
 
       if (result.success) {
         setSubmitStatus({
@@ -183,21 +194,40 @@ export default function VarslingAdminPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t("messages.deleteConfirm"))) {
+  const openDeleteDialog = (id: string) => {
+    setDeleteTargetId(id);
+    setDeleteError(null);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeleteTargetId(null);
+    setDeleteError(null);
+    setIsDeleting(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTargetId) {
       return;
     }
 
+    setIsDeleting(true);
+    setDeleteError(null);
+
     try {
-      const result = await deleteVarslingSettings(id);
+      const result = await deleteVarslingSettings(deleteTargetId);
       if (result.success) {
         const updatedSettings = await getAllVarslingSettings();
         setSettings(updatedSettings);
+        closeDeleteDialog();
       } else {
-        alert(t("messages.deleteError"));
+        setDeleteError(result.error || t("messages.deleteError"));
       }
     } catch (_error) {
-      alert(t("messages.deleteUnexpected"));
+      setDeleteError(t("messages.deleteUnexpected"));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -311,7 +341,7 @@ export default function VarslingAdminPage() {
                         </Button>
                         <Button
                           className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(setting.$id!)}
+                          onClick={() => openDeleteDialog(setting.$id!)}
                           size="sm"
                           variant="outline"
                         >
@@ -462,16 +492,64 @@ export default function VarslingAdminPage() {
                 {t("dialog.buttons.cancel")}
               </Button>
               <Button disabled={isSubmitting} type="submit">
-                {isSubmitting
-                  ? t("dialog.buttons.saving")
-                  : editingId
-                    ? t("dialog.buttons.update")
-                    : t("dialog.buttons.create")}
+                {(() => {
+                  if (isSubmitting) {
+                    return t("dialog.buttons.saving");
+                  }
+                  if (editingId) {
+                    return t("dialog.buttons.update");
+                  }
+                  return t("dialog.buttons.create");
+                })()}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            closeDeleteDialog();
+          }
+        }}
+        open={isDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("messages.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("messages.deleteConfirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError ? (
+            <Alert className="border-red-200 bg-red-50">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">
+                  {deleteError}
+                </AlertDescription>
+              </div>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              {t("dialog.buttons.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={isDeleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                await handleDelete();
+              }}
+            >
+              {isDeleting ? t("messages.deleting") : t("table.actions.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

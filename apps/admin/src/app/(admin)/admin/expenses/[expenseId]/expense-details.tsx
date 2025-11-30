@@ -34,7 +34,6 @@ const ExpenseDetailsSkeleton = () => (
     </div>
     <div className="grid gap-6 md:grid-cols-2">
       {[...new Array(4)].map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: Skeleton components are not used for rendering content
         <div className="space-y-2" key={i}>
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-6 w-48" />

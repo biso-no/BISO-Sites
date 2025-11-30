@@ -32,7 +32,7 @@ import { Textarea } from "@repo/ui/components/ui/textarea";
 import { Building2, ChevronLeft, Save, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import * as React from "react";
+import { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -88,13 +88,13 @@ export default function DepartmentEditor({
   types,
 }: DepartmentEditorProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [activeLocale, setActiveLocale] = React.useState<"en" | "no">("en");
-  const editorRefEn = React.useRef<any>(null);
-  const editorRefNo = React.useRef<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeLocale, setActiveLocale] = useState<"en" | "no">("en");
+  const editorRefEn = useRef<any>(null);
+  const editorRefNo = useRef<any>(null);
 
   // Build translations map from department data
-  const translationsMap = React.useMemo(() => {
+  const translationsMap = useMemo(() => {
     if (!department?.translations) {
       return {
         en: { title: "", description: "", short_description: "" },
@@ -195,6 +195,17 @@ export default function DepartmentEditor({
   };
 
   const isEditing = !!department;
+  const actionButtonLabel = useMemo(() => {
+    if (isSubmitting) {
+      return "Saving...";
+    }
+
+    if (isEditing) {
+      return "Update Department";
+    }
+
+    return "Create Department";
+  }, [isEditing, isSubmitting]);
   const departmentName =
     form.watch("translations.en.title") ||
     form.watch("Name") ||
@@ -251,11 +262,7 @@ export default function DepartmentEditor({
                 onClick={form.handleSubmit(onSubmit)}
               >
                 <Save className="h-4 w-4" />
-                {isSubmitting
-                  ? "Saving..."
-                  : isEditing
-                    ? "Update Department"
-                    : "Create Department"}
+                {actionButtonLabel}
               </Button>
             </div>
           </div>

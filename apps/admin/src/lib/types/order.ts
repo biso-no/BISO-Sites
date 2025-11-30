@@ -21,7 +21,7 @@ export type OrderItem = {
   custom_fields?: { id: string; label: string; value: string }[];
 };
 
-export interface Order extends Models.Row {
+interface Order extends Models.Row {
   status: OrderStatus;
   userId?: string;
   buyer_name?: string;

@@ -136,7 +136,7 @@ const extractErrorMessage = (error: unknown) => {
   return "Unknown error";
 };
 
-export function MembershipStatusCard({
+function MembershipStatusCard({
   initial,
   hasBIIdentity = false,
 }: {

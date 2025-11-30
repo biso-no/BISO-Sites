@@ -4,9 +4,6 @@ import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-
-import { PDFParse } from 'pdf-parse';
-
 // Response schema for AI extraction
 const ExpenseDataSchema = z.object({
   description: z
@@ -24,9 +21,14 @@ const ExpenseDataSchema = z.object({
   date: z.string().nullable().describe("Date of purchase in YYYY-MM-DD format"),
   vendor: z.string().nullable().describe("Name of the store or vendor"),
 });
-async function getHistoricalRate(date: string, currency: string): Promise<number | null> {
-  if (currency === 'NOK') { return 1; }
-  
+async function getHistoricalRate(
+  date: string,
+  currency: string
+): Promise<number | null> {
+  if (currency === "NOK") {
+    return 1;
+  }
+
   try {
     const response = await fetch(
       `https://api.frankfurter.app/${date}?from=${currency}&to=NOK`
@@ -34,7 +36,7 @@ async function getHistoricalRate(date: string, currency: string): Promise<number
     const data = await response.json();
     return data.rates?.NOK || null;
   } catch (error) {
-    console.error('Error fetching exchange rate:', error);
+    console.error("Error fetching exchange rate:", error);
     return null;
   }
 }
@@ -47,6 +49,91 @@ const ALLOWED_TYPES = [
   "application/pdf",
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const buildErrorResponse = (message: string, status = 400) =>
+  NextResponse.json({ error: message }, { status });
+
+type FileValidationResult =
+  | {
+      ok: true;
+      buffer: Buffer;
+      isPdf: boolean;
+      mimeType: string;
+    }
+  | { ok: false; response: NextResponse };
+
+async function validateAndPrepareFile(
+  file: File | null
+): Promise<FileValidationResult> {
+  if (!file) {
+    return { ok: false, response: buildErrorResponse("No file provided") };
+  }
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return {
+      ok: false,
+      response: buildErrorResponse(
+        `Invalid file type. Allowed: ${ALLOWED_TYPES.join(", ")}`
+      ),
+    };
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      ok: false,
+      response: buildErrorResponse("File size exceeds 10MB limit"),
+    };
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  return {
+    ok: true,
+    buffer,
+    isPdf: file.type === "application/pdf",
+    mimeType: file.type,
+  };
+}
+
+function parseExpenseData(
+  preparedFile: Extract<FileValidationResult, { ok: true }>
+): Promise<ExpenseData> {
+  if (preparedFile.isPdf) {
+    return extractExpenseDataFromPdf(preparedFile.buffer);
+  }
+
+  const base64Image = preparedFile.buffer.toString("base64");
+  return extractExpenseDataFromImage(base64Image, preparedFile.mimeType);
+}
+
+async function convertAmountToNok(expenseData: ExpenseData) {
+  const currency =
+    typeof expenseData.currency === "string" ? expenseData.currency : null;
+  const date = typeof expenseData.date === "string" ? expenseData.date : null;
+  const hasForeignCurrency = currency && currency !== "NOK";
+  const hasValidDate = !!date && DATE_REGEX.test(date);
+  const amount =
+    typeof expenseData.amount === "number" ? expenseData.amount : null;
+  const canConvert =
+    hasForeignCurrency &&
+    hasValidDate &&
+    amount !== null &&
+    Boolean(date && currency);
+
+  if (!canConvert) {
+    return { amountInNok: null, exchangeRate: null };
+  }
+
+  const exchangeRate = await getHistoricalRate(date, currency);
+
+  if (!exchangeRate) {
+    return { amountInNok: null, exchangeRate: null };
+  }
+
+  const amountInNok = Number((amount * exchangeRate).toFixed(2));
+  return { amountInNok, exchangeRate };
+}
 
 /**
  * Use OpenAI Vision to extract structured expense data directly from image
@@ -86,11 +173,7 @@ For currency, default to NOK if it appears to be a Norwegian receipt.`,
 /**
  * Extract text from PDF and use AI to parse it
  */
-async function extractExpenseDataFromPdf(
-  buffer: Buffer
-): Promise<ExpenseData> {
-
-
+async function extractExpenseDataFromPdf(buffer: Buffer): Promise<ExpenseData> {
   const { object } = await generateObject({
     model: openai("gpt-5-nano"),
     schema: ExpenseDataSchema,
@@ -112,7 +195,7 @@ For currency, default to NOK if it appears to be Norwegian.
             type: "file",
             data: buffer,
             mediaType: "application/pdf",
-          }
+          },
         ],
       },
     ],
@@ -127,60 +210,21 @@ export async function POST(req: NextRequest) {
   const user = await account.get();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return buildErrorResponse("Unauthorized", 401);
   }
 
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
-    // Validate file
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    const preparedFile = await validateAndPrepareFile(file);
+
+    if (!preparedFile.ok) {
+      return preparedFile.response;
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: `Invalid file type. Allowed: ${ALLOWED_TYPES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "File size exceeds 10MB limit" },
-        { status: 400 }
-      );
-    }
-
-    // Convert to buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const isPdf = file.type === "application/pdf";
-
-    let expenseData: ExpenseData;
-
-    if (isPdf) {
-      // For PDFs, extract text and use text-based AI
-      expenseData = await extractExpenseDataFromPdf(buffer);
-    } else {
-      // For images, use OpenAI Vision directly (much better than Tesseract)
-      const base64Image = buffer.toString("base64");
-      expenseData = await extractExpenseDataFromImage(base64Image, file.type);
-    }
-
-    // Currency conversion if needed
-    let amountInNok: number | null = null;
-    let exchangeRate: number | null = null;
-
-    if (expenseData.currency && expenseData.currency !== 'NOK' && expenseData.date && expenseData.amount) {
-      // Ensure date is valid YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(expenseData.date)) {
-        exchangeRate = await getHistoricalRate(expenseData.date, expenseData.currency);
-        if (exchangeRate) {
-          amountInNok = Number((expenseData.amount * exchangeRate).toFixed(2));
-        }
-      }
-    }
+    const expenseData = await parseExpenseData(preparedFile);
+    const { amountInNok, exchangeRate } = await convertAmountToNok(expenseData);
 
     return NextResponse.json({
       success: true,
@@ -189,13 +233,10 @@ export async function POST(req: NextRequest) {
         amountInNok,
         exchangeRate,
       },
-      method: isPdf ? "pdf" : "vision",
+      method: preparedFile.isPdf ? "pdf" : "vision",
     });
   } catch (error) {
     console.error("OCR Processing Error:", error);
-    return NextResponse.json(
-      { error: "Failed to process document" },
-      { status: 500 }
-    );
+    return buildErrorResponse("Failed to process document", 500);
   }
 }

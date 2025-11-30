@@ -9,7 +9,7 @@ import { IconFeatureLayout } from "./layouts/icon-feature";
 import { LogoGridLayout } from "./layouts/logo-grid";
 import { StackedListLayout } from "./layouts/stacked-list";
 import { TeamGridLayout } from "./layouts/team-grid";
-import type { CollectionProps, CollectionLayout } from "./types";
+import type { CollectionLayout, CollectionProps } from "./types";
 
 const LAYOUT_RENDERERS: Record<
   CollectionLayout,
@@ -88,7 +88,7 @@ export function Collection({
           items={items}
         />
       ) : (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/30 py-16 text-center">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border border-dashed bg-muted/30 py-16 text-center">
           <Inbox className="h-10 w-10 text-muted-foreground/50" />
           <div>
             <p className="font-medium text-foreground">{emptyMessage}</p>

@@ -48,7 +48,7 @@ function JobDetailsSkeleton() {
   );
 }
 
-export default async function JobPage({ params }: JobPageProps) {
+export default function JobPage({ params }: JobPageProps) {
   return (
     <Suspense fallback={<JobDetailsSkeleton />}>
       <JobDetails slug={params.slug} />

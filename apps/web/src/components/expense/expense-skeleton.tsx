@@ -3,7 +3,7 @@
 import { Card } from "@repo/ui/components/ui/card";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 
-export function ExpenseCardSkeleton() {
+function ExpenseCardSkeleton() {
   return (
     <Card className="border-0 p-6 shadow-lg">
       <div className="mb-4 flex items-start justify-between">

@@ -129,7 +129,7 @@ export function useFormAutopilot({
       if (streamIntervalRef.current) {
         clearInterval(streamIntervalRef.current);
       }
-    };  // eslint-disable-line
+    }; // eslint-disable-line
   }, []);
 
   return {

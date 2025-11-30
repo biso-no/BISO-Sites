@@ -51,7 +51,6 @@ export function CommandMenu() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
-
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {

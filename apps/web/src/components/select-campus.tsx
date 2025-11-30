@@ -52,7 +52,9 @@ export const SelectCampus = ({
   const label = selectedCampus?.name ?? placeholder;
 
   const handleCampusChange = async (value: string) => {
-    if (value === selectedId) return;
+    if (value === selectedId) {
+      return;
+    }
     try {
       await selectCampus(value);
     } catch (e) {

@@ -1,6 +1,17 @@
 "use client";
 
+import {
+  ChevronDown,
+  ChevronUp,
+  Database,
+  Filter,
+  SortAsc,
+} from "lucide-react";
 import { useState } from "react";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import {
   Select,
   SelectContent,
@@ -8,11 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Label } from "./ui/label";
-import { Input } from "./ui/input";
-import { Badge } from "./ui/badge";
-import { ChevronDown, ChevronUp, Database, Filter, SortAsc } from "lucide-react";
-import { Button } from "./ui/button";
 
 export type DataSourceValue = {
   table?: string;
@@ -110,9 +116,7 @@ export function DataSourcePicker({
       const filtersToAdd = preset.filters.filter(
         (pf) =>
           !currentFilters.some(
-            (cf) =>
-              cf.field === pf.field &&
-              cf.operator === pf.operator
+            (cf) => cf.field === pf.field && cf.operator === pf.operator
           )
       );
       newFilters = [...currentFilters, ...filtersToAdd];
@@ -134,7 +138,8 @@ export function DataSourcePicker({
   };
 
   const handleSortChange = (field: string) => {
-    const currentDirection = value.sort?.field === field ? value.sort.direction : undefined;
+    const currentDirection =
+      value.sort?.field === field ? value.sort.direction : undefined;
     const newDirection = currentDirection === "asc" ? "desc" : "asc";
     onChange({ ...value, sort: { field, direction: newDirection } });
   };
@@ -154,7 +159,7 @@ export function DataSourcePicker({
           <Database className="h-3 w-3" />
           Data Source
         </Label>
-        <Select value={value.table ?? ""} onValueChange={handleTableChange}>
+        <Select onValueChange={handleTableChange} value={value.table ?? ""}>
           <SelectTrigger>
             <SelectValue placeholder="Select data source..." />
           </SelectTrigger>
@@ -189,10 +194,10 @@ export function DataSourcePicker({
                   const applied = isPresetApplied(preset);
                   return (
                     <Badge
-                      key={`preset-${preset.label}`}
-                      variant={applied ? "default" : "outline"}
                       className="cursor-pointer"
+                      key={`preset-${preset.label}`}
                       onClick={() => togglePresetFilter(preset)}
+                      variant={applied ? "default" : "outline"}
                     >
                       {preset.label}
                     </Badge>
@@ -205,28 +210,26 @@ export function DataSourcePicker({
           {/* Limit */}
           {showLimit && (
             <div className="grid gap-1.5">
-              <Label className="text-muted-foreground text-xs">
-                Max Items
-              </Label>
+              <Label className="text-muted-foreground text-xs">Max Items</Label>
               <Input
-                type="number"
-                min={1}
+                className="h-8"
                 max={maxLimit}
-                value={value.limit ?? ""}
+                min={1}
                 onChange={(e) => handleLimitChange(e.target.value)}
                 placeholder="No limit"
-                className="h-8"
+                type="number"
+                value={value.limit ?? ""}
               />
             </div>
           )}
 
           {/* Advanced options toggle */}
           <Button
-            type="button"
-            variant="ghost"
-            size="sm"
             className="w-full justify-between"
             onClick={() => setExpanded(!expanded)}
+            size="sm"
+            type="button"
+            variant="ghost"
           >
             <span className="text-xs">Advanced Options</span>
             {expanded ? (
@@ -244,8 +247,8 @@ export function DataSourcePicker({
                 Sort By
               </Label>
               <Select
-                value={value.sort?.field ?? ""}
                 onValueChange={handleSortChange}
+                value={value.sort?.field ?? ""}
               >
                 <SelectTrigger className="h-8">
                   <SelectValue placeholder="Default sort" />
@@ -255,7 +258,7 @@ export function DataSourcePicker({
                     <SelectItem key={field.name} value={field.name}>
                       {field.label}
                       {value.sort?.field === field.name && (
-                        <span className="ml-1 text-xs text-muted-foreground">
+                        <span className="ml-1 text-muted-foreground text-xs">
                           ({value.sort.direction})
                         </span>
                       )}
@@ -268,7 +271,7 @@ export function DataSourcePicker({
 
           {/* Active filters summary */}
           {(value.filters?.length ?? 0) > 0 && (
-            <div className="bg-muted/50 p-2 rounded text-xs">
+            <div className="rounded bg-muted/50 p-2 text-xs">
               <span className="font-medium">
                 {value.filters?.length} filter(s) active
               </span>

@@ -58,7 +58,7 @@ export function NewExpenseClient({
     total: number;
   } | null>(null);
 
-  const handleProfileNext = async (updatedProfile: Partial<Users>) => {
+  const handleProfileNext = (updatedProfile: Partial<Users>) => {
     setProfile(updatedProfile);
     setCurrentStep(2);
   };

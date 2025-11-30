@@ -11,7 +11,7 @@ import {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-export type ListProductsParams = {
+type ListProductsParams = {
   limit?: number;
   status?: string;
   campus?: string;
@@ -20,7 +20,7 @@ export type ListProductsParams = {
   memberOnly?: boolean;
 };
 
-export type CreateProductData = {
+type CreateProductData = {
   slug: string;
   status: "draft" | "published" | "closed";
   campus_id: string;

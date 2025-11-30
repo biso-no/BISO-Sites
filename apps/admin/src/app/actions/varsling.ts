@@ -15,7 +15,7 @@ export type VarslingSubmission = {
 };
 
 // Get varsling settings for a specific campus
-export async function getVarslingSettings(
+async function getVarslingSettings(
   campusId?: string
 ): Promise<VarslingSettings[]> {
   try {
@@ -122,6 +122,18 @@ export async function deleteVarslingSettings(
   }
 }
 
+function getSubmissionTypeLabel(
+  type: VarslingSubmission["submission_type"]
+): string {
+  if (type === "harassment") {
+    return "Trakassering";
+  }
+  if (type === "witness") {
+    return "Vitne";
+  }
+  return "Annet";
+}
+
 // Submit varsling case (public)
 async function _submitVarslingCase(
   data: VarslingSubmission
@@ -130,7 +142,7 @@ async function _submitVarslingCase(
     const { messaging } = await createSessionClient();
 
     // Create email content
-    const subject = `BISO Varsling: ${data.submission_type === "harassment" ? "Trakassering" : data.submission_type === "witness" ? "Vitne" : "Annet"}`;
+    const subject = `BISO Varsling: ${getSubmissionTypeLabel(data.submission_type)}`;
 
     const emailContent = `
       <h2>BISO Varsling - Ny sak</h2>
@@ -138,7 +150,7 @@ async function _submitVarslingCase(
       <h3>Saksdetaljer:</h3>
       <p><strong>Campus:</strong> ${data.campus_id}</p>
       <p><strong>Rolle:</strong> ${data.role_name}</p>
-      <p><strong>Type:</strong> ${data.submission_type === "harassment" ? "Trakassering" : data.submission_type === "witness" ? "Vitne" : "Annet"}</p>
+      <p><strong>Type:</strong> ${getSubmissionTypeLabel(data.submission_type)}</p>
       
       ${data.submitter_email ? `<p><strong>Kontakt e-post:</strong> ${data.submitter_email}</p>` : "<p><strong>Kontakt:</strong> Anonym</p>"}
       

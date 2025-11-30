@@ -15,7 +15,7 @@ type PurchaseLimitResult = {
  * Check if user has exceeded max_per_user limit for a product
  * Counts all orders with status 'authorized' or 'paid'
  */
-export async function checkMaxPerUser(
+async function checkMaxPerUser(
   productId: string,
   userId: string,
   requestedQty: number,
@@ -92,7 +92,7 @@ export async function checkMaxPerUser(
 /**
  * Check if requested quantity exceeds max_per_order limit
  */
-export async function checkMaxPerOrder(
+async function checkMaxPerOrder(
   requestedQty: number,
   maxPerOrder?: number
 ): Promise<PurchaseLimitResult> {

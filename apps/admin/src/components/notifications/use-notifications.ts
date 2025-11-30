@@ -92,7 +92,7 @@ export const useNotifications = create<NotificationsState>()(
 );
 
 // Helper function to create notifications
-export const createNotification = {
+const createNotification = {
   success: (
     title: string,
     message: string,

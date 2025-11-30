@@ -149,8 +149,8 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
                 </div>
                 <h3 className="mb-2 font-medium">How can I help you today?</h3>
                 <p className="max-w-[280px] text-muted-foreground text-sm dark:text-white/60">
-                  I can help you create events, navigate the admin dashboard, and
-                  answer questions about BISO.
+                  I can help you create events, navigate the admin dashboard,
+                  and answer questions about BISO.
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   <Button

@@ -46,10 +46,10 @@ export function DepartmentStats({
 
     // Count departments per campus
     const campusStats: Record<string, number> = {};
-    departments.forEach((dept) => {
+    for (const dept of departments) {
       const campusName = dept.campusName || "Unassigned";
       campusStats[campusName] = (campusStats[campusName] || 0) + 1;
-    });
+    }
     setCampusCounts(campusStats);
   }, [departments]);
 

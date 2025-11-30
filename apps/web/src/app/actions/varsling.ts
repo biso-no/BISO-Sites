@@ -5,7 +5,7 @@ import { createSessionClient } from "@repo/api/server";
 import type { VarslingSettings } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-export type VarslingSubmission = {
+type VarslingSubmission = {
   campus_id: string;
   role_name: string;
   recipient_email: string;

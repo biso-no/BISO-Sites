@@ -3,7 +3,7 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 
-export type ProductCustomFieldType = "text" | "textarea" | "number" | "select";
+type ProductCustomFieldType = "text" | "textarea" | "number" | "select";
 
 export type ProductCustomField = {
   id: string;
@@ -51,7 +51,7 @@ export interface ProductWithTranslations extends Partial<WebshopProducts> {
   variations?: ProductVariation[];
 }
 
-export interface ProductMetadata extends Record<string, unknown> {
+interface ProductMetadata extends Record<string, unknown> {
   price?: number;
   sku?: string;
   stock_quantity?: number;

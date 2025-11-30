@@ -1,18 +1,17 @@
 "use server";
 
-export type TableOption = {
-  label: string;
-  value: string;
-};
+import { createAdminClient } from "@repo/api/server";
+import type { Models } from "@repo/api";
 
-export async function getTables(): Promise<TableOption[]> {
+export async function getTables(): Promise<Models.TableList> {
   // Hardcoded for now, but could be fetched from Appwrite or config
   // If you want to fetch from Appwrite, you would need an Admin Client to list collections/databases
   // For now, we'll return the known collections as per the user request context (e.g. events, news)
-  return [
-    { label: "Events", value: "events" },
-    { label: "News", value: "news" },
-    { label: "Jobs", value: "jobs" },
-    { label: "Partners", value: "partners" },
-  ];
+  const { db } = await createAdminClient();
+
+  const response = await db.listTables({
+    databaseId: "app",
+  });
+
+  return response;
 }

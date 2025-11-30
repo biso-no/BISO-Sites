@@ -24,7 +24,8 @@ export function createFormFillerTool(fields: FormFieldInfo[]) {
   const fieldIds = fields.map((f) => f.id);
   const fieldDescriptions = fields
     .map(
-      (f) => `- ${f.id}: ${f.label} (${f.type}${f.required ? ", required" : ""})`
+      (f) =>
+        `- ${f.id}: ${f.label} (${f.type}${f.required ? ", required" : ""})`
     )
     .join("\n");
 
@@ -61,8 +62,9 @@ export function createFormFillerTool(fields: FormFieldInfo[]) {
       const failCount = results.filter((r) => !r.success).length;
 
       const actions = updates
-        .filter((u: FieldUpdate) =>
-          results.find((r) => r.fieldId === u.fieldId)?.success
+        .filter(
+          (u: FieldUpdate) =>
+            results.find((r) => r.fieldId === u.fieldId)?.success
         )
         .map((u: FieldUpdate) => ({
           type: "form-field" as const,

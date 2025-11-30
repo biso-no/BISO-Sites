@@ -147,7 +147,7 @@ export function Navigation({
           </div>
 
           {/* Mobile Menu Button */}
-          <button
+          <Button
             className={`rounded-lg p-2 transition-colors duration-300 md:hidden ${
               isScrolled ? "text-white" : "text-white"
             }`}
@@ -158,7 +158,7 @@ export function Navigation({
             ) : (
               <Menu className="h-6 w-6" />
             )}
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -1,17 +1,17 @@
 "use client";
 
 import {
-  Star,
-  Users,
-  Heart,
-  Target,
-  Shield,
   Briefcase,
-  GraduationCap,
   Calendar,
-  MapPin,
   CheckCircle,
+  GraduationCap,
+  Heart,
   type LucideIcon,
+  MapPin,
+  Shield,
+  Star,
+  Target,
+  Users,
 } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import type { CollectionItem, LayoutRendererProps } from "../types";
@@ -68,10 +68,7 @@ function FeatureItem({ item }: { item: CollectionItem }) {
   );
 }
 
-export function IconFeatureLayout({
-  items,
-  columns = 3,
-}: LayoutRendererProps) {
+export function IconFeatureLayout({ items, columns = 3 }: LayoutRendererProps) {
   const gridClass = GRID_COLS[columns] || GRID_COLS[3];
 
   return (

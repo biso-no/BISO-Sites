@@ -1,7 +1,7 @@
 import type { Campus, Users } from "@repo/api/types/appwrite";
 import { create } from "zustand";
 
-export type ReceiptStatus =
+type ReceiptStatus =
   | "uploading"
   | "processing"
   | "analyzing" // New state for "Generative" feel
@@ -25,7 +25,7 @@ export type Receipt = {
   error?: string;
   vendor?: string; // Explicitly track vendor
   category?: string; // Potential AI category
-  
+
   // Multi-currency support
   originalAmount?: number;
   exchangeRate?: number;
@@ -35,12 +35,9 @@ export type Receipt = {
   parentId?: string; // For grouping (e.g. bank statement attached to receipt)
 };
 
-export type ExpensePhase =
-  | "draft"
-  | "submitting"
-  | "complete";
+type ExpensePhase = "draft" | "submitting" | "complete";
 
-export type ExpenseStore = {
+type ExpenseStore = {
   // Phase management
   phase: ExpensePhase;
   setPhase: (phase: ExpensePhase) => void;
@@ -52,7 +49,7 @@ export type ExpenseStore = {
   updateReceipt: (id: string, updates: Partial<Receipt>) => void;
   removeReceipt: (id: string) => void;
   clearReceipts: () => void;
-  
+
   // Selection
   selectedReceiptId: string | null;
   setSelectedReceiptId: (id: string | null) => void;
@@ -125,8 +122,10 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
   insertReceiptAfter: (afterId, receipt) =>
     set((state) => {
       const index = state.receipts.findIndex((r) => r.id === afterId);
-      if (index === -1) return { receipts: [...state.receipts, receipt] };
-      
+      if (index === -1) {
+        return { receipts: [...state.receipts, receipt] };
+      }
+
       const newReceipts = [...state.receipts];
       newReceipts.splice(index + 1, 0, receipt);
       return { receipts: newReceipts };
@@ -142,11 +141,12 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
   removeReceipt: (id) =>
     set((state) => ({
       receipts: state.receipts.filter((r) => r.id !== id),
-      selectedReceiptId: state.selectedReceiptId === id ? null : state.selectedReceiptId,
+      selectedReceiptId:
+        state.selectedReceiptId === id ? null : state.selectedReceiptId,
     })),
 
   clearReceipts: () => set({ receipts: [] }),
-  
+
   setSelectedReceiptId: (id) => set({ selectedReceiptId: id }),
 
   setAiSummary: (aiSummary) => set({ aiSummary }),

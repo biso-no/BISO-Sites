@@ -10,7 +10,7 @@ import {
   type Locale,
 } from "@repo/api/types/appwrite";
 
-export type ListEventsParams = {
+type ListEventsParams = {
   limit?: number;
   status?: string;
   campus?: string;
@@ -73,7 +73,7 @@ export async function listEvents(
 export async function getEvent(
   id: string,
   locale: "en" | "no"
-): Promise<ContentTranslations[] | null> {
+): Promise<ContentTranslations | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -101,7 +101,7 @@ export async function getEvent(
       return null;
     }
 
-    return translationsResponse.rows;
+    return translationsResponse.rows[0];
   } catch (error) {
     console.error("Error fetching event:", error);
     return null;

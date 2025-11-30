@@ -1,9 +1,15 @@
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+
+import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+
 import { getCollectionEvents, getEvent } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
 import { EventDetailsClient } from "@/components/events/event-details-client";
+
+
+
 
 type EventPageProps = {
   params: {
@@ -22,7 +28,7 @@ async function EventDetails({ id }: { id: string }) {
   }
 
   // Fetch collection events if this event belongs to or is a collection
-  let collectionEvents = null;
+  let collectionEvents: ContentTranslations[] | null = null;
   const eventData = event.event_ref;
 
   if (eventData?.is_collection && eventData.collection_id) {
@@ -70,7 +76,7 @@ function EventDetailsSkeleton() {
   );
 }
 
-export default async function EventPage({ params }: EventPageProps) {
+export default function EventPage({ params }: EventPageProps) {
   return (
     <Suspense fallback={<EventDetailsSkeleton />}>
       <EventDetails id={params.id} />

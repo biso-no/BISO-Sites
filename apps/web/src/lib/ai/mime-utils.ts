@@ -5,7 +5,7 @@
 /**
  * Get correct MIME type based on file extension
  */
-export function getMimeTypeFromExtension(filename: string): string | null {
+function getMimeTypeFromExtension(filename: string): string | null {
   const ext = filename.split(".").pop()?.toLowerCase();
 
   const mimeMap: Record<string, string> = {

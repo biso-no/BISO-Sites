@@ -1,11 +1,11 @@
 /** Layout patterns - named by visual structure, not content */
 export type CollectionLayout =
-  | "card-grid"      // Image cards (events, news)
-  | "compact-card"   // Small info cards (career days)
-  | "icon-feature"   // Icon + text (benefits)
-  | "logo-grid"      // Logos only (partners)
-  | "team-grid"      // Person cards (team)
-  | "stacked-list";  // Vertical list (FAQ)
+  | "card-grid" // Image cards (events, news)
+  | "compact-card" // Small info cards (career days)
+  | "icon-feature" // Icon + text (benefits)
+  | "logo-grid" // Logos only (partners)
+  | "team-grid" // Person cards (team)
+  | "stacked-list"; // Vertical list (FAQ)
 
 /** Base item shape - all layouts derive from this */
 export type CollectionItem = {
@@ -26,27 +26,27 @@ export type CollectionProps = {
   // Header
   title?: string;
   subtitle?: string;
-  
+
   // Layout
   layout: CollectionLayout;
   columns?: 2 | 3 | 4 | 5 | 6;
-  
+
   // Items (resolved from manual or dynamic)
   items: CollectionItem[];
-  
+
   // Display options
   showFilters?: boolean;
   showSearch?: boolean;
   emptyIcon?: string;
   emptyMessage?: string;
   emptyDescription?: string;
-  
+
   // CTA
   ctaLabel?: string;
   ctaHref?: string;
-  
+
   // Layout-specific options
-  grayscale?: boolean;        // logo-grid
+  grayscale?: boolean; // logo-grid
   cardVariant?: "default" | "bordered" | "elevated";
   imageAspect?: "square" | "video" | "portrait";
 };

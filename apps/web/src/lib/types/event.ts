@@ -1,6 +1,6 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 
-export type EventMetadata = {
+type EventMetadata = {
   start_date?: string;
   end_date?: string;
   start_time?: string;
@@ -32,7 +32,7 @@ export const eventCategories = [
 ] as const;
 export type EventCategory = (typeof eventCategories)[number];
 
-export type CollectionPricing = "bundle" | "individual";
+type CollectionPricing = "bundle" | "individual";
 
 export function parseEventMetadata(
   metadataString: string | null | undefined

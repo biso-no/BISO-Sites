@@ -1,4 +1,4 @@
-"use server"
+"use server";
 import { createSessionClient } from "@repo/api/server";
 
 /**

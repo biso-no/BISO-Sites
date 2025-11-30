@@ -1,7 +1,7 @@
 "use server";
 import { createSessionClient } from "@repo/api/server";
 
-export type MembershipCheckResult =
+type MembershipCheckResult =
   | {
       ok: true;
       active: boolean;

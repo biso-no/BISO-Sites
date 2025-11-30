@@ -4,6 +4,16 @@ import { getLocale } from "@/app/actions/locale";
 import { getNewsItem } from "@/app/actions/news";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 
+function HtmlContent({ html }: { html: string }) {
+  return (
+    <article
+      className="prose dark:prose-invert max-w-none"
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is authored by trusted admins in the CMS.
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
 export default async function PublicNewsDetail({
   params,
 }: {
@@ -49,10 +59,7 @@ export default async function PublicNewsDetail({
           />
         </div>
       )}
-      <article
-        className="prose dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: item.description || "" }}
-      />
+      <HtmlContent html={item.description || ""} />
     </div>
   );
 }

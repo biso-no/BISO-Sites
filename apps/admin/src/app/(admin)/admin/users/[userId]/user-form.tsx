@@ -312,7 +312,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                       (role) => {
                         const currentRoles = user.roles || [];
                         return (
-                          <div
+                          <Button
                             className={`flex items-center gap-2 rounded-md p-2 transition-colors ${
                               currentRoles.includes(role)
                                 ? "border border-primary/30 bg-primary/10"
@@ -334,7 +334,7 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                             >
                               {role}
                             </label>
-                          </div>
+                          </Button>
                         );
                       }
                     )}

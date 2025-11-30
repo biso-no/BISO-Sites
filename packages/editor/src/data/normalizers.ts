@@ -113,8 +113,7 @@ export function normalizeDepartment(
   locale?: string
 ): NormalizedItem {
   const translation = getTranslation(row, locale);
-  const title =
-    (translation?.title as string) || (row.Name as string) || "";
+  const title = (translation?.title as string) || (row.Name as string) || "";
   const description = (translation?.description as string) || "";
 
   return {
@@ -140,7 +139,10 @@ export function normalizeTeamMember(row: RowData): NormalizedItem {
 }
 
 /** Normalize product data */
-export function normalizeProduct(row: RowData, locale?: string): NormalizedItem {
+export function normalizeProduct(
+  row: RowData,
+  locale?: string
+): NormalizedItem {
   const translation = getTranslation(row, locale);
   const title = (translation?.title as string) || (row.title as string) || "";
   const description =

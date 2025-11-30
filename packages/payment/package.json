@@ -9,9 +9,7 @@
     "./vipps": "./vipps.ts",
     "./actions": "./actions.ts"
   },
-  "devDependencies": {
-    "@repo/typescript-config": "*"
-  },
+  "devDependencies": {},
   "dependencies": {
     "@repo/api": "workspace:*",
     "@types/node": "^24.9.2",

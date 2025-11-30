@@ -43,7 +43,7 @@ const CAMPUS_CANDIDATES = [
   "bodoe",
 ];
 
-export type IndexingJob = {
+type IndexingJob = {
   id: string;
   status: "pending" | "processing" | "completed" | "failed";
   siteId: string;
@@ -69,7 +69,7 @@ export type IndexingJob = {
   };
 };
 
-export type IndexingOptions = {
+type IndexingOptions = {
   siteId: string;
   folderPath?: string;
   recursive?: boolean;
@@ -78,7 +78,7 @@ export type IndexingOptions = {
   validateChunks?: boolean; // New: enable chunk validation
 };
 
-export type ProcessedDocumentResult = {
+type ProcessedDocumentResult = {
   documentId: string;
   chunks: VectorDocument[];
   chunksCreated: number;

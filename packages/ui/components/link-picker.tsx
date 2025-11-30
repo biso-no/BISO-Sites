@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import {
   Select,
   SelectContent,
@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Label } from "./ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 export type LinkPickerProps = {
   value: string;
@@ -18,7 +18,11 @@ export type LinkPickerProps = {
   getPages: () => Promise<{ label: string; value: string }[]>;
 };
 
-export function LinkPicker({ value = "", onChange, getPages }: LinkPickerProps) {
+export function LinkPicker({
+  value = "",
+  onChange,
+  getPages,
+}: LinkPickerProps) {
   const [mode, setMode] = useState<"internal" | "external">("external");
   const [pages, setPages] = useState<{ label: string; value: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,7 +33,7 @@ export function LinkPicker({ value = "", onChange, getPages }: LinkPickerProps) 
       try {
         const fetchedPages = await getPages();
         setPages(fetchedPages);
-        
+
         // Determine initial mode based on value
         // If value matches one of the page values, it's internal
         // Otherwise it's external (or empty)
@@ -58,22 +62,26 @@ export function LinkPicker({ value = "", onChange, getPages }: LinkPickerProps) 
 
   return (
     <div className="grid gap-2">
-      <Tabs value={mode} onValueChange={handleModeChange} className="w-full">
+      <Tabs className="w-full" onValueChange={handleModeChange} value={mode}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="internal">Internal Page</TabsTrigger>
           <TabsTrigger value="external">External URL</TabsTrigger>
         </TabsList>
         <div className="mt-2">
-          <TabsContent value="internal" className="mt-0">
+          <TabsContent className="mt-0" value="internal">
             <div className="grid gap-2">
-              <Label className="text-xs text-muted-foreground">Select Page</Label>
+              <Label className="text-muted-foreground text-xs">
+                Select Page
+              </Label>
               <Select
-                value={pages.some(p => p.value === value) ? value : ""}
-                onValueChange={onChange}
                 disabled={loading}
+                onValueChange={onChange}
+                value={pages.some((p) => p.value === value) ? value : ""}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={loading ? "Loading..." : "Select a page"} />
+                  <SelectValue
+                    placeholder={loading ? "Loading..." : "Select a page"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {pages.map((page) => (
@@ -85,13 +93,13 @@ export function LinkPicker({ value = "", onChange, getPages }: LinkPickerProps) 
               </Select>
             </div>
           </TabsContent>
-          <TabsContent value="external" className="mt-0">
+          <TabsContent className="mt-0" value="external">
             <div className="grid gap-2">
-              <Label className="text-xs text-muted-foreground">URL</Label>
+              <Label className="text-muted-foreground text-xs">URL</Label>
               <Input
+                onChange={(e) => onChange(e.target.value)}
                 placeholder="https://example.com"
                 value={value}
-                onChange={(e) => onChange(e.target.value)}
               />
             </div>
           </TabsContent>

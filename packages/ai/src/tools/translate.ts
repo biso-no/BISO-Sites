@@ -6,9 +6,7 @@ const translateSchema = z.object({
   sourceLanguage: z
     .enum(["en", "no"])
     .describe("The language of the source content"),
-  targetLanguage: z
-    .enum(["en", "no"])
-    .describe("The language to translate to"),
+  targetLanguage: z.enum(["en", "no"]).describe("The language to translate to"),
   contentType: z
     .enum(["title", "description", "short_text"])
     .describe("The type of content being translated"),

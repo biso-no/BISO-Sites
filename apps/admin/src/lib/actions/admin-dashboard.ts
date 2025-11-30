@@ -420,10 +420,10 @@ async function getCount(
 
 function buildPageViews(events: PageViewEvents[]): PageViewMetric[] {
   const counts = new Map<string, number>();
-  events.forEach((event) => {
+  for (const event of events) {
     const path = normalizePath(event.path);
     counts.set(path, (counts.get(path) ?? 0) + 1);
-  });
+  }
 
   return Array.from(counts.entries())
     .map(([path, views]) => ({ name: formatPathLabel(path), views }))
@@ -441,24 +441,24 @@ function buildUserDistribution(users: Users[]): UserDistributionMetric[] {
     vip: 0,
   };
 
-  users.forEach((user) => {
+  for (const user of users) {
     const created = new Date(user.$createdAt).getTime();
     const roles = user.roles || [];
     const isVip = roles.some((role) => /admin|board|vip|control/i.test(role));
     if (isVip) {
       counts.vip += 1;
-      return;
+      continue;
     }
     if (user.isActive === false) {
       counts.inactive += 1;
-      return;
+      continue;
     }
     if (!Number.isNaN(created) && created >= newThreshold) {
       counts.new += 1;
-      return;
+      continue;
     }
     counts.returning += 1;
-  });
+  }
 
   return [
     { name: "New", value: counts.new },
@@ -470,14 +470,14 @@ function buildUserDistribution(users: Users[]): UserDistributionMetric[] {
 
 function buildUserGrowth(users: Users[]): UserGrowthMetric[] {
   const monthCounts = new Map<string, number>();
-  users.forEach((user) => {
+  for (const user of users) {
     const created = new Date(user.$createdAt);
     if (Number.isNaN(created.getTime())) {
-      return;
+      continue;
     }
     const key = formatMonth(created);
     monthCounts.set(key, (monthCounts.get(key) ?? 0) + 1);
-  });
+  }
 
   const now = new Date();
   const result: UserGrowthMetric[] = [];
@@ -493,10 +493,10 @@ function buildUserGrowth(users: Users[]): UserGrowthMetric[] {
 
 function buildTrafficSources(events: PageViewEvents[]): TrafficSourceMetric[] {
   const counts = new Map<string, number>();
-  events.forEach((event) => {
+  for (const event of events) {
     const source = resolveTrafficSource(event.referrer);
     counts.set(source, (counts.get(source) ?? 0) + 1);
-  });
+  }
 
   return Array.from(counts.entries())
     .map(([name, value]) => ({ name, value }))
@@ -523,13 +523,13 @@ function buildSystemAlerts(notices: AppNotices[]): SystemAlertMetric[] {
 
 function buildPostEngagement(events: PageViewEvents[]): PostEngagementMetric[] {
   const counts = new Map<string, number>();
-  events.forEach((event) => {
+  for (const event of events) {
     const slug = extractNewsSlug(event.path);
     if (!slug) {
-      return;
+      continue;
     }
     counts.set(slug, (counts.get(slug) ?? 0) + 1);
-  });
+  }
 
   return Array.from(counts.entries())
     .sort((a, b) => b[1] - a[1])
@@ -553,24 +553,24 @@ function buildAudienceGrowth(events: PageViewEvents[]): AudienceGrowthMetric[] {
   const monthLookup = new Set(monthSet);
   const visitorBuckets = new Map<string, Set<string>>();
 
-  events.forEach((event) => {
+  for (const event of events) {
     const created = new Date(event.$createdAt);
     if (Number.isNaN(created.getTime())) {
-      return;
+      continue;
     }
     const key = formatMonth(created);
     if (!monthLookup.has(key)) {
-      return;
+      continue;
     }
     const visitorKey = event.user_id || event.visitor_ip || event.$id;
     if (!visitorKey) {
-      return;
+      continue;
     }
     if (!visitorBuckets.has(key)) {
       visitorBuckets.set(key, new Set());
     }
     visitorBuckets.get(key)?.add(visitorKey);
-  });
+  }
 
   return monthSet.map((month) => ({
     date: month,
@@ -580,19 +580,19 @@ function buildAudienceGrowth(events: PageViewEvents[]): AudienceGrowthMetric[] {
 
 function buildRevenueByProduct(orders: Orders[]): RevenueMetric[] {
   const totals = new Map<string, number>();
-  orders.forEach((order) => {
+  for (const order of orders) {
     const items = parseOrderItems(order.items_json);
-    items.forEach((item) => {
+    for (const item of items) {
       const name =
         item.title || item.product_slug || item.product_id || "Product";
       const amount =
         (Number(item.unit_price) || 0) * (Number(item.quantity) || 0);
       if (!amount) {
-        return;
+        continue;
       }
       totals.set(name, (totals.get(name) ?? 0) + amount);
-    });
-  });
+    }
+  }
 
   return Array.from(totals.entries())
     .map(([name, revenue]) => ({ name, revenue }))
@@ -602,15 +602,15 @@ function buildRevenueByProduct(orders: Orders[]): RevenueMetric[] {
 
 function buildExpenseCategories(expenses: Expenses[]): ExpenseCategoryMetric[] {
   const totals = new Map<string, number>();
-  expenses.forEach((expense) => {
+  for (const expense of expenses) {
     const category =
       expense.departmentRel?.Name || expense.department || "General";
     const amount = Number(expense.total) || 0;
     if (!amount) {
-      return;
+      continue;
     }
     totals.set(category, (totals.get(category) ?? 0) + amount);
-  });
+  }
 
   return Array.from(totals.entries())
     .map(([category, amount]) => ({ category, amount }))
@@ -624,12 +624,12 @@ function buildJobApplicationMetrics(
   jobMetadataMap: Map<string, JobMetadata>
 ): JobApplicationMetric[] {
   const counts = new Map<string, number>();
-  applications.forEach((application) => {
+  for (const application of applications) {
     if (!application.job_id) {
-      return;
+      continue;
     }
     counts.set(application.job_id, (counts.get(application.job_id) ?? 0) + 1);
-  });
+  }
 
   return Array.from(counts.entries())
     .map(([jobId, total]) => {
@@ -665,22 +665,22 @@ function buildJobTitleMap(
   translations: ContentTranslations[]
 ): Map<string, string> {
   const map = new Map<string, string>();
-  translations.forEach((translation) => {
+  for (const translation of translations) {
     if (!translation.content_id) {
-      return;
+      continue;
     }
     if (!map.has(translation.content_id) || translation.locale === "en") {
       map.set(translation.content_id, translation.title);
     }
-  });
+  }
   return map;
 }
 
 function buildJobMetadataMap(jobs: Jobs[]): Map<string, JobMetadata> {
   const map = new Map<string, JobMetadata>();
-  jobs.forEach((job) => {
+  for (const job of jobs) {
     if (!job.$id) {
-      return;
+      continue;
     }
     let openPositions = 0;
     const data = job.metadata as Record<string, unknown> | null;
@@ -696,7 +696,7 @@ function buildJobMetadataMap(jobs: Jobs[]): Map<string, JobMetadata> {
       status: typeof job.status === "string" ? job.status : String(job.status),
       openPositions,
     });
-  });
+  }
   return map;
 }
 

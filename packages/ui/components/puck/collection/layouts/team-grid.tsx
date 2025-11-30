@@ -33,10 +33,7 @@ function TeamMember({ item }: { item: CollectionItem }) {
   );
 }
 
-export function TeamGridLayout({
-  items,
-  columns = 4,
-}: LayoutRendererProps) {
+export function TeamGridLayout({ items, columns = 4 }: LayoutRendererProps) {
   const gridClass = GRID_COLS[columns] || GRID_COLS[4];
 
   return (
