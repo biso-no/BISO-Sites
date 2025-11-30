@@ -5,7 +5,7 @@
     "dev": "next dev -p 3003",
     "build": "next build",
     "deploy:build": "bun run build && bun run deploy:prep",
-    "deploy:prep": "echo 'Standalone contents:' && ls -la .next/standalone/ && echo 'Server.js location:' && ls -la .next/standalone/server.js",
+    "deploy:prep": "echo '=== Standalone root ===' && ls -la .next/standalone/ && echo '=== Apps dir ===' && ls -la .next/standalone/apps/api/ 2>/dev/null || echo 'No apps/api subdir' && echo '=== Server.js ===' && find .next/standalone -name 'server.js' -type f",
     "start": "next start",
     "analyze": "ANALYZE=true npm run build",
     "test": "NODE_ENV=test vitest run",
