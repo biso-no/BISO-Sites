@@ -1,6 +1,8 @@
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
-import { CartPageClient } from "@/components/shop/cart-page-client";
+import { CartAlerts } from "@/components/shop/cart/cart-alerts";
+import { CartHero } from "@/components/shop/cart/cart-hero";
+import { CartPageClient } from "@/components/shop/cart/cart-page-client";
 
 export const metadata = {
   title: "Shopping Cart | BISO Shop",
@@ -32,10 +34,18 @@ function CartSkeleton() {
 export default function CartPage() {
   // TODO: Get actual member status from auth
   const isMember = false;
+  const userId: string | null = null;
 
   return (
     <Suspense fallback={<CartSkeleton />}>
-      <CartPageClient isMember={isMember} />
+      <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+        <CartHero />
+
+        <div className="mx-auto max-w-6xl px-4 py-12">
+          <CartAlerts />
+          <CartPageClient isMember={isMember} userId={userId} />
+        </div>
+      </div>
     </Suspense>
   );
 }

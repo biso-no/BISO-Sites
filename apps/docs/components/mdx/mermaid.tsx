@@ -55,6 +55,7 @@ function MermaidContent({ chart }: { chart: string }) {
 
   return (
     <div
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: Need to render html
       dangerouslySetInnerHTML={{ __html: svg }}
       ref={(container) => {
         if (container) {

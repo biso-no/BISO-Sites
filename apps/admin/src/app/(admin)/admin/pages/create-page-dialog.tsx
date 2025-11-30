@@ -26,7 +26,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { createManagedPage } from "@/app/actions/pages";
+import { createManagedPage } from "@/app/actions/pages/actions";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),

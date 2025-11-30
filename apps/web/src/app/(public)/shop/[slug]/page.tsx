@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
 import { getProductBySlug } from "@/app/actions/webshop";
-import { ProductDetailsClient } from "@/components/shop/product-details-client";
+import { ProductDetailsServer } from "@/components/shop/product-details-server"; // New Server Component
 
+// Component that fetches data and renders the main content
 async function ProductDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
 
@@ -18,9 +19,10 @@ async function ProductDetails({ slug }: { slug: string }) {
   // TODO: Get actual member status from auth
   const isMember = false;
 
-  return <ProductDetailsClient isMember={isMember} product={product} />;
+  return <ProductDetailsServer isMember={isMember} product={product} />;
 }
 
+// Skeleton loading state
 function ProductDetailsSkeleton() {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
@@ -45,6 +47,7 @@ function ProductDetailsSkeleton() {
   );
 }
 
+// Main Page Component
 export default async function ProductPage({
   params,
 }: {
@@ -56,12 +59,13 @@ export default async function ProductPage({
   }
   return (
     <Suspense fallback={<ProductDetailsSkeleton />}>
+      {/* ProductDetails is the wrapper that fetches data and passes it to ProductDetailsServer */}
       <ProductDetails slug={slug} />
     </Suspense>
   );
 }
 
-// Generate metadata for SEO
+// Generate metadata for SEO (remains a server-side function)
 export async function generateMetadata({
   params,
 }: {

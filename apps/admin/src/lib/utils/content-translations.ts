@@ -1,4 +1,4 @@
-import type { ContentTranslations, Locale } from "@repo/api/types/appwrite";
+import { type ContentTranslations, Locale } from "@repo/api/types/appwrite";
 
 export type TranslationMap<
   T extends ContentTranslations = ContentTranslations,

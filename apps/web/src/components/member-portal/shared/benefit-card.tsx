@@ -16,7 +16,7 @@ import {
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { revealBenefit } from "@/app/actions/memberPortal";
+import { revealBenefit } from "@/app/actions/member-portal";
 
 type BenefitCardProps = {
   benefit: MemberBenefit;

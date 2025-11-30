@@ -47,6 +47,19 @@ type AddItemInput = {
   customFieldResponses?: Record<string, string>;
 };
 
+type ProductWithOptionalFields = ProductWithTranslations & {
+  custom_fields?: ProductCustomField[];
+  max_per_order?: number | null;
+  max_per_user?: number | null;
+  images?: string[];
+  image?: string;
+  member_discount_enabled?: boolean;
+  member_discount_percent?: number;
+  price?: number;
+};
+
+type Variation = ProductVariation;
+
 type CartState = {
   items: CartItem[];
   addItem: (input: AddItemInput) => { success: boolean; message?: string };
@@ -123,117 +136,260 @@ const buildCustomFieldEntries = (
     : undefined;
 };
 
+const getSafeQuantity = (quantity: number) => Math.max(1, Math.floor(quantity));
+
+const filterItemsForProduct = (items: CartItem[], productId: string) =>
+  items.filter((item) => item.productId === productId);
+
+const findMatchingItemIndex = (
+  items: CartItem[],
+  productId: string,
+  variationId?: string,
+  normalizedResponses?: Record<string, string>
+) =>
+  items.findIndex((item) => {
+    if (item.productId !== productId) {
+      return false;
+    }
+    if ((item.variation?.id || null) !== (variationId || null)) {
+      return false;
+    }
+    const itemResponses = normalizeResponses(item.customFieldResponses);
+    return (
+      JSON.stringify(itemResponses) ===
+      JSON.stringify(normalizedResponses || undefined)
+    );
+  });
+
+const calculatePricing = (
+  product: ProductWithOptionalFields,
+  variation?: Variation
+) => {
+  const basePrice = Number(product.price || 0);
+  const modifier = Number(variation?.price_modifier || 0);
+  const unitPrice = Math.max(0, basePrice + modifier);
+
+  return { basePrice, unitPrice, modifier };
+};
+
+const buildCustomFieldData = (
+  product: ProductWithOptionalFields,
+  normalizedResponses?: Record<string, string>
+) => {
+  const customFieldDefinitions = buildCustomFieldDefinitions(
+    product.custom_fields
+  );
+  const customFields = buildCustomFieldEntries(
+    product.custom_fields,
+    normalizedResponses || undefined
+  );
+
+  return { customFieldDefinitions, customFields };
+};
+
+const validateProductLimits = (
+  product: ProductWithOptionalFields,
+  productItems: CartItem[],
+  safeQuantity: number
+) => {
+  const totalForProduct = productItems.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
+
+  const maxPerOrder = product.max_per_order;
+  if (maxPerOrder && totalForProduct + safeQuantity > maxPerOrder) {
+    return {
+      success: false as const,
+      message: `You can only purchase ${maxPerOrder} of this product per order.`,
+    };
+  }
+
+  if (product.max_per_user === 1 && productItems.length > 0) {
+    return {
+      success: false as const,
+      message: "This product is limited to one per customer.",
+    };
+  }
+
+  return { success: true as const };
+};
+
+const updateExistingCartItem = ({
+  items,
+  existingIndex,
+  safeQuantity,
+  product,
+  pricing,
+  normalizedResponses,
+  customFields,
+  customFieldDefinitions,
+}: {
+  items: CartItem[];
+  existingIndex: number;
+  safeQuantity: number;
+  product: ProductWithOptionalFields;
+  pricing: { basePrice: number; unitPrice: number };
+  normalizedResponses?: Record<string, string>;
+  customFields?: CartItem["customFields"];
+  customFieldDefinitions?: CartItem["customFieldDefinitions"];
+}) => {
+  const existingItem = items[existingIndex];
+  const potentialQuantity = existingItem.quantity + safeQuantity;
+  const maxPerOrder = product.max_per_order;
+
+  if (maxPerOrder && potentialQuantity > maxPerOrder) {
+    return {
+      success: false as const,
+      message: `You can only purchase ${maxPerOrder} of this product per order.`,
+    };
+  }
+
+  const nextItems = [...items];
+  nextItems[existingIndex] = {
+    ...existingItem,
+    quantity: product.max_per_user === 1 ? 1 : potentialQuantity,
+    unitPrice: pricing.unitPrice,
+    basePrice: pricing.basePrice,
+    customFieldResponses: normalizedResponses,
+    customFields: customFields || existingItem.customFields,
+    customFieldDefinitions:
+      existingItem.customFieldDefinitions || customFieldDefinitions,
+  };
+
+  return { success: true as const, items: nextItems };
+};
+
+const createCartEntry = ({
+  product,
+  safeQuantity,
+  pricing,
+  variation,
+  normalizedResponses,
+  customFields,
+  customFieldDefinitions,
+}: {
+  product: ProductWithOptionalFields;
+  safeQuantity: number;
+  pricing: { basePrice: number; unitPrice: number; modifier: number };
+  variation?: Variation;
+  normalizedResponses?: Record<string, string>;
+  customFields?: CartItem["customFields"];
+  customFieldDefinitions?: CartItem["customFieldDefinitions"];
+}): CartItem => ({
+  id: createItemId(),
+  productId: product.$id,
+  slug: product.slug,
+  title: product.title || product.slug,
+  quantity: product.max_per_user === 1 ? 1 : safeQuantity,
+  unitPrice: pricing.unitPrice,
+  basePrice: pricing.basePrice,
+  variation: variation
+    ? {
+        id: variation.id,
+        name: variation.name,
+        priceModifier: variation.price_modifier ?? 0,
+        description: variation.description,
+      }
+    : undefined,
+  customFieldResponses: normalizedResponses,
+  customFields,
+  customFieldDefinitions,
+  image: product.images?.[0] || product.image,
+  maxPerOrder: product.max_per_order,
+  maxPerUser: product.max_per_user,
+  memberDiscountEnabled: product.member_discount_enabled,
+  memberDiscountPercent: product.member_discount_percent,
+});
+
+const updateCustomFieldValue = (
+  item: CartItem,
+  fieldId: string,
+  value: string
+) => {
+  const responses = { ...(item.customFieldResponses || {}) };
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    delete responses[fieldId];
+  } else {
+    responses[fieldId] = trimmed;
+  }
+  const definitions = item.customFieldDefinitions || {};
+  const nextCustomFields = Object.entries(responses).map(
+    ([responseId, responseValue]) => ({
+      id: responseId,
+      label: definitions[responseId]?.label || responseId,
+      value: responseValue,
+      required: definitions[responseId]?.required,
+    })
+  );
+  return {
+    ...item,
+    customFieldResponses: Object.keys(responses).length ? responses : undefined,
+    customFields: nextCustomFields.length ? nextCustomFields : undefined,
+  };
+};
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
       addItem: ({ product, quantity = 1, variation, customFieldResponses }) => {
         const items = get().items;
-        const safeQuantity = Math.max(1, Math.floor(quantity));
+        const safeQuantity = getSafeQuantity(quantity);
         const normalizedResponses = normalizeResponses(customFieldResponses);
         const variationId = variation?.id;
 
-        const productItems = items.filter(
-          (item) => item.productId === product.$id
+        const productItems = filterItemsForProduct(items, product.$id);
+        const limitResult = validateProductLimits(
+          product,
+          productItems,
+          safeQuantity
         );
-        const _matchingItems = productItems.filter(
-          (item) => (item.variation?.id || null) === (variationId || null)
-        );
-        const totalForProduct = productItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0
-        );
-        const maxPerOrder = product.max_per_order;
-        if (maxPerOrder && totalForProduct + safeQuantity > maxPerOrder) {
-          return {
-            success: false,
-            message: `You can only purchase ${maxPerOrder} of this product per order.`,
-          };
+        if (!limitResult.success) {
+          return limitResult;
         }
 
-        if (product.max_per_user === 1 && productItems.length > 0) {
-          return {
-            success: false,
-            message: "This product is limited to one per customer.",
-          };
-        }
-
-        const existingIndex = items.findIndex((item) => {
-          if (item.productId !== product.$id) {
-            return false;
-          }
-          if ((item.variation?.id || null) !== (variationId || null)) {
-            return false;
-          }
-          const itemResponses = normalizeResponses(item.customFieldResponses);
-          return (
-            JSON.stringify(itemResponses) ===
-            JSON.stringify(normalizedResponses || undefined)
-          );
-        });
-
-        const basePrice = Number(product.price || 0);
-        const modifier = Number(variation?.price_modifier || 0);
-        const unitPrice = Math.max(0, basePrice + modifier);
-        const customFieldDefinitions = buildCustomFieldDefinitions(
-          product.custom_fields
+        const existingIndex = findMatchingItemIndex(
+          items,
+          product.$id,
+          variationId,
+          normalizedResponses
         );
-        const customFields = buildCustomFieldEntries(
-          product.custom_fields,
+
+        const pricing = calculatePricing(product, variation);
+        const { customFields, customFieldDefinitions } = buildCustomFieldData(
+          product,
           normalizedResponses || undefined
         );
 
         if (existingIndex >= 0) {
-          const existingItem = items[existingIndex];
-          const potentialQuantity = existingItem.quantity + safeQuantity;
-
-          if (maxPerOrder && potentialQuantity > maxPerOrder) {
-            return {
-              success: false,
-              message: `You can only purchase ${maxPerOrder} of this product per order.`,
-            };
+          const updateResult = updateExistingCartItem({
+            items,
+            existingIndex,
+            safeQuantity,
+            product,
+            pricing,
+            normalizedResponses,
+            customFields,
+            customFieldDefinitions,
+          });
+          if (!updateResult.success) {
+            return updateResult;
           }
-
-          const nextItems = [...items];
-          nextItems[existingIndex] = {
-            ...existingItem,
-            quantity: product.max_per_user === 1 ? 1 : potentialQuantity,
-            unitPrice,
-            basePrice,
-            customFieldResponses: normalizedResponses,
-            customFields: customFields || existingItem.customFields,
-            customFieldDefinitions:
-              existingItem.customFieldDefinitions || customFieldDefinitions,
-          };
-          set({ items: nextItems });
+          set({ items: updateResult.items });
           return { success: true };
         }
 
-        const newItem: CartItem = {
-          id: createItemId(),
-          productId: product.$id,
-          slug: product.slug,
-          title: product.title || product.slug,
-          quantity: product.max_per_user === 1 ? 1 : safeQuantity,
-          unitPrice,
-          basePrice,
-          variation: variation
-            ? {
-                id: variation.id,
-                name: variation.name,
-                priceModifier: variation.price_modifier ?? 0,
-                description: variation.description,
-              }
-            : undefined,
-          customFieldResponses: normalizedResponses,
+        const newItem = createCartEntry({
+          product,
+          safeQuantity,
+          pricing,
+          variation,
+          normalizedResponses,
           customFields,
           customFieldDefinitions,
-          image: product.images?.[0] || product.image,
-          maxPerOrder: product.max_per_order,
-          maxPerUser: product.max_per_user,
-          memberDiscountEnabled: product.member_discount_enabled,
-          memberDiscountPercent: product.member_discount_percent,
-        };
+        });
 
         set({ items: [...items, newItem] });
         return { success: true };
@@ -270,36 +426,9 @@ export const useCartStore = create<CartState>()(
       },
       setCustomFieldResponse: (id, fieldId, value) => {
         set((state) => ({
-          items: state.items.map((item) => {
-            if (item.id !== id) {
-              return item;
-            }
-            const responses = { ...(item.customFieldResponses || {}) };
-            const trimmed = value.trim();
-            if (trimmed.length === 0) {
-              delete responses[fieldId];
-            } else {
-              responses[fieldId] = trimmed;
-            }
-            const definitions = item.customFieldDefinitions || {};
-            const nextCustomFields = Object.entries(responses).map(
-              ([responseId, responseValue]) => ({
-                id: responseId,
-                label: definitions[responseId]?.label || responseId,
-                value: responseValue,
-                required: definitions[responseId]?.required,
-              })
-            );
-            return {
-              ...item,
-              customFieldResponses: Object.keys(responses).length
-                ? responses
-                : undefined,
-              customFields: nextCustomFields.length
-                ? nextCustomFields
-                : undefined,
-            };
-          }),
+          items: state.items.map((item) =>
+            item.id === id ? updateCustomFieldValue(item, fieldId, value) : item
+          ),
         }));
       },
       clear: () => set({ items: [] }),

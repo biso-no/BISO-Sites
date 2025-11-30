@@ -1,7 +1,7 @@
 import type { Locale } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
 import { notFound } from "next/navigation";
-import { ensureTranslation, getManagedPage } from "@/app/actions/pages";
+import { ensureTranslation, getManagedPage } from "@/app/actions/pages/actions";
 import { EditorClient } from "./client";
 
 type EditorPageProps = {

@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 // External libraries
 import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { type Path, useForm } from "react-hook-form";
 
 // Internal server actions
 import { getCampuses, getCampusWithDepartments } from "@/app/actions/campus";
@@ -72,46 +72,41 @@ export default function EventEditor({ event }: EventEditorProps) {
 
   // Listen for AI assistant form field updates
   useEffect(() => {
-    const handleFormUpdate = (update: FormFieldUpdate) => {
-      console.log("Received form update from AI:", update);
-
-      // Map the field ID to the form field path
-      // The AI uses field IDs like "translations.en.title" which match our form structure
-      const { fieldId, value } = update;
-
-      // Handle different field types
-      if (fieldId === "price") {
-        // Price should be a number
-        const numValue = Number.parseFloat(value);
-        if (!Number.isNaN(numValue)) {
-          form.setValue("price", numValue, {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
-        }
-      } else if (fieldId === "member_only") {
-        // Boolean field
-        const boolValue = value === "true" || value === "yes";
-        form.setValue("member_only", boolValue, {
-          shouldValidate: true,
-          shouldDirty: true,
-        });
-      } else if (fieldId === "is_collection") {
-        const boolValue = value === "true" || value === "yes";
-        form.setValue("is_collection", boolValue, {
-          shouldValidate: true,
-          shouldDirty: true,
-        });
-      } else {
-        // String fields - use type assertion for nested paths
-        // react-hook-form handles dot notation paths like "translations.en.title"
-        // For description fields, the RichTextEditor with Markdown extension will handle
-        // markdown-to-HTML conversion automatically when the content is set
-        form.setValue(fieldId as any, value, {
+    const setNumericField = (fieldId: Path<FormValues>, rawValue: string) => {
+      const numValue = Number.parseFloat(rawValue);
+      if (!Number.isNaN(numValue)) {
+        form.setValue(fieldId, numValue, {
           shouldValidate: true,
           shouldDirty: true,
         });
       }
+    };
+
+    const setBooleanField = (fieldId: Path<FormValues>, rawValue: string) => {
+      const boolValue = rawValue === "true" || rawValue === "yes";
+      form.setValue(fieldId, boolValue, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    };
+
+    const handleFormUpdate = (update: FormFieldUpdate) => {
+      const { fieldId, value } = update;
+
+      if (fieldId === "price") {
+        setNumericField("price", value);
+        return;
+      }
+
+      if (fieldId === "member_only" || fieldId === "is_collection") {
+        setBooleanField(fieldId as Path<FormValues>, value);
+        return;
+      }
+
+      form.setValue(fieldId as Path<FormValues>, value, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
     };
 
     const unsubscribe = formEvents.subscribe(handleFormUpdate);

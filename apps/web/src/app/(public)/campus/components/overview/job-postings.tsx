@@ -1,10 +1,10 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Building2, Calendar, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import type { Locale } from "@/i18n/config";
 
 type JobPostingsProps = {
   jobs: ContentTranslations[];

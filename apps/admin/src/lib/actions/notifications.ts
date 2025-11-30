@@ -70,7 +70,12 @@ export async function createNotification(data: {
       isActive: data.isActive !== false,
     };
 
-    const response = await db.createRow(DATABASE_ID, NOTICES_TABLE, ID.unique(), noticeData);
+    const response = await db.createRow(
+      DATABASE_ID,
+      NOTICES_TABLE,
+      ID.unique(),
+      noticeData
+    );
 
     return {
       success: true,

@@ -37,7 +37,7 @@ export default async function Page(props: { params: Promise<Param> }) {
 
   const mdxPage = page.data as MDX;
 
-  const MDX = mdxPage.body;
+  const MDXContent = mdxPage.body;
 
   return (
     <DocsPage
@@ -52,7 +52,7 @@ export default async function Page(props: { params: Promise<Param> }) {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
-        <MDX components={getMDXComponents()} />
+        <MDXContent components={getMDXComponents()} />
       </DocsBody>
     </DocsPage>
   );

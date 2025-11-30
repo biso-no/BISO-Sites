@@ -126,11 +126,21 @@ async function _deleteVarslingSettings(
 export async function submitVarslingCase(
   data: VarslingSubmission
 ): Promise<{ success: boolean; error?: string }> {
+  const submissionLabel = (() => {
+    if (data.submission_type === "harassment") {
+      return "Trakassering";
+    }
+    if (data.submission_type === "witness") {
+      return "Vitne";
+    }
+    return "Annet";
+  })();
+
   try {
     const { messaging } = await createSessionClient();
 
     // Create email content
-    const subject = `BISO Varsling: ${data.submission_type === "harassment" ? "Trakassering" : data.submission_type === "witness" ? "Vitne" : "Annet"}`;
+    const subject = `BISO Varsling: ${submissionLabel}`;
 
     const emailContent = `
       <h2>BISO Varsling - Ny sak</h2>
@@ -138,7 +148,7 @@ export async function submitVarslingCase(
       <h3>Saksdetaljer:</h3>
       <p><strong>Campus:</strong> ${data.campus_id}</p>
       <p><strong>Rolle:</strong> ${data.role_name}</p>
-      <p><strong>Type:</strong> ${data.submission_type === "harassment" ? "Trakassering" : data.submission_type === "witness" ? "Vitne" : "Annet"}</p>
+      <p><strong>Type:</strong> ${submissionLabel}</p>
       
       ${data.submitter_email ? `<p><strong>Kontakt e-post:</strong> ${data.submitter_email}</p>` : "<p><strong>Kontakt:</strong> Anonym</p>"}
       

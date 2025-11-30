@@ -1,11 +1,11 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { ChevronRight, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import type { Locale } from "@/i18n/config";
 
 type LatestNewsProps = {
   news: ContentTranslations[];

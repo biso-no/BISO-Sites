@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { getLocale } from "@/app/actions/locale";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 
 export const metadata: Metadata = {
   title: "Purchase Terms | BISO Shop",

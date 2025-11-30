@@ -119,11 +119,14 @@ export function Login() {
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <svg
+                  aria-label="Loading"
                   className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
                   fill="none"
+                  role="img"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  <title>Loading</title>
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -176,12 +179,17 @@ export function Login() {
                 className={`mr-2 rounded-full ${message.type === "error" ? "bg-red-500/30" : "bg-green-500/30"} p-0.5`}
               >
                 <svg
+                  aria-label={message.type === "error" ? "Error" : "Success"}
                   className="h-4 w-4"
                   fill="none"
+                  role="img"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  <title>
+                    {message.type === "error" ? "Error" : "Success"}
+                  </title>
                   {message.type === "error" ? (
                     <path
                       d="M6 18L18 6M6 6l12 12"

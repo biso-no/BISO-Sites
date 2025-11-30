@@ -1,7 +1,6 @@
 import { PolicyPagesManager } from "./_components/policy-pages-manager";
 
 export default function AdminSettingsPage() {
-
   return (
     <div className="space-y-6">
       <div>
@@ -10,7 +9,6 @@ export default function AdminSettingsPage() {
           Manage global configuration for the public experience.
         </p>
       </div>
-
 
       <div className="space-y-3">
         <h2 className="font-semibold text-xl">Content Pages</h2>

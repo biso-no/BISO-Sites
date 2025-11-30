@@ -11,6 +11,42 @@ type PurchaseLimitResult = {
   limit?: number;
 };
 
+type OrderRow = {
+  items_json?: string;
+};
+
+const ORDER_STATUS_FILTER = Query.or([
+  Query.equal("status", "authorized"),
+  Query.equal("status", "paid"),
+]);
+
+function summarizePurchases(
+  orders: OrderRow[],
+  productId: string
+): { totalPurchased: number; orderCount: number } {
+  let totalPurchased = 0;
+  let orderCount = 0;
+
+  for (const order of orders) {
+    if (!order.items_json) {
+      continue;
+    }
+    try {
+      const items = JSON.parse(order.items_json as string);
+      for (const item of items) {
+        if (item.product_id === productId) {
+          totalPurchased += item.quantity || 0;
+          orderCount += 1;
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing order items:", error);
+    }
+  }
+
+  return { totalPurchased, orderCount };
+}
+
 /**
  * Check if user has exceeded max_per_user limit for a product
  * Counts all orders with status 'authorized' or 'paid'
@@ -21,51 +57,29 @@ async function checkMaxPerUser(
   requestedQty: number,
   maxPerUser?: number
 ): Promise<PurchaseLimitResult> {
-  // If no limit is set, allow unlimited purchases
-  if (!maxPerUser || maxPerUser <= 0) {
-    return { allowed: true };
-  }
-
-  // Guest users (no userId) can't be tracked for per-user limits
-  if (!userId || userId === "guest") {
-    // For guests, we'll allow the purchase but can't enforce the limit
-    return { allowed: true };
-  }
-
   try {
+    // If no limit is set, allow unlimited purchases
+    if (!maxPerUser || maxPerUser <= 0) {
+      return { allowed: true };
+    }
+
+    // Guest users (no userId) can't be tracked for per-user limits
+    if (!userId || userId === "guest") {
+      return { allowed: true };
+    }
+
     const { db } = await createSessionClient();
 
     // Get all completed orders for this user with 'authorized' or 'paid' status
     const orders = await db.listRows("app", "orders", [
       Query.equal("userId", userId),
-      Query.or([
-        Query.equal("status", "authorized"),
-        Query.equal("status", "paid"),
-      ]),
+      ORDER_STATUS_FILTER,
     ]);
 
-    // Count quantities purchased for this specific product
-    let totalPurchased = 0;
-    for (const order of orders.rows) {
-      const itemsJson = order.items_json as string;
-      if (itemsJson) {
-        try {
-          const items = JSON.parse(itemsJson);
-          for (const item of items) {
-            if (item.product_id === productId) {
-              totalPurchased += item.quantity || 0;
-            }
-          }
-        } catch (e) {
-          console.error("Error parsing order items:", e);
-        }
-      }
-    }
+    const { totalPurchased } = summarizePurchases(orders.rows, productId);
+    const remaining = (maxPerUser ?? 0) - totalPurchased;
 
-    const wouldExceedLimit = totalPurchased + requestedQty > maxPerUser;
-
-    if (wouldExceedLimit) {
-      const remaining = Math.max(0, maxPerUser - totalPurchased);
+    if (remaining < requestedQty) {
       return {
         allowed: false,
         reason:
@@ -92,10 +106,10 @@ async function checkMaxPerUser(
 /**
  * Check if requested quantity exceeds max_per_order limit
  */
-async function checkMaxPerOrder(
+function checkMaxPerOrder(
   requestedQty: number,
   maxPerOrder?: number
-): Promise<PurchaseLimitResult> {
+): PurchaseLimitResult {
   // If no limit is set, allow unlimited quantity
   if (!maxPerOrder || maxPerOrder <= 0) {
     return { allowed: true };
@@ -136,7 +150,7 @@ export async function validatePurchaseLimits(
       : undefined;
 
   // Check max_per_order first (simpler check)
-  const perOrderResult = await checkMaxPerOrder(quantity, maxPerOrder);
+  const perOrderResult = checkMaxPerOrder(quantity, maxPerOrder);
 
   if (!perOrderResult.allowed) {
     return perOrderResult;
@@ -176,33 +190,10 @@ async function _getPurchaseHistory(
 
     const orders = await db.listRows("app", "orders", [
       Query.equal("userId", userId),
-      Query.or([
-        Query.equal("status", "authorized"),
-        Query.equal("status", "paid"),
-      ]),
+      ORDER_STATUS_FILTER,
     ]);
 
-    let totalPurchased = 0;
-    let orderCount = 0;
-
-    for (const order of orders.rows) {
-      const itemsJson = order.items_json as string;
-      if (itemsJson) {
-        try {
-          const items = JSON.parse(itemsJson);
-          for (const item of items) {
-            if (item.product_id === productId) {
-              totalPurchased += item.quantity || 0;
-              orderCount++;
-            }
-          }
-        } catch (e) {
-          console.error("Error parsing order items:", e);
-        }
-      }
-    }
-
-    return { totalPurchased, orderCount };
+    return summarizePurchases(orders.rows, productId);
   } catch (error) {
     console.error("Error getting purchase history:", error);
     return { totalPurchased: 0, orderCount: 0 };

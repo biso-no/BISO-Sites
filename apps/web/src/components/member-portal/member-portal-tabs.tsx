@@ -5,12 +5,12 @@ import type {
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
-import { TabNavigation } from "./shared/TabNavigation";
-import { BenefitsTab } from "./tabs/BenefitsTab";
-import { MembershipTab } from "./tabs/MembershipTab";
-import { OverviewTab } from "./tabs/OverviewTab";
-import { ProfileTab } from "./tabs/ProfileTab";
-import { SettingsTab } from "./tabs/SettingsTab";
+import { TabNavigation } from "./shared/tab-navigation";
+import { BenefitsTab } from "./tabs/benefits-tab";
+import { MembershipTab } from "./tabs/membership-tab";
+import { OverviewTab } from "./tabs/overview-tab";
+import { ProfileTab } from "./tabs/profile-tab";
+import { SettingsTab } from "./tabs/settings-tab";
 
 type MemberPortalTabsProps = {
   membershipType: string;

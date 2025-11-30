@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { verifyMembershipStatus } from "@/app/actions/memberPortal";
-import { MemberPortalSkeleton } from "@/components/member-portal/shared/MemberPortalSkeleton";
+import { verifyMembershipStatus } from "@/app/actions/member-portal";
+import { MemberPortalSkeleton } from "@/components/member-portal/shared/member-portal-skeleton";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
-import { MemberPortalContent } from "./MemberPortalContent";
+import { MemberPortalContent } from "./member-portal-content";
 
 export const metadata = {
   title: "Member Portal | BISO",

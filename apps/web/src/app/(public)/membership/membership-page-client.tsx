@@ -1,5 +1,6 @@
 "use client";
 
+import type { Locale } from "@repo/i18n/config";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -27,7 +28,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
-import type { Locale } from "@/i18n/config";
 import type { CampusData } from "@/lib/types/campus-data";
 
 type BenefitKey = keyof Pick<

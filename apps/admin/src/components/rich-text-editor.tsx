@@ -686,7 +686,6 @@ export function RichTextEditor({
                 }
               }
             }}
-            // biome-ignore lint/a11y/useSemanticElements: ContentEditable inside button is invalid
             role="button"
             tabIndex={0}
           >

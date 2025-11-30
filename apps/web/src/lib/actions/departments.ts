@@ -5,7 +5,7 @@ import {
   ContentType,
   Status,
 } from "@repo/api/types/appwrite";
-import type { Locale } from "@/i18n/config";
+import type { Locale } from "@repo/i18n/config";
 
 export type DepartmentTranslation = ContentTranslations & {
   news?: ContentTranslations[];

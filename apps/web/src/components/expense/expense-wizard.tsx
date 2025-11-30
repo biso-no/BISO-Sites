@@ -29,21 +29,27 @@ export function ExpenseWizard({
           {steps.map((step, index) => (
             <div className="flex flex-1 items-center" key={step.id}>
               <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                    currentStep > step.id
-                      ? "bg-green-500 text-white"
-                      : currentStep === step.id
-                        ? "bg-[#3DA9E0] text-white"
-                        : "bg-gray-200 text-gray-500"
-                  }`}
-                >
-                  {currentStep > step.id ? (
-                    <CheckCircle className="h-5 w-5" />
-                  ) : (
-                    <span>{step.id}</span>
-                  )}
-                </div>
+                {(() => {
+                  const isCompleted = currentStep > step.id;
+                  const isActive = currentStep === step.id;
+                  let circleClass = "bg-gray-200 text-gray-500";
+                  if (isCompleted) {
+                    circleClass = "bg-green-500 text-white";
+                  } else if (isActive) {
+                    circleClass = "bg-[#3DA9E0] text-white";
+                  }
+                  return (
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${circleClass}`}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle className="h-5 w-5" />
+                      ) : (
+                        <span>{step.id}</span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <span
                   className={`text-sm ${
                     currentStep >= step.id ? "text-gray-900" : "text-gray-500"

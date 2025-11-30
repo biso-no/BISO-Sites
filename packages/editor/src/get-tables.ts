@@ -1,7 +1,7 @@
 "use server";
 
-import { createAdminClient } from "@repo/api/server";
 import type { Models } from "@repo/api";
+import { createAdminClient } from "@repo/api/server";
 
 export async function getTables(): Promise<Models.TableList> {
   // Hardcoded for now, but could be fetched from Appwrite or config

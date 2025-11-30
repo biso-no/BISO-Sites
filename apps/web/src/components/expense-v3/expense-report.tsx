@@ -32,6 +32,176 @@ import { v4 as uuid } from "uuid";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import type { Receipt } from "./store";
 
+type ReceiptRowProps = {
+  receipt: Receipt;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<Receipt>) => void;
+  uploadingId: string | null;
+  setUploadingId: (id: string | null) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+};
+
+function ReceiptRow({
+  receipt,
+  selectedId,
+  onSelect,
+  onUpdate,
+  uploadingId,
+  setUploadingId,
+  fileInputRef,
+}: ReceiptRowProps) {
+  const isForeign = receipt.currency && receipt.currency !== "NOK";
+
+  return (
+    <motion.tr
+      animate={{
+        opacity: 1,
+        backgroundColor:
+          selectedId === receipt.id ? "var(--highlight-bg)" : "transparent",
+      }}
+      className={cn(
+        "group cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30",
+        selectedId === receipt.id
+          ? "bg-sky-50 [--highlight-bg:rgba(14,165,233,0.1)] dark:bg-sky-900/10"
+          : ""
+      )}
+      initial={{ opacity: 0 }}
+      key={receipt.id}
+      layout
+      onClick={() => onSelect(receipt.id)}
+    >
+      <td className="p-0" colSpan={3}>
+        <div className="flex w-full items-center border-gray-50 border-b px-0 py-4 dark:border-gray-800/50">
+          <div className="w-full max-w-[200px] px-4 md:max-w-[300px] md:px-8">
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "h-2 w-2 shrink-0 rounded-full",
+                  receipt.status === "ready"
+                    ? "bg-emerald-500"
+                    : "animate-pulse bg-amber-500"
+                )}
+              />
+              <div className="flex flex-col gap-0.5">
+                <div className="truncate font-medium text-gray-900 dark:text-white">
+                  {receipt.vendor || receipt.description || "Processing..."}
+                </div>
+                {/* Show date on mobile only */}
+                <div className="block text-gray-500 text-xs md:hidden dark:text-gray-400">
+                  {receipt.date || "-"}
+                </div>
+              </div>
+            </div>
+            {receipt.status === "analyzing" && (
+              <div className="mt-1 ml-5 h-1 w-24 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className="h-full w-full animate-indeterminate bg-sky-500" />
+              </div>
+            )}
+          </div>
+          <div className="hidden flex-1 px-4 text-gray-500 md:block dark:text-gray-400">
+            {receipt.date || "-"}
+          </div>
+          <div className="w-[150px] px-4 text-right font-medium font-mono text-gray-900 md:px-8 dark:text-white">
+            {receipt.amount ? `${receipt.amount.toLocaleString()} NOK` : "-"}
+          </div>
+        </div>
+
+        {/* Foreign Currency Warning Row */}
+        {isForeign && (
+          <ForeignCurrencyWarning
+            fileInputRef={fileInputRef}
+            onUpdate={onUpdate}
+            receipt={receipt}
+            setUploadingId={setUploadingId}
+            uploadingId={uploadingId}
+          />
+        )}
+      </td>
+    </motion.tr>
+  );
+}
+
+type ForeignCurrencyWarningProps = {
+  receipt: Receipt;
+  onUpdate: (id: string, updates: Partial<Receipt>) => void;
+  uploadingId: string | null;
+  setUploadingId: (id: string | null) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+};
+
+function ForeignCurrencyWarning({
+  receipt,
+  onUpdate,
+  uploadingId,
+  setUploadingId,
+  fileInputRef,
+}: ForeignCurrencyWarningProps) {
+  if (receipt.bankStatementId) {
+    return (
+      <div className="bg-amber-50/50 px-4 py-3 md:px-8 dark:bg-amber-900/10">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-amber-700 text-xs dark:text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>
+              Estimated from {receipt.currency} ({receipt.exchangeRate})
+            </span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-600 text-xs">
+            <Check className="h-3 w-3" />
+            <span className="max-w-[100px] truncate md:max-w-[200px]">
+              {receipt.bankStatementName}
+            </span>
+            <Button
+              className="ml-1 hover:text-emerald-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate(receipt.id, {
+                  bankStatementId: undefined,
+                  bankStatementName: undefined,
+                });
+              }}
+            >
+              ×
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-amber-50/50 px-4 py-3 md:px-8 dark:bg-amber-900/10">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-amber-700 text-xs dark:text-amber-400">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span>
+            Estimated from {receipt.currency} ({receipt.exchangeRate})
+          </span>
+        </div>
+        <Button
+          className="h-7 gap-1 border-amber-200 bg-white text-amber-700 text-xs hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
+          disabled={uploadingId === receipt.id}
+          onClick={(e) => {
+            e.stopPropagation();
+            setUploadingId(receipt.id);
+            fileInputRef.current?.click();
+          }}
+          size="sm"
+          variant="outline"
+        >
+          {uploadingId === receipt.id ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Upload className="h-3 w-3" />
+          )}
+          Upload Statement
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 type ExpenseReportProps = {
   receipts: Receipt[];
   selectedId: string | null;
@@ -262,128 +432,18 @@ export function ExpenseReport({
                     </td>
                   </tr>
                 ) : (
-                  receipts.map((receipt) => {
-                    const isForeign =
-                      receipt.currency && receipt.currency !== "NOK";
-
-                    return (
-                      <motion.tr
-                        animate={{
-                          opacity: 1,
-                          backgroundColor:
-                            selectedId === receipt.id
-                              ? "var(--highlight-bg)"
-                              : "transparent",
-                        }}
-                        className={cn(
-                          "group cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30",
-                          selectedId === receipt.id
-                            ? "bg-sky-50 [--highlight-bg:rgba(14,165,233,0.1)] dark:bg-sky-900/10"
-                            : ""
-                        )}
-                        initial={{ opacity: 0 }}
-                        key={receipt.id}
-                        layout
-                        onClick={() => onSelect(receipt.id)}
-                      >
-                        <td className="p-0" colSpan={3}>
-                          <div className="flex w-full items-center border-gray-50 border-b px-0 py-4 dark:border-gray-800/50">
-                            <div className="w-full max-w-[200px] px-4 md:max-w-[300px] md:px-8">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className={cn(
-                                    "h-2 w-2 shrink-0 rounded-full",
-                                    receipt.status === "ready"
-                                      ? "bg-emerald-500"
-                                      : "animate-pulse bg-amber-500"
-                                  )}
-                                />
-                                <div className="flex flex-col gap-0.5">
-                                  <div className="truncate font-medium text-gray-900 dark:text-white">
-                                    {receipt.vendor ||
-                                      receipt.description ||
-                                      "Processing..."}
-                                  </div>
-                                  {/* Show date on mobile only */}
-                                  <div className="block text-gray-500 text-xs md:hidden dark:text-gray-400">
-                                    {receipt.date || "-"}
-                                  </div>
-                                </div>
-                              </div>
-                              {receipt.status === "analyzing" && (
-                                <div className="mt-1 ml-5 h-1 w-24 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                                  <div className="h-full w-full animate-indeterminate bg-sky-500" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="hidden flex-1 px-4 text-gray-500 md:block dark:text-gray-400">
-                              {receipt.date || "-"}
-                            </div>
-                            <div className="w-[150px] px-4 text-right font-medium font-mono text-gray-900 md:px-8 dark:text-white">
-                              {receipt.amount
-                                ? `${receipt.amount.toLocaleString()} NOK`
-                                : "-"}
-                            </div>
-                          </div>
-
-                          {/* Foreign Currency Warning Row */}
-                          {isForeign && (
-                            <div className="bg-amber-50/50 px-4 py-3 md:px-8 dark:bg-amber-900/10">
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-2 text-amber-700 text-xs dark:text-amber-400">
-                                  <AlertTriangle className="h-3.5 w-3.5" />
-                                  <span>
-                                    Estimated from {receipt.currency} (
-                                    {receipt.exchangeRate})
-                                  </span>
-                                </div>
-
-                                {receipt.bankStatementId ? (
-                                  <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-600 text-xs">
-                                    <Check className="h-3 w-3" />
-                                    <span className="max-w-[100px] truncate md:max-w-[200px]">
-                                      {receipt.bankStatementName}
-                                    </span>
-                                    <Button
-                                      className="ml-1 hover:text-emerald-700"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onUpdate(receipt.id, {
-                                          bankStatementId: undefined,
-                                          bankStatementName: undefined,
-                                        });
-                                      }}
-                                    >
-                                      ×
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <Button
-                                    className="h-7 gap-1 border-amber-200 bg-white text-amber-700 text-xs hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
-                                    disabled={uploadingId === receipt.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setUploadingId(receipt.id);
-                                      fileInputRef.current?.click();
-                                    }}
-                                    size="sm"
-                                    variant="outline"
-                                  >
-                                    {uploadingId === receipt.id ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <Upload className="h-3 w-3" />
-                                    )}
-                                    Upload Statement
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                      </motion.tr>
-                    );
-                  })
+                  receipts.map((receipt) => (
+                    <ReceiptRow
+                      fileInputRef={fileInputRef}
+                      key={receipt.id}
+                      onSelect={onSelect}
+                      onUpdate={onUpdate}
+                      receipt={receipt}
+                      selectedId={selectedId}
+                      setUploadingId={setUploadingId}
+                      uploadingId={uploadingId}
+                    />
+                  ))
                 )}
               </tbody>
             </table>

@@ -1,13 +1,13 @@
 "use client";
 
 import type { CampusMetadata } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { MapPin, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import type { Locale } from "@/i18n/config";
 
 type CampusHeroProps = {
   campusName: string | null;

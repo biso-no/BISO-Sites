@@ -20,16 +20,14 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import { AlertCircle, Download, Shield, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { deleteUserData } from "@/lib/actions/user";
 
-export function PrivacyControls({ userId }: { userId: string }) {
+export function PrivacyControls() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [requestingData, setRequestingData] = useState(false);
   const [deletingData, setDeletingData] = useState(false);
-  const _router = useRouter();
 
   const handleDataRequest = async () => {
     setRequestingData(true);

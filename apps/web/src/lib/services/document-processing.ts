@@ -88,5 +88,3 @@ function extractDescription(text: string): string | null {
   }
   return null;
 }
-
-

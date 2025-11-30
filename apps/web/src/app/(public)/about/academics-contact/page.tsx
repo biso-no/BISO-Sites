@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from "next-intl";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 
 export default function AcademicsContactPage() {
   const t = useTranslations("academicsContact");

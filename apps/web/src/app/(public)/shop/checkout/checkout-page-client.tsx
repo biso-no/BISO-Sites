@@ -12,7 +12,7 @@ import { Input } from "@repo/ui/components/ui/input";
 import Link from "next/link";
 import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { startCartCheckout } from "@/app/actions/orders";
+import { createCartCheckoutSession } from "@/app/actions/orders";
 import { cartSelectors, useCartStore } from "@/lib/stores/cart";
 
 const NOK = new Intl.NumberFormat("nb-NO", {
@@ -63,7 +63,7 @@ export function CheckoutPageClient() {
           })),
         };
 
-        const result = await startCartCheckout(payload);
+        const result = await createCartCheckoutSession(payload);
         if (!(result?.success && result.paymentUrl)) {
           toast.error(result?.error || "Could not start checkout");
           return;

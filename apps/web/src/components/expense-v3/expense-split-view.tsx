@@ -18,6 +18,38 @@ import { GenerativeReceiptPreview } from "./generative-receipt-preview";
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
 
+type OcrData = {
+  description?: string;
+  vendor?: string;
+  amount?: number;
+  amountInNok?: number;
+  exchangeRate?: number;
+  date?: string;
+  currency?: string;
+};
+
+function buildReceiptFromOcr(
+  data: OcrData,
+  fileName: string
+): Partial<Receipt> {
+  const isNok = data.currency === "NOK" || !data.currency;
+  const amount = isNok
+    ? (data.amount ?? 0)
+    : (data.amountInNok ?? data.amount ?? 0);
+
+  return {
+    status: "ready",
+    progress: 100,
+    description: data.description || data.vendor || `Receipt from ${fileName}`,
+    amount,
+    originalAmount: data.amount ?? 0,
+    exchangeRate: data.exchangeRate,
+    date: data.date || new Date().toISOString().split("T")[0],
+    vendor: data.vendor || "",
+    currency: data.currency || "NOK",
+  };
+}
+
 type ExpenseSplitViewProps = {
   campuses: Campus[];
   initialProfile: Partial<Users>;
@@ -104,22 +136,8 @@ export function ExpenseSplitView({
         // Simulate "thinking" time for the user to appreciate the UI
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        const data = ocrResult.data;
-        store.updateReceipt(tempId, {
-          status: "ready",
-          progress: 100,
-          description:
-            data.description || data.vendor || `Receipt from ${file.name}`,
-          amount:
-            data.currency !== "NOK" && data.amountInNok
-              ? data.amountInNok
-              : (data.amount ?? 0),
-          originalAmount: data.amount ?? 0,
-          exchangeRate: data.exchangeRate,
-          date: data.date || new Date().toISOString().split("T")[0],
-          vendor: data.vendor || "",
-          currency: data.currency || "NOK",
-        });
+        const receiptUpdates = buildReceiptFromOcr(ocrResult.data, file.name);
+        store.updateReceipt(tempId, receiptUpdates);
       } catch (error) {
         console.error(error);
         store.updateReceipt(tempId, {

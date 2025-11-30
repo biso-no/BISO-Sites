@@ -43,7 +43,7 @@ export function MetricCard({
     let currentStep = 0;
 
     const timer = setInterval(() => {
-      currentStep++;
+      currentStep += 1;
       if (currentStep >= steps) {
         setDisplayValue(value);
         clearInterval(timer);

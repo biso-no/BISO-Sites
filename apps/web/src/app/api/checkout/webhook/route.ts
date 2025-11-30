@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
  * New implementations should use the /api/payment/vipps/callback endpoint
  * which includes proper authentication and error handling.
  */
-export async function POST() {
+export function POST() {
   console.warn(
     "[Deprecated] /api/checkout/webhook is deprecated. Use /api/payment/vipps/callback instead."
   );

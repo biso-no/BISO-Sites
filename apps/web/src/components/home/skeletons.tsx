@@ -76,7 +76,7 @@ export function EventsSkeleton() {
                 <div className="p-8">
                   <Skeleton className="mb-4 h-8 w-3/4" />
                   <div className="mb-6 space-y-3">
-                    {[...new Array(4)].map((_, j) => (
+                    {[...new Array(4)].map((__, j) => (
                       <Skeleton className="h-5 w-full" key={j} />
                     ))}
                   </div>

@@ -2,8 +2,8 @@ import type { MemberBenefit } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { useTranslations } from "next-intl";
-import { BenefitCard } from "../shared/BenefitCard";
-import { LockedContentOverlay } from "../shared/LockedContentOverlay";
+import { BenefitCard } from "../shared/benefit-card";
+import { LockedContentOverlay } from "../shared/locked-content-overlay";
 
 type BenefitsTabProps = {
   benefits: MemberBenefit[];

@@ -55,7 +55,7 @@ async function DepartmentsContent() {
   );
 }
 
-export default async function UnitsPage() {
+export default function UnitsPage() {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <Suspense fallback={<UnitsPageSkeleton />}>

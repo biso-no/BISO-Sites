@@ -128,6 +128,143 @@ export type UpdateEventData = {
   };
 };
 
+type AdminDbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type EventStatus = CreateEventData["status"];
+type EventTranslationsInput = CreateEventData["translations"];
+
+const EVENT_STATUS_MAP: Record<EventStatus, Status> = {
+  draft: "draft" as Status,
+  published: "published" as Status,
+  cancelled: "cancelled" as Status,
+};
+
+const mapEventStatus = (status: EventStatus): Status =>
+  EVENT_STATUS_MAP[status] ?? EVENT_STATUS_MAP.draft;
+
+const serializeEventMetadata = (
+  metadata: CreateEventData["metadata"] | UpdateEventData["metadata"]
+) => {
+  const metadataJson: EventMetadata = {};
+
+  if (!metadata) {
+    return null;
+  }
+
+  if (metadata.start_time) {
+    metadataJson.start_time = metadata.start_time;
+  }
+  if (metadata.end_time) {
+    metadataJson.end_time = metadata.end_time;
+  }
+  if (metadata.units?.length) {
+    metadataJson.units = metadata.units;
+  }
+
+  return Object.keys(metadataJson).length ? JSON.stringify(metadataJson) : null;
+};
+
+const EVENT_UPDATE_FIELDS: (keyof UpdateEventData)[] = [
+  "slug",
+  "campus_id",
+  "start_date",
+  "end_date",
+  "location",
+  "price",
+  "ticket_url",
+  "image",
+  "member_only",
+  "collection_id",
+  "is_collection",
+  "collection_pricing",
+  "department_id",
+];
+
+const collectEventUpdateData = (data: UpdateEventData) => {
+  const updateData: Record<string, unknown> = {};
+
+  for (const field of EVENT_UPDATE_FIELDS) {
+    const value = data[field];
+    if (value !== undefined) {
+      updateData[field] = value;
+    }
+  }
+
+  if (data.status !== undefined) {
+    updateData.status = mapEventStatus(data.status);
+  }
+
+  if (data.metadata !== undefined) {
+    updateData.metadata = serializeEventMetadata(data.metadata);
+  }
+
+  return updateData;
+};
+
+const buildEventTranslations = (
+  contentId: string,
+  translations: EventTranslationsInput
+) =>
+  [
+    { locale: Locale.EN, data: translations.en },
+    { locale: Locale.NO, data: translations.no },
+  ].map(
+    ({ locale, data }) =>
+      ({
+        content_id: contentId,
+        content_type: ContentType.EVENT,
+        locale,
+        title: data.title,
+        description: data.description,
+      }) as ContentTranslations
+  );
+
+const buildEventTranslationRefsForUpdate = async (
+  db: AdminDbClient,
+  eventId: string,
+  translations: EventTranslationsInput | undefined
+) => {
+  if (!translations) {
+    return;
+  }
+
+  const existingEvent = await db.listRows<Events>("app", "events", [
+    Query.equal("$id", eventId),
+    Query.select(["translation_refs.$id", "translation_refs.locale"]),
+    Query.limit(1),
+  ]);
+
+  const existingTranslations = existingEvent.rows[0]?.translation_refs || [];
+  const existingTranslationsArray = Array.isArray(existingTranslations)
+    ? existingTranslations.filter(
+        (translation): translation is ContentTranslations =>
+          typeof translation !== "string"
+      )
+    : [];
+
+  const buildTranslation = (
+    locale: Locale,
+    translation: EventTranslationsInput[keyof EventTranslationsInput]
+  ): ContentTranslations => {
+    const existing = existingTranslationsArray.find(
+      (item) => item.locale === locale
+    );
+
+    return {
+      ...(existing?.$id ? { $id: existing.$id } : {}),
+      content_type: ContentType.EVENT,
+      content_id: eventId,
+      locale,
+      title: translation.title,
+      description: translation.description,
+    } as ContentTranslations;
+  };
+
+  return [
+    buildTranslation(Locale.EN, translations.en),
+    buildTranslation(Locale.NO, translations.no),
+  ];
+};
+
 export async function listEvents(
   params: ListEventsParams = {}
 ): Promise<AdminEvent[]> {
@@ -209,24 +346,12 @@ export async function createEvent(
   try {
     const { db } = await createSessionClient();
     const eventId = ID.unique();
+    const metadata = serializeEventMetadata(data.metadata);
+    const translationRefs = buildEventTranslations(eventId, data.translations);
 
-    // Build metadata JSON with non-schema fields only
-    const metadataJson: EventMetadata = {};
-    if (data.metadata?.start_time) {
-      metadataJson.start_time = data.metadata.start_time;
-    }
-    if (data.metadata?.end_time) {
-      metadataJson.end_time = data.metadata.end_time;
-    }
-    if (data.metadata?.units?.length) {
-      metadataJson.units = data.metadata.units;
-    }
-
-    // Create event with nested translations in ONE atomic operation
-    // Appwrite will automatically create the translation rows when no IDs are provided
     const event = await db.createRow<Events>("app", "events", eventId, {
       slug: data.slug ?? null,
-      status: data.status as Status,
+      status: mapEventStatus(data.status),
       campus_id: data.campus_id,
       start_date: data.start_date ?? null,
       end_date: data.end_date ?? null,
@@ -239,28 +364,11 @@ export async function createEvent(
       is_collection: data.is_collection ?? false,
       collection_pricing: data.collection_pricing ?? null,
       department_id: data.department_id ?? null,
-      metadata: Object.keys(metadataJson).length
-        ? JSON.stringify(metadataJson)
-        : null,
+      metadata,
       campus: data.campus_id,
       department: data.department_id ?? null,
       // Nested relationship creation - Appwrite creates translations atomically
-      translation_refs: [
-        {
-          content_id: eventId,
-          content_type: ContentType.EVENT,
-          locale: Locale.EN,
-          title: data.translations.en.title,
-          description: data.translations.en.description,
-        },
-        {
-          content_id: eventId,
-          content_type: ContentType.EVENT,
-          locale: Locale.NO,
-          title: data.translations.no.title,
-          description: data.translations.no.description,
-        },
-      ] as ContentTranslations[],
+      translation_refs: translationRefs,
     });
 
     if (!skipRevalidation) {
@@ -282,112 +390,15 @@ export async function updateEvent(
   try {
     const { db } = await createSessionClient();
 
-    // Build update object - same pattern as products
-    const updateData: Record<string, unknown> = {};
+    const updateData = collectEventUpdateData(data);
+    const translationRefs = await buildEventTranslationRefsForUpdate(
+      db,
+      eventId,
+      data.translations
+    );
 
-    if (data.slug !== undefined) {
-      updateData.slug = data.slug;
-    }
-    if (data.status !== undefined) {
-      updateData.status = data.status as Status;
-    }
-    if (data.campus_id !== undefined) {
-      updateData.campus_id = data.campus_id;
-    }
-    if (data.start_date !== undefined) {
-      updateData.start_date = data.start_date;
-    }
-    if (data.end_date !== undefined) {
-      updateData.end_date = data.end_date;
-    }
-    if (data.location !== undefined) {
-      updateData.location = data.location;
-    }
-    if (data.price !== undefined) {
-      updateData.price = data.price;
-    }
-    if (data.ticket_url !== undefined) {
-      updateData.ticket_url = data.ticket_url;
-    }
-    if (data.image !== undefined) {
-      updateData.image = data.image;
-    }
-    if (data.member_only !== undefined) {
-      updateData.member_only = data.member_only;
-    }
-    if (data.collection_id !== undefined) {
-      updateData.collection_id = data.collection_id;
-    }
-    if (data.is_collection !== undefined) {
-      updateData.is_collection = data.is_collection;
-    }
-    if (data.collection_pricing !== undefined) {
-      updateData.collection_pricing = data.collection_pricing;
-    }
-    if (data.department_id !== undefined) {
-      updateData.department_id = data.department_id;
-    }
-
-    // Build metadata only if provided
-    if (data.metadata !== undefined) {
-      const metadataJson: EventMetadata = {};
-      if (data.metadata.start_time) {
-        metadataJson.start_time = data.metadata.start_time;
-      }
-      if (data.metadata.end_time) {
-        metadataJson.end_time = data.metadata.end_time;
-      }
-      if (data.metadata.units?.length) {
-        metadataJson.units = data.metadata.units;
-      }
-      updateData.metadata = Object.keys(metadataJson).length
-        ? JSON.stringify(metadataJson)
-        : null;
-    }
-
-    // Build translation_refs array with both translations if provided
-    // For updates, we need to fetch existing translation IDs to properly update them
-    if (data.translations) {
-      // Fetch existing translations to get their IDs
-      const existingEvent = await db.listRows<Events>("app", "events", [
-        Query.equal("$id", eventId),
-        Query.select(["translation_refs.$id", "translation_refs.locale"]),
-        Query.limit(1),
-      ]);
-
-      const existingTranslations =
-        existingEvent.rows[0]?.translation_refs || [];
-      const existingTranslationsArray = Array.isArray(existingTranslations)
-        ? existingTranslations.filter(
-            (t): t is ContentTranslations => typeof t !== "string"
-          )
-        : [];
-
-      const enTranslation = existingTranslationsArray.find(
-        (t) => t.locale === Locale.EN
-      );
-      const noTranslation = existingTranslationsArray.find(
-        (t) => t.locale === Locale.NO
-      );
-
-      updateData.translation_refs = [
-        {
-          ...(enTranslation?.$id ? { $id: enTranslation.$id } : {}),
-          content_type: ContentType.EVENT,
-          content_id: eventId,
-          locale: Locale.EN,
-          title: data.translations.en.title,
-          description: data.translations.en.description,
-        } as ContentTranslations,
-        {
-          ...(noTranslation?.$id ? { $id: noTranslation.$id } : {}),
-          content_type: ContentType.EVENT,
-          content_id: eventId,
-          locale: Locale.NO,
-          title: data.translations.no.title,
-          description: data.translations.no.description,
-        } as ContentTranslations,
-      ];
+    if (translationRefs) {
+      updateData.translation_refs = translationRefs;
     }
 
     const event = await db.updateRow<Events>(

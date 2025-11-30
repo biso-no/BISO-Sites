@@ -1,15 +1,13 @@
 /* Import Tailwind and plugins first */
 @import "tailwindcss";
+@import "tw-animate-css";
+/* Import shared styles from UI package */
+@import "../../../../packages/ui/styles/globals.css";
 @plugin "tailwindcss-animate";
 @plugin "@tailwindcss/typography";
-@import "tw-animate-css";
-
 /* Define content sources */
 @source "../../../../packages/ui/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
-
-/* Import shared styles from UI package */
-@import "../../../../packages/ui/styles/globals.css";
 
 /* App-specific color values - Light mode */
 :root {

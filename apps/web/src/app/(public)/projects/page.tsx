@@ -1,3 +1,4 @@
+import type { Locale } from "@repo/i18n/config";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -10,7 +11,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listLargeEvents } from "@/app/actions/large-events";
 import { getLocale } from "@/app/actions/locale";
-import type { Locale } from "@/i18n/config";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 const pickEventBySlug = (events: ParsedLargeEvent[], slug: string) =>

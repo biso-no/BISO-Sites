@@ -25,6 +25,105 @@ import {
   PRODUCT_SELECT_FIELDS,
 } from "./_utils/translatable";
 
+type AdminDbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type ProductStatus = CreateProductData["status"];
+
+const PRODUCT_STATUS_MAP: Record<ProductStatus, Status> = {
+  draft: Status.DRAFT,
+  published: Status.PUBLISHED,
+  archived: Status.ARCHIVED,
+};
+
+const mapProductStatus = (status: ProductStatus): Status =>
+  PRODUCT_STATUS_MAP[status] ?? Status.ARCHIVED;
+
+const serializeMetadata = (
+  metadata: CreateProductData["metadata"] | UpdateProductData["metadata"]
+) => (metadata ? JSON.stringify(metadata) : null);
+
+const BASE_UPDATE_FIELDS: (keyof UpdateProductData)[] = [
+  "slug",
+  "campus_id",
+  "category",
+  "regular_price",
+  "member_price",
+  "member_only",
+  "stock",
+  "image",
+];
+
+const collectBaseProductUpdates = (data: UpdateProductData) => {
+  const updateData: Record<string, unknown> = {};
+
+  for (const field of BASE_UPDATE_FIELDS) {
+    const value = data[field];
+    if (value !== undefined) {
+      updateData[field] = value;
+    }
+  }
+
+  if (data.status !== undefined) {
+    updateData.status = mapProductStatus(data.status);
+  }
+
+  if (data.metadata !== undefined) {
+    updateData.metadata = serializeMetadata(data.metadata);
+  }
+
+  return updateData;
+};
+
+const buildTranslationRefsForUpdate = async (
+  db: AdminDbClient,
+  id: string,
+  translations: UpdateProductData["translations"] | undefined
+) => {
+  if (!translations) {
+    return;
+  }
+
+  const existingProduct = await db.listRows<WebshopProducts>(
+    "app",
+    "webshop_products",
+    [
+      Query.equal("$id", id),
+      Query.select(["translation_refs.$id", "translation_refs.locale"]),
+      Query.limit(1),
+    ]
+  );
+
+  const existingTranslations = existingProduct.rows[0]?.translation_refs ?? [];
+  const existingTranslationsArray = Array.isArray(existingTranslations)
+    ? existingTranslations.filter(
+        (translation): translation is ContentTranslations =>
+          typeof translation !== "string"
+      )
+    : [];
+
+  const buildTranslation = (
+    locale: Locale,
+    translation: ProductTranslation
+  ): ContentTranslations => {
+    const existing = existingTranslationsArray.find(
+      (item) => item.locale === locale
+    );
+
+    return {
+      ...(existing?.$id ? { $id: existing.$id } : {}),
+      content_type: ContentType.PRODUCT,
+      content_id: id,
+      locale,
+      title: translation.title,
+      description: translation.description,
+    } as ContentTranslations;
+  };
+
+  return [
+    buildTranslation(Locale.EN, translations.en),
+    buildTranslation(Locale.NO, translations.no),
+  ];
+};
+
 export async function listProducts(
   params: ListProductsParams = {}
 ): Promise<ProductWithTranslations[]> {
@@ -156,12 +255,7 @@ export async function createProduct(
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
-    const statusValue =
-      data.status === "draft"
-        ? Status.DRAFT
-        : data.status === "published"
-          ? Status.PUBLISHED
-          : Status.ARCHIVED;
+    const statusValue = mapProductStatus(data.status);
 
     // Build translation_refs array with both required translations
     const translationRefs: ContentTranslations[] = [
@@ -197,7 +291,7 @@ export async function createProduct(
         stock: data.stock ?? null,
         image: data.image ?? null,
         // Additional metadata
-        metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+        metadata: serializeMetadata(data.metadata),
         // Relationship fields
         campus: data.campus_id,
         departmentId: null,
@@ -226,98 +320,15 @@ export async function updateProduct(
   try {
     const { db } = await createSessionClient();
 
-    // Build update object
-    const updateData: Record<string, unknown> = {};
+    const updateData = collectBaseProductUpdates(data);
+    const translationRefs = await buildTranslationRefsForUpdate(
+      db,
+      id,
+      data.translations
+    );
 
-    if (data.slug !== undefined) {
-      updateData.slug = data.slug;
-    }
-    if (data.status !== undefined) {
-      updateData.status =
-        data.status === "draft"
-          ? Status.DRAFT
-          : data.status === "published"
-            ? Status.PUBLISHED
-            : Status.ARCHIVED;
-    }
-    if (data.campus_id !== undefined) {
-      updateData.campus_id = data.campus_id;
-    }
-
-    // Top-level database fields
-    if (data.category !== undefined) {
-      updateData.category = data.category;
-    }
-    if (data.regular_price !== undefined) {
-      updateData.regular_price = data.regular_price;
-    }
-    if (data.member_price !== undefined) {
-      updateData.member_price = data.member_price;
-    }
-    if (data.member_only !== undefined) {
-      updateData.member_only = data.member_only;
-    }
-    if (data.stock !== undefined) {
-      updateData.stock = data.stock;
-    }
-    if (data.image !== undefined) {
-      updateData.image = data.image;
-    }
-
-    // Metadata JSON
-    if (data.metadata !== undefined) {
-      updateData.metadata = data.metadata
-        ? JSON.stringify(data.metadata)
-        : null;
-    }
-
-    // Build translation_refs array with both translations if provided
-    // For updates, we need to fetch existing translation IDs to properly update them
-    if (data.translations) {
-      // Fetch existing translations to get their IDs
-      const existingProduct = await db.listRows<WebshopProducts>(
-        "app",
-        "webshop_products",
-        [
-          Query.equal("$id", id),
-          Query.select(["translation_refs.$id", "translation_refs.locale"]),
-          Query.limit(1),
-        ]
-      );
-
-      const existingTranslations =
-        existingProduct.rows[0]?.translation_refs || [];
-      const existingTranslationsArray = Array.isArray(existingTranslations)
-        ? existingTranslations.filter(
-            (t): t is ContentTranslations => typeof t !== "string"
-          )
-        : [];
-
-      const enTranslation = existingTranslationsArray.find(
-        (t) => t.locale === Locale.EN
-      );
-      const noTranslation = existingTranslationsArray.find(
-        (t) => t.locale === Locale.NO
-      );
-
-      updateData.translation_refs = [
-        {
-          ...(enTranslation?.$id ? { $id: enTranslation.$id } : {}),
-          content_type: ContentType.PRODUCT,
-          content_id: id,
-          locale: Locale.EN,
-          title: data.translations.en.title,
-          description: data.translations.en.description,
-        } as ContentTranslations,
-        {
-          ...(noTranslation?.$id ? { $id: noTranslation.$id } : {}),
-          content_type: ContentType.PRODUCT,
-          content_id: id,
-          locale: Locale.NO,
-          title: data.translations.no.title,
-          description: data.translations.no.description,
-        } as ContentTranslations,
-      ];
+    if (translationRefs) {
+      updateData.translation_refs = translationRefs;
     }
 
     const product = await db.updateRow<WebshopProducts>(
@@ -368,12 +379,7 @@ async function _updateProductStatus(
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
-    const statusValue =
-      status === "draft"
-        ? Status.DRAFT
-        : status === "published"
-          ? Status.PUBLISHED
-          : Status.ARCHIVED;
+    const statusValue = mapProductStatus(status);
 
     const product = await db.updateRow<WebshopProducts>(
       "app",
@@ -406,12 +412,7 @@ export async function bulkUpdateProductStatus(
 
   try {
     const { db } = await createSessionClient();
-    const statusValue =
-      status === "draft"
-        ? Status.DRAFT
-        : status === "published"
-          ? Status.PUBLISHED
-          : Status.ARCHIVED;
+    const statusValue = mapProductStatus(status);
 
     await Promise.all(
       productIds.map((id) =>

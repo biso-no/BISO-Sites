@@ -7,9 +7,9 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { Check, Clock, Gift, Shield, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BenefitCard } from "../shared/BenefitCard";
-import { LockedContentOverlay } from "../shared/LockedContentOverlay";
-import { QuickStatsCard } from "../shared/QuickStatsCard";
+import { BenefitCard } from "../shared/benefit-card";
+import { LockedContentOverlay } from "../shared/locked-content-overlay";
+import { QuickStatsCard } from "../shared/quick-stats-card";
 
 type OverviewTabProps = {
   membershipType: string;

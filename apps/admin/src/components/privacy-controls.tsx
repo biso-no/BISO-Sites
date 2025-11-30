@@ -25,7 +25,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { deleteUserData } from "@/lib/actions/user";
 
-export function PrivacyControls({ userId }: { userId: string }) {
+export function PrivacyControls({ userId: _userId }: { userId: string }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [requestingData, setRequestingData] = useState(false);
   const [deletingData, setDeletingData] = useState(false);

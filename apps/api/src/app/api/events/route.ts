@@ -214,14 +214,26 @@ function validateRequestBody(body: unknown): ValidatedRequestBody {
   };
 }
 
+type FetchCampusOptions = {
+  databaseId: string;
+  tableId: string;
+  campusId: string;
+  log: (message: string, ...args: unknown[]) => void;
+  retries?: number;
+};
+
 async function fetchCampusWithRetry(
   db: DbClient,
-  databaseId: string,
-  tableId: string,
-  campusId: string,
-  log: (message: string, ...args: unknown[]) => void,
-  retries = CONFIG.MAX_RETRIES
+  options: FetchCampusOptions
 ): Promise<CampusRow> {
+  const {
+    databaseId,
+    tableId,
+    campusId,
+    log,
+    retries = CONFIG.MAX_RETRIES,
+  } = options;
+
   for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
     try {
       const campus = (await db.getRow(
@@ -272,6 +284,101 @@ async function fetchCampusWithRetry(
   );
 }
 
+function parseEventsResponse(
+  data: unknown,
+  params: ValidatedRequestBody,
+  log: (message: string, ...args: unknown[]) => void
+): WordPressApiResponse {
+  if (Array.isArray(data)) {
+    log(`Received ${data.length} events (old format)`);
+    return {
+      events: data as WordPressEvent[],
+      pagination: {
+        current_page: params.page,
+        per_page: params.per_page,
+        total_events: data.length,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
+      search_term: params.search ?? null,
+    };
+  }
+
+  const hasEventsArray =
+    data &&
+    typeof data === "object" &&
+    Array.isArray((data as { events?: unknown[] }).events);
+
+  if (hasEventsArray) {
+    const typed = data as {
+      events: WordPressEvent[];
+      pagination: WordPressApiResponse["pagination"];
+      search_term?: string | null;
+    };
+
+    log(
+      `Received ${typed.events.length} events, ${
+        typed.pagination?.total_events ?? 0
+      } total`
+    );
+
+    return {
+      events: typed.events,
+      pagination: typed.pagination,
+      search_term: typed.search_term ?? params.search ?? null,
+    };
+  }
+
+  throw new Error("Invalid response format from WordPress API");
+}
+
+function buildEventsUrl(
+  params: ValidatedRequestBody,
+  organizerSlug?: string
+): URL {
+  const url = new URL(CONFIG.WORDPRESS_BASE_URL);
+
+  if (organizerSlug) {
+    url.searchParams.append("organizer", organizerSlug);
+  }
+  url.searchParams.append("per_page", params.per_page.toString());
+  url.searchParams.append("page", params.page.toString());
+  url.searchParams.append(
+    "include_past",
+    params.include_past ? "true" : "false"
+  );
+
+  if (params.search) {
+    url.searchParams.append("search", params.search);
+  }
+
+  return url;
+}
+
+function handleFetchError(
+  error: { name?: string; message?: string },
+  isLastAttempt: boolean
+): void {
+  if (!isLastAttempt) {
+    return;
+  }
+
+  if (error.name === "AbortError") {
+    throw new AppwriteEventsError(
+      `Request timeout after ${CONFIG.TIMEOUT_MS}ms`,
+      408,
+      "REQUEST_TIMEOUT"
+    );
+  }
+
+  throw new AppwriteEventsError(
+    `Failed to fetch events: ${error.message}`,
+    502,
+    "EVENTS_FETCH_FAILED"
+  );
+}
+
 async function fetchEventsWithRetry(
   params: ValidatedRequestBody,
   log: (message: string, ...args: unknown[]) => void,
@@ -286,30 +393,11 @@ async function fetchEventsWithRetry(
 
   for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
     const controller = new AbortController();
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
 
     try {
-      const url = new URL(CONFIG.WORDPRESS_BASE_URL);
-
-      if (organizerSlug) {
-        url.searchParams.append("organizer", organizerSlug);
-      }
-      url.searchParams.append("per_page", params.per_page.toString());
-      url.searchParams.append("page", params.page.toString());
-      url.searchParams.append(
-        "include_past",
-        params.include_past ? "true" : "false"
-      );
-
-      if (params.search) {
-        url.searchParams.append("search", params.search);
-      }
-
+      const url = buildEventsUrl(params, organizerSlug);
       log(`Attempt ${attempt}: Fetching events from: ${url.toString()}`);
-
-      timeoutId = setTimeout(() => {
-        controller.abort();
-      }, CONFIG.TIMEOUT_MS);
 
       const response = await fetch(url.toString(), {
         signal: controller.signal,
@@ -319,9 +407,7 @@ async function fetchEventsWithRetry(
         },
       });
 
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -333,70 +419,13 @@ async function fetchEventsWithRetry(
       }
 
       const data = (await response.json()) as unknown;
-
-      if (Array.isArray(data)) {
-        // Old format - array of events
-        log(`Received ${data.length} events (old format)`);
-        return {
-          events: data as WordPressEvent[],
-          pagination: {
-            current_page: params.page,
-            per_page: params.per_page,
-            total_events: data.length,
-            total_pages: 1,
-            has_next: false,
-            has_previous: false,
-          },
-          search_term: params.search ?? null,
-        };
-      }
-
-      if (
-        data &&
-        typeof data === "object" &&
-        Array.isArray((data as { events?: unknown[] }).events)
-      ) {
-        const typed = data as {
-          events: WordPressEvent[];
-          pagination: WordPressApiResponse["pagination"];
-          search_term?: string | null;
-        };
-
-        log(
-          `Received ${typed.events.length} events, ${
-            typed.pagination?.total_events ?? 0
-          } total`
-        );
-
-        return {
-          events: typed.events,
-          pagination: typed.pagination,
-          search_term: typed.search_term ?? params.search ?? null,
-        };
-      }
-
-      throw new Error("Invalid response format from WordPress API");
+      return parseEventsResponse(data, params, log);
     } catch (err) {
+      clearTimeout(timeoutId);
       const error = err as { name?: string; message?: string };
+      const isLastAttempt = attempt > retries;
 
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-      }
-
-      if (attempt > retries) {
-        if (error.name === "AbortError") {
-          throw new AppwriteEventsError(
-            `Request timeout after ${CONFIG.TIMEOUT_MS}ms`,
-            408,
-            "REQUEST_TIMEOUT"
-          );
-        }
-        throw new AppwriteEventsError(
-          `Failed to fetch events: ${error.message}`,
-          502,
-          "EVENTS_FETCH_FAILED"
-        );
-      }
+      handleFetchError(error, isLastAttempt);
 
       log(`Events fetch attempt ${attempt} failed:`, error.message);
       // eslint-disable-next-line no-await-in-loop
@@ -439,6 +468,73 @@ function sanitizeHeaders(headers: Headers): Record<string, unknown> {
   return masked;
 }
 
+type ErrorResponsePayload = {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    statusCode: number;
+  };
+  metadata: {
+    requestId: string;
+    executionTime: number;
+    timestamp: string;
+  };
+};
+
+type ErrorParams = {
+  code: string;
+  message: string;
+  statusCode: number;
+  requestId: string;
+  executionTime: number;
+};
+
+function buildErrorResponse(params: ErrorParams): ErrorResponsePayload {
+  return {
+    success: false,
+    error: {
+      code: params.code,
+      message: params.message,
+      statusCode: params.statusCode,
+    },
+    metadata: {
+      requestId: params.requestId,
+      executionTime: params.executionTime,
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+async function parseRequestBody(req: NextRequest): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    throw new AppwriteEventsError(
+      "Request body is required and must be valid JSON",
+      400,
+      "INVALID_BODY"
+    );
+  }
+}
+
+type ResolveCampusParams = {
+  campusId: string;
+  databaseId: string;
+  collectionId: string;
+  log: (message: string, ...args: unknown[]) => void;
+};
+
+async function resolveCampus(params: ResolveCampusParams): Promise<CampusRow> {
+  const { db } = await createAdminClient();
+  return fetchCampusWithRetry(db as DbClient, {
+    databaseId: params.databaseId,
+    tableId: params.collectionId,
+    campusId: params.campusId,
+    log: params.log,
+  });
+}
+
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
   const startTime = Date.now();
@@ -455,56 +551,26 @@ export async function POST(req: NextRequest) {
 
   try {
     logWithId("Function execution started");
+    logWithId("Headers:", JSON.stringify(sanitizeHeaders(req.headers)));
 
-    try {
-      const headersObject = sanitizeHeaders(req.headers);
-      logWithId("Headers:", JSON.stringify(headersObject));
-    } catch {
-      // ignore logging failures
-    }
-
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      throw new AppwriteEventsError(
-        "Request body is required and must be valid JSON",
-        400,
-        "INVALID_BODY"
-      );
-    }
-
+    const body = await parseRequestBody(req);
     const validatedParams = validateRequestBody(body);
     logWithId("Request validated:", JSON.stringify(validatedParams));
 
-    const hasCampusId =
-      typeof validatedParams.campusId === "string" &&
-      validatedParams.campusId.length > 0;
-
+    const campusId = validatedParams.campusId;
+    const hasCampusId = typeof campusId === "string" && campusId.length > 0;
     const { databaseId, collectionId } = validateEnvironment(hasCampusId);
 
     let campus: CampusRow | undefined;
 
-    if (hasCampusId) {
+    if (hasCampusId && databaseId && collectionId) {
       logWithId("CampusId provided, will fetch campus and query by organizer");
-
-      const { db } = await createAdminClient();
-
-      if (!(databaseId && collectionId)) {
-        throw new AppwriteEventsError(
-          "Database configuration missing after validation",
-          500,
-          "INTERNAL_CONFIG_ERROR"
-        );
-      }
-
-      campus = await fetchCampusWithRetry(
-        db as DbClient,
+      campus = await resolveCampus({
+        campusId,
         databaseId,
         collectionId,
-        validatedParams.campusId as string,
-        logWithId
-      );
+        log: logWithId,
+      });
       logWithId(`Campus found: ${campus.name}`);
     } else {
       logWithId(
@@ -563,67 +629,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(response);
   } catch (err) {
     const executionTime = Date.now() - startTime;
-    const error = err as
-      | AppwriteEventsError
-      | (Error & { statusCode?: number; code?: string });
+    const error = err as AppwriteEventsError | Error;
 
     if (error instanceof AppwriteEventsError) {
       logWithId(`Business error [${error.code}]:`, error.message);
-
-      if (error.statusCode >= 400 && error.statusCode < 500) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: error.code,
-              message: error.message,
-              statusCode: error.statusCode,
-            },
-            metadata: {
-              requestId,
-              executionTime,
-              timestamp: new Date().toISOString(),
-            },
-          },
-          { status: 200 }
-        );
-      }
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: error.code,
-            message: error.message,
-            statusCode: error.statusCode,
-          },
-          metadata: {
-            requestId,
-            executionTime,
-            timestamp: new Date().toISOString(),
-          },
-        },
-        { status: error.statusCode || 500 }
-      );
+      const payload = buildErrorResponse({
+        code: error.code,
+        message: error.message,
+        statusCode: error.statusCode,
+        requestId,
+        executionTime,
+      });
+      const isClientError = error.statusCode >= 400 && error.statusCode < 500;
+      return NextResponse.json(payload, {
+        status: isClientError ? 200 : error.statusCode,
+      });
     }
 
     errorLog(`[${requestId}] Unexpected error:`, error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "An unexpected error occurred",
-          statusCode: 500,
-        },
-        metadata: {
-          requestId,
-          executionTime,
-          timestamp: new Date().toISOString(),
-        },
-      },
-      { status: 500 }
-    );
+    const payload = buildErrorResponse({
+      code: "INTERNAL_ERROR",
+      message: "An unexpected error occurred",
+      statusCode: 500,
+      requestId,
+      executionTime,
+    });
+    return NextResponse.json(payload, { status: 500 });
   }
 }

@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { getOrgChartUrl, getPartners, type Partner } from "@/app/actions/about";
-import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { PublicPageHeader } from "@/components/public/public-page-header";
 
 const tiles: Array<{
   key: keyof typeof import("../../../../messages/en/about.json")["links"]; // type hint only
@@ -51,9 +51,9 @@ export default function AboutPage() {
     const load = async () => {
       try {
         const res = await getPartners();
-        const orgChartUrl = await getOrgChartUrl();
+        const orgChartLink = await getOrgChartUrl();
         setPartners(res);
-        setOrgChartUrl(orgChartUrl);
+        setOrgChartUrl(orgChartLink);
       } catch {
         // ignore
       }

@@ -1,6 +1,6 @@
 "use server";
 import { createSessionClient } from "@repo/api/server";
-import { DEFAULT_LOCALE, isLocale } from "@/i18n/config";
+import { DEFAULT_LOCALE, isLocale } from "@repo/i18n/config";
 
 export async function getLocale() {
   try {

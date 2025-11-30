@@ -15,7 +15,7 @@ import {
   getCartItemsWithDetails,
 } from "@/app/actions/cart-reservations";
 
-type CartItem = {
+export type CartItem = {
   id: string; // unique cart item id (contentId + options hash)
   contentId: string; // product content_id from database
   productId: string; // product webshop_products id

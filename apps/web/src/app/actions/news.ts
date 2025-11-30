@@ -194,26 +194,32 @@ async function _updateNewsItem(
     // Build update object
     const updateData: Record<string, unknown> = {};
 
-    if (data.status !== undefined) {
-      updateData.status = data.status;
-    }
-    if (data.campus_id !== undefined) {
-      updateData.campus_id = data.campus_id;
-    }
-    if (data.department_id !== undefined) {
-      updateData.department_id = data.department_id;
-    }
-    if (data.slug !== undefined) {
-      updateData.slug = data.slug;
-    }
-    if (data.url !== undefined) {
-      updateData.url = data.url;
-    }
-    if (data.image !== undefined) {
-      updateData.image = data.image;
-    }
-    if (data.sticky !== undefined) {
-      updateData.sticky = data.sticky;
+    const optionalFields: Array<
+      keyof Pick<
+        CreateNewsData,
+        | "status"
+        | "campus_id"
+        | "department_id"
+        | "slug"
+        | "url"
+        | "image"
+        | "sticky"
+      >
+    > = [
+      "status",
+      "campus_id",
+      "department_id",
+      "slug",
+      "url",
+      "image",
+      "sticky",
+    ];
+
+    for (const key of optionalFields) {
+      const value = data[key];
+      if (value !== undefined) {
+        updateData[key] = value;
+      }
     }
 
     // Build translation_refs array from provided translations only
@@ -252,4 +258,3 @@ async function _updateNewsItem(
     return null;
   }
 }
-

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Locale } from "@repo/i18n/config";
 import {
   Tabs,
   TabsContent,
@@ -8,11 +9,10 @@ import {
 } from "@repo/ui/components/ui/tabs";
 import { Briefcase, GraduationCap, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Locale } from "@/i18n/config";
 
 type CampusTabsProps = {
   locale: Locale;
-  children: {
+  content: {
     overview: React.ReactNode;
     students: React.ReactNode;
     partners: React.ReactNode;
@@ -20,7 +20,7 @@ type CampusTabsProps = {
   };
 };
 
-export function CampusTabs({ locale, children }: CampusTabsProps) {
+export function CampusTabs({ locale, content }: CampusTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
   // Sync with URL hash on mount and hash change
@@ -98,13 +98,13 @@ export function CampusTabs({ locale, children }: CampusTabsProps) {
 
       {/* Tab Content */}
       <Tabs onValueChange={handleTabChange} value={activeTab}>
-        <TabsContent value="overview">{children.overview}</TabsContent>
+        <TabsContent value="overview">{content.overview}</TabsContent>
 
-        <TabsContent value="students">{children.students}</TabsContent>
+        <TabsContent value="students">{content.students}</TabsContent>
 
-        <TabsContent value="partners">{children.partners}</TabsContent>
+        <TabsContent value="partners">{content.partners}</TabsContent>
 
-        <TabsContent value="team">{children.team}</TabsContent>
+        <TabsContent value="team">{content.team}</TabsContent>
       </Tabs>
     </>
   );

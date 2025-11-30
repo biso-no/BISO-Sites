@@ -110,45 +110,64 @@ function buildCsvRows(orders: Orders[]) {
   const rows = [header.join(",")];
 
   for (const order of orders) {
-    const createdAt = order.$createdAt;
     const status = (order.status || "pending").toLowerCase();
     const totalValue = Number(order.total ?? 0);
-    const baseColumns = [
-      order.$id,
-      createdAt,
-      order.buyer_name || "",
-      order.buyer_email || "",
-      order.buyer_phone || "",
-    ];
-
+    const baseColumns = buildBaseColumns(order);
     const items = parseOrderItems(order.items_json);
+
     if (items.length === 0) {
-      rows.push(
-        formatCsvRow([...baseColumns, "", "", formatMoney(totalValue), status])
-      );
+      rows.push(formatEmptyOrderRow(baseColumns, totalValue, status));
       continue;
     }
 
-    for (const item of items) {
-      const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
-      const productLabel = item.title || item.product_slug || "Product";
-      const unitPrice = formatMoney(item.unit_price ?? 0);
-      for (let i = 0; i < quantity; i++) {
-        rows.push(
-          formatCsvRow([
-            ...baseColumns,
-            productLabel,
-            unitPrice,
-            formatMoney(totalValue),
-            status,
-          ])
-        );
-      }
-    }
+    rows.push(...expandOrderItems(items, baseColumns, totalValue, status));
   }
 
   return rows;
 }
+
+const buildBaseColumns = (order: Orders): (string | number)[] => [
+  order.$id,
+  order.$createdAt,
+  order.buyer_name || "",
+  order.buyer_email || "",
+  order.buyer_phone || "",
+];
+
+const formatEmptyOrderRow = (
+  baseColumns: (string | number)[],
+  totalValue: number,
+  status: string
+) => formatCsvRow([...baseColumns, "", "", formatMoney(totalValue), status]);
+
+const expandOrderItems = (
+  items: ParsedOrderItem[],
+  baseColumns: (string | number)[],
+  totalValue: number,
+  status: string
+) => {
+  const itemRows: string[] = [];
+
+  for (const item of items) {
+    const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
+    const productLabel = item.title || item.product_slug || "Product";
+    const unitPrice = formatMoney(item.unit_price ?? 0);
+
+    for (let i = 0; i < quantity; i++) {
+      itemRows.push(
+        formatCsvRow([
+          ...baseColumns,
+          productLabel,
+          unitPrice,
+          formatMoney(totalValue),
+          status,
+        ])
+      );
+    }
+  }
+
+  return itemRows;
+};
 
 function parseOrderItems(json?: string | null): ParsedOrderItem[] {
   if (!json) {

@@ -17,6 +17,7 @@ export function TabNavigation({
   defaultTab = "overview",
   benefitsCount,
   isMember,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: TODO: Consider this parameter
   hasBIIdentity,
   children,
 }: TabNavigationProps) {

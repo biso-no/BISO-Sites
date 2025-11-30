@@ -4,9 +4,9 @@ import {
   getMemberBenefits,
   getPublicProfile,
   getUserProfile,
-} from "@/app/actions/memberPortal";
-import { MemberPortalTabs } from "@/components/member-portal/MemberPortalTabs";
-import { MemberPortalHeader } from "@/components/member-portal/shared/MemberPortalHeader";
+} from "@/app/actions/member-portal";
+import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
+import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
 
 type MemberPortalContentProps = {
   user: any;

@@ -2,6 +2,7 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Orders, Users } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { getAvailableStock } from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
@@ -13,14 +14,12 @@ async function _getOrders({
   limit = 100,
   userId = "",
   status = "",
-  path = "/admin/shop/orders",
 }: {
   limit?: number;
   offset?: number;
   search?: string;
   userId?: string;
   status?: string;
-  path?: string;
 }) {
   const { db } = await createSessionClient();
   try {
@@ -117,6 +116,256 @@ type CheckoutStatusResult = {
   error?: string;
 };
 
+function sanitizeCartItems(items: CheckoutLineItemInput[] | undefined) {
+  if (!items || items.length === 0) {
+    throw new Error("Your cart is empty");
+  }
+
+  const sanitized = items
+    .map((item) => ({
+      ...item,
+      quantity: Math.max(1, Math.floor(Number(item.quantity) || 0)),
+    }))
+    .filter((item) => item.quantity > 0 && item.productId);
+
+  if (sanitized.length === 0) {
+    throw new Error("No valid items in cart");
+  }
+
+  return sanitized;
+}
+
+function buildQuantityByProduct(items: CheckoutLineItemInput[]) {
+  return items.reduce<Map<string, number>>((map, item) => {
+    map.set(item.productId, (map.get(item.productId) || 0) + item.quantity);
+    return map;
+  }, new Map());
+}
+
+async function loadProduct(
+  productId: string,
+  locale: Locale,
+  cache: Map<string, any>
+) {
+  const cached = cache.get(productId);
+  if (cached) {
+    return cached;
+  }
+  const product = await getProduct(productId, locale);
+  if (!product) {
+    throw new Error(`Product ${productId} is not available anymore.`);
+  }
+  cache.set(productId, product);
+  return product;
+}
+
+async function ensureStockAvailability(
+  product: any,
+  productId: string,
+  requestedQuantity: number,
+  slug?: string
+) {
+  if (product.stock === null || product.stock === undefined) {
+    return;
+  }
+  const availableStock = await getAvailableStock(productId);
+  if (availableStock >= requestedQuantity) {
+    return;
+  }
+  if (availableStock === 0) {
+    throw new Error(`${product.title || slug || productId} is out of stock.`);
+  }
+  throw new Error(
+    `Only ${availableStock} of ${product.title || slug || productId} available (${requestedQuantity} requested).`
+  );
+}
+
+async function ensurePurchaseLimit(
+  productId: string,
+  userId: string,
+  quantity: number,
+  metadata: any
+) {
+  const limitCheck = await validatePurchaseLimits(
+    productId,
+    userId,
+    quantity,
+    metadata
+  );
+  if (limitCheck.allowed) {
+    return;
+  }
+  throw new Error(
+    limitCheck.reason || `Purchase limit exceeded for ${productId}`
+  );
+}
+
+function findVariation(product: any, variationId?: string) {
+  if (!variationId) {
+    return;
+  }
+  return product.variations?.find((variant: any) => variant.id === variationId);
+}
+
+async function resolvePricing(
+  product: any,
+  variation: any,
+  discountCache: Map<string, { applied: boolean; percent: number }>,
+  productId: string
+) {
+  const basePrice = Number(product.price || 0);
+  const variationModifier = Number(variation?.price_modifier || 0);
+  const originalUnit = Math.max(0, basePrice + variationModifier);
+
+  const discount =
+    discountCache.get(productId) || (await getMemberDiscountIfAny(product));
+  discountCache.set(productId, discount);
+
+  const discountedUnit = discount.applied
+    ? Math.max(0, originalUnit * (1 - discount.percent / 100))
+    : originalUnit;
+
+  return {
+    originalUnit,
+    discountedUnit,
+    discountApplied: discount.applied,
+    discountPercent: discount.percent || 0,
+    variationModifier,
+  };
+}
+
+function buildCustomFieldPayload(
+  product: any,
+  responses: Record<string, string>,
+  labels?: Record<string, string>
+) {
+  if (!product.custom_fields) {
+    return { responses: undefined, details: undefined };
+  }
+
+  const missingFields = product.custom_fields
+    .filter((field: any) => field.required)
+    .filter((field: any) => !responses[field.id])
+    .map((field: any) => field.label);
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`
+    );
+  }
+
+  const details = Object.entries(responses).map(([fieldId, value]) => ({
+    id: fieldId,
+    label: labels?.[fieldId] || fieldId,
+    value,
+  }));
+
+  return {
+    responses: Object.keys(responses).length ? responses : undefined,
+    details: details.length ? details : undefined,
+  };
+}
+
+function pushCampusId(campusIds: Set<string>, campusId?: string | null) {
+  if (campusId) {
+    campusIds.add(campusId);
+  }
+}
+
+async function buildOrderItems(items: CheckoutLineItemInput[], locale: Locale) {
+  const quantityByProduct = buildQuantityByProduct(items);
+  const discountCache = new Map<
+    string,
+    { applied: boolean; percent: number }
+  >();
+  const productCache = new Map<string, any>();
+  const orderItems: OrderItem[] = [];
+  const campusIds = new Set<string>();
+
+  let subtotal = 0;
+  let originalTotal = 0;
+  let membershipApplied = false;
+  let maxDiscountPercent = 0;
+
+  for (const input of items) {
+    const productId = input.productId;
+    if (!productId) {
+      continue;
+    }
+
+    const product = await loadProduct(productId, locale, productCache);
+    if (!product.price) {
+      throw new Error(
+        `Product ${product.title || product.slug} is missing a price.`
+      );
+    }
+
+    const requestedQuantity = quantityByProduct.get(productId) || 0;
+    await ensureStockAvailability(
+      product,
+      productId,
+      requestedQuantity,
+      input.slug
+    );
+
+    const userId = "guest";
+    await ensurePurchaseLimit(
+      productId,
+      userId,
+      requestedQuantity,
+      product.metadata_parsed
+    );
+
+    const variation = findVariation(product, input.variationId);
+    const pricing = await resolvePricing(
+      product,
+      variation,
+      discountCache,
+      productId
+    );
+    const customFieldResponses = normalizeCustomFields(input.customFields);
+    const customFields = buildCustomFieldPayload(
+      product,
+      customFieldResponses,
+      input.customFieldLabels
+    );
+
+    orderItems.push({
+      product_id: product.$id,
+      product_slug: product.slug,
+      title: product.title || product.slug,
+      unit_price: pricing.discountedUnit,
+      quantity: input.quantity,
+      variation_id: variation?.id,
+      variation_name: variation?.name,
+      variation_price: pricing.variationModifier,
+      custom_field_responses: customFields.responses,
+      custom_fields: customFields.details,
+    });
+
+    subtotal += pricing.discountedUnit * input.quantity;
+    originalTotal += pricing.originalUnit * input.quantity;
+    pushCampusId(campusIds, product.campus_id);
+
+    if (pricing.discountApplied) {
+      membershipApplied = true;
+      maxDiscountPercent = Math.max(
+        maxDiscountPercent,
+        pricing.discountPercent
+      );
+    }
+  }
+
+  return {
+    orderItems,
+    subtotal,
+    originalTotal,
+    membershipApplied,
+    maxDiscountPercent,
+    campusIds,
+  };
+}
+
 function normalizeCustomFields(inputs?: Record<string, string>) {
   if (!inputs) {
     return {};
@@ -141,162 +390,16 @@ async function createCartCheckoutSession(
   data: CartCheckoutData
 ): Promise<CheckoutResult> {
   try {
-    if (!data.items || data.items.length === 0) {
-      throw new Error("Your cart is empty");
-    }
-
     const locale = await getLocale();
-    const sanitizedItems = data.items
-      .map((item) => ({
-        ...item,
-        quantity: Math.max(1, Math.floor(Number(item.quantity) || 0)),
-      }))
-      .filter((item) => item.quantity > 0 && item.productId);
-
-    if (sanitizedItems.length === 0) {
-      throw new Error("No valid items in cart");
-    }
-
-    const quantityByProduct = new Map<string, number>();
-    for (const item of sanitizedItems) {
-      quantityByProduct.set(
-        item.productId,
-        (quantityByProduct.get(item.productId) || 0) + item.quantity
-      );
-    }
-
-    const discountCache = new Map<
-      string,
-      { applied: boolean; percent: number }
-    >();
-    const productCache = new Map<string, any>();
-    const orderItems: OrderItem[] = [];
-    const campusIds = new Set<string>();
-    let subtotal = 0;
-    let originalTotal = 0;
-    let membershipApplied = false;
-    let maxDiscountPercent = 0;
-
-    for (const input of sanitizedItems) {
-      const productId = input.productId;
-      if (!productId) {
-        continue;
-      }
-
-      let product = productCache.get(productId);
-      if (!product) {
-        product = await getProduct(productId, locale);
-        if (!product) {
-          throw new Error(
-            `Product ${input.slug || productId} is not available anymore.`
-          );
-        }
-        productCache.set(productId, product);
-      }
-
-      if (!product.price) {
-        throw new Error(
-          `Product ${product.title || product.slug} is missing a price.`
-        );
-      }
-
-      const totalForProduct = quantityByProduct.get(productId) || 0;
-
-      // Check available stock (considering reservations)
-      if (product.stock !== null && product.stock !== undefined) {
-        const availableStock = await getAvailableStock(productId);
-        if (availableStock < totalForProduct) {
-          throw new Error(
-            availableStock === 0
-              ? `${product.title || product.slug} is out of stock.`
-              : `Only ${availableStock} of ${product.title || product.slug} available (${totalForProduct} requested).`
-          );
-        }
-      }
-
-      // Validate purchase limits
-      // Try to get userId from session, fallback to 'guest' for now
-      // Note: For proper per-user limit enforcement, pass userId through CartCheckoutData
-      const userId = "guest"; // TODO: Get from session when user auth is implemented
-      const limitCheck = await validatePurchaseLimits(
-        productId,
-        userId,
-        totalForProduct,
-        product.metadata_parsed
-      );
-
-      if (!limitCheck.allowed) {
-        throw new Error(
-          limitCheck.reason ||
-            `Purchase limit exceeded for ${product.title || product.slug}`
-        );
-      }
-
-      const variation = product.variations?.find(
-        (variant: any) => variant.id === input.variationId
-      );
-      const basePrice = Number(product.price || 0);
-      const variationModifier = Number(variation?.price_modifier || 0);
-      const originalUnit = Math.max(0, basePrice + variationModifier);
-
-      const discount =
-        discountCache.get(productId) || (await getMemberDiscountIfAny(product));
-      discountCache.set(productId, discount);
-
-      const discountedUnit = discount.applied
-        ? Math.max(0, originalUnit * (1 - discount.percent / 100))
-        : originalUnit;
-
-      membershipApplied = membershipApplied || discount.applied;
-      maxDiscountPercent = discount.applied
-        ? Math.max(maxDiscountPercent, discount.percent || 0)
-        : maxDiscountPercent;
-
-      const customFieldResponses = normalizeCustomFields(input.customFields);
-      const customFieldLabels = input.customFieldLabels || {};
-      if (product.custom_fields) {
-        const missingFields = product.custom_fields
-          .filter((field: any) => field.required)
-          .filter((field: any) => !customFieldResponses[field.id])
-          .map((field: any) => field.label);
-        if (missingFields.length > 0) {
-          throw new Error(
-            `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`
-          );
-        }
-      }
-
-      const customFieldDetails = Object.entries(customFieldResponses).map(
-        ([fieldId, value]) => ({
-          id: fieldId,
-          label: customFieldLabels[fieldId] || fieldId,
-          value,
-        })
-      );
-
-      orderItems.push({
-        product_id: product.$id,
-        product_slug: product.slug,
-        title: product.title || product.slug,
-        unit_price: discountedUnit,
-        quantity: input.quantity,
-        variation_id: variation?.id,
-        variation_name: variation?.name,
-        variation_price: variationModifier,
-        custom_field_responses: Object.keys(customFieldResponses).length
-          ? customFieldResponses
-          : undefined,
-        custom_fields: customFieldDetails.length
-          ? customFieldDetails
-          : undefined,
-      });
-
-      subtotal += discountedUnit * input.quantity;
-      originalTotal += originalUnit * input.quantity;
-      if (product.campus_id) {
-        campusIds.add(product.campus_id);
-      }
-    }
+    const sanitizedItems = sanitizeCartItems(data.items);
+    const {
+      orderItems,
+      subtotal,
+      originalTotal,
+      membershipApplied,
+      maxDiscountPercent,
+      campusIds,
+    } = await buildOrderItems(sanitizedItems, locale);
 
     const discountTotal = Math.max(0, originalTotal - subtotal);
     const { db } = await createSessionClient();
@@ -356,10 +459,6 @@ async function createCartCheckoutSession(
       error: error instanceof Error ? error.message : "Internal error",
     };
   }
-}
-
-export async function startCartCheckout(data: CartCheckoutData) {
-  return createCartCheckoutSession(data);
 }
 
 async function _getCheckoutStatus(

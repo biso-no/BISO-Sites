@@ -8,6 +8,7 @@ import { Progress } from "@repo/ui/components/ui/progress";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { ArrowLeft, Eye, Sparkles, Upload, X } from "lucide-react";
 import { motion } from "motion/react";
+import Image from "next/image";
 import { useState } from "react";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import {
@@ -214,13 +215,14 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
             <Card className="border-[#3DA9E0]/20 p-4" key={attachment.id}>
               <div className="flex items-start gap-4">
                 {attachment.preview && (
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded bg-gray-100">
-                    <img
-                      alt="Receipt"
-                      className="h-full w-full object-cover"
-                      src={attachment.preview}
-                    />
-                  </div>
+                  <Image
+                    alt="Receipt"
+                    className="h-20 w-20 shrink-0 rounded bg-gray-100 object-cover"
+                    height={80}
+                    src={attachment.preview}
+                    unoptimized
+                    width={80}
+                  />
                 )}
 
                 <div className="grow">

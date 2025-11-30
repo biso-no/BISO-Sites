@@ -210,12 +210,13 @@ function buildTrend(
   label = "vs last month"
 ): MetricTrend {
   const absolute = current - previous;
-  const percent =
-    previous === 0
-      ? current > 0
-        ? 100
-        : 0
-      : Number((((current - previous) / previous) * 100).toFixed(1));
+  let percent: number;
+
+  if (previous === 0) {
+    percent = current > 0 ? 100 : 0;
+  } else {
+    percent = Number((((current - previous) / previous) * 100).toFixed(1));
+  }
 
   let direction: TrendDirection = "flat";
   if (absolute > 0) {

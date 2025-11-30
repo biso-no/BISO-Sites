@@ -1,9 +1,9 @@
+import type { Locale } from "@repo/i18n/config";
 import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { listNews } from "@/app/actions/news";
-import type { Locale } from "@/i18n/config";
 import { getDepartments } from "@/lib/actions/departments";
 import { CampusPageClient } from "./components/campus-page-client";
 

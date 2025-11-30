@@ -36,6 +36,60 @@ const categoryColors: Record<EventCategory, string> = {
   Culture: "bg-pink-100 text-pink-700 border-pink-200",
 };
 
+function PriceDisplay({
+  price,
+  memberPrice,
+  isMember,
+}: {
+  price: string;
+  memberPrice: string | null;
+  isMember: boolean;
+}) {
+  if (memberPrice && isMember) {
+    return (
+      <div className="text-right">
+        <div className="text-sm text-white/60 line-through">{price}</div>
+        <div className="font-bold text-2xl text-white">{memberPrice}</div>
+        <div className="text-white/80 text-xs">Member Price</div>
+      </div>
+    );
+  }
+  return <div className="font-bold text-2xl text-white">{price}</div>;
+}
+
+function ActionButtons({
+  ticketUrl,
+  onClose,
+}: {
+  ticketUrl: string | null | undefined;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex gap-4">
+      {ticketUrl ? (
+        <Button
+          className="flex-1 border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
+          onClick={() => window.open(ticketUrl, "_blank")}
+        >
+          Get Tickets on Tickster
+          <ExternalLink className="ml-2 h-4 w-4" />
+        </Button>
+      ) : (
+        <Button className="flex-1 border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
+          Register Now
+        </Button>
+      )}
+      <Button
+        className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
+        onClick={onClose}
+        variant="outline"
+      >
+        Close
+      </Button>
+    </div>
+  );
+}
+
 export function EventDetailModal({
   event,
   isMember = false,
@@ -60,8 +114,12 @@ export function EventDetailModal({
     ? format(new Date(eventData.end_date), "HH:mm")
     : "";
 
-  const timeRange =
-    startTime && endTime ? `${startTime} - ${endTime}` : startTime || "TBA";
+  const timeRange = (() => {
+    if (startTime && endTime) {
+      return `${startTime} - ${endTime}`;
+    }
+    return startTime || "TBA";
+  })();
 
   // Format price
   const price = formatEventPrice(eventData?.price);
@@ -107,9 +165,9 @@ export function EventDetailModal({
 
             {/* Close Button */}
             <button
-              type="button"
               className="absolute top-4 right-4 rounded-full bg-white/90 p-2 transition-colors hover:bg-white"
               onClick={onClose}
+              type="button"
             >
               <X className="h-6 w-6 text-gray-900" />
             </button>
@@ -138,19 +196,11 @@ export function EventDetailModal({
                   </h2>
                 </div>
                 <div className="ml-4">
-                  {memberPrice && isMember ? (
-                    <div className="text-right">
-                      <div className="text-sm text-white/60 line-through">
-                        {price}
-                      </div>
-                      <div className="font-bold text-2xl text-white">
-                        {memberPrice}
-                      </div>
-                      <div className="text-white/80 text-xs">Member Price</div>
-                    </div>
-                  ) : (
-                    <div className="font-bold text-2xl text-white">{price}</div>
-                  )}
+                  <PriceDisplay
+                    isMember={isMember}
+                    memberPrice={memberPrice}
+                    price={price}
+                  />
                 </div>
               </div>
             </div>
@@ -269,28 +319,10 @@ export function EventDetailModal({
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
-              {eventData?.ticket_url ? (
-                <Button
-                  className="flex-1 border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
-                  onClick={() => window.open(eventData.ticket_url!, "_blank")}
-                >
-                  Get Tickets on Tickster
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-              ) : (
-                <Button className="flex-1 border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
-                  Register Now
-                </Button>
-              )}
-              <Button
-                className="border-[#3DA9E0] text-[#001731] hover:bg-[#3DA9E0]/10"
-                onClick={onClose}
-                variant="outline"
-              >
-                Close
-              </Button>
-            </div>
+            <ActionButtons 
+            onClose={onClose} 
+            ticketUrl={eventData?.ticket_url}
+          />
           </div>
         </motion.div>
       </motion.div>
