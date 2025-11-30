@@ -5,7 +5,7 @@
     "dev": "next dev -p 3003",
     "build": "next build",
     "deploy:build": "bun run build && bun run deploy:prep",
-    "deploy:prep": "STANDALONE=$(find . -type d -name 'standalone' -path '*/.next/*' | head -1) && echo \"Standalone at: $STANDALONE\" && cd \"$STANDALONE\" && node server.js --help || true",
+    "deploy:prep": "echo 'Standalone contents:' && ls -la .next/standalone/ && echo 'Server.js location:' && ls -la .next/standalone/server.js",
     "start": "next start",
     "analyze": "ANALYZE=true npm run build",
     "test": "NODE_ENV=test vitest run",
