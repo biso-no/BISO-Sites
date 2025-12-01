@@ -221,7 +221,7 @@ async function _updateUserPreferences(
   return updatedPrefs;
 }
 
-async function _createJWT(): Promise<string | null> {
+export async function createJWT(): Promise<string | null> {
   try {
     const { account } = await createSessionClient();
     const jwt = await account.createJWT();

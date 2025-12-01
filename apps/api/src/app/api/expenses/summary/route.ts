@@ -1,8 +1,8 @@
 import { openai } from "@ai-sdk/openai";
-import { createSessionClient } from "@repo/api/server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createAuthenticatedClient } from "@/lib/auth";
 
 const SummarySchema = z.object({
   summary: z
@@ -11,8 +11,8 @@ const SummarySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // Auth check
-  const { account } = await createSessionClient();
+  // Auth check - supports both JWT (Authorization header) and session cookie
+  const { account } = await createAuthenticatedClient(req);
   const user = await account.get();
 
   if (!user) {
