@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Textarea } from "@repo/ui/components/ui/textarea";
 import { cn } from "@repo/ui/lib/utils";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -216,6 +217,9 @@ type ExpenseReportProps = {
   selectedDepartmentId: string;
   onAssign: (campusId: string, departmentId: string) => void;
   userProfile: Partial<Users>;
+  description: string;
+  onDescriptionChange: (description: string) => void;
+  isGeneratingSummary: boolean;
 };
 
 export function ExpenseReport({
@@ -232,6 +236,9 @@ export function ExpenseReport({
   selectedDepartmentId,
   onAssign,
   userProfile,
+  description,
+  onDescriptionChange,
+  isGeneratingSummary,
 }: ExpenseReportProps) {
   const today = format(new Date(), "MMMM d, yyyy");
 
@@ -399,6 +406,28 @@ export function ExpenseReport({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Description / Summary */}
+            <div className="mt-8">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="font-medium text-gray-700 text-sm dark:text-gray-300">
+                  Description
+                </label>
+                {isGeneratingSummary && (
+                  <div className="flex items-center gap-2 text-sky-500 text-xs animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    AI Generating Summary...
+                  </div>
+                )}
+              </div>
+              <Textarea
+                className="min-h-[80px] resize-none border-gray-200 bg-gray-50 text-sm focus:bg-white dark:border-gray-800 dark:bg-gray-800/50 dark:focus:bg-gray-800"
+                disabled={isGeneratingSummary}
+                onChange={(e) => onDescriptionChange(e.target.value)}
+                placeholder="Brief description of the expenses (e.g. 'Cabintrip with the unit')..."
+                value={description}
+              />
             </div>
           </div>
 

@@ -62,6 +62,41 @@ export function ExpenseSplitView({
   const router = useRouter();
   const store = useExpenseStore();
   const [mobileView, setMobileView] = useState<"wallet" | "report">("wallet");
+  const [lastSummarizedReceipts, setLastSummarizedReceipts] = useState<string>("");
+
+  // Auto-generate summary when receipts are ready
+  useEffect(() => {
+    const allReady = store.allReceiptsReady();
+    const currentIds = store.receipts.map((r) => r.id).sort().join(",");
+
+    if (
+      allReady &&
+      store.receipts.length > 0 &&
+      currentIds !== lastSummarizedReceipts
+    ) {
+      const generate = async () => {
+        store.setIsGeneratingSummary(true);
+        try {
+          const descriptions = store.receipts.map((r) => r.description);
+          const response = await fetch("/api/expenses/summary", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ descriptions }),
+          });
+          const data = await response.json();
+          if (data.success) {
+            store.setDescription(data.summary);
+          }
+        } catch (e) {
+          console.error("Failed to generate summary", e);
+        } finally {
+          store.setIsGeneratingSummary(false);
+          setLastSummarizedReceipts(currentIds);
+        }
+      };
+      generate();
+    }
+  }, [store.receipts, lastSummarizedReceipts, store.allReceiptsReady, store.setDescription, store.setIsGeneratingSummary]);
 
   // Initialize store
   useEffect(() => {
@@ -166,40 +201,46 @@ export function ExpenseSplitView({
     store.setPhase("submitting");
 
     try {
-      // Create attachments
-      const attachmentIds: string[] = [];
-      for (const receipt of store.receipts) {
-        const result = await createExpenseAttachment({
+      // Prepare payload for API
+      const payload = {
+        campus: store.selectedCampusId,
+        department: store.selectedDepartmentId,
+        bank_account: store.profile.bank_account || "",
+        description: store.description,
+        total: store.totalAmount(),
+        prepayment_amount: 0,
+        eventName: "",
+        expenseAttachments: store.receipts.map((receipt) => ({
           date: receipt.date,
           url: receipt.fileId,
           amount: receipt.amount,
           description: receipt.description,
           type: receipt.fileType,
-        });
+        })),
+      };
 
-        if (result.success && result.attachment) {
-          attachmentIds.push(result.attachment.$id);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/expenses/submit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         }
-      }
+      );
 
-      // Create expense
-      const result = await createExpense({
-        campus: store.selectedCampusId,
-        department: store.selectedDepartmentId,
-        bank_account: store.profile.bank_account || "",
-        description: store.receipts.map((r) => r.description).join(", "),
-        expenseAttachments: attachmentIds,
-        total: store.totalAmount(),
-      });
+      const result = await response.json();
 
-      if (result.success && result.expense) {
+      if (result.success && result.fetchedExpense) {
         store.setPhase("complete");
         toast.success("Expense submitted!");
-        router.push(`/fs/${result.expense.$id}`);
+        router.push(`/fs/${result.fetchedExpense.$id}`);
       } else {
         throw new Error(result.error || "Submission failed");
       }
     } catch (error) {
+      console.error(error);
       toast.error("Submission failed");
       store.setPhase("draft");
     }
@@ -281,6 +322,8 @@ export function ExpenseSplitView({
         ) : (
           <ExpenseReport
             campuses={store.campuses}
+            description={store.description}
+            isGeneratingSummary={store.isGeneratingSummary}
             isSubmitting={store.phase === "submitting"}
             onAssign={(c, d) =>
               store.setAssignment({
@@ -290,6 +333,7 @@ export function ExpenseSplitView({
                 departmentName: "",
               })
             }
+            onDescriptionChange={store.setDescription}
             onInsert={(afterId, receipt) =>
               store.insertReceiptAfter(afterId, receipt)
             }

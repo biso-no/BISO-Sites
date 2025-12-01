@@ -13,7 +13,7 @@ export type AIConfig = {
 };
 
 const defaultConfig: AIConfig = {
-  model: "gpt-4o-mini",
+  model: "gpt-5-mini-mini",
   maxDuration: 30,
   debug: false,
 };
@@ -32,7 +32,7 @@ export function createAIConfig(overrides?: Partial<AIConfig>): AIConfig {
  * Admin assistant specific configuration
  */
 export const adminAssistantConfig = createAIConfig({
-  model: "gpt-4o",
+  model: "gpt-5-mini",
   maxDuration: 60,
   systemPromptPrefix: `You are BISO Admin Assistant, an intelligent helper for the BI Student Organisation admin dashboard.
 
@@ -54,7 +54,7 @@ Always be helpful, concise, and proactive. If you can take an action, do it rath
  * Public assistant configuration (for website visitors)
  */
 export const publicAssistantConfig = createAIConfig({
-  model: "gpt-4o-mini",
+  model: "gpt-5-mini-mini",
   maxDuration: 30,
   systemPromptPrefix: `You are BISO AI Assistant, the authoritative guide for the BI Student Organisation (BISO).
 You assist with statutes, local laws, policies, and public information.
