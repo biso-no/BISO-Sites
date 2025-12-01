@@ -11,6 +11,7 @@ export {
   Storage,
   TablesDB,
   Teams,
+  MessagingProviderType,
   Users,
 } from "node-appwrite";
 export { InputFile } from "node-appwrite/file";

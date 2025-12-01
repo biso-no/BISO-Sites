@@ -2,6 +2,7 @@ import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
+import { ID, MessagingProviderType } from "@repo/api";
 
 export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
@@ -13,8 +14,24 @@ export async function GET(request: NextRequest) {
     return redirect("/auth/login?error=invalid_parameters");
   }
 
-  const { account } = await createAdminClient();
+  const { account, users } = await createAdminClient();
   const session = await account.createSession(userId, secret);
+
+  const user = await users.get(userId);
+
+  const existingTargets = user.targets;
+  const emailTarget = existingTargets.find((target) => target.providerType === MessagingProviderType.Email);
+
+  if (!emailTarget) {
+    await users.createTarget({
+      userId,
+      providerType: MessagingProviderType.Email,
+      identifier: user.email,
+      targetId: ID.unique(),
+      name: user.name,
+      providerId: 'email'
+    });
+  }
 
   const fetchedCookies = await cookies();
 
