@@ -420,7 +420,7 @@ Please respond with a JSON object containing the translated title and descriptio
 }`;
 
     const result = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5-mini"),
       prompt,
     });
 

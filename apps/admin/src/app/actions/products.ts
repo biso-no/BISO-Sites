@@ -542,7 +542,7 @@ export async function translateProductContent(
     const sourceLanguage = fromLocale === "en" ? "English" : "Norwegian";
 
     const result = await generateObject({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5-mini"),
       schema: z.object({
         title: z.string(),
         description: z.string(),

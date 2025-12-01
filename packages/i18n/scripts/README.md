@@ -4,11 +4,11 @@ This directory contains scripts for managing translations in the i18n package.
 
 ## translate.ts
 
-Translates all JSON files from `messages/en` to `messages/no` using OpenAI's GPT-4o model.
+Translates all JSON files from `messages/en` to `messages/no` using OpenAI's gpt-5-mini model.
 
 ### Prerequisites
 
-1. **OpenAI API Key**: You need an OpenAI API key with access to GPT-4o
+1. **OpenAI API Key**: You need an OpenAI API key with access to gpt-5-mini
 2. **Dependencies**: Run `bun install` in the root of the monorepo
 
 ### Usage
@@ -47,7 +47,7 @@ OPENAI_API_KEY=your_api_key_here bun run translate --dry-run --file=common.json
 ### Features
 
 - ✅ **Preserves JSON Structure**: Only translates values, never keys
-- 🧠 **Context-Aware**: Uses GPT-4o for natural, professional translations
+- 🧠 **Context-Aware**: Uses gpt-5-mini for natural, professional translations
 - 🔄 **Nested Objects**: Handles deeply nested JSON structures
 - 🛡️ **Safe**: Preserves placeholders, HTML tags, and special formatting
 - 📊 **Progress Tracking**: Shows detailed progress and statistics
@@ -57,7 +57,7 @@ OPENAI_API_KEY=your_api_key_here bun run translate --dry-run --file=common.json
 
 ### Translation Quality
 
-The script uses GPT-4o with specific instructions to:
+The script uses gpt-5-mini with specific instructions to:
 
 1. Use Norwegian Bokmål (the most common written Norwegian)
 2. Maintain professional business/admin terminology
@@ -119,7 +119,7 @@ Mode: WRITE FILES
 Translation costs depend on:
 - Number of files (29 files currently)
 - Size of each file
-- OpenAI API pricing for GPT-4o
+- OpenAI API pricing for gpt-5-mini
 
 Approximate cost for translating all 29 files: $2-5 USD
 

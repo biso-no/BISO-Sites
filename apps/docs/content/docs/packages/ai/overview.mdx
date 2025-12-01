@@ -92,7 +92,7 @@ export async function POST(req: Request) {
   const { messages, formContext } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5-mini"),
     messages: convertToModelMessages(messages),
     system: ADMIN_ASSISTANT_PROMPT,
     tools: {
@@ -162,7 +162,7 @@ import { createAIConfig, adminAssistantConfig, publicAssistantConfig } from '@re
 
 // Create custom config
 const config = createAIConfig({
-  model: 'gpt-4o',
+  model: 'gpt-5-mini',
   maxDuration: 60,
 });
 ```
@@ -225,7 +225,7 @@ Always process AI requests on the server:
 ```typescript
 // ✅ Good: Server-side API route
 export async function POST(req: Request) {
-  const result = streamText({ model: openai("gpt-4o"), ... });
+  const result = streamText({ model: openai("gpt-5-mini"), ... });
   return result.toUIMessageStreamResponse();
 }
 

@@ -283,7 +283,7 @@ The current slug is: "${slug}"
 ${sourceLocale === "no" ? "Keep or adapt the slug for English URL." : "Keep or adapt the slug for Norwegian URL."}`;
 
   const result = await generateObject({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5-mini"),
     schema: translationSchema,
     prompt,
   });

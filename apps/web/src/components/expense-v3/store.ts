@@ -61,6 +61,8 @@ type ExpenseStore = {
   setIsGeneratingSummary: (generating: boolean) => void;
 
   // Assignment
+  description: string;
+  setDescription: (description: string) => void;
   selectedCampusId: string;
   selectedCampusName: string;
   selectedDepartmentId: string;
@@ -101,6 +103,7 @@ const initialState = {
   selectedReceiptId: null,
   aiSummary: "",
   isGeneratingSummary: false,
+  description: "",
   selectedCampusId: "",
   selectedCampusName: "",
   selectedDepartmentId: "",
@@ -152,6 +155,8 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
   setAiSummary: (aiSummary) => set({ aiSummary }),
   setIsGeneratingSummary: (isGeneratingSummary) => set({ isGeneratingSummary }),
 
+  setDescription: (description) => set({ description }),
+
   setAssignment: (data) =>
     set({
       selectedCampusId: data.campusId,
@@ -170,6 +175,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
     return (
       state.allReceiptsReady() &&
       state.receipts.length > 0 &&
+      state.description.trim().length > 0 &&
       state.selectedCampusId !== "" &&
       state.selectedDepartmentId !== "" &&
       state.profile.bank_account !== undefined

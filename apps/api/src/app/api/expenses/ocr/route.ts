@@ -103,8 +103,7 @@ function parseExpenseData(
     return extractExpenseDataFromPdf(preparedFile.buffer);
   }
 
-  const base64Image = preparedFile.buffer.toString("base64");
-  return extractExpenseDataFromImage(base64Image, preparedFile.mimeType);
+  return extractExpenseDataFromImage(preparedFile.buffer);
 }
 
 async function convertAmountToNok(expenseData: ExpenseData) {
@@ -139,8 +138,7 @@ async function convertAmountToNok(expenseData: ExpenseData) {
  * Use OpenAI Vision to extract structured expense data directly from image
  */
 async function extractExpenseDataFromImage(
-  base64Image: string,
-  mimeType: string
+  imageBuffer: Buffer
 ): Promise<ExpenseData> {
   const { object } = await generateObject({
     model: openai("gpt-5-nano"),
@@ -160,7 +158,7 @@ For currency, default to NOK if it appears to be a Norwegian receipt.`,
           },
           {
             type: "image",
-            image: `data:${mimeType};base64,${base64Image}`,
+            image: imageBuffer,
           },
         ],
       },

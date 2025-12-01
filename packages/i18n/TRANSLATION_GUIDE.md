@@ -76,7 +76,7 @@ git diff messages/no/
   - Variable placeholders like `{name}`, `{count}`, etc.
   - HTML tags
   - Special formatting
-- **Cost**: ~$0.10-0.20 per file depending on size (GPT-4o pricing)
+- **Cost**: ~$0.10-0.20 per file depending on size (gpt-5-mini pricing)
 - **Time**: ~2-5 seconds per file + 1 second delay between files
 
 ## 🔧 Troubleshooting
@@ -99,7 +99,7 @@ OPENAI_API_KEY=sk-... bun run translate --file=common.json
 
 ### Translation Quality Issues
 
-The script uses GPT-4o with Norwegian Bokmål instructions. If translations aren't great:
+The script uses gpt-5-mini with Norwegian Bokmål instructions. If translations aren't great:
 1. Try translating specific problematic files individually
 2. Edit the resulting Norwegian files manually
 3. Consider adjusting the prompt in `scripts/translate.ts`
