@@ -8,11 +8,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
-import {
-  createExpense,
-  createExpenseAttachment,
-  uploadExpenseAttachment,
-} from "@/lib/actions/expense";
+import { uploadExpenseAttachment } from "@/lib/actions/expense";
+import { apiClient } from "@/lib/api-client";
 import { ExpenseReport } from "./expense-report";
 import { GenerativeReceiptPreview } from "./generative-receipt-preview";
 import { ReceiptWallet } from "./receipt-wallet";
@@ -78,12 +75,13 @@ export function ExpenseSplitView({
         store.setIsGeneratingSummary(true);
         try {
           const descriptions = store.receipts.map((r) => r.description);
-          const response = await fetch("/api/expenses/summary", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ descriptions }),
-          });
-          const data = await response.json();
+          const data = await apiClient.fetch<{ success: boolean; summary: string }>(
+            "/api/expenses/summary",
+            {
+              method: "POST",
+              body: { descriptions },
+            }
+          );
           if (data.success) {
             store.setDescription(data.summary);
           }
@@ -154,16 +152,13 @@ export function ExpenseSplitView({
         const ocrFormData = new FormData();
         ocrFormData.append("file", file);
 
-        const ocrResponse = await fetch("/api/expenses/ocr", {
+        const ocrResult = await apiClient.fetchFormData<{
+          success: boolean;
+          data: OcrData;
+        }>("/api/expenses/ocr", {
           method: "POST",
           body: ocrFormData,
         });
-
-        if (!ocrResponse.ok) {
-          throw new Error("OCR failed");
-        }
-
-        const ocrResult = await ocrResponse.json();
 
         // 3. "Analyzing" Phase (Artificial delay for Generative UI feel if it was too fast)
         store.updateReceipt(tempId, { status: "analyzing", progress: 70 });
@@ -219,18 +214,14 @@ export function ExpenseSplitView({
         })),
       };
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/expenses/submit`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const result = await response.json();
+      const result = await apiClient.fetch<{
+        success: boolean;
+        fetchedExpense?: { $id: string };
+        error?: string;
+      }>("/api/expenses/submit", {
+        method: "POST",
+        body: payload,
+      });
 
       if (result.success && result.fetchedExpense) {
         store.setPhase("complete");
