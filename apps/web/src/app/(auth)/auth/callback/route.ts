@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
       providerType: MessagingProviderType.Email,
       identifier: user.email,
       targetId: ID.unique(),
-      name: user.name,
-      providerId: 'User email'
+      name: "User email",
+      providerId: 'email'
     });
   }
 
