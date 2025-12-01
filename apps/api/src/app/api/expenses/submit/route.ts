@@ -34,10 +34,9 @@ export type CreateExpenseData = Models.Row & {
 
 export async function POST(req: NextRequest) {
   try {
-    //Get a_session_biso from cookies
-    const session = (await cookies()).get("a_session_biso");
 
-    const { db, account } = await createSessionClient(session?.value);
+
+    const { db, account } = await createSessionClient();
     const { messaging } = await createAdminClient();
     const user = await account.get();
     const profile = await db.getRow<Users>("app", "users", user.$id);
