@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const { account, users } = await createAdminClient();
   const session = await account.createSession(userId, secret);
 
-  const user = await users.get(userId);
+  const user = await users.get(session.userId);
 
   const existingTargets = user.targets;
   const emailTarget = existingTargets.find((target) => target.providerType === MessagingProviderType.Email);
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       identifier: user.email,
       targetId: ID.unique(),
       name: user.name,
-      providerId: 'email'
+      providerId: 'User email'
     });
   }
 
