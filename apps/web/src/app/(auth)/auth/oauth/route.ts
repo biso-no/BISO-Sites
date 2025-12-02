@@ -9,6 +9,10 @@ export async function GET(request: NextRequest) {
   const redirectTo = request.nextUrl.searchParams.get("redirectTo");
   const _url = request.nextUrl.protocol + request.headers.get("host");
 
+  if (!userId || !secret) {
+    return redirect("/auth/login?error=invalid_parameters");
+  }
+
   const { account } = await createAdminClient();
   const session = await account.createSession(userId, secret);
 
@@ -29,5 +33,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Default redirect
-  return redirect("/admin");
+  return redirect("/");
 }

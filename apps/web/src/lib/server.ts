@@ -1,7 +1,7 @@
 "use server";
 
 import { ID, type Models, OAuthProvider } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -41,6 +41,72 @@ export async function signInWithAzure() {
 
   const redirectUrl = await account.createOAuth2Token(
     OAuthProvider.Microsoft,
+    successUrl,
+    `${origin}/auth/login`
+  );
+
+  return redirect(redirectUrl);
+}
+
+export async function signInWithGoogle() {
+  const { account } = await createAdminClient();
+  const origin = (await headers()).get("origin");
+
+  const url = new URL(
+    (await headers()).get("referer") || `${origin}/auth/login`
+  );
+  const redirectTo = url.searchParams.get("redirectTo");
+
+  const successUrl = redirectTo
+    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
+    : `${origin}/auth/oauth`;
+
+  const redirectUrl = await account.createOAuth2Token(
+    OAuthProvider.Google,
+    successUrl,
+    `${origin}/auth/login`
+  );
+
+  return redirect(redirectUrl);
+}
+
+export async function signInWithFacebook() {
+  const { account } = await createAdminClient();
+  const origin = (await headers()).get("origin");
+
+  const url = new URL(
+    (await headers()).get("referer") || `${origin}/auth/login`
+  );
+  const redirectTo = url.searchParams.get("redirectTo");
+
+  const successUrl = redirectTo
+    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
+    : `${origin}/auth/oauth`;
+
+  const redirectUrl = await account.createOAuth2Token(
+    OAuthProvider.Facebook,
+    successUrl,
+    `${origin}/auth/login`
+  );
+
+  return redirect(redirectUrl);
+}
+
+export async function signInWithApple() {
+  const { account } = await createAdminClient();
+  const origin = (await headers()).get("origin");
+
+  const url = new URL(
+    (await headers()).get("referer") || `${origin}/auth/login`
+  );
+  const redirectTo = url.searchParams.get("redirectTo");
+
+  const successUrl = redirectTo
+    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
+    : `${origin}/auth/oauth`;
+
+  const redirectUrl = await account.createOAuth2Token(
+    OAuthProvider.Apple,
     successUrl,
     `${origin}/auth/login`
   );

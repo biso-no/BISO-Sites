@@ -17,12 +17,15 @@ export async function GET(request: NextRequest) {
   const { account, users } = await createAdminClient();
   const session = await account.createSession(userId, secret);
 
+  console.log("User ID: ", session.userId);
   const user = await users.get(session.userId);
 
   const existingTargets = user.targets;
+  console.log("Existing targets: ", existingTargets);
   const emailTarget = existingTargets.find((target) => target.providerType === MessagingProviderType.Email);
 
   if (!emailTarget) {
+    console.log("Creating email target");
     await users.createTarget({
       userId,
       providerType: MessagingProviderType.Email,
@@ -34,8 +37,8 @@ export async function GET(request: NextRequest) {
   }
 
   const fetchedCookies = await cookies();
-
-  fetchedCookies.set("a_session_biso", session.secret, {
+  console.log("Setting cookies");
+  const setCookie = fetchedCookies.set("a_session_biso", session.secret, {
     path: "/",
     httpOnly: true,
     sameSite: "none",
@@ -43,6 +46,7 @@ export async function GET(request: NextRequest) {
     domain: ".biso.no",
   });
 
+  console.log("Redirecting");
   // Redirect to the original destination if available
   if (redirectTo) {
     return redirect(decodeURIComponent(redirectTo));

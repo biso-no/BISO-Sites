@@ -6,10 +6,8 @@ import {
   type ContentTranslations,
   ContentType,
   Locale,
-  Status,
-  type WebshopProducts,
 } from "@repo/api/types/appwrite";
-import { revalidatePath } from "next/cache";
+
 
 type ListProductsParams = {
   limit?: number;
@@ -52,56 +50,6 @@ type CreateProductData = {
     };
   };
 };
-
-const mapProductStatus = (status?: "draft" | "published" | "closed") => {
-  if (status === "draft") {
-    return Status.DRAFT;
-  }
-  if (status === "published") {
-    return Status.PUBLISHED;
-  }
-  if (status === "closed") {
-    return Status.CLOSED;
-  }
-};
-
-const serializeProductMetadata = (metadata?: CreateProductData["metadata"]) =>
-  metadata ? JSON.stringify(metadata) : null;
-
-function buildProductTranslationRefs(
-  translations: Partial<CreateProductData["translations"]> | undefined,
-  contentId: string
-) {
-  if (!translations) {
-    return [];
-  }
-
-  const translationRefs: ContentTranslations[] = [];
-
-  if (translations.en) {
-    translationRefs.push({
-      content_type: ContentType.PRODUCT,
-      content_id: contentId,
-      locale: Locale.EN,
-      title: translations.en.title,
-      description: translations.en.description,
-      short_description: translations.en.short_description || null,
-    } as ContentTranslations);
-  }
-
-  if (translations.no) {
-    translationRefs.push({
-      content_type: ContentType.PRODUCT,
-      content_id: contentId,
-      locale: Locale.NO,
-      title: translations.no.title,
-      description: translations.no.description,
-      short_description: translations.no.short_description || null,
-    } as ContentTranslations);
-  }
-
-  return translationRefs;
-}
 
 export async function listProducts(
   params: ListProductsParams = {}
@@ -164,44 +112,6 @@ export async function listProducts(
   }
 }
 
-async function _getProduct(
-  id: string,
-  locale: "en" | "no"
-): Promise<ContentTranslations | null> {
-  try {
-    const { db } = await createSessionClient();
-
-    const translationsResponse = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", ContentType.PRODUCT),
-        Query.equal("content_id", id),
-        Query.equal("locale", locale),
-        Query.select([
-          "content_id",
-          "$id",
-          "locale",
-          "title",
-          "description",
-          "short_description",
-          "product_ref.*",
-        ]),
-        Query.limit(1),
-      ]
-    );
-
-    if (translationsResponse.rows.length === 0) {
-      return null;
-    }
-
-    return translationsResponse.rows[0] ?? null;
-  } catch (error) {
-    console.error("Error fetching product:", error);
-    return null;
-  }
-}
-
 export async function getProductBySlug(
   slug: string,
   locale: "en" | "no"
@@ -237,145 +147,5 @@ export async function getProductBySlug(
   } catch (error) {
     console.error("Error fetching product by slug:", error);
     return null;
-  }
-}
-
-async function _createProduct(
-  data: CreateProductData,
-  skipRevalidation = false
-): Promise<WebshopProducts | null> {
-  try {
-    const { db } = await createSessionClient();
-
-    const translationRefs = buildProductTranslationRefs(
-      data.translations,
-      "unique()"
-    );
-
-    const product =
-      (await db.createRow<WebshopProducts>(
-        "app",
-        "webshop_products",
-        "unique()",
-        {
-          slug: data.slug,
-          status: mapProductStatus(data.status) ?? Status.CLOSED,
-          campus_id: data.campus_id,
-          category: data.category,
-          regular_price: data.regular_price,
-          member_price: data.member_price ?? null,
-          member_only: data.member_only ?? false,
-          image: data.image ?? null,
-          stock: data.stock ?? null,
-          metadata: serializeProductMetadata(data.metadata),
-          departmentId: null,
-          translation_refs: translationRefs,
-        } as any
-      )) ?? null;
-
-    if (!skipRevalidation) {
-      revalidatePath("/shop");
-      revalidatePath("/admin/shop");
-    }
-
-    return product;
-  } catch (error) {
-    console.error("Error creating product:", error);
-    return null;
-  }
-}
-
-async function _updateProduct(
-  id: string,
-  data: Partial<CreateProductData>
-): Promise<WebshopProducts | null> {
-  try {
-    const { db } = await createSessionClient();
-
-    const updateData: Record<string, unknown> = {};
-
-    if (data.slug !== undefined) {
-      updateData.slug = data.slug;
-    }
-    const mappedStatus = mapProductStatus(data.status);
-    if (mappedStatus !== undefined) {
-      updateData.status = mappedStatus;
-    }
-    if (data.campus_id !== undefined) {
-      updateData.campus_id = data.campus_id;
-    }
-    if (data.category !== undefined) {
-      updateData.category = data.category;
-    }
-    if (data.regular_price !== undefined) {
-      updateData.regular_price = data.regular_price;
-    }
-    if (data.member_price !== undefined) {
-      updateData.member_price = data.member_price;
-    }
-    if (data.member_only !== undefined) {
-      updateData.member_only = data.member_only;
-    }
-    if (data.image !== undefined) {
-      updateData.image = data.image;
-    }
-    if (data.stock !== undefined) {
-      updateData.stock = data.stock;
-    }
-    if (data.metadata !== undefined) {
-      updateData.metadata = serializeProductMetadata(data.metadata);
-    }
-
-    const translationRefs = buildProductTranslationRefs(data.translations, id);
-    if (translationRefs.length > 0) {
-      updateData.translation_refs = translationRefs;
-    }
-
-    const product = (await db.updateRow(
-      "app",
-      "webshop_products",
-      id,
-      updateData
-    )) as WebshopProducts;
-
-    revalidatePath("/shop");
-    revalidatePath("/admin/shop");
-
-    return product;
-  } catch (error) {
-    console.error("Error updating product:", error);
-    return null;
-  }
-}
-
-async function _deleteProduct(id: string): Promise<boolean> {
-  try {
-    const { db } = await createSessionClient();
-
-    const translationsResponse = await db.listRows(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", ContentType.PRODUCT),
-        Query.equal("content_id", id),
-      ]
-    );
-
-    const deleteTranslationPromises = translationsResponse.rows.map(
-      (translation) =>
-        db.deleteRow("app", "content_translations", translation.$id)
-    );
-
-    await Promise.all(deleteTranslationPromises);
-
-    await db.deleteRow("app", "webshop_products", id);
-
-    revalidatePath("/shop");
-    revalidatePath("/admin/shop");
-
-    return true;
-  } catch (error) {
-    console.error("Error deleting product:", error);
-    return false;
   }
 }

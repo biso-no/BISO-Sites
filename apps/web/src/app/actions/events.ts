@@ -46,7 +46,7 @@ export async function listEvents(
       "content_translations",
       queries
     );
-    console.log("Events response: ", eventsResponse);
+
 
     let events = eventsResponse.rows;
 
@@ -60,7 +60,6 @@ export async function listEvents(
     }
 
     const slicedEvents = events.slice(0, limit);
-    console.log("Sliced events: ", slicedEvents);
 
     // Apply limit after filtering
     return slicedEvents;
