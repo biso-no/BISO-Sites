@@ -119,11 +119,12 @@ export async function POST(req: NextRequest) {
     const addressParts = [profile.address, profile.zip, profile.city].filter(Boolean);
     const fullAddress = addressParts.join(", ") || "Ikke oppgitt";
 
-    if (!profile.name || !profile.phone || !profile.email) {
+    if (!profile.name || !profile.phone || !profile.email || !profile.bank_account) {
       const missingFields: string[] = [];
       if (!profile.name) missingFields.push("name");
       if (!profile.phone) missingFields.push("phone");
       if (!profile.email) missingFields.push("email");
+      if (!profile.bank_account) missingFields.push("bank_account");
       return NextResponse.json({ success: false, error: "Missing required fields: ", missingFields: missingFields.join(", ") });
     }
 
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
       address: fullAddress,
       phone: profile.phone,
       email: profile.email,
-      bankAccount: fetchedExpense.bank_account,
+      bankAccount: profile.bank_account,
       invoiceDate: formatDate(new Date()),
       campusAndUnit: `${fetchedExpense.departmentRel.Name} - ${fetchedExpense.campusRel.name}`,
       purpose: fetchedExpense.description ?? "",

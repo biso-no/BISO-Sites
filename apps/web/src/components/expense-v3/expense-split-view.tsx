@@ -238,13 +238,15 @@ export function ExpenseSplitView({
   };
 
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden bg-gray-50 md:flex-row dark:bg-[#0B1120]">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background md:flex-row">
       {/* Mobile Tab Navigation */}
-      <div className="flex border-b bg-[#0B1120] text-white md:hidden">
+      <div className="flex border-b border-border bg-card md:hidden dark:bg-[#0B1120]">
         <Button
           className={cn(
             "flex flex-1 items-center justify-center gap-2 py-4 font-medium text-sm transition-colors",
-            mobileView === "wallet" ? "bg-white/10 text-white" : "text-white/60"
+            mobileView === "wallet"
+              ? "bg-muted text-foreground dark:bg-white/10 dark:text-white"
+              : "text-muted-foreground dark:text-white/60"
           )}
           onClick={() => setMobileView("wallet")}
         >
@@ -254,7 +256,9 @@ export function ExpenseSplitView({
         <Button
           className={cn(
             "flex flex-1 items-center justify-center gap-2 py-4 font-medium text-sm transition-colors",
-            mobileView === "report" ? "bg-white/10 text-white" : "text-white/60"
+            mobileView === "report"
+              ? "bg-muted text-foreground dark:bg-white/10 dark:text-white"
+              : "text-muted-foreground dark:text-white/60"
           )}
           onClick={() => setMobileView("report")}
         >
@@ -266,7 +270,7 @@ export function ExpenseSplitView({
       {/* Left Pane: Wallet */}
       <div
         className={cn(
-          "w-full shrink-0 border-white/10 border-r bg-[#0B1120] md:w-[350px] lg:w-[400px]",
+          "w-full shrink-0 border-r border-border bg-card md:w-[350px] lg:w-[400px] dark:border-white/10 dark:bg-[#0B1120]",
           mobileView === "wallet" ? "block" : "hidden md:block"
         )}
       >
@@ -285,7 +289,7 @@ export function ExpenseSplitView({
       {/* Right Pane: Report or Preview */}
       <div
         className={cn(
-          "flex-1 bg-gray-50 dark:bg-gray-900",
+          "flex-1 bg-muted/50 dark:bg-gray-900",
           mobileView === "report" ? "block" : "hidden md:block"
         )}
       >
@@ -293,7 +297,7 @@ export function ExpenseSplitView({
           <div className="relative h-full pt-16">
             <div className="absolute top-4 left-4 z-10">
               <Button
-                className="rounded-full bg-white/10 px-4 py-2 text-sm backdrop-blur-md hover:bg-white/20 dark:text-white"
+                className="rounded-full bg-muted px-4 py-2 text-sm backdrop-blur-md hover:bg-muted/80 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
                 onClick={() => store.setSelectedReceiptId(null)}
               >
                 ← Back to Report
@@ -328,6 +332,7 @@ export function ExpenseSplitView({
             onInsert={(afterId, receipt) =>
               store.insertReceiptAfter(afterId, receipt)
             }
+            onProfileUpdate={store.setProfile}
             onSelect={store.setSelectedReceiptId}
             onSubmit={handleSubmit}
             onUpdate={(id, updates) => store.updateReceipt(id, updates)}

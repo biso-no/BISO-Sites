@@ -1,11 +1,18 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import { ArrowRight, ExternalLink, Key, Mail, Shield } from "lucide-react";
+import { ArrowRight, Mail, Shield } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { signInWithAzure, signInWithMagicLink } from "@/lib/server";
+import {
+  signInWithApple,
+  signInWithFacebook,
+  signInWithGoogle,
+  signInWithMagicLink,
+} from "@/lib/server";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -14,8 +21,14 @@ export function Login() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [mounted, setMounted] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Handle the restrictedDomain parameter but immediately clear it
   useEffect(() => {
@@ -60,8 +73,16 @@ export function Login() {
     }
   };
 
-  const handleAdminLogin = async () => {
-    await signInWithAzure();
+  const handleGoogleLogin = async () => {
+    await signInWithGoogle();
+  };
+
+  const handleFacebookLogin = async () => {
+    await signInWithFacebook();
+  };
+
+  const handleAppleLogin = async () => {
+    await signInWithApple();
   };
 
   return (
@@ -72,36 +93,46 @@ export function Login() {
         <div className="-bottom-20 -left-10 absolute h-100 w-100 rounded-full bg-secondary-100/5 blur-3xl" />
       </div>
 
-      <div className="glass-dark rounded-2xl border border-white/5 p-8">
+      <div className="rounded-2xl border border-border bg-card p-8 shadow-xl">
         {/* Logo Section */}
-        <div className="mb-6 flex justify-center">
-          <div className="relative h-12 w-12">
-            {/* Replace with your actual logo */}
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-linear-to-br from-blue-accent to-secondary-100">
-              <span className="font-bold text-white text-xl">B</span>
-            </div>
-          </div>
+        <div className="mb-8 flex justify-center">
+          {mounted ? (
+            <Image
+              alt="BISO Logo"
+              className="h-12 w-auto"
+              height={48}
+              priority
+              src={
+                resolvedTheme === "dark"
+                  ? "/images/logo-dark.png"
+                  : "/images/logo-light.png"
+              }
+              width={160}
+            />
+          ) : (
+            <div className="h-12 w-40 animate-pulse rounded bg-muted" />
+          )}
         </div>
 
-        <h1 className="gradient-text mb-1 text-center font-bold text-2xl">
+        <h1 className="mb-1 text-center font-bold text-2xl text-foreground">
           Welcome Back
         </h1>
-        <p className="mb-8 text-center text-gray-400">
+        <p className="mb-8 text-center text-muted-foreground">
           Sign in to your BISO account
         </p>
 
         <form className="space-y-6" onSubmit={handleUserLogin}>
           <div className="space-y-2">
             <label
-              className="flex items-center gap-2 font-medium text-gray-300 text-sm"
+              className="flex items-center gap-2 font-medium text-foreground text-sm"
               htmlFor="email"
             >
-              <Mail className="h-4 w-4 text-blue-accent" />
+              <Mail className="h-4 w-4 text-[#3DA9E0]" />
               Email Address
             </label>
             <div className="relative">
               <input
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white backdrop-blur-sm transition-all duration-200 placeholder:text-gray-500 focus:border-blue-accent/50 focus:outline-none focus:ring-2 focus:ring-blue-accent/25"
+                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground transition-all duration-200 placeholder:text-muted-foreground focus:border-[#3DA9E0]/50 focus:outline-none focus:ring-2 focus:ring-[#3DA9E0]/25"
                 id="email"
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
@@ -112,7 +143,7 @@ export function Login() {
           </div>
 
           <button
-            className="hover:-translate-y-0.5 group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-blue-accent to-secondary-100 py-3 font-medium text-white shadow-glow-blue transition-all duration-300 hover:shadow-glow"
+            className="hover:-translate-y-0.5 group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-[#3DA9E0] to-[#001731] py-3 font-medium text-white shadow-lg transition-all duration-300 hover:shadow-xl"
             disabled={isLoading}
             type="submit"
           >
@@ -152,25 +183,75 @@ export function Login() {
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-white/10 border-t" />
+            <span className="w-full border-border border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-primary-90 px-2 text-gray-400">Or</span>
+            <span className="bg-card px-2 text-muted-foreground">
+              Or continue with
+            </span>
           </div>
         </div>
 
-        <Button
-          className="glass group flex w-full items-center justify-center rounded-lg border border-white/10 py-3 font-medium text-white transition-all duration-300 hover:brightness-110"
-          onClick={handleAdminLogin}
-        >
-          <Key className="mr-2 h-4 w-4 text-gold-default" />
-          Sign in with BISO account
-          <ExternalLink className="ml-2 h-3.5 w-3.5 text-gray-400 transition-transform group-hover:translate-x-0.5" />
-        </Button>
+        <div className="grid grid-cols-3 gap-3">
+          <Button
+            className="flex items-center justify-center rounded-lg border border-border bg-secondary py-3 transition-all duration-200 hover:bg-secondary/80"
+            onClick={handleGoogleLogin}
+            type="button"
+            variant="outline"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <title>Google</title>
+              <path
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                fill="#4285F4"
+              />
+              <path
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                fill="#34A853"
+              />
+              <path
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                fill="#EA4335"
+              />
+            </svg>
+          </Button>
+
+          <Button
+            className="flex items-center justify-center rounded-lg border border-border bg-secondary py-3 transition-all duration-200 hover:bg-secondary/80"
+            onClick={handleFacebookLogin}
+            type="button"
+            variant="outline"
+          >
+            <svg className="h-5 w-5" fill="#1877F2" viewBox="0 0 24 24">
+              <title>Facebook</title>
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+            </svg>
+          </Button>
+
+          <Button
+            className="flex items-center justify-center rounded-lg border border-border bg-secondary py-3 transition-all duration-200 hover:bg-secondary/80"
+            onClick={handleAppleLogin}
+            type="button"
+            variant="outline"
+          >
+            <svg
+              className="h-5 w-5 text-foreground"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <title>Apple</title>
+              <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
+            </svg>
+          </Button>
+        </div>
 
         {message && (
           <div
-            className={`mt-6 rounded-lg p-4 ${message.type === "error" ? "border border-red-500/30 bg-red-500/20 text-red-200" : "border border-green-500/30 bg-green-500/20 text-green-200"}`}
+            className={`mt-6 rounded-lg p-4 ${message.type === "error" ? "border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400" : "border border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400"}`}
           >
             <p className="flex items-start font-medium text-sm">
               <span
@@ -209,13 +290,13 @@ export function Login() {
         )}
         {/*We should not allow users to sign in with BISO email addresses, as they must use their personal ones*/}
         {/* Privacy Notice */}
-        <div className="mt-6 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+        <div className="mt-6 rounded-lg border border-[#3DA9E0]/20 bg-[#3DA9E0]/5 p-3">
           <div className="flex items-start">
-            <Shield className="mt-0.5 mr-2 h-4 w-4 shrink-0 text-blue-400" />
-            <p className="text-gray-400 text-xs leading-relaxed">
+            <Shield className="mt-0.5 mr-2 h-4 w-4 shrink-0 text-[#3DA9E0]" />
+            <p className="text-muted-foreground text-xs leading-relaxed">
               By signing in, you agree to our{" "}
               <a
-                className="text-blue-400 hover:underline"
+                className="text-[#3DA9E0] hover:underline"
                 href="https://biso.no/privacy"
                 rel="noopener noreferrer"
                 target="_blank"
@@ -230,10 +311,10 @@ export function Login() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-gray-500 text-xs">
+        <div className="mt-6 text-center text-muted-foreground text-xs">
           <p>Don&apos;t have an account yet?</p>
           <Link
-            className="inline-flex items-center text-blue-accent hover:underline"
+            className="inline-flex items-center text-[#3DA9E0] hover:underline"
             href="/contact"
           >
             Contact us for access

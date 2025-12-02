@@ -166,7 +166,7 @@ export function GenerativeReceiptPreview({
 function Header({ isProcessing }: { isProcessing: boolean }) {
   return (
     <div className="mb-8 flex items-center justify-between">
-      <h2 className="font-semibold text-2xl tracking-tight">Receipt Details</h2>
+      <h2 className="font-semibold text-2xl tracking-tight text-foreground dark:text-white">Receipt Details</h2>
       <div className="flex items-center gap-2">
         {isProcessing ? (
           <div className="flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 font-medium text-sky-600 text-xs">
@@ -192,7 +192,7 @@ function ReceiptPreview({
   isProcessing: boolean;
 }) {
   return (
-    <div className="relative aspect-3/4 overflow-hidden rounded-xl border bg-gray-50 dark:bg-gray-900">
+    <div className="relative aspect-3/4 overflow-hidden rounded-xl border border-border bg-muted dark:bg-gray-900">
       {receipt.fileType.startsWith("image/") ? (
         <Image
           alt="Receipt Preview"
@@ -366,12 +366,12 @@ function DescriptionField({
       </Label>
       {isProcessing ? (
         <div className="space-y-2">
-          <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-4 w-3/4 animate-pulse rounded bg-muted-foreground/20 dark:bg-gray-800" />
+          <div className="h-4 w-1/2 animate-pulse rounded bg-muted-foreground/20 dark:bg-gray-800" />
         </div>
       ) : (
         <Textarea
-          className="resize-none border-0 bg-gray-50 p-4 text-base focus-visible:ring-1 focus-visible:ring-sky-500 dark:bg-gray-900"
+          className="resize-none border-0 bg-muted p-4 text-base focus-visible:ring-1 focus-visible:ring-sky-500 dark:bg-gray-900"
           onChange={(e) => onUpdate({ description: e.target.value })}
           rows={3}
           value={receipt.description}
@@ -409,7 +409,7 @@ function Field({
         {isLoading ? (
           <motion.div
             animate={{ opacity: [0.5, 1, 0.5] }}
-            className="flex h-10 w-full items-center rounded-md bg-gray-100 px-3 dark:bg-gray-800"
+            className="flex h-10 w-full items-center rounded-md bg-muted px-3 dark:bg-gray-800"
             initial={{ opacity: 0.5 }}
             transition={{
               duration: 1.5,
@@ -417,7 +417,7 @@ function Field({
               delay,
             }}
           >
-            <div className="h-4 w-24 rounded bg-gray-300 dark:bg-gray-700" />
+            <div className="h-4 w-24 rounded bg-muted-foreground/30 dark:bg-gray-700" />
           </motion.div>
         ) : (
           <motion.div
@@ -426,7 +426,7 @@ function Field({
             transition={{ delay }}
           >
             <Input
-              className="h-10 border-0 bg-gray-50 px-3 font-medium text-lg focus-visible:ring-1 focus-visible:ring-sky-500 dark:bg-gray-900"
+              className="h-10 border-0 bg-muted px-3 font-medium text-lg focus-visible:ring-1 focus-visible:ring-sky-500 dark:bg-gray-900"
               onChange={(e) => onChange(e.target.value)}
               type={type}
               value={value}

@@ -26,11 +26,12 @@ import {
   Upload,
   User,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { v4 as uuid } from "uuid";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
+import { ProfileCompletionBanner } from "./profile-completion-banner";
 import type { Receipt } from "./store";
 
 type ReceiptRowProps = {
@@ -62,7 +63,7 @@ function ReceiptRow({
           selectedId === receipt.id ? "var(--highlight-bg)" : "transparent",
       }}
       className={cn(
-        "group cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30",
+        "group cursor-pointer transition-colors hover:bg-muted dark:hover:bg-gray-800/30",
         selectedId === receipt.id
           ? "bg-sky-50 [--highlight-bg:rgba(14,165,233,0.1)] dark:bg-sky-900/10"
           : ""
@@ -73,7 +74,7 @@ function ReceiptRow({
       onClick={() => onSelect(receipt.id)}
     >
       <td className="p-0" colSpan={3}>
-        <div className="flex w-full items-center border-gray-50 border-b px-0 py-4 dark:border-gray-800/50">
+        <div className="flex w-full items-center border-b border-border px-0 py-4 dark:border-gray-800/50">
           <div className="w-full max-w-[200px] px-4 md:max-w-[300px] md:px-8">
             <div className="flex items-center gap-3">
               <div
@@ -85,25 +86,25 @@ function ReceiptRow({
                 )}
               />
               <div className="flex flex-col gap-0.5">
-                <div className="truncate font-medium text-gray-900 dark:text-white">
+                <div className="truncate font-medium text-foreground dark:text-white">
                   {receipt.vendor || receipt.description || "Processing..."}
                 </div>
                 {/* Show date on mobile only */}
-                <div className="block text-gray-500 text-xs md:hidden dark:text-gray-400">
+                <div className="block text-muted-foreground text-xs md:hidden">
                   {receipt.date || "-"}
                 </div>
               </div>
             </div>
             {receipt.status === "analyzing" && (
-              <div className="mt-1 ml-5 h-1 w-24 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div className="mt-1 ml-5 h-1 w-24 overflow-hidden rounded-full bg-muted dark:bg-gray-800">
                 <div className="h-full w-full animate-indeterminate bg-sky-500" />
               </div>
             )}
           </div>
-          <div className="hidden flex-1 px-4 text-gray-500 md:block dark:text-gray-400">
+          <div className="hidden flex-1 px-4 text-muted-foreground md:block">
             {receipt.date || "-"}
           </div>
-          <div className="w-[150px] px-4 text-right font-medium font-mono text-gray-900 md:px-8 dark:text-white">
+          <div className="w-[150px] px-4 text-right font-medium font-mono text-foreground md:px-8 dark:text-white">
             {receipt.amount ? `${receipt.amount.toLocaleString()} NOK` : "-"}
           </div>
         </div>
@@ -217,6 +218,7 @@ type ExpenseReportProps = {
   selectedDepartmentId: string;
   onAssign: (campusId: string, departmentId: string) => void;
   userProfile: Partial<Users>;
+  onProfileUpdate: (profile: Partial<Users>) => void;
   description: string;
   onDescriptionChange: (description: string) => void;
   isGeneratingSummary: boolean;
@@ -236,11 +238,18 @@ export function ExpenseReport({
   selectedDepartmentId,
   onAssign,
   userProfile,
+  onProfileUpdate,
   description,
   onDescriptionChange,
   isGeneratingSummary,
 }: ExpenseReportProps) {
   const today = format(new Date(), "MMMM d, yyyy");
+
+  // Generate a stable draft number that doesn't change on re-renders
+  const draftNumber = useMemo(
+    () => Math.floor(Math.random() * 10_000),
+    []
+  );
 
   // Find departments for selected campus
   const selectedCampus = campuses.find((c) => c.$id === selectedCampusId);
@@ -309,7 +318,7 @@ export function ExpenseReport({
   };
 
   return (
-    <ScrollArea className="flex h-full flex-col bg-gray-50/50 p-4 md:p-8 dark:bg-gray-900/50">
+    <ScrollArea className="flex h-full flex-col bg-muted/50 p-4 md:p-8 dark:bg-gray-900/50">
       <div>
         <input
           accept="application/pdf,image/*"
@@ -324,44 +333,44 @@ export function ExpenseReport({
         {/* Paper Document Effect */}
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-[#0F1623] dark:shadow-2xl dark:shadow-black/40"
+          className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-card shadow-xl dark:bg-[#0F1623] dark:shadow-2xl dark:shadow-black/40"
           initial={{ opacity: 0, y: 20 }}
         >
           {/* Document Header */}
-          <div className="border-b p-6 md:p-8">
+          <div className="border-b border-border p-6 md:p-8">
             <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row">
               <div>
-                <h1 className="font-bold text-2xl text-gray-900 tracking-tight md:text-3xl dark:text-white">
+                <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl dark:text-white">
                   Expense Report
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400">{today}</p>
+                <p className="text-muted-foreground">{today}</p>
               </div>
-              <div className="rounded-full bg-gray-100 px-4 py-1.5 font-medium text-gray-600 text-sm dark:bg-gray-800 dark:text-gray-300">
-                Draft #{Math.floor(Math.random() * 10_000)}
+              <div className="rounded-full bg-muted px-4 py-1.5 font-medium text-muted-foreground text-sm">
+                Draft #{draftNumber}
               </div>
             </div>
 
             {/* User & Assignment Info */}
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                     <User className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900 text-sm dark:text-white">
+                    <p className="font-medium text-foreground text-sm dark:text-white">
                       {userProfile?.name || "Unknown User"}
                     </p>
                     <p className="text-xs">{userProfile?.email}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                     <CreditCard className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900 text-sm dark:text-white">
+                    <p className="font-medium text-foreground text-sm dark:text-white">
                       Reimbursement
                     </p>
                     <p className="font-mono text-xs">
@@ -371,8 +380,8 @@ export function ExpenseReport({
                 </div>
               </div>
 
-              <div className="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
-                <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider dark:text-gray-400">
+              <div className="space-y-3 rounded-lg bg-muted p-4 dark:bg-gray-800/50">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wider">
                   <Building2 className="h-3 w-3" />
                   Cost Allocation
                 </div>
@@ -382,7 +391,7 @@ export function ExpenseReport({
                     onValueChange={(val) => onAssign(val, "")}
                     value={selectedCampusId}
                   >
-                    <SelectTrigger className="h-9 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                    <SelectTrigger className="h-9 border-border bg-background dark:border-gray-700 dark:bg-gray-800">
                       <SelectValue placeholder="Select Campus" />
                     </SelectTrigger>
                     <SelectContent>
@@ -408,10 +417,16 @@ export function ExpenseReport({
               </div>
             </div>
 
+            {/* Profile Completion Banner */}
+            <ProfileCompletionBanner
+              onProfileUpdate={onProfileUpdate}
+              userProfile={userProfile}
+            />
+
             {/* Description / Summary */}
             <div className="mt-8">
               <div className="mb-2 flex items-center justify-between">
-                <label className="font-medium text-gray-700 text-sm dark:text-gray-300">
+                <label className="font-medium text-foreground text-sm">
                   Description
                 </label>
                 {isGeneratingSummary && (
@@ -422,7 +437,7 @@ export function ExpenseReport({
                 )}
               </div>
               <Textarea
-                className="min-h-[80px] resize-none border-gray-200 bg-gray-50 text-sm focus:bg-white dark:border-gray-800 dark:bg-gray-800/50 dark:focus:bg-gray-800"
+                className="min-h-[80px] resize-none border-border bg-muted text-sm focus:bg-background dark:border-gray-800 dark:bg-gray-800/50 dark:focus:bg-gray-800"
                 disabled={isGeneratingSummary}
                 onChange={(e) => onDescriptionChange(e.target.value)}
                 placeholder="Brief description of the expenses (e.g. 'Cabintrip with the unit')..."
@@ -432,9 +447,9 @@ export function ExpenseReport({
           </div>
 
           {/* Line Items */}
-          <div className="flex-1 overflow-y-auto bg-white p-0 dark:bg-[#0F1623]">
+          <div className="flex-1 overflow-y-auto bg-card p-0 dark:bg-[#0F1623]">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+              <thead className="sticky top-0 z-10 bg-muted text-muted-foreground dark:bg-gray-800/50">
                 <tr>
                   <th className="px-4 py-3 font-medium md:px-8">
                     Item Description
@@ -447,11 +462,11 @@ export function ExpenseReport({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-border dark:divide-gray-800">
                 {receipts.length === 0 ? (
                   <tr>
                     <td
-                      className="py-12 text-center text-gray-400 dark:text-gray-600"
+                      className="py-12 text-center text-muted-foreground"
                       colSpan={3}
                     >
                       <div className="flex flex-col items-center gap-3">
@@ -479,21 +494,21 @@ export function ExpenseReport({
           </div>
 
           {/* Footer / Totals */}
-          <div className="border-t bg-gray-50 p-6 md:p-8 dark:bg-gray-800/30">
+          <div className="border-t border-border bg-muted p-6 md:p-8 dark:bg-gray-800/30">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="text-gray-500 dark:text-gray-400">
+              <div className="text-muted-foreground">
                 <p className="text-sm">
                   {receipts.length}{" "}
                   {receipts.length === 1 ? "receipt" : "receipts"} attached
                 </p>
               </div>
               <div className="flex items-end justify-between md:block md:text-right">
-                <p className="text-gray-500 text-sm dark:text-gray-400">
+                <p className="text-muted-foreground text-sm">
                   Total Reimbursement
                 </p>
-                <p className="font-bold text-2xl text-gray-900 tracking-tight md:text-3xl dark:text-white">
+                <p className="font-bold text-2xl text-foreground tracking-tight md:text-3xl dark:text-white">
                   {totalAmount.toLocaleString()}{" "}
-                  <span className="text-gray-500 text-lg dark:text-gray-400">
+                  <span className="text-muted-foreground text-lg">
                     NOK
                   </span>
                 </p>
@@ -502,7 +517,7 @@ export function ExpenseReport({
 
             <div className="mt-8 flex justify-end">
               <Button
-                className="w-full gap-2 bg-[#001731] hover:bg-[#001731]/90 md:w-auto md:min-w-[200px] dark:bg-white dark:text-[#001731] dark:hover:bg-white/90"
+                className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 md:w-auto md:min-w-[200px] dark:bg-white dark:text-[#001731] dark:hover:bg-white/90"
                 disabled={
                   isSubmitting ||
                   receipts.length === 0 ||
