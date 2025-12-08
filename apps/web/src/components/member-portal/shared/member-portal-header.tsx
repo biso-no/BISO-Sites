@@ -63,11 +63,11 @@ export function MemberPortalHeader({
  </div>
 
  <div className="hidden items-center gap-4 md:flex">
- <Card className="border-white/20 /10 px-6 py-3 backdrop-blur-sm">
- <div className="mb-1 text-sm text-white/70">
+ <Card className="border-white/20 /10 px-6 py-3 backdrop-blur-sm accent">
+ <div className="mb-1 text-sm">
  {t("common.membershipExpires")}
  </div>
- <div className="flex items-center gap-2 text-white">
+ <div className="flex items-center gap-2">
  <Calendar className="h-4 w-4" />
  {new Date(membershipExpiry).toLocaleDateString("en-US", {
  month: "short",
@@ -77,10 +77,10 @@ export function MemberPortalHeader({
  </div>
  </Card>
  <Card className="border-white/20 /10 px-6 py-3 backdrop-blur-sm">
- <div className="mb-1 text-sm text-white/70">
+ <div className="mb-1 text-sm">
  {t("common.daysRemaining")}
  </div>
- <div className="flex items-center gap-2 text-white">
+ <div className="flex items-center gap-2">
  <Clock className="h-4 w-4" />
  {t("overview.daysRemaining", { days: daysRemaining })}
  </div>
