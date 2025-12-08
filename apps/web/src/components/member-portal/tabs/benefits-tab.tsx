@@ -29,7 +29,7 @@ export function BenefitsTab({
  </h2>
  <p className="text-muted-foreground dark:text-muted-foreground">{t("description")}</p>
  </div>
- <Badge className="border-[#3DA9E0]/30 bg-[#3DA9E0]/10 px-4 py-2 text-[#3DA9E0]">
+ <Badge className="border-brand-border-strong bg-brand-muted px-4 py-2 text-brand">
  {t("available", { count: benefits.length })}
  </Badge>
  </div>

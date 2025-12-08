@@ -64,7 +64,7 @@ export function MembershipTab({
  </div>
 
  <div className="mb-8 grid gap-6 md:grid-cols-3">
- <div className="rounded-lg bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 p-6">
+ <div className="rounded-lg bg-linear-to-br from-brand-muted to-brand-muted p-6">
  <div className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
  {t("currentPlan")}
  </div>
@@ -124,14 +124,14 @@ export function MembershipTab({
  <Card
  className={`cursor-pointer border-2 p-6 transition-all ${
  type === currentPlan
- ? "border-[#3DA9E0] bg-[#3DA9E0]/5"
- : "border-border hover:border-[#3DA9E0]/50"
+ ? "border-brand bg-brand-muted"
+ : "border-border hover:border-brand-border-strong"
  }`}
  key={type}
  >
  <div className="text-center">
  {type === currentPlan && (
- <Badge className="mb-3 bg-[#3DA9E0] text-white">
+ <Badge className="mb-3 bg-brand text-white">
  {t("currentPlanBadge")}
  </Badge>
  )}
@@ -159,8 +159,8 @@ export function MembershipTab({
  ))}
  </div>
 
- <Alert className="border-[#3DA9E0]/20 bg-[#3DA9E0]/5">
- <Sparkles className="h-4 w-4 text-[#3DA9E0]" />
+ <Alert className="border-brand-border bg-brand-muted">
+ <Sparkles className="h-4 w-4 text-brand" />
  <AlertDescription className="text-muted-foreground">
  <strong>{t("proTip")}</strong> {t("proTipDescription")}
  </AlertDescription>

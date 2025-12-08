@@ -53,7 +53,7 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
  initial={{ opacity: 0, y: 20 }}
  >
  <Card className="border-0 p-8 shadow-xl dark:bg-inverted/50 dark:backdrop-blur-sm">
- <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+ <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
  <Award className="h-8 w-8 text-white" />
  </div>
  <h2 className="mb-4 text-center font-bold text-3xl text-foreground dark:text-foreground">
@@ -69,8 +69,8 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
  <Card
  className={`cursor-pointer border-2 p-6 transition-colors ${
  selectedPlan === type
- ? "border-[#3DA9E0] bg-[#3DA9E0]/5 dark:bg-[#3DA9E0]/10"
- : "border-border hover:border-[#3DA9E0]/50 dark:border-border dark:hover:border-[#3DA9E0]/50"
+ ? "border-brand bg-brand-muted dark:bg-brand-muted"
+ : "border-border hover:border-brand-border-strong dark:border-border dark:hover:border-brand-border-strong"
  }`}
  key={type}
  onClick={() => setSelectedPlan(type as MembershipDuration)}
@@ -83,7 +83,7 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
  {price} NOK
  </div>
  <Badge
- className="border-[#3DA9E0]/20 text-[#3DA9E0] dark:border-[#3DA9E0]/30"
+ className="border-brand-border text-brand dark:border-brand-border-strong"
  variant="outline"
  >
  {type === "three-year"
@@ -96,13 +96,13 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
  </div>
 
  {/* Benefits Preview */}
- <div className="mb-6 rounded-lg bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 p-6 dark:from-[#3DA9E0]/20 dark:to-[#001731]/20">
+ <div className="mb-6 rounded-lg bg-linear-to-br from-brand-muted to-brand-muted p-6 dark:from-brand-muted-strong dark:to-brand-muted-strong">
  <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
  {t("states.notMember.whatYouGet")}
  </h3>
  <ul className="space-y-3">
  <li className="flex items-start gap-3">
- <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
+ <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
  <span className="text-muted-foreground dark:text-muted-foreground">
  {t("states.notMember.benefits.discounts", {
  count: benefitsCount,
@@ -110,19 +110,19 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
  </span>
  </li>
  <li className="flex items-start gap-3">
- <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
+ <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
  <span className="text-muted-foreground dark:text-muted-foreground">
  {t("states.notMember.benefits.memberPricing")}
  </span>
  </li>
  <li className="flex items-start gap-3">
- <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
+ <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
  <span className="text-muted-foreground dark:text-muted-foreground">
  {t("states.notMember.benefits.priorityAccess")}
  </span>
  </li>
  <li className="flex items-start gap-3">
- <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#3DA9E0]" />
+ <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
  <span className="text-muted-foreground dark:text-muted-foreground">
  {t("states.notMember.benefits.community")}
  </span>
@@ -131,7 +131,7 @@ export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
  </div>
 
  <Button
- className="mb-4 w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
+ className="mb-4 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
  disabled={isPending}
  onClick={handlePurchase}
  >

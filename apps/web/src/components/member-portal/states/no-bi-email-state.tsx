@@ -30,7 +30,7 @@ export function NoBIEmailState() {
  initial={{ opacity: 0, y: 20 }}
  >
  <Card className="border-0 p-8 shadow-xl dark:bg-inverted/50 dark:backdrop-blur-sm">
- <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+ <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
  <Building2 className="h-8 w-8 text-white" />
  </div>
  <h2 className="mb-4 text-center font-bold text-2xl text-foreground dark:text-foreground">
@@ -40,15 +40,15 @@ export function NoBIEmailState() {
  {t("states.noBIEmail.description")}
  </p>
 
- <Alert className="mb-6 border-[#3DA9E0]/20 bg-[#3DA9E0]/5 dark:border-[#3DA9E0]/30 dark:bg-[#3DA9E0]/10">
- <AlertCircle className="h-4 w-4 text-[#3DA9E0]" />
+ <Alert className="mb-6 border-brand-border bg-brand-muted dark:border-brand-border-strong dark:bg-brand-muted">
+ <AlertCircle className="h-4 w-4 text-brand" />
  <AlertDescription className="text-muted-foreground dark:text-muted-foreground">
  {t("states.noBIEmail.securityNote")}
  </AlertDescription>
  </Alert>
 
  <Button
- className="mb-4 w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
+ className="mb-4 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
  onClick={handleLinkBIEmail}
  >
  <LinkIcon className="mr-2 h-4 w-4" />

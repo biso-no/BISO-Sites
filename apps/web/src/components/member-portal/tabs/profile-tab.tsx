@@ -78,11 +78,11 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
  </h3>
 
  <div className="mb-8 flex items-center gap-6">
- <Avatar className="h-24 w-24 border-4 border-[#3DA9E0]/20">
+ <Avatar className="h-24 w-24 border-4 border-brand-border">
  {user.avatar && (
  <AvatarImage alt={user.name || ""} src={user.avatar} />
  )}
- <AvatarFallback className="bg-linear-to-br from-[#3DA9E0] to-[#001731] text-2xl text-white">
+ <AvatarFallback className="bg-linear-to-br from-brand-gradient-from to-brand-gradient-to text-2xl text-white">
  {initials}
  </AvatarFallback>
  </Avatar>
@@ -144,7 +144,7 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
  <div className="mb-6 flex items-center justify-between rounded-lg bg-section p-4 dark:bg-inverted">
  <div className="flex items-center gap-3">
  {formData.isPublic ? (
- <Eye className="h-5 w-5 text-[#3DA9E0]" />
+ <Eye className="h-5 w-5 text-brand" />
  ) : (
  <EyeOff className="h-5 w-5 text-muted-foreground" />
  )}
@@ -223,7 +223,7 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
  <div className="mt-6 flex justify-end gap-3">
  <Button variant="outline">{t("cancel")}</Button>
  <Button
- className="bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
+ className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
  disabled={isPending}
  onClick={handleSave}
  >

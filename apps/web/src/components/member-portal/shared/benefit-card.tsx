@@ -112,8 +112,8 @@ export function BenefitCard({
  src={benefit.partnerLogo}
  />
  ) : (
- <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#3DA9E0]/10 dark:bg-[#3DA9E0]/20">
- <Icon className="h-6 w-6 text-[#3DA9E0]" />
+ <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-muted dark:bg-brand-muted-strong">
+ <Icon className="h-6 w-6 text-brand" />
  </div>
  )}
  <div className="min-w-0 flex-1">

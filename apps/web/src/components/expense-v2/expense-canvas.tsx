@@ -49,7 +49,7 @@ type ExpenseCanvasProps = {
 // Hero header matching app design language
 function ExpenseHeader() {
  return (
- <div className="bg-linear-to-r from-[#001731] to-[#3DA9E0] py-8 text-white">
+ <div className="bg-linear-to-r from-brand-gradient-to to-brand-gradient-from py-8 text-white">
  <div className="mx-auto max-w-7xl px-4">
  <Link
  className="mb-6 flex items-center gap-2 text-white/80 transition-colors hover:text-white"

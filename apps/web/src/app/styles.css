@@ -51,6 +51,29 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Brand colors - BISO blue (#3DA9E0) and BISO dark (#001731) */
+  --brand: oklch(0.68 0.14 220);           /* #3DA9E0 - BISO blue */
+  --brand-dark: oklch(0.15 0.05 250);      /* #001731 - BISO dark navy */
+  --brand-foreground: oklch(1 0 0);        /* White text on brand backgrounds */
+  --brand-muted: oklch(0.68 0.14 220 / 10%);       /* Subtle brand background */
+  --brand-muted-strong: oklch(0.68 0.14 220 / 20%); /* More visible brand background */
+  --brand-border: oklch(0.68 0.14 220 / 20%);      /* Brand-tinted borders */
+  --brand-border-strong: oklch(0.68 0.14 220 / 40%); /* More visible brand borders */
+
+  /* Gradient stops - for brand gradients */
+  --brand-gradient-from: oklch(0.68 0.14 220);     /* #3DA9E0 */
+  --brand-gradient-to: oklch(0.15 0.05 250);       /* #001731 */
+  --brand-gradient-via: oklch(0.68 0.14 220 / 70%); /* Brand blue at 70% */
+
+  /* Overlay gradients (for hero sections, dark overlays) */
+  --brand-overlay-from: oklch(0.15 0.05 250 / 95%);  /* Dark navy 95% */
+  --brand-overlay-via: oklch(0.68 0.14 220 / 70%);   /* Brand blue 70% */
+  --brand-overlay-to: oklch(0.15 0.05 250 / 90%);    /* Dark navy 90% */
+
+  /* Brand accent (BISO Yellow #F7D64A) */
+  --brand-accent: oklch(0.88 0.17 95);               /* #F7D64A - BISO yellow */
+  --brand-accent-muted: oklch(0.88 0.17 95 / 10%);   /* Yellow at 10% */
 }
 
 /* App-specific color values - Dark mode */
@@ -88,6 +111,29 @@
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
+
+  /* Brand colors - adapted for dark mode */
+  --brand: oklch(0.68 0.14 220);           /* #3DA9E0 - stays same */
+  --brand-dark: oklch(0.68 0.14 220);      /* Use brand blue instead of dark navy for readability */
+  --brand-foreground: oklch(1 0 0);        /* White text on brand backgrounds */
+  --brand-muted: oklch(0.68 0.14 220 / 20%);       /* Higher opacity for visibility */
+  --brand-muted-strong: oklch(0.68 0.14 220 / 30%); /* Even more visible */
+  --brand-border: oklch(0.68 0.14 220 / 40%);      /* More visible borders in dark mode */
+  --brand-border-strong: oklch(0.68 0.14 220 / 60%); /* Strong brand borders */
+
+  /* Gradient stops - adapted for dark mode (slightly lighter for contrast) */
+  --brand-gradient-from: oklch(0.72 0.14 220);     /* Slightly lighter brand blue */
+  --brand-gradient-to: oklch(0.55 0.12 220);       /* Medium brand blue instead of dark navy */
+  --brand-gradient-via: oklch(0.68 0.14 220 / 80%); /* Brand blue at 80% */
+
+  /* Overlay gradients - lighter in dark mode for better contrast */
+  --brand-overlay-from: oklch(0.12 0.02 250 / 95%);  /* Very dark but not black */
+  --brand-overlay-via: oklch(0.68 0.14 220 / 60%);   /* Brand blue 60% */
+  --brand-overlay-to: oklch(0.12 0.02 250 / 90%);    /* Very dark 90% */
+
+  /* Brand accent - slightly more visible in dark mode */
+  --brand-accent: oklch(0.88 0.17 95);               /* Same yellow */
+  --brand-accent-muted: oklch(0.88 0.17 95 / 5%);    /* Lower opacity for dark bg */
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
