@@ -31,6 +31,13 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  /* Section backgrounds for alternating content areas */
+  --section: oklch(0.985 0 0);
+  --section-foreground: oklch(0.145 0 0);
+  /* Inverted section (dark footer, hero overlays) */
+  --inverted: oklch(0.145 0 0);
+  --inverted-foreground: oklch(0.985 0 0);
+  --inverted-muted: oklch(0.4 0 0);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -66,6 +73,13 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  /* Section backgrounds - slightly lighter than background in dark mode */
+  --section: oklch(0.18 0 0);
+  --section-foreground: oklch(0.985 0 0);
+  /* Inverted section - lighter in dark mode for contrast */
+  --inverted: oklch(0.12 0 0);
+  --inverted-foreground: oklch(0.985 0 0);
+  --inverted-muted: oklch(0.6 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -137,7 +151,7 @@
   }
 
   .glass-panel {
-    @apply relative overflow-hidden rounded-3xl border border-primary/10 bg-white/80 shadow-[0_25px_60px_-30px_rgba(0,23,49,0.45)] backdrop-blur-xl;
+    @apply relative overflow-hidden rounded-3xl border border-primary/10 bg-background/80 shadow-[0_25px_60px_-30px_rgba(0,23,49,0.45)] backdrop-blur-xl dark:border-border dark:shadow-[0_25px_60px_-30px_rgba(0,0,0,0.6)];
   }
 
   .glass-panel::before {
@@ -151,6 +165,14 @@
     );
     opacity: 0.75;
     z-index: -1;
+  }
+
+  .dark .glass-panel::before {
+    background: linear-gradient(
+      120deg,
+      rgba(61, 169, 224, 0.12),
+      rgba(255, 255, 255, 0.05)
+    );
   }
 
   .accent-ring {

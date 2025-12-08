@@ -57,6 +57,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* Section and inverted backgrounds */
+  --color-section: var(--section);
+  --color-section-foreground: var(--section-foreground);
+  --color-inverted: var(--inverted);
+  --color-inverted-foreground: var(--inverted-foreground);
+  --color-inverted-muted: var(--inverted-muted);
+
   /* Animation tokens */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;

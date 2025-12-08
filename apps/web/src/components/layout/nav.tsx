@@ -19,6 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCampus } from "@/components/context/campus";
 import { SelectCampus } from "@/components/select-campus";
 import { LocaleSwitcher } from "../locale-switcher";
+import { ModeToggle } from "@repo/ui/components/mode-toggle";
 
 type NavigationProps = {
   onEventsClick?: () => void;
@@ -135,6 +136,7 @@ export function Navigation({
               </Link>
             ))}
             <SelectCampus campuses={campuses} />
+            <ModeToggle />
             <LocaleSwitcher size="sm" variant="ghost" />
             <Link href="/partner">{t("partner")}</Link>
             <Button
