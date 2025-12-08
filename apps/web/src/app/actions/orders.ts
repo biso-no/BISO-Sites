@@ -386,7 +386,7 @@ function normalizeCustomFields(inputs?: Record<string, string>) {
   );
 }
 
-async function createCartCheckoutSession(
+export async function createCartCheckoutSession(
   data: CartCheckoutData
 ): Promise<CheckoutResult> {
   try {

@@ -5,6 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "env": [
+        "API_BASE_URL",
         "WEBDOCK_API_KEY",
         "PINECONE_API_KEY",
         "AZURE_CERT_THUMBPRINT",

@@ -1,5 +1,6 @@
 import { ID } from "@repo/api";
-import { createSessionClient, InputFile } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
+import { InputFile } from "@repo/api";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -8,12 +9,12 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const fileBuffer = await request.arrayBuffer();
+  const blob = await request.blob();
 
   const file = await storage.createFile({
     bucketId: "content",
     fileId: ID.unique(),
-    file: InputFile.fromBuffer(fileBuffer),
+    file: InputFile.fromBuffer(blob, "upload.bin"),
   });
   return NextResponse.json({ file });
 }
