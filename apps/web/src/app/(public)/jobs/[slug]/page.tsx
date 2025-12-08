@@ -26,7 +26,7 @@ async function JobDetails({ slug }: { slug: string }) {
 
 function JobDetailsSkeleton() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <div className="relative h-[40vh]">
         <Skeleton className="h-full w-full" />
       </div>

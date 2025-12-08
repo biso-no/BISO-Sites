@@ -50,7 +50,7 @@ export function AddToCartCard() {
             <div className="mb-2 font-bold text-4xl text-white">
               {formatPrice(displayPrice)}
             </div>
-            <Badge className="border-0 bg-white/20 text-white">
+            <Badge className="border-0 bg-background/20 text-white">
               Save {savings} NOK
             </Badge>
           </>
@@ -64,7 +64,7 @@ export function AddToCartCard() {
       {!isMember &&
         productRef?.member_price &&
         productRef?.member_price < (productRef?.regular_price ?? 0) && (
-          <Alert className="mb-4 border-white/20 bg-white/10">
+          <Alert className="mb-4 border-white/20 bg-background/10">
             <AlertCircle className="h-4 w-4 text-white" />
             <AlertDescription className="text-sm text-white">
               Become a BISO member to save{" "}
@@ -75,7 +75,7 @@ export function AddToCartCard() {
         )}
 
       <Button
-        className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mb-3 w-full bg-background text-[#001731] hover:bg-background/90 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={productRef?.stock === 0}
         onClick={handleAddToCart}
       >

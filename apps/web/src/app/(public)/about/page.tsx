@@ -230,7 +230,7 @@ export default function AboutPage() {
           <div className="grid items-center gap-6 sm:grid-cols-3">
             {partners.map((p) => (
               <div
-                className="flex items-center justify-center rounded-lg border border-primary-10 bg-white p-6"
+                className="flex items-center justify-center rounded-lg border border-primary-10 bg-background p-6"
                 key={p.name}
               >
                 {p.url ? (

@@ -58,7 +58,7 @@ export default async function ShopPage() {
   const isMember = false;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <ShopHero isMember={isMember} />
       <Suspense fallback={<ShopListSkeleton />}>
         <ShopList campus={campus} locale={locale} />

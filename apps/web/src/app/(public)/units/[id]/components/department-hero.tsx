@@ -40,7 +40,7 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
           <div className="max-w-3xl">
             <div className="mb-6 flex items-center gap-4">
               {dept.logo && (
-                <div className="h-20 w-20 rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
+                <div className="h-20 w-20 rounded-xl border border-white/20 bg-background/10 p-3 backdrop-blur-sm">
                   <ImageWithFallback
                     alt={department.title}
                     className="h-full w-full object-contain"
@@ -53,12 +53,12 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-3">
                   {dept.type && (
-                    <Badge className="border-white/30 bg-white/20 text-white">
+                    <Badge className="border-white/30 bg-background/20 text-white">
                       <Building2 className="mr-1 h-3 w-3" />
                       {dept.type.charAt(0).toUpperCase() + dept.type.slice(1)}
                     </Badge>
                   )}
-                  <Badge className="border-white/30 bg-white/20 text-white">
+                  <Badge className="border-white/30 bg-background/20 text-white">
                     <MapPin className="mr-1 h-3 w-3" />
                     {dept.campus.name}
                   </Badge>

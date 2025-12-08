@@ -19,19 +19,19 @@ export function MemberCalloutClient() {
         <div className="flex items-start gap-3">
           <Users className="mt-0.5 h-5 w-5 shrink-0 text-orange-600" />
           <div>
-            <h4 className="mb-2 font-semibold text-gray-900">
+            <h4 className="mb-2 font-semibold text-foreground">
               Not a member yet?
             </h4>
-            <p className="mb-3 text-gray-700 text-sm">
+            <p className="mb-3 text-muted-foreground text-sm">
               Join BISO from just 350 NOK/semester and enjoy:
             </p>
-            <ul className="space-y-1 text-gray-600 text-sm">
+            <ul className="space-y-1 text-muted-foreground text-sm">
               <li>✓ Discounts on all shop items</li>
               <li>✓ Member-only events</li>
               <li>✓ Priority registration</li>
               <li>✓ Partner discounts</li>
             </ul>
-            <p className="mt-2 mb-3 text-gray-500 text-xs">
+            <p className="mt-2 mb-3 text-muted-foreground text-xs">
               💡 Best value: Year membership 550 NOK | 3-year 1200 NOK
             </p>
             <Button

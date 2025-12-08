@@ -25,7 +25,7 @@ async function ProductDetails({ slug }: { slug: string }) {
 // Skeleton loading state
 function ProductDetailsSkeleton() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <div className="relative h-[60vh]">
         <Skeleton className="h-full w-full" />
       </div>

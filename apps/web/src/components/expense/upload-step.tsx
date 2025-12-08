@@ -167,17 +167,17 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
 
   return (
     <Card className="border-0 p-8 shadow-lg">
-      <h2 className="mb-6 text-gray-900">Upload Receipts & Documents</h2>
+      <h2 className="mb-6 text-foreground">Upload Receipts & Documents</h2>
 
       {/* Upload Area */}
       <div className="mb-8">
         <label className="block">
           <div className="cursor-pointer rounded-lg border-2 border-[#3DA9E0]/30 border-dashed p-12 text-center transition-all hover:border-[#3DA9E0] hover:bg-[#3DA9E0]/5">
             <Upload className="mx-auto mb-4 h-12 w-12 text-[#3DA9E0]" />
-            <p className="mb-2 text-gray-900">
+            <p className="mb-2 text-foreground">
               Click to upload or drag and drop
             </p>
-            <p className="text-gray-600 text-sm">
+            <p className="text-muted-foreground text-sm">
               PDF, JPG, PNG up to 10MB each
             </p>
           </div>
@@ -195,7 +195,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
       {attachments.length > 0 && (
         <div className="mb-8 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-gray-900">
+            <h3 className="text-foreground">
               Uploaded Receipts ({attachments.length})
             </h3>
             {canProceed && !isGenerating && (
@@ -217,7 +217,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                 {attachment.preview && (
                   <Image
                     alt="Receipt"
-                    className="h-20 w-20 shrink-0 rounded bg-gray-100 object-cover"
+                    className="h-20 w-20 shrink-0 rounded bg-muted object-cover"
                     height={80}
                     src={attachment.preview}
                     unoptimized
@@ -323,7 +323,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
                 rows={4}
                 value={generatedDescription}
               />
-              <p className="mt-1 text-gray-500 text-xs">
+              <p className="mt-1 text-muted-foreground text-xs">
                 Edit this description as needed
               </p>
             </motion.div>
@@ -332,7 +332,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
           {/* Total */}
           <Card className="border-[#3DA9E0]/20 bg-[#3DA9E0]/5 p-4">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-gray-900 text-lg">
+              <span className="font-semibold text-foreground text-lg">
                 Total Amount:
               </span>
               <span className="font-bold text-2xl text-[#3DA9E0]">

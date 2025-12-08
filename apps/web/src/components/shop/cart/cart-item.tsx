@@ -40,8 +40,8 @@ function QuantityControl({
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-gray-600 text-sm">Quantity:</span>
-      <div className="flex items-center gap-2 rounded-lg border border-gray-300">
+      <span className="text-muted-foreground text-sm">Quantity:</span>
+      <div className="flex items-center gap-2 rounded-lg border border-border">
         <Button
           className="h-8 w-8 p-0 disabled:opacity-50"
           disabled={quantity <= 1}
@@ -49,9 +49,9 @@ function QuantityControl({
           size="sm"
           variant="ghost"
         >
-          <Minus className="h-4 w-4 text-gray-900 hover:text-blue-800" />
+          <Minus className="h-4 w-4 text-foreground hover:text-blue-800" />
         </Button>
-        <span className="w-8 text-center font-medium text-gray-900">
+        <span className="w-8 text-center font-medium text-foreground">
           {quantity}
         </span>
         <Button
@@ -61,7 +61,7 @@ function QuantityControl({
           size="sm"
           variant="ghost"
         >
-          <Plus className="h-4 w-4 text-gray-900 hover:text-blue-800" />
+          <Plus className="h-4 w-4 text-foreground hover:text-blue-800" />
         </Button>
       </div>
       {stock !== null && stock <= 10 && (
@@ -98,17 +98,17 @@ function PriceDisplay({
     <div className="text-right">
       {hasDiscount ? (
         <div>
-          <div className="text-gray-400 text-sm line-through">
+          <div className="text-muted-foreground text-sm line-through">
             {regularPrice * quantity} NOK
           </div>
           <div className="font-bold text-[#3DA9E0]">{itemTotal} NOK</div>
           <div className="text-green-600 text-xs">Save {savings} NOK</div>
         </div>
       ) : (
-        <div className="font-bold text-gray-900">{itemTotal} NOK</div>
+        <div className="font-bold text-foreground">{itemTotal} NOK</div>
       )}
       {!isMember && memberPrice && memberPrice < regularPrice && (
-        <div className="mt-1 text-gray-500 text-xs">
+        <div className="mt-1 text-muted-foreground text-xs">
           Members: {memberPrice * quantity} NOK
         </div>
       )}
@@ -137,7 +137,7 @@ export function CartItem({
             }
           />
           <Badge
-            className={`absolute top-2 left-2 ${categoryColors[item.category] || "bg-gray-100 text-gray-700"}`}
+            className={`absolute top-2 left-2 ${categoryColors[item.category] || "bg-muted text-muted-foreground"}`}
           >
             {item.category}
           </Badge>
@@ -147,7 +147,7 @@ export function CartItem({
         <div className="grow">
           <div className="mb-2 flex items-start justify-between">
             <div>
-              <h3 className="mb-1 font-semibold text-gray-900">{item.name}</h3>
+              <h3 className="mb-1 font-semibold text-foreground">{item.name}</h3>
               {item.memberOnly && (
                 <Badge className="mb-2 border-0 bg-orange-500 text-white">
                   <Users className="mr-1 h-3 w-3" />
@@ -168,10 +168,10 @@ export function CartItem({
           {/* Selected Options */}
           {item.selectedOptions &&
             Object.keys(item.selectedOptions).length > 0 && (
-              <div className="mb-3 rounded-lg bg-gray-50 p-3">
-                <p className="mb-1 text-gray-500 text-sm">Selected options:</p>
+              <div className="mb-3 rounded-lg bg-section p-3">
+                <p className="mb-1 text-muted-foreground text-sm">Selected options:</p>
                 {Object.entries(item.selectedOptions).map(([key, value]) => (
-                  <p className="text-gray-700 text-sm" key={key}>
+                  <p className="text-muted-foreground text-sm" key={key}>
                     <strong>{key}:</strong> {value}
                   </p>
                 ))}

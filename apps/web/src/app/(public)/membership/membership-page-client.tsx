@@ -332,7 +332,7 @@ export const MembershipPageClient = ({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.28),transparent_55%)]" />
         <div className="relative grid gap-10 px-6 py-12 md:px-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:py-16">
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1 text-white/80 text-xs uppercase tracking-wide">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-background/10 px-4 py-1 text-white/80 text-xs uppercase tracking-wide">
               <Sparkles className="h-3.5 w-3.5" />
               {t("hero.badge")}
             </div>
@@ -345,7 +345,7 @@ export const MembershipPageClient = ({
             <div className="flex flex-wrap gap-3">
               <Button
                 asChild
-                className="bg-white text-primary-100 hover:bg-white/90"
+                className="bg-background text-primary-100 hover:bg-background/90"
                 size="lg"
               >
                 <Link href="https://biso.no/shop/bli-medlem-i-biso/">
@@ -354,7 +354,7 @@ export const MembershipPageClient = ({
               </Button>
               <Button
                 asChild
-                className="border-white/40 bg-white/10 text-white hover:bg-white/20"
+                className="border-white/40 bg-background/10 text-white hover:bg-background/20"
                 size="lg"
                 variant="glass"
               >
@@ -362,7 +362,7 @@ export const MembershipPageClient = ({
               </Button>
               <Button
                 asChild
-                className="text-white hover:bg-white/10"
+                className="text-white hover:bg-background/10"
                 size="lg"
                 variant="ghost"
               >
@@ -384,7 +384,7 @@ export const MembershipPageClient = ({
               </div>
             </div>
           </div>
-          <Card className="border-white/20 bg-white/10 text-white shadow-glow backdrop-blur">
+          <Card className="border-white/20 /10 text-white shadow-glow backdrop-blur">
             <CardHeader>
               <CardTitle className="text-white/90">
                 {t("onboarding.title")}
@@ -396,10 +396,10 @@ export const MembershipPageClient = ({
             <CardContent className="space-y-4">
               {onboardingSteps.map((step) => (
                 <div
-                  className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4"
+                  className="flex gap-4 rounded-2xl border border-white/10 bg-background/5 p-4"
                   key={step.number}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 font-semibold text-base">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-background/10 font-semibold text-base">
                     {step.number}
                   </div>
                   <div>
@@ -441,7 +441,7 @@ export const MembershipPageClient = ({
               const Icon = section.icon;
               return (
                 <Card
-                  className="h-full border-primary/10 bg-white/90 shadow-card"
+                  className="h-full border-primary/10 /90 shadow-card"
                   key={section.key}
                 >
                   <CardHeader className="space-y-3">
@@ -470,7 +470,7 @@ export const MembershipPageClient = ({
             })}
           </div>
         ) : (
-          <Card className="border-primary/20 border-dashed bg-white/70">
+          <Card className="border-primary/20 border-dashed /70">
             <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-muted-foreground text-sm">
               <Sparkles className="h-5 w-5 text-primary-50" />
               {t("global.empty")}
@@ -490,7 +490,7 @@ export const MembershipPageClient = ({
           {campuses.length > 0 ? (
             <ScrollArea
               aria-label={t("local.switcherLabel")}
-              className="max-w-full whitespace-nowrap rounded-full border border-primary/10 bg-white"
+              className="max-w-full whitespace-nowrap rounded-full border border-primary/10 bg-background"
             >
               <div className="flex gap-2 px-3 py-2">
                 {campuses
@@ -503,7 +503,7 @@ export const MembershipPageClient = ({
                           "rounded-full px-4 py-2 font-medium text-sm transition",
                           isActive
                             ? "bg-primary-100 text-white shadow-sm"
-                            : "bg-white text-primary-80 hover:bg-primary-10"
+                            : "bg-background text-primary-80 hover:bg-primary-10"
                         )}
                         key={campus.$id}
                         onClick={() => selectCampus(campus.$id)}
@@ -524,7 +524,7 @@ export const MembershipPageClient = ({
               const Icon = section.icon;
               return (
                 <Card
-                  className="h-full border-primary/10 bg-white/90 shadow-card"
+                  className="h-full border-primary/10 /90 shadow-card"
                   key={section.key}
                 >
                   <CardHeader className="space-y-3">
@@ -553,7 +553,7 @@ export const MembershipPageClient = ({
             })}
           </div>
         ) : (
-          <Card className="border-primary/20 border-dashed bg-white/70">
+          <Card className="border-primary/20 border-dashed /70">
             <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-muted-foreground text-sm">
               <Users className="h-5 w-5 text-primary-50" />
               {t("local.empty")}
@@ -587,7 +587,7 @@ export const MembershipPageClient = ({
             const Icon = event.icon;
             return (
               <Card
-                className="h-full border-primary/10 bg-white/90 shadow-card"
+                className="h-full border-primary/10 /90 shadow-card"
                 key={event.key}
               >
                 <CardHeader className="space-y-3">
@@ -617,7 +617,7 @@ export const MembershipPageClient = ({
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Card className="border-primary/10 bg-white/90 shadow-card">
+        <Card className="border-primary/10 /90 shadow-card">
           <CardHeader>
             <CardTitle className="font-semibold text-primary-100 text-xl">
               {t("faq.title")}
@@ -627,7 +627,7 @@ export const MembershipPageClient = ({
           <CardContent className="space-y-4">
             {faqs.map((faq) => (
               <div
-                className="rounded-2xl border border-primary/10 bg-white/80 p-4"
+                className="rounded-2xl border border-primary/10 bg-background/80 p-4"
                 key={faq.key}
               >
                 <p className="font-medium text-primary-90">{faq.question}</p>

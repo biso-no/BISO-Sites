@@ -54,7 +54,7 @@ export function ProductOptionsClient({
       transition={{ delay: 0.2 }}
     >
       <Card className="border-0 p-8 shadow-lg">
-        <h2 className="mb-6 font-bold text-2xl text-gray-900">
+        <h2 className="mb-6 font-bold text-2xl text-foreground">
           Product Options
         </h2>
         <div className="space-y-6">

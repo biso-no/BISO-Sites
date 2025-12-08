@@ -33,7 +33,7 @@ type ExpenseCardProps = {
 const statusConfig = {
   [ExpenseStatus.DRAFT]: {
     label: "Draft",
-    color: "bg-gray-100 text-gray-700 border-gray-200",
+    color: "bg-muted text-muted-foreground border-border",
     icon: Clock,
   },
   [ExpenseStatus.PENDING]: {
@@ -81,7 +81,7 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
         <div className="mb-4 flex items-start justify-between">
           <div className="grow">
             <div className="mb-2 flex items-center gap-3">
-              <h3 className="text-gray-900">
+              <h3 className="text-foreground">
                 {expense.description || "Expense Reimbursement"}
               </h3>
               <Badge className={config.color}>
@@ -90,7 +90,7 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
               </Badge>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-gray-600 text-sm">
+            <div className="mt-4 flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-[#3DA9E0]" />
                 <span>

@@ -110,7 +110,7 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
           initial={{ opacity: 0, y: 30 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-md">
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-md">
             <Sparkles className="h-5 w-5 text-[#3DA9E0]" />
             <span className="text-white/90">
               {t("featuredContent", {
@@ -139,7 +139,7 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
             </Link>
             <Link href={isEvent ? "/events" : "/news"}>
               <Button
-                className="border-white/30 bg-white/10 px-8 py-6 text-white backdrop-blur-md hover:bg-white/20"
+                className="border-white/30 bg-background/10 px-8 py-6 text-white backdrop-blur-md hover:bg-background/20"
                 size="lg"
                 variant="outline"
               >
@@ -204,7 +204,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
           >
             <motion.div
               animate={{ scale: 1 }}
-              className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-md"
+              className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-md"
               initial={{ scale: 0 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             >
@@ -251,7 +251,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
               </Link>
               <Link href="/events">
                 <Button
-                  className="border-white/30 bg-white/10 px-8 py-6 text-white backdrop-blur-md hover:bg-white/20"
+                  className="border-white/30 bg-background/10 px-8 py-6 text-white backdrop-blur-md hover:bg-background/20"
                   size="lg"
                   variant="outline"
                 >
@@ -301,8 +301,8 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
       {/* Navigation arrows - only show if more than 1 item */}
       {featuredContent.length > 1 && (
         <>
-          <CarouselPrevious className="left-4 h-12 w-12 border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20" />
-          <CarouselNext className="right-4 h-12 w-12 border-white/20 bg-white/10 backdrop-blur-md hover:bg-white/20" />
+          <CarouselPrevious className="left-4 h-12 w-12 border-white/20 bg-background/10 backdrop-blur-md hover:bg-background/20" />
+          <CarouselNext className="right-4 h-12 w-12 border-white/20 bg-background/10 backdrop-blur-md hover:bg-background/20" />
         </>
       )}
 
@@ -314,8 +314,8 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
               aria-label={`Go to slide ${index + 1}`}
               className={`h-2 w-2 rounded-full transition-all ${
                 index === current
-                  ? "w-8 bg-white"
-                  : "bg-white/40 hover:bg-white/60"
+                  ? "w-8 bg-background"
+                  : "bg-background/40 hover:bg-background/60"
               }`}
               key={index}
               onClick={() => api?.scrollTo(index)}

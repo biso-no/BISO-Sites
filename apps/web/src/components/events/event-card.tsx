@@ -101,7 +101,7 @@ function PriceDisplay({ price, memberPrice, isMember }: PriceDisplayProps) {
   if (memberPrice && !isMember) {
     return (
       <div>
-        <div className="font-medium text-gray-900">{price}</div>
+        <div className="font-medium text-foreground">{price}</div>
         <div className="mt-1 text-[#3DA9E0] text-sm">
           Members: {memberPrice}
         </div>
@@ -112,7 +112,7 @@ function PriceDisplay({ price, memberPrice, isMember }: PriceDisplayProps) {
   if (memberPrice && isMember) {
     return (
       <div>
-        <div className="text-gray-400 text-sm line-through">{price}</div>
+        <div className="text-muted-foreground text-sm line-through">{price}</div>
         <div className="font-medium text-[#3DA9E0]">
           {memberPrice} <span className="text-sm">(Member Price)</span>
         </div>
@@ -120,7 +120,7 @@ function PriceDisplay({ price, memberPrice, isMember }: PriceDisplayProps) {
     );
   }
 
-  return <div className="font-medium text-gray-900">{price}</div>;
+  return <div className="font-medium text-foreground">{price}</div>;
 }
 
 export function EventCard({
@@ -190,17 +190,17 @@ export function EventCard({
             memberOnly={eventData?.member_only}
           />
 
-          <div className="absolute right-4 bottom-4 rounded-full bg-white/90 px-3 py-1 backdrop-blur-sm">
+          <div className="absolute right-4 bottom-4 rounded-full bg-background/90 px-3 py-1 backdrop-blur-sm">
             <span className="font-medium text-[#001731]">{price}</span>
           </div>
         </div>
 
         {/* Content */}
         <div className="flex grow flex-col p-6">
-          <h3 className="mb-3 font-semibold text-gray-900 text-xl">
+          <h3 className="mb-3 font-semibold text-foreground text-xl">
             {event.title}
           </h3>
-          <p className="mb-4 line-clamp-2 grow text-gray-600 text-sm">
+          <p className="mb-4 line-clamp-2 grow text-muted-foreground text-sm">
             {event.description}
           </p>
 
@@ -224,27 +224,27 @@ export function EventCard({
           )}
 
           <div className="mb-6 space-y-2">
-            <div className="flex items-center gap-2 text-gray-600 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Calendar className="h-4 w-4 text-[#3DA9E0]" />
               <span>{startDate}</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-600 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Clock className="h-4 w-4 text-[#3DA9E0]" />
               <span>{timeRange}</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-600 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <MapPin className="h-4 w-4 text-[#3DA9E0]" />
               <span>{eventData?.location || "Location TBA"}</span>
             </div>
             {attendees > 0 && (
-              <div className="flex items-center gap-2 text-gray-600 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Users className="h-4 w-4 text-[#3DA9E0]" />
                 <span>{attendees} attending</span>
               </div>
             )}
 
             {/* Price */}
-            <div className="mt-3 border-gray-200 border-t pt-3">
+            <div className="mt-3 border-border border-t pt-3">
               <PriceDisplay
                 isMember={isMember}
                 memberPrice={memberPrice}

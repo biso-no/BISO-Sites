@@ -38,7 +38,7 @@ export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="mx-auto max-w-7xl px-4 text-center">
           <div className="mb-6 flex items-center justify-center gap-3">
-            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/20 bg-white/10 backdrop-blur-sm">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/20 bg-background/10 backdrop-blur-sm">
               <Building2 className="h-8 w-8 text-white" />
             </div>
             <h1 className="mb-0 font-bold text-5xl text-white">Våre enheter</h1>
@@ -52,7 +52,7 @@ export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
           <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-3">
             {statsData.map((stat) => (
               <div
-                className="rounded-lg border border-white/20 bg-white/10 p-6 backdrop-blur-sm"
+                className="rounded-lg border border-white/20 bg-background/10 p-6 backdrop-blur-sm"
                 key={stat.label}
               >
                 <div className="mb-2 font-bold text-3xl text-white">

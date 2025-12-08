@@ -124,7 +124,7 @@ export function IdentityManagement({
 
   return (
     <div className="space-y-6">
-      <Card className="border border-primary/10 bg-white">
+      <Card className="border border-primary/10 ">
         <CardHeader>
           <CardTitle>Linked Accounts</CardTitle>
           <CardDescription>
@@ -157,7 +157,7 @@ export function IdentityManagement({
         </CardContent>
       </Card>
 
-      <Card className="border border-primary/10 bg-white">
+      <Card className="border border-primary/10 ">
         <CardHeader>
           <CardTitle>Connected Identities</CardTitle>
           <CardDescription>
@@ -172,7 +172,7 @@ export function IdentityManagement({
           ) : (
             identities?.map((id) => (
               <div
-                className="flex items-center justify-between rounded-lg border border-primary/10 bg-white px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-primary/10 bg-background px-3 py-2"
                 key={id.$id}
               >
                 <div className="flex items-center gap-3">

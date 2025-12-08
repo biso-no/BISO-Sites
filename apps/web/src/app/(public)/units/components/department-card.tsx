@@ -65,12 +65,12 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
         {/* Card Header */}
         <div className="relative h-32 bg-linear-to-br from-[#3DA9E0] to-[#001731] p-6">
           <div className="absolute inset-0 opacity-10">
-            <div className="-translate-y-1/2 absolute top-0 right-0 h-32 w-32 translate-x-1/2 rounded-full bg-white" />
-            <div className="-translate-x-1/2 absolute bottom-0 left-0 h-24 w-24 translate-y-1/2 rounded-full bg-white" />
+            <div className="-translate-y-1/2 absolute top-0 right-0 h-32 w-32 translate-x-1/2 rounded-full bg-background" />
+            <div className="-translate-x-1/2 absolute bottom-0 left-0 h-24 w-24 translate-y-1/2 rounded-full bg-background" />
           </div>
 
           <div className="relative flex items-start justify-between">
-            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/30 bg-white/20 backdrop-blur-sm transition-transform group-hover:scale-110">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/30 bg-background/20 backdrop-blur-sm transition-transform group-hover:scale-110">
               {dept?.logo ? (
                 <ImageWithFallback
                   alt={department.title}

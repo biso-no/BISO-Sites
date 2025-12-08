@@ -34,7 +34,7 @@ export function SocialLinks({ socials }: SocialLinksProps) {
         return (
           <motion.a
             animate={{ opacity: 1, scale: 1 }}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 backdrop-blur-sm transition-all hover:scale-110 hover:bg-white/20"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-background/10 backdrop-blur-sm transition-all hover:scale-110 hover:bg-background/20"
             href={social.url || "#"}
             initial={{ opacity: 0, scale: 0.8 }}
             key={index}

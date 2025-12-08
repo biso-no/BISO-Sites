@@ -24,7 +24,7 @@ export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
         <div className="mb-4 inline-block rounded-full bg-[#3DA9E0]/10 px-4 py-2 font-medium text-[#001731] text-sm">
           Featured Stories
         </div>
-        <h2 className="font-bold text-3xl text-gray-900 md:text-4xl">
+        <h2 className="font-bold text-3xl text-foreground md:text-4xl">
           Top News from the
           <br />
           <span className="bg-linear-to-r from-[#3DA9E0] to-[#001731] bg-clip-text text-transparent">

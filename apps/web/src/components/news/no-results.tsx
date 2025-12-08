@@ -18,11 +18,11 @@ export function NoResults() {
       className="py-20 text-center"
       initial={{ opacity: 0 }}
     >
-      <Newspaper className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-      <h3 className="mb-2 font-bold text-2xl text-gray-900">
+      <Newspaper className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+      <h3 className="mb-2 font-bold text-2xl text-foreground">
         No articles found
       </h3>
-      <p className="mb-6 text-gray-600">
+      <p className="mb-6 text-muted-foreground">
         Try adjusting your filters or search query
       </p>
       <Button

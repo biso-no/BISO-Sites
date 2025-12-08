@@ -33,7 +33,7 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
           {member.name ? getInitials(member.name) : "??"}
         </AvatarFallback>
       </Avatar>
-      <h3 className="mb-1 text-gray-900">{member.name}</h3>
+      <h3 className="mb-1 text-foreground">{member.name}</h3>
       <p className="mb-4 text-[#3DA9E0]">{member.role}</p>
       <div className="flex justify-center gap-3">
         <Button

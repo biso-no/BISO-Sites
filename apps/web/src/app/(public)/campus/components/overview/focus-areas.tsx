@@ -30,10 +30,10 @@ export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
         className="mb-8 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-gray-900">
+        <h2 className="mb-4 text-foreground">
           {locale === "en" ? "Our Focus Areas" : "Våre fokusområder"}
         </h2>
-        <p className="mx-auto max-w-2xl text-gray-600">
+        <p className="mx-auto max-w-2xl text-muted-foreground">
           {locale === "en"
             ? "We're dedicated to creating exceptional experiences across these key areas"
             : "Vi er dedikerte til å skape eksepsjonelle opplevelser innenfor disse nøkkelområdene"}
@@ -53,7 +53,7 @@ export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
                   <Award className="h-6 w-6 text-white" />
                 </div>
-                <h3 className="text-gray-900">{area}</h3>
+                <h3 className="text-foreground">{area}</h3>
               </div>
             </Card>
           </motion.div>

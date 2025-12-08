@@ -21,7 +21,7 @@ import { getExpenseById } from "@/lib/actions/expense";
 const statusConfig = {
   [ExpenseStatus.DRAFT]: {
     label: "Draft",
-    color: "bg-gray-100 text-gray-700 border-gray-200",
+    color: "bg-muted text-muted-foreground border-border",
     icon: Clock,
   },
   [ExpenseStatus.PENDING]: {
@@ -78,7 +78,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
       <Card className="border-0 p-8 shadow-lg">
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <h2 className="mb-2 font-bold text-3xl text-gray-900">
+            <h2 className="mb-2 font-bold text-3xl text-foreground">
               {expense.description || "Expense Reimbursement"}
             </h2>
             <Badge className={`${config.color}text-sm`}>
@@ -90,7 +90,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
             <div className="font-bold text-3xl text-[#3DA9E0]">
               {expense.total.toFixed(2)} NOK
             </div>
-            <p className="mt-1 text-gray-500 text-sm">Total Amount</p>
+            <p className="mt-1 text-muted-foreground text-sm">Total Amount</p>
           </div>
         </div>
 
@@ -98,52 +98,52 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
 
         <div className="grid gap-6 md:grid-cols-2">
           <div>
-            <h3 className="mb-2 font-semibold text-gray-500 text-sm">Campus</h3>
+            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">Campus</h3>
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-[#3DA9E0]" />
-              <span className="text-gray-900">{expense.campus}</span>
+              <span className="text-foreground">{expense.campus}</span>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-2 font-semibold text-gray-500 text-sm">
+            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
               Department
             </h3>
-            <p className="text-gray-900">{expense.department}</p>
+            <p className="text-foreground">{expense.department}</p>
           </div>
 
           <div>
-            <h3 className="mb-2 font-semibold text-gray-500 text-sm">
+            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
               Submitted Date
             </h3>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-[#3DA9E0]" />
-              <span className="text-gray-900">{submittedDate}</span>
+              <span className="text-foreground">{submittedDate}</span>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-2 font-semibold text-gray-500 text-sm">
+            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
               Bank Account
             </h3>
-            <p className="font-mono text-gray-900">{expense.bank_account}</p>
+            <p className="font-mono text-foreground">{expense.bank_account}</p>
           </div>
 
           {expense.eventName && (
             <div className="md:col-span-2">
-              <h3 className="mb-2 font-semibold text-gray-500 text-sm">
+              <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
                 Event Name
               </h3>
-              <p className="text-gray-900">{expense.eventName}</p>
+              <p className="text-foreground">{expense.eventName}</p>
             </div>
           )}
 
           {expense.prepayment_amount && expense.prepayment_amount > 0 && (
             <div>
-              <h3 className="mb-2 font-semibold text-gray-500 text-sm">
+              <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
                 Prepayment
               </h3>
-              <p className="text-gray-900">
+              <p className="text-foreground">
                 {expense.prepayment_amount.toFixed(2)} NOK
               </p>
             </div>
@@ -151,10 +151,10 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
 
           {expense.invoice_id && (
             <div>
-              <h3 className="mb-2 font-semibold text-gray-500 text-sm">
+              <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
                 Invoice ID
               </h3>
-              <p className="font-mono text-gray-900">{expense.invoice_id}</p>
+              <p className="font-mono text-foreground">{expense.invoice_id}</p>
             </div>
           )}
         </div>
@@ -165,7 +165,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
         <Card className="border-0 p-8 shadow-lg">
           <div className="mb-6 flex items-center gap-2">
             <Paperclip className="h-5 w-5 text-[#3DA9E0]" />
-            <h2 className="font-bold text-2xl text-gray-900">
+            <h2 className="font-bold text-2xl text-foreground">
               Attachments ({expense.expenseAttachments.length})
             </h2>
           </div>
@@ -175,17 +175,17 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
               <Card className="border-[#3DA9E0]/20 p-4" key={attachment.$id}>
                 <div className="space-y-2">
                   <div>
-                    <h4 className="font-semibold text-gray-500 text-sm">
+                    <h4 className="font-semibold text-muted-foreground text-sm">
                       Description
                     </h4>
-                    <p className="text-gray-900">{attachment.description}</p>
+                    <p className="text-foreground">{attachment.description}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h4 className="font-semibold text-gray-500 text-sm">
+                      <h4 className="font-semibold text-muted-foreground text-sm">
                         Date
                       </h4>
-                      <p className="text-gray-900">
+                      <p className="text-foreground">
                         {attachment.date
                           ? new Date(attachment.date).toLocaleDateString(
                               "no-NO"
@@ -194,10 +194,10 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-500 text-sm">
+                      <h4 className="font-semibold text-muted-foreground text-sm">
                         Amount
                       </h4>
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-foreground">
                         {attachment.amount?.toFixed(2) || "0.00"} NOK
                       </p>
                     </div>
@@ -226,7 +226,7 @@ export default async function ExpenseViewPage({ params }: ExpenseDetailsProps) {
   const { id } = await params;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       {/* Header */}
       <div className="relative h-[30vh] overflow-hidden">
         <ImageWithFallback

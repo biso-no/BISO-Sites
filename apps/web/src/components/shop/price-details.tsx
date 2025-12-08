@@ -21,7 +21,7 @@ export function PriceDetails({
   if (!isMember && memberPrice && memberPrice < regularPrice) {
     return (
       <>
-        <div className="flex justify-between text-gray-600">
+        <div className="flex justify-between text-muted-foreground">
           <span>Regular Price</span>
           <span>{formatPrice(regularPrice)}</span>
         </div>
@@ -42,7 +42,7 @@ export function PriceDetails({
   if (hasDiscount) {
     return (
       <>
-        <div className="flex justify-between text-gray-400 line-through">
+        <div className="flex justify-between text-muted-foreground line-through">
           <span>Regular Price</span>
           <span>{formatPrice(regularPrice)}</span>
         </div>
@@ -51,7 +51,7 @@ export function PriceDetails({
           <span>-{savings} NOK</span>
         </div>
         <Separator />
-        <div className="flex justify-between font-semibold text-gray-900">
+        <div className="flex justify-between font-semibold text-foreground">
           <span>Your Price</span>
           <span>{formatPrice(displayPrice)}</span>
         </div>
@@ -60,7 +60,7 @@ export function PriceDetails({
   }
 
   return (
-    <div className="flex justify-between font-semibold text-gray-900">
+    <div className="flex justify-between font-semibold text-foreground">
       <span>Price</span>
       <span>{formatPrice(displayPrice)}</span>
     </div>

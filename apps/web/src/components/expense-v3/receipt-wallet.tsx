@@ -120,7 +120,7 @@ export function ReceiptWallet({
             type="file"
           />
           <Button
-            className="border-border bg-muted text-foreground hover:bg-muted/80 dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            className="border-border bg-muted text-foreground hover:bg-muted/80 dark:border-white/20 dark:bg-background/5 dark:text-white dark:hover:bg-background/10"
             size="icon"
             type="button"
             variant="outline"
@@ -150,7 +150,7 @@ export function ReceiptWallet({
                     .map((child) => (
                       <div className="relative pl-6" key={child.id}>
                         {/* Connector Line */}
-                        <div className="absolute top-[-10px] bottom-1/2 left-3 w-px rounded-bl-lg border-b border-l border-border bg-border dark:border-white/10 dark:bg-white/10" />
+                        <div className="absolute top-[-10px] bottom-1/2 left-3 w-px rounded-bl-lg border-b border-l border-border bg-border dark:border-white/10 dark:bg-background/10" />
 
                         <ReceiptItem
                           isChild
@@ -169,7 +169,7 @@ export function ReceiptWallet({
           {receipts.length === 0 && (
             <Card
               className={cn(
-                "relative flex h-64 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border transition-all hover:border-muted-foreground hover:bg-muted dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-white/5",
+                "relative flex h-64 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border transition-all hover:border-muted-foreground hover:bg-muted dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-background/5",
                 isDragActive && "border-sky-500 bg-sky-500/10"
               )}
               onDragEnter={handleDragEnter}
@@ -184,7 +184,7 @@ export function ReceiptWallet({
                 onChange={handleFileInput}
                 type="file"
               />
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted dark:bg-white/5">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted dark:bg-background/5">
                 <Upload className="h-6 w-6 text-muted-foreground dark:text-white/40" />
               </div>
               <p className="text-sm text-muted-foreground dark:text-white/60">Drop receipts here</p>
@@ -213,10 +213,10 @@ function ReceiptItem({
     <motion.div
       animate={{ opacity: 1, x: 0 }}
       className={cn(
-        "group relative cursor-pointer overflow-hidden rounded-xl border transition-all hover:bg-muted dark:hover:bg-white/5",
+        "group relative cursor-pointer overflow-hidden rounded-xl border transition-all hover:bg-muted dark:hover:bg-background/5",
         isSelected
-          ? "border-sky-500 bg-muted ring-1 ring-sky-500 dark:bg-white/5"
-          : "border-border bg-muted dark:border-white/10 dark:bg-white/5",
+          ? "border-sky-500 bg-muted ring-1 ring-sky-500 dark:bg-background/5"
+          : "border-border bg-muted dark:border-white/10 dark:bg-background/5",
         isChild && "origin-left scale-95 border-l-2 border-l-muted-foreground dark:border-l-white/20"
       )}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -292,7 +292,7 @@ function ReceiptItem({
 
       {/* Progress Bar */}
       {receipt.status !== "ready" && receipt.status !== "error" && (
-        <div className="h-1 w-full bg-muted dark:bg-white/5">
+        <div className="h-1 w-full bg-muted dark:bg-background/5">
           <motion.div
             animate={{ width: `${receipt.progress}%` }}
             className="h-full bg-sky-500"

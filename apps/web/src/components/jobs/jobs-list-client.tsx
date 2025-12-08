@@ -77,12 +77,12 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
   return (
     <>
       {/* Filters & Search */}
-      <div className="sticky top-20 z-40 border-gray-100 border-b bg-white/95 shadow-lg backdrop-blur-lg">
+      <div className="sticky top-20 z-40 border-border border-b bg-background/95 shadow-lg backdrop-blur-lg">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4">
             {/* Search */}
             <div className="relative w-full">
-              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-gray-400" />
+              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
               <Input
                 className="w-full border-[#3DA9E0]/20 pr-10 pl-10 focus:border-[#3DA9E0]"
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -92,7 +92,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
               />
               {searchQuery && (
                 <button
-                  className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 hover:text-gray-600"
+                  className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground hover:text-muted-foreground"
                   onClick={() => setSearchQuery("")}
                   type="button"
                 >
@@ -142,7 +142,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
               </div>
             </div>
 
-            <div className="text-center text-gray-600 text-sm">
+            <div className="text-center text-muted-foreground text-sm">
               Showing {filteredJobs.length}{" "}
               {filteredJobs.length === 1 ? "position" : "positions"}
             </div>
@@ -178,11 +178,11 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             className="py-20 text-center"
             initial={{ opacity: 0 }}
           >
-            <Briefcase className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-            <h3 className="mb-2 font-bold text-2xl text-gray-900">
+            <Briefcase className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+            <h3 className="mb-2 font-bold text-2xl text-foreground">
               No positions found
             </h3>
-            <p className="mb-6 text-gray-600">
+            <p className="mb-6 text-muted-foreground">
               Try adjusting your filters or search query
             </p>
             <Button
@@ -211,11 +211,11 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             questions about positions or the application process.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Button className="bg-white text-[#001731] hover:bg-white/90">
+            <Button className="bg-background text-[#001731] hover:bg-background/90">
               Contact Recruitment Team
             </Button>
             <Button
-              className="border-white text-white hover:bg-white/10"
+              className="border-white text-white hover:bg-background/10"
               variant="outline"
             >
               Download Information Pack

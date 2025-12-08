@@ -80,7 +80,7 @@ export default async function JobsPage() {
   const locale = await getLocale();
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <Suspense fallback={<JobsListSkeleton />}>
         <JobsList locale={locale} />
       </Suspense>

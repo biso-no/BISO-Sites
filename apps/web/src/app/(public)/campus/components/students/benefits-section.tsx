@@ -59,15 +59,15 @@ export function BenefitsSection({
             <Icon className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h3 className="text-gray-900">{title}</h3>
-            <p className="text-gray-600 text-sm">{description}</p>
+            <h3 className="text-foreground">{title}</h3>
+            <p className="text-muted-foreground text-sm">{description}</p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {items.map((item, index) => (
             <motion.div
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-start gap-3 rounded-lg bg-white p-4"
+              className="flex items-start gap-3 rounded-lg bg-background p-4"
               initial={{ opacity: 0, x: -20 }}
               key={index}
               transition={{ delay: index * 0.05 }}
@@ -75,7 +75,7 @@ export function BenefitsSection({
               <CheckCircle
                 className={`h-5 w-5 ${colors.checkColor} mt-0.5 shrink-0`}
               />
-              <span className="text-gray-700">{item}</span>
+              <span className="text-muted-foreground">{item}</span>
             </motion.div>
           ))}
         </div>

@@ -22,7 +22,7 @@ export function ProductOptions() {
 
   return (
     <Card className="border-0 p-8 shadow-lg">
-      <h2 className="mb-6 font-bold text-2xl text-gray-900">Product Options</h2>
+      <h2 className="mb-6 font-bold text-2xl text-foreground">Product Options</h2>
       <div className="space-y-6">
         {productOptions.map((option, index) => (
           <div key={index}>

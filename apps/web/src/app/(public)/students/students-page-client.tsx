@@ -161,7 +161,7 @@ export const StudentsPageClient = ({
       <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white shadow-2xl">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.25),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.35),transparent_55%)]" />
         <div className="relative px-6 py-16 sm:px-10 lg:px-14">
-          <Badge className="bg-white/10 text-white text-xs uppercase tracking-wide">
+          <Badge className="bg-background/10 text-white text-xs uppercase tracking-wide">
             {t("hero.badge", { campus: campusLabel })}
           </Badge>
           <h1 className="mt-6 max-w-2xl font-semibold text-3xl text-white leading-tight sm:text-5xl">
@@ -173,14 +173,14 @@ export const StudentsPageClient = ({
           <div className="mt-8 flex flex-wrap gap-3">
             <Button
               asChild
-              className="bg-white text-primary-100 hover:bg-white/90"
+              className="bg-background text-primary-100 hover:bg-background/90"
               size="lg"
             >
               <Link href="/membership">{t("hero.ctaPrimary")}</Link>
             </Button>
             <Button
               asChild
-              className="border-white/60 bg-transparent text-white hover:bg-white/10"
+              className="border-white/60 bg-transparent text-white hover:bg-background/10"
               size="lg"
               variant="secondary"
             >
@@ -192,7 +192,7 @@ export const StudentsPageClient = ({
             </Button>
             <Button
               asChild
-              className="text-white hover:bg-white/10"
+              className="text-white hover:bg-background/10"
               size="lg"
               variant="ghost"
             >
@@ -235,7 +235,7 @@ export const StudentsPageClient = ({
               }
               return (
                 <Card
-                  className="min-w-[280px] max-w-xs border-primary/10 bg-white"
+                  className="min-w-[280px] max-w-xs border-primary/10 "
                   key={key}
                 >
                   <CardHeader className="space-y-2">
@@ -271,7 +271,7 @@ export const StudentsPageClient = ({
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card className="border-primary/10 bg-white">
+        <Card className="border-primary/10 ">
           <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-primary-100">
@@ -322,7 +322,7 @@ export const StudentsPageClient = ({
           </CardContent>
         </Card>
 
-        <Card className="border-primary/10 bg-white">
+        <Card className="border-primary/10 ">
           <CardHeader>
             <CardTitle className="text-primary-100">
               {t("funding.title")}
@@ -360,7 +360,7 @@ export const StudentsPageClient = ({
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.map((event) => (
-            <Card className="border-primary/10 bg-white" key={event.$id}>
+            <Card className="border-primary/10 " key={event.$id}>
               <CardHeader>
                 <Badge className="w-fit text-xs uppercase" variant="secondary">
                   {formatDateReadable(
@@ -390,7 +390,7 @@ export const StudentsPageClient = ({
             </Card>
           ))}
           {!filteredEvents.length && (
-            <Card className="border-primary/10 bg-white">
+            <Card className="border-primary/10 ">
               <CardContent className="py-10 text-center text-muted-foreground text-sm">
                 {t("events.empty", { campus: campusLabel })}
               </CardContent>
@@ -419,7 +419,7 @@ export const StudentsPageClient = ({
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredJobs.map((job) => (
-            <Card className="border-primary/10 bg-white" key={job.$id}>
+            <Card className="border-primary/10 " key={job.$id}>
               <CardHeader className="space-y-2">
                 <Badge className="w-fit text-xs uppercase" variant="secondary">
                   {job.job_ref?.department?.Name || t("jobs.unknownDepartment")}
@@ -460,7 +460,7 @@ export const StudentsPageClient = ({
             </Card>
           ))}
           {!filteredJobs.length && (
-            <Card className="border-primary/10 bg-white">
+            <Card className="border-primary/10 ">
               <CardContent className="py-10 text-center text-muted-foreground text-sm">
                 {t("jobs.empty")}
               </CardContent>
@@ -486,7 +486,7 @@ export const StudentsPageClient = ({
             },
             { href: "/safety", label: t("resources.safety") },
           ].map((link) => (
-            <Card className="border-primary/10 bg-white" key={link.href}>
+            <Card className="border-primary/10 " key={link.href}>
               <CardContent className="flex h-full flex-col justify-between gap-4 py-6">
                 <p className="font-semibold text-primary-100 text-sm">
                   {link.label}

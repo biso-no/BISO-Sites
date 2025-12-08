@@ -116,7 +116,7 @@ const StatPill = ({
   label: string;
   value: string | number;
 }) => (
-  <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left shadow-glow">
+  <div className="rounded-xl border border-white/20 bg-background/10 px-4 py-3 text-left shadow-glow">
     <div className="font-semibold text-white text-xl">{value}</div>
     <div className="text-white/70 text-xs uppercase tracking-wide">{label}</div>
   </div>
@@ -204,7 +204,7 @@ export function CampusHero({
             <div className="mb-6 flex flex-wrap gap-3">
               <Button
                 asChild
-                className="bg-white text-primary-100 hover:bg-white/90"
+                className="bg-background text-primary-100 hover:bg-background/90"
                 size="lg"
               >
                 <Link href="/membership">
@@ -213,7 +213,7 @@ export function CampusHero({
               </Button>
               <Button
                 asChild
-                className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                className="border-white/40 bg-background/10 text-white hover:bg-background/20 hover:text-white"
                 size="lg"
                 variant="outline"
               >
@@ -223,7 +223,7 @@ export function CampusHero({
               </Button>
               <Button
                 asChild
-                className="text-white hover:bg-white/10 hover:text-white"
+                className="text-white hover:bg-background/10 hover:text-white"
                 size="lg"
                 variant="ghost"
               >

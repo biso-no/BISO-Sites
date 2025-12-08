@@ -61,12 +61,12 @@ export function EventsListClient({
   return (
     <>
       {/* Filters & Search */}
-      <div className="sticky top-20 z-40 border-gray-100 border-b bg-white/95 shadow-lg backdrop-blur-lg">
+      <div className="sticky top-20 z-40 border-border border-b bg-background/95 shadow-lg backdrop-blur-lg">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             {/* Search */}
             <div className="relative w-full md:w-96">
-              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-gray-400" />
+              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
               <Input
                 className="w-full border-[#3DA9E0]/20 pr-10 pl-10 focus:border-[#3DA9E0]"
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -76,7 +76,7 @@ export function EventsListClient({
               />
               {searchQuery && (
                 <button
-                  className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 hover:text-gray-600"
+                  className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground hover:text-muted-foreground"
                   onClick={() => setSearchQuery("")}
                   type="button"
                 >
@@ -107,7 +107,7 @@ export function EventsListClient({
             </div>
           </div>
 
-          <div className="mt-4 text-center text-gray-600">
+          <div className="mt-4 text-center text-muted-foreground">
             Showing {filteredEvents.length}{" "}
             {filteredEvents.length === 1 ? "event" : "events"}
           </div>
@@ -143,11 +143,11 @@ export function EventsListClient({
             className="py-20 text-center"
             initial={{ opacity: 0 }}
           >
-            <Calendar className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-            <h3 className="mb-2 font-bold text-2xl text-gray-900">
+            <Calendar className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+            <h3 className="mb-2 font-bold text-2xl text-foreground">
               No events found
             </h3>
-            <p className="mb-6 text-gray-600">
+            <p className="mb-6 text-muted-foreground">
               Try adjusting your filters or search query
             </p>
             <Button

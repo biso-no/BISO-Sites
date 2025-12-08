@@ -147,7 +147,7 @@ export function NewExpenseClient({
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       {/* Header */}
       <div className="relative h-[30vh] overflow-hidden">
         <ImageWithFallback

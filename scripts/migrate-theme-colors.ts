@@ -53,22 +53,9 @@ const REPLACEMENT_RULES: Array<{
   // ============================================
   // BACKGROUND COLORS
   // ============================================
+  // NOTE: Order matters! More specific (longer) patterns must come FIRST
 
-  // bg-white inside Card component - skip (Card already has bg-card)
-  {
-    pattern: /\bbg-white\b/g,
-    replacement: (match, context) => {
-      // Skip if inside a Card className (Card component handles its own bg)
-      if (/<Card[^>]*className="[^"]*bg-white/.test(context)) {
-        // Check if this is the Card's own className - remove bg-white as Card has bg-card
-        return null; // Will be handled by Card-specific rule
-      }
-      return "bg-background";
-    },
-    description: "bg-white → bg-background",
-  },
-
-  // Section backgrounds with gradients
+  // Section backgrounds with gradients (must come before standalone bg-white)
   {
     pattern: /\bfrom-gray-50\s+to-white\b/g,
     replacement: "from-section to-background",
@@ -88,6 +75,20 @@ const REPLACEMENT_RULES: Array<{
     pattern: /\bbg-linear-to-b\s+from-white\s+to-gray-50\b/g,
     replacement: "bg-linear-to-b from-background to-section",
     description: "gradient white to gray-50 → background to section",
+  },
+
+  // bg-white - context aware (after gradient rules)
+  {
+    pattern: /\bbg-white\b/g,
+    replacement: (match, context) => {
+      // If inside a Card className, remove bg-white entirely (Card has bg-card by default)
+      // We detect this by checking if the context shows <Card with className containing bg-white
+      if (/<Card[^>]*className="[^"]*bg-white/.test(context)) {
+        return ""; // Remove - Card already has bg-card
+      }
+      return "bg-background";
+    },
+    description: "bg-white → bg-background (or removed in Card)",
   },
 
   // Standalone gray backgrounds
@@ -237,6 +238,92 @@ const REPLACEMENT_RULES: Array<{
   },
 
   // ============================================
+  // DARK MODE VARIANTS (dark: prefix)
+  // These are explicit dark mode overrides that should use tokens
+  // ============================================
+  {
+    pattern: /\bdark:text-gray-100\b/g,
+    replacement: "dark:text-foreground",
+    description: "dark:text-gray-100 → dark:text-foreground",
+  },
+  {
+    pattern: /\bdark:text-gray-200\b/g,
+    replacement: "dark:text-foreground",
+    description: "dark:text-gray-200 → dark:text-foreground",
+  },
+  {
+    pattern: /\bdark:text-gray-300\b/g,
+    replacement: "dark:text-muted-foreground",
+    description: "dark:text-gray-300 → dark:text-muted-foreground",
+  },
+  {
+    pattern: /\bdark:text-gray-400\b/g,
+    replacement: "dark:text-muted-foreground",
+    description: "dark:text-gray-400 → dark:text-muted-foreground",
+  },
+  {
+    pattern: /\bdark:bg-gray-900\b/g,
+    replacement: "dark:bg-background",
+    description: "dark:bg-gray-900 → dark:bg-background",
+  },
+  {
+    pattern: /\bdark:bg-gray-800\b/g,
+    replacement: "dark:bg-card",
+    description: "dark:bg-gray-800 → dark:bg-card",
+  },
+  {
+    pattern: /\bdark:bg-gray-700\b/g,
+    replacement: "dark:bg-muted",
+    description: "dark:bg-gray-700 → dark:bg-muted",
+  },
+  {
+    pattern: /\bdark:border-gray-700\b/g,
+    replacement: "dark:border-border",
+    description: "dark:border-gray-700 → dark:border-border",
+  },
+  {
+    pattern: /\bdark:border-gray-600\b/g,
+    replacement: "dark:border-border",
+    description: "dark:border-gray-600 → dark:border-border",
+  },
+  {
+    pattern: /\bdark:from-gray-950\b/g,
+    replacement: "dark:from-background",
+    description: "dark:from-gray-950 → dark:from-background",
+  },
+  {
+    pattern: /\bdark:to-gray-900\b/g,
+    replacement: "dark:to-card",
+    description: "dark:to-gray-900 → dark:to-card",
+  },
+  {
+    pattern: /\bdark:from-gray-900\b/g,
+    replacement: "dark:from-card",
+    description: "dark:from-gray-900 → dark:from-card",
+  },
+  {
+    pattern: /\bdark:to-gray-950\b/g,
+    replacement: "dark:to-background",
+    description: "dark:to-gray-950 → dark:to-background",
+  },
+  {
+    pattern: /\bdark:via-blue-900\b/g,
+    replacement: "dark:via-card",
+    description: "dark:via-blue-900 → dark:via-card",
+  },
+  {
+    pattern: /\bdark:to-indigo-900\b/g,
+    replacement: "dark:to-card",
+    description: "dark:to-indigo-900 → dark:to-card",
+  },
+  // Spinner border - keep as muted
+  {
+    pattern: /\bborder-gray-400\b/g,
+    replacement: "border-muted-foreground",
+    description: "border-gray-400 → border-muted-foreground",
+  },
+
+  // ============================================
   // HOVER STATES
   // ============================================
   {
@@ -301,18 +388,12 @@ const REPLACEMENT_RULES: Array<{
 
 /**
  * Patterns to SKIP - these are intentional and should not be changed
+ * NOTE: These patterns check the CONTEXT around a match, not the match itself
+ * Be careful not to make them too broad or they'll skip valid replacements
  */
-const SKIP_PATTERNS_IN_CONTENT = [
-  // Brand colors - keep these
-  /\[#3DA9E0\]/,
-  /\[#001731\]/,
-  /\[#F7D64A\]/,
-  // Explicit white text on dark backgrounds (intentional)
-  /text-white/,
-  // Gradient brand colors
-  /from-\[#/,
-  /to-\[#/,
-  /via-\[#/,
+const SKIP_PATTERNS_IN_CONTENT: RegExp[] = [
+  // Currently empty - all patterns are handled by skipInContext on individual rules
+  // Add patterns here only if they should skip ALL replacements in that context
 ];
 
 async function getAllFiles(dir: string): Promise<string[]> {
@@ -393,6 +474,9 @@ function processFile(content: string, filePath: string): { newContent: string; c
       return replacement;
     });
   }
+
+  // Clean up any double spaces created by removals
+  newContent = newContent.replace(/  +/g, " ");
 
   return { newContent, changes };
 }

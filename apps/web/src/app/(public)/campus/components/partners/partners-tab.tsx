@@ -67,7 +67,7 @@ export function PartnersTab({
   if (!businessBenefits || businessBenefits.length === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-gray-600">{localeCopy.empty}</p>
+        <p className="text-muted-foreground">{localeCopy.empty}</p>
       </div>
     );
   }
@@ -79,8 +79,8 @@ export function PartnersTab({
         className="mb-12 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-gray-900">{localeCopy.heading}</h2>
-        <p className="mx-auto max-w-2xl text-gray-600">
+        <h2 className="mb-4 text-foreground">{localeCopy.heading}</h2>
+        <p className="mx-auto max-w-2xl text-muted-foreground">
           {localeCopy.lead(campusName)}
         </p>
       </motion.div>
@@ -91,19 +91,19 @@ export function PartnersTab({
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#001731] to-[#3DA9E0]">
               <Briefcase className="h-6 w-6 text-white" />
             </div>
-            <h3 className="text-gray-900">{localeCopy.benefitsTitle}</h3>
+            <h3 className="text-foreground">{localeCopy.benefitsTitle}</h3>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {businessBenefits.map((benefit, index) => (
               <motion.div
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-start gap-3 rounded-lg bg-white p-4"
+                className="flex items-start gap-3 rounded-lg bg-background p-4"
                 initial={{ opacity: 0, x: -20 }}
                 key={index}
                 transition={{ delay: index * 0.05 }}
               >
                 <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#001731]" />
-                <span className="text-gray-700">{benefit}</span>
+                <span className="text-muted-foreground">{benefit}</span>
               </motion.div>
             ))}
           </div>
@@ -117,8 +117,8 @@ export function PartnersTab({
             transition={{ delay: 0.2 }}
           >
             <Globe className="mx-auto mb-6 h-16 w-16 text-[#3DA9E0]" />
-            <h3 className="mb-4 text-gray-900">{localeCopy.ctaHeading}</h3>
-            <p className="mx-auto mb-8 max-w-xl text-gray-600">
+            <h3 className="mb-4 text-foreground">{localeCopy.ctaHeading}</h3>
+            <p className="mx-auto mb-8 max-w-xl text-muted-foreground">
               {localeCopy.ctaBody}
             </p>
             <Button

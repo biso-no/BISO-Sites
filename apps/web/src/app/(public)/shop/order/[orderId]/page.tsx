@@ -40,7 +40,7 @@ const statusConfig = {
   },
   authorized: {
     Icon: Clock,
-    color: "text-blue-600",
+    color: "text-primary",
     bg: "bg-blue-50",
     border: "border-blue-200",
     label: "Authorized",
@@ -56,9 +56,9 @@ const statusConfig = {
   },
   cancelled: {
     Icon: XCircle,
-    color: "text-gray-600",
-    bg: "bg-gray-50",
-    border: "border-gray-200",
+    color: "text-muted-foreground",
+    bg: "bg-section",
+    border: "border-border",
     label: "Cancelled",
     description: "Order cancelled",
   },
@@ -96,10 +96,10 @@ function SuccessBanner({
       <div className="flex items-start gap-4">
         <CheckCircle2 className="h-8 w-8 shrink-0 text-green-600" />
         <div>
-          <h2 className="mb-2 font-bold text-2xl text-gray-900">
+          <h2 className="mb-2 font-bold text-2xl text-foreground">
             Thank You for Your Purchase!
           </h2>
-          <p className="mb-4 text-gray-700">
+          <p className="mb-4 text-muted-foreground">
             Your payment has been confirmed and your order is being processed.
             You&apos;ll receive a confirmation email shortly with pickup
             details.
@@ -128,10 +128,10 @@ function FailedBanner({
       <div className="flex items-start gap-4">
         <XCircle className={`h-8 w-8 ${config.color} shrink-0`} />
         <div>
-          <h2 className="mb-2 font-bold text-2xl text-gray-900">
+          <h2 className="mb-2 font-bold text-2xl text-foreground">
             {isCancelled ? "Order Cancelled" : "Payment Failed"}
           </h2>
-          <p className="mb-4 text-gray-700">
+          <p className="mb-4 text-muted-foreground">
             {isCancelled
               ? "This order was cancelled. Your items are still in your cart if you'd like to try again."
               : "The payment for this order failed. Please try again or contact support if the problem persists."}
@@ -151,7 +151,7 @@ function CustomerInfoCard({ order }: { order: Orders }) {
 
   return (
     <Card className="border-0 p-6 shadow-lg">
-      <h3 className="mb-4 font-bold text-gray-900">Customer Information</h3>
+      <h3 className="mb-4 font-bold text-foreground">Customer Information</h3>
       <div className="space-y-2 text-sm">
         {order.buyer_name && (
           <div>
@@ -177,22 +177,22 @@ function PickupInfoCard() {
   return (
     <Card className="border-0 bg-blue-50 p-6 shadow-lg">
       <div className="flex items-start gap-3">
-        <Package className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <Package className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div>
-          <h4 className="mb-2 font-semibold text-gray-900">Pickup Details</h4>
-          <p className="mb-2 text-gray-700 text-sm">
+          <h4 className="mb-2 font-semibold text-foreground">Pickup Details</h4>
+          <p className="mb-2 text-muted-foreground text-sm">
             Your order will be available for pickup at the BISO office.
           </p>
-          <div className="text-gray-600 text-sm">
+          <div className="text-muted-foreground text-sm">
             <div className="mb-1 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-blue-600" />
+              <MapPin className="h-4 w-4 text-primary" />
               <span>Main Building, Ground Floor</span>
             </div>
             <strong>Hours:</strong> Monday-Friday, 10:00-16:00
             <br />
             <strong>Pickup:</strong> Within 5 working days
           </div>
-          <p className="mt-3 text-gray-500 text-xs">
+          <p className="mt-3 text-muted-foreground text-xs">
             You&apos;ll receive an email when your order is ready for pickup.
           </p>
         </div>
@@ -235,7 +235,7 @@ async function OrderDetails({
   const heroTitle = showSuccessBanner ? "Order Confirmed!" : "Order Details";
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       {/* Hero Section */}
       <div className="relative h-[40vh] overflow-hidden">
         <ImageWithFallback
@@ -289,7 +289,7 @@ async function OrderDetails({
           <div className="space-y-8 md:col-span-2">
             {/* Order Status Card */}
             <Card className="border-0 p-6 shadow-lg">
-              <h2 className="mb-4 font-bold text-gray-900 text-xl">
+              <h2 className="mb-4 font-bold text-foreground text-xl">
                 Order Status
               </h2>
               <div className="mb-4 flex items-center gap-3">
@@ -298,9 +298,9 @@ async function OrderDetails({
                 >
                   {config.label}
                 </Badge>
-                <span className="text-gray-600">{config.description}</span>
+                <span className="text-muted-foreground">{config.description}</span>
               </div>
-              <div className="text-gray-600 text-sm">
+              <div className="text-muted-foreground text-sm">
                 <div>
                   <strong>Order Date:</strong> {orderDate}
                 </div>
@@ -314,7 +314,7 @@ async function OrderDetails({
 
             {/* Order Items & Totals Card */}
             <Card className="border-0 p-6 shadow-lg">
-              <h2 className="mb-6 font-bold text-gray-900 text-xl">
+              <h2 className="mb-6 font-bold text-foreground text-xl">
                 Order Items
               </h2>
               <div className="space-y-4">
@@ -326,23 +326,23 @@ async function OrderDetails({
                   };
                   return (
                     <div
-                      className="flex gap-4 rounded-lg bg-gray-50 p-4"
+                      className="flex gap-4 rounded-lg bg-section p-4"
                       key={index}
                     >
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-foreground">
                           {typedItem.name}
                         </h3>
-                        <div className="mt-1 text-gray-600 text-sm">
+                        <div className="mt-1 text-muted-foreground text-sm">
                           Quantity: {typedItem.quantity}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold text-gray-900">
+                        <div className="font-semibold text-foreground">
                           {(typedItem.price * typedItem.quantity).toFixed(2)}{" "}
                           {order.currency}
                         </div>
-                        <div className="text-gray-600 text-sm">
+                        <div className="text-muted-foreground text-sm">
                           {typedItem.price.toFixed(2)} {order.currency} each
                         </div>
                       </div>
@@ -355,7 +355,7 @@ async function OrderDetails({
 
               {/* Totals Breakdown */}
               <div className="space-y-2">
-                <div className="flex justify-between text-gray-700">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
                   <span>
                     {order.subtotal.toFixed(2)} {order.currency}
@@ -375,12 +375,12 @@ async function OrderDetails({
                     {order.member_discount_percent ?? 0}%)
                   </div>
                 )}
-                <div className="flex justify-between text-gray-600 text-sm">
+                <div className="flex justify-between text-muted-foreground text-sm">
                   <span>Shipping</span>
                   <span className="text-green-600">Free (Campus Pickup)</span>
                 </div>
                 <Separator className="my-2" />
-                <div className="flex justify-between font-bold text-gray-900 text-xl">
+                <div className="flex justify-between font-bold text-foreground text-xl">
                   <span>Total</span>
                   <span>
                     {order.total.toFixed(2)} {order.currency}
@@ -423,7 +423,7 @@ export default function OrderPage({ params, searchParams }: OrderPageProps) {
 
 function OrderDetailsSkeleton() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <div className="relative h-[40vh]">
         <Skeleton className="h-full w-full" />
       </div>

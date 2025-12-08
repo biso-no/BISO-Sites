@@ -148,7 +148,7 @@ export function EventDetailModal({
       >
         <motion.div
           animate={{ scale: 1, opacity: 1 }}
-          className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+          className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-background shadow-2xl"
           exit={{ scale: 0.95, opacity: 0 }}
           initial={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
@@ -165,11 +165,11 @@ export function EventDetailModal({
 
             {/* Close Button */}
             <button
-              className="absolute top-4 right-4 rounded-full bg-white/90 p-2 transition-colors hover:bg-white"
+              className="absolute top-4 right-4 rounded-full bg-background/90 p-2 transition-colors hover:bg-background"
               onClick={onClose}
               type="button"
             >
-              <X className="h-6 w-6 text-gray-900" />
+              <X className="h-6 w-6 text-foreground" />
             </button>
 
             {/* Category Badge */}
@@ -214,16 +214,16 @@ export function EventDetailModal({
                 <div className="flex items-start gap-3">
                   <Calendar className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                   <div>
-                    <div className="font-medium text-gray-900">Date</div>
-                    <div className="text-gray-600">{startDate}</div>
+                    <div className="font-medium text-foreground">Date</div>
+                    <div className="text-muted-foreground">{startDate}</div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <Clock className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                   <div>
-                    <div className="font-medium text-gray-900">Time</div>
-                    <div className="text-gray-600">{timeRange}</div>
+                    <div className="font-medium text-foreground">Time</div>
+                    <div className="text-muted-foreground">{timeRange}</div>
                   </div>
                 </div>
               </div>
@@ -232,8 +232,8 @@ export function EventDetailModal({
                 <div className="flex items-start gap-3">
                   <MapPin className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                   <div>
-                    <div className="font-medium text-gray-900">Location</div>
-                    <div className="text-gray-600">
+                    <div className="font-medium text-foreground">Location</div>
+                    <div className="text-muted-foreground">
                       {eventData?.location || "Location TBA"}
                     </div>
                   </div>
@@ -243,8 +243,8 @@ export function EventDetailModal({
                   <div className="flex items-start gap-3">
                     <Users className="mt-1 h-5 w-5 text-[#3DA9E0]" />
                     <div>
-                      <div className="font-medium text-gray-900">Attendees</div>
-                      <div className="text-gray-600">{attendees} attending</div>
+                      <div className="font-medium text-foreground">Attendees</div>
+                      <div className="text-muted-foreground">{attendees} attending</div>
                     </div>
                   </div>
                 )}
@@ -265,11 +265,11 @@ export function EventDetailModal({
 
             {/* Description */}
             <div className="mb-8">
-              <h3 className="mb-4 font-bold text-2xl text-gray-900">
+              <h3 className="mb-4 font-bold text-2xl text-foreground">
                 About This Event
               </h3>
               <div className="prose prose-gray max-w-none">
-                <p className="whitespace-pre-line text-gray-600">
+                <p className="whitespace-pre-line text-muted-foreground">
                   {event.description}
                 </p>
               </div>
@@ -278,14 +278,14 @@ export function EventDetailModal({
             {/* Highlights */}
             {highlights.length > 0 && (
               <div className="mb-8">
-                <h3 className="mb-4 font-bold text-2xl text-gray-900">
+                <h3 className="mb-4 font-bold text-2xl text-foreground">
                   Event Highlights
                 </h3>
                 <ul className="grid gap-3 md:grid-cols-2">
                   {highlights.map((highlight: string, idx: number) => (
                     <li className="flex items-start gap-2" key={idx}>
                       <div className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#3DA9E0]" />
-                      <span className="text-gray-600">{highlight}</span>
+                      <span className="text-muted-foreground">{highlight}</span>
                     </li>
                   ))}
                 </ul>
@@ -295,7 +295,7 @@ export function EventDetailModal({
             {/* Agenda */}
             {agenda.length > 0 && (
               <div className="mb-8">
-                <h3 className="mb-4 font-bold text-2xl text-gray-900">
+                <h3 className="mb-4 font-bold text-2xl text-foreground">
                   Agenda
                 </h3>
                 <div className="space-y-4">
@@ -310,7 +310,7 @@ export function EventDetailModal({
                             {item.time}
                           </Badge>
                         </div>
-                        <div className="text-gray-600">{item.activity}</div>
+                        <div className="text-muted-foreground">{item.activity}</div>
                       </div>
                     )
                   )}

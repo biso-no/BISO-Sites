@@ -103,7 +103,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
             <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
             {category && (
               <Badge
-                className={`absolute top-4 left-4 ${CATEGORY_COLORS[category] || "bg-gray-100 text-gray-900"}`}
+                className={`absolute top-4 left-4 ${CATEGORY_COLORS[category] || "bg-muted text-foreground"}`}
               >
                 {category}
               </Badge>
@@ -113,23 +113,23 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
           {/* Content */}
           <div className="flex flex-col justify-between p-8">
             <div>
-              <h3 className="mb-4 text-gray-900">{event.title}</h3>
+              <h3 className="mb-4 text-foreground">{event.title}</h3>
 
               <div className="mb-6 space-y-3">
-                <div className="flex items-center gap-3 text-gray-600">
+                <div className="flex items-center gap-3 text-muted-foreground">
                   <Calendar className="h-5 w-5 text-[#3DA9E0]" />
                   <span>{dateString}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-600">
+                <div className="flex items-center gap-3 text-muted-foreground">
                   <Clock className="h-5 w-5 text-[#3DA9E0]" />
                   <span>{timeString}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-600">
+                <div className="flex items-center gap-3 text-muted-foreground">
                   <MapPin className="h-5 w-5 text-[#3DA9E0]" />
                   <span>{eventRef?.location || "Location TBA"}</span>
                 </div>
                 {attendees && (
-                  <div className="flex items-center gap-3 text-gray-600">
+                  <div className="flex items-center gap-3 text-muted-foreground">
                     <Users className="h-5 w-5 text-[#3DA9E0]" />
                     <span>{attendees} attending</span>
                   </div>
@@ -159,11 +159,11 @@ export function EventsClient({ events }: EventsClientProps) {
 
   if (!events || events.length === 0) {
     return (
-      <section className="bg-white py-24" id="events">
+      <section className="bg-background py-24" id="events">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="mb-6 text-gray-900">{t("empty")}</h2>
-            <p className="text-gray-600">{t("emptyDescription")}</p>
+            <h2 className="mb-6 text-foreground">{t("empty")}</h2>
+            <p className="text-muted-foreground">{t("emptyDescription")}</p>
           </div>
         </div>
       </section>
@@ -171,7 +171,7 @@ export function EventsClient({ events }: EventsClientProps) {
   }
 
   return (
-    <section className="bg-white py-24" id="events">
+    <section className="bg-background py-24" id="events">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -183,14 +183,14 @@ export function EventsClient({ events }: EventsClientProps) {
           <div className="mb-6 inline-block rounded-full bg-[#3DA9E0]/10 px-4 py-2 text-[#001731]">
             {t("upcomingEvents")}
           </div>
-          <h2 className="mb-6 text-gray-900">
+          <h2 className="mb-6 text-foreground">
             {t("dontMissOut")}
             <br />
             <span className="bg-linear-to-r from-[#3DA9E0] to-[#001731] bg-clip-text text-transparent">
               {t("amazingExperiences")}
             </span>
           </h2>
-          <p className="mx-auto max-w-2xl text-gray-600">{t("description")}</p>
+          <p className="mx-auto max-w-2xl text-muted-foreground">{t("description")}</p>
         </motion.div>
 
         {/* Events Grid */}

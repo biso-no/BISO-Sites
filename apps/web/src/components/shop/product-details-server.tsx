@@ -58,7 +58,7 @@ export function ProductDetailsServer({
     "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080";
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       {/* Hero Section (SSR) */}
       <div className="relative h-[60vh] overflow-hidden">
         <ImageWithFallback
@@ -138,10 +138,10 @@ export function ProductDetailsServer({
             {/* Description (SSR) */}
             <div>
               <Card className="border-0 p-8 shadow-lg">
-                <h2 className="mb-4 font-bold text-2xl text-gray-900">
+                <h2 className="mb-4 font-bold text-2xl text-foreground">
                   Product Description
                 </h2>
-                <p className="whitespace-pre-line text-gray-700 leading-relaxed">
+                <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
                   {product.description}
                 </p>
               </Card>
@@ -159,16 +159,16 @@ export function ProductDetailsServer({
             <div>
               <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                 <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <h4 className="mb-2 font-semibold text-gray-900">
+                    <h4 className="mb-2 font-semibold text-foreground">
                       Campus Pickup
                     </h4>
-                    <p className="mb-2 text-gray-700 text-sm">
+                    <p className="mb-2 text-muted-foreground text-sm">
                       All products are available for pickup at the BISO office.
                       No shipping, no hassle!
                     </p>
-                    <div className="text-gray-600 text-sm">
+                    <div className="text-muted-foreground text-sm">
                       <strong>BISO Office:</strong> Main Building, Ground Floor
                       <br />
                       <strong>Hours:</strong> Monday-Friday, 10:00-16:00
