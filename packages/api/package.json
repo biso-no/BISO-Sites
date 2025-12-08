@@ -19,7 +19,7 @@
   "dependencies": {
     "@types/node": "^24.9.2",
     "appwrite": "^21.3.0",
-    "next": "15.5.4",
+    "next": "16.0.7",
     "node-appwrite": "^20.2.1",
     "react": "^19.2.0"
   }
