@@ -89,7 +89,7 @@ export function Navigation({
  animate={{ y: 0 }}
  className={`fixed top-0 right-0 left-0 z-50 transition-all duration-300 ${
  isScrolled
- ? "bg-brand-dark/95 shadow-brand/10 shadow-lg backdrop-blur-lg"
+ ? "bg-nav-background shadow-brand/10 shadow-lg backdrop-blur-lg"
  : "bg-transparent"
  }`}
  initial={{ y: -100 }}
@@ -135,14 +135,15 @@ export function Navigation({
  {item.label}
  </Link>
  ))}
- <SelectCampus campuses={campuses} />
- <ModeToggle />
- <LocaleSwitcher size="sm" variant="ghost" />
- <Link href="/partner">{t("partner")}</Link>
+ <SelectCampus campuses={campuses} className="text-white" />
+ <ModeToggle className="text-white" />
+ <LocaleSwitcher className="text-white" size="sm" variant="ghost" />
+ <Link className="text-white hover:text-brand" href="/partner">{t("partner")}</Link>
  <Button
- className="border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+ className="border-brand bg-transparent text-white hover:bg-brand hover:text-white"
  onClick={() => router.push("/member")}
  size="sm"
+ variant="outline"
  >
  {t("memberPortal")}
  </Button>
@@ -169,7 +170,7 @@ export function Navigation({
  {isMobileMenuOpen && (
  <motion.div
  animate={{ opacity: 1, height: "auto" }}
- className="border-brand-border border-t bg-brand-dark/95 backdrop-blur-lg md:hidden"
+ className="border-brand-border border-t bg-nav-background backdrop-blur-lg md:hidden"
  exit={{ opacity: 0, height: 0 }}
  initial={{ opacity: 0, height: 0 }}
  >
@@ -196,8 +197,12 @@ export function Navigation({
  </Link>
  ))}
  <SelectCampus campuses={campuses} />
- <Button className="w-full border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
- Member Portal
+ <Button
+ className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
+ onClick={() => router.push("/member")}
+ variant="outline"
+ >
+ {t("memberPortal")}
  </Button>
  </div>
  </motion.div>

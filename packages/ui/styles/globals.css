@@ -87,6 +87,10 @@
   --color-brand-accent: var(--brand-accent);
   --color-brand-accent-muted: var(--brand-accent-muted);
 
+  /* Navigation (always dark navy) */
+  --color-nav-background: var(--nav-background);
+  --color-nav-foreground: var(--nav-foreground);
+
   /* Animation tokens */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;

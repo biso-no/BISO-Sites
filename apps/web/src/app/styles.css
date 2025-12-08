@@ -74,6 +74,10 @@
   /* Brand accent (BISO Yellow #F7D64A) */
   --brand-accent: oklch(0.88 0.17 95);               /* #F7D64A - BISO yellow */
   --brand-accent-muted: oklch(0.88 0.17 95 / 10%);   /* Yellow at 10% */
+
+  /* Navigation - always dark navy regardless of theme */
+  --nav-background: oklch(0.15 0.05 250 / 95%);      /* #001731 at 95% */
+  --nav-foreground: oklch(1 0 0);                    /* White text */
 }
 
 /* App-specific color values - Dark mode */
@@ -134,6 +138,10 @@
   /* Brand accent - slightly more visible in dark mode */
   --brand-accent: oklch(0.88 0.17 95);               /* Same yellow */
   --brand-accent-muted: oklch(0.88 0.17 95 / 5%);    /* Lower opacity for dark bg */
+
+  /* Navigation - same as light mode (always dark navy) */
+  --nav-background: oklch(0.15 0.05 250 / 95%);      /* #001731 at 95% */
+  --nav-foreground: oklch(1 0 0);                    /* White text */
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);

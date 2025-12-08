@@ -16,14 +16,18 @@ const themes = [
   { label: "System", value: "system" },
 ];
 
-export const ModeToggle = () => {
+type ModeToggleProps = {
+  className?: string;
+};
+
+export const ModeToggle = ({ className }: ModeToggleProps) => {
   const { setTheme } = useTheme();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          className="shrink-0 text-foreground"
+          className={`shrink-0 ${className ?? "text-foreground"}`}
           size="icon"
           variant="ghost"
         >
