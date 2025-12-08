@@ -16,11 +16,11 @@ export function NewsClient({ news }: NewsClientProps) {
   const t = useTranslations("home.news");
   if (!news || news.length === 0) {
     return (
-      <section className="bg-linear-to-b from-white to-gray-50 py-24" id="news">
+      <section className="bg-linear-to-b from-background to-section py-24" id="news">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="mb-6 text-gray-900">{t("empty")}</h2>
-            <p className="text-gray-600">{t("emptyDescription")}</p>
+            <h2 className="mb-6 text-foreground">{t("empty")}</h2>
+            <p className="text-muted-foreground">{t("emptyDescription")}</p>
           </div>
         </div>
       </section>
@@ -56,7 +56,7 @@ export function NewsClient({ news }: NewsClientProps) {
   };
 
   return (
-    <section className="bg-linear-to-b from-white to-gray-50 py-24" id="news">
+    <section className="bg-linear-to-b from-background to-section py-24" id="news">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -68,7 +68,7 @@ export function NewsClient({ news }: NewsClientProps) {
           <div className="mb-6 inline-block rounded-full bg-[#3DA9E0]/10 px-4 py-2 text-[#001731]">
             {t("cta")}
           </div>
-          <h2 className="mb-6 text-gray-900">
+          <h2 className="mb-6 text-foreground">
             {t("stayUpdated")}
             <br />
             <span className="bg-linear-to-r from-[#3DA9E0] to-[#001731] bg-clip-text text-transparent">
@@ -109,8 +109,8 @@ export function NewsClient({ news }: NewsClientProps) {
                       )}
                     </span>
                   </div>
-                  <h3 className="mb-4 text-gray-900">{featuredNews.title}</h3>
-                  <p className="mb-6 text-gray-600">
+                  <h3 className="mb-4 text-foreground">{featuredNews.title}</h3>
+                  <p className="mb-6 text-muted-foreground">
                     {featuredNews.description
                       ?.replace(/<[^>]+>/g, "")
                       .slice(0, 200)}
@@ -161,8 +161,8 @@ export function NewsClient({ news }: NewsClientProps) {
                         )}
                       </span>
                     </div>
-                    <h4 className="mb-3 text-gray-900">{item.title}</h4>
-                    <p className="mb-4 text-gray-600">
+                    <h4 className="mb-3 text-foreground">{item.title}</h4>
+                    <p className="mb-4 text-muted-foreground">
                       {item.description?.replace(/<[^>]+>/g, "").slice(0, 150)}
                       ...
                     </p>
@@ -191,7 +191,7 @@ export function NewsClient({ news }: NewsClientProps) {
         >
           <Link href="/news">
             <Button
-              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              className="border-primary text-primary hover:bg-accent"
               size="lg"
               variant="outline"
             >

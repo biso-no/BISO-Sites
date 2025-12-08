@@ -29,7 +29,7 @@ export function EventCollectionList({
   return (
     <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/5 to-[#001731]/5 p-8 shadow-lg">
       <div className="mb-6 flex items-start justify-between">
-        <h2 className="font-bold text-2xl text-gray-900">
+        <h2 className="font-bold text-2xl text-foreground">
           {isCollectionParent
             ? "Events in This Collection"
             : "Other Events in This Collection"}
@@ -48,7 +48,7 @@ export function EventCollectionList({
 
       {isCollectionParent && collectionPricing === "bundle" && (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
-          <p className="text-gray-700 text-sm">
+          <p className="text-muted-foreground text-sm">
             <strong>Bundle Pricing:</strong> Pay {priceDisplay} once to get
             access to all {collectionEvents.length} events in this collection.
           </p>
@@ -57,7 +57,7 @@ export function EventCollectionList({
 
       {isCollectionParent && collectionPricing === "individual" && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <p className="text-gray-700 text-sm">
+          <p className="text-muted-foreground text-sm">
             <strong>Individual Pricing:</strong> Each event can be registered
             for separately. Choose the events that interest you most!
           </p>
@@ -104,7 +104,7 @@ export function EventCollectionList({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="mb-2 flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-foreground">
                           {collectionEvent.title}
                         </h3>
                         {collectionPricing === "individual" && (
@@ -113,7 +113,7 @@ export function EventCollectionList({
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-3 text-gray-600 text-sm">
+                      <div className="flex flex-wrap gap-3 text-muted-foreground text-sm">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           <span>{colStartDate}</span>

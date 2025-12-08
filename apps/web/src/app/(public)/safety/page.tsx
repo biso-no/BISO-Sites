@@ -179,7 +179,7 @@ export default function SafetyPage() {
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
-              <Eye className="h-5 w-5 text-blue-600" />
+              <Eye className="h-5 w-5 text-primary" />
               <CardTitle className="text-blue-900">
                 {t("infoCards.witness.title")}
               </CardTitle>

@@ -61,7 +61,7 @@ export function NewsFilters({
   };
 
   return (
-    <div className="sticky top-20 z-40 border-gray-100 border-b bg-white/95 shadow-lg backdrop-blur-lg">
+    <div className="sticky top-20 z-40 border-border border-b bg-background/95 shadow-lg backdrop-blur-lg">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
           {/* Search */}
@@ -69,7 +69,7 @@ export function NewsFilters({
             className="relative w-full md:w-96"
             onSubmit={handleSearchSubmit}
           >
-            <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-gray-400" />
+            <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
             <Input
               className="w-full border-[#3DA9E0]/20 pr-10 pl-10 focus:border-[#3DA9E0]"
               disabled={isPending}
@@ -80,7 +80,7 @@ export function NewsFilters({
             />
             {localSearch && (
               <button
-                className="-translate-y-1/2 absolute top-1/2 right-3 text-gray-400 transition-colors hover:text-gray-600"
+                className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground transition-colors hover:text-muted-foreground"
                 disabled={isPending}
                 onClick={clearSearch}
                 type="button"
@@ -114,7 +114,7 @@ export function NewsFilters({
 
         {isPending && (
           <div className="mt-4 text-center">
-            <div className="inline-flex items-center gap-2 text-gray-600">
+            <div className="inline-flex items-center gap-2 text-muted-foreground">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#3DA9E0] border-t-transparent" />
               <span className="text-sm">Loading articles...</span>
             </div>

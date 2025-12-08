@@ -27,7 +27,7 @@ export function ProductPriceCard({ product, isMember }: ProductPriceCardProps) {
 
   return (
     <Card className="border-0 p-6 shadow-lg">
-      <h3 className="mb-4 font-bold text-gray-900">Price Details</h3>
+      <h3 className="mb-4 font-bold text-foreground">Price Details</h3>
       <div className="space-y-3">
         <PriceDetails
           displayPrice={displayPrice}
@@ -38,13 +38,13 @@ export function ProductPriceCard({ product, isMember }: ProductPriceCardProps) {
           savings={savings}
         />
         <Separator />
-        <div className="flex justify-between text-gray-600 text-sm">
+        <div className="flex justify-between text-muted-foreground text-sm">
           <span>Shipping</span>
           <span className="font-medium text-green-600">
             Free (Campus Pickup)
           </span>
         </div>
-        <div className="flex justify-between text-gray-600 text-sm">
+        <div className="flex justify-between text-muted-foreground text-sm">
           <span>Tax</span>
           <span>Included</span>
         </div>

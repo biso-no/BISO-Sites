@@ -31,7 +31,7 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
   return (
     <section>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-gray-900">
+        <h2 className="text-foreground">
           {locale === "en" ? "Open Positions" : "Ledige verv"}
         </h2>
         <Button className="text-[#3DA9E0]" size="sm" variant="ghost">
@@ -52,10 +52,10 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
           >
             <Link href={`/jobs/${job.job_ref?.slug}`}>
               <Card className="group cursor-pointer border-0 p-6 shadow-md transition-all hover:border-l-4 hover:border-l-[#3DA9E0] hover:shadow-lg">
-                <h4 className="mb-2 text-gray-900 transition-colors group-hover:text-[#3DA9E0]">
+                <h4 className="mb-2 text-foreground transition-colors group-hover:text-[#3DA9E0]">
                   {job.title}
                 </h4>
-                <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm">
+                <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
                   {job.job_ref?.department?.Name && (
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-[#3DA9E0]" />

@@ -39,9 +39,9 @@ type ReadonlyFieldProps = {
 const ReadonlyField = ({ label, value, helperText }: ReadonlyFieldProps) => (
   <div>
     <Label>{label}</Label>
-    <Input className="bg-gray-50" disabled value={value || ""} />
+    <Input className="bg-section" disabled value={value || ""} />
     {helperText ? (
-      <p className="mt-1 text-gray-500 text-xs">{helperText}</p>
+      <p className="mt-1 text-muted-foreground text-xs">{helperText}</p>
     ) : null}
   </div>
 );
@@ -69,10 +69,10 @@ const EditableField = ({
         value={value || ""}
       />
     ) : (
-      <div className="rounded-md bg-gray-50 p-3 text-gray-700">{value}</div>
+      <div className="rounded-md bg-section p-3 text-muted-foreground">{value}</div>
     )}
     {helperText ? (
-      <p className="mt-1 text-gray-500 text-xs">{helperText}</p>
+      <p className="mt-1 text-muted-foreground text-xs">{helperText}</p>
     ) : null}
   </div>
 );
@@ -114,7 +114,7 @@ export function ProfileStep({
 
   return (
     <Card className="border-0 p-8 shadow-lg">
-      <h2 className="mb-6 text-gray-900">Contact & Banking Information</h2>
+      <h2 className="mb-6 text-foreground">Contact & Banking Information</h2>
 
       {!canProceed && (
         <Alert className="mb-6 border-orange-200 bg-orange-50">
@@ -128,7 +128,7 @@ export function ProfileStep({
       {/* Contact Information */}
       <div className="mb-8">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-gray-900">Contact Information</h3>
+          <h3 className="text-foreground">Contact Information</h3>
           {!editing && canProceed && (
             <Button
               className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
@@ -194,7 +194,7 @@ export function ProfileStep({
       {/* Banking Information */}
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-gray-900">Banking Information</h3>
+          <h3 className="text-foreground">Banking Information</h3>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

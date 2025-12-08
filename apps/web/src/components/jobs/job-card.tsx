@@ -83,7 +83,7 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
 
         {/* Content */}
         <div className="flex grow flex-col p-6">
-          <p className="mb-4 text-gray-600">{shortDescription}</p>
+          <p className="mb-4 text-muted-foreground">{shortDescription}</p>
 
           {paid && salary && (
             <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3">
@@ -106,10 +106,10 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
           <div className="mb-4 grow space-y-4">
             {responsibilities.length > 0 && (
               <div>
-                <h4 className="mb-2 font-semibold text-gray-900 text-sm">
+                <h4 className="mb-2 font-semibold text-foreground text-sm">
                   Responsibilities
                 </h4>
-                <ul className="space-y-1 text-gray-600 text-sm">
+                <ul className="space-y-1 text-muted-foreground text-sm">
                   {responsibilities
                     .slice(0, 3)
                     .map((resp: string, idx: number) => (
@@ -124,10 +124,10 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
 
             {requirements.length > 0 && (
               <div>
-                <h4 className="mb-2 font-semibold text-gray-900 text-sm">
+                <h4 className="mb-2 font-semibold text-foreground text-sm">
                   Requirements
                 </h4>
-                <ul className="space-y-1 text-gray-600 text-sm">
+                <ul className="space-y-1 text-muted-foreground text-sm">
                   {requirements.slice(0, 3).map((req: string, idx: number) => (
                     <li className="flex items-start gap-2" key={idx}>
                       <span className="mt-1 text-[#3DA9E0]">•</span>
@@ -139,9 +139,9 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
             )}
           </div>
 
-          <div className="mt-auto border-gray-100 border-t pt-4">
+          <div className="mt-auto border-border border-t pt-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-gray-500 text-sm">
+              <span className="text-muted-foreground text-sm">
                 Application Deadline
               </span>
               <span className="font-medium text-[#001731] text-sm">

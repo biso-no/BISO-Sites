@@ -110,7 +110,7 @@ export function ProductCard({
             )}
 
           {productData.stock === 0 && (
-            <div className="absolute right-4 bottom-4 rounded-full bg-gray-900/90 px-3 py-1 backdrop-blur-sm">
+            <div className="absolute right-4 bottom-4 rounded-full bg-inverted/90 px-3 py-1 backdrop-blur-sm">
               <span className="font-medium text-sm text-white">
                 Out of Stock
               </span>
@@ -120,10 +120,10 @@ export function ProductCard({
 
         {/* Content */}
         <div className="flex grow flex-col p-6">
-          <h3 className="mb-3 font-semibold text-gray-900 text-xl">
+          <h3 className="mb-3 font-semibold text-foreground text-xl">
             {product.title}
           </h3>
-          <p className="mb-4 line-clamp-2 grow text-gray-600 text-sm">
+          <p className="mb-4 line-clamp-2 grow text-muted-foreground text-sm">
             {shortDescription}
           </p>
 
@@ -131,7 +131,7 @@ export function ProductCard({
           <div className="mb-6">
             {hasDiscount ? (
               <div className="flex items-center gap-2">
-                <span className="text-gray-400 text-lg line-through">
+                <span className="text-muted-foreground text-lg line-through">
                   {formatPrice(productData.regular_price)}
                 </span>
                 <span className="font-bold text-[#3DA9E0] text-xl">
@@ -139,7 +139,7 @@ export function ProductCard({
                 </span>
               </div>
             ) : (
-              <div className="font-bold text-gray-900 text-xl">
+              <div className="font-bold text-foreground text-xl">
                 {formatPrice(displayPrice)}
               </div>
             )}
@@ -147,7 +147,7 @@ export function ProductCard({
             {!isMember &&
               productData.member_price &&
               productData.member_price < productData.regular_price && (
-                <p className="mt-1 text-gray-500 text-sm">
+                <p className="mt-1 text-muted-foreground text-sm">
                   Members pay only {formatPrice(productData.member_price)}
                 </p>
               )}

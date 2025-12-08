@@ -20,7 +20,7 @@ export default async function ContactPage() {
         title={t("title")}
       />
       <p className="text-muted-foreground text-sm">{t("intro")}</p>
-      <div className="rounded-lg border bg-white p-4">
+      <div className="rounded-lg border bg-background p-4">
         <div className="font-semibold">{t("national.title")}</div>
         <div className="text-muted-foreground text-sm">
           {t("national.body")}
@@ -28,7 +28,7 @@ export default async function ContactPage() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {campuses.map((c) => (
-          <div className="rounded-lg border bg-white p-4" key={c.$id}>
+          <div className="rounded-lg border bg-background p-4" key={c.$id}>
             <div className="font-semibold">{c.name}</div>
             {c.email && (
               <div className="text-muted-foreground text-sm">

@@ -68,7 +68,7 @@ const ProfileInputField = ({
   return (
     <div className={colSpan ? "md:col-span-2" : undefined}>
       <label
-        className="mb-1 block font-medium text-gray-700 text-sm"
+        className="mb-1 block font-medium text-muted-foreground text-sm"
         htmlFor={name}
       >
         {label} {required ? "*" : null}
@@ -76,7 +76,7 @@ const ProfileInputField = ({
       <input
         {...register(name)}
         className={`w-full rounded-lg border px-4 py-2.5 ${
-          error ? "border-red-500" : "border-gray-300"
+          error ? "border-red-500" : "border-border"
         } transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500`}
         disabled={disabled}
         id={name}
@@ -226,7 +226,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg">
+    <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-lg">
       <form className="space-y-6 p-6" onSubmit={handleSubmit(onSubmit)}>
         <FormMessages
           errorMessage={errorMessage}
@@ -244,8 +244,8 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
           ))}
         </div>
 
-        <div className="border-gray-100 border-t pt-6 md:col-span-2">
-          <h3 className="mb-4 font-medium text-gray-800 text-lg">
+        <div className="border-border border-t pt-6 md:col-span-2">
+          <h3 className="mb-4 font-medium text-foreground text-lg">
             Address Information
           </h3>
         </div>
@@ -261,8 +261,8 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
           ))}
         </div>
 
-        <div className="border-gray-100 border-t pt-6 md:col-span-2">
-          <h3 className="mb-4 font-medium text-gray-800 text-lg">
+        <div className="border-border border-t pt-6 md:col-span-2">
+          <h3 className="mb-4 font-medium text-foreground text-lg">
             Banking Information
           </h3>
         </div>

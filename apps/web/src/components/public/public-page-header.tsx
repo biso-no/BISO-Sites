@@ -63,7 +63,7 @@ export function PublicPageHeader({
       <div className="relative z-10 flex flex-col gap-6">
         <div className="flex flex-wrap items-center gap-3 text-primary-40 text-xs uppercase tracking-[0.18em]">
           <Badge
-            className="border-primary/15 bg-white/80 px-3 py-1 font-semibold text-[0.68rem] text-primary-80 uppercase tracking-wide shadow-sm"
+            className="border-primary/15 bg-background/80 px-3 py-1 font-semibold text-[0.68rem] text-primary-80 uppercase tracking-wide shadow-sm"
             variant="outline"
           >
             {eyebrowLabel}
@@ -86,7 +86,7 @@ export function PublicPageHeader({
                 </p>
               )}
             </div>
-            <div className="rounded-2xl border border-primary/15 bg-white/80 px-4 py-3 font-medium text-primary-70 text-sm shadow-sm backdrop-blur">
+            <div className="rounded-2xl border border-primary/15 bg-background/80 px-4 py-3 font-medium text-primary-70 text-sm shadow-sm backdrop-blur">
               <span className="block text-[0.7rem] text-primary-60 uppercase tracking-[0.16em]">
                 Nåværende
               </span>

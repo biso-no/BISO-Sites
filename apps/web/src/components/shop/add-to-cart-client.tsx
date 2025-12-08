@@ -81,7 +81,7 @@ export function AddToCartClient({
                 <div className="mb-2 font-bold text-4xl text-white">
                   {formatPrice(displayPrice)}
                 </div>
-                <Badge className="border-0 bg-white/20 text-white">
+                <Badge className="border-0 bg-background/20 text-white">
                   Save {savings} NOK
                 </Badge>
               </>
@@ -93,7 +93,7 @@ export function AddToCartClient({
           </div>
 
           {!isMember && memberPrice && memberPrice < regularPrice && (
-            <Alert className="mb-4 border-white/20 bg-white/10">
+            <Alert className="mb-4 border-white/20 bg-background/10">
               <AlertCircle className="h-4 w-4 text-white" />
               <AlertDescription className="text-sm text-white">
                 Become a BISO member to save {regularPrice - memberPrice} NOK on
@@ -103,7 +103,7 @@ export function AddToCartClient({
           )}
 
           <Button
-            className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mb-3 w-full bg-background text-[#001731] hover:bg-background/90 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={stock === 0}
             onClick={handleAddToCart}
           >
@@ -131,7 +131,7 @@ export function AddToCartClient({
         transition={{ delay: 0.4 }}
       >
         <Card className="border-0 p-6 shadow-lg">
-          <h3 className="mb-4 font-bold text-gray-900">Price Details</h3>
+          <h3 className="mb-4 font-bold text-foreground">Price Details</h3>
           <div className="space-y-3">
             <PriceDetails
               displayPrice={displayPrice}
@@ -142,13 +142,13 @@ export function AddToCartClient({
               savings={savings}
             />
             <Separator />
-            <div className="flex justify-between text-gray-600 text-sm">
+            <div className="flex justify-between text-muted-foreground text-sm">
               <span>Shipping</span>
               <span className="font-medium text-green-600">
                 Free (Campus Pickup)
               </span>
             </div>
-            <div className="flex justify-between text-gray-600 text-sm">
+            <div className="flex justify-between text-muted-foreground text-sm">
               <span>Tax</span>
               <span>Included</span>
             </div>

@@ -19,7 +19,7 @@ const categoryColors: Record<string, string> = {
   "Press Release": "bg-[#001731]/10 text-[#001731] border-[#001731]/20",
   "Student Life": "bg-[#3DA9E0]/10 text-[#001731] border-[#3DA9E0]/20",
   Achievements: "bg-cyan-100 text-[#001731] border-cyan-200",
-  default: "bg-gray-100 text-gray-900 border-gray-200",
+  default: "bg-muted text-foreground border-border",
 };
 
 // Helper to format relative time
@@ -99,10 +99,10 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
                   <Clock className="h-4 w-4" />
                   <span className="text-sm">{relativeTime}</span>
                 </div>
-                <h3 className="mb-4 font-bold text-3xl text-gray-900">
+                <h3 className="mb-4 font-bold text-3xl text-foreground">
                   {article.title}
                 </h3>
-                <p className="mb-6 text-gray-600 text-lg">{shortDescription}</p>
+                <p className="mb-6 text-muted-foreground text-lg">{shortDescription}</p>
                 <Button className="group w-fit border-0 bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
                   Read More
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -144,10 +144,10 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
               <Clock className="h-4 w-4" />
               <span className="text-sm">{relativeTime}</span>
             </div>
-            <h4 className="mb-3 line-clamp-2 font-bold text-gray-900 text-xl">
+            <h4 className="mb-3 line-clamp-2 font-bold text-foreground text-xl">
               {article.title}
             </h4>
-            <p className="mb-4 line-clamp-3 grow text-gray-600">
+            <p className="mb-4 line-clamp-3 grow text-muted-foreground">
               {shortDescription}
             </p>
             <Button

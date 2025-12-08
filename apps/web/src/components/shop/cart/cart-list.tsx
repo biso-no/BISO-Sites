@@ -64,7 +64,7 @@ export function CartList({ isMember }: { isMember: boolean }) {
       {/* Countdown Timer */}
       {timeRemaining && (
         <Alert className="border-blue-200 bg-blue-50">
-          <Clock className="h-4 w-4 text-blue-600" />
+          <Clock className="h-4 w-4 text-primary" />
           <AlertDescription className="flex items-center gap-2 text-blue-800">
             <span className="font-medium">Items reserved for:</span>
             <span className="font-bold font-mono">{timeRemaining}</span>

@@ -30,8 +30,8 @@ export function StockStatusCard({
 
   const stockConfig = {
     loading: {
-      bg: "bg-gray-50",
-      text: "text-gray-600",
+      bg: "bg-section",
+      text: "text-muted-foreground",
       label: "Checking availability...",
     },
     outOfStock: {
@@ -63,11 +63,11 @@ export function StockStatusCard({
         <div className="flex items-center gap-3">
           <Package className={`h-5 w-5 ${currentStockConfig.text}`} />
           <div className="flex-1">
-            <div className="font-semibold text-gray-900">
+            <div className="font-semibold text-foreground">
               {currentStockConfig.label}
             </div>
             {!isLoading && availableStock !== null && availableStock > 10 && (
-              <div className="text-gray-600 text-sm">
+              <div className="text-muted-foreground text-sm">
                 {availableStock} available
               </div>
             )}
@@ -75,7 +75,7 @@ export function StockStatusCard({
               availableStock !== null &&
               (totalStock ?? 0) > 0 &&
               availableStock < (totalStock ?? 0) && (
-                <div className="mt-1 text-gray-500 text-xs">
+                <div className="mt-1 text-muted-foreground text-xs">
                   {(totalStock ?? 0) - availableStock} reserved in carts
                 </div>
               )}

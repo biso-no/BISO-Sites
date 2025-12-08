@@ -28,7 +28,7 @@ export default async function ProductDetailsPage({
   const userId = null;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <ProductHero isMember={isMember} product={product} />
 
       <ProductPurchaseProvider

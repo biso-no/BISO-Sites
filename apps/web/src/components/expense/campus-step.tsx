@@ -63,7 +63,7 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
 
   return (
     <Card className="border-0 p-8 shadow-lg">
-      <h2 className="mb-6 text-gray-900">Campus & Department</h2>
+      <h2 className="mb-6 text-foreground">Campus & Department</h2>
 
       <div className="space-y-6">
         <div>
@@ -86,7 +86,7 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
               ))}
             </SelectContent>
           </Select>
-          <p className="mt-1 text-gray-500 text-xs">
+          <p className="mt-1 text-muted-foreground text-xs">
             Select the campus this expense is associated with
           </p>
         </div>
@@ -119,7 +119,7 @@ export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
                   ))}
               </SelectContent>
             </Select>
-            <p className="mt-1 text-gray-500 text-xs">
+            <p className="mt-1 text-muted-foreground text-xs">
               Select the department to charge this expense to
             </p>
           </motion.div>

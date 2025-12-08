@@ -126,7 +126,7 @@ export function ProfileCompletionBanner({
               </span>
             </p>
             <Button
-              className="mt-2 gap-2 border-amber-200 bg-white text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
+              className="mt-2 gap-2 border-amber-200 bg-background text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
               onClick={() => setIsOpen(true)}
               size="sm"
               variant="outline"

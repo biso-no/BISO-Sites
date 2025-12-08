@@ -48,7 +48,7 @@ export function MemberPortalHeader({
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20 border-4 border-white/20">
               {userAvatar && <AvatarImage alt={userName} src={userAvatar} />}
-              <AvatarFallback className="bg-white/20 text-2xl text-white">
+              <AvatarFallback className="bg-background/20 text-2xl text-white">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -63,7 +63,7 @@ export function MemberPortalHeader({
           </div>
 
           <div className="hidden items-center gap-4 md:flex">
-            <Card className="border-white/20 bg-white/10 px-6 py-3 backdrop-blur-sm">
+            <Card className="border-white/20 /10 px-6 py-3 backdrop-blur-sm">
               <div className="mb-1 text-sm text-white/70">
                 {t("common.membershipExpires")}
               </div>
@@ -76,7 +76,7 @@ export function MemberPortalHeader({
                 })}
               </div>
             </Card>
-            <Card className="border-white/20 bg-white/10 px-6 py-3 backdrop-blur-sm">
+            <Card className="border-white/20 /10 px-6 py-3 backdrop-blur-sm">
               <div className="mb-1 text-sm text-white/70">
                 {t("common.daysRemaining")}
               </div>

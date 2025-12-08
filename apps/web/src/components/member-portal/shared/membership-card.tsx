@@ -25,7 +25,7 @@ export function MembershipCard({
           <div className="mb-1 text-sm text-white/70">{t("bisoMember")}</div>
           <div className="font-semibold text-white">{userName}</div>
         </div>
-        <Badge className="border-white/30 bg-white/20 text-white">
+        <Badge className="border-white/30 bg-background/20 text-white">
           {membershipType}
         </Badge>
       </div>
@@ -45,7 +45,7 @@ export function MembershipCard({
             })}
           </div>
         </div>
-        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white/20">
+        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-background/20">
           <QrCode className="h-10 w-10 text-white" />
         </div>
       </div>

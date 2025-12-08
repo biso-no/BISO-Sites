@@ -41,14 +41,14 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   const categories = ["All", ...uniqueCategories];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <NewsHero />
 
       {/* Filters - Client component for interactivity */}
       <Suspense
         fallback={
-          <div className="h-32 border-gray-100 border-b bg-white/95 shadow-lg backdrop-blur-lg" />
+          <div className="h-32 border-border border-b bg-background/95 shadow-lg backdrop-blur-lg" />
         }
       >
         <NewsFilters
@@ -59,7 +59,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
       </Suspense>
 
       {/* News Grid */}
-      <div className="bg-linear-to-b from-gray-50 to-white py-16">
+      <div className="bg-linear-to-b from-section to-background py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Suspense fallback={<NewsGridSkeleton />}>
             <NewsGrid

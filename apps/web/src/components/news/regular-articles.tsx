@@ -26,10 +26,10 @@ export function RegularArticles({
           viewport={{ once: true }}
           whileInView={{ opacity: 1, y: 0 }}
         >
-          <div className="mb-4 inline-block rounded-full bg-gray-100 px-4 py-2 font-medium text-gray-900 text-sm">
+          <div className="mb-4 inline-block rounded-full bg-muted px-4 py-2 font-medium text-foreground text-sm">
             More News
           </div>
-          <h2 className="font-bold text-3xl text-gray-900 md:text-4xl">
+          <h2 className="font-bold text-3xl text-foreground md:text-4xl">
             Latest Updates
           </h2>
         </motion.div>

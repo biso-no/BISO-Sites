@@ -170,7 +170,7 @@ export function TeamTab({
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <Card
-              className="h-full animate-pulse rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-card"
+              className="h-full animate-pulse rounded-3xl border border-primary/10 /80 p-6 shadow-card"
               key={index}
             >
               <div className="flex flex-col items-center gap-4">
@@ -219,10 +219,10 @@ export function TeamTab({
         className="mb-12 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-gray-900">
+        <h2 className="mb-4 text-foreground">
           {locale === "en" ? "Meet Our Team" : "Møt vårt team"}
         </h2>
-        <p className="mx-auto max-w-2xl text-gray-600">
+        <p className="mx-auto max-w-2xl text-muted-foreground">
           {getTeamDescription(locale, campusName)}
         </p>
       </motion.div>

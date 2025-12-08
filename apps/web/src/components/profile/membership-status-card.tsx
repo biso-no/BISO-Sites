@@ -213,7 +213,7 @@ function MembershipStatusCard({
   }, [handleVerificationError, handleVerificationSuccess, hasBIIdentity]);
 
   return (
-    <Card className="relative overflow-hidden border border-primary/10 bg-white shadow-card-soft">
+    <Card className="relative overflow-hidden border border-primary/10  shadow-card-soft">
       <h2 className="sr-only">BI Student Membership</h2>
       {/* Background flair */}
       <div className="pointer-events-none absolute inset-0 opacity-70">

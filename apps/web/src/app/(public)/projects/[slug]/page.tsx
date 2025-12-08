@@ -90,7 +90,7 @@ const HeroSection = ({
   event?: ParsedLargeEvent | null;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) => (
-  <section className="overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-lg">
+  <section className="overflow-hidden rounded-3xl border border-primary/10 bg-background shadow-lg">
     <div
       className="h-2 w-full"
       style={{
@@ -192,7 +192,7 @@ const SectionsGrid = ({
   return (
     <section className="grid gap-6 md:grid-cols-2">
       {sections.map((section) => (
-        <Card className="border-primary/10 bg-white" key={section.title}>
+        <Card className="border-primary/10 " key={section.title}>
           <CardHeader>
             <CardTitle className="text-primary-100">{section.title}</CardTitle>
           </CardHeader>
@@ -260,7 +260,7 @@ const CampusScheduleCard = ({
     campusMeta?.campus_name ?? campusMeta?.campus_id ?? campusId;
 
   return (
-    <Card className="border-primary/10 bg-white" key={campusId}>
+    <Card className="border-primary/10 " key={campusId}>
       <CardHeader>
         <CardTitle className="text-lg text-primary-100">{campusName}</CardTitle>
       </CardHeader>

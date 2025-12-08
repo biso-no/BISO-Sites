@@ -5,13 +5,13 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-gray-50 to-white p-4">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-section to-background p-4">
       <Card className="max-w-md border-0 p-12 text-center shadow-xl">
-        <FileX className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-        <h2 className="mb-2 font-bold text-2xl text-gray-900">
+        <FileX className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+        <h2 className="mb-2 font-bold text-2xl text-foreground">
           Expense Not Found
         </h2>
-        <p className="mb-6 text-gray-600">
+        <p className="mb-6 text-muted-foreground">
           The expense you're looking for doesn't exist or has been removed.
         </p>
         <Link href="/fs">

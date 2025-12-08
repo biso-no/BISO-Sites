@@ -54,7 +54,7 @@ async function EventDetails({ id }: { id: string }) {
   const price = formatEventPrice(eventData?.price);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <EventHero event={event} />
 
       <div className="mx-auto max-w-5xl px-4 py-12">
@@ -101,7 +101,7 @@ async function EventDetails({ id }: { id: string }) {
 
 function EventDetailsSkeleton() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <div className="relative h-[50vh]">
         <Skeleton className="h-full w-full" />
       </div>

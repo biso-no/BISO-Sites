@@ -15,7 +15,7 @@ async function ExpenseList() {
     return (
       <Card className="border-0 p-12 text-center shadow-lg">
         <p className="mb-4 text-red-600">Failed to load expenses</p>
-        <p className="text-gray-600">{result.error}</p>
+        <p className="text-muted-foreground">{result.error}</p>
       </Card>
     );
   }
@@ -23,11 +23,11 @@ async function ExpenseList() {
   if (result.expenses.length === 0) {
     return (
       <Card className="border-0 p-12 text-center shadow-lg">
-        <FileText className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-        <h3 className="mb-2 font-semibold text-gray-900 text-xl">
+        <FileText className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+        <h3 className="mb-2 font-semibold text-foreground text-xl">
           No reimbursements yet
         </h3>
-        <p className="mb-6 text-gray-600">
+        <p className="mb-6 text-muted-foreground">
           Submit your first reimbursement to get started
         </p>
         <Link href="/fs/new">
@@ -51,7 +51,7 @@ async function ExpenseList() {
 
 export default function ExpensesPage() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       {/* Hero Section */}
       <div className="relative h-[50vh] overflow-hidden">
         <ImageWithFallback
@@ -73,7 +73,7 @@ export default function ExpensesPage() {
             </p>
             <Link href="/fs/new">
               <Button
-                className="bg-white text-[#001731] hover:bg-white/90"
+                className="bg-background text-[#001731] hover:bg-background/90"
                 size="lg"
               >
                 <Plus className="mr-2 h-5 w-5" />
@@ -87,10 +87,10 @@ export default function ExpensesPage() {
       {/* Reimbursements List */}
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-8">
-          <h2 className="mb-2 font-bold text-3xl text-gray-900">
+          <h2 className="mb-2 font-bold text-3xl text-foreground">
             Your Reimbursements
           </h2>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Track the status of your submitted reimbursements
           </p>
         </div>

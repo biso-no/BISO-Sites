@@ -44,7 +44,7 @@ export function EventActions({
       </p>
       {ticketUrl ? (
         <Button
-          className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90"
+          className="mb-3 w-full bg-background text-[#001731] hover:bg-background/90"
           onClick={() => window.open(ticketUrl, "_blank")}
         >
           <Ticket className="mr-2 h-4 w-4" />
@@ -52,13 +52,13 @@ export function EventActions({
           <ExternalLink className="ml-2 h-4 w-4" />
         </Button>
       ) : (
-        <Button className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90">
+        <Button className="mb-3 w-full bg-background text-[#001731] hover:bg-background/90">
           <Ticket className="mr-2 h-4 w-4" />
           Register Now
         </Button>
       )}
       <Button
-        className="w-full border-white text-white hover:bg-white/10"
+        className="w-full border-white text-white hover:bg-background/10"
         onClick={handleShare}
         variant="outline"
       >

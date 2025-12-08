@@ -10,7 +10,7 @@ export function HeroSkeleton() {
 
 export function AboutSkeleton() {
   return (
-    <section className="bg-linear-to-b from-gray-50 to-white py-24">
+    <section className="bg-linear-to-b from-section to-background py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Stats */}
         <div className="mb-20 grid grid-cols-2 gap-6 md:grid-cols-4">
@@ -57,7 +57,7 @@ export function AboutSkeleton() {
 
 export function EventsSkeleton() {
   return (
-    <section className="bg-white py-24">
+    <section className="bg-background py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-16 text-center">
@@ -98,7 +98,7 @@ export function EventsSkeleton() {
 
 export function NewsSkeleton() {
   return (
-    <section className="bg-linear-to-b from-white to-gray-50 py-24">
+    <section className="bg-linear-to-b from-background to-section py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-16 text-center">

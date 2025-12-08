@@ -35,10 +35,10 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
     <section>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="mb-2 text-gray-900">
+          <h2 className="mb-2 text-foreground">
             {locale === "en" ? "Upcoming Events" : "Kommende arrangementer"}
           </h2>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             {locale === "en"
               ? "Join us at these exciting events"
               : "Bli med på disse spennende arrangementene"}
@@ -84,14 +84,14 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
                 </div>
                 <div className="p-6">
                   {event.event_ref?.start_date && (
-                    <div className="mb-3 flex items-center gap-2 text-gray-600 text-sm">
+                    <div className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
                       <Calendar className="h-4 w-4 text-[#3DA9E0]" />
                       {formatDate(event.event_ref.start_date)}
                     </div>
                   )}
-                  <h3 className="mb-2 text-gray-900">{event.title}</h3>
+                  <h3 className="mb-2 text-foreground">{event.title}</h3>
                   {event.description && (
-                    <p className="line-clamp-2 text-gray-600 text-sm">
+                    <p className="line-clamp-2 text-muted-foreground text-sm">
                       {event.description.replace(/<[^>]+>/g, "")}
                     </p>
                   )}

@@ -11,7 +11,7 @@ export const metadata = {
 
 function CartSkeleton() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <div className="relative h-[40vh]">
         <Skeleton className="h-full w-full" />
       </div>
@@ -38,7 +38,7 @@ export default function CartPage() {
 
   return (
     <Suspense fallback={<CartSkeleton />}>
-      <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+      <div className="min-h-screen bg-linear-to-b from-section to-background">
         <CartHero />
 
         <div className="mx-auto max-w-6xl px-4 py-12">

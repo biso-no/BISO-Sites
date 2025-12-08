@@ -109,7 +109,7 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
   if (!hasBenefits) {
     return (
       <div className="py-12 text-center">
-        <p className="text-gray-600">{localeCopy.empty}</p>
+        <p className="text-muted-foreground">{localeCopy.empty}</p>
       </div>
     );
   }
@@ -121,8 +121,8 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
         className="mb-12 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-gray-900">{localeCopy.heading}</h2>
-        <p className="mx-auto max-w-2xl text-gray-600">
+        <h2 className="mb-4 text-foreground">{localeCopy.heading}</h2>
+        <p className="mx-auto max-w-2xl text-muted-foreground">
           {localeCopy.description}
         </p>
       </motion.div>

@@ -98,7 +98,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       {/* Hero Section */}
       <div className="relative h-[40vh] overflow-hidden">
         <ImageWithFallback
@@ -167,10 +167,10 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                     <span className="text-[#001731] text-sm">{department}</span>
                   </div>
                 </div>
-                <h2 className="mb-4 font-bold text-2xl text-gray-900">
+                <h2 className="mb-4 font-bold text-2xl text-foreground">
                   Position Overview
                 </h2>
-                <p className="whitespace-pre-line text-gray-700 leading-relaxed">
+                <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
                   {job.description}
                 </p>
               </Card>
@@ -184,14 +184,14 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 transition={{ delay: 0.2 }}
               >
                 <Card className="border-0 p-8 shadow-lg">
-                  <h2 className="mb-6 font-bold text-2xl text-gray-900">
+                  <h2 className="mb-6 font-bold text-2xl text-foreground">
                     What You'll Do
                   </h2>
                   <ul className="space-y-4">
                     {extendedResponsibilities.map((item, index) => (
                       <li className="flex items-start gap-3" key={index}>
                         <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#3DA9E0]" />
-                        <span className="text-gray-700">{item}</span>
+                        <span className="text-muted-foreground">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -207,14 +207,14 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 transition={{ delay: 0.3 }}
               >
                 <Card className="border-0 p-8 shadow-lg">
-                  <h2 className="mb-6 font-bold text-2xl text-gray-900">
+                  <h2 className="mb-6 font-bold text-2xl text-foreground">
                     What We're Looking For
                   </h2>
                   <ul className="space-y-4">
                     {extendedRequirements.map((item, index) => (
                       <li className="flex items-start gap-3" key={index}>
                         <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#3DA9E0]" />
-                        <span className="text-gray-700">{item}</span>
+                        <span className="text-muted-foreground">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -229,14 +229,14 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               transition={{ delay: 0.4 }}
             >
               <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/5 to-[#001731]/5 p-8 shadow-lg">
-                <h2 className="mb-6 font-bold text-2xl text-gray-900">
+                <h2 className="mb-6 font-bold text-2xl text-foreground">
                   What You'll Gain
                 </h2>
                 <ul className="space-y-4">
                   {benefits.map((item, index) => (
                     <li className="flex items-start gap-3" key={index}>
                       <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#3DA9E0]" />
-                      <span className="text-gray-700">{item}</span>
+                      <span className="text-muted-foreground">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -250,7 +250,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               transition={{ delay: 0.5 }}
             >
               <Card className="border-0 p-8 shadow-lg">
-                <h2 className="mb-6 font-bold text-2xl text-gray-900">
+                <h2 className="mb-6 font-bold text-2xl text-foreground">
                   Application Process
                 </h2>
                 <div className="space-y-6">
@@ -260,7 +260,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                     </div>
                     <div>
                       <h3 className="mb-2 font-semibold">Submit Application</h3>
-                      <p className="text-gray-600">{timeline.application}</p>
+                      <p className="text-muted-foreground">{timeline.application}</p>
                     </div>
                   </div>
 
@@ -272,7 +272,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                     </div>
                     <div>
                       <h3 className="mb-2 font-semibold">Interview</h3>
-                      <p className="text-gray-600">{timeline.interviews}</p>
+                      <p className="text-muted-foreground">{timeline.interviews}</p>
                     </div>
                   </div>
 
@@ -284,7 +284,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                     </div>
                     <div>
                       <h3 className="mb-2 font-semibold">Decision</h3>
-                      <p className="text-gray-600">{timeline.decision}</p>
+                      <p className="text-muted-foreground">{timeline.decision}</p>
                     </div>
                   </div>
 
@@ -296,7 +296,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                     </div>
                     <div>
                       <h3 className="mb-2 font-semibold">Get Started</h3>
-                      <p className="text-gray-600">{timeline.start}</p>
+                      <p className="text-muted-foreground">{timeline.start}</p>
                     </div>
                   </div>
                 </div>
@@ -319,11 +319,11 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                       <DollarSign className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-gray-600 text-sm">Compensation</div>
-                      <div className="font-bold text-gray-900">{salary}</div>
+                      <div className="text-muted-foreground text-sm">Compensation</div>
+                      <div className="font-bold text-foreground">{salary}</div>
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-muted-foreground text-sm">
                     This is a paid position with competitive compensation.
                   </p>
                 </Card>
@@ -334,11 +334,11 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                       <Heart className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-gray-600 text-sm">Position Type</div>
-                      <div className="font-bold text-gray-900">Volunteer</div>
+                      <div className="text-muted-foreground text-sm">Position Type</div>
+                      <div className="font-bold text-foreground">Volunteer</div>
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-muted-foreground text-sm">
                     Make an impact while gaining valuable experience and
                     connections.
                   </p>
@@ -353,31 +353,31 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
               transition={{ delay: 0.3 }}
             >
               <Card className="border-0 p-6 shadow-lg">
-                <h3 className="mb-4 font-bold text-gray-900">Key Details</h3>
+                <h3 className="mb-4 font-bold text-foreground">Key Details</h3>
                 <div className="space-y-4">
                   <div>
-                    <div className="mb-1 text-gray-500 text-sm">Department</div>
-                    <div className="text-gray-900">{department}</div>
+                    <div className="mb-1 text-muted-foreground text-sm">Department</div>
+                    <div className="text-foreground">{department}</div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="mb-1 text-gray-500 text-sm">Category</div>
-                    <div className="text-gray-900">{category}</div>
+                    <div className="mb-1 text-muted-foreground text-sm">Category</div>
+                    <div className="text-foreground">{category}</div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="mb-1 text-gray-500 text-sm">Openings</div>
-                    <div className="text-gray-900">
+                    <div className="mb-1 text-muted-foreground text-sm">Openings</div>
+                    <div className="text-foreground">
                       {openings} {openings === 1 ? "position" : "positions"}{" "}
                       available
                     </div>
                   </div>
                   <Separator />
                   <div>
-                    <div className="mb-1 text-gray-500 text-sm">
+                    <div className="mb-1 text-muted-foreground text-sm">
                       Application Deadline
                     </div>
-                    <div className="text-gray-900">{deadline}</div>
+                    <div className="text-foreground">{deadline}</div>
                   </div>
                 </div>
               </Card>
@@ -395,12 +395,12 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   Submit your application and join our team in creating amazing
                   experiences for students.
                 </p>
-                <Button className="mb-3 w-full bg-white text-[#001731] hover:bg-white/90">
+                <Button className="mb-3 w-full bg-background text-[#001731] hover:bg-background/90">
                   <Send className="mr-2 h-4 w-4" />
                   Submit Application
                 </Button>
                 <Button
-                  className="w-full border-white text-white hover:bg-white/10"
+                  className="w-full border-white text-white hover:bg-background/10"
                   variant="outline"
                 >
                   <Mail className="mr-2 h-4 w-4" />
@@ -417,12 +417,12 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
             >
               <Card className="border-0 bg-blue-50 p-6 shadow-lg">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                  <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <h4 className="mb-2 font-semibold text-gray-900">
+                    <h4 className="mb-2 font-semibold text-foreground">
                       Questions?
                     </h4>
-                    <p className="text-gray-600 text-sm">
+                    <p className="text-muted-foreground text-sm">
                       Contact our recruitment team at{" "}
                       <a
                         className="text-[#3DA9E0] hover:underline"

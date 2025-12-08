@@ -39,7 +39,7 @@ function PriceHelperText({
   eventData: NonNullable<ContentTranslations["event_ref"]> | undefined;
   collectionCount: number;
 }) {
-  const textClass = "text-gray-600 text-sm";
+  const textClass = "text-muted-foreground text-sm";
 
   if (price === "Free") {
     return <p className={textClass}>This event is free for all students!</p>;
@@ -107,8 +107,8 @@ export function EventPriceCard({
           <DollarSign className="h-6 w-6 text-white" />
         </div>
         <div>
-          <div className="text-gray-600 text-sm">{priceLabel}</div>
-          <div className="font-bold text-gray-900 text-xl">{displayPrice}</div>
+          <div className="text-muted-foreground text-sm">{priceLabel}</div>
+          <div className="font-bold text-foreground text-xl">{displayPrice}</div>
           {showMemberDiscount && (
             <div className="text-green-600 text-xs">Members: {memberPrice}</div>
           )}
@@ -151,37 +151,37 @@ export function EventDetailsCard({ event }: EventDetailsCardProps) {
 
   return (
     <Card className="border-0 p-6 shadow-lg">
-      <h3 className="mb-4 font-bold text-gray-900">Event Details</h3>
+      <h3 className="mb-4 font-bold text-foreground">Event Details</h3>
       <div className="space-y-4">
         <div>
-          <div className="mb-1 text-gray-500 text-sm">Date</div>
-          <div className="text-gray-900">{startDate}</div>
+          <div className="mb-1 text-muted-foreground text-sm">Date</div>
+          <div className="text-foreground">{startDate}</div>
         </div>
         <Separator />
         <div>
-          <div className="mb-1 text-gray-500 text-sm">Time</div>
-          <div className="text-gray-900">{timeRange}</div>
+          <div className="mb-1 text-muted-foreground text-sm">Time</div>
+          <div className="text-foreground">{timeRange}</div>
         </div>
         <Separator />
         <div>
-          <div className="mb-1 text-gray-500 text-sm">Location</div>
-          <div className="text-gray-900">
+          <div className="mb-1 text-muted-foreground text-sm">Location</div>
+          <div className="text-foreground">
             {eventData?.location || "Location TBA"}
           </div>
         </div>
         <Separator />
         <div>
-          <div className="mb-1 text-gray-500 text-sm">Category</div>
-          <div className="text-gray-900">{category}</div>
+          <div className="mb-1 text-muted-foreground text-sm">Category</div>
+          <div className="text-foreground">{category}</div>
         </div>
         {attendees > 0 && (
           <>
             <Separator />
             <div>
-              <div className="mb-1 text-gray-500 text-sm">
+              <div className="mb-1 text-muted-foreground text-sm">
                 Expected Attendance
               </div>
-              <div className="text-gray-900">{attendees} students</div>
+              <div className="text-foreground">{attendees} students</div>
             </div>
           </>
         )}
@@ -198,12 +198,12 @@ export function EventImportantInfoCard({ price }: EventImportantInfoCardProps) {
   return (
     <Card className="border-0 bg-blue-50 p-6 shadow-lg">
       <div className="flex items-start gap-3">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div>
-          <h4 className="mb-2 font-semibold text-gray-900">
+          <h4 className="mb-2 font-semibold text-foreground">
             Important Information
           </h4>
-          <ul className="space-y-1 text-gray-600 text-sm">
+          <ul className="space-y-1 text-muted-foreground text-sm">
             <li>• Please arrive 15 minutes before the event starts</li>
             <li>• Valid student ID required for entry</li>
             <li>• Registration confirmation will be sent via email</li>
@@ -221,10 +221,10 @@ export function EventContactCard() {
   return (
     <Card className="border-0 bg-blue-50 p-6 shadow-lg">
       <div className="flex items-start gap-3">
-        <Mail className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div>
-          <h4 className="mb-2 font-semibold text-gray-900">Questions?</h4>
-          <p className="text-gray-600 text-sm">
+          <h4 className="mb-2 font-semibold text-foreground">Questions?</h4>
+          <p className="text-muted-foreground text-sm">
             Contact our events team at{" "}
             <a
               className="text-[#3DA9E0] hover:underline"

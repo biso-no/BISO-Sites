@@ -35,7 +35,7 @@ export function JobsHero({
             initial={{ opacity: 0, y: 30 }}
             transition={{ duration: 0.8 }}
           >
-            <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-sm">
+            <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-sm">
               <Heart className="h-5 w-5 text-[#3DA9E0]" />
               <span className="text-white">Join Our Team</span>
             </div>
@@ -58,14 +58,14 @@ export function JobsHero({
                 </div>
                 <div className="text-sm text-white/80">Open Positions</div>
               </div>
-              <div className="h-12 w-px bg-white/20" />
+              <div className="h-12 w-px bg-background/20" />
               <div className="text-center">
                 <div className="mb-1 font-bold text-3xl text-white">
                   {paidPositions}
                 </div>
                 <div className="text-sm text-white/80">Paid Roles</div>
               </div>
-              <div className="h-12 w-px bg-white/20" />
+              <div className="h-12 w-px bg-background/20" />
               <div className="text-center">
                 <div className="mb-1 font-bold text-3xl text-white">
                   {departmentCount}

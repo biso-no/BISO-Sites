@@ -37,21 +37,21 @@ export function ProfileTabs({
     >
       <TabsList className="w-full rounded-xl border border-primary/10 bg-surface-strong/60 p-1 shadow-card-soft">
         <TabsTrigger
-          className="flex h-10 flex-1 items-center gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-100"
+          className="flex h-10 flex-1 items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary-100"
           value="account"
         >
           <User className="h-4 w-4" />
           <span>Account</span>
         </TabsTrigger>
         <TabsTrigger
-          className="flex h-10 flex-1 items-center gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-100"
+          className="flex h-10 flex-1 items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary-100"
           value="privacy"
         >
           <Shield className="h-4 w-4" />
           <span>Privacy</span>
         </TabsTrigger>
         <TabsTrigger
-          className="flex h-10 flex-1 items-center gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-100"
+          className="flex h-10 flex-1 items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary-100"
           value="identities"
         >
           <Link2 className="h-4 w-4" />

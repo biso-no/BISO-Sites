@@ -32,7 +32,7 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
   return (
     <section>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-gray-900">
+        <h2 className="text-foreground">
           {locale === "en" ? "Latest News" : "Siste nytt"}
         </h2>
         <Button className="text-[#3DA9E0]" size="sm" variant="ghost">
@@ -67,16 +67,16 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
                   </div>
                   <div className="grow">
                     {article.$createdAt && (
-                      <div className="mb-2 flex items-center gap-2 text-gray-500 text-xs">
+                      <div className="mb-2 flex items-center gap-2 text-muted-foreground text-xs">
                         <Newspaper className="h-3 w-3 text-[#3DA9E0]" />
                         {formatDate(article.$createdAt)}
                       </div>
                     )}
-                    <h4 className="mb-2 text-gray-900 transition-colors group-hover:text-[#3DA9E0]">
+                    <h4 className="mb-2 text-foreground transition-colors group-hover:text-[#3DA9E0]">
                       {article.title}
                     </h4>
                     {article.short_description && (
-                      <p className="line-clamp-2 text-gray-600 text-sm">
+                      <p className="line-clamp-2 text-muted-foreground text-sm">
                         {article.short_description}
                       </p>
                     )}

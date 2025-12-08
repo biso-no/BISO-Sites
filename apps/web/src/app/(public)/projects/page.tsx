@@ -72,7 +72,7 @@ export default async function ProjectsPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.25),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.35),transparent_55%)]" />
         <div className="relative grid gap-8 lg:grid-cols-[3fr_2fr]">
           <div className="space-y-6">
-            <Badge className="bg-white/10 text-white text-xs uppercase tracking-wide">
+            <Badge className="bg-background/10 text-white text-xs uppercase tracking-wide">
               {t("hero.badge")}
             </Badge>
             <h1 className="font-semibold text-4xl text-white leading-tight md:text-5xl">
@@ -82,14 +82,14 @@ export default async function ProjectsPage() {
             <div className="flex flex-wrap gap-3">
               <Button
                 asChild
-                className="bg-white text-primary-100 hover:bg-white/90"
+                className="bg-background text-primary-100 hover:bg-background/90"
                 size="lg"
               >
                 <Link href="#featured">{t("hero.ctaPrimary")}</Link>
               </Button>
               <Button
                 asChild
-                className="border-white/60 bg-transparent text-white hover:bg-white/10"
+                className="border-white/60 bg-transparent text-white hover:bg-background/10"
                 size="lg"
                 variant="secondary"
               >
@@ -97,7 +97,7 @@ export default async function ProjectsPage() {
               </Button>
             </div>
           </div>
-          <Card className="border-white/20 bg-white/10 backdrop-blur">
+          <Card className="border-white/20 /10 backdrop-blur">
             <CardHeader>
               <CardTitle className="text-white">{t("insight.title")}</CardTitle>
             </CardHeader>
@@ -124,7 +124,7 @@ export default async function ProjectsPage() {
         <div className="grid gap-6 md:grid-cols-2">
           {featuredProjects.map((project) => (
             <Card
-              className="hover:-translate-y-1 overflow-hidden border-primary/10 bg-white shadow-lg transition hover:shadow-xl"
+              className="hover:-translate-y-1 overflow-hidden border-primary/10  shadow-lg transition hover:shadow-xl"
               key={project.slug}
             >
               <div
@@ -172,7 +172,7 @@ export default async function ProjectsPage() {
         </div>
 
         {otherEvents.length === 0 ? (
-          <Card className="border-primary/10 bg-white">
+          <Card className="border-primary/10 ">
             <CardContent className="py-12 text-center text-muted-foreground text-sm">
               {t("schedule.empty")}
             </CardContent>
@@ -180,7 +180,7 @@ export default async function ProjectsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {otherEvents.map((event) => (
-              <Card className="border-primary/10 bg-white" key={event.$id}>
+              <Card className="border-primary/10 " key={event.$id}>
                 <CardHeader className="space-y-2">
                   <Badge
                     className="w-fit text-primary-70 text-xs uppercase"

@@ -32,7 +32,7 @@ export function ExpenseWizard({
                 {(() => {
                   const isCompleted = currentStep > step.id;
                   const isActive = currentStep === step.id;
-                  let circleClass = "bg-gray-200 text-gray-500";
+                  let circleClass = "bg-muted text-muted-foreground";
                   if (isCompleted) {
                     circleClass = "bg-green-500 text-white";
                   } else if (isActive) {
@@ -52,7 +52,7 @@ export function ExpenseWizard({
                 })()}
                 <span
                   className={`text-sm ${
-                    currentStep >= step.id ? "text-gray-900" : "text-gray-500"
+                    currentStep >= step.id ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {step.title}
@@ -61,7 +61,7 @@ export function ExpenseWizard({
               {index < steps.length - 1 && (
                 <div
                   className={`mx-4 h-1 flex-1 rounded ${
-                    currentStep > step.id ? "bg-green-500" : "bg-gray-200"
+                    currentStep > step.id ? "bg-green-500" : "bg-muted"
                   }`}
                 />
               )}

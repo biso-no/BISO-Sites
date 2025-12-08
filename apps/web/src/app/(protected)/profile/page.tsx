@@ -48,7 +48,7 @@ export default async function PublicProfilePage() {
           .map((s) => s[0]?.toUpperCase())
           .join("");
         return (
-          <Card className="mb-6 overflow-hidden border border-primary/10 bg-white">
+          <Card className="mb-6 overflow-hidden border border-primary/10 ">
             <CardHeader className="flex flex-row items-center gap-4">
               <Avatar className="h-14 w-14">
                 <AvatarFallback className="bg-primary/10 text-primary-80">

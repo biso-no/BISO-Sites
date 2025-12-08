@@ -109,7 +109,7 @@ function HeroSection({
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   return (
-    <section className="grid gap-8 rounded-3xl border border-primary/10 bg-white/90 p-8 shadow-lg md:grid-cols-[3fr_2fr]">
+    <section className="grid gap-8 rounded-3xl border border-primary/10 bg-background/90 p-8 shadow-lg md:grid-cols-[3fr_2fr]">
       <div className="space-y-4">
         <Badge
           className="border-primary/20 text-primary-70 text-xs uppercase tracking-wide"
@@ -243,7 +243,7 @@ function EligibilityAndSteps({
 }) {
   return (
     <section className="grid gap-8 md:grid-cols-2">
-      <Card className="border-primary/10 bg-white">
+      <Card className="border-primary/10 ">
         <CardHeader>
           <CardTitle className="text-primary-100">
             {t("eligibility.title")}
@@ -266,7 +266,7 @@ function EligibilityAndSteps({
           </ul>
         </CardContent>
       </Card>
-      <Card className="border-primary/10 bg-white">
+      <Card className="border-primary/10 ">
         <CardHeader>
           <CardTitle className="text-primary-100">{t("steps.title")}</CardTitle>
         </CardHeader>
@@ -307,7 +307,7 @@ function FaqSection({
       </h2>
       <div className="grid gap-4 md:grid-cols-2">
         {content.faqs.map((faq) => (
-          <Card className="border-primary/10 bg-white" key={faq.question}>
+          <Card className="border-primary/10 " key={faq.question}>
             <CardHeader>
               <CardTitle className="text-base text-primary-100">
                 {faq.question}

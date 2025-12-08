@@ -69,10 +69,10 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
           <Alert className="border-[#3DA9E0] bg-linear-to-br from-[#3DA9E0]/10 to-cyan-50">
             <Sparkles className="h-4 w-4 text-[#3DA9E0]" />
             <AlertDescription>
-              <p className="mb-2 text-gray-900 text-sm">
+              <p className="mb-2 text-foreground text-sm">
                 <strong>Unlock member discounts!</strong>
               </p>
-              <p className="mb-3 text-gray-600 text-sm">
+              <p className="mb-3 text-muted-foreground text-sm">
                 You could save {potentialSavings} NOK on this order by becoming
                 a BISO member.
               </p>
@@ -91,12 +91,12 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
       {/* Order Summary Card */}
       <div className="fade-in slide-in-from-bottom-2 animate-in delay-150 duration-500">
         <Card className="sticky top-24 border-0 p-6 shadow-lg">
-          <h3 className="mb-4 font-bold text-gray-900 text-xl">
+          <h3 className="mb-4 font-bold text-foreground text-xl">
             Order Summary
           </h3>
 
           <div className="mb-4 space-y-3">
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between text-muted-foreground">
               <span>
                 Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)}{" "}
                 items)
@@ -120,7 +120,7 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
           <Separator className="my-4" />
 
           <div className="mb-6 flex justify-between">
-            <span className="font-bold text-gray-900 text-lg">Total</span>
+            <span className="font-bold text-foreground text-lg">Total</span>
             <div className="text-right">
               <div className="font-bold text-2xl text-[#3DA9E0]">
                 {subtotal} NOK
@@ -160,12 +160,12 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
       <div className="fade-in slide-in-from-bottom-2 animate-in delay-300 duration-500">
         <Card className="border-0 bg-blue-50 p-6 shadow-lg">
           <div className="flex items-start gap-3">
-            <Package className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+            <Package className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <div>
-              <h4 className="mb-2 font-semibold text-gray-900">
+              <h4 className="mb-2 font-semibold text-foreground">
                 Campus Pickup
               </h4>
-              <p className="mb-2 text-gray-700 text-sm">
+              <p className="mb-2 text-muted-foreground text-sm">
                 All items will be available for pickup at the BISO office at
                 your campus.
               </p>
