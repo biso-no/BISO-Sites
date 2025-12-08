@@ -26,7 +26,6 @@
     "mammoth": "^1.11.0",
     "next": "16.0.7",
     "pdfjs-dist": "^5.4.449",
-    "puppeteer": "^24.31.0",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "server-only": "^0.0.1",
