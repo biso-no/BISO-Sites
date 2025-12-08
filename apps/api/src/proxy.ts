@@ -10,7 +10,7 @@ const ALLOWED_ORIGINS = [
   "https://biso.no",
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const origin = request.headers.get("origin");
   
   // Check if the request is for an API route
