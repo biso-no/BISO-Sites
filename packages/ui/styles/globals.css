@@ -64,6 +64,29 @@
   --color-inverted-foreground: var(--inverted-foreground);
   --color-inverted-muted: var(--inverted-muted);
 
+  /* Brand colors */
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-muted: var(--brand-muted);
+  --color-brand-muted-strong: var(--brand-muted-strong);
+  --color-brand-border: var(--brand-border);
+  --color-brand-border-strong: var(--brand-border-strong);
+
+  /* Brand gradient stops */
+  --color-brand-gradient-from: var(--brand-gradient-from);
+  --color-brand-gradient-to: var(--brand-gradient-to);
+  --color-brand-gradient-via: var(--brand-gradient-via);
+
+  /* Brand overlay gradient stops */
+  --color-brand-overlay-from: var(--brand-overlay-from);
+  --color-brand-overlay-via: var(--brand-overlay-via);
+  --color-brand-overlay-to: var(--brand-overlay-to);
+
+  /* Brand accent (yellow) */
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-muted: var(--brand-accent-muted);
+
   /* Animation tokens */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;

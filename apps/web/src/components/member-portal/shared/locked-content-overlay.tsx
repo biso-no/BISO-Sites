@@ -62,8 +62,8 @@ export function LockedContentOverlay({
  className="w-full max-w-2xl"
  initial={{ opacity: 0, scale: 0.95 }}
  >
- <Card className="border-2 border-[#3DA9E0]/20 p-8 shadow-xl dark:border-[#3DA9E0]/30 dark:bg-inverted/90 dark:backdrop-blur-sm">
- <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731]">
+ <Card className="border-2 border-brand-border p-8 shadow-xl dark:border-brand-border-strong dark:bg-inverted/90 dark:backdrop-blur-sm">
+ <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
  <Lock className="h-8 w-8 text-white" />
  </div>
 
@@ -80,7 +80,7 @@ export function LockedContentOverlay({
  <div className="mb-6 grid gap-4 sm:grid-cols-3">
  {Object.entries(MEMBERSHIP_PRICES).map(([type, price]) => (
  <Card
- className="cursor-pointer border-2 border-border p-4 transition-colors hover:border-[#3DA9E0] dark:border-border dark:bg-inverted/50 dark:hover:border-[#3DA9E0]"
+ className="cursor-pointer border-2 border-border p-4 transition-colors hover:border-brand dark:border-border dark:bg-inverted/50 dark:hover:border-brand"
  key={type}
  onClick={() => handlePurchase(type as any)}
  >
@@ -93,7 +93,7 @@ export function LockedContentOverlay({
  </div>
  {type === "three-year" && (
  <Badge
- className="mt-2 border-[#3DA9E0]/20 text-[#3DA9E0] text-xs dark:border-[#3DA9E0]/30"
+ className="mt-2 border-brand-border text-brand text-xs dark:border-brand-border-strong"
  variant="outline"
  >
  {t("states.notMember.pricing.bestValue")}
@@ -105,7 +105,7 @@ export function LockedContentOverlay({
  </div>
 
  <Button
- className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
+ className="w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
  disabled={isPending}
  onClick={() => handlePurchase("year")}
  >
@@ -124,13 +124,13 @@ export function LockedContentOverlay({
  <p className="mb-6 text-center text-muted-foreground dark:text-muted-foreground">
  {t("states.noBIEmail.description")}
  </p>
- <Alert className="mb-6 border-[#3DA9E0]/20 bg-[#3DA9E0]/5 dark:border-[#3DA9E0]/30 dark:bg-[#3DA9E0]/10">
+ <Alert className="mb-6 border-brand-border bg-brand-muted dark:border-brand-border-strong dark:bg-brand-muted">
  <AlertDescription className="text-center text-muted-foreground dark:text-muted-foreground">
  {t("states.noBIEmail.securityNote")}
  </AlertDescription>
  </Alert>
  <Button
- className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90"
+ className="w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
  onClick={handleLinkBIEmail}
  >
  <LinkIcon className="mr-2 h-4 w-4" />

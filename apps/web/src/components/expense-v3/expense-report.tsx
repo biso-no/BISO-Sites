@@ -333,7 +333,7 @@ export function ExpenseReport({
  {/* Paper Document Effect */}
  <motion.div
  animate={{ opacity: 1, y: 0 }}
- className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-card shadow-xl dark:bg-[#0F1623] dark:shadow-2xl dark:shadow-black/40"
+ className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-card shadow-xl dark:bg-card dark:shadow-2xl dark:shadow-black/40"
  initial={{ opacity: 0, y: 20 }}
  >
  {/* Document Header */}
@@ -447,7 +447,7 @@ export function ExpenseReport({
  </div>
 
  {/* Line Items */}
- <div className="flex-1 overflow-y-auto bg-card p-0 dark:bg-[#0F1623]">
+ <div className="flex-1 overflow-y-auto bg-card p-0 dark:bg-card">
  <table className="w-full text-left text-sm">
  <thead className="sticky top-0 z-10 bg-muted text-muted-foreground dark:bg-inverted/50">
  <tr>
@@ -517,7 +517,7 @@ export function ExpenseReport({
 
  <div className="mt-8 flex justify-end">
  <Button
- className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 md:w-auto md:min-w-[200px] dark:bg-background dark:text-[#001731] dark:hover:bg-background/90"
+ className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 md:w-auto md:min-w-[200px] dark:bg-background dark:text-brand-dark dark:hover:bg-background/90"
  disabled={
  isSubmitting ||
  receipts.length === 0 ||

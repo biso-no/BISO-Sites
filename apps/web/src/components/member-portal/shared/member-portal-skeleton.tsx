@@ -5,7 +5,7 @@ export function MemberPortalSkeleton() {
  return (
  <div className="min-h-screen bg-linear-to-b from-section to-background dark:from-background dark:to-card">
  {/* Header Skeleton */}
- <div className="bg-linear-to-r from-[#001731] to-[#3DA9E0] py-8 text-white">
+ <div className="bg-linear-to-r from-brand-gradient-to to-brand-gradient-from py-8 text-white">
  <div className="mx-auto max-w-7xl px-4">
  <Skeleton className="mb-6 h-10 w-32 bg-background/20" />
  <div className="flex items-center justify-between">

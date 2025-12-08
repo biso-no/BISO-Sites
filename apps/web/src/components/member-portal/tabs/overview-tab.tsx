@@ -54,7 +54,7 @@ export function OverviewTab({
  className: "bg-green-100 text-green-700 border-green-200",
  }}
  icon={Shield}
- iconColor="bg-linear-to-br from-[#3DA9E0] to-[#001731]"
+ iconColor="bg-linear-to-br from-brand-gradient-from to-brand-gradient-to"
  label={t("stats.membershipType")}
  value={membershipType}
  />
@@ -88,7 +88,7 @@ export function OverviewTab({
  {t("featuredBenefits")}
  </h2>
  <Button
- className="border-[#3DA9E0]/20 text-[#3DA9E0] hover:bg-[#3DA9E0]/10"
+ className="border-brand-border text-brand hover:bg-brand-muted"
  onClick={() => onTabChange("benefits")}
  size="sm"
  variant="outline"
@@ -109,7 +109,7 @@ export function OverviewTab({
  </div>
 
  {/* Membership Status */}
- <Card className="border-0 bg-linear-to-br from-[#3DA9E0]/10 to-[#001731]/10 p-8 shadow-lg">
+ <Card className="border-0 bg-linear-to-br from-brand-muted to-brand-muted p-8 shadow-lg">
  <div className="mb-6 flex items-center justify-between">
  <div>
  <h3 className="mb-2 font-bold text-foreground text-xl dark:text-foreground">
@@ -167,7 +167,7 @@ export function OverviewTab({
  </div>
  </div>
 
- <Button className="w-full bg-linear-to-r from-[#3DA9E0] to-[#001731] text-white hover:from-[#3DA9E0]/90 hover:to-[#001731]/90">
+ <Button className="w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
  {t("renewMembership")}
  </Button>
  </div>
