@@ -1,5 +1,4 @@
 import {
- calculateEstimatedSavings,
  getBenefitReveals,
  getMemberBenefits,
  getPublicProfile,
@@ -12,6 +11,11 @@ type MemberPortalContentProps = {
  user: any;
  membership: any;
  hasBIIdentity: boolean;
+};
+
+const calculateEstimatedSavings = (userId: string) => {
+  // TODO: Implement estimated savings calculation
+  return 0;
 };
 
 export async function MemberPortalContent({

@@ -48,5 +48,15 @@
     "shop": "Shop",
     "applyHere": "Apply Here",
     "about": "About"
+  },
+  "notFound": {
+    "tagline": "Page not found",
+    "title": "We could not find the page you are looking for",
+    "description": "The page you are looking for does not exist or has been moved.",
+    "cta": {
+      "goToFrontPage": "Go to the frontpage",
+      "goToCampus": "Go to campus overview",
+      "needAssistance": "Do you need assistance? Contact us at <link>{email}</link> and we will follow up."
+    }
   }
 }

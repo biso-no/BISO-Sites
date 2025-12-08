@@ -79,7 +79,7 @@ export default async function PagesList() {
                       {page.status === "published" && (
                         <Button asChild size="icon" variant="ghost">
                           <Link
-                            href={`https://biso.no/${page.slug}`}
+                            href={`${process.env.NEXT_PUBLIC_WEB_BASE_URL}/${page.slug}`}
                             target="_blank"
                           >
                             <Eye className="h-4 w-4" />
