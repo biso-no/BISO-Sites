@@ -150,11 +150,14 @@ export function Navigation({
  </div>
 
  {/* Mobile Menu Button */}
+ <div className="flex items-center gap-2 md:hidden">
+ <ModeToggle className="text-white" />
  <Button
- className={`rounded-lg p-2 transition-colors duration-300 md:hidden ${
+ className={`rounded-lg p-2 transition-colors duration-300 ${
  isScrolled ? "text-white" : "text-white"
  }`}
  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+ variant="ghost"
  >
  {isMobileMenuOpen ? (
  <X className="h-6 w-6" />
@@ -162,6 +165,7 @@ export function Navigation({
  <Menu className="h-6 w-6" />
  )}
  </Button>
+ </div>
  </div>
  </div>
 
@@ -196,7 +200,8 @@ export function Navigation({
  {item.label}
  </Link>
  ))}
- <SelectCampus campuses={campuses} />
+ <SelectCampus campuses={campuses} className="text-white w-full" />
+ <LocaleSwitcher className="text-white w-full" size="sm" variant="ghost" />
  <Button
  className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
  onClick={() => router.push("/member")}

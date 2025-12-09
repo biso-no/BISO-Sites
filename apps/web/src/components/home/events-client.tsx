@@ -159,7 +159,7 @@ export function EventsClient({ events }: EventsClientProps) {
 
  if (!events || events.length === 0) {
  return (
- <section className="bg-background py-24" id="events">
+ <section className="py-24" id="events">
  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
  <div className="text-center">
  <h2 className="mb-6 text-foreground">{t("empty")}</h2>
@@ -171,7 +171,7 @@ export function EventsClient({ events }: EventsClientProps) {
  }
 
  return (
- <section className="bg-background py-24" id="events">
+ <section className="py-24" id="events">
  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
  {/* Header */}
  <motion.div

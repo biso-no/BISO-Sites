@@ -142,7 +142,7 @@ async function getCampusWithDepartments(campusId: string) {
   }
 }
 
-export async function getCampusData() {
+export async function getCampusData(campusId?: string) {
   const { db } = await createSessionClient();
   const campuses = await db.listRows<CampusData>("app", "campus_data");
 

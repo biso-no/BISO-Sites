@@ -13,7 +13,7 @@ import {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background via-section to-background">
       <Suspense fallback={<HeroSkeleton />}>
         <HeroSection />
       </Suspense>

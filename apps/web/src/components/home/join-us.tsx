@@ -4,9 +4,11 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 
 export function JoinUs() {
  const t = useTranslations("membership");
+ const router = useRouter();
  const benefits = [
  { icon: Sparkles, text: t("benefits.categories.social.global") },
  { icon: Gift, text: t("benefits.categories.career.global") },
@@ -30,7 +32,7 @@ export function JoinUs() {
  period: t("durations.six-months.period"),
  savings: null,
  popular: false,
- gradient: "from-gray-600 to-gray-700",
+ gradient: "from-slate-600 to-slate-700",
  },
  {
  name: t("durations.one-year.name"),
@@ -38,7 +40,7 @@ export function JoinUs() {
  period: t("durations.one-year.period"),
  savings: t("durations.one-year.savings"),
  popular: true,
- gradient: "from-purple-600 to-pink-600",
+ gradient: "from-brand-gradient-from to-brand-gradient-to",
  },
  {
  name: t("durations.three-years.name"),
@@ -46,19 +48,19 @@ export function JoinUs() {
  period: t("durations.three-years.period"),
  savings: t("durations.three-years.savings"),
  popular: false,
- gradient: "from-brand-gradient-from to-brand-gradient-to",
+ gradient: "from-cyan-600 to-teal-600",
  },
  ];
 
  return (
  <section
- className="relative overflow-hidden bg-linear-to-b from-section to-background py-24"
+ className="relative overflow-hidden py-24"
  id="join"
  >
  {/* Background Decoration */}
  <div className="pointer-events-none absolute inset-0 overflow-hidden">
- <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-purple-200 opacity-20 blur-3xl" />
- <div className="absolute right-10 bottom-20 h-96 w-96 rounded-full bg-pink-200 opacity-20 blur-3xl" />
+ <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-brand opacity-20 blur-3xl" />
+ <div className="absolute right-10 bottom-20 h-96 w-96 rounded-full bg-cyan-200 opacity-20 blur-3xl" />
  </div>
 
  <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -69,13 +71,13 @@ export function JoinUs() {
  viewport={{ once: true }}
  whileInView={{ opacity: 1, y: 0 }}
  >
- <div className="mb-6 inline-block rounded-full bg-linear-to-r from-purple-100 to-pink-100 px-4 py-2 text-purple-700">
+ <div className="mb-6 inline-block rounded-full bg-brand-muted px-4 py-2 text-brand-dark">
  {t("membership")}
  </div>
  <h2 className="mb-6 text-foreground">
  {t("joinUs.join")}
  <br />
- <span className="bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+ <span className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to bg-clip-text text-transparent">
  {t("joinUs.biso")}
  </span>
  </h2>
@@ -100,7 +102,7 @@ export function JoinUs() {
  viewport={{ once: true }}
  whileInView={{ opacity: 1, y: 0 }}
  >
- <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-purple-600 to-pink-600">
+ <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
  <benefit.icon className="h-6 w-6 text-white" />
  </div>
  <span className="text-muted-foreground">{benefit.text}</span>
@@ -137,7 +139,7 @@ export function JoinUs() {
  <div className="grid gap-4 md:grid-cols-2">
  {memberFeatures.map((feature, idx) => (
  <div className="flex items-start gap-3" key={idx}>
- <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-purple-600 to-pink-600">
+ <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
  <Check className="h-4 w-4 text-white" />
  </div>
  <span className="text-muted-foreground">{feature}</span>
@@ -160,7 +162,7 @@ export function JoinUs() {
  >
  {duration.popular && (
  <div className="-top-4 -translate-x-1/2 absolute left-1/2 z-10">
- <div className="rounded-full bg-linear-to-r from-purple-600 to-pink-600 px-6 py-2 font-medium text-sm text-white shadow-lg">
+ <div className="rounded-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to px-6 py-2 font-medium text-sm text-white shadow-lg">
  Most Popular
  </div>
  </div>
@@ -168,7 +170,7 @@ export function JoinUs() {
  <Card
  className={`flex h-full flex-col border-0 p-8 shadow-xl transition-all duration-300 hover:shadow-2xl ${
  duration.popular
- ? "scale-105 transform ring-2 ring-purple-600"
+ ? "scale-105 transform ring-2 ring-brand"
  : ""
  }`}
  >
@@ -193,6 +195,7 @@ export function JoinUs() {
 
  <Button
  className={`w-full bg-linear-to-r ${duration.gradient} mt-auto border-0 text-white shadow-lg hover:opacity-90`}
+ onClick={() => router.push("/membership")}
  >
  Choose {duration.name}
  </Button>
@@ -208,13 +211,13 @@ export function JoinUs() {
  viewport={{ once: true }}
  whileInView={{ opacity: 1, y: 0 }}
  >
- <Card className="border-0 bg-linear-to-br from-blue-600 to-primary-80 p-12 text-white shadow-2xl">
+ <Card className="border-0 bg-linear-to-br from-brand-gradient-from to-brand-gradient-to p-12 text-white shadow-2xl">
  <h3 className="mb-4 text-white">{t("onboarding.notSure.title")}</h3>
  <p className="mx-auto mb-8 max-w-2xl text-white/90">
  {t("onboarding.notSure.subtitle")}
  </p>
  <Button
- className="border-0 bg-background text-purple-600 hover:bg-muted"
+ className="border-0 bg-background text-brand-dark hover:bg-muted"
  size="lg"
  >
  {t("onboarding.notSure.cta")}

@@ -65,7 +65,7 @@ export function AboutClient({
  ];
 
  return (
- <section className="bg-linear-to-b from-section to-background py-24" id="about">
+ <section className="py-24" id="about">
  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
  {/* Stats */}
  <div className="mb-20 grid grid-cols-2 gap-6 md:grid-cols-4">

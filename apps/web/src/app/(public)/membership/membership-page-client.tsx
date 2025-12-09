@@ -1,29 +1,36 @@
 "use client";
 
 import type { Locale } from "@repo/i18n/config";
+import { ImageWithFallback } from "@repo/ui/components/image";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@repo/ui/components/ui/accordion";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
-import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area";
+import { Card } from "@repo/ui/components/ui/card";
 import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
-  CheckCircle2,
-  Compass,
+  CheckCircle,
+  ChevronRight,
+  Globe,
   GraduationCap,
-  ShieldCheck,
+  Heart,
+  MapPin,
+  Shield,
   Sparkles,
+  Star,
   Ticket,
+  TrendingUp,
   Users,
 } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -45,6 +52,7 @@ type BenefitConfig = {
   globalDescription: string;
   localDescription: string;
   icon: LucideIcon;
+  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
 };
 
 type BenefitSection = {
@@ -53,6 +61,7 @@ type BenefitSection = {
   description: string;
   icon: LucideIcon;
   items: string[];
+  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
 };
 
 type BenefitLocaleSuffix = "nb" | "en";
@@ -62,6 +71,39 @@ type MembershipPageClientProps = {
   campusData: CampusData[];
   globalBenefits: CampusData | null;
   locale: Locale;
+};
+
+const colorSchemes = {
+  blue: {
+    gradient: "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
+    iconGradient: "from-blue-500 to-blue-700",
+    checkColor: "text-blue-600 dark:text-blue-400",
+    border: "border-blue-100 dark:border-blue-900/50",
+  },
+  green: {
+    gradient: "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
+    iconGradient: "from-emerald-500 to-emerald-700",
+    checkColor: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-100 dark:border-emerald-900/50",
+  },
+  pink: {
+    gradient: "from-pink-50 via-pink-50/50 to-white dark:from-pink-950/30 dark:via-pink-950/10 dark:to-card",
+    iconGradient: "from-pink-500 to-rose-600",
+    checkColor: "text-pink-600 dark:text-pink-400",
+    border: "border-pink-100 dark:border-pink-900/50",
+  },
+  purple: {
+    gradient: "from-violet-50 via-violet-50/50 to-white dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card",
+    iconGradient: "from-violet-500 to-violet-700",
+    checkColor: "text-violet-600 dark:text-violet-400",
+    border: "border-violet-100 dark:border-violet-900/50",
+  },
+  orange: {
+    gradient: "from-orange-50 via-orange-50/50 to-white dark:from-orange-950/30 dark:via-orange-950/10 dark:to-card",
+    iconGradient: "from-orange-500 to-amber-600",
+    checkColor: "text-orange-600 dark:text-orange-400",
+    border: "border-orange-100 dark:border-orange-900/50",
+  },
 };
 
 function selectBenefitItems(
@@ -107,16 +149,92 @@ function buildBenefitSections(
         description: descriptionSelector(config),
         icon: config.icon,
         items,
+        colorScheme: config.colorScheme,
       };
     })
     .filter((section) => section.items.length > 0);
 }
 
-export const MembershipPageClient = ({
+function BenefitCard({
+  section,
+  index,
+}: {
+  section: BenefitSection;
+  index: number;
+}) {
+  const colors = colorSchemes[section.colorScheme];
+  const Icon = section.icon;
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 20 }}
+      transition={{ delay: index * 0.1, duration: 0.5 }}
+    >
+      <Card
+        className={cn(
+          "border-0 bg-linear-to-br p-6 shadow-lg transition-shadow hover:shadow-xl sm:p-8",
+          colors.gradient,
+          colors.border
+        )}
+      >
+        <div className="mb-6 flex items-center gap-4">
+          <div
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br shadow-md",
+              colors.iconGradient
+            )}
+          >
+            <Icon className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-foreground text-lg">
+              {section.title}
+            </h3>
+            <p className="text-muted-foreground text-sm">{section.description}</p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {section.items.map((item, itemIndex) => (
+            <motion.div
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-start gap-3 rounded-lg bg-background/80 p-3 backdrop-blur-sm"
+              initial={{ opacity: 0, x: -10 }}
+              key={item}
+              transition={{ delay: index * 0.1 + itemIndex * 0.03 }}
+            >
+              <CheckCircle
+                className={cn("mt-0.5 h-4 w-4 shrink-0", colors.checkColor)}
+              />
+              <span className="text-muted-foreground text-sm">{item}</span>
+            </motion.div>
+          ))}
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+function StatPill({
+  icon: Icon,
+  label,
+}: {
+  icon: LucideIcon;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+export function MembershipPageClient({
   campusData,
   globalBenefits,
   locale,
-}: MembershipPageClientProps) => {
+}: MembershipPageClientProps) {
   const t = useTranslations("membership");
   const { campuses, activeCampusId, activeCampus, selectCampus } = useCampus();
 
@@ -128,34 +246,39 @@ export const MembershipPageClient = ({
         globalDescription: t("benefits.categories.student.global"),
         localDescription: t("benefits.categories.student.local"),
         icon: GraduationCap,
+        colorScheme: "blue",
       },
       {
         key: "careerAdvantages",
         title: t("benefits.categories.career.title"),
         globalDescription: t("benefits.categories.career.global"),
         localDescription: t("benefits.categories.career.local"),
-        icon: BriefcaseBusiness,
+        icon: TrendingUp,
+        colorScheme: "green",
       },
       {
         key: "socialNetwork",
         title: t("benefits.categories.social.title"),
         globalDescription: t("benefits.categories.social.global"),
         localDescription: t("benefits.categories.social.local"),
-        icon: Users,
+        icon: Heart,
+        colorScheme: "pink",
       },
       {
         key: "safety",
         title: t("benefits.categories.safety.title"),
         globalDescription: t("benefits.categories.safety.global"),
         localDescription: t("benefits.categories.safety.local"),
-        icon: ShieldCheck,
+        icon: Shield,
+        colorScheme: "purple",
       },
       {
         key: "businessBenefits",
         title: t("benefits.categories.business.title"),
         globalDescription: t("benefits.categories.business.global"),
         localDescription: t("benefits.categories.business.local"),
-        icon: Compass,
+        icon: BriefcaseBusiness,
+        colorScheme: "orange",
       },
     ],
     [t]
@@ -195,6 +318,7 @@ export const MembershipPageClient = ({
         description: t("highlights.items.fadderullan.description"),
         icon: Sparkles,
         cta: t("highlights.items.fadderullan.cta"),
+        colorScheme: "pink" as const,
       },
       {
         key: "careerDays",
@@ -202,6 +326,7 @@ export const MembershipPageClient = ({
         description: t("highlights.items.careerDays.description"),
         icon: BriefcaseBusiness,
         cta: t("highlights.items.careerDays.cta"),
+        colorScheme: "green" as const,
       },
       {
         key: "winterGames",
@@ -209,6 +334,7 @@ export const MembershipPageClient = ({
         description: t("highlights.items.winterGames.description"),
         icon: CalendarDays,
         cta: t("highlights.items.winterGames.cta"),
+        colorScheme: "blue" as const,
       },
     ],
     [t]
@@ -325,369 +451,416 @@ export const MembershipPageClient = ({
   })();
 
   const hasCampusBenefits = campusSections.length > 0;
+  const filteredCampuses = campuses.filter(
+    (campus) => campus.name?.toLowerCase() !== "national"
+  );
 
   return (
-    <div className="space-y-16 pb-12">
-      <section className="relative overflow-hidden rounded-[40px] border border-primary/10 bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.28),transparent_55%)]" />
-        <div className="relative grid gap-10 px-6 py-12 md:px-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:py-16">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-background/10 px-4 py-1 text-white/80 text-xs uppercase tracking-wide">
-              <Sparkles className="h-3.5 w-3.5" />
-              {t("hero.badge")}
-            </div>
-            <h1 className="font-semibold text-3xl text-white leading-tight md:text-5xl">
-              {heroTitle}
-            </h1>
-            <p className="max-w-2xl text-base text-white/80 md:text-lg">
-              {heroSubtitle}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                asChild
-                className="bg-background text-primary-100 hover:bg-background/90"
-                size="lg"
-              >
-                <Link href="https://biso.no/shop/bli-medlem-i-biso/">
-                  {t("hero.ctas.join")}
-                </Link>
-              </Button>
-              <Button
-                asChild
-                className="border-white/40 bg-background/10 text-white hover:bg-background/20"
-                size="lg"
-                variant="glass"
-              >
-                <Link href="/jobs?campus=all">{t("hero.ctas.roles")}</Link>
-              </Button>
-              <Button
-                asChild
-                className="text-white hover:bg-background/10"
-                size="lg"
-                variant="ghost"
-              >
-                <Link href="/partner">{t("hero.ctas.partners")}</Link>
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-3 pt-4 text-sm text-white/80">
-              <div className="flex items-center gap-2 rounded-full border border-white/20 px-4 py-2">
-                <Ticket className="h-4 w-4" />
-                {t("hero.stats.card")}
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-white/20 px-4 py-2">
-                <Users className="h-4 w-4" />
-                {t("hero.stats.members")}
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-white/20 px-4 py-2">
-                <BriefcaseBusiness className="h-4 w-4" />
-                {t("hero.stats.partners")}
-              </div>
-            </div>
-          </div>
-          <Card className="border-white/20 /10 text-white shadow-glow backdrop-blur">
-            <CardHeader>
-              <CardTitle className="text-white/90">
-                {t("onboarding.title")}
-              </CardTitle>
-              <p className="text-sm text-white/70">
-                {t("onboarding.subtitle")}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {onboardingSteps.map((step) => (
-                <div
-                  className="flex gap-4 rounded-2xl border border-white/10 bg-background/5 p-4"
-                  key={step.number}
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-background/10 font-semibold text-base">
-                    {step.number}
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">{step.title}</p>
-                    <p className="mt-1 text-sm text-white/70">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+    <div className="min-h-screen bg-background">
+      {/* Hero Section - Full bleed with image background */}
+      <section className="relative h-[85vh] min-h-[600px] overflow-hidden">
+        <ImageWithFallback
+          alt="BISO Membership"
+          className="h-full w-full object-cover"
+          fill
+          priority
+          src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50cyUyMGNlbGVicmF0aW5nfGVufDF8fHx8MTc2MjE2NTE0NXww&ixlib=rb-4.1.0&q=80&w=1920"
+        />
+        <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
+        <div className="absolute inset-0 bg-linear-to-t from-brand-overlay-from/70 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_50%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.15),transparent_60%)]" />
 
-      <section className="space-y-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="font-semibold text-2xl text-primary-100">
-              {t("global.title")}
-            </h2>
-            <p className="text-muted-foreground">{t("global.subtitle")}</p>
-          </div>
-          <Button
-            asChild
-            className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40"
-            size="sm"
-            variant="outline"
-          >
-            <Link href="https://biso.no/shop/bli-medlem-i-biso/">
-              {t("global.cta")}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-        {globalSections.length ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {globalSections.map((section) => {
-              const Icon = section.icon;
-              return (
-                <Card
-                  className="h-full border-primary/10 /90 shadow-card"
-                  key={section.key}
-                >
-                  <CardHeader className="space-y-3">
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <CardTitle className="font-semibold text-base text-primary-100">
-                      {section.title}
-                    </CardTitle>
-                    <p className="text-muted-foreground text-sm">
-                      {section.description}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2 text-muted-foreground text-sm">
-                      {section.items.map((item) => (
-                        <li className="flex items-start gap-2" key={item}>
-                          <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary-50" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card className="border-primary/20 border-dashed /70">
-            <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-muted-foreground text-sm">
-              <Sparkles className="h-5 w-5 text-primary-50" />
-              {t("global.empty")}
-            </CardContent>
-          </Card>
-        )}
-      </section>
-
-      <section className="space-y-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="font-semibold text-2xl text-primary-100">
-              {t("local.title", { campus: campusNameLocalized })}
-            </h2>
-            <p className="text-muted-foreground">{t("local.subtitle")}</p>
-          </div>
-          {campuses.length > 0 ? (
-            <ScrollArea
-              aria-label={t("local.switcherLabel")}
-              className="max-w-full whitespace-nowrap rounded-full border border-primary/10 bg-background"
-            >
-              <div className="flex gap-2 px-3 py-2">
-                {campuses
-                  .filter((campus) => campus.name?.toLowerCase() !== "national")
-                  .map((campus) => {
-                    const isActive = campus.$id === activeCampusId;
-                    return (
-                      <Button
-                        className={cn(
-                          "rounded-full px-4 py-2 font-medium text-sm transition",
-                          isActive
-                            ? "bg-primary-100 text-white shadow-sm"
-                            : "bg-background text-primary-80 hover:bg-primary-10"
-                        )}
-                        key={campus.$id}
-                        onClick={() => selectCampus(campus.$id)}
-                      >
-                        {campus.name}
-                      </Button>
-                    );
-                  })}
-              </div>
-              <ScrollBar className="invisible h-2" orientation="horizontal" />
-            </ScrollArea>
-          ) : null}
-        </div>
-
-        {hasCampusBenefits ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {campusSections.map((section) => {
-              const Icon = section.icon;
-              return (
-                <Card
-                  className="h-full border-primary/10 /90 shadow-card"
-                  key={section.key}
-                >
-                  <CardHeader className="space-y-3">
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <CardTitle className="font-semibold text-base text-primary-100">
-                      {section.title}
-                    </CardTitle>
-                    <p className="text-muted-foreground text-sm">
-                      {section.description}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2 text-muted-foreground text-sm">
-                      {section.items.map((item) => (
-                        <li className="flex items-start gap-2" key={item}>
-                          <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary-50" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card className="border-primary/20 border-dashed /70">
-            <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center text-muted-foreground text-sm">
-              <Users className="h-5 w-5 text-primary-50" />
-              {t("local.empty")}
-            </CardContent>
-          </Card>
-        )}
-      </section>
-
-      <section className="space-y-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="font-semibold text-2xl text-primary-100">
-              {t("highlights.title")}
-            </h2>
-            <p className="text-muted-foreground">{t("highlights.subtitle")}</p>
-          </div>
-          <Button
-            asChild
-            className="border-primary/20 text-primary-80 hover:border-primary/30 hover:text-primary-40"
-            size="sm"
-            variant="outline"
-          >
-            <Link href="/events?campus=all">
-              {t("highlights.ctaAll")}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {highlightEvents.map((event) => {
-            const Icon = event.icon;
-            return (
-              <Card
-                className="h-full border-primary/10 /90 shadow-card"
-                key={event.key}
+        <div className="absolute inset-0">
+          <div className="mx-auto flex h-full max-w-7xl items-center px-4 sm:px-6 lg:px-8">
+            <div className="grid w-full gap-8 lg:grid-cols-2 lg:gap-12">
+              {/* Left column - Hero content */}
+              <motion.div
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col justify-center"
+                initial={{ opacity: 0, y: 30 }}
+                transition={{ duration: 0.8 }}
               >
-                <CardHeader className="space-y-3">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/10 bg-primary-20/60 text-primary-60">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <CardTitle className="font-semibold text-base text-primary-100">
-                    {event.title}
-                  </CardTitle>
-                  <p className="text-muted-foreground text-sm">
-                    {event.description}
-                  </p>
-                </CardHeader>
-                <CardContent>
+                <Badge className="mb-6 w-fit border-white/30 bg-white/10 text-white backdrop-blur-sm">
+                  <Sparkles className="mr-2 h-3.5 w-3.5" />
+                  {t("hero.badge")}
+                </Badge>
+
+                <h1 className="mb-6 font-bold text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
+                  {heroTitle}
+                </h1>
+
+                <p className="mb-8 max-w-xl text-lg text-white/85 leading-relaxed">
+                  {heroSubtitle}
+                </p>
+
+                <div className="mb-8 flex flex-wrap gap-3">
                   <Button
-                    className="px-0 text-primary-70 hover:text-primary-40"
+                    asChild
+                    className="bg-white text-primary-100 shadow-lg hover:bg-white/90"
+                    size="lg"
+                  >
+                    <Link href="/shop/membership/">
+                      {t("hero.ctas.join")}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    className="border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+                    size="lg"
+                    variant="outline"
+                  >
+                    <Link href="/jobs?campus=all">{t("hero.ctas.roles")}</Link>
+                  </Button>
+                  <Button
+                    asChild
+                    className="text-white hover:bg-white/10"
+                    size="lg"
                     variant="ghost"
                   >
-                    {event.cta}
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <Link href="/partner">{t("hero.ctas.partners")}</Link>
                   </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <StatPill icon={Ticket} label={t("hero.stats.card")} />
+                  <StatPill icon={Users} label={t("hero.stats.members")} />
+                  <StatPill
+                    icon={BriefcaseBusiness}
+                    label={t("hero.stats.partners")}
+                  />
+                </div>
+              </motion.div>
+
+              {/* Right column - Onboarding steps card */}
+              <motion.div
+                animate={{ opacity: 1, x: 0 }}
+                className="hidden lg:flex lg:items-center lg:justify-end"
+                initial={{ opacity: 0, x: 30 }}
+                transition={{ delay: 0.3, duration: 0.8 }}
+              >
+                <Card className="w-full max-w-md border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-md">
+                  <div className="mb-6">
+                    <h2 className="font-semibold text-white text-xl">
+                      {t("onboarding.title")}
+                    </h2>
+                    <p className="text-sm text-white/70">
+                      {t("onboarding.subtitle")}
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    {onboardingSteps.map((step, index) => (
+                      <motion.div
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex gap-4 rounded-xl border border-white/10 bg-white/5 p-4"
+                        initial={{ opacity: 0, x: 20 }}
+                        key={step.number}
+                        transition={{ delay: 0.5 + index * 0.1 }}
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 font-semibold text-white">
+                          {step.number}
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{step.title}</p>
+                          <p className="mt-1 text-sm text-white/70">
+                            {step.description}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </Card>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Card className="border-primary/10 /90 shadow-card">
-          <CardHeader>
-            <CardTitle className="font-semibold text-primary-100 text-xl">
-              {t("faq.title")}
-            </CardTitle>
-            <p className="text-muted-foreground text-sm">{t("faq.subtitle")}</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {faqs.map((faq) => (
-              <div
-                className="rounded-2xl border border-primary/10 bg-background/80 p-4"
-                key={faq.key}
-              >
-                <p className="font-medium text-primary-90">{faq.question}</p>
-                <p className="mt-2 text-muted-foreground text-sm">
-                  {faq.answer}
+      {/* Main content container */}
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        {/* Global Benefits Section */}
+        <section className="mb-20">
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-10"
+            initial={{ opacity: 0, y: 20 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <Badge className="mb-3" variant="secondary">
+                  <Globe className="mr-2 h-3 w-3" />
+                  {locale === "en" ? "National Benefits" : "Nasjonale fordeler"}
+                </Badge>
+                <h2 className="font-bold text-2xl text-foreground sm:text-3xl">
+                  {t("global.title")}
+                </h2>
+                <p className="mt-2 max-w-2xl text-muted-foreground">
+                  {t("global.subtitle")}
                 </p>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Card className="flex flex-col justify-between border-primary/10 bg-linear-to-br from-primary-10 via-white to-white shadow-card">
-          <CardHeader>
-            <CardTitle className="font-semibold text-primary-100 text-xl">
-              {t("ctaCard.title")}
-            </CardTitle>
-            <p className="text-muted-foreground text-sm">
-              {t("ctaCard.subtitle")}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge
-                className="border-primary/20 text-primary-70"
-                variant="outline"
-              >
-                {t("ctaCard.badges.annual")}
-              </Badge>
-              <Badge
-                className="border-primary/20 text-primary-70"
-                variant="outline"
-              >
-                {t("ctaCard.badges.semester")}
-              </Badge>
-              <Badge
-                className="border-primary/20 text-primary-70"
-                variant="outline"
-              >
-                {t("ctaCard.badges.digitalCard")}
-              </Badge>
+              <Button asChild size="sm" variant="outline">
+                <Link href="https://biso.no/shop/bli-medlem-i-biso/">
+                  {t("global.cta")}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-            <Button
-              asChild
-              className="w-full bg-primary-100 text-white hover:bg-primary-90"
-              size="lg"
+          </motion.div>
+
+          {globalSections.length > 0 ? (
+            <div className="space-y-6">
+              {globalSections.map((section, index) => (
+                <BenefitCard index={index} key={section.key} section={section} />
+              ))}
+            </div>
+          ) : (
+            <Card className="border-dashed p-12 text-center">
+              <Sparkles className="mx-auto mb-4 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-muted-foreground">{t("global.empty")}</p>
+            </Card>
+          )}
+        </section>
+
+        {/* Campus-Specific Benefits Section */}
+        <section className="mb-20">
+          <motion.div
+            className="mb-10"
+            initial={{ opacity: 0, y: 20 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <Badge className="mb-3" variant="secondary">
+                  <MapPin className="mr-2 h-3 w-3" />
+                  {locale === "en" ? "Campus Benefits" : "Campus-fordeler"}
+                </Badge>
+                <h2 className="font-bold text-2xl text-foreground sm:text-3xl">
+                  {t("local.title", { campus: campusNameLocalized })}
+                </h2>
+                <p className="mt-2 max-w-2xl text-muted-foreground">
+                  {t("local.subtitle")}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Campus Switcher */}
+          {filteredCampuses.length > 0 && (
+            <motion.div
+              className="mb-8"
+              initial={{ opacity: 0, y: 10 }}
+              viewport={{ once: true }}
+              whileInView={{ opacity: 1, y: 0 }}
             >
-              <Link href="https://biso.no/shop/bli-medlem-i-biso/">
-                {t("ctaCard.primary")}
-              </Link>
-            </Button>
-            <Button
-              asChild
-              className="w-full text-primary-80 hover:text-primary-40"
-              size="lg"
-              variant="ghost"
-            >
-              <Link href="/contact">{t("ctaCard.secondary")}</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </section>
+              <div className="flex flex-wrap gap-2">
+                {filteredCampuses.map((campus) => {
+                  const isActive = campus.$id === activeCampusId;
+                  return (
+                    <Button
+                      className={cn(
+                        "rounded-full transition-all",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      )}
+                      key={campus.$id}
+                      onClick={() => selectCampus(campus.$id)}
+                      size="sm"
+                      variant={isActive ? "default" : "ghost"}
+                    >
+                      {campus.name}
+                    </Button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {hasCampusBenefits ? (
+            <div className="space-y-6">
+              {campusSections.map((section, index) => (
+                <BenefitCard index={index} key={section.key} section={section} />
+              ))}
+            </div>
+          ) : (
+            <Card className="border-dashed p-12 text-center">
+              <Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-muted-foreground">{t("local.empty")}</p>
+            </Card>
+          )}
+        </section>
+
+        {/* Highlight Events Section */}
+        <section className="mb-20">
+          <motion.div
+            className="mb-10"
+            initial={{ opacity: 0, y: 20 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <Badge className="mb-3" variant="secondary">
+                  <Star className="mr-2 h-3 w-3" />
+                  {locale === "en" ? "Featured Events" : "Høydepunkter"}
+                </Badge>
+                <h2 className="font-bold text-2xl text-foreground sm:text-3xl">
+                  {t("highlights.title")}
+                </h2>
+                <p className="mt-2 max-w-2xl text-muted-foreground">
+                  {t("highlights.subtitle")}
+                </p>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/events?campus=all">
+                  {t("highlights.ctaAll")}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </motion.div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {highlightEvents.map((event, index) => {
+              const Icon = event.icon;
+              const colors = colorSchemes[event.colorScheme];
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  key={event.key}
+                  transition={{ delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                >
+                  <Card
+                    className={cn(
+                      "group h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:shadow-xl",
+                      colors.gradient,
+                      colors.border
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br shadow-md",
+                        colors.iconGradient
+                      )}
+                    >
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="mb-2 font-semibold text-foreground text-lg">
+                      {event.title}
+                    </h3>
+                    <p className="mb-4 text-muted-foreground text-sm leading-relaxed">
+                      {event.description}
+                    </p>
+                    <Button
+                      className="group-hover:translate-x-1 transition-transform"
+                      size="sm"
+                      variant="ghost"
+                    >
+                      {event.cta}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* FAQ and CTA Section */}
+        <section className="grid gap-8 lg:grid-cols-5">
+          {/* FAQ */}
+          <motion.div
+            className="lg:col-span-3"
+            initial={{ opacity: 0, x: -20 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, x: 0 }}
+          >
+            <Card className="h-full p-6 sm:p-8">
+              <h2 className="mb-2 font-bold text-xl text-foreground sm:text-2xl">
+                {t("faq.title")}
+              </h2>
+              <p className="mb-6 text-muted-foreground text-sm">
+                {t("faq.subtitle")}
+              </p>
+              <Accordion className="space-y-2" collapsible type="single">
+                {faqs.map((faq) => (
+                  <AccordionItem
+                    className="rounded-lg border bg-muted/30 px-4"
+                    key={faq.key}
+                    value={faq.key}
+                  >
+                    <AccordionTrigger className="py-4 font-medium text-foreground hover:no-underline">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 text-muted-foreground">
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </Card>
+          </motion.div>
+
+          {/* CTA Card */}
+          <motion.div
+            className="lg:col-span-2"
+            initial={{ opacity: 0, x: 20 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, x: 0 }}
+          >
+            <Card className="relative h-full overflow-hidden bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to p-6 text-white sm:p-8">
+              <div className="absolute inset-0 bg-linear-to-t from-brand-overlay-from/50 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
+              <div className="relative">
+                <h2 className="mb-2 font-bold text-xl text-white sm:text-2xl">
+                  {t("ctaCard.title")}
+                </h2>
+                <p className="mb-6 text-sm text-white/80">
+                  {t("ctaCard.subtitle")}
+                </p>
+
+                <div className="mb-6 flex flex-wrap gap-2">
+                  <Badge className="border-white/30 bg-white/10 text-white">
+                    {t("ctaCard.badges.annual")}
+                  </Badge>
+                  <Badge className="border-white/30 bg-white/10 text-white">
+                    {t("ctaCard.badges.semester")}
+                  </Badge>
+                  <Badge className="border-white/30 bg-white/10 text-white">
+                    {t("ctaCard.badges.digitalCard")}
+                  </Badge>
+                </div>
+
+                <div className="space-y-3">
+                  <Button
+                    asChild
+                    className="w-full bg-white text-primary shadow-lg hover:bg-white/90"
+                    size="lg"
+                  >
+                    <Link href="/shop/membership/">
+                      {t("ctaCard.primary")}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    className="w-full border-white/30 text-white hover:bg-white/10"
+                    size="lg"
+                    variant="ghost"
+                  >
+                    <Link href="/contact">{t("ctaCard.secondary")}</Link>
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        </section>
+      </div>
     </div>
   );
-};
+}

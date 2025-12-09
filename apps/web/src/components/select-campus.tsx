@@ -99,7 +99,7 @@ export const SelectCampus = ({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        align="end"
+        align="center"
         aria-label="Velg campus"
         className={cn(
           "min-w-[220px] p-2",
