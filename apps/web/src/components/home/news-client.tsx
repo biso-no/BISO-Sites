@@ -16,7 +16,7 @@ export function NewsClient({ news }: NewsClientProps) {
  const t = useTranslations("home.news");
  if (!news || news.length === 0) {
  return (
- <section className="bg-linear-to-b from-background to-section py-24" id="news">
+ <section className="py-24" id="news">
  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
  <div className="text-center">
  <h2 className="mb-6 text-foreground">{t("empty")}</h2>
@@ -56,7 +56,7 @@ export function NewsClient({ news }: NewsClientProps) {
  };
 
  return (
- <section className="bg-linear-to-b from-background to-section py-24" id="news">
+ <section className="py-24" id="news">
  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
  {/* Header */}
  <motion.div

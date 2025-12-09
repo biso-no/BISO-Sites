@@ -119,7 +119,7 @@ export function LocaleSwitcher({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        align="end"
+        align="center"
         aria-label={t("locale.switcher.label")}
         className={cn(
           "min-w-[180px] p-2",

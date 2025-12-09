@@ -1,10 +1,31 @@
 {
-  "i18n-ally.localesPaths": ["apps/web/messages", "apps/web/src/i18n"],
+  
+  // Point Ally to your actual locale root
+  "i18n-ally.localesPaths": [
+    "packages/i18n/messages"
+  ],
+
+  // Your locale structure is "namespace per file"
+  "i18n-ally.extract.keyMaxDepth": 5,
+  "i18n-ally.enabledParsers": ["json", "ts"],
+  
+  // Ally should watch TS files that export message maps
+  "i18n-ally.includeSubfolders": true,
+
+  // Default locales if using en/no
+  "i18n-ally.sourceLanguage": "en",
+  "i18n-ally.displayLanguage": "en",
+
+  // Optionally map locale names if needed
+  "i18n-ally.locales": ["en", "no"],
+
+  // Additional (optional)
   "search.exclude": {
     "**/bun.lockb": true,
     "**/*.lockb": true,
     "**/dist/**": true,
     "**/build/**": true
   },
-  "tailwindCSS.experimental.configFile": "./packages/ui/styles/globals.css"
+  "tailwindCSS.experimental.configFile": "./packages/ui/styles/globals.css",
+  "i18n-ally.keystyle": "nested",
 }

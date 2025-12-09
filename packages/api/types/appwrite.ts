@@ -221,6 +221,7 @@ export type Campus = Models.Row & {
   news: News[];
   webshop_products: WebshopProducts[];
   partners: Partners[];
+  email: string | null;
 };
 
 export type Orders = Models.Row & {

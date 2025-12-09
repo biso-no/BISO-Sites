@@ -261,6 +261,9 @@
         "next": "16.0.7",
         "node-appwrite": "^14.1.0",
       },
+      "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
+      },
     },
     "packages/typescript-config": {
       "name": "@repo/typescript-config",

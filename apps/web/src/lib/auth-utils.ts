@@ -1,9 +1,11 @@
+import { Models } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
+import { UserPreferences } from "./types/prefs";
 
 /**
  * Check if the current session belongs to an authenticated user (not anonymous)
  */
-async function _isAuthenticatedUser(): Promise<boolean> {
+async function _isAuthenticatedUser(): Promise<boolean | ""> {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
@@ -42,7 +44,7 @@ async function _hasAnySession(): Promise<boolean> {
  */
 export async function getAuthStatus(): Promise<{
   hasSession: boolean;
-  isAuthenticated: boolean;
+  isAuthenticated: boolean | "";
   isAnonymous: boolean;
 }> {
   try {
@@ -77,4 +79,17 @@ export async function getAuthStatus(): Promise<{
       isAnonymous: false,
     };
   }
+}
+
+
+export async function getUserPreferences(): Promise<UserPreferences | null> {
+  const { account } = await createSessionClient();
+  const user = await account.getPrefs();
+
+  if (!user) {
+    return null;
+  }
+
+  const prefs = user.prefs;
+  return prefs;
 }
