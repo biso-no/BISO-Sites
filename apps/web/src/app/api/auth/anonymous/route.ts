@@ -10,12 +10,13 @@ export async function GET(request: NextRequest) {
     console.log("Anonymous user created:", session.userId);
 
     const cookieStore = await cookies();
+    const isProduction = process.env.NODE_ENV === "production";
     cookieStore.set("a_session_biso", session.secret, {
       path: "/",
       httpOnly: true,
-      sameSite: "none",
-      secure: true,
-      domain: ".biso.no",
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+      ...(isProduction && { domain: ".biso.no" }),
     });
 
     // Get the redirect URL from query params
