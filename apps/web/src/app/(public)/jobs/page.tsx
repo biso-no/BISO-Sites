@@ -5,7 +5,8 @@ import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobsHero } from "@/components/jobs/jobs-hero";
 import { JobsListClient } from "@/components/jobs/jobs-list-client";
-
+import { getUserPreferences } from "@/lib/auth-utils";
+    
 const jobCategories = [
  {
  name: "Academic Associations",
@@ -25,10 +26,12 @@ export const metadata = {
 
 async function JobsList({ locale }: { locale: "en" | "no" }) {
  // Fetch jobs on the server
+ const userPrefs = await getUserPreferences();
  const jobs = await listJobs({
  locale,
  status: "published",
  limit: 100,
+ campus: userPrefs?.campusId ?? "all",
  });
 
  // Calculate stats for hero

@@ -30,7 +30,7 @@ export default async function BusinessHotspotPage() {
       </div>
       <div>
         <Button asChild variant="secondary">
-          <Link href="/partner">{t("cta")}</Link>
+          <Link href="/business">{t("cta")}</Link>
         </Button>
       </div>
     </div>

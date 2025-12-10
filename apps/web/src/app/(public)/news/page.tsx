@@ -6,6 +6,8 @@ import { NewsGrid } from "@/components/news/news-grid";
 import { NewsGridSkeleton } from "@/components/news/news-grid-skeleton";
 import { NewsHero } from "@/components/news/news-hero";
 import { NewsInfoSection } from "@/components/news/news-info-section";
+import { getUserPreferences } from "@/lib/auth-utils";
+import { Locale } from "@repo/api/types/appwrite";
 
 export const metadata: Metadata = {
   title: "Latest News & Student Stories | BISO",
@@ -30,9 +32,17 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   const { category, search } = await searchParams;
   const selectedCategory = category || "All";
   const searchQuery = search || "";
+  
+
+  const prefs = await getUserPreferences();
 
   // Fetch data on the server
-  const articles = await listNews();
+  const articles = await listNews({
+    campus: prefs?.campusId ?? "all",
+    locale: prefs?.locale ?? Locale.EN,
+    status: "published",
+    limit: 100,
+  });
 
   // Get unique categories and add "All" option
   const uniqueCategories = Array.from(

@@ -8,6 +8,8 @@ import { Button } from "@repo/ui/components/ui/button";
 import { MapPin, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useEffect } from "react";
+import { useCampus } from "@/components/context/campus";
 
 type CampusHeroProps = {
  campusName: string | null;
@@ -128,6 +130,8 @@ export function CampusHero({
  stats,
  locale,
 }: CampusHeroProps) {
+    const { activeCampus, loading } = useCampus();
+
  const tagline = getLocalizedContent({
  locale,
  enValue: campusMetadata?.tagline_en,
@@ -154,13 +158,26 @@ export function CampusHero({
  const heroTitle = getHeroTitle({ campusName, locale });
  const statsData = getStatsData({ stats, locale });
 
+ const heroImage = activeCampus?.name
+    ? `/images/campus/${activeCampus.name.toLowerCase()}.png`
+    : null;
+
+
+ if (loading || !heroImage) {
+    return (
+      <div className="relative flex h-[70vh] items-center justify-center overflow-hidden bg-muted">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
  return (
  <div className="relative h-[70vh] overflow-hidden">
  <ImageWithFallback
- alt={campusName ? `${campusName} Campus` : "BISO Campus"}
+ alt={activeCampus?.name ? `${activeCampus.name} Campus` : "BISO Campus"}
  className="h-full w-full object-cover"
  fill
- src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx1bml2ZXJzaXR5JTIwY2FtcHVzfGVufDF8fHx8MTc2MjE2NTE0NXww&ixlib=rb-4.1.0&q=80&w=1080"
+ src={heroImage}
  />
  <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
 

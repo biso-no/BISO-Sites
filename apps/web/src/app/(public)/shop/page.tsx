@@ -1,10 +1,10 @@
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
-import { getActiveCampus } from "@/app/actions/campus";
-import { getLocale } from "@/app/actions/locale";
 import { listProducts } from "@/app/actions/webshop";
 import { ShopHero } from "@/components/shop/shop-hero";
 import { ShopListClient } from "@/components/shop/shop-list-client";
+import { getUserPreferences } from "@/lib/auth-utils";
+import { Locale } from "@repo/api/types/appwrite";
 
 export const metadata = {
   title: "Shop | BISO",
@@ -16,7 +16,7 @@ async function ShopList({
   locale,
   campus,
 }: {
-  locale: "en" | "no";
+  locale: Locale;
   campus: string | null;
 }) {
   const products = await listProducts({
@@ -51,8 +51,9 @@ function ShopListSkeleton() {
 }
 
 export default async function ShopPage() {
-  const locale = await getLocale();
-  const campus = await getActiveCampus();
+  
+  const prefs = await getUserPreferences();
+  
 
   // TODO: Get actual member status from auth
   const isMember = false;
@@ -61,7 +62,7 @@ export default async function ShopPage() {
     <div className="min-h-screen bg-linear-to-b from-section to-background">
       <ShopHero isMember={isMember} />
       <Suspense fallback={<ShopListSkeleton />}>
-        <ShopList campus={campus} locale={locale} />
+        <ShopList campus={prefs?.campusId ?? "all"} locale={prefs?.locale ?? Locale.EN} />
       </Suspense>
     </div>
   );

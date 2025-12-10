@@ -4,6 +4,7 @@ import { listEvents } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
 import { EventsHero } from "@/components/events/events-hero";
 import { EventsListClient } from "@/components/events/events-list-client";
+import { getUserPreferences } from "@/lib/auth-utils";
 
 // This is a server component
 export const metadata = {
@@ -14,10 +15,12 @@ export const metadata = {
 
 async function EventsList({ locale }: { locale: "en" | "no" }) {
   // Fetch events on the server
+  const userPrefs = await getUserPreferences();
   const events = await listEvents({
     locale,
     status: "published",
     limit: 50,
+    campus: userPrefs?.campusId ?? "all",
   });
   console.log("Events: ", events);
 
