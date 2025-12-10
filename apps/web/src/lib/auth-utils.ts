@@ -83,13 +83,11 @@ export async function getAuthStatus(): Promise<{
 
 
 export async function getUserPreferences(): Promise<UserPreferences | null> {
-  const { account } = await createSessionClient();
-  const user = await account.getPrefs();
-
-  if (!user) {
+  try {
+    const { account } = await createSessionClient();
+    const prefs = await account.getPrefs<UserPreferences>();
+    return prefs;
+  } catch {
     return null;
   }
-
-  const prefs = user.prefs;
-  return prefs;
 }

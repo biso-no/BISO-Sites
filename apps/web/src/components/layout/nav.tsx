@@ -138,7 +138,7 @@ export function Navigation({
  <SelectCampus campuses={campuses} className="text-white" />
  <ModeToggle className="text-white" />
  <LocaleSwitcher className="text-white" size="sm" variant="ghost" />
- <Link className="text-white hover:text-brand" href="/partner">{t("partner")}</Link>
+ <Link className="text-white hover:text-brand" href="/business">{t("partner")}</Link>
  <Button
  className="border-brand bg-transparent text-white hover:bg-brand hover:text-white"
  onClick={() => router.push("/member")}

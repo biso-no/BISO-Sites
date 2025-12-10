@@ -14,6 +14,16 @@ type TeamTabProps = {
   campusId: string | null;
   campusName: string | null;
   locale: Locale;
+  departmentId?: string | null;
+};
+
+// Maps campusId to the management department ID
+const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
+  "1": "2",      // Oslo
+  "2": "301",   // Bergen
+  "3": "601",   // Trondheim
+  "4": "801",   // Stavanger
+  "5": "1002", // National
 };
 
 type CampusLeader = {
@@ -87,6 +97,7 @@ export function TeamTab({
   campusId,
   campusName,
   locale,
+  departmentId,
 }: TeamTabProps) {
   const [leadership, setLeadership] = useState<DepartmentBoard[]>(fallbackTeam);
   const [loading, setLoading] = useState(false);
@@ -105,10 +116,12 @@ export function TeamTab({
     setLoading(true);
     setError(null);
 
-    fetch("/api/campus-leadership", {
-      method: "POST",
+    // Use provided departmentId, or fall back to management department for the campus
+    const effectiveDeptId = departmentId ?? MANAGEMENT_DEPARTMENT_IDS[campusId] ?? "management";
+
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/campus/${campusId}/${effectiveDeptId}/board`, {
+      method: "GET",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campus: campusId }),
     })
       .then((response) => {
         if (!response.ok) {
@@ -157,7 +170,7 @@ export function TeamTab({
     return () => {
       cancelled = true;
     };
-  }, [campusId, fallbackTeam, locale]);
+  }, [campusId, departmentId, fallbackTeam, locale]);
 
   let content: JSX.Element;
   if (loading) {

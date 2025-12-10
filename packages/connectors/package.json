@@ -1,0 +1,20 @@
+{
+  "name": "@repo/connectors",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "lint": "biome lint ."
+  },
+  "exports": {
+    "./azure": "./src/azure/index.ts"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "*"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.13.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "zod": "^4.1.13"
+  }
+}

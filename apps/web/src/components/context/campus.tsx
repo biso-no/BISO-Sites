@@ -1,5 +1,6 @@
 "use client";
 import type { Campus } from "@repo/api/types/appwrite";
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -28,6 +29,7 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
   const [activeCampusId, setActiveCampusId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const isHydrated = useHydration();
+  const router = useRouter();
 
   // Hydrate initial selection from localStorage so the choice persists between visits.
   useEffect(() => {
@@ -98,10 +100,12 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     // Persist to server (user preferences) - fails silently if not logged in
     try {
       await setActiveCampus(normalizedCampusId);
+      // Refresh server components to re-fetch data with new campus filter
+      router.refresh();
     } catch (error) {
       console.error("Failed to persist campus selection to server:", error);
     }
-  }, []);
+  }, [router]);
 
   const value = useMemo<CampusContextValue>(() => {
     const activeCampus = campuses.find(

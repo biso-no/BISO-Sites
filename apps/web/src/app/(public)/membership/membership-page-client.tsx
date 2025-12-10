@@ -518,7 +518,7 @@ export function MembershipPageClient({
                     size="lg"
                     variant="ghost"
                   >
-                    <Link href="/partner">{t("hero.ctas.partners")}</Link>
+                    <Link href="/business">{t("hero.ctas.partners")}</Link>
                   </Button>
                 </div>
 
