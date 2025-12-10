@@ -1,10 +1,10 @@
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const { account } = await createSessionClient();
+    const { account } = await createAdminClient();
     const session = await account.createAnonymousSession();
 
     console.log("Anonymous user created:", session.userId);
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 // Also support POST for programmatic calls
 export async function POST(_request: NextRequest) {
   try {
-    const { account } = await createSessionClient();
+    const { account } = await createAdminClient();
     const session = await account.createAnonymousSession();
 
     console.log("Anonymous user created:", session.userId);
