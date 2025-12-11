@@ -280,7 +280,9 @@ function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
                   <Text style={styles.cellText}>{att.date}</Text>
                 </View>
                 <View style={styles.colAmount}>
-                  <Text style={styles.cellText}>{formatCurrency(att.amount)}</Text>
+                  <Text style={styles.cellText}>
+                    {formatCurrency(att.amount)}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -289,14 +291,18 @@ function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
             <View style={styles.totalRow}>
               <View style={styles.totalLabel} />
               <Text style={styles.totalLabelText}>SUBTOTAL</Text>
-              <Text style={styles.totalAmount}>{formatCurrency(data.subtotal)}</Text>
+              <Text style={styles.totalAmount}>
+                {formatCurrency(data.subtotal)}
+              </Text>
             </View>
 
             {/* Total */}
             <View style={styles.totalRow}>
               <View style={styles.totalLabel} />
               <Text style={styles.totalLabelText}>TOTALT</Text>
-              <Text style={styles.totalAmount}>{formatCurrency(data.total)}</Text>
+              <Text style={styles.totalAmount}>
+                {formatCurrency(data.total)}
+              </Text>
             </View>
           </View>
         </View>
@@ -305,7 +311,9 @@ function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
   );
 }
 
-export async function generateExpensePdf(data: ExpenseTemplateData): Promise<Buffer> {
+export async function generateExpensePdf(
+  data: ExpenseTemplateData
+): Promise<Buffer> {
   const pdfBuffer = await renderToBuffer(<ExpensePdfDocument data={data} />);
   return Buffer.from(pdfBuffer);
 }

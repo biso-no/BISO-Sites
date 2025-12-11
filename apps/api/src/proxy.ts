@@ -12,16 +12,19 @@ const ALLOWED_ORIGINS = [
 
 export function proxy(request: NextRequest) {
   const origin = request.headers.get("origin");
-  
+
   // Check if the request is for an API route
   if (request.nextUrl.pathname.startsWith("/api")) {
     // Handle preflight requests
     if (request.method === "OPTIONS") {
       const response = new NextResponse(null, { status: 204 });
-      
+
       if (origin && ALLOWED_ORIGINS.includes(origin)) {
         response.headers.set("Access-Control-Allow-Origin", origin);
-        response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        response.headers.set(
+          "Access-Control-Allow-Methods",
+          "GET, POST, PUT, DELETE, OPTIONS"
+        );
         response.headers.set(
           "Access-Control-Allow-Headers",
           "Content-Type, Authorization, Cookie, X-Requested-With"
@@ -29,16 +32,19 @@ export function proxy(request: NextRequest) {
         response.headers.set("Access-Control-Allow-Credentials", "true");
         response.headers.set("Access-Control-Max-Age", "86400");
       }
-      
+
       return response;
     }
 
     // Handle actual requests
     const response = NextResponse.next();
-    
+
     if (origin && ALLOWED_ORIGINS.includes(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin);
-      response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      response.headers.set(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, OPTIONS"
+      );
       response.headers.set(
         "Access-Control-Allow-Headers",
         "Content-Type, Authorization, Cookie, X-Requested-With"

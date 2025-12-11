@@ -8,7 +8,6 @@ import {
   Locale,
 } from "@repo/api/types/appwrite";
 
-
 type ListProductsParams = {
   limit?: number;
   status?: string;

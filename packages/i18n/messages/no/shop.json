@@ -1,0 +1,40 @@
+{
+  "filters": {
+    "searchPlaceholder": "Søk etter produkter...",
+    "all": "Alle",
+    "Merch": "Merch",
+    "Trips": "Turer",
+    "Lockers": "Skap",
+    "Membership": "Medlemskap",
+    "clearFilters": "Tøm filtre",
+    "showingResults": "Viser {count} {count, plural, one {produkt} other {produkter}}"
+  },
+  "emptyState": {
+    "title": "Ingen produkter funnet",
+    "description": "Prøv å justere søket eller filtrene dine"
+  },
+  "loading": {
+    "message": "Laster produkter..."
+  },
+  "pickup": {
+    "title": "Alle produkter tilgjengelig for henting på campus",
+    "description": "Alle varer kjøpt i BISO-butikken kan hentes på BISO-kontoret i åpningstidene. Ingen fraktkostnader, ingen mas - bare praktisk henting på campus!",
+    "officeHours": "BISO kontortider:",
+    "hours": "Mandag-fredag, 10:00-16:00"
+  },
+  "hero": {
+    "title": "BISO-butikken",
+    "subtitle": "Alt du trenger",
+    "description": "Fra eksklusiv merch til turegenandeler og campusskap - alt tilgjengelig for henting på BISO-kontoret.",
+    "nonMemberBadge": "Bli medlem i BISO fra kun 350 NOK/semester - lås opp eksklusive rabatter!",
+    "memberBadge": "Medlemspriser aktivert!"
+  },
+  "card": {
+    "membersOnly": "Kun for medlemmer",
+    "save": "Spar {amount} NOK",
+    "onlyLeft": "Bare {count} igjen!",
+    "outOfStock": "Utsolgt",
+    "membersPay": "Medlemmer betaler kun {price}",
+    "viewDetails": "Vis detaljer"
+  }
+}

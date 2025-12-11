@@ -75,31 +75,36 @@ type MembershipPageClientProps = {
 
 const colorSchemes = {
   blue: {
-    gradient: "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
+    gradient:
+      "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
     iconGradient: "from-blue-500 to-blue-700",
     checkColor: "text-blue-600 dark:text-blue-400",
     border: "border-blue-100 dark:border-blue-900/50",
   },
   green: {
-    gradient: "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
+    gradient:
+      "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
     iconGradient: "from-emerald-500 to-emerald-700",
     checkColor: "text-emerald-600 dark:text-emerald-400",
     border: "border-emerald-100 dark:border-emerald-900/50",
   },
   pink: {
-    gradient: "from-pink-50 via-pink-50/50 to-white dark:from-pink-950/30 dark:via-pink-950/10 dark:to-card",
+    gradient:
+      "from-pink-50 via-pink-50/50 to-white dark:from-pink-950/30 dark:via-pink-950/10 dark:to-card",
     iconGradient: "from-pink-500 to-rose-600",
     checkColor: "text-pink-600 dark:text-pink-400",
     border: "border-pink-100 dark:border-pink-900/50",
   },
   purple: {
-    gradient: "from-violet-50 via-violet-50/50 to-white dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card",
+    gradient:
+      "from-violet-50 via-violet-50/50 to-white dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card",
     iconGradient: "from-violet-500 to-violet-700",
     checkColor: "text-violet-600 dark:text-violet-400",
     border: "border-violet-100 dark:border-violet-900/50",
   },
   orange: {
-    gradient: "from-orange-50 via-orange-50/50 to-white dark:from-orange-950/30 dark:via-orange-950/10 dark:to-card",
+    gradient:
+      "from-orange-50 via-orange-50/50 to-white dark:from-orange-950/30 dark:via-orange-950/10 dark:to-card",
     iconGradient: "from-orange-500 to-amber-600",
     checkColor: "text-orange-600 dark:text-orange-400",
     border: "border-orange-100 dark:border-orange-900/50",
@@ -191,7 +196,9 @@ function BenefitCard({
             <h3 className="font-semibold text-foreground text-lg">
               {section.title}
             </h3>
-            <p className="text-muted-foreground text-sm">{section.description}</p>
+            <p className="text-muted-foreground text-sm">
+              {section.description}
+            </p>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -215,13 +222,7 @@ function BenefitCard({
   );
 }
 
-function StatPill({
-  icon: Icon,
-  label,
-}: {
-  icon: LucideIcon;
-  label: string;
-}) {
+function StatPill({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
     <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
       <Icon className="h-4 w-4" />
@@ -612,7 +613,11 @@ export function MembershipPageClient({
           {globalSections.length > 0 ? (
             <div className="space-y-6">
               {globalSections.map((section, index) => (
-                <BenefitCard index={index} key={section.key} section={section} />
+                <BenefitCard
+                  index={index}
+                  key={section.key}
+                  section={section}
+                />
               ))}
             </div>
           ) : (
@@ -682,7 +687,11 @@ export function MembershipPageClient({
           {hasCampusBenefits ? (
             <div className="space-y-6">
               {campusSections.map((section, index) => (
-                <BenefitCard index={index} key={section.key} section={section} />
+                <BenefitCard
+                  index={index}
+                  key={section.key}
+                  section={section}
+                />
               ))}
             </div>
           ) : (

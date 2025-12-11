@@ -52,7 +52,9 @@ const FIELD_LABELS: Record<keyof RequiredProfileFields, string> = {
   city: "City",
 };
 
-function getMissingFields(profile: Partial<Users>): (keyof RequiredProfileFields)[] {
+function getMissingFields(
+  profile: Partial<Users>
+): (keyof RequiredProfileFields)[] {
   return REQUIRED_FIELDS.filter((field) => !profile[field]);
 }
 
@@ -84,7 +86,9 @@ export function ProfileCompletionBanner({
     // Only validate the fields that were missing (shown in the form)
     const stillMissing = missingFields.filter((field) => !formData[field]);
     if (stillMissing.length > 0) {
-      toast.error(`Please fill in: ${stillMissing.map((f) => FIELD_LABELS[f]).join(", ")}`);
+      toast.error(
+        `Please fill in: ${stillMissing.map((f) => FIELD_LABELS[f]).join(", ")}`
+      );
       return;
     }
 
@@ -106,7 +110,10 @@ export function ProfileCompletionBanner({
     });
   };
 
-  const handleInputChange = (field: keyof RequiredProfileFields, value: string) => {
+  const handleInputChange = (
+    field: keyof RequiredProfileFields,
+    value: string
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -143,7 +150,8 @@ export function ProfileCompletionBanner({
           <DialogHeader>
             <DialogTitle>Complete Your Profile</DialogTitle>
             <DialogDescription>
-              Please provide the following information to submit expense reports.
+              Please provide the following information to submit expense
+              reports.
             </DialogDescription>
           </DialogHeader>
 

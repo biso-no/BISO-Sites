@@ -92,20 +92,23 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [activeCampusId, isHydrated]);
 
-  const selectCampus = useCallback(async (campusId: string | null) => {
-    // Handle "all" selection by setting to null
-    const normalizedCampusId = campusId === "all" ? null : campusId;
-    setActiveCampusId(normalizedCampusId);
+  const selectCampus = useCallback(
+    async (campusId: string | null) => {
+      // Handle "all" selection by setting to null
+      const normalizedCampusId = campusId === "all" ? null : campusId;
+      setActiveCampusId(normalizedCampusId);
 
-    // Persist to server (user preferences) - fails silently if not logged in
-    try {
-      await setActiveCampus(normalizedCampusId);
-      // Refresh server components to re-fetch data with new campus filter
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to persist campus selection to server:", error);
-    }
-  }, [router]);
+      // Persist to server (user preferences) - fails silently if not logged in
+      try {
+        await setActiveCampus(normalizedCampusId);
+        // Refresh server components to re-fetch data with new campus filter
+        router.refresh();
+      } catch (error) {
+        console.error("Failed to persist campus selection to server:", error);
+      }
+    },
+    [router]
+  );
 
   const value = useMemo<CampusContextValue>(() => {
     const activeCampus = campuses.find(

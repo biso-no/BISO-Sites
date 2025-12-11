@@ -16,12 +16,12 @@ export const createGraphClient = (
 
   // Create the auth provider with application permissions
   const authProvider = new TokenCredentialAuthenticationProvider(credential, {
-    scopes: ["https://graph.microsoft.com/.default"]
+    scopes: ["https://graph.microsoft.com/.default"],
   });
 
   // Initialize the Graph client
   const graphClient = Client.initWithMiddleware({
-    authProvider
+    authProvider,
   });
 
   return graphClient;

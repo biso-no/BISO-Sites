@@ -160,10 +160,12 @@ const REPLACEMENT_RULES: Array<{
     pattern: /\btext-gray-400\b/g,
     replacement: (match, context) => {
       // Check if we're in a dark/inverted section
-      const isDarkSection = /bg-gray-900|bg-gray-800|bg-inverted|footer|Footer/.test(context);
+      const isDarkSection =
+        /bg-gray-900|bg-gray-800|bg-inverted|footer|Footer/.test(context);
       return isDarkSection ? "text-inverted-muted" : "text-muted-foreground";
     },
-    description: "text-gray-400 → text-muted-foreground (or text-inverted-muted in dark sections)",
+    description:
+      "text-gray-400 → text-muted-foreground (or text-inverted-muted in dark sections)",
   },
   {
     pattern: /\btext-gray-300\b/g,
@@ -449,12 +451,14 @@ const REPLACEMENT_RULES: Array<{
   {
     pattern: /\bdata-\[state=active\]:text-\[#3DA9E0\]\b/g,
     replacement: "data-[state=active]:text-brand",
-    description: "data-[state=active]:text-[#3DA9E0] → data-[state=active]:text-brand",
+    description:
+      "data-[state=active]:text-[#3DA9E0] → data-[state=active]:text-brand",
   },
   {
     pattern: /\bdata-\[state=active\]:border-\[#3DA9E0\]\b/g,
     replacement: "data-[state=active]:border-brand",
-    description: "data-[state=active]:border-[#3DA9E0] → data-[state=active]:border-brand",
+    description:
+      "data-[state=active]:border-[#3DA9E0] → data-[state=active]:border-brand",
   },
 
   // ============================================
@@ -488,7 +492,8 @@ const REPLACEMENT_RULES: Array<{
   {
     pattern: /\bdark:hover:border-\[#3DA9E0\]\/50\b/g,
     replacement: "dark:hover:border-brand-border-strong",
-    description: "dark:hover:border-[#3DA9E0]/50 → dark:hover:border-brand-border-strong",
+    description:
+      "dark:hover:border-[#3DA9E0]/50 → dark:hover:border-brand-border-strong",
   },
 
   // ============================================
@@ -833,7 +838,10 @@ async function getAllFiles(dir: string): Promise<string[]> {
   return files;
 }
 
-function processFile(content: string, filePath: string): { newContent: string; changes: string[] } {
+function processFile(
+  content: string,
+  filePath: string
+): { newContent: string; changes: string[] } {
   let newContent = content;
   const changes: string[] = [];
   const seenChanges = new Set<string>();
@@ -850,7 +858,10 @@ function processFile(content: string, filePath: string): { newContent: string; c
 
       // Get context (surrounding 200 chars)
       const contextStart = Math.max(0, offset - 100);
-      const contextEnd = Math.min(fullString.length, offset + match.length + 100);
+      const contextEnd = Math.min(
+        fullString.length,
+        offset + match.length + 100
+      );
       const context = fullString.slice(contextStart, contextEnd);
 
       // Check if we should skip this based on context
@@ -880,7 +891,8 @@ function processFile(content: string, filePath: string): { newContent: string; c
         seenChanges.add(rule.description);
       }
       stats.replacements++;
-      stats.byType[rule.description] = (stats.byType[rule.description] || 0) + 1;
+      stats.byType[rule.description] =
+        (stats.byType[rule.description] || 0) + 1;
 
       return replacement;
     });
@@ -895,7 +907,9 @@ function processFile(content: string, filePath: string): { newContent: string; c
 async function processFiles() {
   console.log("🎨 Theme Color Migration Script");
   console.log("================================");
-  console.log(`Mode: ${DRY_RUN ? "DRY RUN (no files will be modified)" : "LIVE"}`);
+  console.log(
+    `Mode: ${DRY_RUN ? "DRY RUN (no files will be modified)" : "LIVE"}`
+  );
   console.log(`Target: ${TARGET_DIR}`);
   console.log("");
 

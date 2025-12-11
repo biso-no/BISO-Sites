@@ -68,7 +68,9 @@ export function Footer() {
                   </div>
                 </div>
               </div>
-              <p className="mb-6 text-muted-foreground">{t("about.description")}</p>
+              <p className="mb-6 text-muted-foreground">
+                {t("about.description")}
+              </p>
 
               {/* Contact Info */}
               <div className="space-y-3">

@@ -1,0 +1,40 @@
+{
+  "filters": {
+    "searchPlaceholder": "Search products...",
+    "all": "All",
+    "Merch": "Merch",
+    "Trips": "Trips",
+    "Lockers": "Lockers",
+    "Membership": "Membership",
+    "clearFilters": "Clear Filters",
+    "showingResults": "Showing {count} {count, plural, one {product} other {products}}"
+  },
+  "emptyState": {
+    "title": "No products found",
+    "description": "Try adjusting your search or filters"
+  },
+  "loading": {
+    "message": "Loading products..."
+  },
+  "pickup": {
+    "title": "All Products Available for Campus Pickup",
+    "description": "All items purchased in the BISO Shop are available for pickup at the BISO office during opening hours. No shipping fees, no hassle - just convenient campus pickup!",
+    "officeHours": "BISO Office Hours:",
+    "hours": "Monday-Friday, 10:00-16:00"
+  },
+  "hero": {
+    "title": "BISO Shop",
+    "subtitle": "Everything You Need",
+    "description": "From exclusive merch to trip deductibles and campus lockers - all available for pickup at BISO office.",
+    "nonMemberBadge": "Join BISO from just 350 NOK/semester - unlock exclusive discounts!",
+    "memberBadge": "Member prices activated!"
+  },
+  "card": {
+    "membersOnly": "Members Only",
+    "save": "Save {amount} NOK",
+    "onlyLeft": "Only {count} left!",
+    "outOfStock": "Out of Stock",
+    "membersPay": "Members pay only {price}",
+    "viewDetails": "View Details"
+  }
+}

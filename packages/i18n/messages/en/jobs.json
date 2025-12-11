@@ -1,0 +1,32 @@
+{
+  "hero": {
+    "badge": "Join Our Team",
+    "title": "Make a Difference",
+    "subtitle": "Shape Student Life",
+    "description": "Join BISO and be part of creating exceptional experiences for thousands of students. Find your perfect role and make an impact.",
+    "openPositions": "Open Positions",
+    "paidRoles": "Paid Roles",
+    "departments": "Departments"
+  },
+  "filters": {
+    "searchPlaceholder": "Search positions by title, department, or description...",
+    "all": "All",
+    "academicAssociations": "Academic Associations",
+    "societies": "Societies",
+    "staffFunctions": "Staff Functions",
+    "projects": "Projects",
+    "paidOnly": "Paid Positions Only",
+    "showingResults": "Showing {count} {count, plural, one {position} other {positions}}"
+  },
+  "emptyState": {
+    "title": "No positions found",
+    "description": "Try adjusting your filters or search query",
+    "clearFilters": "Clear All Filters"
+  },
+  "cta": {
+    "title": "Questions About Applying?",
+    "description": "Our recruitment team is here to help! Reach out if you have any questions about positions or the application process.",
+    "contactButton": "Contact Recruitment Team",
+    "downloadButton": "Download Information Pack"
+  }
+}

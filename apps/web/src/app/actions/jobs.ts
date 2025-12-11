@@ -18,7 +18,6 @@ type ListJobsParams = {
   locale?: "en" | "no";
 };
 
-
 const mapStatus = (status?: "draft" | "published" | "closed") => {
   if (status === "draft") {
     return Status.DRAFT;

@@ -81,7 +81,6 @@ export async function getAuthStatus(): Promise<{
   }
 }
 
-
 export async function getUserPreferences(): Promise<UserPreferences | null> {
   try {
     const { account } = await createSessionClient();

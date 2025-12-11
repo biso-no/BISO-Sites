@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
 
   const existingTargets = user.targets;
   console.log("Existing targets: ", existingTargets);
-  const emailTarget = existingTargets.find((target) => target.providerType === MessagingProviderType.Email);
+  const emailTarget = existingTargets.find(
+    (target) => target.providerType === MessagingProviderType.Email
+  );
 
   if (!emailTarget) {
     console.log("Creating email target");
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
       identifier: user.email,
       targetId: ID.unique(),
       name: "User email",
-      providerId: 'email'
+      providerId: "email",
     });
   }
 

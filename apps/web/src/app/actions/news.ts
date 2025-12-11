@@ -19,7 +19,6 @@ type ListNewsParams = {
   locale?: "en" | "no";
 };
 
-
 export async function listNews(
   params: ListNewsParams = {}
 ): Promise<ContentTranslations[]> {

@@ -1,0 +1,92 @@
+{
+  "filters": {
+    "searchPlaceholder": "Søk etter arrangementer...",
+    "all": "Alle",
+    "Social": "Sosialt",
+    "Career": "Karriere",
+    "Academic": "Faglig",
+    "Sports": "Idrett",
+    "Culture": "Kultur",
+    "clearFilters": "Tøm filtre",
+    "showingResults": "Viser {count} {count, plural, one {arrangement} other {arrangementer}}"
+  },
+  "emptyState": {
+    "title": "Ingen arrangementer funnet",
+    "description": "Prøv å justere filtrene eller søket ditt"
+  },
+  "card": {
+    "collection": "Samling",
+    "membersOnly": "Kun for medlemmer",
+    "memberDiscount": "Medlemsrabatt",
+    "tickster": "Tickster",
+    "membersPrice": "Medlemmer: {price}",
+    "memberPriceLabel": "(Medlemspris)",
+    "tba": "TBA",
+    "attending": "{count} deltar",
+    "multiDayCollection": "Flersdagers arrangementssamling",
+    "bundlePricing": "Pakkepris: En billett for alle arrangementer",
+    "individualPricing": "Individuell prising: Registrer deg for hvert arrangement separat",
+    "viewCollection": "Vis samling",
+    "viewDetails": "Vis detaljer",
+    "locationTba": "Sted kommer"
+  },
+  "modal": {
+    "memberPrice": "Medlemspris",
+    "getTickets": "Kjøp billetter på Tickster",
+    "registerNow": "Registrer deg nå",
+    "close": "Lukk",
+    "date": "Dato",
+    "time": "Tid",
+    "location": "Sted",
+    "attendees": "Deltakere",
+    "memberSavings": "Medlemmer får dette arrangementet for {price}! Bli med i BISO for å spare.",
+    "about": "Om dette arrangementet",
+    "highlights": "Høydepunkter",
+    "agenda": "Program"
+  },
+  "actions": {
+    "getTicket": "Kjøp billett",
+    "registerNow": "Registrer deg nå",
+    "ticketDescription": "Klikk nedenfor for å kjøpe billett på Tickster og sikre deg plass!",
+    "registerDescription": "Begrenset antall plasser! Registrer deg nå for å garantere din deltakelse.",
+    "buyOnTickster": "Kjøp på Tickster",
+    "shareEvent": "Del arrangement"
+  },
+  "collection": {
+    "title": "Arrangementer i denne samlingen",
+    "otherTitle": "Andre arrangementer i denne samlingen",
+    "bundlePricing": "Pakkepris",
+    "individualPricing": "Individuell prising",
+    "bundleDescription": "Pakkepris: Betal {price} én gang for å få tilgang til alle {count} arrangementer i denne samlingen.",
+    "individualDescription": "Individuell prising: Registrer deg for hvert arrangement separat. Velg de arrangementene som interesserer deg mest!"
+  },
+  "content": {
+    "whatToExpect": "Hva du kan forvente",
+    "schedule": "Program"
+  },
+  "hero": {
+    "backToEvents": "Tilbake til arrangementer",
+    "discoverTitle": "Oppdag fantastiske\narrangementer og opplevelser",
+    "discoverDescription": "Fra nettverksbygging til sosiale sammenkomster, finn den perfekte muligheten til å knytte kontakter, lære og skape uforglemmelige minner."
+  },
+  "infoCards": {
+    "bundlePrice": "Pakkepris",
+    "pricing": "Priser",
+    "price": "Pris",
+    "freeEvent": "Dette arrangementet er gratis for alle studenter!",
+    "bundleAccess": "Én betaling gir deg tilgang til alle {count} arrangementer i denne samlingen!",
+    "individualRegister": "Registrer deg for individuelle arrangementer basert på dine interesser.",
+    "partOfCollection": "Dette arrangementet er en del av en samling. Se samlingsdetaljer for pakkepris.",
+    "secureSpot": "Sikre deg plass med online betaling.",
+    "eventDetails": "Arrangementsdetaljer",
+    "category": "Kategori",
+    "expectedAttendance": "Forventet oppmøte",
+    "importantInfo": "Viktig informasjon",
+    "arriveEarly": "Vennligst møt opp 15 minutter før arrangementet starter",
+    "studentId": "Gyldig studentbevis kreves for inngang",
+    "emailConfirmation": "Bekreftelse på registrering sendes på e-post",
+    "refunds": "Refusjon tilgjengelig inntil 48 timer før arrangementet",
+    "questions": "Spørsmål?",
+    "contactTeam": "Kontakt vårt arrangementsteam på"
+  }
+}

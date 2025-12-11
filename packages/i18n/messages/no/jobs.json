@@ -1,0 +1,32 @@
+{
+  "hero": {
+    "badge": "Bli med på laget",
+    "title": "Gjør en forskjell",
+    "subtitle": "Form studentlivet",
+    "description": "Bli med i BISO og vær med på å skape eksepsjonelle opplevelser for tusenvis av studenter. Finn din perfekte rolle og gjør en forskjell.",
+    "openPositions": "Ledige stillinger",
+    "paidRoles": "Betalte roller",
+    "departments": "Avdelinger"
+  },
+  "filters": {
+    "searchPlaceholder": "Søk etter stillinger etter tittel, avdeling eller beskrivelse...",
+    "all": "Alle",
+    "academicAssociations": "Fagforeninger",
+    "societies": "Foreninger",
+    "staffFunctions": "Stabsfunksjoner",
+    "projects": "Prosjekter",
+    "paidOnly": "Kun betalte stillinger",
+    "showingResults": "Viser {count} {count, plural, one {stilling} other {stillinger}}"
+  },
+  "emptyState": {
+    "title": "Ingen stillinger funnet",
+    "description": "Prøv å justere filtrene eller søket ditt",
+    "clearFilters": "Fjern alle filtre"
+  },
+  "cta": {
+    "title": "Spørsmål om søknad?",
+    "description": "Rekrutteringsteamet vårt er her for å hjelpe! Ta kontakt hvis du har spørsmål om stillinger eller søknadsprosessen.",
+    "contactButton": "Kontakt rekrutteringsteamet",
+    "downloadButton": "Last ned informasjonspakke"
+  }
+}

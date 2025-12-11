@@ -40,7 +40,7 @@
     }
   },
   "navigation": {
-    "partner": "Partner",
+    "partner": "Bedrift",
     "memberPortal": "Medlemsportal",
     "campus": "Campus",
     "events": "Arrangementer",
@@ -54,9 +54,9 @@
     "title": "Vi fant ikke siden du lette etter",
     "description": "Kanskje ble innholdet flyttet, eller kanskje det er skrevet feil addresse. La oss hjelpe deg tilbake til noe relevant",
     "cta": {
-    "goToFrontPage": "Gå til forsiden",
-    "goToCampus": "TIlbake til campus-oversikten",
-    "needAssistance": "Trenger du hjelp? Kontakt oss på <link>{email}</link> og vi følger deg opp."
+      "goToFrontPage": "Gå til forsiden",
+      "goToCampus": "TIlbake til campus-oversikten",
+      "needAssistance": "Trenger du hjelp? Kontakt oss på <link>{email}</link> og vi følger deg opp."
     }
-  } 
+  }
 }

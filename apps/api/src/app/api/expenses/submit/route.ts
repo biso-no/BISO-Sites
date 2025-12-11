@@ -12,26 +12,24 @@ type CreateAttachmentData = {
   amount: number;
   description: string;
   type: string;
-}
+};
 
 export type CreateExpenseData = Models.Row & {
-    campus: string;
-    department: string;
-    bank_account: string;
-    description: string;
-    total: number;
-    prepayment_amount: number;
-    eventName: string;
-    expenseAttachments: CreateAttachmentData[];
-    campusRel: string;
-    departmentRel: string;
-    status: ExpenseStatus;
-    userId: string;
-    user: string;
-    $sequence: number;
-}
-
-
+  campus: string;
+  department: string;
+  bank_account: string;
+  description: string;
+  total: number;
+  prepayment_amount: number;
+  eventName: string;
+  expenseAttachments: CreateAttachmentData[];
+  campusRel: string;
+  departmentRel: string;
+  status: ExpenseStatus;
+  userId: string;
+  user: string;
+  $sequence: number;
+};
 
 /**
  * Generates a 5-digit reimbursement number from the sequence.
@@ -64,7 +62,10 @@ export async function POST(req: NextRequest) {
     const expenseData = await req.json();
 
     if (!expenseData || !expenseData.bank_account) {
-      return NextResponse.json({ success: false, error: "Bank account is required" });
+      return NextResponse.json({
+        success: false,
+        error: "Bank account is required",
+      });
     }
 
     const expenseBody = {
@@ -91,41 +92,59 @@ export async function POST(req: NextRequest) {
       expenseBody
     );
 
-    const fetchedExpense = await db.getRow<Expenses>("app", "expense", expense.$id, [
-      Query.select([
-        "$id",
-        "campus",
-        "department",
-        "bank_account",
-        "description",
-        "total",
-        "prepayment_amount",
-        "status",
-        "invoice_id",
-        "user.*",
-        "userId",
-        "eventName",
-        "departmentRel.*",
-        "campusRel.*",
-        "expenseAttachments.*",
-        "$sequence",
-      ]),
-    ]);
+    const fetchedExpense = await db.getRow<Expenses>(
+      "app",
+      "expense",
+      expense.$id,
+      [
+        Query.select([
+          "$id",
+          "campus",
+          "department",
+          "bank_account",
+          "description",
+          "total",
+          "prepayment_amount",
+          "status",
+          "invoice_id",
+          "user.*",
+          "userId",
+          "eventName",
+          "departmentRel.*",
+          "campusRel.*",
+          "expenseAttachments.*",
+          "$sequence",
+        ]),
+      ]
+    );
 
     // Generate reimbursement number from sequence
-    const reimbursementNumber = generateReimbursementNumber(fetchedExpense.$sequence);
+    const reimbursementNumber = generateReimbursementNumber(
+      fetchedExpense.$sequence
+    );
 
     // Build address string
-    const addressParts = [profile.address, profile.zip, profile.city].filter(Boolean);
+    const addressParts = [profile.address, profile.zip, profile.city].filter(
+      Boolean
+    );
     const fullAddress = addressParts.join(", ") || "Ikke oppgitt";
 
-    if (!profile.name || !profile.phone || !profile.email || !profile.bank_account) {
+    if (
+      !profile.name ||
+      !profile.phone ||
+      !profile.email ||
+      !profile.bank_account
+    ) {
       const missingFields: string[] = [];
       if (!profile.name) missingFields.push("name");
       if (!profile.phone) missingFields.push("phone");
       if (!profile.email) missingFields.push("email");
       if (!profile.bank_account) missingFields.push("bank_account");
-      return NextResponse.json({ success: false, error: "Missing required fields: ", missingFields: missingFields.join(", ") });
+      return NextResponse.json({
+        success: false,
+        error: "Missing required fields: ",
+        missingFields: missingFields.join(", "),
+      });
     }
 
     // Generate the PDF cover sheet
@@ -159,7 +178,9 @@ export async function POST(req: NextRequest) {
     // Prepend the PDF to the attachments array
     const attachmentsIdsArray = [
       `expenses:${uploadedPdf.$id}`,
-      ...fetchedExpense.expenseAttachments.map((attachment) => `expenses:${attachment.url}`),
+      ...fetchedExpense.expenseAttachments.map(
+        (attachment) => `expenses:${attachment.url}`
+      ),
     ];
 
     const emailHtml = `
@@ -205,7 +226,11 @@ export async function POST(req: NextRequest) {
       status: ExpenseStatus.PENDING,
     });
 
-    return NextResponse.json({ success: true, fetchedExpense, reimbursementNumber });
+    return NextResponse.json({
+      success: true,
+      fetchedExpense,
+      reimbursementNumber,
+    });
   } catch (error) {
     console.error("Error creating expense:", error);
     return NextResponse.json({ success: false, error });

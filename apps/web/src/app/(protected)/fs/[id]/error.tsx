@@ -7,38 +7,38 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 export default function ExpenseDetailError({
- error,
- reset,
+  error,
+  reset,
 }: {
- error: Error & { digest?: string };
- reset: () => void;
+  error: Error & { digest?: string };
+  reset: () => void;
 }) {
- useEffect(() => {
- console.error("Expense detail error:", error);
- }, [error]);
+  useEffect(() => {
+    console.error("Expense detail error:", error);
+  }, [error]);
 
- return (
- <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-section to-background p-4">
- <Card className="max-w-md border-0 p-12 text-center shadow-xl">
- <AlertCircle className="mx-auto mb-4 h-16 w-16 text-red-500" />
- <h2 className="mb-2 font-bold text-2xl text-foreground">
- Expense not found
- </h2>
- <p className="mb-6 text-muted-foreground">
- The expense you're looking for doesn't exist or you don't have
- permission to view it.
- </p>
- <div className="flex justify-center gap-3">
- <Button onClick={reset} variant="outline">
- Try Again
- </Button>
- <Link href="/fs">
- <Button className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
- Go to Expenses
- </Button>
- </Link>
- </div>
- </Card>
- </div>
- );
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-section to-background p-4">
+      <Card className="max-w-md border-0 p-12 text-center shadow-xl">
+        <AlertCircle className="mx-auto mb-4 h-16 w-16 text-red-500" />
+        <h2 className="mb-2 font-bold text-2xl text-foreground">
+          Expense not found
+        </h2>
+        <p className="mb-6 text-muted-foreground">
+          The expense you're looking for doesn't exist or you don't have
+          permission to view it.
+        </p>
+        <div className="flex justify-center gap-3">
+          <Button onClick={reset} variant="outline">
+            Try Again
+          </Button>
+          <Link href="/fs">
+            <Button className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
+              Go to Expenses
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    </div>
+  );
 }
