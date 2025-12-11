@@ -32,7 +32,6 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   const { category, search } = await searchParams;
   const selectedCategory = category || "All";
   const searchQuery = search || "";
-  
 
   const prefs = await getUserPreferences();
 

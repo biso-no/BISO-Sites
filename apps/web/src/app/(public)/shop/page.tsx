@@ -15,9 +15,11 @@ export const metadata = {
 async function ShopList({
   locale,
   campus,
+  isMember,
 }: {
   locale: Locale;
   campus: string | null;
+  isMember: boolean;
 }) {
   const products = await listProducts({
     locale,
@@ -25,9 +27,6 @@ async function ShopList({
     limit: 100,
     campus: campus || "all",
   });
-
-  // TODO: Get actual member status from auth
-  const isMember = false;
 
   return <ShopListClient isMember={isMember} products={products} />;
 }
@@ -51,9 +50,7 @@ function ShopListSkeleton() {
 }
 
 export default async function ShopPage() {
-  
   const prefs = await getUserPreferences();
-  
 
   // TODO: Get actual member status from auth
   const isMember = false;
@@ -62,7 +59,11 @@ export default async function ShopPage() {
     <div className="min-h-screen bg-linear-to-b from-section to-background">
       <ShopHero isMember={isMember} />
       <Suspense fallback={<ShopListSkeleton />}>
-        <ShopList campus={prefs?.campusId ?? "all"} locale={prefs?.locale ?? Locale.EN} />
+        <ShopList
+          campus={prefs?.campusId ?? "all"}
+          locale={prefs?.locale ?? Locale.EN}
+          isMember={isMember}
+        />
       </Suspense>
     </div>
   );

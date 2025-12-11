@@ -9,11 +9,10 @@ import { getUserPreferences } from "@/lib/auth-utils";
 export const revalidate = 0;
 
 export default async function MembershipPage() {
-
   const prefs = await getUserPreferences();
 
   const [campusData, globalBenefits, locale] = await Promise.all([
-  getCampusData(prefs?.campusId),
+    getCampusData(prefs?.campusId),
     getGlobalMembershipBenefits(),
     getLocale(),
   ]);

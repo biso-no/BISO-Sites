@@ -67,11 +67,7 @@ class AppwriteJobsError extends Error {
   statusCode: number;
   code: string;
 
-  constructor(
-    message: string,
-    statusCode = 500,
-    code = "INTERNAL_ERROR"
-  ) {
+  constructor(message: string, statusCode = 500, code = "INTERNAL_ERROR") {
     super(message);
     this.name = "AppwriteJobsError";
     this.statusCode = statusCode;
@@ -306,11 +302,7 @@ async function parseJobsResponse(
     };
   }
 
-  if (
-    data &&
-    typeof data === "object" &&
-    Array.isArray((data as any).jobs)
-  ) {
+  if (data && typeof data === "object" && Array.isArray((data as any).jobs)) {
     const typed = data as WordPressJobsApiResponse;
     log(
       `Received ${typed.jobs.length} jobs, ${

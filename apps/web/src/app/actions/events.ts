@@ -47,7 +47,6 @@ export async function listEvents(
       queries
     );
 
-
     let events = eventsResponse.rows;
 
     // Filter on nested fields after the query (not possible to filter in Appwrite)

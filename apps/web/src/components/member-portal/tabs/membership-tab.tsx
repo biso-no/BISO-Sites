@@ -15,201 +15,203 @@ import { MembershipCard } from "../shared/membership-card";
 type MembershipDuration = "semester" | "year" | "three-year";
 
 const MEMBERSHIP_PRICES = {
- semester: 350,
- year: 550,
- "three-year": 1400,
+  semester: 350,
+  year: 550,
+  "three-year": 1400,
 };
 
 type MembershipTabProps = {
- userName: string;
- studentId: string;
- currentPlan: MembershipDuration;
- expiryDate: string;
- daysRemaining: number;
- autoRenew: boolean;
- isMember: boolean;
- hasBIIdentity: boolean;
+  userName: string;
+  studentId: string;
+  currentPlan: MembershipDuration;
+  expiryDate: string;
+  daysRemaining: number;
+  autoRenew: boolean;
+  isMember: boolean;
+  hasBIIdentity: boolean;
 };
 
 export function MembershipTab({
- userName,
- studentId,
- currentPlan,
- expiryDate,
- daysRemaining,
- autoRenew,
- isMember,
- hasBIIdentity,
+  userName,
+  studentId,
+  currentPlan,
+  expiryDate,
+  daysRemaining,
+  autoRenew,
+  isMember,
+  hasBIIdentity,
 }: MembershipTabProps) {
- const t = useTranslations("memberPortal.membership");
- const tPricing = useTranslations("memberPortal.states.notMember.pricing");
- const [isAutoRenewEnabled, setIsAutoRenewEnabled] = useState(autoRenew);
+  const t = useTranslations("memberPortal.membership");
+  const tPricing = useTranslations("memberPortal.states.notMember.pricing");
+  const [isAutoRenewEnabled, setIsAutoRenewEnabled] = useState(autoRenew);
 
- const content = (
- <>
- <Card className="border-0 p-8 shadow-lg dark:bg-inverted/50 dark:backdrop-blur-sm">
- <div className="mb-6 flex items-center justify-between">
- <div>
- <h3 className="mb-2 font-bold text-foreground text-xl dark:text-foreground">
- {t("title")}
- </h3>
- <p className="text-muted-foreground dark:text-muted-foreground">
- {t("description")}
- </p>
- </div>
- <Badge className="border-green-200 bg-green-100 px-4 py-2 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400">
- <Check className="mr-2 h-4 w-4" />
- {t("active")}
- </Badge>
- </div>
+  const content = (
+    <>
+      <Card className="border-0 p-8 shadow-lg dark:bg-inverted/50 dark:backdrop-blur-sm">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="mb-2 font-bold text-foreground text-xl dark:text-foreground">
+              {t("title")}
+            </h3>
+            <p className="text-muted-foreground dark:text-muted-foreground">
+              {t("description")}
+            </p>
+          </div>
+          <Badge className="border-green-200 bg-green-100 px-4 py-2 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <Check className="mr-2 h-4 w-4" />
+            {t("active")}
+          </Badge>
+        </div>
 
- <div className="mb-8 grid gap-6 md:grid-cols-3">
- <div className="rounded-lg bg-linear-to-br from-brand-muted to-brand-muted p-6">
- <div className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
- {t("currentPlan")}
- </div>
- <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
- {tPricing(currentPlan)}
- </div>
- <div className="font-bold text-2xl text-foreground dark:text-foreground">
- {MEMBERSHIP_PRICES[currentPlan]} NOK
- </div>
- </div>
+        <div className="mb-8 grid gap-6 md:grid-cols-3">
+          <div className="rounded-lg bg-linear-to-br from-brand-muted to-brand-muted p-6">
+            <div className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
+              {t("currentPlan")}
+            </div>
+            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
+              {tPricing(currentPlan)}
+            </div>
+            <div className="font-bold text-2xl text-foreground dark:text-foreground">
+              {MEMBERSHIP_PRICES[currentPlan]} NOK
+            </div>
+          </div>
 
- <div className="rounded-lg bg-section p-6 dark:bg-inverted">
- <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
- {t("nextBillingDate")}
- </div>
- <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
- {new Date(expiryDate).toLocaleDateString("en-US", {
- month: "long",
- day: "numeric",
- year: "numeric",
- })}
- </div>
- <div className="text-muted-foreground text-sm dark:text-muted-foreground">
- {daysRemaining} days remaining
- </div>
- </div>
+          <div className="rounded-lg bg-section p-6 dark:bg-inverted">
+            <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
+              {t("nextBillingDate")}
+            </div>
+            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
+              {new Date(expiryDate).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </div>
+            <div className="text-muted-foreground text-sm dark:text-muted-foreground">
+              {daysRemaining} days remaining
+            </div>
+          </div>
 
- <div className="rounded-lg bg-section p-6 dark:bg-inverted">
- <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
- {t("autoRenewal")}
- </div>
- <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
- {isAutoRenewEnabled ? t("enabled") : t("disabled")}
- </div>
- <Button
- className="mt-2"
- onClick={() => setIsAutoRenewEnabled(!isAutoRenewEnabled)}
- size="sm"
- variant="outline"
- >
- {isAutoRenewEnabled ? t("disable") : t("enable")}
- </Button>
- </div>
- </div>
+          <div className="rounded-lg bg-section p-6 dark:bg-inverted">
+            <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
+              {t("autoRenewal")}
+            </div>
+            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
+              {isAutoRenewEnabled ? t("enabled") : t("disabled")}
+            </div>
+            <Button
+              className="mt-2"
+              onClick={() => setIsAutoRenewEnabled(!isAutoRenewEnabled)}
+              size="sm"
+              variant="outline"
+            >
+              {isAutoRenewEnabled ? t("disable") : t("enable")}
+            </Button>
+          </div>
+        </div>
 
- <Separator className="my-8" />
+        <Separator className="my-8" />
 
- <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
- {t("upgradeMembership")}
- </h3>
- <p className="mb-6 text-muted-foreground dark:text-muted-foreground">
- {t("upgradeDescription")}
- </p>
+        <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
+          {t("upgradeMembership")}
+        </h3>
+        <p className="mb-6 text-muted-foreground dark:text-muted-foreground">
+          {t("upgradeDescription")}
+        </p>
 
- <div className="mb-6 grid gap-6 sm:grid-cols-3">
- {Object.entries(MEMBERSHIP_PRICES).map(([type, price]) => (
- <Card
- className={`cursor-pointer border-2 p-6 transition-all ${
- type === currentPlan
- ? "border-brand bg-brand-muted"
- : "border-border hover:border-brand-border-strong"
- }`}
- key={type}
- >
- <div className="text-center">
- {type === currentPlan && (
- <Badge className="mb-3 bg-brand text-white">
- {t("currentPlanBadge")}
- </Badge>
- )}
- <h3 className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
- {tPricing(type as MembershipDuration)}
- </h3>
- <div className="mb-1 font-bold text-2xl text-foreground dark:text-foreground">
- {price} NOK
- </div>
- <div className="mb-4 text-muted-foreground text-sm dark:text-muted-foreground">
- {type === "semester" && t("monthlyPrice", { price: 58 })}
- {type === "year" && t("monthlyPrice", { price: 46 })}
- {type === "three-year" && t("monthlyPrice", { price: 39 })}
- </div>
- {type === "three-year" && (
- <Badge
- className="border-green-200 bg-green-50 text-green-700"
- variant="outline"
- >
- {t("savePercent", { percent: 33 })}
- </Badge>
- )}
- </div>
- </Card>
- ))}
- </div>
+        <div className="mb-6 grid gap-6 sm:grid-cols-3">
+          {Object.entries(MEMBERSHIP_PRICES).map(([type, price]) => (
+            <Card
+              className={`cursor-pointer border-2 p-6 transition-all ${
+                type === currentPlan
+                  ? "border-brand bg-brand-muted"
+                  : "border-border hover:border-brand-border-strong"
+              }`}
+              key={type}
+            >
+              <div className="text-center">
+                {type === currentPlan && (
+                  <Badge className="mb-3 bg-brand text-white">
+                    {t("currentPlanBadge")}
+                  </Badge>
+                )}
+                <h3 className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
+                  {tPricing(type as MembershipDuration)}
+                </h3>
+                <div className="mb-1 font-bold text-2xl text-foreground dark:text-foreground">
+                  {price} NOK
+                </div>
+                <div className="mb-4 text-muted-foreground text-sm dark:text-muted-foreground">
+                  {type === "semester" && t("monthlyPrice", { price: 58 })}
+                  {type === "year" && t("monthlyPrice", { price: 46 })}
+                  {type === "three-year" && t("monthlyPrice", { price: 39 })}
+                </div>
+                {type === "three-year" && (
+                  <Badge
+                    className="border-green-200 bg-green-50 text-green-700"
+                    variant="outline"
+                  >
+                    {t("savePercent", { percent: 33 })}
+                  </Badge>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
 
- <Alert className="border-brand-border bg-brand-muted">
- <Sparkles className="h-4 w-4 text-brand" />
- <AlertDescription className="text-muted-foreground">
- <strong>{t("proTip")}</strong> {t("proTipDescription")}
- </AlertDescription>
- </Alert>
+        <Alert className="border-brand-border bg-brand-muted">
+          <Sparkles className="h-4 w-4 text-brand" />
+          <AlertDescription className="text-muted-foreground">
+            <strong>{t("proTip")}</strong> {t("proTipDescription")}
+          </AlertDescription>
+        </Alert>
 
- <Separator className="my-8" />
+        <Separator className="my-8" />
 
- <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
- {t("digitalCard")}
- </h3>
- <div className="grid gap-6 md:grid-cols-2">
- <MembershipCard
- expiryDate={expiryDate}
- membershipType={tPricing(currentPlan)}
- studentId={studentId}
- userName={userName}
- />
+        <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
+          {t("digitalCard")}
+        </h3>
+        <div className="grid gap-6 md:grid-cols-2">
+          <MembershipCard
+            expiryDate={expiryDate}
+            membershipType={tPricing(currentPlan)}
+            studentId={studentId}
+            userName={userName}
+          />
 
- <div className="space-y-4">
- <p className="text-muted-foreground dark:text-muted-foreground">{t("useCard")}</p>
- <div className="space-y-3">
- <Button className="w-full justify-start" variant="outline">
- <Download className="mr-2 h-4 w-4" />
- {t("addToAppleWallet")}
- </Button>
- <Button className="w-full justify-start" variant="outline">
- <Smartphone className="mr-2 h-4 w-4" />
- {t("addToGooglePay")}
- </Button>
- <Button className="w-full justify-start" variant="outline">
- <Share2 className="mr-2 h-4 w-4" />
- {t("shareCard")}
- </Button>
- </div>
- </div>
- </div>
- </Card>
- </>
- );
+          <div className="space-y-4">
+            <p className="text-muted-foreground dark:text-muted-foreground">
+              {t("useCard")}
+            </p>
+            <div className="space-y-3">
+              <Button className="w-full justify-start" variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                {t("addToAppleWallet")}
+              </Button>
+              <Button className="w-full justify-start" variant="outline">
+                <Smartphone className="mr-2 h-4 w-4" />
+                {t("addToGooglePay")}
+              </Button>
+              <Button className="w-full justify-start" variant="outline">
+                <Share2 className="mr-2 h-4 w-4" />
+                {t("shareCard")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </>
+  );
 
- return (
- <TabsContent className="space-y-8" value="membership">
- {isMember ? (
- content
- ) : (
- <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
- {content}
- </LockedContentOverlay>
- )}
- </TabsContent>
- );
+  return (
+    <TabsContent className="space-y-8" value="membership">
+      {isMember ? (
+        content
+      ) : (
+        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
+          {content}
+        </LockedContentOverlay>
+      )}
+    </TabsContent>
+  );
 }

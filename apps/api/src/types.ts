@@ -7,21 +7,21 @@ type CreateAttachmentData = Models.Row & {
   amount: number;
   description: string;
   type: string;
-}
+};
 
 export type CreateExpenseData = Models.Row & {
-    campus: string;
-    department: string;
-    bank_account: string;
-    description: string;
-    total: number;
-    prepayment_amount: number;
-    eventName: string;
-    expenseAttachments: CreateAttachmentData[];
-    campusRel: string;
-    departmentRel: string;
-    status: ExpenseStatus;
-    userId: string;
-    user: string;
-    $sequence: number;
-}
+  campus: string;
+  department: string;
+  bank_account: string;
+  description: string;
+  total: number;
+  prepayment_amount: number;
+  eventName: string;
+  expenseAttachments: CreateAttachmentData[];
+  campusRel: string;
+  departmentRel: string;
+  status: ExpenseStatus;
+  userId: string;
+  user: string;
+  $sequence: number;
+};

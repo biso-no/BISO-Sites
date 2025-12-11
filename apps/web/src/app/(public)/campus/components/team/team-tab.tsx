@@ -19,10 +19,10 @@ type TeamTabProps = {
 
 // Maps campusId to the management department ID
 const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
-  "1": "2",      // Oslo
-  "2": "301",   // Bergen
-  "3": "601",   // Trondheim
-  "4": "801",   // Stavanger
+  "1": "2", // Oslo
+  "2": "301", // Bergen
+  "3": "601", // Trondheim
+  "4": "801", // Stavanger
   "5": "1002", // National
 };
 
@@ -117,12 +117,16 @@ export function TeamTab({
     setError(null);
 
     // Use provided departmentId, or fall back to management department for the campus
-    const effectiveDeptId = departmentId ?? MANAGEMENT_DEPARTMENT_IDS[campusId] ?? "management";
+    const effectiveDeptId =
+      departmentId ?? MANAGEMENT_DEPARTMENT_IDS[campusId] ?? "management";
 
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/campus/${campusId}/${effectiveDeptId}/board`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    })
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/campus/${campusId}/${effectiveDeptId}/board`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    )
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch campus leadership");

@@ -26,10 +26,10 @@ export default async function NotFound() {
             404
           </p>
           <h1 className="max-w-xl font-semibold text-4xl text-white leading-tight md:text-5xl">
-            {t('notFound.title')}
+            {t("notFound.title")}
           </h1>
           <p className="max-w-2xl text-base text-white/80 md:text-lg">
-            {t('notFound.description')}
+            {t("notFound.description")}
           </p>
         </div>
 
@@ -41,7 +41,7 @@ export default async function NotFound() {
           >
             <Link href="/">
               <Home className="mr-2 h-5 w-5" />
-              {t('notFound.cta.goToFrontPage')}
+              {t("notFound.cta.goToFrontPage")}
             </Link>
           </Button>
           <Button
@@ -52,7 +52,7 @@ export default async function NotFound() {
           >
             <Link href="/campus">
               <ArrowLeft className="mr-2 h-5 w-5" />
-              {t('notFound.cta.goToCampus')}
+              {t("notFound.cta.goToCampus")}
             </Link>
           </Button>
         </div>

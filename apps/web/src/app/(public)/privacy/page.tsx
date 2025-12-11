@@ -300,7 +300,9 @@ export default function PrivacyPage() {
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-blue-500 to-blue-700">
               <Shield className="h-5 w-5 text-white" />
             </div>
-            <h3 className="mb-1 font-semibold text-foreground">GDPR Compliant</h3>
+            <h3 className="mb-1 font-semibold text-foreground">
+              GDPR Compliant
+            </h3>
             <p className="text-muted-foreground text-sm">
               We follow EU data protection regulations
             </p>
@@ -309,7 +311,9 @@ export default function PrivacyPage() {
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-emerald-500 to-emerald-700">
               <Lock className="h-5 w-5 text-white" />
             </div>
-            <h3 className="mb-1 font-semibold text-foreground">Secure Storage</h3>
+            <h3 className="mb-1 font-semibold text-foreground">
+              Secure Storage
+            </h3>
             <p className="text-muted-foreground text-sm">
               HTTPS encryption for all data transmission
             </p>
@@ -440,9 +444,7 @@ export default function PrivacyPage() {
 
         {/* Last Updated */}
         <div className="mt-8 text-center text-muted-foreground text-sm">
-          <p>
-            Last updated: December 2024 • Organization number: 987713380
-          </p>
+          <p>Last updated: December 2024 • Organization number: 987713380</p>
         </div>
       </div>
     </div>

@@ -22,7 +22,11 @@ export async function POST(req: NextRequest) {
   try {
     const { descriptions } = await req.json();
 
-    if (!descriptions || !Array.isArray(descriptions) || descriptions.length === 0) {
+    if (
+      !descriptions ||
+      !Array.isArray(descriptions) ||
+      descriptions.length === 0
+    ) {
       return NextResponse.json(
         { error: "Invalid descriptions provided" },
         { status: 400 }

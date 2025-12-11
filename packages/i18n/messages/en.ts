@@ -13,16 +13,20 @@ import businessHotspot from "./en/businessHotspot.json";
 import common from "./en/common.json";
 import contact from "./en/contact.json";
 import cookies from "./en/cookies.json";
+import events from "./en/events.json";
 import fundingProgram from "./en/fundingProgram.json";
 import home from "./en/home.json";
+import jobs from "./en/jobs.json";
 import memberPortal from "./en/memberPortal.json";
 import membership from "./en/membership.json";
+import news from "./en/news.json";
 import partner from "./en/partner.json";
 import policies from "./en/policies.json";
 import press from "./en/press.json";
 import privacy from "./en/privacy.json";
 import projectDetail from "./en/projectDetail.json";
 import projects from "./en/projects.json";
+import shop from "./en/shop.json";
 import students from "./en/students.json";
 import terms from "./en/terms.json";
 import unused from "./en/unused.json";
@@ -35,7 +39,9 @@ export default {
   common,
   cookies,
   contact,
+  events,
   home,
+  jobs,
   unused,
   varsling,
   partner,
@@ -44,6 +50,8 @@ export default {
   policies,
   about,
   membership,
+  news,
+  shop,
   students,
   terms,
   projects,

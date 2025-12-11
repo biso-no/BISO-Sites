@@ -18,13 +18,17 @@ import { listNews } from "../actions/news";
 import { getUserPreferences } from "@/lib/auth-utils";
 
 export default async function HomePage() {
-
   const prefs = await getUserPreferences();
   const campusId = prefs?.campusId;
 
   const locale = await getLocale();
-    const [events, jobs, campuses, news] = await Promise.all([
-    listEvents({ locale, status: "published", limit: 1000, campus: campusId ?? "all" }),
+  const [events, jobs, campuses, news] = await Promise.all([
+    listEvents({
+      locale,
+      status: "published",
+      limit: 1000,
+      campus: campusId ?? "all",
+    }),
     listJobs({ locale, status: "published", limit: 1000 }),
     getCampuses({
       selectedCampusId: campusId ?? "all",
@@ -36,7 +40,7 @@ export default async function HomePage() {
       locale,
       status: "published",
       limit: 3,
-    })
+    }),
   ]);
   const departments = campuses.reduce(
     (acc, campus) => acc + campus.departments.length,
@@ -49,15 +53,19 @@ export default async function HomePage() {
       </Suspense>
 
       <Suspense fallback={<AboutSkeleton />}>
-        <AboutSection departmentsCount={departments} eventCount={events.length} jobCount={jobs.length} />
+        <AboutSection
+          departmentsCount={departments}
+          eventCount={events.length}
+          jobCount={jobs.length}
+        />
       </Suspense>
 
       <Suspense fallback={<EventsSkeleton />}>
-        <EventsSection events={events}/>
+        <EventsSection events={events} />
       </Suspense>
 
       <Suspense fallback={<NewsSkeleton />}>
-        <NewsSection news={news}/>
+        <NewsSection news={news} />
       </Suspense>
 
       <JoinUs />

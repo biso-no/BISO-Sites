@@ -1,0 +1,92 @@
+{
+  "filters": {
+    "searchPlaceholder": "Search events...",
+    "all": "All",
+    "Social": "Social",
+    "Career": "Career",
+    "Academic": "Academic",
+    "Sports": "Sports",
+    "Culture": "Culture",
+    "clearFilters": "Clear Filters",
+    "showingResults": "Showing {count} {count, plural, one {event} other {events}}"
+  },
+  "emptyState": {
+    "title": "No events found",
+    "description": "Try adjusting your filters or search query"
+  },
+  "card": {
+    "collection": "Collection",
+    "membersOnly": "Members Only",
+    "memberDiscount": "Member Discount",
+    "tickster": "Tickster",
+    "membersPrice": "Members: {price}",
+    "memberPriceLabel": "(Member Price)",
+    "tba": "TBA",
+    "attending": "{count} attending",
+    "multiDayCollection": "Multi-day event collection",
+    "bundlePricing": "Bundle pricing: One ticket for all events",
+    "individualPricing": "Individual pricing: Register for each event separately",
+    "viewCollection": "View Collection",
+    "viewDetails": "View Details",
+    "locationTba": "Location TBA"
+  },
+  "modal": {
+    "memberPrice": "Member Price",
+    "getTickets": "Get Tickets on Tickster",
+    "registerNow": "Register Now",
+    "close": "Close",
+    "date": "Date",
+    "time": "Time",
+    "location": "Location",
+    "attendees": "Attendees",
+    "memberSavings": "Members get this event for {price}! Join BISO to save.",
+    "about": "About This Event",
+    "highlights": "Event Highlights",
+    "agenda": "Agenda"
+  },
+  "actions": {
+    "getTicket": "Get Your Ticket",
+    "registerNow": "Register Now",
+    "ticketDescription": "Click below to purchase your ticket on Tickster and secure your spot!",
+    "registerDescription": "Spaces are limited! Register now to guarantee your attendance.",
+    "buyOnTickster": "Buy on Tickster",
+    "shareEvent": "Share Event"
+  },
+  "collection": {
+    "title": "Events in This Collection",
+    "otherTitle": "Other Events in This Collection",
+    "bundlePricing": "Bundle Pricing",
+    "individualPricing": "Individual Pricing",
+    "bundleDescription": "Bundle Pricing: Pay {price} once to get access to all {count} events in this collection.",
+    "individualDescription": "Individual Pricing: Each event can be registered for separately. Choose the events that interest you most!"
+  },
+  "content": {
+    "whatToExpect": "What to Expect",
+    "schedule": "Event Schedule"
+  },
+  "hero": {
+    "backToEvents": "Back to Events",
+    "discoverTitle": "Discover Amazing\nEvents & Experiences",
+    "discoverDescription": "From networking events to social gatherings, find the perfect opportunity to connect, learn, and create unforgettable memories."
+  },
+  "infoCards": {
+    "bundlePrice": "Bundle Price",
+    "pricing": "Pricing",
+    "price": "Price",
+    "freeEvent": "This event is free for all students!",
+    "bundleAccess": "One payment gives you access to all {count} events in this collection!",
+    "individualRegister": "Register for individual events separately based on your interests.",
+    "partOfCollection": "This event is part of a collection. Check collection details for bundle pricing.",
+    "secureSpot": "Secure your spot with online payment.",
+    "eventDetails": "Event Details",
+    "category": "Category",
+    "expectedAttendance": "Expected Attendance",
+    "importantInfo": "Important Information",
+    "arriveEarly": "Please arrive 15 minutes before the event starts",
+    "studentId": "Valid student ID required for entry",
+    "emailConfirmation": "Registration confirmation will be sent via email",
+    "refunds": "Refunds available up to 48 hours before the event",
+    "questions": "Questions?",
+    "contactTeam": "Contact our events team at"
+  }
+}
