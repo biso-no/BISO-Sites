@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
 import "@measured/puck/puck.css";
+import "./puck-theme.css";
 import {
   type Locale,
   PageStatus,
@@ -165,7 +166,7 @@ export function PageEditor({
   };
 
   return (
-    <div className="flex h-screen w-full flex-col">
+    <div className="flex h-screen w-full flex-col overflow-hidden rounded-2xl">
       <Puck
         config={config as Config}
         data={data}
@@ -364,7 +365,7 @@ export function PageEditor({
                     <Button
                       className="mr-2"
                       onClick={() =>
-                        window.open(`/${locale}/${slug}`, "_blank")
+                        window.open(`/${slug}`, "_blank")
                       }
                       variant="outline"
                     >

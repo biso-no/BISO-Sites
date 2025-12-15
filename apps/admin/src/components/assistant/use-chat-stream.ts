@@ -3,8 +3,11 @@
 import { useChat } from "@ai-sdk/react";
 import type { AssistantMessage } from "@repo/ai/types";
 import { DefaultChatTransport } from "ai";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MarkdownBuffer } from "@/lib/markdown-buffer";
+
+// Chat persistence key
+const CHAT_STORAGE_KEY = "admin-assistant-chat-history";
 
 type FormFieldUpdate = {
   fieldId: string;
@@ -31,6 +34,7 @@ type UseChatStreamOptions = {
   api: string;
   onNavigate?: (path: string) => void;
   onFormField?: (update: FormFieldUpdate) => void;
+  onCreatePage?: (params: { title: string; slug: string; locale: "en" | "no"; description?: string }) => Promise<void>;
   formContext?: FormContextType;
 };
 
@@ -57,6 +61,13 @@ type FillFormFieldsToolPart = ChatMessagePart & {
 
 type TranslateContentToolPart = ChatMessagePart & {
   type: "tool-translateContent";
+  toolCallId: string;
+  state: string;
+};
+
+type CreatePageToolPart = ChatMessagePart & {
+  type: "tool-createPage";
+  input: { title: string; slug: string; locale: "en" | "no"; description?: string };
   toolCallId: string;
   state: string;
 };
@@ -109,6 +120,14 @@ const isTranslateContentPart = (
   typeof part.toolCallId === "string" &&
   typeof part.state === "string";
 
+const isCreatePagePart = (
+  part: ChatMessagePart
+): part is CreatePageToolPart =>
+  part.type === "tool-createPage" &&
+  typeof part.toolCallId === "string" &&
+  typeof part.state === "string" &&
+  isObject(part.input);
+
 /**
  * Wrapper around the Vercel AI SDK's useChat hook
  * Adds support for navigation and form field actions
@@ -117,18 +136,21 @@ export function useChatStream({
   api,
   onNavigate,
   onFormField,
+  onCreatePage,
   formContext,
 }: UseChatStreamOptions) {
   // Store callbacks in refs to avoid stale closures
   const onNavigateRef = useRef(onNavigate);
   const onFormFieldRef = useRef(onFormField);
+  const onCreatePageRef = useRef(onCreatePage);
   const formContextRef = useRef(formContext);
 
   useEffect(() => {
     onNavigateRef.current = onNavigate;
     onFormFieldRef.current = onFormField;
+    onCreatePageRef.current = onCreatePage;
     formContextRef.current = formContext;
-  }, [onNavigate, onFormField, formContext]);
+  }, [onNavigate, onFormField, onCreatePage, formContext]);
 
   // Create transport with dynamic body data
   const transport = useMemo(
@@ -281,6 +303,36 @@ export function useChatStream({
     [addToolResult]
   );
 
+  // Handle create-page tool calls
+  const handleCreatePageTool = useCallback(
+    async (toolPart: CreatePageToolPart) => {
+      if (toolPart.state !== "input-available") {
+        return;
+      }
+      if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
+        return;
+      }
+
+      handledToolCallsRef.current.add(toolPart.toolCallId);
+      
+      try {
+        await onCreatePageRef.current?.(toolPart.input);
+        addToolResult({
+          toolCallId: toolPart.toolCallId,
+          tool: "createPage",
+          output: { success: true, created: toolPart.input },
+        });
+      } catch (error) {
+        addToolResult({
+          toolCallId: toolPart.toolCallId,
+          tool: "createPage",
+          output: { success: false, error: String(error) },
+        });
+      }
+    },
+    [addToolResult]
+  );
+
   // Handle streaming form field updates
   const handleFormFieldStreaming = useCallback(
     (
@@ -362,6 +414,11 @@ export function useChatStream({
         return;
       }
 
+      if (isCreatePagePart(part)) {
+        handleCreatePageTool(part);
+        return;
+      }
+
       if (isFillFormFieldsPart(part)) {
         handleFillFormFieldsPart(part);
         return;
@@ -371,7 +428,7 @@ export function useChatStream({
         handleTranslateTool(part);
       }
     },
-    [handleFillFormFieldsPart, handleNavigateTool, handleTranslateTool]
+    [handleCreatePageTool, handleFillFormFieldsPart, handleNavigateTool, handleTranslateTool]
   );
 
   // Watch for tool calls in message parts and handle them
@@ -391,20 +448,22 @@ export function useChatStream({
   const messages: AssistantMessage[] = chatMessages.map((msg) => ({
     id: msg.id,
     role: msg.role as "user" | "assistant",
-    parts: msg.parts.map((part) => {
-      if (part.type === "text") {
-        return { type: "text" as const, text: part.text };
-      }
-      // Handle tool calls - show tool name
-      if (part.type === "tool-call") {
+    parts: msg.parts
+      .map((part) => {
+        if (part.type === "text") {
+          return { type: "text" as const, text: part.text };
+        }
+        // Handle tool calls - don't show them (they're handled separately)
+        if (part.type === "tool-call") {
+          return null;
+        }
+        // Handle tool results - don't show them
+        if (part.type === "tool-result") {
+          return null;
+        }
         return { type: "text" as const, text: "" };
-      }
-      // Handle tool results
-      if (part.type === "tool-result") {
-        return { type: "text" as const, text: "" };
-      }
-      return { type: "text" as const, text: "" };
-    }),
+      })
+      .filter((part): part is { type: "text"; text: string } => part !== null),
   }));
 
   const sendMessage = useCallback(
@@ -427,5 +486,6 @@ export function useChatStream({
     error,
     sendMessage,
     clearMessages,
+    setMessages: setChatMessages,
   };
 }
