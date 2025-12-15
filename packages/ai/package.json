@@ -6,6 +6,7 @@
   "exports": {
     "./config": "./src/config.ts",
     "./types": "./src/types.ts",
+    "./types/agent-state": "./src/types/agent-state.ts",
     "./provider": "./src/provider.tsx",
     "./hooks/*": "./src/hooks/*.ts",
     "./hooks/use-assistant": "./src/hooks/use-assistant.ts",
@@ -13,6 +14,9 @@
     "./tools/navigation": "./src/tools/navigation.ts",
     "./tools/form-filler": "./src/tools/form-filler.ts",
     "./tools/translate": "./src/tools/translate.ts",
+    "./tools/page-creator": "./src/tools/page-creator.ts",
+    "./tools/puck-generator": "./src/tools/puck-generator.ts",
+    "./lib/streaming-json-parser": "./src/lib/streaming-json-parser.ts",
     "./prompts": "./src/prompts.ts"
   },
   "scripts": {
@@ -21,6 +25,7 @@
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
+    "@repo/typescript-config": "*",
     "@types/react": "^19.2.7"
   },
   "dependencies": {

@@ -8,6 +8,7 @@ import type {
 import type { Data } from "@repo/editor";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   ensureTranslation,
@@ -15,6 +16,9 @@ import {
   savePageDraft,
   saveTranslatedPage,
 } from "@/app/actions/pages/actions";
+import { AssistantSidebar } from "@/components/assistant/assistant-sidebar";
+import { AssistantTrigger } from "@/components/assistant/assistant-trigger";
+import { usePuckContentHandler, PuckGenerationIndicator } from "@/components/assistant/puck-content-handler";
 
 const PageEditor = dynamic(
   () => import("@repo/editor/editor").then((mod) => mod.PageEditor),
@@ -49,6 +53,16 @@ export function EditorClient({
   pageTranslations,
 }: EditorClientProps) {
   const router = useRouter();
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [editorData, setEditorData] = useState<Data>(initialData);
+
+  // Handle AI-generated Puck content
+  const { handlePuckContent, isGenerating } = usePuckContentHandler({
+    onContentComplete: (data) => {
+      setEditorData(data);
+      toast.success("AI generated content applied to editor");
+    },
+  });
 
   const handleSave = async (
     data: Data,
@@ -151,22 +165,38 @@ export function EditorClient({
   };
 
   return (
-    <PageEditor
-      availableLocales={availableLocales}
-      description={description ?? undefined}
-      initialData={initialData}
-      locale={locale}
-      onBack={() => router.back()}
-      onLocaleChange={(newLocale) =>
-        handleLocaleChange(newLocale, { title, slug })
-      }
-      onPublish={handlePublish}
-      onSave={handleSave}
-      onTranslate={handleTranslate}
-      slug={slug}
-      status={status}
-      title={title}
-      visibility={visibility}
-    />
+    <>
+      <PageEditor
+        availableLocales={availableLocales}
+        description={description ?? undefined}
+        initialData={editorData}
+        locale={locale}
+        onBack={() => router.back()}
+        onLocaleChange={(newLocale) =>
+          handleLocaleChange(newLocale, { title, slug })
+        }
+        onPublish={handlePublish}
+        onSave={handleSave}
+        onTranslate={handleTranslate}
+        slug={slug}
+        status={status}
+        title={title}
+        visibility={visibility}
+      />
+      
+      {/* AI Assistant */}
+      <div className="fixed bottom-6 right-6 z-50 flex items-end gap-4">
+        <AssistantSidebar
+          isOpen={isAssistantOpen}
+          onClose={() => setIsAssistantOpen(false)}
+        />
+        {!isAssistantOpen && (
+          <AssistantTrigger onClick={() => setIsAssistantOpen(true)} />
+        )}
+      </div>
+
+      {/* Live generation indicator */}
+      <PuckGenerationIndicator isGenerating={isGenerating} />
+    </>
   );
 }

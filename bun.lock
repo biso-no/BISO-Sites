@@ -200,6 +200,7 @@
         "zod": "^4.1.13",
       },
       "devDependencies": {
+        "@repo/typescript-config": "*",
         "@types/react": "^19.2.7",
       },
       "peerDependencies": {

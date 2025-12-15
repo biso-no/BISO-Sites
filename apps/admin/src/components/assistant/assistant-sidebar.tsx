@@ -5,10 +5,15 @@ import { Input } from "@repo/ui/components/ui/input";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { motion } from "framer-motion";
-import { Bot, Loader2, Send, Sparkles, Trash2, X } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, Trash2, X, Zap, Navigation, Wand2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getAgentStateDisplay } from "@repo/ai/types/agent-state";
+import type { AgentState } from "@repo/ai/types/agent-state";
 import { formEvents } from "@/lib/form-events";
+import { loadChatMessages, saveChatMessages, clearChatHistory } from "@/lib/chat-persistence";
+import { createManagedPage } from "@/app/actions/pages/actions";
+import { PageStatus, PageVisibility, Locale } from "@repo/api/types/appwrite";
 import { AssistantMessage as MessageComponent } from "./assistant-message";
 import { useChatStream } from "./use-chat-stream";
 
@@ -50,11 +55,67 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
     []
   );
 
-  const { messages, isLoading, sendMessage, clearMessages } = useChatStream({
+  const handleCreatePage = useCallback(
+    async (params: { title: string; slug: string; locale: "en" | "no"; description?: string }) => {
+      try {
+        const page = await createManagedPage({
+          title: params.title,
+          slug: params.slug,
+          status: PageStatus.DRAFT,
+          visibility: PageVisibility.PUBLIC,
+          template: null,
+          campusId: null,
+          translations: [
+            {
+              locale: params.locale as Locale,
+              title: params.title,
+              description: params.description || null,
+              draftDocument: { content: [], root: {} },
+              publish: false,
+            },
+          ],
+        });
+
+        // Navigate to the new page editor
+        const translation = page.translations.find((t) => t.locale === params.locale);
+        if (translation) {
+          router.push(`/admin/pages/${page.id}/${params.locale}/editor`);
+        }
+      } catch (error) {
+        console.error("Failed to create page:", error);
+        throw error;
+      }
+    },
+    [router]
+  );
+
+  const { messages, isLoading, sendMessage, clearMessages, setMessages } = useChatStream({
     api: "/api/admin-assistant",
     onNavigate: handleNavigate,
     onFormField: handleFormField,
+    onCreatePage: handleCreatePage,
   });
+
+  // Load persisted messages on mount
+  useEffect(() => {
+    const savedMessages = loadChatMessages();
+    if (savedMessages.length > 0 && messages.length === 0) {
+      setMessages(savedMessages);
+    }
+  }, []);
+
+  // Save messages whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveChatMessages(messages);
+    }
+  }, [messages]);
+
+  // Clear both local and persisted messages
+  const handleClearMessages = useCallback(() => {
+    clearChatHistory();
+    clearMessages();
+  }, [clearMessages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -120,7 +181,7 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
             <div className="flex items-center gap-1">
               <Button
                 className="h-8 w-8"
-                onClick={clearMessages}
+                onClick={handleClearMessages}
                 size="icon"
                 title="Clear chat"
                 variant="ghost"
@@ -186,8 +247,50 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
             )}
             {isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm dark:text-white/60">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Thinking...</span>
+                {(() => {
+                  // Infer agent state from messages
+                  const lastMessage = messages[messages.length - 1];
+                  const hasToolCalls = lastMessage?.parts.some(
+                    (p) => p.type === "text" && p.text.includes("analyzeTask")
+                  );
+                  const hasNavigation = lastMessage?.parts.some(
+                    (p) => p.type === "text" && p.text.includes("navigate")
+                  );
+                  const hasGeneration = lastMessage?.parts.some(
+                    (p) => p.type === "text" && p.text.includes("generatePuckContent")
+                  );
+
+                  if (hasGeneration) {
+                    return (
+                      <>
+                        <Wand2 className="h-4 w-4 animate-pulse" />
+                        <span>Generating Content...</span>
+                      </>
+                    );
+                  }
+                  if (hasNavigation) {
+                    return (
+                      <>
+                        <Navigation className="h-4 w-4 animate-bounce" />
+                        <span>Navigating...</span>
+                      </>
+                    );
+                  }
+                  if (hasToolCalls) {
+                    return (
+                      <>
+                        <Zap className="h-4 w-4 animate-pulse" />
+                        <span>Analyzing Tools...</span>
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Thinking...</span>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
