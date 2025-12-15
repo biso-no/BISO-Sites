@@ -189,6 +189,9 @@ export function EditorClient({
         <AssistantSidebar
           isOpen={isAssistantOpen}
           onClose={() => setIsAssistantOpen(false)}
+          puckData={editorData}
+          currentPath={`/admin/pages/${pageId}/${locale}/editor`}
+          onPuckContent={handlePuckContent}
         />
         {!isAssistantOpen && (
           <AssistantTrigger onClick={() => setIsAssistantOpen(true)} />

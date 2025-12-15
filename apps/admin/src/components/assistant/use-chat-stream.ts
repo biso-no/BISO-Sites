@@ -30,12 +30,25 @@ type FormContextType = {
   }>;
 };
 
+type PuckContentUpdate = {
+  type: "puck-content";
+  blockIndex: number;
+  block: {
+    type: string;
+    props: Record<string, unknown>;
+  };
+  isComplete: boolean;
+};
+
 type UseChatStreamOptions = {
   api: string;
   onNavigate?: (path: string) => void;
   onFormField?: (update: FormFieldUpdate) => void;
   onCreatePage?: (params: { title: string; slug: string; locale: "en" | "no"; description?: string }) => Promise<void>;
+  onPuckContent?: (update: PuckContentUpdate) => void;
   formContext?: FormContextType;
+  puckData?: unknown;
+  currentPath?: string;
 };
 
 type ChatMessagePart = {
@@ -68,6 +81,13 @@ type TranslateContentToolPart = ChatMessagePart & {
 type CreatePageToolPart = ChatMessagePart & {
   type: "tool-createPage";
   input: { title: string; slug: string; locale: "en" | "no"; description?: string };
+  toolCallId: string;
+  state: string;
+};
+
+type GeneratePuckContentToolPart = ChatMessagePart & {
+  type: "tool-generatePuckContent";
+  input?: { content?: unknown };
   toolCallId: string;
   state: string;
 };
@@ -128,6 +148,13 @@ const isCreatePagePart = (
   typeof part.state === "string" &&
   isObject(part.input);
 
+const isGeneratePuckContentPart = (
+  part: ChatMessagePart
+): part is GeneratePuckContentToolPart =>
+  part.type === "tool-generatePuckContent" &&
+  typeof part.toolCallId === "string" &&
+  typeof part.state === "string";
+
 /**
  * Wrapper around the Vercel AI SDK's useChat hook
  * Adds support for navigation and form field actions
@@ -137,28 +164,40 @@ export function useChatStream({
   onNavigate,
   onFormField,
   onCreatePage,
+  onPuckContent,
   formContext,
+  puckData,
+  currentPath,
 }: UseChatStreamOptions) {
   // Store callbacks in refs to avoid stale closures
   const onNavigateRef = useRef(onNavigate);
   const onFormFieldRef = useRef(onFormField);
   const onCreatePageRef = useRef(onCreatePage);
+  const onPuckContentRef = useRef(onPuckContent);
+  const puckDataRef = useRef(puckData);
+  const currentPathRef = useRef(currentPath);
   const formContextRef = useRef(formContext);
 
   useEffect(() => {
     onNavigateRef.current = onNavigate;
     onFormFieldRef.current = onFormField;
     onCreatePageRef.current = onCreatePage;
+    onPuckContentRef.current = onPuckContent;
+    puckDataRef.current = puckData;
+    currentPathRef.current = currentPath;
     formContextRef.current = formContext;
-  }, [onNavigate, onFormField, onCreatePage, formContext]);
+  }, [onNavigate, onFormField, onCreatePage, onPuckContent, puckData, currentPath, formContext]);
 
   // Create transport with dynamic body data
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api,
-        body: () =>
-          formContextRef.current ? { formContext: formContextRef.current } : {},
+        body: () => ({
+          ...(formContextRef.current ? { formContext: formContextRef.current } : {}),
+          ...(puckDataRef.current ? { puckData: puckDataRef.current } : {}),
+          ...(currentPathRef.current ? { currentPath: currentPathRef.current } : {}),
+        }),
       }),
     [api]
   );
@@ -407,6 +446,40 @@ export function useChatStream({
     [addToolResult, handleFormFieldStreaming]
   );
 
+  const handleGeneratePuckContentPart = useCallback(
+    (toolPart: GeneratePuckContentToolPart) => {
+      if (toolPart.state !== "input-available") {
+        return;
+      }
+      if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
+        return;
+      }
+
+      handledToolCallsRef.current.add(toolPart.toolCallId);
+      
+      if (toolPart.input?.content && onPuckContentRef.current) {
+        const content = toolPart.input.content as { content?: Array<{ type: string; props: Record<string, unknown> }> };
+        if (content.content && Array.isArray(content.content)) {
+          for (const [index, block] of content.content.entries()) {
+            onPuckContentRef.current({
+              type: "puck-content",
+              blockIndex: index,
+              block,
+              isComplete: index === content.content.length - 1,
+            });
+          }
+        }
+      }
+
+      addToolResult({
+        toolCallId: toolPart.toolCallId,
+        tool: "generatePuckContent",
+        output: { success: true, message: "Content generated" },
+      });
+    },
+    [addToolResult]
+  );
+
   const handleToolPart = useCallback(
     (part: ChatMessagePart) => {
       if (isNavigateToolPart(part)) {
@@ -419,6 +492,11 @@ export function useChatStream({
         return;
       }
 
+      if (isGeneratePuckContentPart(part)) {
+        handleGeneratePuckContentPart(part);
+        return;
+      }
+
       if (isFillFormFieldsPart(part)) {
         handleFillFormFieldsPart(part);
         return;
@@ -428,7 +506,7 @@ export function useChatStream({
         handleTranslateTool(part);
       }
     },
-    [handleCreatePageTool, handleFillFormFieldsPart, handleNavigateTool, handleTranslateTool]
+    [handleCreatePageTool, handleGeneratePuckContentPart, handleFillFormFieldsPart, handleNavigateTool, handleTranslateTool]
   );
 
   // Watch for tool calls in message parts and handle them
