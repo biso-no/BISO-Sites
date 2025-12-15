@@ -17,12 +17,25 @@ import { PageStatus, PageVisibility, Locale } from "@repo/api/types/appwrite";
 import { AssistantMessage as MessageComponent } from "./assistant-message";
 import { useChatStream } from "./use-chat-stream";
 
+type PuckContentUpdate = {
+  type: "puck-content";
+  blockIndex: number;
+  block: {
+    type: string;
+    props: Record<string, unknown>;
+  };
+  isComplete: boolean;
+};
+
 type AssistantSidebarProps = {
   isOpen: boolean;
   onClose: () => void;
+  puckData?: unknown;
+  currentPath?: string;
+  onPuckContent?: (update: PuckContentUpdate) => void;
 };
 
-export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
+export function AssistantSidebar({ isOpen, onClose, puckData, currentPath, onPuckContent }: AssistantSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [input, setInput] = useState("");
@@ -94,6 +107,9 @@ export function AssistantSidebar({ isOpen, onClose }: AssistantSidebarProps) {
     onNavigate: handleNavigate,
     onFormField: handleFormField,
     onCreatePage: handleCreatePage,
+    onPuckContent,
+    puckData,
+    currentPath,
   });
 
   // Load persisted messages on mount
