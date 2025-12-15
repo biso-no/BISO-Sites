@@ -126,12 +126,14 @@ export function EditorClient({
         slug: metadata.slug,
       }),
     });
+    console.log("Translation: ", response)
 
     if (!response.ok) {
       throw new Error("Translation API failed");
     }
 
     const result = await response.json();
+    console.log("Response: ", result)
 
     // Save the translated page to the target locale
     const { redirectUrl } = await saveTranslatedPage({

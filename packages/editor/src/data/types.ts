@@ -13,7 +13,8 @@ export type DataTable =
   | "team"
   | "products"
   | "memberships"
-  | "pages";
+  | "pages"
+  | "milestones";
 
 /** Filter operators for querying data */
 export type FilterOperator =

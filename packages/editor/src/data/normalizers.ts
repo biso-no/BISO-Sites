@@ -192,6 +192,29 @@ export function normalizePage(row: RowData, locale?: string): NormalizedItem {
   };
 }
 
+/** Normalize milestone data */
+export function normalizeMilestone(
+  row: RowData,
+  locale?: string
+): NormalizedItem {
+  const translation = getTranslation(row, locale);
+  const title = (translation?.title as string) || (row.title as string) || "";
+  const description =
+    (translation?.description as string) || (row.description as string) || "";
+
+  return {
+    id: extractId(row),
+    title,
+    description,
+    date: (row.date as string) || (row.year as string),
+    image: row.image as string | undefined,
+    metadata: {
+      icon: row.icon,
+    },
+    raw: row,
+  };
+}
+
 /** Generic fallback normalizer */
 export function normalizeGeneric(row: RowData): NormalizedItem {
   const id = extractId(row);
