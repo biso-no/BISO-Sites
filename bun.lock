@@ -324,6 +324,7 @@
         "tailwind-merge": "^3.3.1",
       },
       "devDependencies": {
+        "@repo/api": "*",
         "@repo/typescript-config": "*",
         "@tailwindcss/postcss": "^4.1.17",
         "@types/node": "^22.15.3",

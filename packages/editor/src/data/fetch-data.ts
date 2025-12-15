@@ -24,6 +24,7 @@ const TABLE_COLLECTION_MAP: Record<string, string> = {
   products: "webshop_products",
   memberships: "memberships",
   pages: "pages",
+  milestones: "milestones",
 };
 
 /** Map operators to Appwrite Query methods */

@@ -49,6 +49,7 @@ const TRANSLATABLE_FIELDS = new Set([
   "bio",
   "alt",
   "feature",
+  "timeline",
   "memberFeaturesHeader",
   "period",
   "savings",
@@ -283,11 +284,11 @@ The current slug is: "${slug}"
 ${sourceLocale === "no" ? "Keep or adapt the slug for English URL." : "Keep or adapt the slug for Norwegian URL."}`;
 
   const result = await generateObject({
-    model: openai("gpt-5-mini"),
+    model: openai("gpt-5.1-codex"),
     schema: translationSchema,
     prompt,
   });
-
+console.log("Result: ", result);
   // Build translations map
   const translationsMap = new Map<string, string>();
   for (const item of result.object.translations) {

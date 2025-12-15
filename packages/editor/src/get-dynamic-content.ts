@@ -15,6 +15,7 @@ export type DynamicContentItem = {
   location?: string;
   category?: string;
   badge?: string;
+  icon?: string;
   id?: string;
 };
 
@@ -34,6 +35,7 @@ function toDynamicContentItem(item: NormalizedItem): DynamicContentItem {
     location: item.location,
     category: item.category,
     badge: item.badge,
+    icon: item.metadata?.icon as string,
     // Legacy fields for stats/counters
     value: item.metadata?.value as string,
     label: item.metadata?.label as string,

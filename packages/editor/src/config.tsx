@@ -1,5 +1,10 @@
 "use client";
-import { type Config, registerOverlayPortal, type Slot } from "@measured/puck";
+import {
+  type Config,
+  registerOverlayPortal,
+  type Slot,
+  usePuck,
+} from "@measured/puck";
 import {
   AccordionBlock,
   type AccordionBlockProps,
@@ -51,12 +56,88 @@ import {
   TeamGrid,
   type TeamGridProps,
 } from "@repo/ui/components/puck/team-grid";
+import {
+  Timeline,
+  type TimelineProps,
+} from "@repo/ui/components/puck/timeline";
 import { About, type AboutProps } from "@repo/ui/components/sections/about";
 import type { EventsProps } from "@repo/ui/components/sections/events";
 import { JoinUs, type JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
 import { useEffect, useRef } from "react";
 import { getDynamicContent } from "./get-dynamic-content";
+
+// Component for inline editing
+const InlineText = ({
+  children,
+  name,
+  index,
+  multiline = false,
+}: {
+  children: React.ReactNode;
+  name: string;
+  index?: number;
+  multiline?: boolean;
+}) => {
+  const ref = useRef<HTMLElement>(null);
+  const { appState, dispatch } = usePuck();
+  const { selectedItem } = appState.ui as any;
+
+  useEffect(() => {
+    if (ref.current) {
+      registerOverlayPortal(ref.current);
+    }
+  }, [ref.current]);
+
+  const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
+    if (!selectedItem) return;
+
+    const newValue = e.currentTarget.innerText;
+    const currentData = appState.data;
+
+    // Create a new content array with the updated item
+    const newContent = currentData.content.map((item) => {
+      if (item.props.id === selectedItem.props.id) {
+        const newProps = { ...item.props };
+
+        if (typeof index === "number") {
+          // Update array item
+          const newItems = [...(newProps.items || [])];
+          newItems[index] = {
+            ...newItems[index],
+            [name]: newValue,
+          };
+          newProps.items = newItems;
+        } else {
+          // Update top-level prop
+          newProps[name] = newValue;
+        }
+
+        return { ...item, props: newProps };
+      }
+      return item;
+    });
+
+    dispatch({
+      type: "setData",
+      data: { ...currentData, content: newContent },
+    });
+  };
+
+  const Component = multiline ? "div" : "span";
+
+  return (
+    <Component
+      contentEditable
+      onBlur={handleBlur}
+      ref={ref as any}
+      suppressContentEditableWarning
+      style={{ display: "inline-block", minWidth: "1em" }}
+    >
+      {children}
+    </Component>
+  );
+};
 
 type EditorJoinUsProps = Omit<JoinUsProps, "memberFeatures"> & {
   memberFeatures: { feature: string }[];
@@ -114,6 +195,11 @@ type EditorNewsProps = NewsProps & {
   limit?: number;
 };
 
+type TimelinePropsWithSlot = TimelineProps & {
+  dataMode?: "manual" | "dynamic";
+  dataSource?: DataSourceValue;
+};
+
 type Props = {
   Hero: HeroPropsWithSlot;
   About: AboutProps;
@@ -129,6 +215,7 @@ type Props = {
   Tabs: TabsPropsWithSlots;
   StatsGrid: StatsGridProps;
   TeamGrid: TeamGridProps;
+  Timeline: TimelinePropsWithSlot;
   LogoGrid: LogoGridProps;
   FilterBar: FilterBarProps;
   JobsList: JobsListProps;
@@ -477,6 +564,130 @@ export const config: Config<Props> = {
             role: "Treasurer",
             image:
               "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400",
+          },
+        ],
+      },
+    },
+    Timeline: {
+      resolveFields: (data) => {
+        const fields: any = {
+          title: { type: "text", contentEditable: true } as any,
+          subtitle: { type: "textarea", contentEditable: true },
+          align: {
+            type: "radio",
+            options: [
+              { label: "Center", value: "center" },
+              { label: "Left", value: "left" },
+            ],
+          },
+          mode: {
+            type: "select",
+            options: [
+              { label: "Alternating", value: "alternating" },
+              { label: "Left Aligned", value: "left" },
+              { label: "Right Aligned", value: "right" },
+            ],
+          },
+          dataMode: {
+            type: "radio",
+            label: "Data Source",
+            options: [
+              { label: "Manual", value: "manual" },
+              { label: "Dynamic", value: "dynamic" },
+            ],
+          },
+        };
+
+        if (data.props.dataMode === "dynamic") {
+          fields.dataSource = {
+            type: "table-picker",
+            label: "Dynamic Items (Database)",
+          };
+        } else {
+          fields.items = {
+            type: "array",
+            getItemSummary: (item: any) => item.title || "Timeline Item",
+            arrayFields: {
+              date: { type: "text" },
+              title: { type: "text" },
+              description: { type: "textarea" },
+              image: { type: "image" },
+              icon: {
+                type: "select",
+                options: [
+                  { label: "Sparkles", value: "Sparkles" },
+                  { label: "Gift", value: "Gift" },
+                  { label: "Crown", value: "Crown" },
+                  { label: "Zap", value: "Zap" },
+                  { label: "Check", value: "Check" },
+                  { label: "Calendar", value: "Calendar" },
+                  { label: "Briefcase", value: "Briefcase" },
+                  { label: "Rocket", value: "Rocket" },
+                  { label: "Trophy", value: "Trophy" },
+                  { label: "Megaphone", value: "Megaphone" },
+                  { label: "Link", value: "Link" },
+                  { label: "Users", value: "Users" },
+                  { label: "Globe", value: "Globe" },
+                  { label: "BookOpen", value: "BookOpen" },
+                  { label: "Building", value: "Building" },
+                  { label: "Heart", value: "Heart" },
+                  { label: "MapPin", value: "MapPin" },
+                  { label: "CheckCircle", value: "CheckCircle" },
+                  { label: "ArrowRight", value: "ArrowRight" },
+                ],
+              },
+            },
+            defaultItemProps: {
+              date: "2024",
+              title: "New Milestone",
+              description: "Description",
+              icon: "Sparkles",
+            },
+          };
+        }
+
+        return fields;
+      },
+      resolveData: async ({ props }) => {
+        const { dataMode, dataSource } = props;
+        const resolvedProps: Partial<TimelinePropsWithSlot> = {};
+
+        if (dataMode === "dynamic" && dataSource) {
+          try {
+            const items = await getDynamicContent(dataSource);
+            resolvedProps.items = items.map((item) => ({
+              date: item.date || "",
+              title: item.title,
+              description: item.description || "",
+              image: item.image,
+              icon: item.icon,
+            }));
+          } catch (e) {
+            console.error("Failed to resolve timeline items", e);
+          }
+        }
+
+        return { props: resolvedProps };
+      },
+      render: (props) => <Timeline {...props} />,
+      defaultProps: {
+        title: "Our History",
+        subtitle: "A timeline of our journey and milestones.",
+        align: "center",
+        mode: "alternating",
+        dataMode: "manual",
+        items: [
+          {
+            date: "2024",
+            title: "Milestone 1",
+            description: "Description of the milestone.",
+            icon: "Rocket",
+          },
+          {
+            date: "2023",
+            title: "Milestone 2",
+            description: "Description of the milestone.",
+            icon: "Trophy",
           },
         ],
       },
