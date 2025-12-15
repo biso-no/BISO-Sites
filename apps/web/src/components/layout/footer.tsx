@@ -16,30 +16,29 @@ export function Footer() {
   const t = useTranslations("common.footer");
   const footerLinks = {
     About: [
-      { label: t("about.ourStory"), href: "#" },
+      { label: t("about.ourStory"), href: "/history" },
       { label: t("about.team"), href: "#" },
       { label: t("about.careers"), href: "#" },
       { label: t("about.contact"), href: "#" },
     ],
     Students: [
-      { label: t("students.membership"), href: "#join" },
-      { label: t("students.events"), href: "#events" },
-      { label: t("students.news"), href: "#news" },
-      { label: t("students.resources"), href: "#" },
+      { label: t("students.membership"), href: "/membership" },
+      { label: t("students.events"), href: "/events" },
+      { label: t("students.news"), href: "/news" },
+      { label: t("students.resources"), href: "/resources" },
     ],
     Support: [
-      { label: t("support.faq"), href: "#" },
-      { label: t("support.helpCenter"), href: "#" },
-      { label: t("support.privacyPolicy"), href: "#" },
-      { label: t("support.termsOfService"), href: "#" },
+      { label: t("support.faq"), href: "/faq" },
+      { label: t("support.helpCenter"), href: "/help" },
+      { label: t("support.privacyPolicy"), href: "/privacy" },
+      { label: t("support.termsOfService"), href: "terms" },
     ],
   };
 
   const socialLinks = [
-    { icon: Facebook, href: "#", label: "Facebook" },
-    { icon: Instagram, href: "#", label: "Instagram" },
-    { icon: Twitter, href: "#", label: "Twitter" },
-    { icon: Linkedin, href: "#", label: "LinkedIn" },
+    { icon: Facebook, href: "biso-no", label: "Facebook" },
+    { icon: Instagram, href: "biso-no", label: "Instagram" },
+    { icon: Linkedin, href: "biso-no", label: "LinkedIn" },
   ];
 
   return (
