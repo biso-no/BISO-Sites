@@ -2,8 +2,9 @@
 
 import { useChat } from "@ai-sdk/react";
 import type { AssistantMessage } from "@repo/ai/types";
+import { useCopilotStore } from "@repo/ai/stores/copilot-store";
 import { DefaultChatTransport } from "ai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MarkdownBuffer } from "@/lib/markdown-buffer";
 
 // Chat persistence key
@@ -43,11 +44,14 @@ type PuckContentUpdate = {
 type UseChatStreamOptions = {
   api: string;
   onNavigate?: (path: string) => void;
-  onFormField?: (update: FormFieldUpdate) => void;
   onCreatePage?: (params: { title: string; slug: string; locale: "en" | "no"; description?: string }) => Promise<void>;
+  /** @deprecated Use useCopilotForm hook instead - kept for backward compatibility */
+  onFormField?: (update: FormFieldUpdate) => void;
+  /** @deprecated Use useCopilotPuck hook instead - kept for backward compatibility */
   onPuckContent?: (update: PuckContentUpdate) => void;
-  formContext?: FormContextType;
+  /** @deprecated Handlers now come from copilot store */
   puckData?: unknown;
+  /** @deprecated Path is tracked by copilot store */
   currentPath?: string;
 };
 
@@ -162,42 +166,56 @@ const isGeneratePuckContentPart = (
 export function useChatStream({
   api,
   onNavigate,
-  onFormField,
   onCreatePage,
+  onFormField,
   onPuckContent,
-  formContext,
   puckData,
   currentPath,
 }: UseChatStreamOptions) {
+  // Get handlers from copilot store (new approach)
+  const activeHandler = useCopilotStore((state) => state.activeHandler);
+  const storePath = useCopilotStore((state) => state.currentPath);
+  const setAgentState = useCopilotStore((state) => state.setAgentState);
+
   // Store callbacks in refs to avoid stale closures
   const onNavigateRef = useRef(onNavigate);
-  const onFormFieldRef = useRef(onFormField);
   const onCreatePageRef = useRef(onCreatePage);
-  const onPuckContentRef = useRef(onPuckContent);
-  const puckDataRef = useRef(puckData);
-  const currentPathRef = useRef(currentPath);
-  const formContextRef = useRef(formContext);
+
+  // Use store handlers if available, otherwise fall back to props (backward compatibility)
+  const onFormFieldRef = useRef(onFormField ?? activeHandler?.onFormField);
+  const onPuckContentRef = useRef(onPuckContent ?? activeHandler?.onPuckContent);
+  const puckDataRef = useRef(puckData ?? activeHandler?.puckData);
+  const currentPathRef = useRef(currentPath ?? storePath);
 
   useEffect(() => {
     onNavigateRef.current = onNavigate;
-    onFormFieldRef.current = onFormField;
     onCreatePageRef.current = onCreatePage;
-    onPuckContentRef.current = onPuckContent;
-    puckDataRef.current = puckData;
-    currentPathRef.current = currentPath;
-    formContextRef.current = formContext;
-  }, [onNavigate, onFormField, onCreatePage, onPuckContent, puckData, currentPath, formContext]);
+    // Prefer store handlers over props
+    onFormFieldRef.current = activeHandler?.onFormField ?? onFormField;
+    onPuckContentRef.current = activeHandler?.onPuckContent ?? onPuckContent;
+    puckDataRef.current = activeHandler?.puckData ?? puckData;
+    currentPathRef.current = storePath || currentPath || "/";
+  }, [onNavigate, onCreatePage, onFormField, onPuckContent, puckData, currentPath, activeHandler, storePath]);
 
-  // Create transport with dynamic body data
+  // Create transport with dynamic body data from store - includes full context
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api,
-        body: () => ({
-          ...(formContextRef.current ? { formContext: formContextRef.current } : {}),
-          ...(puckDataRef.current ? { puckData: puckDataRef.current } : {}),
-          ...(currentPathRef.current ? { currentPath: currentPathRef.current } : {}),
-        }),
+        body: () => {
+          const state = useCopilotStore.getState();
+          const handler = state.activeHandler;
+          const path = state.currentPath;
+          return {
+            capability: handler?.capability,
+            formFields: handler?.formFields,
+            puckData: handler?.puckData ?? puckDataRef.current,
+            currentPath: path || currentPathRef.current,
+            // Pass full entity and page context to AI
+            entityContext: state.entityContext,
+            pageContext: state.pageContext,
+          };
+        },
       }),
     [api]
   );
@@ -321,7 +339,7 @@ export function useChatStream({
   // Handle navigation tool calls
   const handleNavigateTool = useCallback(
     (toolPart: NavigateToolPart) => {
-      if (toolPart.state !== "input-available") {
+      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
         return;
       }
       if (!toolPart.input?.path) {
@@ -345,7 +363,7 @@ export function useChatStream({
   // Handle create-page tool calls
   const handleCreatePageTool = useCallback(
     async (toolPart: CreatePageToolPart) => {
-      if (toolPart.state !== "input-available") {
+      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
         return;
       }
       if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
@@ -401,7 +419,7 @@ export function useChatStream({
   // Handle translate tool calls
   const handleTranslateTool = useCallback(
     (toolPart: TranslateContentToolPart) => {
-      if (toolPart.state !== "input-available") {
+      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
         return;
       }
       if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
@@ -420,7 +438,7 @@ export function useChatStream({
 
   const handleFillFormFieldsPart = useCallback(
     (toolPart: FillFormFieldsToolPart) => {
-      const isComplete = toolPart.state === "input-available";
+      const isComplete = toolPart.state === "input-available" || toolPart.state === "output-available";
       const isStreaming = toolPart.state === "partial";
 
       if ((isStreaming || isComplete) && toolPart.input?.updates) {
@@ -448,7 +466,8 @@ export function useChatStream({
 
   const handleGeneratePuckContentPart = useCallback(
     (toolPart: GeneratePuckContentToolPart) => {
-      if (toolPart.state !== "input-available") {
+      // Tool state can be "input-available" or "output-available" depending on AI SDK version
+      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
         return;
       }
       if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
@@ -457,17 +476,41 @@ export function useChatStream({
 
       handledToolCallsRef.current.add(toolPart.toolCallId);
       
-      if (toolPart.input?.content && onPuckContentRef.current) {
-        const content = toolPart.input.content as { content?: Array<{ type: string; props: Record<string, unknown> }> };
-        if (content.content && Array.isArray(content.content)) {
-          for (const [index, block] of content.content.entries()) {
-            onPuckContentRef.current({
-              type: "puck-content",
+      // The input structure is { content: [...blocks...] } where content is directly the array
+      const inputContent = toolPart.input?.content;
+      const blocks = Array.isArray(inputContent) 
+        ? inputContent as Array<{ type: string; props: Record<string, unknown> }>
+        : null;
+      
+      console.log("[AI] generatePuckContent input:", JSON.stringify(toolPart.input).slice(0, 200));
+      
+      if (blocks && blocks.length > 0) {
+        // Get current handler state directly from store (refs may be stale after navigation)
+        const currentHandler = useCopilotStore.getState().activeHandler;
+        const puckHandler = currentHandler?.onPuckContent;
+        
+        console.log("[AI] generatePuckContent received", blocks.length, "blocks");
+        console.log("[AI] Current handler:", currentHandler?.capability, "puckHandler:", !!puckHandler);
+        
+        if (puckHandler) {
+          // Handler available - send content directly
+          console.log("[AI] Sending blocks directly to handler");
+          for (const [index, block] of blocks.entries()) {
+            puckHandler({
               blockIndex: index,
               block,
-              isComplete: index === content.content.length - 1,
+              isComplete: index === blocks.length - 1,
             });
           }
+        } else {
+          // No handler yet (likely after navigation) - queue content for when editor mounts
+          console.log("[AI] No handler - queuing content for later");
+          const { setPendingPuckContent } = useCopilotStore.getState();
+          setPendingPuckContent({
+            blocks,
+            mode: "replace",
+            createdAt: Date.now(),
+          });
         }
       }
 

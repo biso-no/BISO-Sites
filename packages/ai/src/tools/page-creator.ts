@@ -12,7 +12,7 @@ type PageCreationParams = z.infer<typeof pageCreationSchema>;
 
 export function createPageCreatorTool() {
   return tool({
-    description: "Create a new page in the database and return the page ID to navigate to. Use this when the user wants to create a new page.",
+    description: "Navigate to the new page editor with pre-filled values. The page is NOT saved to the database until the user clicks Save or Publish. Use this when the user wants to create a new page.",
     inputSchema: pageCreationSchema,
     execute: async ({ title, slug, locale, description }: PageCreationParams) => {
       return await Promise.resolve({
@@ -24,7 +24,7 @@ export function createPageCreatorTool() {
           locale,
           description,
         },
-        message: `Creating page "${title}" with slug "${slug}" in ${locale === "en" ? "English" : "Norwegian"}`,
+        message: `Opening new page editor with title "${title}" and slug "${slug}" in ${locale === "en" ? "English" : "Norwegian"}. Page will be saved when user clicks Save or Publish.`,
       });
     },
   });

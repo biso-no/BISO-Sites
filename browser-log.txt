@@ -1,0 +1,61 @@
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-createPage {"type":"tool-createPage","toolCallId":"call_MEwULTuEYopogGJt7hXm9PJs","state":"output-available","input":{"title":"demopage","slug":"demopage","locale":"en","description":"Demo page with example sect forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-generatePuckContent {"type":"tool-generatePuckContent","toolCallId":"call_243fVLPEKF1RRQjkHsON7nKk","state":"output-available","input":{"content":[{"type":"Hero","props":{"id":"Hero-1","title":"Welcome to the Demo Page", forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: text {"type":"text","text":"All set! I’ve created a new page named “demopage” with slug “demopage” and added demo content.\n\nWhat I did:\n- Opened a new page editor with title and slug set to “demopage” ( forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: reasoning {"type":"reasoning","text":"","providerMetadata":{"openai":{"itemId":"rs_05e734ed366c5c4100694158a729bc81968698098e6cb83e0b","reasoningEncryptedContent":null}},"state":"done"} forward-logs-shared.ts:95:22
+[AI] Part: tool-analyzeTask {"type":"tool-analyzeTask","toolCallId":"call_tePN9u7BkBcPUEkdaHKRAREP","state":"output-available","input":{"intent":"create_page","entityType":"page","requiresNavigation":true,"targetPath":"/admin/pa forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-createPage {"type":"tool-createPage","toolCallId":"call_MEwULTuEYopogGJt7hXm9PJs","state":"output-available","input":{"title":"demopage","slug":"demopage","locale":"en","description":"Demo page with example sect forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-generatePuckContent {"type":"tool-generatePuckContent","toolCallId":"call_243fVLPEKF1RRQjkHsON7nKk","state":"output-available","input":{"content":[{"type":"Hero","props":{"id":"Hero-1","title":"Welcome to the Demo Page", forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: text {"type":"text","text":"All set! I’ve created a new page named “demopage” with slug “demopage” and added demo content.\n\nWhat I did:\n- Opened a new page editor with title and slug set to “demopage” ( forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: reasoning {"type":"reasoning","text":"","providerMetadata":{"openai":{"itemId":"rs_05e734ed366c5c4100694158a729bc81968698098e6cb83e0b","reasoningEncryptedContent":null}},"state":"done"} forward-logs-shared.ts:95:22
+[AI] Part: tool-analyzeTask {"type":"tool-analyzeTask","toolCallId":"call_tePN9u7BkBcPUEkdaHKRAREP","state":"output-available","input":{"intent":"create_page","entityType":"page","requiresNavigation":true,"targetPath":"/admin/pa forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-createPage {"type":"tool-createPage","toolCallId":"call_MEwULTuEYopogGJt7hXm9PJs","state":"output-available","input":{"title":"demopage","slug":"demopage","locale":"en","description":"Demo page with example sect forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-generatePuckContent {"type":"tool-generatePuckContent","toolCallId":"call_243fVLPEKF1RRQjkHsON7nKk","state":"output-available","input":{"content":[{"type":"Hero","props":{"id":"Hero-1","title":"Welcome to the Demo Page", forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: text {"type":"text","text":"All set! I’ve created a new page named “demopage” with slug “demopage” and added demo content.\n\nWhat I did:\n- Opened a new page editor with title and slug set to “demopage” ( forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: reasoning {"type":"reasoning","text":"","providerMetadata":{"openai":{"itemId":"rs_05e734ed366c5c4100694158a729bc81968698098e6cb83e0b","reasoningEncryptedContent":null}},"state":"done"} forward-logs-shared.ts:95:22
+[AI] Part: tool-analyzeTask {"type":"tool-analyzeTask","toolCallId":"call_tePN9u7BkBcPUEkdaHKRAREP","state":"output-available","input":{"intent":"create_page","entityType":"page","requiresNavigation":true,"targetPath":"/admin/pa forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-createPage {"type":"tool-createPage","toolCallId":"call_MEwULTuEYopogGJt7hXm9PJs","state":"output-available","input":{"title":"demopage","slug":"demopage","locale":"en","description":"Demo page with example sect forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-generatePuckContent {"type":"tool-generatePuckContent","toolCallId":"call_243fVLPEKF1RRQjkHsON7nKk","state":"output-available","input":{"content":[{"type":"Hero","props":{"id":"Hero-1","title":"Welcome to the Demo Page", forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: text {"type":"text","text":"All set! I’ve created a new page named “demopage” with slug “demopage” and added demo content.\n\nWhat I did:\n- Opened a new page editor with title and slug set to “demopage” ( forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: reasoning {"type":"reasoning","text":"","providerMetadata":{"openai":{"itemId":"rs_05e734ed366c5c4100694158a729bc81968698098e6cb83e0b","reasoningEncryptedContent":null}},"state":"done"} forward-logs-shared.ts:95:22
+[AI] Part: tool-analyzeTask {"type":"tool-analyzeTask","toolCallId":"call_tePN9u7BkBcPUEkdaHKRAREP","state":"output-available","input":{"intent":"create_page","entityType":"page","requiresNavigation":true,"targetPath":"/admin/pa forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-createPage {"type":"tool-createPage","toolCallId":"call_MEwULTuEYopogGJt7hXm9PJs","state":"output-available","input":{"title":"demopage","slug":"demopage","locale":"en","description":"Demo page with example sect forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-generatePuckContent {"type":"tool-generatePuckContent","toolCallId":"call_243fVLPEKF1RRQjkHsON7nKk","state":"output-available","input":{"content":[{"type":"Hero","props":{"id":"Hero-1","title":"Welcome to the Demo Page", forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: text {"type":"text","text":"All set! I’ve created a new page named “demopage” with slug “demopage” and added demo content.\n\nWhat I did:\n- Opened a new page editor with title and slug set to “demopage” ( forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: reasoning {"type":"reasoning","text":"","providerMetadata":{"openai":{"itemId":"rs_05e734ed366c5c4100694158a729bc81968698098e6cb83e0b","reasoningEncryptedContent":null}},"state":"done"} forward-logs-shared.ts:95:22
+[AI] Part: tool-analyzeTask {"type":"tool-analyzeTask","toolCallId":"call_tePN9u7BkBcPUEkdaHKRAREP","state":"output-available","input":{"intent":"create_page","entityType":"page","requiresNavigation":true,"targetPath":"/admin/pa forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-createPage {"type":"tool-createPage","toolCallId":"call_MEwULTuEYopogGJt7hXm9PJs","state":"output-available","input":{"title":"demopage","slug":"demopage","locale":"en","description":"Demo page with example sect forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-generatePuckContent {"type":"tool-generatePuckContent","toolCallId":"call_243fVLPEKF1RRQjkHsON7nKk","state":"output-available","input":{"content":[{"type":"Hero","props":{"id":"Hero-1","title":"Welcome to the Demo Page", forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: text {"type":"text","text":"All set! I’ve created a new page named “demopage” with slug “demopage” and added demo content.\n\nWhat I did:\n- Opened a new page editor with title and slug set to “demopage” ( forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: reasoning {"type":"reasoning","text":"","providerMetadata":{"openai":{"itemId":"rs_05e734ed366c5c4100694158a729bc81968698098e6cb83e0b","reasoningEncryptedContent":null}},"state":"done"} forward-logs-shared.ts:95:22
+[AI] Part: tool-analyzeTask {"type":"tool-analyzeTask","toolCallId":"call_tePN9u7BkBcPUEkdaHKRAREP","state":"output-available","input":{"intent":"create_page","entityType":"page","requiresNavigation":true,"targetPath":"/admin/pa forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-createPage {"type":"tool-createPage","toolCallId":"call_MEwULTuEYopogGJt7hXm9PJs","state":"output-available","input":{"title":"demopage","slug":"demopage","locale":"en","description":"Demo page with example sect forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: tool-generatePuckContent {"type":"tool-generatePuckContent","toolCallId":"call_243fVLPEKF1RRQjkHsON7nKk","state":"output-available","input":{"content":[{"type":"Hero","props":{"id":"Hero-1","title":"Welcome to the Demo Page", forward-logs-shared.ts:95:22
+[AI] Part: step-start {"type":"step-start"} forward-logs-shared.ts:95:22
+[AI] Part: text {"type":"text","text":"All set! I’ve created a new page named “demopage” with slug “demopage” and added demo content.\n\nWhat I did:\n- Opened a new page editor with title and slug set to “demopage” (

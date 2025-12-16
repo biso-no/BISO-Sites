@@ -9,6 +9,7 @@ import {
 import { Button } from "@repo/ui/components/ui/button";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { cn } from "@repo/ui/lib/utils";
+import { useCopilotStore } from "@repo/ai/stores/copilot-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Building2,
@@ -175,15 +176,9 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
     roles.includes("Admin") ? "Admin" : roles[0] || ""
   );
   const [isLoading, setIsLoading] = useState(true);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
-  const openAssistant = useCallback(() => {
-    setIsAssistantOpen(true);
-  }, []);
-
-  const closeAssistant = useCallback(() => {
-    setIsAssistantOpen(false);
-  }, []);
+  // Use copilot store for assistant sidebar state
+  const openAssistant = useCopilotStore((state) => state.open);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1000);
@@ -512,7 +507,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       </div>
 
       {/* AI Assistant Sidebar */}
-      <AssistantSidebar isOpen={isAssistantOpen} onClose={closeAssistant} />
+      <AssistantSidebar />
     </div>
   );
 }
