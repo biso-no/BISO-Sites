@@ -1,24 +1,17 @@
 "use server";
 
 import {
-  type CreatePageInput,
-  createPage,
-  ensurePageTranslation,
   getPageById,
   listPages,
-  publishPageTranslation,
   updatePage,
-  updatePageTranslationDraft,
+  upsertPage,
+  type UpsertPageInput,
 } from "@repo/api/page-builder";
 import { createSessionClient } from "@repo/api/server";
-import { PageStatus } from "@repo/api/types/appwrite";
+import { PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import type {
   CreateManagedPageInput,
-  EnsureTranslationInput,
-  PublishPageInput,
-  SavePageDraftInput,
-  SaveTranslatedPageInput,
   UpdateManagedPageInput,
 } from "./types";
 import { ADMIN_LIST_PATH, cloneDocument, revalidateForPage } from "./utils";
@@ -34,23 +27,24 @@ export async function getManagedPage(pageId: string) {
 }
 
 export async function createManagedPage(input: CreateManagedPageInput) {
-  const payload: CreatePageInput = {
+  const payload: UpsertPageInput = {
     slug: input.slug,
     title: input.title,
-    status: input.status,
-    visibility: input.visibility,
+    status: input.status ?? PageStatus.DRAFT,
+    visibility: input.visibility ?? PageVisibility.PUBLIC,
     template: input.template,
     campusId: input.campusId,
     translations: input.translations.map((translation) => ({
       locale: translation.locale,
       title: translation.title ?? input.title,
+      slug: null,
       description: translation.description ?? null,
-      draftDocument: cloneDocument(translation.draftDocument),
+      draftDocument: cloneDocument(translation.draftDocument) ?? { root: { props: {} }, content: [] },
       publish: translation.publish ?? false,
     })),
   };
 
-  const page = await createPage(payload);
+  const page = await upsertPage(payload);
   revalidateForPage(page);
   return page;
 }
@@ -67,85 +61,15 @@ export async function updateManagedPage(input: UpdateManagedPageInput) {
   return updated;
 }
 
-export async function savePageDraft(input: SavePageDraftInput) {
-  const updatedDraft = await updatePageTranslationDraft({
-    translationId: input.translationId,
-    title: input.title,
-    slug: input.slug,
-    description: input.description,
-    draftDocument: cloneDocument(input.draftDocument),
-  });
-
-  const page = await getPageById(updatedDraft.pageId);
-
-  if (page) {
-    revalidateForPage(page);
-  }
-
-  return updatedDraft;
-}
-
-export async function publishPage(input: PublishPageInput) {
-  const translation = await publishPageTranslation({
-    translationId: input.translationId,
-    document: cloneDocument(input.document),
-    title: input.title,
-    slug: input.slug,
-    description: input.description,
-    pageStatus: input.pageStatus ?? PageStatus.PUBLISHED,
-  });
-
-  const page = await getPageById(translation.pageId);
-
-  if (page) {
-    revalidateForPage(page);
-  }
-
-  return translation;
-}
-
-export async function deletePage(pageId: string) {
+export async function deleteManagedPage(pageId: string) {
   const { db } = await createSessionClient();
   await db.deleteRow("app", "pages", pageId);
 
   revalidatePath(ADMIN_LIST_PATH);
 }
 
-export async function ensureTranslation(input: EnsureTranslationInput) {
-  const translation = await ensurePageTranslation(input);
-  const page = await getPageById(input.pageId);
-
-  if (page) {
-    console.log("Revalidating page", page);
-  }
-
-  return translation;
-}
-
-export async function saveTranslatedPage(input: SaveTranslatedPageInput) {
-  const translation = await ensurePageTranslation({
-    pageId: input.pageId,
-    locale: input.targetLocale,
-    title: input.translatedTitle,
-    sourceTranslationId: input.sourceTranslationId,
-  });
-
-  const updated = await updatePageTranslationDraft({
-    translationId: translation.id,
-    title: input.translatedTitle,
-    slug: input.translatedSlug,
-    description: input.translatedDescription,
-    draftDocument: cloneDocument(input.translatedData),
-  });
-
-  const page = await getPageById(input.pageId);
-
-  if (page) {
-    revalidateForPage(page);
-  }
-
-  return {
-    translation: updated,
-    redirectUrl: `/admin/pages/${input.pageId}/${input.targetLocale}/editor`,
-  };
+export async function upsertManagedPage(input: UpsertPageInput) {
+  const page = await upsertPage(input);
+  revalidateForPage(page);
+  return page;
 }

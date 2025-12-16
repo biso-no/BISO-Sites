@@ -11,7 +11,6 @@ import {
 import { Edit, Eye, Plus } from "lucide-react";
 import Link from "next/link";
 import { listManagedPages } from "@/app/actions/pages/actions";
-import { CreatePageDialog } from "./create-page-dialog";
 import { DeletePageButton } from "./delete-page-button";
 
 export default async function PagesList() {
@@ -21,12 +20,12 @@ export default async function PagesList() {
     <div className="container mx-auto py-10">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="font-bold text-3xl">Pages</h1>
-        <CreatePageDialog>
-          <Button>
+        <Button asChild>
+          <Link href="/admin/pages/new">
             <Plus className="mr-2 h-4 w-4" />
             Create Page
-          </Button>
-        </CreatePageDialog>
+          </Link>
+        </Button>
       </div>
 
       <div className="rounded-md border">
@@ -72,7 +71,7 @@ export default async function PagesList() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button asChild size="icon" variant="ghost">
-                        <Link href={`/admin/pages/${page.id}/no/editor`}>
+                        <Link href={`/admin/pages/${page.id}`}>
                           <Edit className="h-4 w-4" />
                         </Link>
                       </Button>
