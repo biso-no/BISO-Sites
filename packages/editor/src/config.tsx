@@ -226,6 +226,18 @@ type Props = {
 };
 
 export const config: Config<Props> = {
+  root: {
+    fields: {
+      title: {
+        type: "text",
+        label: "Page Title",
+      },
+      slug: {
+        type: "text",
+        label: "Page Slug",
+      },
+    },
+  },
   components: {
     Accordion: {
       fields: {

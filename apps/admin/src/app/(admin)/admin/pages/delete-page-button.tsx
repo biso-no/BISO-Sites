@@ -2,7 +2,7 @@
 
 import { Button } from "@repo/ui/components/ui/button";
 import { Trash } from "lucide-react";
-import { deletePage } from "@/app/actions/pages/actions";
+import { deleteManagedPage } from "@/app/actions/pages/actions";
 
 type DeletePageButtonProps = {
   pageId: string;
@@ -11,7 +11,7 @@ type DeletePageButtonProps = {
 export function DeletePageButton({ pageId }: DeletePageButtonProps) {
   return (
     <Button
-      onClick={async () => await deletePage(pageId)}
+      onClick={async () => await deleteManagedPage(pageId)}
       size="icon"
       variant="ghost"
     >

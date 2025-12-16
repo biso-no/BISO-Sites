@@ -188,15 +188,6 @@ async function fetchPageRow(pageId: string) {
   });
 }
 
-async function fetchTranslationRow(translationId: string) {
-  const { db } = await createAdminClient();
-
-  return db.getRow<PageTranslations>({
-    databaseId: DATABASE_ID,
-    tableId: PAGE_TRANSLATIONS_TABLE_ID,
-    rowId: translationId,
-  });
-}
 
 export type ListPagesParams = {
   search?: string;
@@ -315,72 +306,6 @@ export async function getPublishedPage({
   };
 }
 
-export type CreatePageTranslationInput = {
-  locale: Locale;
-  title: string;
-  slug?: string | null;
-  description?: string | null;
-  draftDocument?: PageDocument | null;
-  publish?: boolean;
-};
-
-export type CreatePageInput = {
-  slug: string;
-  title: string;
-  status?: PageStatus;
-  visibility?: PageVisibility;
-  template?: string | null;
-  campusId?: string | null;
-  translations: CreatePageTranslationInput[];
-};
-
-export async function createPage(input: CreatePageInput): Promise<PageRecord> {
-  const { db } = await createAdminClient();
-
-  const pageId = ID.unique();
-  const pageStatus = input.status ?? PageStatus.DRAFT;
-  const pageVisibility = input.visibility ?? PageVisibility.PUBLIC;
-
-  await db.createRow<Pages>({
-    databaseId: DATABASE_ID,
-    tableId: PAGES_TABLE_ID,
-    rowId: pageId,
-    data: {
-      slug: input.slug,
-      title: input.title,
-      status: pageStatus,
-      visibility: pageVisibility,
-      template: input.template ?? null,
-      campus_id: input.campusId ?? null,
-    },
-  });
-
-  for (const translation of input.translations) {
-    const translationId = ID.unique();
-    const draftDocument = translation.draftDocument ?? null;
-    const publishedDocument = translation.publish ? draftDocument : null;
-
-    await db.createRow<PageTranslations>({
-      databaseId: DATABASE_ID,
-      tableId: PAGE_TRANSLATIONS_TABLE_ID,
-      rowId: translationId,
-      data: {
-        page_id: pageId,
-        page: pageId,
-        locale: translation.locale,
-        title: translation.title,
-        slug: translation.slug ?? null,
-        description: translation.description ?? null,
-        draft_document: serializeDraft(draftDocument),
-        puck_document: serializePublished(publishedDocument),
-        is_published: !!translation.publish,
-        published_at: translation.publish ? new Date().toISOString() : null,
-      },
-    });
-  }
-
-  return (await getPageById(pageId))!;
-}
 
 export type UpdatePageInput = {
   pageId: string;
@@ -430,118 +355,6 @@ export async function updatePage({
   return (await getPageById(pageId))!;
 }
 
-export type UpdatePageTranslationDraftInput = {
-  translationId: string;
-  title?: string;
-  slug?: string | null;
-  description?: string | null;
-  draftDocument?: PageDocument | null;
-};
-
-export async function updatePageTranslationDraft({
-  translationId,
-  title,
-  slug,
-  description,
-  draftDocument,
-}: UpdatePageTranslationDraftInput): Promise<PageTranslationRecord> {
-  const { db } = await createAdminClient();
-  const data: Record<string, unknown> = {};
-
-  if (title !== undefined) {
-    data.title = title;
-  }
-  if (slug !== undefined) {
-    data.slug = slug;
-  }
-  if (description !== undefined) {
-    data.description = description;
-  }
-  if (draftDocument !== undefined) {
-    data.draft_document = serializeDraft(draftDocument);
-  }
-
-  if (Object.keys(data).length > 0) {
-    await db.updateRow({
-      databaseId: DATABASE_ID,
-      tableId: PAGE_TRANSLATIONS_TABLE_ID,
-      rowId: translationId,
-      data,
-    });
-  }
-
-  const updated = await fetchTranslationRow(translationId);
-  return normalizeTranslation(updated);
-}
-
-export type PublishPageTranslationInput = {
-  translationId: string;
-  document?: PageDocument | null;
-  title?: string;
-  slug?: string | null;
-  description?: string | null;
-  pageStatus?: PageStatus;
-};
-
-export async function publishPageTranslation({
-  translationId,
-  document,
-  title,
-  slug,
-  description,
-  pageStatus,
-}: PublishPageTranslationInput): Promise<PageTranslationRecord> {
-  const { db } = await createAdminClient();
-  const translationRow = await fetchTranslationRow(translationId);
-
-  const baseDraft = decodeDocument(
-    (translationRow as unknown as { draft_document?: unknown }).draft_document
-  );
-  const publishedDocument =
-    document ??
-    baseDraft ??
-    decodeDocument(
-      (translationRow as unknown as { puck_document?: unknown }).puck_document
-    );
-  const data: Record<string, unknown> = {
-    is_published: true,
-    published_at: new Date().toISOString(),
-  };
-
-  if (title !== undefined) {
-    data.title = title;
-  }
-  if (slug !== undefined) {
-    data.slug = slug;
-  }
-  if (description !== undefined) {
-    data.description = description;
-  }
-  if (publishedDocument) {
-    data.puck_document = serializePublished(publishedDocument);
-    data.draft_document = serializeDraft(publishedDocument);
-  }
-
-  await db.updateRow({
-    databaseId: DATABASE_ID,
-    tableId: PAGE_TRANSLATIONS_TABLE_ID,
-    rowId: translationId,
-    data,
-  });
-
-  if (pageStatus) {
-    await db.updateRow({
-      databaseId: DATABASE_ID,
-      tableId: PAGES_TABLE_ID,
-      rowId: translationRow.page_id,
-      data: { status: pageStatus },
-    });
-  }
-
-  const updated = await fetchTranslationRow(translationId);
-  return normalizeTranslation(updated);
-}
-
 export async function deletePage(pageId: string): Promise<void> {
   const { db } = await createAdminClient();
   await db.deleteRow({
@@ -551,94 +364,82 @@ export async function deletePage(pageId: string): Promise<void> {
   });
 }
 
-export async function deletePageTranslation(
-  translationId: string
-): Promise<void> {
-  const { db } = await createAdminClient();
-  await db.deleteRow({
-    databaseId: DATABASE_ID,
-    tableId: PAGE_TRANSLATIONS_TABLE_ID,
-    rowId: translationId,
-  });
-}
-
-export type EnsurePageTranslationParams = {
-  pageId: string;
+export type UpsertPageTranslationData = {
   locale: Locale;
-  title?: string;
+  title: string;
+  slug?: string | null;
   description?: string | null;
-  sourceTranslationId?: string;
+  draftDocument: PageDocument;
+  publish: boolean;
 };
 
-export async function ensurePageTranslation({
-  pageId,
-  locale,
-  title,
-  description,
-  sourceTranslationId,
-}: EnsurePageTranslationParams): Promise<PageTranslationRecord> {
+export type UpsertPageInput = {
+  pageId?: string;
+  slug: string;
+  title: string;
+  status: PageStatus;
+  visibility: PageVisibility;
+  template?: string | null;
+  campusId?: string | null;
+  translations: UpsertPageTranslationData[];
+};
+
+export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
   const { db } = await createAdminClient();
 
-  const existing = await db.listRows<PageTranslations>({
-    databaseId: DATABASE_ID,
-    tableId: PAGE_TRANSLATIONS_TABLE_ID,
-    queries: [
-      Query.equal("page_id", pageId),
-      Query.equal("locale", locale),
-      Query.limit(1),
-    ],
-  });
-
-  if (existing.rows.length > 0) {
-    return normalizeTranslation(existing.rows[0]);
-  }
-
-  let baseDocument: PageDocument | null = null;
-  let resolvedTitle = title;
-
-  if (sourceTranslationId) {
-    try {
-      const source = await fetchTranslationRow(sourceTranslationId);
-      baseDocument =
-        decodeDocument(
-          (source as unknown as { draft_document?: unknown }).draft_document
-        ) ??
-        decodeDocument(
-          (source as unknown as { puck_document?: unknown }).puck_document
-        );
-    } catch {
-      baseDocument = null;
+  const pageId = input.pageId ?? ID.unique();
+  
+  let existingTranslations: Map<Locale, string> = new Map();
+  
+  if (input.pageId) {
+    const existingPage = await getPageById(input.pageId);
+    if (existingPage) {
+      for (const translation of existingPage.translations) {
+        existingTranslations.set(translation.locale, translation.id);
+      }
     }
   }
 
-  if (resolvedTitle === undefined) {
-    try {
-      const page = await fetchPageRow(pageId);
-      resolvedTitle = (page as unknown as { title?: string }).title ?? "";
-    } catch {
-      resolvedTitle = "";
-    }
-  }
+  const translationRefs = input.translations.map((translation) => {
+    const publishedDocument = translation.publish
+      ? translation.draftDocument
+      : null;
 
-  const translationId = ID.unique();
-
-  const created = await db.createRow<PageTranslations>({
-    databaseId: DATABASE_ID,
-    tableId: PAGE_TRANSLATIONS_TABLE_ID,
-    rowId: translationId,
-    data: {
+    const translationData: Record<string, unknown> = {
+      locale: translation.locale,
+      title: translation.title,
+      slug: translation.slug ?? null,
+      description: translation.description ?? null,
+      draft_document: serializeDraft(translation.draftDocument),
+      puck_document: serializePublished(publishedDocument),
+      is_published: translation.publish,
+      published_at: translation.publish ? new Date().toISOString() : null,
       page_id: pageId,
       page: pageId,
-      locale,
-      title: resolvedTitle ?? "",
-      slug: null,
-      description: description ?? null,
-      draft_document: serializeDraft(baseDocument),
-      puck_document: null,
-      is_published: false,
-      published_at: null,
-    },
+    };
+
+    const existingId = existingTranslations.get(translation.locale);
+    if (existingId) {
+      translationData.$id = existingId;
+    }
+
+    return translationData;
   });
 
-  return normalizeTranslation(created);
+  await db.upsertRow({
+    databaseId: DATABASE_ID,
+    tableId: PAGES_TABLE_ID,
+    rowId: pageId,
+    data: {
+      slug: input.slug,
+      title: input.title,
+      status: input.status,
+      visibility: input.visibility,
+      template: input.template ?? null,
+      campus_id: input.campusId ?? null,
+      translation_refs: translationRefs as any,
+    } as any,
+  });
+
+  return (await getPageById(pageId))!;
 }
