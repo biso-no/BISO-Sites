@@ -5,37 +5,22 @@ import { Input } from "@repo/ui/components/ui/input";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { motion } from "framer-motion";
-import { Bot, Loader2, Send, Sparkles, Trash2, X, Zap, Navigation, Wand2 } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, Trash2, X, Zap, Navigation, Wand2, PenLine } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAgentStateDisplay } from "@repo/ai/types/agent-state";
-import type { AgentState } from "@repo/ai/types/agent-state";
-import { formEvents } from "@/lib/form-events";
+import { useCopilotStore, getAgentStateDisplay } from "@repo/ai/stores/copilot-store";
 import { loadChatMessages, saveChatMessages, clearChatHistory } from "@/lib/chat-persistence";
-import { createManagedPage } from "@/app/actions/pages/actions";
-import { PageStatus, PageVisibility, Locale } from "@repo/api/types/appwrite";
 import { AssistantMessage as MessageComponent } from "./assistant-message";
 import { useChatStream } from "./use-chat-stream";
 
-type PuckContentUpdate = {
-  type: "puck-content";
-  blockIndex: number;
-  block: {
-    type: string;
-    props: Record<string, unknown>;
-  };
-  isComplete: boolean;
-};
-
-type AssistantSidebarProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  puckData?: unknown;
-  currentPath?: string;
-  onPuckContent?: (update: PuckContentUpdate) => void;
-};
-
-export function AssistantSidebar({ isOpen, onClose, puckData, currentPath, onPuckContent }: AssistantSidebarProps) {
+export function AssistantSidebar() {
+  // Get state from copilot store
+  const isOpen = useCopilotStore((state) => state.isOpen);
+  const close = useCopilotStore((state) => state.close);
+  const agentState = useCopilotStore((state) => state.agentState);
+  const agentMessage = useCopilotStore((state) => state.agentMessage);
+  const activeHandler = useCopilotStore((state) => state.activeHandler);
+  const setCurrentPath = useCopilotStore((state) => state.setCurrentPath);
   const router = useRouter();
   const pathname = usePathname();
   const [input, setInput] = useState("");
@@ -54,50 +39,22 @@ export function AssistantSidebar({ isOpen, onClose, puckData, currentPath, onPuc
     [router, pathname]
   );
 
-  const handleFormField = useCallback(
-    (update: {
-      fieldId: string;
-      fieldName: string;
-      value: string;
-      streaming?: boolean;
-      isComplete?: boolean;
-    }) => {
-      // Emit the form field update to any listening forms
-      formEvents.emit(update);
-    },
-    []
-  );
+  // Track current path in the store
+  useEffect(() => {
+    setCurrentPath(pathname);
+  }, [pathname, setCurrentPath]);
 
   const handleCreatePage = useCallback(
     async (params: { title: string; slug: string; locale: "en" | "no"; description?: string }) => {
-      try {
-        const page = await createManagedPage({
-          title: params.title,
-          slug: params.slug,
-          status: PageStatus.DRAFT,
-          visibility: PageVisibility.PUBLIC,
-          template: null,
-          campusId: null,
-          translations: [
-            {
-              locale: params.locale as Locale,
-              title: params.title,
-              description: params.description || null,
-              draftDocument: { content: [], root: {} },
-              publish: false,
-            },
-          ],
-        });
-
-        // Navigate to the new page editor
-        const translation = page.translations.find((t) => t.locale === params.locale);
-        if (translation) {
-          router.push(`/admin/pages/${page.id}/${params.locale}/editor`);
-        }
-      } catch (error) {
-        console.error("Failed to create page:", error);
-        throw error;
-      }
+      // Navigate to the new page editor - page is NOT created in database until user saves
+      // The page editor will use the provided params as initial values
+      const searchParams = new URLSearchParams({
+        title: params.title,
+        slug: params.slug,
+        locale: params.locale,
+        ...(params.description && { description: params.description }),
+      });
+      router.push(`/admin/pages/new?${searchParams.toString()}`);
     },
     [router]
   );
@@ -105,11 +62,7 @@ export function AssistantSidebar({ isOpen, onClose, puckData, currentPath, onPuc
   const { messages, isLoading, sendMessage, clearMessages, setMessages } = useChatStream({
     api: "/api/admin-assistant",
     onNavigate: handleNavigate,
-    onFormField: handleFormField,
     onCreatePage: handleCreatePage,
-    onPuckContent,
-    puckData,
-    currentPath,
   });
 
   // Load persisted messages on mount
@@ -206,7 +159,7 @@ export function AssistantSidebar({ isOpen, onClose, puckData, currentPath, onPuc
               </Button>
               <Button
                 className="h-8 w-8"
-                onClick={onClose}
+                onClick={close}
                 size="icon"
                 variant="ghost"
               >
@@ -264,46 +217,31 @@ export function AssistantSidebar({ isOpen, onClose, puckData, currentPath, onPuc
             {isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm dark:text-white/60">
                 {(() => {
-                  // Infer agent state from messages
-                  const lastMessage = messages[messages.length - 1];
-                  const hasToolCalls = lastMessage?.parts.some(
-                    (p) => p.type === "text" && p.text.includes("analyzeTask")
-                  );
-                  const hasNavigation = lastMessage?.parts.some(
-                    (p) => p.type === "text" && p.text.includes("navigate")
-                  );
-                  const hasGeneration = lastMessage?.parts.some(
-                    (p) => p.type === "text" && p.text.includes("generatePuckContent")
-                  );
+                  const stateDisplay = getAgentStateDisplay(agentState);
+                  const IconComponent = {
+                    loader: Loader2,
+                    brain: Zap,
+                    compass: Navigation,
+                    pencil: PenLine,
+                    wand: Wand2,
+                    alert: Loader2,
+                    check: Loader2,
+                  }[stateDisplay.icon];
 
-                  if (hasGeneration) {
-                    return (
-                      <>
-                        <Wand2 className="h-4 w-4 animate-pulse" />
-                        <span>Generating Content...</span>
-                      </>
-                    );
-                  }
-                  if (hasNavigation) {
-                    return (
-                      <>
-                        <Navigation className="h-4 w-4 animate-bounce" />
-                        <span>Navigating...</span>
-                      </>
-                    );
-                  }
-                  if (hasToolCalls) {
-                    return (
-                      <>
-                        <Zap className="h-4 w-4 animate-pulse" />
-                        <span>Analyzing Tools...</span>
-                      </>
-                    );
-                  }
+                  const animationClass = {
+                    loader: "animate-spin",
+                    brain: "animate-pulse",
+                    compass: "animate-bounce",
+                    pencil: "animate-pulse",
+                    wand: "animate-pulse",
+                    alert: "",
+                    check: "",
+                  }[stateDisplay.icon];
+
                   return (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Thinking...</span>
+                      <IconComponent className={cn("h-4 w-4", animationClass)} />
+                      <span>{agentMessage || stateDisplay.text}</span>
                     </>
                   );
                 })()}

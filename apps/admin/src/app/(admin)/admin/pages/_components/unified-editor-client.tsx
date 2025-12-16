@@ -7,18 +7,15 @@ import type {
 } from "@repo/api/types/appwrite";
 import { PageStatus as PS, PageVisibility as PV } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
+import { useCopilotPuck } from "@repo/ai/hooks/use-copilot-puck";
+import { useEntityContext, usePageContext } from "@repo/ai/hooks/use-copilot-context";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { upsertManagedPage } from "@/app/actions/pages/actions";
 import { translatePageContent } from "@/app/actions/pages/translate";
-import { AssistantSidebar } from "@/components/assistant/assistant-sidebar";
-import { AssistantTrigger } from "@/components/assistant/assistant-trigger";
-import {
-  usePuckContentHandler,
-  PuckGenerationIndicator,
-} from "@/components/assistant/puck-content-handler";
+import { PuckGenerationIndicator } from "@/components/assistant/puck-content-handler";
 
 const PageEditor = dynamic(
   () => import("@repo/editor/editor").then((mod) => mod.PageEditor),
@@ -66,7 +63,6 @@ export function UnifiedEditorClient({
   visibility: initialVisibility,
 }: UnifiedEditorClientProps) {
   const router = useRouter();
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [currentLocale, setCurrentLocale] = useState<Locale>(initialCurrentLocale);
   const [localeData, setLocaleData] = useState<Record<Locale, LocaleData | null>>(
     initialLocaleData
@@ -93,17 +89,77 @@ export function UnifiedEditorClient({
     },
   };
 
-  const { handlePuckContent, isGenerating } = usePuckContentHandler({
-    onContentComplete: (data) => {
+  // Track if AI is generating content
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Ref to hold the setData function from PageEditor
+  const setEditorDataRef = useRef<((data: Data) => void) | null>(null);
+
+  // Callback when PageEditor exposes its setData function
+  const handleDispatchReady = useCallback((setData: (data: Data) => void) => {
+    console.log("[UnifiedEditor] PageEditor dispatch ready");
+    setEditorDataRef.current = setData;
+  }, []);
+
+  // Register Puck editor with AI copilot for streaming block generation
+  useCopilotPuck({
+    data: currentData,
+    onDataChange: (newData) => {
+      console.log("[Editor] onDataChange called, content length:", newData.content?.length);
+      setIsGenerating(true);
+      
+      // Update our local state
       setLocaleData((prev) => ({
         ...prev,
         [currentLocale]: {
           ...currentLocaleInfo,
-          data,
+          data: newData,
         },
       }));
-      toast.success("AI generated content applied to editor");
+      
+      // ALSO update Puck's internal state directly via the exposed setData
+      if (setEditorDataRef.current) {
+        console.log("[Editor] Calling PageEditor setData directly");
+        setEditorDataRef.current(newData as Data);
+      }
+      
+      // Reset generating state after a short delay
+      setTimeout(() => setIsGenerating(false), 500);
     },
+    capability: pageId ? "edit-page" : "create-page",
+  });
+
+  // Register entity context with AI copilot (so AI knows what page we're editing)
+  useEntityContext(
+    pageId
+      ? {
+          type: "page",
+          id: pageId,
+          title: currentLocaleInfo.title || slug,
+          data: {
+            slug,
+            status: initialStatus,
+            visibility: initialVisibility,
+            currentLocale,
+            availableLocales,
+            localeData: Object.fromEntries(
+              Object.entries(localeData).map(([locale, data]) => [
+                locale,
+                data ? { title: data.title, description: data.description } : null,
+              ])
+            ),
+          },
+          locale: currentLocale,
+          metadata: { status: initialStatus },
+        }
+      : null
+  );
+
+  // Register page context
+  usePageContext({
+    section: "pages",
+    viewType: pageId ? "editor" : "create",
+    breadcrumb: pageId ? ["Pages", currentLocaleInfo.title || slug] : ["Pages", "New Page"],
   });
 
   const handleLocaleChange = useCallback(
@@ -316,6 +372,7 @@ export function UnifiedEditorClient({
         initialData={currentData}
         locale={currentLocale}
         onBack={() => router.push("/admin/pages")}
+        onDispatchReady={handleDispatchReady}
         onLocaleChange={handleLocaleChange}
         onPublish={handlePublish}
         onSave={handleSave}
@@ -325,19 +382,6 @@ export function UnifiedEditorClient({
         title={currentLocaleInfo.title}
         visibility={initialVisibility}
       />
-
-      <div className="fixed bottom-6 right-6 z-50 flex items-end gap-4">
-        <AssistantSidebar
-          currentPath={pageId ? `/admin/pages/${pageId}` : "/admin/pages/new"}
-          isOpen={isAssistantOpen}
-          onClose={() => setIsAssistantOpen(false)}
-          onPuckContent={handlePuckContent}
-          puckData={currentLocaleInfo.data}
-        />
-        {!isAssistantOpen && (
-          <AssistantTrigger onClick={() => setIsAssistantOpen(true)} />
-        )}
-      </div>
 
       <PuckGenerationIndicator isGenerating={isGenerating} />
     </>

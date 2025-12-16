@@ -5,9 +5,10 @@ import {
   type Data,
   Puck,
   usePuck as usePuckOriginal,
+  createUsePuck,
 } from "@measured/puck";
 import { Button } from "@repo/ui/components/ui/button";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
 import "@measured/puck/puck.css";
@@ -57,6 +58,33 @@ import { listImages, uploadImage } from "./upload-image";
 // Use the standard hook
 const usePuck = usePuckOriginal;
 
+/**
+ * Internal component that lives inside Puck and exposes dispatch to external callers.
+ * This is the ONLY way to properly update Puck's internal state from outside.
+ */
+function PuckDispatchBridge({ 
+  onDispatchReady 
+}: { 
+  onDispatchReady?: (setData: (data: Data) => void) => void 
+}) {
+  const { dispatch, appState } = usePuck();
+  
+  useEffect(() => {
+    if (onDispatchReady) {
+      // Expose a function that uses Puck's dispatch to set data
+      onDispatchReady((newData: Data) => {
+        console.log("[PuckDispatchBridge] Dispatching setData with", newData.content?.length, "blocks");
+        dispatch({
+          type: "setData",
+          data: newData,
+        });
+      });
+    }
+  }, [dispatch, onDispatchReady]);
+  
+  return null; // This component renders nothing, it just bridges the API
+}
+
 export type PageEditorProps = {
   initialData: Data;
   title: string;
@@ -81,6 +109,8 @@ export type PageEditorProps = {
     metadata: { title: string; slug: string; description?: string },
     targetLocale: Locale
   ) => Promise<void>;
+  /** Ref callback to expose a function for setting data externally (e.g., from AI) */
+  onDispatchReady?: (setData: (data: Data) => void) => void;
 };
 
 export function PageEditor({
@@ -97,6 +127,7 @@ export function PageEditor({
   onLocaleChange,
   onBack,
   onTranslate,
+  onDispatchReady,
 }: PageEditorProps) {
   const [data, setData] = useState<Data>(initialData);
   const [saving, setSaving] = useState(false);
@@ -174,6 +205,13 @@ export function PageEditor({
         headerTitle={title}
         onPublish={handleSave}
         overrides={{
+          // Bridge component to expose dispatch to external callers (AI copilot)
+          puck: ({ children }) => (
+            <>
+              <PuckDispatchBridge onDispatchReady={onDispatchReady} />
+              {children}
+            </>
+          ),
           fieldTypes: {
             link: ({ onChange, value }) => (
               <LinkPicker

@@ -5,19 +5,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Form } from "@repo/ui/components/ui/form";
+import { useCopilotForm } from "@repo/ai/hooks/use-copilot-form";
+import { useEntityContext, usePageContext, createEntityContext } from "@repo/ai/hooks/use-copilot-context";
+import { eventFormFields } from "@repo/ai/schemas/registry";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 // External libraries
 import { useCallback, useEffect, useState } from "react";
-import { type Path, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
 // Internal server actions
 import { getCampuses, getCampusWithDepartments } from "@/app/actions/campus";
 import { createEvent, updateEvent } from "@/app/actions/events";
 
 // Internal hooks & types
-import { type FormFieldUpdate, formEvents } from "@/lib/form-events";
 import { toast } from "@/lib/hooks/use-toast";
 import type { AdminEvent } from "@/lib/types/event";
 import type { Campus } from "@/lib/types/post";
@@ -56,6 +58,36 @@ export default function EventEditor({ event }: EventEditorProps) {
     defaultValues: getEventDefaultValues(event || undefined),
   });
 
+  const eventTitle = event?.translation_refs?.[0]?.title || event?.slug || "";
+
+  // Register form with AI copilot for streaming field updates
+  useCopilotForm({
+    form,
+    capability: isEditing ? "edit-event" : "create-event",
+    fields: eventFormFields,
+  });
+
+  // Register entity context with AI copilot (so AI knows what event we're editing)
+  useEntityContext(
+    event
+      ? {
+          type: "event",
+          id: event.$id,
+          title: eventTitle,
+          data: event as unknown as Record<string, unknown>,
+          locale: event.translation_refs?.[0]?.locale,
+          metadata: { status: event.status },
+        }
+      : null
+  );
+
+  // Register page context
+  usePageContext({
+    section: "events",
+    viewType: isEditing ? "editor" : "create",
+    breadcrumb: isEditing ? ["Events", eventTitle] : ["Events", "New Event"],
+  });
+
   // Load campuses
   useEffect(() => {
     async function fetchCampuses() {
@@ -69,49 +101,6 @@ export default function EventEditor({ event }: EventEditorProps) {
     }
     fetchCampuses();
   }, []);
-
-  // Listen for AI assistant form field updates
-  useEffect(() => {
-    const setNumericField = (fieldId: Path<FormValues>, rawValue: string) => {
-      const numValue = Number.parseFloat(rawValue);
-      if (!Number.isNaN(numValue)) {
-        form.setValue(fieldId, numValue, {
-          shouldValidate: true,
-          shouldDirty: true,
-        });
-      }
-    };
-
-    const setBooleanField = (fieldId: Path<FormValues>, rawValue: string) => {
-      const boolValue = rawValue === "true" || rawValue === "yes";
-      form.setValue(fieldId, boolValue, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    };
-
-    const handleFormUpdate = (update: FormFieldUpdate) => {
-      const { fieldId, value } = update;
-
-      if (fieldId === "price") {
-        setNumericField("price", value);
-        return;
-      }
-
-      if (fieldId === "member_only" || fieldId === "is_collection") {
-        setBooleanField(fieldId as Path<FormValues>, value);
-        return;
-      }
-
-      form.setValue(fieldId as Path<FormValues>, value, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    };
-
-    const unsubscribe = formEvents.subscribe(handleFormUpdate);
-    return unsubscribe;
-  }, [form]);
 
   // Load departments when campus changes
   const loadDepartmentsForCampus = useCallback(async (campusId: string) => {
@@ -180,7 +169,6 @@ export default function EventEditor({ event }: EventEditorProps) {
     }
   };
 
-  const eventTitle = event?.translation_refs?.[0]?.title || event?.slug || "";
   const headerTitle = isEditing
     ? t("editor.headerEdit", { title: eventTitle || t("editor.title") })
     : t("editor.headerNew");

@@ -8,14 +8,20 @@
     "./types": "./src/types.ts",
     "./types/agent-state": "./src/types/agent-state.ts",
     "./provider": "./src/provider.tsx",
+    "./stores/copilot-store": "./src/stores/copilot-store.ts",
+    "./schemas/registry": "./src/schemas/registry.ts",
     "./hooks/*": "./src/hooks/*.ts",
     "./hooks/use-assistant": "./src/hooks/use-assistant.ts",
     "./hooks/use-form-autopilot": "./src/hooks/use-form-autopilot.ts",
+    "./hooks/use-copilot-form": "./src/hooks/use-copilot-form.ts",
+    "./hooks/use-copilot-puck": "./src/hooks/use-copilot-puck.ts",
+    "./hooks/use-copilot-context": "./src/hooks/use-copilot-context.ts",
     "./tools/navigation": "./src/tools/navigation.ts",
     "./tools/form-filler": "./src/tools/form-filler.ts",
     "./tools/translate": "./src/tools/translate.ts",
     "./tools/page-creator": "./src/tools/page-creator.ts",
     "./tools/puck-generator": "./src/tools/puck-generator.ts",
+    "./tools/data-query": "./src/tools/data-query.ts",
     "./lib/streaming-json-parser": "./src/lib/streaming-json-parser.ts",
     "./prompts": "./src/prompts.ts"
   },
@@ -26,14 +32,17 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "*",
-    "@types/react": "^19.2.7"
+    "@types/react": "^19.2.7",
+    "react-hook-form": "^7.67.0"
   },
   "dependencies": {
     "ai": "^5.0.104",
-    "zod": "^4.1.13"
+    "zod": "^4.1.13",
+    "zustand": "^5.0.3"
   },
   "peerDependencies": {
     "next": ">=16.0.7",
-    "react": ">=19.0.0"
+    "react": ">=19.0.0",
+    "react-hook-form": ">=7.0.0"
   }
 }
