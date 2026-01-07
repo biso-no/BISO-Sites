@@ -1,26 +1,44 @@
 {
   "title": "Kjøpsvilkår",
-  "intro": "Disse vilkårene omfatter betaling, levering/henting, angrerett og retur ved kjøp hos BISO.",
+  "badge": "Juridisk",
+  "intro": "Disse vilkårene omfatter betaling, levering/henting, angrerett og retur ved kjøp hos BISO. Vi streber etter å gi en transparent og rettferdig handleopplevelse.",
+  "lastUpdated": "Sist oppdatert: Januar 2026",
+  "version": "Versjon 2.0",
   "sections": {
     "payment": {
       "title": "Betaling",
-      "body": "Vi aksepterer Vipps og kort via sikker betaling. Beløp vises i NOK og inkluderer gjeldende avgifter."
+      "badge": "Sikker betaling",
+      "body": "Vi aksepterer Vipps og kortbetaling via vårt sikre betalingssystem. Alle beløp vises i norske kroner (NOK) og inkluderer gjeldende avgifter. Betaling behandles umiddelbart ved ordrebekreftelse.",
+      "highlight": "Alle transaksjoner er kryptert og behandles gjennom bransjestandard sikre betalingsløsninger."
     },
     "delivery": {
-      "title": "Levering / Henting",
-      "body": "Fysiske varer hentes på campus eller leveres som angitt i produktet. Digitale varer leveres på e-post eller i brukerkontoen din."
+      "title": "Levering og henting",
+      "badge": "Fleksible alternativer",
+      "body": "Fysiske varer kan hentes på din campuslokasjon eller leveres som angitt i produktbeskrivelsen. Digitale varer og medlemskap leveres umiddelbart via e-post eller aktiveres i kontoen din ved betalingsbekreftelse.",
+      "highlight": "Campushenting er tilgjengelig i BISOs åpningstider. Sjekk din campusside for spesifikke tider."
     },
     "returns": {
       "title": "Retur og refusjon",
-      "body": "Kontakt oss før du returnerer en vare. Refusjon behandles til opprinnelig betalingsmåte når vilkårene er oppfylt."
+      "badge": "Rettferdig policy",
+      "body": "Vennligst kontakt oss før du returnerer en vare for å sikre en smidig prosess. Refusjoner behandles til din opprinnelige betalingsmåte innen 5-10 virkedager når vilkårene er oppfylt. Varer må være ubrukte og i original emballasje.",
+      "highlight": "Arrangementsbilletter og brukte varer er generelt ikke refunderbare med mindre arrangementet avlyses."
     },
     "withdrawal": {
       "title": "Angrerett",
-      "body": "Forbrukere kan ha lovbestemt angrerett på 14 dager for enkelte kjøp, med unntak for tidsbestemte tjenester og brukte varer."
+      "badge": "Forbrukerrettigheter",
+      "body": "Forbrukere kan ha lovbestemt angrerett på 14 dager for enkelte kjøp, i henhold til norske forbrukervernlover. Unntak gjelder for tidsbestemte tjenester (som arrangementsbilletter for spesifikke datoer), personlige varer og brukte varer.",
+      "highlight": "For å bruke angreretten, kontakt oss med din ordreferanse før 14-dagersfristen utløper."
     },
     "contact": {
-      "title": "Kontakt",
-      "body": "Spørsmål om bestillinger? Kontakt post@biso.no med din ordreferanse."
+      "title": "Trenger du hjelp?",
+      "badge": "Support",
+      "body": "Har du spørsmål om bestillingen din, trenger hjelp med en retur, eller ønsker avklaring på våre retningslinjer? Teamet vårt er her for å hjelpe. Kontakt oss via e-post med din ordreferanse, så svarer vi så raskt som mulig.",
+      "highlight": ""
     }
+  },
+  "footer": {
+    "title": "Spørsmål om våre vilkår?",
+    "description": "Hvis du trenger avklaring på noen av våre retningslinjer, ikke nøl med å ta kontakt.",
+    "privacyPolicy": "Personvernerklæring"
   }
 }

@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 
 export function Footer() {
   const t = useTranslations("common.footer");
+  const commonT = useTranslations("common");
   const footerLinks = {
     About: [
       { label: t("about.ourStory"), href: "/history" },
@@ -27,9 +28,9 @@ export function Footer() {
       { label: t("students.news"), href: "/news" },
       { label: t("students.resources"), href: "/resources" },
     ],
-    Support: [
-      { label: t("support.faq"), href: "/faq" },
-      { label: t("support.helpCenter"), href: "/help" },
+    Practical: [
+      { label: "BI", href: "https://bi.no" },
+      { label: commonT("codeOfConduct"), href: "/code-of-conduct" },
       { label: t("support.privacyPolicy"), href: "/privacy" },
       { label: t("support.termsOfService"), href: "terms" },
     ],

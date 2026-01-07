@@ -1,26 +1,44 @@
 {
   "title": "Purchase Terms",
-  "intro": "These terms cover payment, delivery/pickup, withdrawal rights and returns for purchases with BISO.",
+  "badge": "Legal",
+  "intro": "These terms cover payment, delivery/pickup, withdrawal rights and returns for purchases with BISO. We strive to provide a transparent and fair shopping experience.",
+  "lastUpdated": "Last updated: January 2026",
+  "version": "Version 2.0",
   "sections": {
     "payment": {
       "title": "Payment",
-      "body": "We accept Vipps and card via secure checkout. Amounts are shown in NOK and include applicable taxes."
+      "badge": "Secure Checkout",
+      "body": "We accept Vipps and card payments via our secure checkout system. All amounts are displayed in Norwegian Kroner (NOK) and include applicable taxes and fees. Payment is processed immediately upon order confirmation.",
+      "highlight": "All transactions are encrypted and processed through industry-standard secure payment gateways."
     },
     "delivery": {
-      "title": "Delivery / Pickup",
-      "body": "Physical items are picked up at campus or delivered as specified in the product. Digital items are delivered by email or within your account."
+      "title": "Delivery & Pickup",
+      "badge": "Flexible Options",
+      "body": "Physical items can be picked up at your campus location or delivered as specified in the product description. Digital items and memberships are delivered instantly via email or activated within your account upon payment confirmation.",
+      "highlight": "Campus pickup is available during BISO office hours. Check your campus page for specific times."
     },
     "returns": {
       "title": "Returns & Refunds",
-      "body": "Contact us before returning any item. Refunds are processed to the original payment method when eligible."
+      "badge": "Fair Policy",
+      "body": "Please contact us before returning any item to ensure a smooth process. Refunds are processed to your original payment method within 5-10 business days when eligibility requirements are met. Items must be unused and in original packaging.",
+      "highlight": "Event tickets and used merchandise are generally non-refundable unless the event is cancelled."
     },
     "withdrawal": {
       "title": "Right of Withdrawal",
-      "body": "Consumers may have a statutory right to withdraw within 14 days for certain purchases, with exceptions for time-specific services and used goods."
+      "badge": "Consumer Rights",
+      "body": "Consumers may have a statutory right to withdraw within 14 days for certain purchases, as per Norwegian consumer protection laws. Exceptions apply to time-specific services (such as event tickets for specific dates), personalized items, and used goods.",
+      "highlight": "To exercise your right of withdrawal, contact us with your order reference before the 14-day period expires."
     },
     "contact": {
-      "title": "Contact",
-      "body": "Questions about orders? Contact post@biso.no with your order reference."
+      "title": "Need Help?",
+      "badge": "Support",
+      "body": "Have questions about your order, need assistance with a return, or want clarification on our policies? Our team is here to help. Contact us via email with your order reference and we'll respond as quickly as possible.",
+      "highlight": ""
     }
+  },
+  "footer": {
+    "title": "Questions About Our Terms?",
+    "description": "If you need clarification on any of our policies, don't hesitate to reach out.",
+    "privacyPolicy": "Privacy Policy"
   }
 }

@@ -40,6 +40,7 @@ export type CheckoutSessionParams = {
   discountTotal?: number;
   shippingCost?: number;
   total: number;
+  reference: string;
   currency: Currency;
   membershipApplied?: boolean;
   memberDiscountPercent?: number;

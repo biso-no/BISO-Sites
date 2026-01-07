@@ -49,8 +49,8 @@ export default async function PressPage() {
         <CardContent className="space-y-2 text-sm">
           <div>{t("contact.body")}</div>
           <div>
-            <Link className="underline" href="mailto:post@biso.no">
-              post@biso.no
+            <Link className="underline" href="mailto:contact@biso.no">
+              contact@biso.no
             </Link>
           </div>
         </CardContent>

@@ -63,7 +63,7 @@ export function LockedContentOverlay({
       try {
         await initiateVippsCheckout({
           reference: `membership-${Date.now()}`,
-          amount: option.price * 100,
+          total: option.price * 100,
           description: `BISO Membership - ${selectedPlan}`,
           returnUrl: `${window.location.origin}/member?purchase=success`,
           customerInfo: {},
