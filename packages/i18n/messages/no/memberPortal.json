@@ -28,11 +28,18 @@
       "pricing": {
         "semester": "Semester",
         "year": "År",
+        "three-year": "3 År",
         "threeYear": "3 År",
         "bestValue": "Best verdi",
         "popular": "Populær"
       }
     }
+  },
+  "header": {
+    "benefits": "Fordeler",
+    "days": "dager",
+    "becomeMember": "Bli medlem",
+    "nonMemberBadge": "Utforsk fordeler"
   },
   "tabs": {
     "overview": "Oversikt",
@@ -44,6 +51,7 @@
   "overview": {
     "quickStats": "Hurtigstatistikk",
     "featuredBenefits": "Utvalgte fordeler",
+    "featuredDescription": "Oppdag dine topp medlemsfordeler",
     "viewAll": "Vis alle",
     "membershipStatus": "Medlemskapsstatus",
     "statusActive": "Medlemskapet ditt er aktivt og gyldig",
@@ -53,12 +61,20 @@
     "started": "Startet:",
     "expires": "Utløper:",
     "renewMembership": "Forny medlemskap",
+    "quickActions": {
+      "title": "Klar til å spare mer?",
+      "description": "Utforsk alle dine medlemsfordeler og dra nytte av eksklusive tilbud.",
+      "viewBenefits": "Se fordeler",
+      "manageMembership": "Administrer medlemskap"
+    },
     "stats": {
       "membershipType": "Medlemskapstype",
-      "benefitsAvailable": "Tilgjengelige fordeler",
+      "benefitsAvailable": "Fordeler",
       "benefitsCount": "{count} fordeler",
+      "exclusiveDeals": "eksklusive tilbud",
       "daysUntilRenewal": "Til fornyelse",
-      "estimatedSavings": "Estimert besparelse"
+      "estimatedSavings": "Estimert besparelse",
+      "potential": "Spar mer ved å bruke fordeler"
     }
   },
   "profile": {
@@ -115,11 +131,19 @@
     "description": "Eksklusive fordeler tilgjengelig for BISO-medlemmer",
     "available": "{count} tilgjengelig",
     "reveal": "Vis kode",
+    "revealing": "Viser...",
     "copy": "Kopier",
     "copied": "Kopiert!",
     "activateBenefit": "Aktiver fordel",
     "terms": "Vilkår:",
     "expires": "Utløper {date}",
+    "searchPlaceholder": "Søk etter fordeler...",
+    "noResults": "Ingen fordeler funnet",
+    "noResultsDescription": "Prøv å justere søket eller filtrene dine",
+    "clearFilters": "Fjern filtre",
+    "previewBadge": "Forhåndsvisning av medlemsfordeler",
+    "previewTitle": "Eksklusive partnerrabatter",
+    "previewDescription": "Som BISO-medlem får du tilgang til alle disse eksklusive rabattene og mange flere. Bli medlem i dag og begynn å spare!",
     "categories": {
       "foodDrink": "Mat og drikke",
       "entertainment": "Underholdning",
@@ -152,6 +176,41 @@
     "dangerDescription": "Irreversible handlinger som påvirker kontoen din",
     "cancelMembership": "Kanseller medlemskap",
     "deleteAccount": "Slett konto"
+  },
+  "preview": {
+    "unlockDescription": "Bli medlem for å låse opp denne eksklusive fordelen",
+    "unlockBenefit": "Lås opp fordel"
+  },
+  "showcase": {
+    "title": "Eksklusive medlemsfordeler",
+    "description": "Som BISO-medlem får du tilgang til vårt omfattende nettverk av partnerrabatter og eksklusive tilbud",
+    "stats": {
+      "partners": "Partnerselskaper",
+      "savings": "Gj.snitt årlig besparelse",
+      "members": "Aktive medlemmer"
+    }
+  },
+  "cta": {
+    "badge": "Bli BISO-medlem i dag",
+    "title": "Lås opp alle medlemsfordeler",
+    "description": "Få umiddelbar tilgang til 50+ eksklusive rabatter, medlemsarrangementer og karriereressurser",
+    "plans": {
+      "semester": "Semester",
+      "year": "Ett år",
+      "three-year": "Tre år"
+    },
+    "popular": "Mest populær",
+    "monthly": "~{price} NOK/måned",
+    "save": "Spar {percent}%",
+    "joinNow": "Bli BISO-medlem nå",
+    "processing": "Behandler...",
+    "socialProof": "Bli med 10 000+ BI-studenter som allerede sparer"
+  },
+  "locked": {
+    "description": "Lås opp dette innholdet og alle medlemsfordeler",
+    "whatYoullGet": "Det du vil låse opp:",
+    "processing": "Behandler...",
+    "securePayment": "Sikker betaling via Vipps"
   },
   "common": {
     "campus": "Campus",

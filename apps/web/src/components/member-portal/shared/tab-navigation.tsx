@@ -1,7 +1,9 @@
 "use client";
 
+import { Badge } from "@repo/ui/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
 import { Gift, Settings, Shield, Sparkles, User } from "lucide-react";
+import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -13,11 +15,18 @@ type TabNavigationProps = {
   children: React.ReactNode;
 };
 
+const tabs = [
+  { id: "overview", icon: Sparkles },
+  { id: "profile", icon: User },
+  { id: "membership", icon: Shield, memberOnly: true },
+  { id: "benefits", icon: Gift, memberOnly: true, showCount: true },
+  { id: "settings", icon: Settings },
+];
+
 export function TabNavigation({
   defaultTab = "overview",
   benefitsCount,
   isMember,
-  // biome-ignore lint/correctness/noUnusedFunctionParameters: TODO: Consider this parameter
   hasBIIdentity,
   children,
 }: TabNavigationProps) {
@@ -62,36 +71,44 @@ export function TabNavigation({
 
   return (
     <Tabs className="w-full" onValueChange={handleTabChange} value={activeTab}>
-      <TabsList className="mb-8 w-full justify-start overflow-x-auto">
-        <TabsTrigger className="flex items-center gap-2" value="overview">
-          <Sparkles className="h-4 w-4" />
-          {t("overview")}
-        </TabsTrigger>
-        <TabsTrigger className="flex items-center gap-2" value="profile">
-          <User className="h-4 w-4" />
-          {t("profile")}
-        </TabsTrigger>
-        <TabsTrigger
-          className="relative flex items-center gap-2"
-          value="membership"
-        >
-          <Shield className="h-4 w-4" />
-          {t("membership")}
-          {!isMember && <span className="ml-1 text-xs">🔒</span>}
-        </TabsTrigger>
-        <TabsTrigger
-          className="relative flex items-center gap-2"
-          value="benefits"
-        >
-          <Gift className="h-4 w-4" />
-          {t("benefits")} ({isMember ? benefitsCount : "•••"})
-          {!isMember && <span className="ml-1 text-xs">🔒</span>}
-        </TabsTrigger>
-        <TabsTrigger className="flex items-center gap-2" value="settings">
-          <Settings className="h-4 w-4" />
-          {t("settings")}
-        </TabsTrigger>
-      </TabsList>
+      <div className="mb-8 overflow-x-auto">
+        <TabsList className="inline-flex h-auto w-full min-w-max gap-2 rounded-2xl bg-section p-2 dark:bg-inverted sm:w-auto">
+          {tabs.map((tab) => (
+            <TabsTrigger
+              className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-muted-foreground transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-brand-gradient-from data-[state=active]:to-brand-gradient-to data-[state=active]:text-white data-[state=active]:shadow-lg hover:text-foreground dark:data-[state=active]:shadow-brand/30"
+              key={tab.id}
+              value={tab.id}
+            >
+              <motion.div
+                animate={{ scale: activeTab === tab.id ? 1.1 : 1 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <tab.icon className="h-4 w-4" />
+              </motion.div>
+              <span className="hidden sm:inline">{t(tab.id)}</span>
+
+              {/* Benefits count badge */}
+              {tab.showCount && (
+                <Badge
+                  className={`ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs ${
+                    activeTab === tab.id
+                      ? "border-white/30 bg-white/20 text-white"
+                      : "border-brand-border bg-brand-muted text-brand dark:border-brand-border-strong"
+                  }`}
+                  variant="outline"
+                >
+                  {isMember ? benefitsCount : "?"}
+                </Badge>
+              )}
+
+              {/* Lock indicator for non-members */}
+              {tab.memberOnly && !isMember && (
+                <span className="ml-0.5 text-xs opacity-80">🔒</span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
       {children}
     </Tabs>
   );
