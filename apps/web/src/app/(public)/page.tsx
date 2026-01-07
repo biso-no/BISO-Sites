@@ -16,10 +16,14 @@ import { listJobs } from "../actions/jobs";
 import { getLocale } from "../actions/locale";
 import { listNews } from "../actions/news";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { Partners } from "@/components/home/partners";
+import { getPartners } from "../actions/about";
 
 export default async function HomePage() {
   const prefs = await getUserPreferences();
   const campusId = prefs?.campusId;
+
+  const partners = await getPartners();
 
   const locale = await getLocale();
   const [events, jobs, campuses, news] = await Promise.all([
@@ -69,6 +73,7 @@ export default async function HomePage() {
       </Suspense>
 
       <JoinUs />
+      <Partners partners={partners} />
     </div>
   );
 }

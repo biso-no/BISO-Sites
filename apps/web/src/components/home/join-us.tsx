@@ -200,27 +200,6 @@ export function JoinUs() {
             </motion.div>
           ))}
         </div>
-
-        {/* CTA */}
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0, y: 20 }}
-          viewport={{ once: true }}
-          whileInView={{ opacity: 1, y: 0 }}
-        >
-          <Card className="border-0 bg-linear-to-br from-brand-gradient-from to-brand-gradient-to p-12 text-white shadow-2xl">
-            <h3 className="mb-4 text-white">{t("onboarding.notSure.title")}</h3>
-            <p className="mx-auto mb-8 max-w-2xl text-white/90">
-              {t("onboarding.notSure.subtitle")}
-            </p>
-            <Button
-              className="border-0 bg-background text-brand-dark hover:bg-muted"
-              size="lg"
-            >
-              {t("onboarding.notSure.cta")}
-            </Button>
-          </Card>
-        </motion.div>
       </div>
     </section>
   );

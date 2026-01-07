@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
   const setCookie = fetchedCookies.set("a_session_biso", session.secret, {
     path: "/",
     httpOnly: true,
-    sameSite: "none",
+    sameSite: "lax",
     secure: true,
-    domain: ".biso.no",
+
   });
 
   console.log("Redirecting");
