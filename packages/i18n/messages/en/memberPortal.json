@@ -28,11 +28,18 @@
       "pricing": {
         "semester": "Semester",
         "year": "Year",
+        "three-year": "3 Years",
         "threeYear": "3 Years",
         "bestValue": "Best Value",
         "popular": "Popular"
       }
     }
+  },
+  "header": {
+    "benefits": "Benefits",
+    "days": "days",
+    "becomeMember": "Become a Member",
+    "nonMemberBadge": "Explore Benefits"
   },
   "tabs": {
     "overview": "Overview",
@@ -44,6 +51,7 @@
   "overview": {
     "quickStats": "Quick Stats",
     "featuredBenefits": "Featured Benefits",
+    "featuredDescription": "Discover your top member perks",
     "viewAll": "View All",
     "membershipStatus": "Membership Status",
     "statusActive": "Your membership is active and valid",
@@ -53,12 +61,20 @@
     "started": "Started:",
     "expires": "Expires:",
     "renewMembership": "Renew Membership",
+    "quickActions": {
+      "title": "Ready to save more?",
+      "description": "Explore all your member benefits and take advantage of exclusive deals.",
+      "viewBenefits": "View Benefits",
+      "manageMembership": "Manage Membership"
+    },
     "stats": {
       "membershipType": "Membership Type",
-      "benefitsAvailable": "Benefits Available",
+      "benefitsAvailable": "Benefits",
       "benefitsCount": "{count} Benefits",
+      "exclusiveDeals": "exclusive deals",
       "daysUntilRenewal": "Until Renewal",
-      "estimatedSavings": "Estimated Savings"
+      "estimatedSavings": "Estimated Savings",
+      "potential": "Save more by using benefits"
     }
   },
   "profile": {
@@ -115,11 +131,19 @@
     "description": "Exclusive perks available to BISO members",
     "available": "{count} Available",
     "reveal": "Reveal Code",
+    "revealing": "Revealing...",
     "copy": "Copy",
     "copied": "Copied!",
     "activateBenefit": "Activate Benefit",
     "terms": "Terms:",
     "expires": "Expires {date}",
+    "searchPlaceholder": "Search benefits...",
+    "noResults": "No benefits found",
+    "noResultsDescription": "Try adjusting your search or filters",
+    "clearFilters": "Clear Filters",
+    "previewBadge": "Member Benefits Preview",
+    "previewTitle": "Exclusive Partner Discounts",
+    "previewDescription": "As a BISO member, you'll unlock access to all these exclusive discounts and many more. Join today and start saving!",
     "categories": {
       "foodDrink": "Food & Drink",
       "entertainment": "Entertainment",
@@ -152,6 +176,41 @@
     "dangerDescription": "Irreversible actions that affect your account",
     "cancelMembership": "Cancel Membership",
     "deleteAccount": "Delete Account"
+  },
+  "preview": {
+    "unlockDescription": "Become a member to unlock this exclusive benefit",
+    "unlockBenefit": "Unlock Benefit"
+  },
+  "showcase": {
+    "title": "Exclusive Member Benefits",
+    "description": "As a BISO member, you get access to our extensive network of partner discounts and exclusive deals",
+    "stats": {
+      "partners": "Partner Companies",
+      "savings": "Avg. Annual Savings",
+      "members": "Active Members"
+    }
+  },
+  "cta": {
+    "badge": "Join BISO Today",
+    "title": "Unlock All Member Benefits",
+    "description": "Get instant access to 50+ exclusive discounts, member-only events, and career resources",
+    "plans": {
+      "semester": "Semester",
+      "year": "One Year",
+      "three-year": "Three Years"
+    },
+    "popular": "Most Popular",
+    "monthly": "~{price} NOK/month",
+    "save": "Save {percent}%",
+    "joinNow": "Join BISO Now",
+    "processing": "Processing...",
+    "socialProof": "Join 10,000+ BI students already saving"
+  },
+  "locked": {
+    "description": "Unlock this content and all member benefits",
+    "whatYoullGet": "What you'll unlock:",
+    "processing": "Processing...",
+    "securePayment": "Secure payment via Vipps"
   },
   "common": {
     "campus": "Campus",
