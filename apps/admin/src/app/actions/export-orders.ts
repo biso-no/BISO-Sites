@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { Orders } from "@repo/api/types/appwrite";
+import type { Orders, OrderStatus } from "@repo/api/types/appwrite";
 
 const DATABASE_ID = "app";
 const ORDERS_TABLE = "orders";
@@ -10,6 +10,12 @@ const ORDERS_TABLE = "orders";
 type ExportOrdersParams = {
   startDate?: string;
   endDate?: string;
+  /** Filter by order status. "all" includes all statuses. */
+  status?: "all" | "paid" | "authorized" | "pending" | "cancelled";
+  /** Filter by campus ID */
+  campusId?: string;
+  /** Export format - "standard" for regular export, "booking" for 24SO-ready format */
+  format?: "standard" | "booking";
 };
 
 type CsvResult = {
@@ -21,8 +27,12 @@ type ParsedOrderItem = {
   product_id?: string;
   product_slug?: string;
   title?: string;
+  name?: string;
   quantity?: number;
   unit_price?: number;
+  price?: number;
+  category?: string;
+  product_type?: string;
 };
 
 export async function exportOrdersToCSV(
@@ -30,6 +40,7 @@ export async function exportOrdersToCSV(
 ): Promise<CsvResult> {
   const { db } = await createSessionClient();
   const { startIso, endIso } = normalizeRange(params.startDate, params.endDate);
+  const format = params.format || "standard";
 
   const baseQueries: unknown[] = [
     Query.select([
@@ -40,11 +51,16 @@ export async function exportOrdersToCSV(
       "buyer_email",
       "buyer_phone",
       "items_json",
+      "subtotal",
+      "discount_total",
       "total",
+      "campus_id",
+      "membership_applied",
     ]),
     Query.orderAsc("$createdAt"),
   ];
 
+  // Date range filters
   if (startIso) {
     baseQueries.push(Query.greaterThanEqual("$createdAt", startIso));
   }
@@ -52,9 +68,19 @@ export async function exportOrdersToCSV(
     baseQueries.push(Query.lessThanEqual("$createdAt", endIso));
   }
 
+  // Status filter
+  if (params.status && params.status !== "all") {
+    baseQueries.push(Query.equal("status", params.status));
+  }
+
+  // Campus filter
+  if (params.campusId) {
+    baseQueries.push(Query.equal("campus_id", params.campusId));
+  }
+
   const orders = await fetchAllOrders(db, baseQueries);
-  const rows = buildCsvRows(orders);
-  const filename = buildFilename(startIso, endIso);
+  const rows = buildCsvRows(orders, format);
+  const filename = buildFilename(startIso, endIso, params.status, format);
   const content = rows.join("\n");
 
   return { filename, content };
@@ -94,8 +120,9 @@ async function fetchAllOrders(
   return allOrders;
 }
 
-function buildCsvRows(orders: Orders[]) {
-  const header = [
+function buildCsvRows(orders: Orders[], format: "standard" | "booking") {
+  // Headers differ based on format
+  const standardHeader = [
     "order_id",
     "date",
     "customer_name",
@@ -107,20 +134,76 @@ function buildCsvRows(orders: Orders[]) {
     "status",
   ];
 
+  const bookingHeader = [
+    "order_id",
+    "date",
+    "customer_name",
+    "customer_email",
+    "customer_phone",
+    "product",
+    "product_category",
+    "product_type",
+    "unit_price",
+    "quantity",
+    "line_total",
+    "subtotal",
+    "discount",
+    "order_total",
+    "campus_id",
+    "status",
+    "membership_applied",
+  ];
+
+  const header = format === "booking" ? bookingHeader : standardHeader;
   const rows = [header.join(",")];
 
   for (const order of orders) {
     const status = (order.status || "pending").toLowerCase();
     const totalValue = Number(order.total ?? 0);
+    const subtotal = Number(order.subtotal ?? 0);
+    const discount = Number(order.discount_total ?? 0);
+    const campusId = order.campus_id || "";
+    const membershipApplied = order.membership_applied ? "Yes" : "No";
     const baseColumns = buildBaseColumns(order);
     const items = parseOrderItems(order.items_json);
 
     if (items.length === 0) {
-      rows.push(formatEmptyOrderRow(baseColumns, totalValue, status));
+      if (format === "booking") {
+        rows.push(
+          formatCsvRow([
+            ...baseColumns,
+            "", // product
+            "", // category
+            "", // type
+            "", // unit_price
+            "", // quantity
+            "", // line_total
+            formatMoney(subtotal),
+            formatMoney(discount),
+            formatMoney(totalValue),
+            campusId,
+            status,
+            membershipApplied,
+          ])
+        );
+      } else {
+        rows.push(formatEmptyOrderRow(baseColumns, totalValue, status));
+      }
       continue;
     }
 
-    rows.push(...expandOrderItems(items, baseColumns, totalValue, status));
+    if (format === "booking") {
+      rows.push(
+        ...expandOrderItemsBooking(
+          items,
+          baseColumns,
+          { subtotal, discount, total: totalValue, campusId, membershipApplied },
+          status
+        )
+      );
+    } else {
+      rows.push(...expandOrderItems(items, baseColumns, totalValue, status));
+    }
   }
 
   return rows;
@@ -150,8 +233,8 @@ const expandOrderItems = (
 
   for (const item of items) {
     const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
-    const productLabel = item.title || item.product_slug || "Product";
-    const unitPrice = formatMoney(item.unit_price ?? 0);
+    const productLabel = item.title || item.name || item.product_slug || "Product";
+    const unitPrice = formatMoney(item.unit_price ?? item.price ?? 0);
 
     for (let i = 0; i < quantity; i++) {
       itemRows.push(
@@ -164,6 +247,52 @@ const expandOrderItems = (
         ])
       );
     }
+  }
+
+  return itemRows;
+};
+
+type BookingOrderContext = {
+  subtotal: number;
+  discount: number;
+  total: number;
+  campusId: string;
+  membershipApplied: string;
+};
+
+const expandOrderItemsBooking = (
+  items: ParsedOrderItem[],
+  baseColumns: (string | number)[],
+  context: BookingOrderContext,
+  status: string
+) => {
+  const itemRows: string[] = [];
+
+  for (const item of items) {
+    const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
+    const productLabel = item.title || item.name || item.product_slug || "Product";
+    const category = item.category || "";
+    const productType = item.product_type || "";
+    const unitPrice = item.unit_price ?? item.price ?? 0;
+    const lineTotal = unitPrice * quantity;
+
+    itemRows.push(
+      formatCsvRow([
+        ...baseColumns,
+        productLabel,
+        category,
+        productType,
+        formatMoney(unitPrice),
+        quantity,
+        formatMoney(lineTotal),
+        formatMoney(context.subtotal),
+        formatMoney(context.discount),
+        formatMoney(context.total),
+        context.campusId,
+        status,
+        context.membershipApplied,
+      ])
+    );
   }
 
   return itemRows;
@@ -201,10 +330,17 @@ function formatMoney(value: number) {
   return value.toFixed(2);
 }
 
-function buildFilename(startIso?: string, endIso?: string) {
+function buildFilename(
+  startIso?: string,
+  endIso?: string,
+  status?: string,
+  format?: string
+) {
   const start = startIso ? startIso.slice(0, 10) : "all";
   const end = endIso ? endIso.slice(0, 10) : "now";
-  return `orders-${start}-to-${end}.csv`;
+  const statusSuffix = status && status !== "all" ? `-${status}` : "";
+  const formatSuffix = format === "booking" ? "-booking" : "";
+  return `orders-${start}-to-${end}${statusSuffix}${formatSuffix}.csv`;
 }
 
 function normalizeRange(start?: string, end?: string) {

@@ -8,6 +8,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
 import { File } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
@@ -33,6 +40,12 @@ const PRESETS: Preset[] = [
   { id: "all", label: "All time", days: null },
 ];
 
+type StatusOption = "all" | "paid" | "authorized" | "pending" | "cancelled";
+type FormatOption = "standard" | "booking";
+
+const STATUS_OPTIONS: StatusOption[] = ["all", "paid", "authorized", "pending", "cancelled"];
+const FORMAT_OPTIONS: FormatOption[] = ["standard", "booking"];
+
 export function OrderExportPopover() {
   const t = useTranslations("adminShop");
   const defaultPreset = PRESETS[1];
@@ -43,6 +56,8 @@ export function OrderExportPopover() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     createPresetRange(defaultPreset.days)
   );
+  const [status, setStatus] = useState<StatusOption>("all");
+  const [format, setFormat] = useState<FormatOption>("standard");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -94,6 +109,8 @@ export function OrderExportPopover() {
         const result = await exportOrdersToCSV({
           startDate: start?.toISOString(),
           endDate: end?.toISOString(),
+          status,
+          format,
         });
         triggerDownload(result.filename, result.content);
         setMessage(t("orders.exportDialog.exportReady"));
@@ -156,6 +173,50 @@ export function OrderExportPopover() {
           <p className="text-muted-foreground text-xs">{rangeSummary}</p>
         </div>
 
+        {/* Status Filter */}
+        <div className="space-y-2">
+          <Label className="font-medium text-sm">
+            {t("orders.exportDialog.statusFilter") ?? "Order Status"}
+          </Label>
+          <Select value={status} onValueChange={(v) => setStatus(v as StatusOption)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {t(`orders.exportDialog.statusOptions.${opt}`) ?? opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Format Selector */}
+        <div className="space-y-2">
+          <Label className="font-medium text-sm">
+            {t("orders.exportDialog.formatLabel") ?? "Export Format"}
+          </Label>
+          <Select value={format} onValueChange={(v) => setFormat(v as FormatOption)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="standard">
+                {t("orders.exportDialog.formatOptions.standard") ?? "Standard"}
+              </SelectItem>
+              <SelectItem value="booking">
+                {t("orders.exportDialog.formatOptions.booking") ?? "Booking (24SO)"}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          {format === "booking" && (
+            <p className="text-muted-foreground text-xs">
+              {t("orders.exportDialog.bookingFormatHint") ?? "Extended columns for 24SevenOffice booking"}
+            </p>
+          )}
+        </div>
+
         <Button
           className="w-full"
           disabled={isPending || !canExport}
@@ -211,3 +272,4 @@ function triggerDownload(filename: string, content: string) {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
