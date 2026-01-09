@@ -2,7 +2,7 @@
  * Utility functions for document handling and URL generation
  */
 
-type DocumentViewerUrlOptions = {
+export type DocumentViewerUrlOptions = {
   fileName: string;
   baseUrl?: string;
 };
@@ -47,7 +47,7 @@ const PATTERN_ITEM_URL = /\/items\/([^/?]+)/;
  * @param url - The URL to parse
  * @returns The document ID or null if not found
  */
-function _extractDocumentId(url: string): string | null {
+export function extractDocumentId(url: string): string | null {
   // Check if it's already a document viewer URL
   const viewerMatch = url.match(PATTERN_DOCUMENT_VIEWER_URL);
   if (viewerMatch) {
@@ -75,7 +75,7 @@ function _extractDocumentId(url: string): string | null {
  * @param contentType - The MIME type of the document
  * @returns True if the document can be rendered inline
  */
-function _canRenderInline(contentType: string): boolean {
+export function canRenderInline(contentType: string): boolean {
   const lowerType = contentType.toLowerCase();
 
   // PDFs can be rendered inline
@@ -101,12 +101,13 @@ function _canRenderInline(contentType: string): boolean {
   // Most other types (Office documents, etc.) need to be downloaded
   return false;
 }
+
 /**
  * Format file size in human-readable format
  * @param bytes - File size in bytes
  * @returns Formatted file size string
  */
-function _formatFileSize(bytes: number): string {
+export function formatFileSize(bytes: number): string {
   if (bytes === 0) {
     return "0 Bytes";
   }
@@ -123,7 +124,7 @@ function _formatFileSize(bytes: number): string {
  * @param metadata - Raw metadata from vector store
  * @returns Formatted metadata for document viewer
  */
-function _formatDocumentMetadata(metadata: Record<string, any>) {
+export function formatDocumentMetadata(metadata: Record<string, any>) {
   return {
     id: metadata.documentId,
     name: metadata.documentName || "Unknown Document",

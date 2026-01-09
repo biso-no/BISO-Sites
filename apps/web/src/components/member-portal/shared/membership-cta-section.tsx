@@ -34,8 +34,8 @@ const MEMBERSHIP_OPTIONS: {
   },
   {
     type: "three-year",
-    price: 1400,
-    monthlyPrice: 39,
+    price: 1350,
+    monthlyPrice: 37,
     popular: false,
     gradient: "from-emerald-500 to-teal-500",
   },

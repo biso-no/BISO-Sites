@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { getCampuses, setActiveCampus } from "@/app/actions/campus";
-import { useHydration } from "@/lib/hooks/use-hydration";
+import { useHydration } from "@repo/ui/hooks/use-hydration";
 
 type CampusContextValue = {
   campuses: Campus[];
