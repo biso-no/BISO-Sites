@@ -5,6 +5,36 @@
       "$id": "app",
       "name": "App",
       "enabled": true
+    },
+    {
+      "$id": "24so",
+      "name": "24 Seven Office",
+      "enabled": true
+    },
+    {
+      "$id": "webapp",
+      "name": "Webapp",
+      "enabled": true
+    },
+    {
+      "$id": "kroa",
+      "name": "Kroa",
+      "enabled": true
+    },
+    {
+      "$id": "alumni",
+      "name": "Alumni",
+      "enabled": true
+    },
+    {
+      "$id": "entur",
+      "name": "Entur",
+      "enabled": true
+    },
+    {
+      "$id": "dev",
+      "name": "Dev",
+      "enabled": true
     }
   ],
   "tables": [
@@ -233,6 +263,15 @@
           "required": false,
           "array": false,
           "default": null
+        },
+        {
+          "key": "bio",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
@@ -240,35 +279,53 @@
           "key": "name",
           "type": "fulltext",
           "status": "available",
-          "columns": ["name"],
-          "orders": ["ASC"]
+          "columns": [
+            "name"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "student_id",
           "type": "unique",
           "status": "available",
-          "columns": ["$id"],
-          "orders": ["ASC"]
+          "columns": [
+            "$id"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "email",
           "type": "fulltext",
           "status": "available",
-          "columns": ["email"],
-          "orders": ["ASC"]
+          "columns": [
+            "email"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "avatar",
           "type": "key",
           "status": "available",
-          "columns": ["avatar"],
-          "orders": ["ASC"]
+          "columns": [
+            "avatar"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
     {
       "$id": "expense_attachments",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Expense Attachments",
       "enabled": true,
@@ -296,8 +353,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -314,7 +371,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "size": 10,
+          "size": 30,
           "default": null,
           "encrypt": false
         }
@@ -323,7 +380,9 @@
     },
     {
       "$id": "subs",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Subscriptions",
       "enabled": true,
@@ -369,8 +428,14 @@
           "key": "Unique",
           "type": "unique",
           "status": "available",
-          "columns": ["user_id", "topic"],
-          "orders": ["DESC", "DESC"]
+          "columns": [
+            "user_id",
+            "topic"
+          ],
+          "orders": [
+            "DESC",
+            "DESC"
+          ]
         }
       ]
     },
@@ -387,7 +452,10 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": ["read", "unread"],
+          "elements": [
+            "read",
+            "unread"
+          ],
           "format": "enum",
           "default": "unread"
         }
@@ -459,8 +527,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -468,8 +536,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -477,7 +545,13 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": ["draft", "pending", "success", "submitted", "rejected"],
+          "elements": [
+            "draft",
+            "pending",
+            "success",
+            "submitted",
+            "rejected"
+          ],
           "format": "enum",
           "default": "pending"
         },
@@ -531,6 +605,18 @@
           "twoWayKey": "680795d70014a5d399cd",
           "onDelete": "cascade",
           "side": "parent"
+        },
+        {
+          "key": "campusRel",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "campus",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "expenses",
+          "onDelete": "setNull",
+          "side": "parent"
         }
       ],
       "indexes": [
@@ -538,22 +624,34 @@
           "key": "idx_status",
           "type": "key",
           "status": "available",
-          "columns": ["status"],
-          "orders": ["ASC"]
+          "columns": [
+            "status"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "search",
           "type": "fulltext",
           "status": "available",
-          "columns": ["description"],
-          "orders": ["ASC"]
+          "columns": [
+            "description"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "userId",
           "type": "key",
           "status": "available",
-          "columns": ["userId"],
-          "orders": ["ASC"]
+          "columns": [
+            "userId"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
@@ -670,15 +768,6 @@
           "encrypt": false
         },
         {
-          "key": "description",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 4000,
-          "default": null,
-          "encrypt": false
-        },
-        {
           "key": "socials",
           "type": "relationship",
           "required": false,
@@ -701,6 +790,74 @@
           "twoWayKey": "department",
           "onDelete": "setNull",
           "side": "child"
+        },
+        {
+          "key": "jobs",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "jobs",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "department",
+          "onDelete": "setNull",
+          "side": "child"
+        },
+        {
+          "key": "boardMembers",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "department_board",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "department",
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "products",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "webshop_products",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "department",
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "translations",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "content_translations",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "department_ref",
+          "onDelete": "cascade",
+          "side": "parent"
+        },
+        {
+          "key": "hero",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "format": "url",
+          "default": null
+        },
+        {
+          "key": "events",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "events",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "department",
+          "onDelete": "cascade",
+          "side": "child"
         }
       ],
       "indexes": [
@@ -708,21 +865,31 @@
           "key": "search",
           "type": "fulltext",
           "status": "available",
-          "columns": ["Name"],
-          "orders": ["ASC"]
+          "columns": [
+            "Name"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "campus",
           "type": "key",
           "status": "available",
-          "columns": ["campus_id"],
-          "orders": ["ASC"]
+          "columns": [
+            "campus_id"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
     {
       "$id": "student_id",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "student_ids",
       "enabled": true,
@@ -791,8 +958,12 @@
           "key": "unique",
           "type": "unique",
           "status": "available",
-          "columns": ["student_id"],
-          "orders": ["ASC"]
+          "columns": [
+            "student_id"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
@@ -926,6 +1097,39 @@
           "twoWayKey": "campus",
           "onDelete": "setNull",
           "side": "child"
+        },
+        {
+          "key": "pages",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "pages",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "campus",
+          "onDelete": "setNull",
+          "side": "child"
+        },
+        {
+          "key": "expenses",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "expense",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "campusRel",
+          "onDelete": "setNull",
+          "side": "child"
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": []
@@ -1003,7 +1207,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -1012,7 +1216,7 @@
           "required": false,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -1021,7 +1225,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -1029,7 +1233,9 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["NOK"],
+          "elements": [
+            "NOK"
+          ],
           "format": "enum",
           "default": null
         },
@@ -1109,14 +1315,25 @@
           "key": "idx_orders_core",
           "type": "key",
           "status": "available",
-          "columns": ["status", "userId", "currency"],
-          "orders": ["ASC", "ASC", "ASC"]
+          "columns": [
+            "status",
+            "userId",
+            "currency"
+          ],
+          "orders": [
+            "ASC",
+            "ASC",
+            "ASC"
+          ]
         }
       ]
     },
     {
       "$id": "memberships",
-      "$permissions": ["read(\"users\")", "update(\"users\")"],
+      "$permissions": [
+        "read(\"users\")",
+        "update(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Memberships",
       "enabled": true,
@@ -1169,8 +1386,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -1204,13 +1421,24 @@
           "required": true,
           "array": false,
           "default": null
+        },
+        {
+          "key": "startDate",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 30,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": []
     },
     {
       "$id": "payments",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Payments",
       "enabled": true,
@@ -1230,8 +1458,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -1278,8 +1506,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -1317,7 +1545,9 @@
     },
     {
       "$id": "followed_units",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Followed units",
       "enabled": true,
@@ -1396,7 +1626,9 @@
     },
     {
       "$id": "saved_jobs",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Saved Jobs",
       "enabled": true,
@@ -1449,7 +1681,9 @@
     },
     {
       "$id": "campus_data",
-      "$permissions": ["read(\"any\")"],
+      "$permissions": [
+        "read(\"any\")"
+      ],
       "databaseId": "app",
       "name": "Campus Data",
       "enabled": true,
@@ -1734,28 +1968,44 @@
           "key": "unique",
           "type": "unique",
           "status": "available",
-          "columns": ["$id"],
-          "orders": ["ASC"]
+          "columns": [
+            "$id"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "idx_id",
           "type": "key",
           "status": "available",
-          "columns": ["$id"],
-          "orders": ["ASC"]
+          "columns": [
+            "$id"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "idx_name",
           "type": "key",
           "status": "available",
-          "columns": ["name"],
-          "orders": ["ASC"]
+          "columns": [
+            "name"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
     {
       "$id": "department_board",
-      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")"],
+      "$permissions": [
+        "create(\"any\")",
+        "read(\"any\")",
+        "update(\"any\")"
+      ],
       "databaseId": "app",
       "name": "Department Board",
       "enabled": true,
@@ -1787,13 +2037,27 @@
           "size": 100,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "department",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "departments",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "boardMembers",
+          "onDelete": "setNull",
+          "side": "child"
         }
       ],
       "indexes": []
     },
     {
       "$id": "department_socials",
-      "$permissions": ["read(\"any\")"],
+      "$permissions": [
+        "read(\"any\")"
+      ],
       "databaseId": "app",
       "name": "Department socials",
       "enabled": true,
@@ -1831,8 +2095,12 @@
           "key": "idx_department_id",
           "type": "key",
           "status": "available",
-          "columns": ["department_id"],
-          "orders": ["ASC"]
+          "columns": [
+            "department_id"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
@@ -1969,7 +2237,10 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["norwegian", "english"],
+          "elements": [
+            "norwegian",
+            "english"
+          ],
           "format": "enum",
           "default": null
         }
@@ -1978,7 +2249,9 @@
     },
     {
       "$id": "large_event",
-      "$permissions": ["read(\"any\")"],
+      "$permissions": [
+        "read(\"any\")"
+      ],
       "databaseId": "app",
       "name": "Large Event",
       "enabled": true,
@@ -2153,21 +2426,31 @@
           "key": "idx_active_priority",
           "type": "key",
           "status": "available",
-          "columns": ["isActive", "priority"],
-          "orders": ["ASC", "DESC"]
+          "columns": [
+            "isActive",
+            "priority"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
         },
         {
           "key": "uniq_slug",
           "type": "unique",
           "status": "available",
-          "columns": ["slug"],
+          "columns": [
+            "slug"
+          ],
           "orders": []
         }
       ]
     },
     {
       "$id": "large_event_item",
-      "$permissions": ["read(\"any\")"],
+      "$permissions": [
+        "read(\"any\")"
+      ],
       "databaseId": "app",
       "name": "Large Event Item",
       "enabled": true,
@@ -2268,8 +2551,16 @@
           "key": "idx_event_campus_sort",
           "type": "key",
           "status": "available",
-          "columns": ["campusId", "sort", "startTime"],
-          "orders": ["ASC", "ASC", "ASC"]
+          "columns": [
+            "campusId",
+            "sort",
+            "startTime"
+          ],
+          "orders": [
+            "ASC",
+            "ASC",
+            "ASC"
+          ]
         }
       ]
     },
@@ -2311,7 +2602,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -2381,7 +2672,13 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["new", "like_new", "good", "fair", "poor"],
+          "elements": [
+            "new",
+            "like_new",
+            "good",
+            "fair",
+            "poor"
+          ],
           "format": "enum",
           "default": null
         },
@@ -2390,7 +2687,12 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["available", "sold", "reserved", "inactive"],
+          "elements": [
+            "available",
+            "sold",
+            "reserved",
+            "inactive"
+          ],
           "format": "enum",
           "default": null
         },
@@ -2406,7 +2708,11 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": ["message", "phone", "email"],
+          "elements": [
+            "message",
+            "phone",
+            "email"
+          ],
           "format": "enum",
           "default": null
         },
@@ -2464,42 +2770,65 @@
           "key": "idx_products_filters",
           "type": "key",
           "status": "available",
-          "columns": ["campus_id", "category", "status"],
+          "columns": [
+            "campus_id",
+            "category",
+            "status"
+          ],
           "orders": []
         },
         {
           "key": "idx_products_recent",
           "type": "key",
           "status": "available",
-          "columns": ["$createdAt"],
-          "orders": ["DESC"]
+          "columns": [
+            "$createdAt"
+          ],
+          "orders": [
+            "DESC"
+          ]
         },
         {
           "key": "idx_products_created",
           "type": "key",
           "status": "available",
-          "columns": ["$createdAt"],
-          "orders": ["DESC"]
+          "columns": [
+            "$createdAt"
+          ],
+          "orders": [
+            "DESC"
+          ]
         },
         {
           "key": "description",
           "type": "fulltext",
           "status": "available",
-          "columns": ["description"],
-          "orders": ["ASC"]
+          "columns": [
+            "description"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "name",
           "type": "fulltext",
           "status": "available",
-          "columns": ["name"],
-          "orders": ["ASC"]
+          "columns": [
+            "name"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
     {
       "$id": "product_favorites",
-      "$permissions": ["create(\"guests\")", "create(\"users\")"],
+      "$permissions": [
+        "create(\"guests\")",
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "product_favorites",
       "enabled": true,
@@ -2531,7 +2860,9 @@
     },
     {
       "$id": "chats",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Chats",
       "enabled": true,
@@ -2560,7 +2891,12 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["direct", "group", "team", "department"],
+          "elements": [
+            "direct",
+            "group",
+            "team",
+            "department"
+          ],
           "format": "enum",
           "default": null
         },
@@ -2627,7 +2963,9 @@
     },
     {
       "$id": "chat_messages",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Chat Messages",
       "enabled": true,
@@ -2674,7 +3012,13 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["text", "image", "file", "system", "product"],
+          "elements": [
+            "text",
+            "image",
+            "file",
+            "system",
+            "product"
+          ],
           "format": "enum",
           "default": null
         },
@@ -2816,7 +3160,9 @@
     },
     {
       "$id": "public_profiles",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")"
+      ],
       "databaseId": "app",
       "name": "Public Profiles",
       "enabled": true,
@@ -2896,28 +3242,40 @@
           "key": "user_id_index",
           "type": "key",
           "status": "available",
-          "columns": ["user_id"],
+          "columns": [
+            "user_id"
+          ],
           "orders": []
         },
         {
           "key": "name",
           "type": "fulltext",
           "status": "available",
-          "columns": ["name"],
-          "orders": ["ASC"]
+          "columns": [
+            "name"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "email",
           "type": "fulltext",
           "status": "available",
-          "columns": ["email"],
-          "orders": ["ASC"]
+          "columns": [
+            "email"
+          ],
+          "orders": [
+            "ASC"
+          ]
         }
       ]
     },
     {
       "$id": "campus_data_translations",
-      "$permissions": ["read(\"any\")"],
+      "$permissions": [
+        "read(\"any\")"
+      ],
       "databaseId": "app",
       "name": "campus_data_translations",
       "enabled": true,
@@ -3028,14 +3386,19 @@
           "key": "unique_entry_locale",
           "type": "unique",
           "status": "available",
-          "columns": ["entry_id", "locale"],
+          "columns": [
+            "entry_id",
+            "locale"
+          ],
           "orders": []
         }
       ]
     },
     {
       "$id": "campus_metadata",
-      "$permissions": ["read(\"any\")"],
+      "$permissions": [
+        "read(\"any\")"
+      ],
       "databaseId": "app",
       "name": "Campus Metadata",
       "enabled": true,
@@ -3155,7 +3518,9 @@
           "key": "campus_id_index",
           "type": "key",
           "status": "available",
-          "columns": ["campus_id"],
+          "columns": [
+            "campus_id"
+          ],
           "orders": []
         }
       ]
@@ -3279,7 +3644,10 @@
           "key": "idx_job_status",
           "type": "key",
           "status": "available",
-          "columns": ["job_id", "status"],
+          "columns": [
+            "job_id",
+            "status"
+          ],
           "orders": []
         }
       ]
@@ -3311,7 +3679,10 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["en", "no"],
+          "elements": [
+            "en",
+            "no"
+          ],
           "format": "enum",
           "default": null
         },
@@ -3395,19 +3766,48 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["job", "event", "news", "product"],
+          "elements": [
+            "job",
+            "event",
+            "news",
+            "product",
+            "department",
+            "memberBenefit",
+            "page"
+          ],
           "format": "enum",
           "default": null
         },
         {
-          "key": "site_page_ref",
+          "key": "short_description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "department_ref",
           "type": "relationship",
           "required": false,
           "array": false,
-          "relatedTable": "site_pages",
-          "relationType": "oneToOne",
+          "relatedTable": "departments",
+          "relationType": "oneToMany",
           "twoWay": true,
-          "twoWayKey": "translation_refs",
+          "twoWayKey": "translations",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "memberBenefit",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "member_benefit",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "contentTranslations",
           "onDelete": "cascade",
           "side": "parent"
         }
@@ -3417,28 +3817,37 @@
           "key": "idx_content_locale",
           "type": "key",
           "status": "available",
-          "columns": ["content_id", "locale"],
+          "columns": [
+            "content_id",
+            "locale"
+          ],
           "orders": []
         },
         {
           "key": "idx_type_locale",
           "type": "key",
           "status": "available",
-          "columns": ["locale"],
+          "columns": [
+            "locale"
+          ],
           "orders": []
         },
         {
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": ["title"],
+          "columns": [
+            "title"
+          ],
           "orders": []
         },
         {
           "key": "search_description",
           "type": "fulltext",
           "status": "available",
-          "columns": ["description"],
+          "columns": [
+            "description"
+          ],
           "orders": []
         }
       ]
@@ -3470,7 +3879,11 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["draft", "published", "closed"],
+          "elements": [
+            "draft",
+            "published",
+            "closed"
+          ],
           "format": "enum",
           "default": null
         },
@@ -3536,6 +3949,18 @@
           "twoWayKey": "job_ref",
           "onDelete": "cascade",
           "side": "child"
+        },
+        {
+          "key": "department",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "departments",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "jobs",
+          "onDelete": "setNull",
+          "side": "parent"
         }
       ],
       "indexes": []
@@ -3567,7 +3992,11 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["draft", "published", "cancelled"],
+          "elements": [
+            "draft",
+            "published",
+            "cancelled"
+          ],
           "format": "enum",
           "default": null
         },
@@ -3612,6 +4041,114 @@
           "twoWayKey": "event_ref",
           "onDelete": "cascade",
           "side": "parent"
+        },
+        {
+          "key": "start_date",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "end_date",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "image",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "ticket_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "price",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
+          "default": null
+        },
+        {
+          "key": "member_only",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "collection_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "is_collection",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "collection_pricing",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "elements": [
+            "bundle",
+            "individual"
+          ],
+          "format": "enum",
+          "default": "individual"
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "department_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "department",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "departments",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "events",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": []
@@ -3643,7 +4180,10 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["draft", "published"],
+          "elements": [
+            "draft",
+            "published"
+          ],
           "format": "enum",
           "default": null
         },
@@ -3734,6 +4274,15 @@
           "size": 2000,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "author",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
@@ -3741,7 +4290,10 @@
           "key": "idx_status_campus",
           "type": "key",
           "status": "available",
-          "columns": ["status", "campus_id"],
+          "columns": [
+            "status",
+            "campus_id"
+          ],
           "orders": []
         }
       ]
@@ -3773,7 +4325,12 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["draft", "published", "archived"],
+          "elements": [
+            "draft",
+            "pending_approval",
+            "published",
+            "archived"
+          ],
           "format": "enum",
           "default": null
         },
@@ -3827,6 +4384,70 @@
           "size": 4,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "regular_price",
+          "type": "double",
+          "required": true,
+          "array": false,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
+          "default": null
+        },
+        {
+          "key": "member_price",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
+          "default": null
+        },
+        {
+          "key": "member_only",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "image",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "stock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "department",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "departments",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "products",
+          "onDelete": "setNull",
+          "side": "child"
         }
       ],
       "indexes": [
@@ -3834,7 +4455,10 @@
           "key": "idx_status_campus",
           "type": "key",
           "status": "available",
-          "columns": ["status", "campus_id"],
+          "columns": [
+            "status",
+            "campus_id"
+          ],
           "orders": []
         }
       ]
@@ -3901,14 +4525,20 @@
           "key": "idx_campus_active",
           "type": "key",
           "status": "available",
-          "columns": ["campus_id", "is_active", "sort_order"],
+          "columns": [
+            "campus_id",
+            "is_active",
+            "sort_order"
+          ],
           "orders": []
         }
       ]
     },
     {
       "$id": "partners",
-      "$permissions": ["read(\"any\")"],
+      "$permissions": [
+        "read(\"any\")"
+      ],
       "databaseId": "app",
       "name": "Partners",
       "enabled": true,
@@ -3936,7 +4566,10 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": ["national", "campus"],
+          "elements": [
+            "national",
+            "campus"
+          ],
           "format": "enum",
           "default": null
         },
@@ -3975,14 +4608,20 @@
           "key": "idx_level",
           "type": "key",
           "status": "available",
-          "columns": ["level"],
-          "orders": ["ASC"]
+          "columns": [
+            "level"
+          ],
+          "orders": [
+            "ASC"
+          ]
         },
         {
           "key": "idx_name",
           "type": "fulltext",
           "status": "available",
-          "columns": ["name"],
+          "columns": [
+            "name"
+          ],
           "orders": []
         }
       ]
@@ -4125,45 +4764,27 @@
         {
           "key": "slug",
           "type": "string",
-          "required": true,
+          "required": false,
           "array": false,
-          "size": 256,
+          "size": 30,
           "default": null,
           "encrypt": false
         },
         {
           "key": "title",
           "type": "string",
-          "required": true,
+          "required": false,
           "array": false,
-          "size": 256,
+          "size": 50,
           "default": null,
           "encrypt": false
-        },
-        {
-          "key": "status",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "elements": ["draft", "published", "archived"],
-          "format": "enum",
-          "default": "draft"
-        },
-        {
-          "key": "visibility",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "elements": ["public", "authenticated"],
-          "format": "enum",
-          "default": "public"
         },
         {
           "key": "template",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 128,
+          "size": 10000,
           "default": null,
           "encrypt": false
         },
@@ -4172,7 +4793,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 64,
+          "size": 2,
           "default": null,
           "encrypt": false
         },
@@ -4189,6 +4810,40 @@
           "side": "parent"
         },
         {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "elements": [
+            "draft",
+            "published",
+            "archived"
+          ],
+          "format": "enum",
+          "default": "draft"
+        },
+        {
+          "key": "visibility",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "elements": [
+            "public",
+            "authenticated"
+          ],
+          "format": "enum",
+          "default": "public"
+        },
+        {
+          "key": "department_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
           "key": "translation_refs",
           "type": "relationship",
           "required": false,
@@ -4201,15 +4856,7 @@
           "side": "parent"
         }
       ],
-      "indexes": [
-        {
-          "key": "pages_slug_unique",
-          "type": "unique",
-          "status": "available",
-          "columns": ["slug"],
-          "orders": []
-        }
-      ]
+      "indexes": []
     },
     {
       "$id": "page_translations",
@@ -4220,7 +4867,7 @@
         "delete(\"team:admin\")"
       ],
       "databaseId": "app",
-      "name": "Page Translations",
+      "name": "Page translations",
       "enabled": true,
       "rowSecurity": false,
       "columns": [
@@ -4229,16 +4876,19 @@
           "type": "string",
           "required": true,
           "array": false,
-          "size": 64,
+          "size": 50,
           "default": null,
           "encrypt": false
         },
         {
           "key": "locale",
           "type": "string",
-          "required": true,
+          "required": false,
           "array": false,
-          "elements": ["en", "no"],
+          "elements": [
+            "no",
+            "en"
+          ],
           "format": "enum",
           "default": null
         },
@@ -4247,7 +4897,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "size": 256,
+          "size": 100,
           "default": null,
           "encrypt": false
         },
@@ -4256,7 +4906,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 256,
+          "size": 30,
           "default": null,
           "encrypt": false
         },
@@ -4274,7 +4924,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 32767,
+          "size": 50000,
           "default": null,
           "encrypt": false
         },
@@ -4283,22 +4933,23 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 32767,
+          "size": 50000,
           "default": null,
           "encrypt": false
         },
         {
           "key": "is_published",
           "type": "boolean",
-          "required": true,
+          "required": false,
           "array": false,
           "default": false
         },
         {
           "key": "published_at",
-          "type": "datetime",
+          "type": "string",
           "required": false,
           "array": false,
+          "size": 30,
           "default": null,
           "encrypt": false
         },
@@ -4308,22 +4959,14 @@
           "required": false,
           "array": false,
           "relatedTable": "pages",
-          "relationType": "manyToOne",
+          "relationType": "oneToMany",
           "twoWay": true,
           "twoWayKey": "translation_refs",
           "onDelete": "cascade",
           "side": "child"
         }
       ],
-      "indexes": [
-        {
-          "key": "page_locale_unique",
-          "type": "unique",
-          "status": "available",
-          "columns": ["page_id", "locale"],
-          "orders": []
-        }
-      ]
+      "indexes": []
     },
     {
       "$id": "site_pages",
@@ -4369,7 +5012,9 @@
           "key": "slug_unique",
           "type": "unique",
           "status": "available",
-          "columns": ["slug"],
+          "columns": [
+            "slug"
+          ],
           "orders": []
         }
       ]
@@ -4405,8 +5050,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
           "default": null
         },
         {
@@ -4478,6 +5123,3081 @@
           "required": false,
           "array": false,
           "size": 32767,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "cart_reservations",
+      "$permissions": [
+        "create(\"any\")"
+      ],
+      "databaseId": "app",
+      "name": "Cart Reservations",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "product_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "quantity",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": 1,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "expires_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        }
+      ],
+      "indexes": [
+        {
+          "key": "product_id_idx",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "product_id"
+          ],
+          "orders": []
+        },
+        {
+          "key": "expires_at_idx",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "expires_at"
+          ],
+          "orders": []
+        },
+        {
+          "key": "product_expires_idx",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "product_id",
+            "expires_at"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "page_view_events",
+      "$permissions": [],
+      "databaseId": "app",
+      "name": "Page View Events",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "path",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "locale",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "elements": [
+            "en",
+            "no"
+          ],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "referrer",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "user_agent",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "visitor_ip",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "format": "ip",
+          "default": null
+        },
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "dashboard_metrics",
+      "$permissions": [],
+      "databaseId": "app",
+      "name": "Dashboard Metrics",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "metric_type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "metric_data",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 65535,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "date_range",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 16,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "computed_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        }
+      ],
+      "indexes": [
+        {
+          "key": "metric_lookup",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "metric_type",
+            "date_range"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "member_benefit",
+      "$permissions": [
+        "create(\"team:admin\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "app",
+      "name": "Member Benefit",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "contentTranslations",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "content_translations",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "memberBenefit",
+          "onDelete": "cascade",
+          "side": "child"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "benefit_reveals",
+      "$permissions": [
+        "create(\"team:biso_members\")"
+      ],
+      "databaseId": "app",
+      "name": "Benefit Reveals",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "benefit_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "revealed_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "departments",
+      "$permissions": [
+        "read(\"users\")"
+      ],
+      "databaseId": "24so",
+      "name": "Departments",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "Id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 10,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "Name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "Campus",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 10,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "auth_tokens",
+      "$permissions": [],
+      "databaseId": "24so",
+      "name": "Auth tokens",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "token",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "page_content",
+      "$permissions": [
+        "create(\"team:admin\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")",
+        "read(\"guests\")"
+      ],
+      "databaseId": "webapp",
+      "name": "Page content",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "path",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "zones",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "response",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "content",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 100000,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "path",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "path"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        },
+        {
+          "key": "index_2",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "path"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "dashboard_customization",
+      "$permissions": [
+        "create(\"users\")"
+      ],
+      "databaseId": "webapp",
+      "name": "Dashboard customization",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "layout",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 10000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "groups",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "campus_data_translations",
+      "$permissions": [],
+      "databaseId": "webapp",
+      "name": "campus_data_translations",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "entry_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "locale",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 8,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8192,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "studentBenefits",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "careerAdvantages",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "socialNetwork",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "safety",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "businessBenefits",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "unique_entry_locale",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "entry_id",
+            "locale"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "nav_menu",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "webapp",
+      "name": "Navigation menu",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "slug",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "parent_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "path",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "order",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000,
+          "default": null
+        },
+        {
+          "key": "is_external",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "translation_refs",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "nav_menu_translations",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "nav_ref",
+          "onDelete": "cascade",
+          "side": "child"
+        }
+      ],
+      "indexes": [
+        {
+          "key": "order_index",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "order",
+            "slug"
+          ],
+          "orders": []
+        },
+        {
+          "key": "unique_slug",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "slug"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "nav_menu_translations",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "webapp",
+      "name": "Navigation menu translations",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "nav_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "locale",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": [
+            "en",
+            "no"
+          ],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "nav_ref",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "nav_menu",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "translation_refs",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+      ],
+      "indexes": [
+        {
+          "key": "unique_nav_locale",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "nav_id",
+            "locale"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "events",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Events",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "date",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "endDate",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "attendees",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "maxAttendees",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "online",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "registrationRequired",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "featured",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "image",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "organizer",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "registrationDeadline",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_title",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "title"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_description",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "description"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_category",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "category"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_location",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "location"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "jobs",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Jobs",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "company",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "companyLogo",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "workMode",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "salary",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "experience",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "postedDate",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "applicationDeadline",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "featured",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "alumni",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "responsibilities",
+          "type": "string",
+          "required": true,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "qualifications",
+          "type": "string",
+          "required": true,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_title",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "title"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_company",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "company"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_description",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "description"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_location",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "location"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_type",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "type"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_category",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "category"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "mentors",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Mentors",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "avatarUrl",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "company",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "expertise",
+          "type": "string",
+          "required": true,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "industry",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "experience",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "education",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "availability",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "rating",
+          "type": "double",
+          "required": true,
+          "array": false,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308,
+          "default": null
+        },
+        {
+          "key": "reviewCount",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "bio",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "featured",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "graduationYear",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "languages",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "menteeCount",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "maxMentees",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "industries",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "meetingPreference",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userProfile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "userProfiles",
+          "relationType": "oneToOne",
+          "twoWay": false,
+          "twoWayKey": "mentors",
+          "onDelete": "cascade",
+          "side": "parent"
+        },
+        {
+          "key": "userProfileId",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "format": "enum",
+          "default": null
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_name",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "name"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_title",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "title"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_company",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "company"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_bio",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "bio"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_industry",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "industry"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_location",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "location"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "userProfiles",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "User Profiles",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "avatarUrl",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 320,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "phone",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "company",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "graduationYear",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "degree",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "bio",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "skills",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "interests",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "profileCompletion",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "available",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": null
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_name",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "name"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_title",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "title"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_company",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "company"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_department",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "department"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_degree",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "degree"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_bio",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "bio"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "experiences",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Experiences",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "company",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "startDate",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "endDate",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "current",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userProfile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "userProfiles",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "experiences",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_title",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "title"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_company",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "company"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_location",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "location"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_description",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "description"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "education",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Education",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "degree",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "institution",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "startYear",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "endYear",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userProfile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "userProfiles",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "education",
+          "onDelete": "cascade",
+          "side": "parent"
+        },
+        {
+          "key": "fieldOfStudy",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_degree",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "degree"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_institution",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "institution"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_field",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "fieldOfStudy"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_location",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "location"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "certifications",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Certifications",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "issuer",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "issueDate",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "expiryDate",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userProfile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "userProfiles",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "certifications",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_name",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "name"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_issuer",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "issuer"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_description",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "description"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "conversations",
+      "$permissions": [
+        "read(\"users\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Conversations",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "participants",
+          "type": "string",
+          "required": true,
+          "array": true,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "unreadCount",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "lastMessageId",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "lastMessage",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "messages",
+          "relationType": "oneToOne",
+          "twoWay": false,
+          "twoWayKey": "conversations",
+          "onDelete": "setNull",
+          "side": "parent"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "messages",
+      "$permissions": [
+        "read(\"users\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Messages",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "content",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "sender",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "read",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "conversationId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "conversation",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "conversations",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "messages",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "resources",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Resources",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "format",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "author",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "publishedDate",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "fileSize",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "duration",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "thumbnail",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "featured",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "downloadUrl",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "watchUrl",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "listenUrl",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "tags",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "search_title",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "title"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_description",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "description"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_category",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "category"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_type",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "type"
+          ],
+          "orders": []
+        },
+        {
+          "key": "search_author",
+          "type": "fulltext",
+          "status": "available",
+          "columns": [
+            "author"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "languages",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Languages",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "language",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "proficiency",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userProfile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "userProfiles",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "languages",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "socialLinks",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Social Links",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "platform",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "url",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userProfile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "userProfiles",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "socialLinks",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "privacySettings",
+      "$permissions": [
+        "read(\"users\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Privacy Settings",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "showEmail",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "showPhone",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "showSocial",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "allowMessages",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "allowMentoring",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "userId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "userProfile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "userProfiles",
+          "relationType": "oneToOne",
+          "twoWay": false,
+          "twoWayKey": "privacySettings",
+          "onDelete": "cascade",
+          "side": "parent"
+        },
+        {
+          "key": "profileVisibility",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "elements": [
+            "all_alumni",
+            "connections",
+            "limited"
+          ],
+          "format": "enum",
+          "default": "all_alumni"
+        },
+        {
+          "key": "showEducation",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "showWork",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "showLocation",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "allowConnections",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "mentoringPrograms",
+      "$permissions": [
+        "read(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Mentoring Programs",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "duration",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "commitment",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 30,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "startDate",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "applicationDeadline",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "spots",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "spotsRemaining",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "featured",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "image",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "format": "url",
+          "default": null
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": [
+            "active",
+            "inactive"
+          ],
+          "format": "enum",
+          "default": null
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "testimonials",
+      "$permissions": [
+        "read(\"users\")",
+        "read(\"guests\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Testimonials",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "role",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "graduationYear",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "quote",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "avatarUrl",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "format": "url",
+          "default": null
+        },
+        {
+          "key": "featured",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "alumniStats",
+      "$permissions": [
+        "read(\"guests\")",
+        "read(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "Alumni Statistical History",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": [
+            "alumni",
+            "events",
+            "mentorships",
+            "jobs"
+          ],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "count",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "date",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "period",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "news",
+      "$permissions": [
+        "read(\"guests\")",
+        "read(\"users\")"
+      ],
+      "databaseId": "alumni",
+      "name": "News",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "summary",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "content",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "date",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "author",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 580,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "image",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "tags",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "featured",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "views",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        }
+      ],
+      "indexes": [
+        {
+          "key": "date",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "$createdAt"
+          ],
+          "orders": [
+            "DESC"
+          ]
+        },
+        {
+          "key": "featured",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "featured"
+          ],
+          "orders": [
+            "DESC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "stop_places",
+      "$permissions": [
+        "read(\"any\")"
+      ],
+      "databaseId": "entur",
+      "name": "Stop Places",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "stopPlaceId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 1,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_stopPlaceId",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "stopPlaceId"
+          ],
+          "orders": [
+            "asc"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "departures",
+      "$permissions": [],
+      "databaseId": "entur",
+      "name": "Departures",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "stopPlaceId",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "stopPlaceName",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "estimatedCalls",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32767,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_stopPlaceId",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "stopPlaceId"
+          ],
+          "orders": [
+            "asc"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "pages",
+      "$permissions": [],
+      "databaseId": "dev",
+      "name": "Pages",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "path",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "root",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "content",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "zones",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50000,
           "default": null,
           "encrypt": false
         }

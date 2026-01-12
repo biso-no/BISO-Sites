@@ -44,6 +44,7 @@ import {
   YAxis,
 } from "recharts";
 import type { DashboardMetrics } from "@/lib/actions/admin-dashboard";
+import { ROLES } from "@/lib/roles";
 
 // Fallback colors for SSR
 const FALLBACK_COLORS = [
@@ -96,28 +97,28 @@ export default function AdminDashboard({
   employeeDistribution,
 }: DashboardMetrics) {
   const t = useTranslations("admin");
-  const [role, setRole] = useState("admin");
+  const [role, setRole] = useState<string>(ROLES.GLOBAL_ADMIN);
   const [activeTab, setActiveTab] = useState("overview");
   const [dateRange, setDateRange] = useState<DateRange>("30d");
 
   const ROLE_OPTIONS = [
     {
-      value: "admin",
+      value: ROLES.GLOBAL_ADMIN,
       label: t("dashboard.roleOptions.admin"),
       accent: "bg-primary-40 text-white",
     },
     {
-      value: "pr",
+      value: ROLES.PR,
       label: t("dashboard.roleOptions.pr"),
       accent: "bg-secondary-100/80 text-primary-100",
     },
     {
-      value: "finance",
+      value: ROLES.FINANCE,
       label: t("dashboard.roleOptions.finance"),
       accent: "bg-gold-default/80 text-primary-100",
     },
     {
-      value: "hr",
+      value: ROLES.HR,
       label: t("dashboard.roleOptions.hr"),
       accent: "bg-primary-10/70 text-primary-100",
     },
@@ -244,8 +245,8 @@ export default function AdminDashboard({
   const summaryMetrics = useMemo(() => {
     const totalPageViewsDescription = topPage
       ? t("dashboard.summary.totalPageViews.descriptionTopPage", {
-          page: topPage.name,
-        })
+        page: topPage.name,
+      })
       : t("dashboard.summary.totalPageViews.descriptionNoPage");
 
     return [
@@ -283,8 +284,8 @@ export default function AdminDashboard({
         }),
         badge: topTrafficSource
           ? t("dashboard.summary.jobPipeline.traffic", {
-              source: topTrafficSource.name,
-            })
+            source: topTrafficSource.name,
+          })
           : t("dashboard.summary.jobPipeline.tracking"),
         badgeTone: "text-muted-foreground",
       },
@@ -308,13 +309,13 @@ export default function AdminDashboard({
 
   const renderRoleSpecificContent = (currentRole: string, tab: string) => {
     switch (currentRole) {
-      case "admin":
+      case ROLES.GLOBAL_ADMIN:
         return renderAdminContent(tab);
-      case "pr":
+      case ROLES.PR:
         return renderPRContent(tab);
-      case "finance":
+      case ROLES.FINANCE:
         return renderFinanceContent(tab);
-      case "hr":
+      case ROLES.HR:
         return renderHRContent(tab);
       default:
         return <div>{t("dashboard.missingRoleContent")}</div>;
@@ -897,10 +898,10 @@ export default function AdminDashboard({
                     className={cn(
                       "rounded-full border border-primary/10 bg-white/70 px-3 py-1 font-semibold text-foreground text-xs shadow-sm transition dark:bg-white/10",
                       isSelected &&
-                        cn(
-                          option.accent,
-                          "shadow-[0_18px_40px_-25px_rgba(0,23,49,0.55)] hover:shadow-[0_18px_50px_-20px_rgba(0,23,49,0.45)]"
-                        ),
+                      cn(
+                        option.accent,
+                        "shadow-[0_18px_40px_-25px_rgba(0,23,49,0.55)] hover:shadow-[0_18px_50px_-20px_rgba(0,23,49,0.45)]"
+                      ),
                       !isSelected && "hover:bg-primary/5"
                     )}
                     key={option.value}

@@ -8,6 +8,7 @@ export {
   OAuthProvider,
   Permission,
   Query,
+  Role,
   Storage,
   TablesDB,
   Teams,

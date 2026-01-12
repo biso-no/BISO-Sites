@@ -95,9 +95,9 @@ const buildTranslationRefsForUpdate = async (
   const existingTranslations = existingProduct.rows[0]?.translation_refs ?? [];
   const existingTranslationsArray = Array.isArray(existingTranslations)
     ? existingTranslations.filter(
-        (translation): translation is ContentTranslations =>
-          typeof translation !== "string"
-      )
+      (translation): translation is ContentTranslations =>
+        typeof translation !== "string"
+    )
     : [];
 
   const buildTranslation = (
@@ -255,7 +255,28 @@ export async function createProduct(
 ): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
-    const statusValue = mapProductStatus(data.status);
+
+    // Import authorization utilities dynamically to avoid circular imports
+    const { getUserAuthContext, isGlobalAdmin, isController } = await import("@/lib/authorization");
+    const ctx = await getUserAuthContext();
+
+    // Determine default status based on user role
+    // Controllers and admins can create with any status
+    // Department members default to pending_approval
+    let statusValue: Status;
+    if (data.status) {
+      statusValue = mapProductStatus(data.status);
+    } else {
+      const userIsAdmin = await isGlobalAdmin();
+      const userIsController = await isController();
+
+      if (userIsAdmin || userIsController) {
+        statusValue = Status.DRAFT;
+      } else {
+        // Department members - products go to pending approval
+        statusValue = "pending_approval" as Status;
+      }
+    }
 
     // Build translation_refs array with both required translations
     const translationRefs: ContentTranslations[] = [
@@ -274,6 +295,12 @@ export async function createProduct(
         description: data.translations.no.description,
       } as ContentTranslations,
     ];
+
+    // Get departmentId from context if not provided
+    const departmentId = data.departmentId ??
+      (ctx?.departmentTeamIds && ctx.departmentTeamIds.length > 0
+        ? ctx.departmentTeamIds[0]
+        : null);
 
     const product = await db.createRow<WebshopProducts>(
       "app",
@@ -294,7 +321,7 @@ export async function createProduct(
         metadata: serializeMetadata(data.metadata),
         // Relationship fields
         campus: data.campus_id,
-        departmentId: null,
+        departmentId: departmentId,
         department: null,
         translation_refs: translationRefs,
       } as any
@@ -303,6 +330,7 @@ export async function createProduct(
     if (!skipRevalidation) {
       revalidatePath("/shop");
       revalidatePath("/admin/products");
+      revalidatePath("/admin/shop/approval-queue");
     }
 
     return product;
