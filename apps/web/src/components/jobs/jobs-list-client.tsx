@@ -54,11 +54,11 @@ const getCategoriesWithTranslations = (t: (key: string) => string) => [
     icon: Cog,
     color: "from-brand-gradient-to to-slate-700",
   },
-  { 
-    name: "Projects", 
+  {
+    name: "Projects",
     label: t("filters.projects"),
-    icon: Rocket, 
-    color: "from-purple-500 to-pink-500" 
+    icon: Rocket,
+    color: "from-purple-500 to-pink-500"
   },
 ];
 
@@ -68,7 +68,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPaidOnly, setShowPaidOnly] = useState(false);
-  
+
   const categories = getCategoriesWithTranslations(t);
 
   // Filter jobs based on search, category, and paid status
@@ -236,12 +236,6 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
           <div className="flex flex-wrap justify-center gap-4">
             <Button className="bg-background text-brand-dark hover:bg-background/90">
               {t("cta.contactButton")}
-            </Button>
-            <Button
-              className="border-white text-white hover:bg-background/10"
-              variant="outline"
-            >
-              {t("cta.downloadButton")}
             </Button>
           </div>
         </div>
