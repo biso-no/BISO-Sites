@@ -18,9 +18,7 @@ export function Footer() {
   const footerLinks = {
     About: [
       { label: t("about.ourStory"), href: "/history" },
-      { label: t("about.team"), href: "#" },
-      { label: t("about.careers"), href: "#" },
-      { label: t("about.contact"), href: "#" },
+      { label: t("about.contact"), href: "/contact" },
     ],
     Students: [
       { label: t("students.membership"), href: "/membership" },
