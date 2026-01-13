@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CartAlerts } from "@/components/shop/cart/cart-alerts";
 import { CartHero } from "@/components/shop/cart/cart-hero";
 import { CartPageClient } from "@/components/shop/cart/cart-page-client";
+import { getMembershipStatus } from "@/lib/actions/membership";
 
 export const metadata = {
   title: "Shopping Cart | BISO Shop",
@@ -31,9 +32,8 @@ function CartSkeleton() {
   );
 }
 
-export default function CartPage() {
-  // TODO: Get actual member status from auth
-  const isMember = false;
+export default async function CartPage() {
+  const { isMember } = await getMembershipStatus();
   const userId: string | null = null;
 
   return (

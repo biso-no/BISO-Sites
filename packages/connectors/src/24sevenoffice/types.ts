@@ -4,11 +4,12 @@
  * TypeScript interfaces for 24SevenOffice CRM integration.
  */
 
+import { Models } from "@repo/api"
+
 // ============= Authentication =============
 
 export interface Credentials {
   ApplicationId: string;
-  IdentityId: string;
   Username: string;
   Password: string;
 }
@@ -21,8 +22,7 @@ export interface HasSessionResult {
   HasSessionResult: boolean;
 }
 
-export interface StoredToken {
-  $id: string;
+export type StoredToken = Models.Row & {
   token: string;
   $createdAt: string;
 }
@@ -127,6 +127,14 @@ export interface SaveCustomerCategoriesResult {
   };
 }
 
+export interface GetCustomerCategoriesResult {
+  GetCustomerCategoriesResult?: {
+    // API returns category IDs as integers, not names
+    int?: number | number[];
+    APIException?: APIException | APIException[];
+  } | null;
+}
+
 export interface APIException {
   Type?: string;
   Message?: string;
@@ -151,3 +159,68 @@ export interface CustomerData {
   studentId?: string;
   userId: string;
 }
+
+// ============= Products API =============
+
+export interface Product {
+  Id?: number;
+  Name?: string;
+  No?: string;
+  Price?: number;
+  Description?: string;
+  CategoryId?: number;
+  DateChanged?: string;
+  APIException?: APIException;
+}
+
+export interface ProductSearchParams {
+  Id?: number;
+  CategoryId?: number;
+  No?: string;
+  Name?: string;
+  ProductIds?: number[];
+}
+
+export interface GetProductsResult {
+  GetProductsResult?: {
+    Product?: Product | Product[];
+  };
+}
+
+// ============= Category Definitions API =============
+
+export interface CategoryDefinition {
+  Id?: number;
+  Name?: string;
+  ShowContact?: boolean;
+  ShowCompany?: boolean;
+}
+
+export interface GetCategoriesResult {
+  GetCategoriesResult?: {
+    Category?: CategoryDefinition | CategoryDefinition[];
+  };
+}
+
+// ============= Membership Sync Types =============
+
+export interface MembershipProductSyncItem {
+  productId: number;
+  productName: string;
+  productNo: string;
+  categoryId: number | null;
+  categoryName: string | null;
+  expiryDate: string;
+  startDate: string;
+  isActive: boolean;
+}
+
+export interface MembershipProductSyncResult {
+  success: boolean;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  items: MembershipProductSyncItem[];
+}
+

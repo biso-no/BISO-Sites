@@ -5,6 +5,7 @@ import { ShopHero } from "@/components/shop/shop-hero";
 import { ShopListClient } from "@/components/shop/shop-list-client";
 import { getUserPreferences } from "@/lib/auth-utils";
 import { Locale } from "@repo/api/types/appwrite";
+import { getMembershipStatus } from "@/lib/actions/membership";
 
 export const metadata = {
   title: "Shop | BISO",
@@ -52,8 +53,7 @@ function ShopListSkeleton() {
 export default async function ShopPage() {
   const prefs = await getUserPreferences();
 
-  // TODO: Get actual member status from auth
-  const isMember = false;
+  const { isMember } = await getMembershipStatus();
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">

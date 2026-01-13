@@ -9,6 +9,7 @@ import { ProductOptions } from "../product/product-options";
 import { ProductPriceCard } from "../product/product-price-card";
 import { ProductPurchaseProvider } from "../product/product-purchase-provider";
 import { StockStatus } from "../product/stock-status";
+import { getMembershipStatus } from "@/lib/actions/membership";
 
 export default async function ProductDetailsPage({
   params,
@@ -23,8 +24,7 @@ export default async function ProductDetailsPage({
     return <div>Product not found</div>;
   }
 
-  // TODO: Get actual member status from auth
-  const isMember = false;
+  const { isMember } = await getMembershipStatus();
   const userId = null;
 
   return (

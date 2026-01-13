@@ -5,7 +5,7 @@
  * Tokens are cached in the database for 24 hours.
  */
 
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { createSoapClient } from "./client";
 import type {
   Credentials,
@@ -13,18 +13,19 @@ import type {
   LoginResult,
   StoredToken,
 } from "./types";
+import { ID } from "@repo/api/client";
 
 // Token validity: 23 hours (1 hour safety margin before 24hr expiry)
 const TOKEN_MAX_AGE_MS = 23 * 60 * 60 * 1000;
 
-const DATABASE_ID = "app";
-const TOKENS_TABLE = "24sevenoffice_auth_tokens";
+const DATABASE_ID = "24so";
+const TOKENS_TABLE = "auth_tokens";
 
 /**
  * Get a valid session token, either from cache or by logging in
  */
 export async function getValidSession(): Promise<string> {
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   // Check for stored token
   const stored = await getStoredToken(db);
@@ -70,7 +71,6 @@ async function login(credentials: Credentials): Promise<string> {
   const [result]: [LoginResult] = await client.LoginAsync({
     credential: {
       ApplicationId: credentials.ApplicationId,
-      IdentityId: credentials.IdentityId,
       Username: credentials.Username,
       Password: credentials.Password,
     },
@@ -126,7 +126,7 @@ async function storeToken(
     }
 
     // Create new token
-    await db.createRow(DATABASE_ID, TOKENS_TABLE, { token });
+    await db.createRow(DATABASE_ID, TOKENS_TABLE, ID.unique(), { token });
     console.log("[24SO Auth] Stored new session token");
   } catch (error) {
     console.error("[24SO Auth] Failed to store token:", error);
@@ -149,19 +149,17 @@ function isNearExpiry(createdAt: string): boolean {
  */
 function getCredentials(): Credentials {
   const appId = process.env.TFSO_APP_ID;
-  const identityId = process.env.TFSO_IDENTITY_ID;
   const username = process.env.TFSO_USERNAME;
   const password = process.env.TFSO_PASSWORD;
 
-  if (!appId || !identityId || !username || !password) {
+  if (!appId || !username || !password) {
     throw new Error(
-      "[24SO Auth] Missing credentials. Required env vars: TFSO_APP_ID, TFSO_IDENTITY_ID, TFSO_USERNAME, TFSO_PASSWORD"
+      "[24SO Auth] Missing credentials. Required env vars: TFSO_APP_ID, TFSO_USERNAME, TFSO_PASSWORD"
     );
   }
 
   return {
     ApplicationId: appId,
-    IdentityId: identityId,
     Username: username,
     Password: password,
   };
