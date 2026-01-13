@@ -15,6 +15,7 @@
     "@minoru/react-dnd-treeview": "^3.5.3",
     "@repo/ai": "*",
     "@repo/api": "*",
+    "@repo/connectors": "*",
     "@repo/editor": "*",
     "@repo/i18n": "*",
     "@repo/payment": "*",

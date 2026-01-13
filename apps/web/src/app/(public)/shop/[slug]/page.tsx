@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
 import { getProductBySlug } from "@/app/actions/webshop";
 import { ProductDetailsServer } from "@/components/shop/product-details-server"; // New Server Component
+import { getMembershipStatus } from "@/lib/actions/membership";
 
 // Component that fetches data and renders the main content
 async function ProductDetails({ slug }: { slug: string }) {
@@ -16,8 +17,7 @@ async function ProductDetails({ slug }: { slug: string }) {
     notFound();
   }
 
-  // TODO: Get actual member status from auth
-  const isMember = false;
+  const { isMember } = await getMembershipStatus();
 
   return <ProductDetailsServer isMember={isMember} product={product} />;
 }

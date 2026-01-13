@@ -5,14 +5,20 @@
  * Used to sync membership purchases with customer records.
  */
 
-// Main sync function
+// Customer sync function
 export { syncMembershipTo24SO, hasMembershipProduct } from "./sync";
 
 // Customer management
 export { findOrCreateCompany, getCompanyById } from "./company";
 
 // Category management
-export { saveCustomerCategories, assignMembershipCategory } from "./categories";
+export { saveCustomerCategories, assignMembershipCategory, getCustomerCategories, getAllCategories } from "./categories";
+
+// Products management
+export { getProducts, getMembershipProducts } from "./products";
+
+// Membership product sync (admin)
+export { syncMembershipsFrom24SO, previewMembershipSync, parseExpiryDate, parseStartDate, isActiveByDate } from "./membership-sync";
 
 // Authentication (lower-level, usually not needed directly)
 export { getValidSession, hasSession } from "./auth";
@@ -24,4 +30,8 @@ export type {
   CustomerData,
   MembershipSyncResult,
   Credentials,
+  Product,
+  CategoryDefinition,
+  MembershipProductSyncItem,
+  MembershipProductSyncResult,
 } from "./types";
