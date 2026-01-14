@@ -13,9 +13,10 @@
  * - "department" → User belongs to at least one SG-App-Dept-* group
  */
 
-// Standardized role names (derived from Azure AD SG-App-Role-*)
+// Standardized role names (derived from Azure AD SG-App-Role-* or computed from team combinations)
 export const ROLES = {
     GLOBAL_ADMIN: "globaladmin",
+    CAMPUS_ADMIN: "campusadmin",  // Derived from Ledelsen{City} + Campus-{City}
     CONTROLLER: "controller",
     FINANCE: "finance",
     HR: "hr",
