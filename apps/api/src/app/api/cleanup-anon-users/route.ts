@@ -21,7 +21,9 @@ export async function GET(req: Request) {
 
     const deletedUsers = await Promise.all(anonUsers.users.map(user => users.delete(user.$id)))
 
-    console.log(deletedUsers)
-    return Response.json(deletedUsers)
+    if (deletedUsers.length > 0) {
+        console.log(`Deleted ${deletedUsers.length} anonymous users`)
+    }
+    return Response.json(`Deleted ${deletedUsers.length} anonymous users`)
 }
 
