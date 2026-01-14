@@ -147,7 +147,7 @@
     "items": {
       "cost": {
         "question": "What does membership cost?",
-        "answer": "Membership is NOK 450 for a full year. You can also choose a semester payment if you prefer flexibility."
+        "answer": "Membership is NOK 550 for a full year. You can also choose a semester payment if you prefer flexibility."
       },
       "discounts": {
         "question": "How do I access the discounts?",
@@ -167,8 +167,8 @@
     "title": "Ready to join?",
     "subtitle": "Membership activates instantly. You can switch campus and unlock new benefits whenever you like.",
     "badges": {
-      "annual": "Annual membership NOK 450",
-      "semester": "Semester NOK 275",
+      "annual": "Annual membership NOK 550",
+      "semester": "Semester NOK 350",
       "digitalCard": "Digital membership card"
     },
     "primary": "Join today",
