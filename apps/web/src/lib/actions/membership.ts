@@ -113,7 +113,9 @@ function getCachedMembership(
 }
 
 /**
- * Cache membership status in a cookie
+ * Cache membership status in a cookie.
+ * Note: This will only succeed in a Server Action or Route Handler context.
+ * When called from a Server Component render, the set operation will fail silently.
  */
 async function cacheMembershipStatus(
     cookieStore: Awaited<ReturnType<typeof cookies>>,
@@ -124,13 +126,20 @@ async function cacheMembershipStatus(
         expiresAt: Date.now() + COOKIE_TTL_SECONDS * 1000,
     };
 
-    cookieStore.set(MEMBERSHIP_COOKIE_NAME, JSON.stringify(data), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: COOKIE_TTL_SECONDS,
-        path: "/",
-    });
+    try {
+        cookieStore.set(MEMBERSHIP_COOKIE_NAME, JSON.stringify(data), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: COOKIE_TTL_SECONDS,
+            path: "/",
+        });
+    } catch {
+        // Cookie setting is not allowed in Server Component render context.
+        // This is expected when getMembershipStatus is called from a layout or page.
+        // The cache will be populated on next Server Action call.
+        console.log("[Membership] Cannot cache in render context - will cache on next action");
+    }
 }
 
 /**
