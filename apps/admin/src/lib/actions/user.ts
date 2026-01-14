@@ -4,6 +4,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isGlobalAdmin } from "@/lib/authorization";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 //
@@ -240,17 +241,15 @@ export async function signOut(): Promise<void> {
 }
 
 export async function deleteUserData() {
-  const { account, teams } = await createSessionClient();
+  const { account } = await createSessionClient();
   const { users, db } = await createAdminClient();
   const user = await account.get();
   if (!user) {
     return false;
   }
 
-  const userTeams = await teams.list();
-
-  //Must be admin to delete user
-  if (!userTeams.teams.some((team: any) => team.name === "Admin")) {
+  // Must be admin to delete user
+  if (!(await isGlobalAdmin())) {
     return false;
   }
 

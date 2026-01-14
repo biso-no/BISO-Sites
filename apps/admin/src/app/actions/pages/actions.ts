@@ -6,6 +6,7 @@ import {
   updatePage,
   upsertPage,
   type UpsertPageInput,
+  type ListPagesParams,
 } from "@repo/api/page-builder";
 import { createSessionClient } from "@repo/api/server";
 import { PageStatus, PageVisibility } from "@repo/api/types/appwrite";
@@ -15,11 +16,35 @@ import type {
   UpdateManagedPageInput,
 } from "./types";
 import { ADMIN_LIST_PATH, cloneDocument, revalidateForPage } from "./utils";
+import { canWriteDocument, isGlobalAdmin } from "@/lib/authorization";
 
+/**
+ * List pages that the current user has write access to.
+ * Uses session client to respect RLS and filters by $permissions.
+ */
 export async function listManagedPages(
-  params?: Parameters<typeof listPages>[0]
+  params?: Omit<ListPagesParams, "useSession">
 ) {
-  return await listPages(params);
+  // Fetch pages using session client (respects RLS)
+  const pages = await listPages({
+    ...params,
+    useSession: true,
+  });
+
+  // Global admins see all pages
+  if (await isGlobalAdmin()) {
+    return pages;
+  }
+
+  // Filter to only pages the user can write to
+  const writeablePages = await Promise.all(
+    pages.map(async (page) => ({
+      page,
+      canWrite: await canWriteDocument(page.permissions),
+    }))
+  );
+
+  return writeablePages.filter((p) => p.canWrite).map((p) => p.page);
 }
 
 export async function getManagedPage(pageId: string) {

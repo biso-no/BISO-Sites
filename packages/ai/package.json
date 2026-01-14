@@ -23,7 +23,12 @@
     "./tools/puck-generator": "./src/tools/puck-generator.ts",
     "./tools/data-query": "./src/tools/data-query.ts",
     "./lib/streaming-json-parser": "./src/lib/streaming-json-parser.ts",
-    "./prompts": "./src/prompts.ts"
+    "./prompts": "./src/prompts.ts",
+    "./utils": "./src/utils/index.ts",
+    "./utils/document-utils": "./src/utils/document-utils.ts",
+    "./utils/mime-utils": "./src/utils/mime-utils.ts",
+    "./utils/content-types": "./src/utils/content-types.ts",
+    "./utils/vector-store-types": "./src/utils/vector-store.types.ts"
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",

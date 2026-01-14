@@ -1,7 +1,11 @@
-import type { Currency, Orders } from "@repo/api/types/appwrite";
+import type { Currency, Orders, Users, Memberships } from "@repo/api/types/appwrite";
 import { OrderStatus } from "@repo/api/types/appwrite";
 import { Client } from "@vippsmobilepay/sdk";
-import { ID } from "node-appwrite";
+import { ID, Query } from "node-appwrite";
+import {
+  syncMembershipTo24SO,
+  hasMembershipProduct,
+} from "@repo/connectors/24sevenoffice";
 
 const clientId = process.env.VIPPS_CLIENT_ID!;
 const clientSecret = process.env.VIPPS_CLIENT_SECRET!;
@@ -423,6 +427,106 @@ async function deleteUserReservations({
   }
 }
 
+// ============= 24SevenOffice Integration =============
+
+/**
+ * Triggers 24SevenOffice sync for membership orders
+ * This runs asynchronously to not block the Vipps callback
+ */
+async function triggerMembershipSync(order: Orders, db: any): Promise<void> {
+  // Check if order contains a membership product
+  if (!hasMembershipProduct(order.items_json)) {
+    console.log(`[24SO Sync] Order ${order.$id} has no membership products, skipping sync`);
+    return;
+  }
+
+  console.log(`[24SO Sync] Order ${order.$id} contains membership, triggering sync`);
+
+  try {
+    // Get user if order has userId
+    let user: Users | null = null;
+    if (order.userId) {
+      try {
+        user = await db.getRow(
+          process.env.APPWRITE_DATABASE_ID!,
+          "users",
+          order.userId
+        ) as Users;
+      } catch (err) {
+        console.warn(`[24SO Sync] Could not fetch user ${order.userId}:`, err);
+      }
+    }
+
+    // Parse order items to find membership product
+    const items = parseOrderItems(order.items_json);
+    const membershipItem = items.find(
+      (item: any) =>
+        item.product_type === "membership" ||
+        item.category?.toLowerCase() === "membership"
+    );
+
+    if (!membershipItem) {
+      console.warn(`[24SO Sync] No membership item found in parsed items`);
+      return;
+    }
+
+    // Get membership details
+    let membership: Memberships | null = null;
+    if (membershipItem.product_id) {
+      try {
+        // Try to get membership by product_id (might be membership_id)
+        const memberships = await db.listRows(
+          process.env.APPWRITE_DATABASE_ID!,
+          "memberships",
+          [Query.equal("membership_id", membershipItem.product_id), Query.limit(1)]
+        );
+        if (memberships.rows.length > 0) {
+          membership = memberships.rows[0] as Memberships;
+        }
+      } catch (err) {
+        console.warn(`[24SO Sync] Could not fetch membership:`, err);
+      }
+    }
+
+    if (!membership) {
+      // Create a minimal membership object for sync
+      membership = {
+        $id: membershipItem.product_id || "unknown",
+        $collectionId: "memberships",
+        $databaseId: process.env.APPWRITE_DATABASE_ID!,
+        $createdAt: new Date().toISOString(),
+        $updatedAt: new Date().toISOString(),
+        $permissions: [],
+        membership_id: membershipItem.product_id || "unknown",
+        name: membershipItem.title || membershipItem.name || "Membership",
+        price: membershipItem.unit_price || membershipItem.price || 0,
+        category: membershipItem.category || null,
+        status: true,
+        startDate: new Date().toISOString(),
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        canPurchase: true,
+        studentId: [],
+        payments: [],
+      } as Memberships;
+    }
+
+    // Sync to 24SevenOffice
+    const result = await syncMembershipTo24SO(order, user, membership);
+
+    if (result.success) {
+      console.log(
+        `[24SO Sync] Successfully synced order ${order.$id} - Company ID: ${result.companyId}`
+      );
+    } else {
+      console.error(
+        `[24SO Sync] Failed to sync order ${order.$id}: ${result.error}`
+      );
+    }
+  } catch (error) {
+    console.error(`[24SO Sync] Error during membership sync:`, error);
+  }
+}
+
 // ============= Main Functions =============
 
 /**
@@ -623,8 +727,21 @@ export async function handleVippsCallback(
       amount: sessionData.payment?.aggregate?.authorizedAmount,
     };
 
+    // Determine the new status before updating
+    const { status: newStatus } = determineStatusFromPaymentState(
+      paymentState,
+      sessionData
+    );
+
     // Update order status based on payment state
     await updateOrderStatus(order.$id, paymentState, sessionData, db);
+
+    // Trigger 24SevenOffice sync for paid membership orders (non-blocking)
+    if (newStatus === OrderStatus.PAID) {
+      triggerMembershipSync(order, db).catch((err) => {
+        console.error("[24SO Sync] Async sync failed:", err);
+      });
+    }
 
     return { success: true, message: "Callback processed successfully" };
   } catch (error) {

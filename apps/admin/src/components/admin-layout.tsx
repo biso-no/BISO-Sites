@@ -37,6 +37,8 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
 
+import { ROLES, DEPARTMENT_ROLE } from "@/lib/roles";
+
 type AdminLayoutProps = {
   children: ReactNode;
   roles: string[];
@@ -173,7 +175,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const pathname = usePathname();
   const [selectedRole, setSelectedRole] = useState(
-    roles.includes("Admin") ? "Admin" : roles[0] || ""
+    roles.includes(ROLES.GLOBAL_ADMIN) ? ROLES.GLOBAL_ADMIN : roles[0] || ""
   );
   const [isLoading, setIsLoading] = useState(true);
 
@@ -192,45 +194,50 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/admin",
       icon: LayoutDashboard,
       label: t("navigation.dashboard"),
-      roles: ["Admin"],
+      roles: [ROLES.GLOBAL_ADMIN],
     },
     {
       href: "/admin/pages",
       icon: FileText,
       label: t("navigation.pages"),
-      roles: ["Admin", "pr"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
     },
     {
       href: "/admin/posts",
       icon: FileText,
       label: t("navigation.posts"),
-      roles: ["Admin", "pr"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
     },
     {
       href: "/admin/shop",
       icon: Store,
       label: t("navigation.shop"),
-      roles: ["Admin", "finance"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE, ROLES.CONTROLLER],
       subItems: [
         {
           href: "/admin/shop/orders",
           label: t("shopSubItems.orders"),
-          roles: ["Admin", "finance"],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
         },
         {
           href: "/admin/shop/products",
           label: t("shopSubItems.products"),
-          roles: ["Admin", "finance"],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
+        },
+        {
+          href: "/admin/shop/approval-queue",
+          label: t("shopSubItems.approvalQueue"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CONTROLLER, ROLES.FINANCE],
         },
         {
           href: "/admin/shop/customers",
           label: t("shopSubItems.customers"),
-          roles: ["Admin", "finance"],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
         },
         {
           href: "/admin/shop/settings",
           label: t("shopSubItems.settings"),
-          roles: ["Admin"],
+          roles: [ROLES.GLOBAL_ADMIN],
         },
       ],
     },
@@ -238,23 +245,23 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/admin/expenses",
       icon: CalendarIcon,
       label: t("navigation.expenses"),
-      roles: ["Admin", "finance"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
     },
     {
       href: "/admin/jobs",
       icon: Users,
       label: t("navigation.jobs"),
-      roles: ["Admin", "hr", "pr"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
       subItems: [
         {
           href: "/admin/jobs",
           label: t("jobsSubItems.allJobs"),
-          roles: ["Admin", "hr", "pr"],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
         },
         {
           href: "/admin/jobs/applications",
           label: t("jobsSubItems.applications"),
-          roles: ["Admin", "hr", "pr"],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR],
         },
       ],
     },
@@ -262,17 +269,17 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/admin/events",
       icon: CalendarIcon,
       label: t("navigation.events"),
-      roles: ["Admin", "pr"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
       subItems: [
         {
           href: "/admin/events",
           label: t("eventsSubItems.allEvents"),
-          roles: ["Admin", "pr"],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
         },
         {
           href: "/admin/events/new",
           label: t("eventsSubItems.createEvent"),
-          roles: ["Admin", "pr"],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
         },
       ],
     },
@@ -280,40 +287,40 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/admin/units",
       icon: Building2,
       label: t("navigation.units"),
-      roles: ["Admin", "hr", "finance", "pr"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
     },
     {
       href: "/admin/users",
       icon: Users,
       label: t("navigation.users"),
-      roles: ["Admin", "hr", "finance"],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE],
     },
     {
       href: "/admin/varsling",
       icon: Shield,
       label: t("navigation.varsling"),
-      roles: ["Admin"],
+      roles: [ROLES.GLOBAL_ADMIN],
     },
     {
       href: "/admin/settings",
       icon: Settings,
       label: t("navigation.settings"),
-      roles: ["Admin"],
+      roles: [ROLES.GLOBAL_ADMIN],
       subItems: [
         {
           href: "/admin/settings",
           label: t("settingsSubItems.navigation"),
-          roles: ["Admin"],
+          roles: [ROLES.GLOBAL_ADMIN],
         },
         {
           href: "/admin/settings/profile",
           label: t("settingsSubItems.profile"),
-          roles: ["Admin"],
+          roles: [ROLES.GLOBAL_ADMIN],
         },
         {
           href: "/admin/settings/security",
           label: t("settingsSubItems.security"),
-          roles: ["Admin"],
+          roles: [ROLES.GLOBAL_ADMIN],
         },
       ],
     },
