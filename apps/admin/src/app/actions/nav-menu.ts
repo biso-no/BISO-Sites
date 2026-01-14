@@ -283,7 +283,7 @@ const upsertTranslation = async ({
 
 const revalidateNavConsumers = () => {
   revalidatePath("/");
-  revalidatePath("/admin/settings");
+  revalidatePath("/settings");
 };
 
 export const listNavMenuAdmin = async (): Promise<NavMenuAdminTree> => {

@@ -213,7 +213,6 @@ export async function createJob(
 
     if (!skipRevalidation) {
       revalidatePath("/jobs");
-      revalidatePath("/admin/jobs");
     }
 
     return job;
@@ -242,7 +241,6 @@ export async function updateJob(
     const job = (await db.updateRow("app", "jobs", id, updateData)) as Jobs;
 
     revalidatePath("/jobs");
-    revalidatePath("/admin/jobs");
 
     return job;
   } catch (error) {
@@ -273,7 +271,6 @@ async function _deleteJob(id: string): Promise<boolean> {
     await db.deleteRow("app", "jobs", id);
 
     revalidatePath("/jobs");
-    revalidatePath("/admin/jobs");
 
     return true;
   } catch (error) {
@@ -371,7 +368,7 @@ Please respond with a JSON object containing the translated title and descriptio
       )) as ContentTranslation;
     }
 
-    revalidatePath("/admin/jobs");
+    revalidatePath("/jobs");
     return translationRecord;
   } catch (error) {
     console.error("Error translating job content:", error);
@@ -454,7 +451,7 @@ async function _createJobApplication(
       "unique()",
       applicationData
     );
-    revalidatePath("/admin/jobs");
+    revalidatePath("/jobs");
 
     return application;
   } catch (error) {
@@ -498,7 +495,7 @@ export async function updateJobApplicationStatus(
       applicationId,
       { status }
     );
-    revalidatePath("/admin/jobs");
+    revalidatePath("/jobs");
     return application;
   } catch (error) {
     console.error("Error updating application status:", error);
@@ -544,7 +541,7 @@ export async function deleteJobApplicationData(
     }
 
     await db.deleteRow("app", "job_applications", applicationId);
-    revalidatePath("/admin/jobs");
+    revalidatePath("/jobs");
 
     return true;
   } catch (error) {

@@ -2,7 +2,7 @@ import type { PageDocument, PageRecord } from "@repo/api/page-builder";
 import type { PageBuilderDocument } from "@repo/editor";
 import { revalidatePath } from "next/cache";
 
-export const ADMIN_LIST_PATH = "/admin/pages";
+export const ADMIN_LIST_PATH = "/pages";
 
 export function cloneDocument(
   document: PageBuilderDocument | null | undefined

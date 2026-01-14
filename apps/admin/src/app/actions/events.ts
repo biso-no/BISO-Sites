@@ -236,9 +236,9 @@ const buildEventTranslationRefsForUpdate = async (
   const existingTranslations = existingEvent.rows[0]?.translation_refs || [];
   const existingTranslationsArray = Array.isArray(existingTranslations)
     ? existingTranslations.filter(
-        (translation): translation is ContentTranslations =>
-          typeof translation !== "string"
-      )
+      (translation): translation is ContentTranslations =>
+        typeof translation !== "string"
+    )
     : [];
 
   const buildTranslation = (
@@ -372,7 +372,6 @@ export async function createEvent(
     });
 
     if (!skipRevalidation) {
-      revalidatePath("/admin/events");
       revalidatePath("/events");
     }
 
@@ -409,7 +408,6 @@ export async function updateEvent(
     );
 
     revalidatePath("/events");
-    revalidatePath("/admin/events");
 
     return event;
   } catch (error) {
@@ -424,7 +422,6 @@ async function _deleteEvent(id: string): Promise<boolean> {
 
     await db.deleteRow("app", "events", id);
     revalidatePath("/events");
-    revalidatePath("/admin/events");
     return true;
   } catch (error) {
     console.error("Error deleting event:", error);

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { syncM365Permissions } from "@/lib/m365-sync"; // Import the utility
+import { isProd } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
@@ -28,8 +29,9 @@ export async function GET(request: NextRequest) {
   fetchedCookies.set("a_session_biso", session.secret, {
     path: "/",
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: isProd ? "none" : "lax",
     secure: true,
+    domain: isProd ? ".biso.no" : "localhost",
   });
 
   if (redirectTo) {

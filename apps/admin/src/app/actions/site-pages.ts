@@ -134,7 +134,7 @@ export async function upsertSitePage(
       }
     }
 
-    revalidatePath("/admin/settings");
+    revalidatePath("/settings");
     revalidatePath(`/${input.slug}`);
     return true;
   } catch (error) {
@@ -236,7 +236,7 @@ Please respond with a JSON object containing the translated title and body:
       });
     }
 
-    revalidatePath("/admin/settings");
+    revalidatePath("/settings");
     revalidatePath(`/${slug}`);
     return true;
   } catch (error) {

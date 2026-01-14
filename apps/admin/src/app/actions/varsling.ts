@@ -79,7 +79,7 @@ export async function createVarslingSettings(
       data
     );
 
-    revalidatePath("/admin/varsling");
+    revalidatePath("/varsling");
     return { success: true };
   } catch (error) {
     console.error("Failed to create varsling settings:", error);
@@ -97,7 +97,7 @@ export async function updateVarslingSettings(
 
     await db.updateRow<VarslingSettings>("app", "varsling_settings", id, data);
 
-    revalidatePath("/admin/varsling");
+    revalidatePath("/varsling");
     return { success: true };
   } catch (error) {
     console.error("Failed to update varsling settings:", error);
@@ -114,7 +114,7 @@ export async function deleteVarslingSettings(
 
     await db.deleteRow("app", "varsling_settings", id);
 
-    revalidatePath("/admin/varsling");
+    revalidatePath("/varsling");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete varsling settings:", error);

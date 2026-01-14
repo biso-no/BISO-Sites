@@ -12,7 +12,7 @@ export default async function Page({
   const { error, redirectTo } = await searchParams;
   if (authStatus.isAuthenticated) {
     // User is already authenticated, redirect them
-    const target = redirectTo ? decodeURIComponent(redirectTo) : "/admin";
+    const target = redirectTo ? decodeURIComponent(redirectTo) : "/";
     return redirect(target);
   }
   return (

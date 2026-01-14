@@ -10,7 +10,7 @@ export async function getOrders({
   limit = 100,
   userId = "",
   status = "",
-  _path = "/admin/shop/orders",
+  _path = "/shop/orders",
 }: {
   limit?: number;
   offset?: number;

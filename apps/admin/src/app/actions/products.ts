@@ -329,8 +329,8 @@ export async function createProduct(
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
-      revalidatePath("/admin/products");
-      revalidatePath("/admin/shop/approval-queue");
+      revalidatePath("/products");
+      revalidatePath("/shop/approval-queue");
     }
 
     return product;
@@ -368,7 +368,7 @@ export async function updateProduct(
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
-      revalidatePath("/admin/products");
+      revalidatePath("/products");
     }
 
     return product ?? null;
@@ -390,7 +390,7 @@ export async function deleteProduct(
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
-      revalidatePath("/admin/products");
+      revalidatePath("/products");
     }
 
     return true;
@@ -420,7 +420,7 @@ async function _updateProductStatus(
 
     if (!skipRevalidation) {
       revalidatePath("/shop");
-      revalidatePath("/admin/products");
+      revalidatePath("/products");
     }
 
     return product ?? null;
@@ -554,8 +554,7 @@ export async function bulkUpdateProductStock(
 }
 
 function revalidateProductPaths() {
-  revalidatePath("/admin/shop/products");
-  revalidatePath("/admin/shop");
+  revalidatePath("/shop/products");
   revalidatePath("/shop");
 }
 

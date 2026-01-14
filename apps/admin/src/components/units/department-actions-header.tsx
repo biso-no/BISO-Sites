@@ -18,7 +18,7 @@ export function DepartmentActionsHeader({
 
   return (
     <div className="flex gap-2">
-      <Button className="gap-2" onClick={() => router.push("/admin/units/new")}>
+      <Button className="gap-2" onClick={() => router.push("/units/new")}>
         <Plus className="h-4 w-4" />
         Add Unit
       </Button>
