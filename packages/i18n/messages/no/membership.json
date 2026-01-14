@@ -109,7 +109,7 @@
   },
   "global": {
     "title": "Nasjonale medlemsfordeler",
-    "subtitle": "Disse fordelene følger deg uansett campus. Alt ligger i BI Student-appen.",
+    "subtitle": "Disse fordelene følger deg uansett campus. Alt ligger i BISO appen.",
     "cta": "Aktiver medlemskapet ditt",
     "empty": "Vi oppdaterer de nasjonale fordelene akkurat nå. Kom tilbake veldig snart!"
   },
@@ -147,11 +147,11 @@
     "items": {
       "cost": {
         "question": "Hva koster medlemskapet?",
-        "answer": "Medlemskapet koster 450 kroner for et helt år. Du kan også velge semesterbetaling hvis du ønsker mer fleksibilitet."
+        "answer": "Medlemskapet koster 550 kroner for et helt år. Du kan også velge semesterbetaling hvis du ønsker mer fleksibilitet."
       },
       "discounts": {
         "question": "Hvordan får jeg tilgang til rabattene?",
-        "answer": "Alt ligger i BI Student-appen. Aktiver medlemskapet ditt, så finner du digitale koder og billetter med en gang."
+        "answer": "Alt ligger i BISO appen. Aktiver medlemskapet ditt i BI Student-appen, så finner du digitale koder og billetter med en gang i BISO appen."
       },
       "switchCampus": {
         "question": "Kan jeg bytte campus etter at jeg har meldt meg inn?",
@@ -167,8 +167,8 @@
     "title": "Klar for å bli medlem?",
     "subtitle": "Medlemskapet aktiveres umiddelbart. Du kan bytte campus og låse opp nye fordeler når du vil.",
     "badges": {
-      "annual": "Årsmedlemskap 450 kroner",
-      "semester": "Semester 275 kroner",
+      "annual": "Årsmedlemskap 550 kroner",
+      "semester": "Semester 350 kroner",
       "digitalCard": "Digitalt medlemskort"
     },
     "primary": "Bli medlem i dag",
