@@ -7,14 +7,18 @@
     "lint": "biome lint ."
   },
   "exports": {
-    "./azure": "./src/azure/index.ts"
+    "./azure": "./src/azure/index.ts",
+    "./24sevenoffice": "./src/24sevenoffice/index.ts"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*"
+    "@repo/typescript-config": "*",
+    "@types/node": "^22.0.0"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@repo/api": "*",
+    "soap": "^1.1.7",
     "zod": "^4.1.13"
   }
 }

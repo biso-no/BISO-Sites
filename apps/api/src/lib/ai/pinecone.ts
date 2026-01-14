@@ -12,7 +12,7 @@ import type {
   SearchOptions,
   SearchResult,
   VectorDocument,
-} from "./vector-store.types";
+} from "@repo/ai/utils/vector-store-types";
 
 // Embedding model configurations
 const EMBEDDING_MODELS = {

@@ -28,6 +28,7 @@
   "shopSubItems": {
     "orders": "Bestillinger",
     "products": "Produkter",
+    "approvalQueue": "Godkjenningskø",
     "customers": "Kunder",
     "settings": "Innstillinger"
   },

@@ -28,6 +28,7 @@
   "shopSubItems": {
     "orders": "Orders",
     "products": "Products",
+    "approvalQueue": "Approval Queue",
     "customers": "Customers",
     "settings": "Settings"
   },

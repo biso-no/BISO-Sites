@@ -111,6 +111,8 @@ export type PageRecord = {
   visibility: PageVisibility;
   template: string | null;
   campusId: string | null;
+  departmentId: string | null;
+  permissions: string[];
   createdAt: string;
   updatedAt: string;
   translations: PageTranslationRecord[];
@@ -157,9 +159,9 @@ function normalizePage(row: Pages): PageRecord {
       .translation_refs
   )
     ? (
-        (row as unknown as { translation_refs?: PageTranslations[] })
-          .translation_refs ?? []
-      ).map(normalizeTranslation)
+      (row as unknown as { translation_refs?: PageTranslations[] })
+        .translation_refs ?? []
+    ).map(normalizeTranslation)
     : [];
 
   return {
@@ -171,6 +173,9 @@ function normalizePage(row: Pages): PageRecord {
     template: (row as unknown as { template?: string | null }).template ?? null,
     campusId:
       (row as unknown as { campus_id?: string | null }).campus_id ?? null,
+    departmentId:
+      (row as unknown as { department_id?: string | null }).department_id ?? null,
+    permissions: (row as unknown as { $permissions?: string[] }).$permissions ?? [],
     createdAt: row.$createdAt,
     updatedAt: row.$updatedAt,
     translations,
@@ -195,15 +200,23 @@ export type ListPagesParams = {
   visibility?: PageVisibility[];
   limit?: number;
   campusId?: string | null;
+  departmentId?: string | null;
+  /** Use session client instead of admin client (respects RLS) */
+  useSession?: boolean;
 };
 
 export async function listPages(
   params: ListPagesParams = {}
 ): Promise<PageRecord[]> {
-  const { db } = await createAdminClient();
+  const { db } = params.useSession
+    ? await createSessionClient()
+    : await createAdminClient();
+
+  // Include $permissions in select fields
+  const selectFields = [...PAGE_SELECT_FIELDS, "$permissions"];
 
   const queries = [
-    Query.select(PAGE_SELECT_FIELDS),
+    Query.select(selectFields),
     Query.orderDesc("$updatedAt"),
   ];
 
@@ -225,6 +238,10 @@ export async function listPages(
 
   if (params.campusId) {
     queries.push(Query.equal("campus_id", params.campusId));
+  }
+
+  if (params.departmentId) {
+    queries.push(Query.equal("department_id", params.departmentId));
   }
 
   const response = await db.listRows<Pages>({
@@ -381,6 +398,8 @@ export type UpsertPageInput = {
   visibility: PageVisibility;
   template?: string | null;
   campusId?: string | null;
+  departmentId?: string | null;
+  permissions?: string[];
   translations: UpsertPageTranslationData[];
 };
 
@@ -388,9 +407,9 @@ export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
   const { db } = await createAdminClient();
 
   const pageId = input.pageId ?? ID.unique();
-  
+
   let existingTranslations: Map<Locale, string> = new Map();
-  
+
   if (input.pageId) {
     const existingPage = await getPageById(input.pageId);
     if (existingPage) {
@@ -437,8 +456,10 @@ export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
       visibility: input.visibility,
       template: input.template ?? null,
       campus_id: input.campusId ?? null,
+      department_id: input.departmentId ?? null,
       translation_refs: translationRefs as any,
     } as any,
+    permissions: input.permissions,
   });
 
   return (await getPageById(pageId))!;

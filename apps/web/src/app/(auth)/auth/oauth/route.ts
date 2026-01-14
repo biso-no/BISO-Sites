@@ -2,12 +2,14 @@ import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
+import { isProd } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
   const secret = request.nextUrl.searchParams.get("secret");
   const redirectTo = request.nextUrl.searchParams.get("redirectTo");
   const _url = request.nextUrl.protocol + request.headers.get("host");
+  
 
   if (!userId || !secret) {
     return redirect("/auth/login?error=invalid_parameters");
@@ -22,9 +24,9 @@ export async function GET(request: NextRequest) {
   (await cookies()).set("a_session_biso", session.secret, {
     path: "/",
     httpOnly: true,
-    sameSite: "none",
+    sameSite: isProd ? "none" : "lax",
     secure: true,
-    domain: ".biso.no",
+    domain: isProd ? ".biso.no" : "localhost",
   });
 
   // Redirect to the original destination if available

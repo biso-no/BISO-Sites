@@ -11,20 +11,22 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-export async function getUserRoles() {
-  const availableRoles = [
-    "Admin",
-    "pr",
-    "finance",
-    "hr",
-    "users",
-    "Control Committee",
-  ];
+import { getUserRolesForClient } from "@/lib/authorization";
+import { DEPARTMENT_ROLE } from "@/lib/roles";
 
-  const { teams } = await createSessionClient();
+/**
+ * Get user roles for client-side navigation.
+ * Returns standardized role names derived from Azure AD Security Groups.
+ */
+export async function getUserRoles(): Promise<string[]> {
+  const { roles, hasDepartmentMembership } = await getUserRolesForClient();
 
-  const response = await teams.list([Query.equal("name", availableRoles)]);
-  return response.teams.map((team) => team.name);
+  // Add department pseudo-role if user has department membership
+  if (hasDepartmentMembership) {
+    return [...roles, DEPARTMENT_ROLE];
+  }
+
+  return roles;
 }
 
 export async function getUsers() {
@@ -62,8 +64,8 @@ export async function updatePost(postId: string, post: News) {
 
       const matchingRef = Array.isArray(post.translation_refs)
         ? (post.translation_refs as ContentTranslations[]).find(
-            (t) => typeof t !== "string" && t.locale === translation.locale
-          )
+          (t) => typeof t !== "string" && t.locale === translation.locale
+        )
         : undefined;
 
       return {

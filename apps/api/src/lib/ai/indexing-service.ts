@@ -1,14 +1,14 @@
 import "server-only";
 import { type SharePointDocument, SharePointService } from "@/lib/sharepoint";
-import { isSupportedContentType } from "./content-types";
+import { isSupportedContentType } from "@repo/ai/utils/content-types";
 import { documentClassifier } from "./document-classifier";
 import {
   DocumentProcessor,
   type ProcessedDocument,
 } from "./document-processor";
-import { getDocumentViewerUrl } from "./document-utils";
-import { correctMimeType } from "./mime-utils";
-import type { VectorDocument } from "./vector-store.types";
+import { getDocumentViewerUrl } from "@repo/ai/utils/document-utils";
+import { correctMimeType } from "@repo/ai/utils/mime-utils";
+import type { VectorDocument } from "@repo/ai/utils/vector-store-types";
 
 // Module-level constants for regex patterns and configuration
 const SYSTEM_FILE_PATTERNS = [
@@ -190,12 +190,12 @@ function calculateQualityScore(
 export class IndexingService {
   private readonly sharePointService: SharePointService;
   private readonly documentProcessor: DocumentProcessor;
-  private readonly vectorStore: import("./vector-store.types").IVectorStore;
+  private readonly vectorStore: import("@repo/ai/utils/vector-store-types").IVectorStore;
   private readonly jobs: Map<string, IndexingJob> = new Map();
 
   constructor(
     sharePointService: SharePointService,
-    vectorStore: import("./vector-store.types").IVectorStore
+    vectorStore: import("@repo/ai/utils/vector-store-types").IVectorStore
   ) {
     this.sharePointService = sharePointService;
     this.documentProcessor = new DocumentProcessor();

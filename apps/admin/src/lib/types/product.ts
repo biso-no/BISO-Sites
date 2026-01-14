@@ -45,8 +45,9 @@ export type ProductTranslation = {
 
 export type CreateProductData = {
   slug: string;
-  status: "draft" | "published" | "archived";
+  status?: "draft" | "published" | "archived";
   campus_id: string;
+  departmentId?: string;
   // Top-level database fields
   category: string;
   regular_price: number;
