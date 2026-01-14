@@ -116,7 +116,7 @@ export function DepartmentsInfiniteList({
   }, [hasMore, isLoading, loadMore]);
 
   const handleEditDepartment = (department: any) => {
-    router.push(`/admin/units/${department.$id}`);
+    router.push(`/units/${department.$id}`);
   };
 
   if (departments.length === 0 && !isLoading) {
@@ -127,15 +127,15 @@ export function DepartmentsInfiniteList({
         </div>
         <p className="max-w-md text-muted-foreground text-sm">
           {filters.search ||
-          filters.campus_id ||
-          filters.type ||
-          filters.active !== undefined
+            filters.campus_id ||
+            filters.type ||
+            filters.active !== undefined
             ? "Try adjusting your filters to see more results."
             : "Get started by creating your first department."}
         </p>
         <Button
           className="mt-4 gap-2"
-          onClick={() => router.push("/admin/units/new")}
+          onClick={() => router.push("/units/new")}
           variant="outline"
         >
           <Plus className="h-4 w-4" />

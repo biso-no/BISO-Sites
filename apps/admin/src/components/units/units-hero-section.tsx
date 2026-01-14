@@ -50,7 +50,7 @@ export function UnitsHeroSection({
               "font-semibold transition-all duration-300 hover:scale-105",
               "group relative overflow-hidden"
             )}
-            onClick={() => router.push("/admin/units/new")}
+            onClick={() => router.push("/units/new")}
             size="lg"
           >
             <div className="-translate-x-full absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0 transition-transform duration-1000 group-hover:translate-x-full" />

@@ -191,134 +191,134 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
 
   const navItems: NavItem[] = [
     {
-      href: "/admin",
+      href: "/",
       icon: LayoutDashboard,
       label: t("navigation.dashboard"),
       roles: [ROLES.GLOBAL_ADMIN],
     },
     {
-      href: "/admin/pages",
+      href: "/pages",
       icon: FileText,
       label: t("navigation.pages"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
     },
     {
-      href: "/admin/posts",
+      href: "/posts",
       icon: FileText,
       label: t("navigation.posts"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
     },
     {
-      href: "/admin/shop",
+      href: "/shop",
       icon: Store,
       label: t("navigation.shop"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE, ROLES.CONTROLLER],
       subItems: [
         {
-          href: "/admin/shop/orders",
+          href: "/shop/orders",
           label: t("shopSubItems.orders"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
         },
         {
-          href: "/admin/shop/products",
+          href: "/shop/products",
           label: t("shopSubItems.products"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
         },
         {
-          href: "/admin/shop/approval-queue",
+          href: "/shop/approval-queue",
           label: t("shopSubItems.approvalQueue"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.CONTROLLER, ROLES.FINANCE],
         },
         {
-          href: "/admin/shop/customers",
+          href: "/shop/customers",
           label: t("shopSubItems.customers"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
         },
         {
-          href: "/admin/shop/settings",
+          href: "/shop/settings",
           label: t("shopSubItems.settings"),
           roles: [ROLES.GLOBAL_ADMIN],
         },
       ],
     },
     {
-      href: "/admin/expenses",
+      href: "/expenses",
       icon: CalendarIcon,
       label: t("navigation.expenses"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
     },
     {
-      href: "/admin/jobs",
+      href: "/jobs",
       icon: Users,
       label: t("navigation.jobs"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
       subItems: [
         {
-          href: "/admin/jobs",
+          href: "/jobs",
           label: t("jobsSubItems.allJobs"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
         },
         {
-          href: "/admin/jobs/applications",
+          href: "/jobs/applications",
           label: t("jobsSubItems.applications"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR],
         },
       ],
     },
     {
-      href: "/admin/events",
+      href: "/events",
       icon: CalendarIcon,
       label: t("navigation.events"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
       subItems: [
         {
-          href: "/admin/events",
+          href: "/events",
           label: t("eventsSubItems.allEvents"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
         },
         {
-          href: "/admin/events/new",
+          href: "/events/new",
           label: t("eventsSubItems.createEvent"),
           roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
         },
       ],
     },
     {
-      href: "/admin/units",
+      href: "/units",
       icon: Building2,
       label: t("navigation.units"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
     },
     {
-      href: "/admin/users",
+      href: "/users",
       icon: Users,
       label: t("navigation.users"),
       roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE],
     },
     {
-      href: "/admin/varsling",
+      href: "/varsling",
       icon: Shield,
       label: t("navigation.varsling"),
       roles: [ROLES.GLOBAL_ADMIN],
     },
     {
-      href: "/admin/settings",
+      href: "/settings",
       icon: Settings,
       label: t("navigation.settings"),
       roles: [ROLES.GLOBAL_ADMIN],
       subItems: [
         {
-          href: "/admin/settings",
+          href: "/settings",
           label: t("settingsSubItems.navigation"),
           roles: [ROLES.GLOBAL_ADMIN],
         },
         {
-          href: "/admin/settings/profile",
+          href: "/settings/profile",
           label: t("settingsSubItems.profile"),
           roles: [ROLES.GLOBAL_ADMIN],
         },
         {
-          href: "/admin/settings/security",
+          href: "/settings/security",
           label: t("settingsSubItems.security"),
           roles: [ROLES.GLOBAL_ADMIN],
         },
@@ -363,7 +363,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
         >
           <Link
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 font-semibold text-lg text-primary tracking-tight dark:bg-white/10 dark:text-white"
-            href="/admin"
+            href="/"
           >
             B
           </Link>
@@ -399,8 +399,8 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
                 return null;
               }
               const isActive =
-                item.href === "/admin"
-                  ? pathname === "/admin" || pathname === "/admin/"
+                item.href === "/"
+                  ? pathname === "/" || pathname === "/"
                   : pathname.startsWith(item.href);
 
               return (

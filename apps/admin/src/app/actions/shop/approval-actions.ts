@@ -136,8 +136,8 @@ export async function approveProduct(productId: string): Promise<void> {
         console.error("Failed to create audit log:", e);
     }
 
-    revalidatePath("/admin/shop/approval-queue");
-    revalidatePath("/admin/shop/products");
+    revalidatePath("/shop/approval-queue");
+    revalidatePath("/shop/products");
 }
 
 /**
@@ -208,6 +208,6 @@ export async function rejectProduct(
         console.error("Failed to create audit log:", e);
     }
 
-    revalidatePath("/admin/shop/approval-queue");
-    revalidatePath("/admin/shop/products");
+    revalidatePath("/shop/approval-queue");
+    revalidatePath("/shop/products");
 }

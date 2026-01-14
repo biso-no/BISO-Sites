@@ -53,7 +53,7 @@ export async function getPost(postId: string) {
 export async function updatePost(postId: string, post: News) {
   const { db } = await createSessionClient();
   const response = await db.getRow<News>("app", "news", postId);
-  revalidatePath("/admin/posts");
+  revalidatePath("/posts");
 
   // First we map over the tanslation_refs array, and create an array of all objects with existing and updated values
   const translationRefs = response.translation_refs.map(
@@ -135,7 +135,7 @@ export async function createPost(post: News) {
       translation_refs: [], // Initialize empty translation refs
     } // data (optional)
   );
-  revalidatePath("/admin/posts");
+  revalidatePath("/posts");
   return result;
 }
 
@@ -147,7 +147,7 @@ export async function deletePost(postId: string) {
     "news", // collectionId
     postId // documentId
   );
-  revalidatePath("/admin/posts");
+  revalidatePath("/posts");
   return result;
 }
 

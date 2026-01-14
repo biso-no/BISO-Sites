@@ -54,7 +54,7 @@ export function AssistantSidebar() {
         locale: params.locale,
         ...(params.description && { description: params.description }),
       });
-      router.push(`/admin/pages/new?${searchParams.toString()}`);
+      router.push(`/pages/new?${searchParams.toString()}`);
     },
     [router]
   );

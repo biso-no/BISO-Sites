@@ -176,7 +176,7 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
       <CardFooter className="relative z-10 flex gap-2 p-5 pt-0">
         <Button
           className="group/btn flex-1 border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:bg-primary/5"
-          onClick={() => router.push(`/admin/units/${department.$id}`)}
+          onClick={() => router.push(`/units/${department.$id}`)}
           size="sm"
           variant="outline"
         >

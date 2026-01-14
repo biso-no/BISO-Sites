@@ -15,7 +15,7 @@ export const NotificationTriggers = {
       description: `Order #${orderId.slice(-6)} for ${amount} NOK has been placed`,
       color: "green",
       priority: 2,
-      link: `/admin/shop/orders/${orderId}`,
+      link: `/shop/orders/${orderId}`,
     });
   },
 
@@ -25,7 +25,7 @@ export const NotificationTriggers = {
       description: `Order #${orderId.slice(-6)} has been cancelled`,
       color: "orange",
       priority: 2,
-      link: `/admin/shop/orders/${orderId}`,
+      link: `/shop/orders/${orderId}`,
     });
   },
 
@@ -35,7 +35,7 @@ export const NotificationTriggers = {
       description: `${productName} has only ${quantity} items left in stock`,
       color: "orange",
       priority: 2,
-      link: "/admin/shop/products",
+      link: "/shop/products",
     });
   },
 
@@ -48,7 +48,7 @@ export const NotificationTriggers = {
       description: `${userName} has joined the platform`,
       color: "blue",
       priority: 1,
-      link: `/admin/users/${userId}`,
+      link: `/users/${userId}`,
     });
   },
 
@@ -58,7 +58,7 @@ export const NotificationTriggers = {
       description: `${userName}'s role has been changed to ${newRole}`,
       color: "blue",
       priority: 1,
-      link: "/admin/users",
+      link: "/users",
     });
   },
 
@@ -75,7 +75,7 @@ export const NotificationTriggers = {
       description: `${applicantName} applied for ${jobTitle}`,
       color: "green",
       priority: 2,
-      link: "/admin/jobs/applications",
+      link: "/jobs/applications",
     });
   },
 
@@ -92,7 +92,7 @@ export const NotificationTriggers = {
       description: `${submitter} submitted an expense of ${amount} NOK for review`,
       color: "orange",
       priority: 3,
-      link: `/admin/expenses/${expenseId}`,
+      link: `/expenses/${expenseId}`,
     });
   },
 
@@ -102,7 +102,7 @@ export const NotificationTriggers = {
       description: `Expense #${expenseId.slice(-6)} has been approved`,
       color: "green",
       priority: 1,
-      link: `/admin/expenses/${expenseId}`,
+      link: `/expenses/${expenseId}`,
     });
   },
 
@@ -112,7 +112,7 @@ export const NotificationTriggers = {
       description: `Expense #${expenseId.slice(-6)} was rejected: ${reason}`,
       color: "red",
       priority: 2,
-      link: `/admin/expenses/${expenseId}`,
+      link: `/expenses/${expenseId}`,
     });
   },
 
@@ -125,7 +125,7 @@ export const NotificationTriggers = {
       description: message,
       color: "red",
       priority: 3,
-      link: "/admin",
+      link: "/",
     });
   },
 
@@ -135,7 +135,7 @@ export const NotificationTriggers = {
       description: `System maintenance is scheduled for ${scheduledTime}`,
       color: "orange",
       priority: 2,
-      link: "/admin",
+      link: "/",
     });
   },
 
@@ -148,7 +148,7 @@ export const NotificationTriggers = {
       description: `"${eventTitle}" is now live`,
       color: "green",
       priority: 1,
-      link: `/admin/events/${eventId}`,
+      link: `/events/${eventId}`,
     });
   },
 
@@ -158,7 +158,7 @@ export const NotificationTriggers = {
       description: `"${eventTitle}" has been cancelled`,
       color: "red",
       priority: 2,
-      link: "/admin/events",
+      link: "/events",
     });
   },
 
@@ -171,7 +171,7 @@ export const NotificationTriggers = {
       description: "A new confidential report has been submitted",
       color: "red",
       priority: 3,
-      link: "/admin/varsling",
+      link: "/varsling",
     });
   },
 
