@@ -97,7 +97,7 @@ export async function syncM365Permissions(userId: string) {
 
                         // 1. Find the membership ID (needed for update)
                         const membershipList = await teams.listMemberships(azureGroup.id, [
-                            `userId:${userId}`
+                            Query.equal("userId", userId)
                         ]);
 
                         if (membershipList.total > 0) {

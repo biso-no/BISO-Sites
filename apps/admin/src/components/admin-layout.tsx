@@ -454,7 +454,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
               <span className="font-semibold text-2xl text-primary-100">
                 {isLoading ? <Skeleton className="h-8 w-32" /> : firstName}
               </span>
-              {roles.includes("Admin") && (
+              {roles.includes(ROLES.GLOBAL_ADMIN) && (
                 <RoleSwitcher
                   roles={roles}
                   selectedRole={selectedRole}

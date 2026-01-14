@@ -5,25 +5,20 @@ import { AdminProviders } from "@/components/layout/admin-providers";
 import { fetchNotifications } from "@/lib/actions/notifications";
 import { getLoggedInUser } from "@/lib/actions/user";
 
-const allowedRoles = ["Admin", "hr", "finance", "pr"];
-
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // First check if user is authenticated (not anonymous)
+  // Check if user is authenticated (has a tenant account)
   const user = await getLoggedInUser();
 
   if (!user) {
     return redirect("/auth/login");
   }
 
+  // Fetch user roles - these are used to filter access within the admin site
   const roles = await getUserRoles();
-
-  if (!allowedRoles.some((role) => roles.includes(role))) {
-    return redirect("/unauthorized");
-  }
 
   // Add fallback for when name is undefined
   const firstName = user?.user.name ? user.user.name.split(" ")[0] : "User";
