@@ -165,3 +165,94 @@ export async function getAllCategories(): Promise<CategoryDefinition[]> {
     throw error;
   }
 }
+
+/** 
+ * Get all membership categories from 24SevenOffice
+ * This returns ALL categories relevant to membership products in the system, not just those assigned to a customer.
+ * Used for syncing membership products.
+ */
+
+export async function getMembershipCategories(): Promise<CategoryDefinition[]> {
+  const session = await getValidSession();
+  const client = await createAuthenticatedClient("company", session);
+
+  try {
+    const [result]: [GetCategoriesResult] = await client.GetCategoriesAsync({});
+
+    const categories = result.GetCategoriesResult?.Category;
+
+    if (!categories) {
+      console.log("[24SO Categories] No categories found");
+      return [];
+    }
+
+    // Handle single or multiple results
+    const categoryList = Array.isArray(categories) ? categories : [categories];
+    console.log(`[24SO Categories] Found ${categoryList.length} category definitions`);
+
+    // Filter out categories that are not relevant to membership products
+    const membershipCategories = categoryList.filter((c) => c.Name?.includes("BISO Membership"));
+
+    console.log(`[24SO Categories] Found ${membershipCategories.length} membership categories`);
+    return membershipCategories;
+  } catch (error) {
+    console.error("[24SO Categories] Failed to get all categories:", error);
+    throw error;
+  }
+}
+
+// ============= Customer Category Tree =============
+
+export interface CustomerCategoryMapping {
+  companyId: number;
+  categoryId: number;
+}
+
+interface GetCustomerCategoryTreeResult {
+  GetCustomerCategoryTreeResult?: {
+    KeyValuePair?: KeyValuePair | KeyValuePair[];
+  };
+}
+
+/**
+ * Get all customer-category mappings from 24SevenOffice.
+ * This is efficient for getting which customers belong to which categories
+ * without making individual API calls per customer.
+ * 
+ * API returns: Key = CategoryId, Value = CompanyId
+ * 
+ * @returns Array of { companyId, categoryId } pairs
+ */
+export async function getCustomerCategoryTree(): Promise<CustomerCategoryMapping[]> {
+  const session = await getValidSession();
+  const client = await createAuthenticatedClient("company", session);
+
+  try {
+    const [result]: [GetCustomerCategoryTreeResult] = await client.GetCustomerCategoryTreeAsync({});
+
+    const pairs = result.GetCustomerCategoryTreeResult?.KeyValuePair;
+
+    if (!pairs) {
+      console.log("[24SO Categories] No customer-category mappings found");
+      return [];
+    }
+
+    // Handle single or multiple results
+    const pairList = Array.isArray(pairs) ? pairs : [pairs];
+
+    // Convert to our format: Key = CategoryId, Value = CompanyId
+    const mappings: CustomerCategoryMapping[] = pairList
+      .map((pair) => ({
+        categoryId: parseInt(pair.Key, 10),
+        companyId: parseInt(pair.Value, 10),
+      }))
+      .filter((m) => !isNaN(m.categoryId) && !isNaN(m.companyId));
+
+    console.log(`[24SO Categories] Found ${mappings.length} customer-category mappings`);
+    return mappings;
+  } catch (error) {
+    console.error("[24SO Categories] Failed to get customer category tree:", error);
+    throw error;
+  }
+}
+

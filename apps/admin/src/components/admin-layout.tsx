@@ -284,6 +284,29 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       ],
     },
     {
+      href: "/membership",
+      icon: Users,
+      label: t("navigation.membership"),
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
+      subItems: [
+        {
+          href: "/membership/all",
+          label: t("membershipSubItems.allMembers"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
+        },
+        {
+          href: "/membership/new",
+          label: t("membershipSubItems.createMember"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
+        },
+        {
+          href: "/membership/settings",
+          label: t("membershipSubItems.settings"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
+        },
+      ],
+    },
+    {
       href: "/units",
       icon: Building2,
       label: t("navigation.units"),

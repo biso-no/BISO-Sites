@@ -696,3 +696,12 @@ export type BenefitReveals = Models.Row & {
   benefit_id: string;
   revealed_at: string | null;
 };
+
+export type SyncedMembers = Models.Row & {
+  company_id: number;
+  name: string;
+  external_id: string;
+  active_categories: string[];
+  last_synced: string;
+};
+

@@ -11,6 +11,11 @@
   "commandMenuTitle": "Command Menu",
   "commandMenuSearchPlaceholder": "Type a command or search...",
   "commandMenuNoResults": "No results found.",
+  "membershipSubItems": {
+    "allMembers": "All members",
+    "createMember": "Create member",
+    "settings": "Settings"
+  },
   "navigation": {
     "dashboard": "Dashboard",
     "pages": "Pages",
@@ -22,6 +27,7 @@
     "alumni": "Alumni",
     "units": "Units",
     "users": "Users",
+    "membership": "Membership",
     "varsling": "Varsling",
     "settings": "Settings"
   },
