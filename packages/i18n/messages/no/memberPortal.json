@@ -97,7 +97,10 @@
     "disconnect": "Koble fra",
     "verified": "Verifisert",
     "cancel": "Avbryt",
-    "saveChanges": "Lagre endringer"
+    "saveChanges": "Lagre endringer",
+    "login": "Logg inn",
+    "guestTitle": "Gjestetilgang",
+    "guestDescription": "Logg inn for å se hele profilen din og administrere medlemskapet ditt."
   },
   "membership": {
     "title": "Ditt medlemskap",
@@ -214,6 +217,8 @@
   },
   "common": {
     "campus": "Campus",
+    "guest": "Gjest",
+    "allCampuses": "Alle campuser",
     "member": "Medlem",
     "membershipExpires": "Medlemskap utløper",
     "daysRemaining": "Dager igjen",

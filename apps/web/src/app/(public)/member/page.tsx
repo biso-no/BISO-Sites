@@ -13,24 +13,28 @@ export default async function MemberPortalPage() {
   // Get user data and authentication state
   const userData = await getLoggedInUser();
 
-  // Check if user has BI identity linked
-  const identitiesResp = await listIdentities();
-  const identities = identitiesResp?.identities || [];
-  const hasBIIdentity = identities.some(
-    (i: any) => String(i?.provider || "").toLowerCase() === "oidc"
-  );
-
-  // Verify membership status (only if BI identity linked)
+  let hasBIIdentity = false;
   let membershipStatus: any = {
     active: false,
     membership: null,
     studentId: null,
   };
-  if (hasBIIdentity) {
-    membershipStatus = await verifyMembershipStatus();
+
+  if (userData) {
+    // Check if user has BI identity linked
+    const identitiesResp = await listIdentities();
+    const identities = identitiesResp?.identities || [];
+    hasBIIdentity = identities.some(
+      (i: any) => String(i?.provider || "").toLowerCase() === "oidc"
+    );
+
+    // Verify membership status (only if BI identity linked)
+    if (hasBIIdentity) {
+      membershipStatus = await verifyMembershipStatus();
+    }
   }
 
-  // Always show portal when signed in, but pass membership status
+  // Always show portal, pass null if not signed in
   return (
     <Suspense fallback={<MemberPortalSkeleton />}>
       <MemberPortalContent

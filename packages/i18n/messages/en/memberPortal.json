@@ -97,7 +97,10 @@
     "disconnect": "Disconnect",
     "verified": "Verified",
     "cancel": "Cancel",
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save Changes",
+    "login": "Login",
+    "guestTitle": "Guest Access",
+    "guestDescription": "Login to view your full profile and manage your membership."
   },
   "membership": {
     "title": "Your Membership",
@@ -214,6 +217,8 @@
   },
   "common": {
     "campus": "Campus",
+    "guest": "Guest",
+    "allCampuses": "All Campuses",
     "member": "Member",
     "membershipExpires": "Membership Expires",
     "daysRemaining": "Days Remaining",

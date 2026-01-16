@@ -12,6 +12,7 @@ type TabNavigationProps = {
   benefitsCount: number;
   isMember: boolean;
   hasBIIdentity: boolean;
+  isGuest?: boolean;
   children: React.ReactNode;
 };
 
@@ -28,6 +29,7 @@ export function TabNavigation({
   benefitsCount,
   isMember,
   hasBIIdentity,
+  isGuest = false,
   children,
 }: TabNavigationProps) {
   const t = useTranslations("memberPortal.tabs");
@@ -90,11 +92,10 @@ export function TabNavigation({
               {/* Benefits count badge */}
               {tab.showCount && (
                 <Badge
-                  className={`ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs ${
-                    activeTab === tab.id
+                  className={`ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs ${activeTab === tab.id
                       ? "border-white/30 bg-white/20 text-white"
                       : "border-brand-border bg-brand-muted text-brand dark:border-brand-border-strong"
-                  }`}
+                    }`}
                   variant="outline"
                 >
                   {isMember ? benefitsCount : "?"}

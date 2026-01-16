@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
 import {
   Avatar,
@@ -20,13 +21,31 @@ import { useState, useTransition } from "react";
 import { updatePublicProfile, uploadAvatar } from "@/app/actions/member-portal";
 
 type ProfileTabProps = {
-  user: Users;
+  user: Users | null;
   publicProfile: PublicProfiles | null;
   biEmail: string;
 };
 
 export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
   const t = useTranslations("memberPortal.profile");
+
+  if (!user) {
+    return (
+      <TabsContent className="space-y-8" value="profile">
+        <Card className="flex flex-col items-center justify-center p-12 text-center shadow-lg dark:bg-inverted/50 dark:backdrop-blur-sm">
+          <Avatar className="mb-4 h-24 w-24">
+            <AvatarFallback>G</AvatarFallback>
+          </Avatar>
+          <h3 className="mb-2 font-bold text-xl">{t("guestTitle")}</h3>
+          <p className="border-border text-muted-foreground">{t("guestDescription")}</p>
+          <Button asChild className="mt-6" size="lg">
+            <Link href="/auth/login">{t("login")}</Link>
+          </Button>
+        </Card>
+      </TabsContent>
+    );
+  }
+
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState({
     name: user.name || "",

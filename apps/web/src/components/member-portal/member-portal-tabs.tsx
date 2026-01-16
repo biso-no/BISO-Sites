@@ -23,7 +23,7 @@ type MemberPortalTabsProps = {
   revealedBenefits: Set<string>;
   isMember: boolean;
   hasBIIdentity: boolean;
-  profile: Users;
+  profile: Users | null;
   publicProfile: PublicProfiles | null;
   biEmail: string;
   userName: string;
@@ -60,6 +60,7 @@ export function MemberPortalTabs({
       benefitsCount={benefitsCount}
       defaultTab="overview"
       hasBIIdentity={hasBIIdentity}
+      isGuest={!profile}
       isMember={isMember}
     >
       <OverviewTab
