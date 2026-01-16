@@ -31,14 +31,16 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
   const potentialSavings = isMember
     ? 0
     : regularSubtotal -
-      items.reduce((sum, item) => {
-        const price = item.memberPrice || item.regularPrice;
-        return sum + price * item.quantity;
-      }, 0);
+    items.reduce((sum, item) => {
+      const price = item.memberPrice || item.regularPrice;
+      return sum + price * item.quantity;
+    }, 0);
 
   const handleCheckout = () => {
     startTransition(async () => {
       await initiateVippsCheckout({
+        // TODO: Generate a unique reference ID
+        reference: "",
         userId: userId || "guest", // TODO: Get from auth session
         items: items.map((item) => ({
           productId: item.productId,
