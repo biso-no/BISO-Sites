@@ -141,6 +141,7 @@ export async function createExpense(data: {
 
     const expenseData: CreateExpenseInput = {
       campus: data.campus,
+      campusRel: data.campus,
       department: data.department,
       bank_account: data.bank_account,
       description: data.description || null,

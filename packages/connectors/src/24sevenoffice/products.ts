@@ -46,12 +46,33 @@ export async function getProducts(): Promise<Product[]> {
  * Get only BISO Membership products from 24SevenOffice
  */
 export async function getMembershipProducts(): Promise<Product[]> {
-    const allProducts = await getProducts();
+    const session = await getValidSession();
+    const client = await createAuthenticatedClient("product", session);
 
-    const membershipProducts = allProducts.filter(
-        (p) => p.Name?.includes("BISO Membership")
-    );
+    try {
+        const [result]: [GetProductsResult] = await client.GetProductsAsync({
+            searchParams: {
+                Name: "BISO Membership",
+            },
+            returnProperties: {
+                string: ["Id", "Name", "No", "Price", "Description", "CategoryId"],
+            },
+        });
 
-    console.log(`[24SO Products] Found ${membershipProducts.length} membership products`);
-    return membershipProducts;
+        const products = result.GetProductsResult?.Product;
+
+        if (!products) {
+            console.log("[24SO Products] No products found");
+            return [];
+        }
+
+        // Handle single or multiple results
+        const productList = Array.isArray(products) ? products : [products];
+        console.log(`[24SO Products] Found ${productList.length} products`);
+
+        return productList;
+    } catch (error) {
+        console.error("[24SO Products] Failed to get products:", error);
+        throw error;
+    }
 }

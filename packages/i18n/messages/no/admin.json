@@ -11,6 +11,11 @@
   "commandMenuTitle": "Kommandomeny",
   "commandMenuSearchPlaceholder": "Skriv en kommando eller søk...",
   "commandMenuNoResults": "Ingen resultater funnet.",
+  "membershipSubItems": {
+    "allMembers": "Alle medlemmer",
+    "createMember": "Opprett medlem",
+    "settings": "Innstillinger"
+  },
   "navigation": {
     "dashboard": "Oversikt",
     "posts": "Innlegg",
@@ -22,6 +27,7 @@
     "alumni": "Alumni",
     "units": "Enheter",
     "users": "Brukere",
+    "membership": "Medlemskap",
     "varsling": "Varsling",
     "settings": "Innstillinger"
   },
