@@ -5,10 +5,38 @@
   },
   "title": "Business Hotspot",
   "intro": "En dedikert arena på Campus Oslo der bedrifter kan møte studenter gjennom stands, foredrag og aktiviteter.",
+  "badge": "Kun Oslo Campus",
+  "whatIs": {
+    "label": "Hva er Business Hotspot?",
+    "title": "En ny måte å møte studenter på",
+    "description": "Business Hotspot er BISO Oslos innovative rekrutteringskonsept - en permanent tilstedeværelse på campus hvor bedrifter kan møte og engasjere studenter i en avslappet atmosfære. Ingen behov for konstant bemanning, bare meningsfulle forbindelser."
+  },
   "features": {
     "0": "Tilstedeværelse og aktivitetsområde",
     "1": "Foredrag og presentasjoner",
     "2": "Muligheter for merkevarebygging og relasjonsbygging"
+  },
+  "featureDescriptions": {
+    "0": "Sett opp en stand eller aktiveringsområde for å vise frem merkevaren din direkte til studenter.",
+    "1": "Arranger presentasjoner, workshops eller foredrag for å dele din ekspertise og bedriftskultur.",
+    "2": "Bygg varige relasjoner med fremtidige talenter gjennom meningsfulle interaksjoner."
+  },
+  "whatYouCanDo": {
+    "title": "Hva du kan gjøre",
+    "description": "Business Hotspot tilbyr flere måter å engasjere studenter og bygge arbeidsgivermerket ditt."
+  },
+  "benefits": {
+    "access": "Direkte tilgang til BI-studenter",
+    "recruitment": "Målrettet rekruttering",
+    "booking": "Fleksible bookingalternativer",
+    "engage": "Engasjer med studentorganisasjoner",
+    "partnership": "Partnerskapsavtaler",
+    "visibility": "Premium synlighet på campus"
+  },
+  "ctaSection": {
+    "title": "Klar til å møte studenter?",
+    "description": "Kontakt oss for å lære mer om samarbeidsmuligheter på Business Hotspot.",
+    "contactTeam": "Kontakt Oslo-teamet"
   },
   "cta": "Se samarbeidsmuligheter"
 }

@@ -1,14 +1,42 @@
 {
   "meta": {
     "title": "Business Hotspot | BISO",
-    "description": "Connect with students at Campus Oslo through BISO’s Business Hotspot."
+    "description": "Connect with students at Campus Oslo through BISO's Business Hotspot."
   },
   "title": "Business Hotspot",
   "intro": "A dedicated arena at Campus Oslo for companies to meet students through stands, talks and activities.",
+  "badge": "Oslo Campus Exclusive",
+  "whatIs": {
+    "label": "What is Business Hotspot?",
+    "title": "A New Way to Connect with Students",
+    "description": "Business Hotspot is BISO Oslo's innovative recruitment concept - a permanent presence on campus where companies can meet and engage with students in a relaxed environment. No need for constant staffing, just meaningful connections."
+  },
   "features": {
     "0": "Presence and activation area",
     "1": "Talks and presentations",
     "2": "Brand building and relationship opportunities"
+  },
+  "featureDescriptions": {
+    "0": "Set up a stand or activation area to showcase your brand directly to students.",
+    "1": "Host presentations, workshops, or talks to share your expertise and company culture.",
+    "2": "Build lasting relationships with future talent through meaningful interactions."
+  },
+  "whatYouCanDo": {
+    "title": "What You Can Do",
+    "description": "Business Hotspot offers multiple ways to engage with students and build your employer brand."
+  },
+  "benefits": {
+    "access": "Direct access to BI students",
+    "recruitment": "Targeted recruitment opportunities",
+    "booking": "Flexible booking options",
+    "engage": "Engage with student organizations",
+    "partnership": "Partnership agreement options",
+    "visibility": "Premium campus visibility"
+  },
+  "ctaSection": {
+    "title": "Ready to Connect with Students?",
+    "description": "Contact us to learn more about partnership opportunities at Business Hotspot.",
+    "contactTeam": "Contact Oslo Team"
   },
   "cta": "See partnership options"
 }
