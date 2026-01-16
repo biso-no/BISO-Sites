@@ -6,6 +6,7 @@ import {
 } from "@/app/actions/member-portal";
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
+import { getTranslations } from "next-intl/server";
 
 type MemberPortalContentProps = {
   user: any;
@@ -23,21 +24,23 @@ export async function MemberPortalContent({
   membership,
   hasBIIdentity,
 }: MemberPortalContentProps) {
-  // Fetch profile and public profile for all users
-  const [profile, publicProfile] = await Promise.all([
-    getUserProfile(),
-    getPublicProfile(user.user.$id),
-  ]);
+  const tCommon = await getTranslations("memberPortal.common");
 
-  // Only fetch member-specific data if they're an active member
+  // Fetch profile and public profile only if user exists
+  const [profile, publicProfile] = user
+    ? await Promise.all([getUserProfile(), getPublicProfile(user.user.$id)])
+    : [null, null];
+
+  // Only fetch member-specific data if they're an active member AND have a user
   const isMember = membership.active;
-  const [benefits, revealedBenefits, estimatedSavings] = isMember
-    ? await Promise.all([
+  const [benefits, revealedBenefits, estimatedSavings] =
+    user && isMember
+      ? await Promise.all([
         getMemberBenefits(user.user.$id),
         getBenefitReveals(user.user.$id),
         calculateEstimatedSavings(user.user.$id),
       ])
-    : [[], new Set<string>(), 0];
+      : [[], new Set<string>(), 0];
 
   // Calculate membership info
   const membershipType = membership.membership?.name || "Year";
@@ -52,16 +55,19 @@ export async function MemberPortalContent({
   );
 
   // Get campus name
-  const campus = profile?.campus?.name || user.profile?.campus?.name || "Oslo";
+  const campus =
+    profile?.campus?.name ||
+    user?.profile?.campus?.name ||
+    tCommon("allCampuses");
 
   // Get user name and avatar
   const userName =
-    profile?.name || user.profile?.name || user.user.name || "User";
-  const userAvatar = profile?.avatar || user.profile?.avatar || null;
+    profile?.name || user?.profile?.name || user?.user?.name || tCommon("guest");
+  const userAvatar = profile?.avatar || user?.profile?.avatar || null;
 
   // Get student ID for BI email construction
   const studentId =
-    profile?.student_id || user.profile?.student_id || "S000000";
+    profile?.student_id || user?.profile?.student_id || "S000000";
   const biEmail = `${studentId}@bi.no`;
 
   return (
@@ -78,7 +84,7 @@ export async function MemberPortalContent({
 
       <div className="mx-auto max-w-7xl px-4 py-8">
         <MemberPortalTabs
-          bankAccount={profile?.bank_account || user.profile?.bank_account}
+          bankAccount={profile?.bank_account || user?.profile?.bank_account}
           benefits={benefits}
           benefitsCount={benefits.length}
           biEmail={biEmail}
@@ -88,7 +94,7 @@ export async function MemberPortalContent({
           hasBIIdentity={hasBIIdentity}
           isMember={isMember}
           membershipType={membershipType}
-          profile={profile || user.profile || user.user}
+          profile={profile || user?.profile || user?.user || null}
           publicProfile={publicProfile}
           revealedBenefits={revealedBenefits}
           startDate={startDate}
