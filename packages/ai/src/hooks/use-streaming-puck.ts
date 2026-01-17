@@ -16,7 +16,7 @@ import type { Data } from "@measured/puck";
 import { createStreamHandler } from "@repo/editor/stream-handler";
 import { treeToPuckData } from "@repo/editor/tree-to-puck";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useCopilotStore, type AgentState } from "../stores/copilot-store";
+import { type AgentState, useCopilotStore } from "../stores/copilot-store";
 
 type UseStreamingPuckOptions = {
   /**
@@ -199,7 +199,9 @@ async function processStream(
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) { break; }
+    if (done) {
+      break;
+    }
 
     const chunk = decoder.decode(value, { stream: true });
     onChunk(chunk);

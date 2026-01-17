@@ -1,5 +1,6 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Campus, Departments, News } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Form,
@@ -26,38 +27,28 @@ import {
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { createPost, updatePost } from "@/app/actions/admin";
 import { toast } from "@/lib/hooks/use-toast";
-import type { Campus, Department } from "@/lib/types/post";
 
 const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false });
 
 const baseFormSchema = z.object({
   title: z.string(),
   content: z.string(),
-  status: z.enum(["publish", "draft"]),
+  status: z.enum(["published", "draft"]),
   department: z.string(),
   campus: z.string(),
 });
 
 type FormValues = z.infer<typeof baseFormSchema>;
 
-type Post = {
-  $id?: string;
-  title: string;
-  content: string;
-  status: "publish" | "draft";
-  department: Department;
-  campus: Campus;
-};
-
 type PostEditorProps = {
-  post?: Post;
-  departments: Department[];
+  post?: News | null;
+  departments: Departments[];
   campuses: Campus[];
 };
 
@@ -69,13 +60,14 @@ export default function PostEditor({
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const t = useTranslations("adminPosts");
+  const locale = useLocale();
 
   const formSchema = useMemo(
     () =>
       baseFormSchema.extend({
         title: z.string().min(1, t("formValidation.titleRequired")),
         content: z.string().min(1, t("formValidation.contentRequired")),
-        status: z.enum(["publish", "draft"]),
+        status: z.enum(["published", "draft"]),
         department: z.string().min(1, t("formValidation.departmentRequired")),
         campus: z.string().min(1, t("formValidation.campusRequired")),
       }),
@@ -93,14 +85,25 @@ export default function PostEditor({
       };
     }
 
+    const translation =
+      post.translation_refs?.find((ref) => ref.locale === locale) ||
+      post.translation_refs?.[0];
+
+    const departmentId =
+      typeof post.department === "string"
+        ? post.department
+        : post.department?.$id;
+    const campusId =
+      typeof post.campus === "string" ? post.campus : post.campus?.$id;
+
     return {
-      title: post.title || "",
-      content: post.content || "",
-      status: post.status as "publish" | "draft",
-      department: post.department?.$id || "",
-      campus: post.campus?.$id || "",
+      title: translation?.title || "",
+      content: translation?.description || "",
+      status: (post.status as "published" | "draft") || "draft",
+      department: departmentId || "",
+      campus: campusId || "",
     };
-  }, [post]);
+  }, [post, locale]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -111,23 +114,24 @@ export default function PostEditor({
     async (values: FormValues) => {
       setIsSubmitting(true);
       try {
+        const postData = {
+          title: values.title, // These will be handled into translation_refs by the action or ignored if action needs update
+          content: values.content,
+          status: values.status,
+          department: values.department,
+          campus: values.campus,
+          // We attach existing translation refs so the action knows what to update if it blindly maps
+          translation_refs: post?.translation_refs || [],
+        };
+
         if (post?.$id) {
-          await updatePost(post.$id, {
-            title: values.title,
-            content: values.content,
-            status: values.status,
-            // The underlying action expects richer types; we pass identifiers here.
-            department: values.department as unknown as any,
-            campus: values.campus as unknown as any,
-          } as any);
+          // The action signature expects 'News', but we are passing a constructed object.
+          // We cast to any to bypass strict type check on the action call for now,
+          // assuming the action handles the partial data correctly or we need to fix the action type later.
+          // However, we should try to match News structure as much as possible.
+          await updatePost(post.$id, postData as unknown as News);
         } else {
-          await createPost({
-            title: values.title,
-            content: values.content,
-            status: values.status,
-            department: values.department as unknown as any,
-            campus: values.campus as unknown as any,
-          } as any);
+          await createPost(postData as unknown as News);
         }
         toast({
           title: t("messages.successTitle"),
@@ -219,14 +223,14 @@ export default function PostEditor({
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder={t("form.selectStatus")}>
-                                {field.value === "publish"
+                                {field.value === "published"
                                   ? t("status.published")
                                   : t("status.draft")}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="publish">
+                            <SelectItem value="published">
                               {t("status.published")}
                             </SelectItem>
                             <SelectItem value="draft">

@@ -10,22 +10,22 @@ import { ProductsTable } from "./_components/products-table";
 
 const LOW_STOCK_THRESHOLD = 10;
 
-type ProductsPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
-};
-
 export default async function DashboardPage({
-  searchParams = {},
-}: ProductsPageProps) {
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = (await searchParams) || {};
+
   const t = await getTranslations("adminShop");
-  const filters = buildProductFilters(searchParams);
+  const filters = buildProductFilters(params);
   const [products, filterSource] = await Promise.all([
     listProducts(filters),
     listProducts({ limit: 200 }),
   ]);
 
   const filterOptions = buildFilterOptions(filterSource);
-  const initialValues = buildInitialValues(searchParams);
+  const initialValues = buildInitialValues(params);
 
   return (
     <div className="flex w-full flex-col">

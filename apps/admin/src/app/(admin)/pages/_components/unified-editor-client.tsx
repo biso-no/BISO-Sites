@@ -148,7 +148,10 @@ export function UnifiedEditorClient({
   // Register Puck editor with AI copilot for streaming block generation
   useCopilotPuck({
     data: currentData,
-    onDataChange: handleDataChange as (data: { content: { type: string; props: Record<string, unknown>; }[]; root?: { props?: Record<string, unknown> | undefined; } | undefined; }) => void,
+    onDataChange: handleDataChange as (data: {
+      content: { type: string; props: Record<string, unknown> }[];
+      root?: { props?: Record<string, unknown> | undefined } | undefined;
+    }) => void,
     capability: pageId ? "edit-page" : "create-page",
   });
 
