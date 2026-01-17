@@ -62,7 +62,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type JSX, useEffect, useMemo, useState } from "react";
+import { type JSX, useEffect, use, useMemo, useState } from "react";
 import { AdminSummary } from "@/components/admin/admin-summary";
 import { cn } from "@/lib/utils";
 import { formatPercentage } from "@/lib/utils/admin";
@@ -72,7 +72,8 @@ import { UserStatus } from "./user-status";
 import { useUserStore } from "./user-store";
 import { UserTableSkeleton } from "./user-table-skeleton";
 
-export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
+export function UserTable({ usersPromise }: { usersPromise: Promise<Users[]> }) {
+  const initialUsers = use(usersPromise);
   const t = useTranslations("adminUsers");
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);

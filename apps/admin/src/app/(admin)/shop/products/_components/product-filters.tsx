@@ -11,7 +11,7 @@ import {
 } from "@repo/ui/components/ui/select";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { use, useState, useTransition } from "react";
 
 type ProductFiltersProps = {
   initialValues: {
@@ -22,16 +22,17 @@ type ProductFiltersProps = {
     priceMin?: string;
     priceMax?: string;
   };
-  options: {
+  optionsPromise: Promise<{
     campuses: { id: string; name: string }[];
     categories: string[];
-  };
+  }>;
 };
 
 export function ProductFilters({
   initialValues,
-  options,
+  optionsPromise,
 }: ProductFiltersProps) {
+  const options = use(optionsPromise);
   const t = useTranslations("adminShop");
   const router = useRouter();
   const pathname = usePathname();

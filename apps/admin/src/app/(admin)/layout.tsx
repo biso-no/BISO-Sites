@@ -17,14 +17,17 @@ export default async function AdminLayout({
     return redirect("/auth/login");
   }
 
-  // Fetch user roles - these are used to filter access within the admin site
-  const roles = await getUserRoles();
+  // Fetch user roles and notifications in parallel
+  const rolesPromise = getUserRoles();
+  const notificationsPromise = fetchNotifications();
+
+  const [roles, initialNotifications] = await Promise.all([
+    rolesPromise,
+    notificationsPromise,
+  ]);
 
   // Add fallback for when name is undefined
   const firstName = user?.user.name ? user.user.name.split(" ")[0] : "User";
-
-  // Fetch initial notifications
-  const initialNotifications = await fetchNotifications();
 
   return (
     <AdminProviders initialNotifications={initialNotifications}>

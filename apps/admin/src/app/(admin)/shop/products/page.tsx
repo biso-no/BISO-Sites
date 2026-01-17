@@ -19,12 +19,10 @@ export default async function DashboardPage({
 
   const t = await getTranslations("adminShop");
   const filters = buildProductFilters(params);
-  const [products, filterSource] = await Promise.all([
-    listProducts(filters),
-    listProducts({ limit: 200 }),
-  ]);
+  
+  const productsPromise = listProducts(filters);
+  const optionsPromise = listProducts({ limit: 200 }).then(buildFilterOptions);
 
-  const filterOptions = buildFilterOptions(filterSource);
   const initialValues = buildInitialValues(params);
 
   return (
@@ -47,12 +45,14 @@ export default async function DashboardPage({
               </TabsList>
               <ProductActions />
             </div>
-            <ProductFilters
-              initialValues={initialValues}
-              options={filterOptions}
-            />
             <Suspense fallback={<div>{t("messages.loading")}</div>}>
-              <ProductsTable products={products} />
+              <ProductFilters
+                initialValues={initialValues}
+                optionsPromise={optionsPromise}
+              />
+            </Suspense>
+            <Suspense fallback={<div>{t("messages.loading")}</div>}>
+              <ProductsTable productsPromise={productsPromise} />
             </Suspense>
           </Tabs>
         </main>
