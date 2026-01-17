@@ -288,7 +288,7 @@ ${sourceLocale === "no" ? "Keep or adapt the slug for English URL." : "Keep or a
     schema: translationSchema,
     prompt,
   });
-console.log("Result: ", result);
+  console.log("Result: ", result);
   // Build translations map
   const translationsMap = new Map<string, string>();
   for (const item of result.object.translations) {

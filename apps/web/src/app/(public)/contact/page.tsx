@@ -55,7 +55,7 @@ export default async function ContactPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {/* National Contact Card */}
         <section className="mb-16">
-          <Card className="relative overflow-hidden border-0 bg-linear-to-br from-violet-50 via-violet-50/50 to-white p-8 shadow-lg dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card sm:p-10">
+          <Card className="relative overflow-hidden border-0 bg-linear-to-br from-violet-50 via-violet-50/50 to-white p-8 shadow-lg sm:p-10 dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-5">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500 to-violet-700 shadow-lg">
@@ -194,7 +194,7 @@ export default async function ContactPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
             <div className="relative flex flex-col items-center gap-6 text-center lg:flex-row lg:justify-between lg:text-left">
               <div>
-                <h2 className="mb-2 font-bold text-xl text-white sm:text-2xl">
+                <h2 className="mb-2 font-bold text-white text-xl sm:text-2xl">
                   Need more help?
                 </h2>
                 <p className="max-w-xl text-white/80">

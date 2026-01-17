@@ -2,13 +2,7 @@
 
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import {
-  BookOpen,
-  CheckCircle2,
-  Link as LinkIcon,
-  Megaphone,
-  Sparkles,
-} from "lucide-react";
+import { BookOpen, Link as LinkIcon, Megaphone, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -19,9 +13,21 @@ export default function WhatIsBisoPage() {
   const tAbout = useTranslations("about");
 
   const strategyItems = [
-    { key: "impact", icon: Megaphone, gradient: "from-brand-gradient-from to-brand-gradient-to" },
-    { key: "connected", icon: LinkIcon, gradient: "from-brand-gradient-from to-cyan-600" },
-    { key: "engaged", icon: Sparkles, gradient: "from-brand-gradient-to to-brand-gradient-from" },
+    {
+      key: "impact",
+      icon: Megaphone,
+      gradient: "from-brand-gradient-from to-brand-gradient-to",
+    },
+    {
+      key: "connected",
+      icon: LinkIcon,
+      gradient: "from-brand-gradient-from to-cyan-600",
+    },
+    {
+      key: "engaged",
+      icon: Sparkles,
+      gradient: "from-brand-gradient-to to-brand-gradient-from",
+    },
   ];
 
   return (
@@ -106,7 +112,7 @@ export default function WhatIsBisoPage() {
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <Button asChild variant="outline" size="lg">
+            <Button asChild size="lg" variant="outline">
               <Link href="/about">← {tAbout("hub.title")}</Link>
             </Button>
           </motion.div>

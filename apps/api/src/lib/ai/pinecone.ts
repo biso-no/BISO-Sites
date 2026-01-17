@@ -4,15 +4,15 @@ import {
   type QueryResponse,
   type RecordMetadata,
 } from "@pinecone-database/pinecone";
-import { embed, embedMany } from "ai";
-import { encode } from "gpt-tokenizer";
-import { v5 as uuidv5 } from "uuid";
 import type {
   IVectorStore,
   SearchOptions,
   SearchResult,
   VectorDocument,
 } from "@repo/ai/utils/vector-store-types";
+import { embed, embedMany } from "ai";
+import { encode } from "gpt-tokenizer";
+import { v5 as uuidv5 } from "uuid";
 
 // Embedding model configurations
 const EMBEDDING_MODELS = {

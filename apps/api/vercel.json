@@ -1,12 +1,10 @@
 {
-    "$schema": "https://openapi.vercel.sh/vercel.json",
-    "relatedProjects": [
-        "prj_28S3DO7HZKSqOAmezemDCt9ilFqH"
-    ],
-    "crons": [
-        {
-            "path": "/api/cleanup-anon-users",
-            "schedule": "0 0 * * 0"
-        }
-    ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "relatedProjects": ["prj_28S3DO7HZKSqOAmezemDCt9ilFqH"],
+  "crons": [
+    {
+      "path": "/api/cleanup-anon-users",
+      "schedule": "0 0 * * 0"
+    }
+  ]
 }

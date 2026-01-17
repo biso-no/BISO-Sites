@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { FormFieldInfo } from "../types";
 import type { PageCapability } from "../stores/copilot-store";
+import type { FormFieldInfo } from "../types";
 
 /**
  * Schema definition for an admin capability
@@ -341,11 +341,14 @@ export const puckPageSchema = z.object({
 /**
  * Registry of all admin capabilities
  */
-export const CAPABILITY_REGISTRY: Partial<Record<PageCapability, CapabilitySchema>> = {
+export const CAPABILITY_REGISTRY: Partial<
+  Record<PageCapability, CapabilitySchema>
+> = {
   "create-event": {
     id: "create-event",
     label: "Create Event",
-    description: "Create a new event with title, description, date, and location",
+    description:
+      "Create a new event with title, description, date, and location",
     path: "/admin/events/new",
     formFields: eventFormFields,
     zodSchema: eventSchema,

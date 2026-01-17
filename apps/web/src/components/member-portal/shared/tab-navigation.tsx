@@ -74,10 +74,10 @@ export function TabNavigation({
   return (
     <Tabs className="w-full" onValueChange={handleTabChange} value={activeTab}>
       <div className="mb-8 overflow-x-auto">
-        <TabsList className="inline-flex h-auto w-full min-w-max gap-2 rounded-2xl bg-section p-2 dark:bg-inverted sm:w-auto">
+        <TabsList className="inline-flex h-auto w-full min-w-max gap-2 rounded-2xl bg-section p-2 sm:w-auto dark:bg-inverted">
           {tabs.map((tab) => (
             <TabsTrigger
-              className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-muted-foreground transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-brand-gradient-from data-[state=active]:to-brand-gradient-to data-[state=active]:text-white data-[state=active]:shadow-lg hover:text-foreground dark:data-[state=active]:shadow-brand/30"
+              className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-muted-foreground transition-all duration-300 hover:text-foreground data-[state=active]:bg-gradient-to-r data-[state=active]:from-brand-gradient-from data-[state=active]:to-brand-gradient-to data-[state=active]:text-white data-[state=active]:shadow-lg dark:data-[state=active]:shadow-brand/30"
               key={tab.id}
               value={tab.id}
             >
@@ -92,10 +92,11 @@ export function TabNavigation({
               {/* Benefits count badge */}
               {tab.showCount && (
                 <Badge
-                  className={`ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs ${activeTab === tab.id
+                  className={`ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs ${
+                    activeTab === tab.id
                       ? "border-white/30 bg-white/20 text-white"
                       : "border-brand-border bg-brand-muted text-brand dark:border-brand-border-strong"
-                    }`}
+                  }`}
                   variant="outline"
                 >
                   {isMember ? benefitsCount : "?"}

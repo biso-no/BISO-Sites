@@ -1,8 +1,8 @@
-import { ID, InputFile, Models, Query } from "@repo/api";
-import type { Users } from "@repo/api/types/appwrite";
+import { ID, InputFile, type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { Expenses, ExpenseStatus } from "@repo/api/types/appwrite";
-import { NextRequest, NextResponse } from "next/server";
+import type { Users } from "@repo/api/types/appwrite";
+import { ExpenseStatus, type Expenses } from "@repo/api/types/appwrite";
+import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
 
@@ -37,7 +37,7 @@ export type CreateExpenseData = Models.Row & {
  * E.g., sequence 80 -> 10080, sequence 150 -> 10150
  */
 function generateReimbursementNumber(sequence: number): string {
-  const base = 10000;
+  const base = 10_000;
   return String(base + sequence).padStart(5, "0");
 }
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     const expenseData = await req.json();
 
-    if (!expenseData || !expenseData.bank_account) {
+    if (!expenseData?.bank_account) {
       return NextResponse.json({
         success: false,
         error: "Bank account is required",
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       expenseAttachments: expenseData.expenseAttachments,
       campusRel: expenseData.campus,
       departmentRel: expenseData.department,
-      $sequence: 10000,
+      $sequence: 10_000,
     };
 
     const expense = await db.createRow<CreateExpenseData>(
@@ -130,16 +130,21 @@ export async function POST(req: NextRequest) {
     const fullAddress = addressParts.join(", ") || "Ikke oppgitt";
 
     if (
-      !profile.name ||
-      !profile.phone ||
-      !profile.email ||
-      !profile.bank_account
+      !(profile.name && profile.phone && profile.email && profile.bank_account)
     ) {
       const missingFields: string[] = [];
-      if (!profile.name) missingFields.push("name");
-      if (!profile.phone) missingFields.push("phone");
-      if (!profile.email) missingFields.push("email");
-      if (!profile.bank_account) missingFields.push("bank_account");
+      if (!profile.name) {
+        missingFields.push("name");
+      }
+      if (!profile.phone) {
+        missingFields.push("phone");
+      }
+      if (!profile.email) {
+        missingFields.push("email");
+      }
+      if (!profile.bank_account) {
+        missingFields.push("bank_account");
+      }
       return NextResponse.json({
         success: false,
         error: "Missing required fields: ",

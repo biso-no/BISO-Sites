@@ -766,7 +766,7 @@ export function MembershipPageClient({
                       {event.description}
                     </p>
                     <Button
-                      className="group-hover:translate-x-1 transition-transform"
+                      className="transition-transform group-hover:translate-x-1"
                       size="sm"
                       variant="ghost"
                     >
@@ -790,7 +790,7 @@ export function MembershipPageClient({
             whileInView={{ opacity: 1, x: 0 }}
           >
             <Card className="h-full p-6 sm:p-8">
-              <h2 className="mb-2 font-bold text-xl text-foreground sm:text-2xl">
+              <h2 className="mb-2 font-bold text-foreground text-xl sm:text-2xl">
                 {t("faq.title")}
               </h2>
               <p className="mb-6 text-muted-foreground text-sm">
@@ -826,7 +826,7 @@ export function MembershipPageClient({
               <div className="absolute inset-0 bg-linear-to-t from-brand-overlay-from/50 via-transparent to-transparent" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
               <div className="relative">
-                <h2 className="mb-2 font-bold text-xl text-white sm:text-2xl">
+                <h2 className="mb-2 font-bold text-white text-xl sm:text-2xl">
                   {t("ctaCard.title")}
                 </h2>
                 <p className="mb-6 text-sm text-white/80">

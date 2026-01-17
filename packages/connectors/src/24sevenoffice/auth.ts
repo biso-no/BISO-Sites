@@ -5,7 +5,8 @@
  * Tokens are cached in the database for 24 hours.
  */
 
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { ID } from "@repo/api/client";
+import { createAdminClient, type createSessionClient } from "@repo/api/server";
 import { createSoapClient } from "./client";
 import type {
   Credentials,
@@ -13,7 +14,6 @@ import type {
   LoginResult,
   StoredToken,
 } from "./types";
-import { ID } from "@repo/api/client";
 
 // Token validity: 23 hours (1 hour safety margin before 24hr expiry)
 const TOKEN_MAX_AGE_MS = 23 * 60 * 60 * 1000;
@@ -152,7 +152,7 @@ function getCredentials(): Credentials {
   const username = process.env.TFSO_USERNAME;
   const password = process.env.TFSO_PASSWORD;
 
-  if (!appId || !username || !password) {
+  if (!(appId && username && password)) {
     throw new Error(
       "[24SO Auth] Missing credentials. Required env vars: TFSO_APP_ID, TFSO_USERNAME, TFSO_PASSWORD"
     );

@@ -37,4 +37,6 @@ function _formatDateReadable(value?: string | null) {
   });
 }
 
-export const isProd = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+export const isProd =
+  process.env.VERCEL_ENV === "production" ||
+  process.env.NODE_ENV === "production";

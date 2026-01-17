@@ -124,7 +124,7 @@ export function IdentityManagement({
 
   return (
     <div className="space-y-6">
-      <Card className="border border-primary/10 ">
+      <Card className="border border-primary/10">
         <CardHeader>
           <CardTitle>Linked Accounts</CardTitle>
           <CardDescription>
@@ -157,7 +157,7 @@ export function IdentityManagement({
         </CardContent>
       </Card>
 
-      <Card className="border border-primary/10 ">
+      <Card className="border border-primary/10">
         <CardHeader>
           <CardTitle>Connected Identities</CardTitle>
           <CardDescription>

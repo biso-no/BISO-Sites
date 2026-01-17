@@ -245,8 +245,8 @@ export default function AdminDashboard({
   const summaryMetrics = useMemo(() => {
     const totalPageViewsDescription = topPage
       ? t("dashboard.summary.totalPageViews.descriptionTopPage", {
-        page: topPage.name,
-      })
+          page: topPage.name,
+        })
       : t("dashboard.summary.totalPageViews.descriptionNoPage");
 
     return [
@@ -284,8 +284,8 @@ export default function AdminDashboard({
         }),
         badge: topTrafficSource
           ? t("dashboard.summary.jobPipeline.traffic", {
-            source: topTrafficSource.name,
-          })
+              source: topTrafficSource.name,
+            })
           : t("dashboard.summary.jobPipeline.tracking"),
         badgeTone: "text-muted-foreground",
       },
@@ -898,10 +898,10 @@ export default function AdminDashboard({
                     className={cn(
                       "rounded-full border border-primary/10 bg-white/70 px-3 py-1 font-semibold text-foreground text-xs shadow-sm transition dark:bg-white/10",
                       isSelected &&
-                      cn(
-                        option.accent,
-                        "shadow-[0_18px_40px_-25px_rgba(0,23,49,0.55)] hover:shadow-[0_18px_50px_-20px_rgba(0,23,49,0.45)]"
-                      ),
+                        cn(
+                          option.accent,
+                          "shadow-[0_18px_40px_-25px_rgba(0,23,49,0.55)] hover:shadow-[0_18px_50px_-20px_rgba(0,23,49,0.45)]"
+                        ),
                       !isSelected && "hover:bg-primary/5"
                     )}
                     key={option.value}

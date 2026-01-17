@@ -12,8 +12,8 @@
  *   --verbose   Show detailed replacement information
  */
 
-import { readdir, readFile, writeFile } from "fs/promises";
-import { join, relative } from "path";
+import { readdir, readFile, writeFile } from "node:fs/promises";
+import { join, relative } from "node:path";
 
 const args = Bun.argv.slice(2);
 const DRY_RUN = args.includes("--dry-run");
@@ -80,7 +80,7 @@ const REPLACEMENT_RULES: Array<{
   // bg-white - context aware (after gradient rules)
   {
     pattern: /\bbg-white\b/g,
-    replacement: (match, context) => {
+    replacement: (_match, context) => {
       // If inside a Card className, remove bg-white entirely (Card has bg-card by default)
       // We detect this by checking if the context shows <Card with className containing bg-white
       if (/<Card[^>]*className="[^"]*bg-white/.test(context)) {
@@ -158,7 +158,7 @@ const REPLACEMENT_RULES: Array<{
   // Otherwise → text-muted-foreground
   {
     pattern: /\btext-gray-400\b/g,
-    replacement: (match, context) => {
+    replacement: (_match, context) => {
       // Check if we're in a dark/inverted section
       const isDarkSection =
         /bg-gray-900|bg-gray-800|bg-inverted|footer|Footer/.test(context);
@@ -840,7 +840,7 @@ async function getAllFiles(dir: string): Promise<string[]> {
 
 function processFile(
   content: string,
-  filePath: string
+  _filePath: string
 ): { newContent: string; changes: string[] } {
   let newContent = content;
   const changes: string[] = [];
@@ -853,8 +853,8 @@ function processFile(
     // Use replaceAll with a function to check context for each match
     newContent = newContent.replace(rule.pattern, (match, ...args) => {
       // Get the offset (second to last argument for replace callback)
-      const offset = args[args.length - 2] as number;
-      const fullString = args[args.length - 1] as string;
+      const offset = args.at(-2) as number;
+      const fullString = args.at(-1) as string;
 
       // Get context (surrounding 200 chars)
       const contextStart = Math.max(0, offset - 100);
@@ -899,7 +899,7 @@ function processFile(
   }
 
   // Clean up any double spaces created by removals
-  newContent = newContent.replace(/  +/g, " ");
+  newContent = newContent.replace(/ {2,}/g, " ");
 
   return { newContent, changes };
 }

@@ -6,7 +6,7 @@ import {
   type ContentTranslations,
   ContentType,
   type Jobs,
-  Locale,
+  type Locale,
   Status,
 } from "@repo/api/types/appwrite";
 

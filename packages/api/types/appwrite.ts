@@ -704,4 +704,3 @@ export type SyncedMembers = Models.Row & {
   active_categories: string[];
   last_synced: string;
 };
-

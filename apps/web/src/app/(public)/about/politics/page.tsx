@@ -51,7 +51,7 @@ export default function PoliticsPage() {
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <Button asChild variant="outline" size="lg">
+            <Button asChild size="lg" variant="outline">
               <Link href="/about">← {tAbout("hub.title")}</Link>
             </Button>
           </motion.div>

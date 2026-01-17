@@ -279,53 +279,35 @@
           "key": "name",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "name"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["name"],
+          "orders": ["ASC"]
         },
         {
           "key": "student_id",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "$id"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["$id"],
+          "orders": ["ASC"]
         },
         {
           "key": "email",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "email"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["email"],
+          "orders": ["ASC"]
         },
         {
           "key": "avatar",
           "type": "key",
           "status": "available",
-          "columns": [
-            "avatar"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["avatar"],
+          "orders": ["ASC"]
         }
       ]
     },
     {
       "$id": "expense_attachments",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Expense Attachments",
       "enabled": true,
@@ -353,8 +335,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -380,9 +362,7 @@
     },
     {
       "$id": "subs",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Subscriptions",
       "enabled": true,
@@ -428,14 +408,8 @@
           "key": "Unique",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "user_id",
-            "topic"
-          ],
-          "orders": [
-            "DESC",
-            "DESC"
-          ]
+          "columns": ["user_id", "topic"],
+          "orders": ["DESC", "DESC"]
         }
       ]
     },
@@ -452,10 +426,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "read",
-            "unread"
-          ],
+          "elements": ["read", "unread"],
           "format": "enum",
           "default": "unread"
         }
@@ -527,8 +498,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -536,8 +507,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -545,13 +516,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "draft",
-            "pending",
-            "success",
-            "submitted",
-            "rejected"
-          ],
+          "elements": ["draft", "pending", "success", "submitted", "rejected"],
           "format": "enum",
           "default": "pending"
         },
@@ -624,34 +589,22 @@
           "key": "idx_status",
           "type": "key",
           "status": "available",
-          "columns": [
-            "status"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["status"],
+          "orders": ["ASC"]
         },
         {
           "key": "search",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["description"],
+          "orders": ["ASC"]
         },
         {
           "key": "userId",
           "type": "key",
           "status": "available",
-          "columns": [
-            "userId"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["userId"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -865,31 +818,21 @@
           "key": "search",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "Name"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["Name"],
+          "orders": ["ASC"]
         },
         {
           "key": "campus",
           "type": "key",
           "status": "available",
-          "columns": [
-            "campus_id"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["campus_id"],
+          "orders": ["ASC"]
         }
       ]
     },
     {
       "$id": "student_id",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "student_ids",
       "enabled": true,
@@ -958,12 +901,8 @@
           "key": "unique",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "student_id"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["student_id"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -1207,7 +1146,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e+308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -1216,7 +1155,7 @@
           "required": false,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e+308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -1225,7 +1164,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e+308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -1233,9 +1172,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "NOK"
-          ],
+          "elements": ["NOK"],
           "format": "enum",
           "default": null
         },
@@ -1315,25 +1252,14 @@
           "key": "idx_orders_core",
           "type": "key",
           "status": "available",
-          "columns": [
-            "status",
-            "userId",
-            "currency"
-          ],
-          "orders": [
-            "ASC",
-            "ASC",
-            "ASC"
-          ]
+          "columns": ["status", "userId", "currency"],
+          "orders": ["ASC", "ASC", "ASC"]
         }
       ]
     },
     {
       "$id": "memberships",
-      "$permissions": [
-        "read(\"users\")",
-        "update(\"users\")"
-      ],
+      "$permissions": ["read(\"users\")", "update(\"users\")"],
       "databaseId": "app",
       "name": "Memberships",
       "enabled": true,
@@ -1386,8 +1312,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -1436,9 +1362,7 @@
     },
     {
       "$id": "payments",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Payments",
       "enabled": true,
@@ -1458,8 +1382,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -1506,8 +1430,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -1545,9 +1469,7 @@
     },
     {
       "$id": "followed_units",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Followed units",
       "enabled": true,
@@ -1626,9 +1548,7 @@
     },
     {
       "$id": "saved_jobs",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Saved Jobs",
       "enabled": true,
@@ -1681,9 +1601,7 @@
     },
     {
       "$id": "campus_data",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Campus Data",
       "enabled": true,
@@ -1968,44 +1886,28 @@
           "key": "unique",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "$id"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["$id"],
+          "orders": ["ASC"]
         },
         {
           "key": "idx_id",
           "type": "key",
           "status": "available",
-          "columns": [
-            "$id"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["$id"],
+          "orders": ["ASC"]
         },
         {
           "key": "idx_name",
           "type": "key",
           "status": "available",
-          "columns": [
-            "name"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["name"],
+          "orders": ["ASC"]
         }
       ]
     },
     {
       "$id": "department_board",
-      "$permissions": [
-        "create(\"any\")",
-        "read(\"any\")",
-        "update(\"any\")"
-      ],
+      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")"],
       "databaseId": "app",
       "name": "Department Board",
       "enabled": true,
@@ -2055,9 +1957,7 @@
     },
     {
       "$id": "department_socials",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Department socials",
       "enabled": true,
@@ -2095,12 +1995,8 @@
           "key": "idx_department_id",
           "type": "key",
           "status": "available",
-          "columns": [
-            "department_id"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["department_id"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -2237,10 +2133,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "norwegian",
-            "english"
-          ],
+          "elements": ["norwegian", "english"],
           "format": "enum",
           "default": null
         }
@@ -2249,9 +2142,7 @@
     },
     {
       "$id": "large_event",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Large Event",
       "enabled": true,
@@ -2426,31 +2317,21 @@
           "key": "idx_active_priority",
           "type": "key",
           "status": "available",
-          "columns": [
-            "isActive",
-            "priority"
-          ],
-          "orders": [
-            "ASC",
-            "DESC"
-          ]
+          "columns": ["isActive", "priority"],
+          "orders": ["ASC", "DESC"]
         },
         {
           "key": "uniq_slug",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "orders": []
         }
       ]
     },
     {
       "$id": "large_event_item",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Large Event Item",
       "enabled": true,
@@ -2551,16 +2432,8 @@
           "key": "idx_event_campus_sort",
           "type": "key",
           "status": "available",
-          "columns": [
-            "campusId",
-            "sort",
-            "startTime"
-          ],
-          "orders": [
-            "ASC",
-            "ASC",
-            "ASC"
-          ]
+          "columns": ["campusId", "sort", "startTime"],
+          "orders": ["ASC", "ASC", "ASC"]
         }
       ]
     },
@@ -2602,7 +2475,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e+308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -2672,13 +2545,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "new",
-            "like_new",
-            "good",
-            "fair",
-            "poor"
-          ],
+          "elements": ["new", "like_new", "good", "fair", "poor"],
           "format": "enum",
           "default": null
         },
@@ -2687,12 +2554,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "available",
-            "sold",
-            "reserved",
-            "inactive"
-          ],
+          "elements": ["available", "sold", "reserved", "inactive"],
           "format": "enum",
           "default": null
         },
@@ -2708,11 +2570,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "message",
-            "phone",
-            "email"
-          ],
+          "elements": ["message", "phone", "email"],
           "format": "enum",
           "default": null
         },
@@ -2770,65 +2628,42 @@
           "key": "idx_products_filters",
           "type": "key",
           "status": "available",
-          "columns": [
-            "campus_id",
-            "category",
-            "status"
-          ],
+          "columns": ["campus_id", "category", "status"],
           "orders": []
         },
         {
           "key": "idx_products_recent",
           "type": "key",
           "status": "available",
-          "columns": [
-            "$createdAt"
-          ],
-          "orders": [
-            "DESC"
-          ]
+          "columns": ["$createdAt"],
+          "orders": ["DESC"]
         },
         {
           "key": "idx_products_created",
           "type": "key",
           "status": "available",
-          "columns": [
-            "$createdAt"
-          ],
-          "orders": [
-            "DESC"
-          ]
+          "columns": ["$createdAt"],
+          "orders": ["DESC"]
         },
         {
           "key": "description",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["description"],
+          "orders": ["ASC"]
         },
         {
           "key": "name",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "name"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["name"],
+          "orders": ["ASC"]
         }
       ]
     },
     {
       "$id": "product_favorites",
-      "$permissions": [
-        "create(\"guests\")",
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"guests\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "product_favorites",
       "enabled": true,
@@ -2860,9 +2695,7 @@
     },
     {
       "$id": "chats",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Chats",
       "enabled": true,
@@ -2891,12 +2724,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "direct",
-            "group",
-            "team",
-            "department"
-          ],
+          "elements": ["direct", "group", "team", "department"],
           "format": "enum",
           "default": null
         },
@@ -2963,9 +2791,7 @@
     },
     {
       "$id": "chat_messages",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Chat Messages",
       "enabled": true,
@@ -3012,13 +2838,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "text",
-            "image",
-            "file",
-            "system",
-            "product"
-          ],
+          "elements": ["text", "image", "file", "system", "product"],
           "format": "enum",
           "default": null
         },
@@ -3160,9 +2980,7 @@
     },
     {
       "$id": "public_profiles",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Public Profiles",
       "enabled": true,
@@ -3242,40 +3060,28 @@
           "key": "user_id_index",
           "type": "key",
           "status": "available",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "orders": []
         },
         {
           "key": "name",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "name"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["name"],
+          "orders": ["ASC"]
         },
         {
           "key": "email",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "email"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["email"],
+          "orders": ["ASC"]
         }
       ]
     },
     {
       "$id": "campus_data_translations",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "campus_data_translations",
       "enabled": true,
@@ -3386,19 +3192,14 @@
           "key": "unique_entry_locale",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "entry_id",
-            "locale"
-          ],
+          "columns": ["entry_id", "locale"],
           "orders": []
         }
       ]
     },
     {
       "$id": "campus_metadata",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Campus Metadata",
       "enabled": true,
@@ -3518,9 +3319,7 @@
           "key": "campus_id_index",
           "type": "key",
           "status": "available",
-          "columns": [
-            "campus_id"
-          ],
+          "columns": ["campus_id"],
           "orders": []
         }
       ]
@@ -3644,10 +3443,7 @@
           "key": "idx_job_status",
           "type": "key",
           "status": "available",
-          "columns": [
-            "job_id",
-            "status"
-          ],
+          "columns": ["job_id", "status"],
           "orders": []
         }
       ]
@@ -3679,10 +3475,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "en",
-            "no"
-          ],
+          "elements": ["en", "no"],
           "format": "enum",
           "default": null
         },
@@ -3817,37 +3610,28 @@
           "key": "idx_content_locale",
           "type": "key",
           "status": "available",
-          "columns": [
-            "content_id",
-            "locale"
-          ],
+          "columns": ["content_id", "locale"],
           "orders": []
         },
         {
           "key": "idx_type_locale",
           "type": "key",
           "status": "available",
-          "columns": [
-            "locale"
-          ],
+          "columns": ["locale"],
           "orders": []
         },
         {
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "orders": []
         },
         {
           "key": "search_description",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
+          "columns": ["description"],
           "orders": []
         }
       ]
@@ -3879,11 +3663,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "draft",
-            "published",
-            "closed"
-          ],
+          "elements": ["draft", "published", "closed"],
           "format": "enum",
           "default": null
         },
@@ -3992,11 +3772,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "draft",
-            "published",
-            "cancelled"
-          ],
+          "elements": ["draft", "published", "cancelled"],
           "format": "enum",
           "default": null
         },
@@ -4081,8 +3857,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -4113,10 +3889,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "bundle",
-            "individual"
-          ],
+          "elements": ["bundle", "individual"],
           "format": "enum",
           "default": "individual"
         },
@@ -4180,10 +3953,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "draft",
-            "published"
-          ],
+          "elements": ["draft", "published"],
           "format": "enum",
           "default": null
         },
@@ -4290,10 +4060,7 @@
           "key": "idx_status_campus",
           "type": "key",
           "status": "available",
-          "columns": [
-            "status",
-            "campus_id"
-          ],
+          "columns": ["status", "campus_id"],
           "orders": []
         }
       ]
@@ -4325,12 +4092,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "draft",
-            "pending_approval",
-            "published",
-            "archived"
-          ],
+          "elements": ["draft", "pending_approval", "published", "archived"],
           "format": "enum",
           "default": null
         },
@@ -4390,8 +4152,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -4399,8 +4161,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -4455,10 +4217,7 @@
           "key": "idx_status_campus",
           "type": "key",
           "status": "available",
-          "columns": [
-            "status",
-            "campus_id"
-          ],
+          "columns": ["status", "campus_id"],
           "orders": []
         }
       ]
@@ -4525,20 +4284,14 @@
           "key": "idx_campus_active",
           "type": "key",
           "status": "available",
-          "columns": [
-            "campus_id",
-            "is_active",
-            "sort_order"
-          ],
+          "columns": ["campus_id", "is_active", "sort_order"],
           "orders": []
         }
       ]
     },
     {
       "$id": "partners",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Partners",
       "enabled": true,
@@ -4566,10 +4319,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "national",
-            "campus"
-          ],
+          "elements": ["national", "campus"],
           "format": "enum",
           "default": null
         },
@@ -4608,20 +4358,14 @@
           "key": "idx_level",
           "type": "key",
           "status": "available",
-          "columns": [
-            "level"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["level"],
+          "orders": ["ASC"]
         },
         {
           "key": "idx_name",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "orders": []
         }
       ]
@@ -4814,11 +4558,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "draft",
-            "published",
-            "archived"
-          ],
+          "elements": ["draft", "published", "archived"],
           "format": "enum",
           "default": "draft"
         },
@@ -4827,10 +4567,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "public",
-            "authenticated"
-          ],
+          "elements": ["public", "authenticated"],
           "format": "enum",
           "default": "public"
         },
@@ -4885,10 +4622,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "no",
-            "en"
-          ],
+          "elements": ["no", "en"],
           "format": "enum",
           "default": null
         },
@@ -5012,9 +4746,7 @@
           "key": "slug_unique",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "orders": []
         }
       ]
@@ -5050,8 +4782,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -5131,9 +4863,7 @@
     },
     {
       "$id": "cart_reservations",
-      "$permissions": [
-        "create(\"any\")"
-      ],
+      "$permissions": ["create(\"any\")"],
       "databaseId": "app",
       "name": "Cart Reservations",
       "enabled": true,
@@ -5180,28 +4910,21 @@
           "key": "product_id_idx",
           "type": "key",
           "status": "available",
-          "columns": [
-            "product_id"
-          ],
+          "columns": ["product_id"],
           "orders": []
         },
         {
           "key": "expires_at_idx",
           "type": "key",
           "status": "available",
-          "columns": [
-            "expires_at"
-          ],
+          "columns": ["expires_at"],
           "orders": []
         },
         {
           "key": "product_expires_idx",
           "type": "key",
           "status": "available",
-          "columns": [
-            "product_id",
-            "expires_at"
-          ],
+          "columns": ["product_id", "expires_at"],
           "orders": []
         }
       ]
@@ -5228,10 +4951,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "en",
-            "no"
-          ],
+          "elements": ["en", "no"],
           "format": "enum",
           "default": null
         },
@@ -5322,10 +5042,7 @@
           "key": "metric_lookup",
           "type": "key",
           "status": "available",
-          "columns": [
-            "metric_type",
-            "date_range"
-          ],
+          "columns": ["metric_type", "date_range"],
           "orders": []
         }
       ]
@@ -5360,9 +5077,7 @@
     },
     {
       "$id": "benefit_reveals",
-      "$permissions": [
-        "create(\"team:biso_members\")"
-      ],
+      "$permissions": ["create(\"team:biso_members\")"],
       "databaseId": "app",
       "name": "Benefit Reveals",
       "enabled": true,
@@ -5399,9 +5114,7 @@
     },
     {
       "$id": "departments",
-      "$permissions": [
-        "read(\"users\")"
-      ],
+      "$permissions": ["read(\"users\")"],
       "databaseId": "24so",
       "name": "Departments",
       "enabled": true,
@@ -5540,31 +5253,21 @@
           "key": "path",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "path"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["path"],
+          "orders": ["ASC"]
         },
         {
           "key": "index_2",
           "type": "key",
           "status": "available",
-          "columns": [
-            "path"
-          ],
-          "orders": [
-            "ASC"
-          ]
+          "columns": ["path"],
+          "orders": ["ASC"]
         }
       ]
     },
     {
       "$id": "dashboard_customization",
-      "$permissions": [
-        "create(\"users\")"
-      ],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "webapp",
       "name": "Dashboard customization",
       "enabled": true,
@@ -5704,10 +5407,7 @@
           "key": "unique_entry_locale",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "entry_id",
-            "locale"
-          ],
+          "columns": ["entry_id", "locale"],
           "orders": []
         }
       ]
@@ -5795,19 +5495,14 @@
           "key": "order_index",
           "type": "key",
           "status": "available",
-          "columns": [
-            "order",
-            "slug"
-          ],
+          "columns": ["order", "slug"],
           "orders": []
         },
         {
           "key": "unique_slug",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "orders": []
         }
       ]
@@ -5839,10 +5534,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "en",
-            "no"
-          ],
+          "elements": ["en", "no"],
           "format": "enum",
           "default": null
         },
@@ -5873,10 +5565,7 @@
           "key": "unique_nav_locale",
           "type": "unique",
           "status": "available",
-          "columns": [
-            "nav_id",
-            "locale"
-          ],
+          "columns": ["nav_id", "locale"],
           "orders": []
         }
       ]
@@ -6018,36 +5707,28 @@
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "orders": []
         },
         {
           "key": "search_description",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
+          "columns": ["description"],
           "orders": []
         },
         {
           "key": "search_category",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "category"
-          ],
+          "columns": ["category"],
           "orders": []
         },
         {
           "key": "search_location",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "location"
-          ],
+          "columns": ["location"],
           "orders": []
         }
       ]
@@ -6209,54 +5890,42 @@
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "orders": []
         },
         {
           "key": "search_company",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "company"
-          ],
+          "columns": ["company"],
           "orders": []
         },
         {
           "key": "search_description",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
+          "columns": ["description"],
           "orders": []
         },
         {
           "key": "search_location",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "location"
-          ],
+          "columns": ["location"],
           "orders": []
         },
         {
           "key": "search_type",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "type"
-          ],
+          "columns": ["type"],
           "orders": []
         },
         {
           "key": "search_category",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "category"
-          ],
+          "columns": ["category"],
           "orders": []
         }
       ]
@@ -6369,8 +6038,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e+308,
-          "max": 1.7976931348623157e+308,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308,
           "default": null
         },
         {
@@ -6478,11 +6147,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "pending",
-            "approved",
-            "rejected"
-          ],
+          "elements": ["pending", "approved", "rejected"],
           "format": "enum",
           "default": null
         }
@@ -6492,54 +6157,42 @@
           "key": "search_name",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "orders": []
         },
         {
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "orders": []
         },
         {
           "key": "search_company",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "company"
-          ],
+          "columns": ["company"],
           "orders": []
         },
         {
           "key": "search_bio",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "bio"
-          ],
+          "columns": ["bio"],
           "orders": []
         },
         {
           "key": "search_industry",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "industry"
-          ],
+          "columns": ["industry"],
           "orders": []
         },
         {
           "key": "search_location",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "location"
-          ],
+          "columns": ["location"],
           "orders": []
         }
       ]
@@ -6705,54 +6358,42 @@
           "key": "search_name",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "orders": []
         },
         {
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "orders": []
         },
         {
           "key": "search_company",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "company"
-          ],
+          "columns": ["company"],
           "orders": []
         },
         {
           "key": "search_department",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "department"
-          ],
+          "columns": ["department"],
           "orders": []
         },
         {
           "key": "search_degree",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "degree"
-          ],
+          "columns": ["degree"],
           "orders": []
         },
         {
           "key": "search_bio",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "bio"
-          ],
+          "columns": ["bio"],
           "orders": []
         }
       ]
@@ -6858,36 +6499,28 @@
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "orders": []
         },
         {
           "key": "search_company",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "company"
-          ],
+          "columns": ["company"],
           "orders": []
         },
         {
           "key": "search_location",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "location"
-          ],
+          "columns": ["location"],
           "orders": []
         },
         {
           "key": "search_description",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
+          "columns": ["description"],
           "orders": []
         }
       ]
@@ -6995,36 +6628,28 @@
           "key": "search_degree",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "degree"
-          ],
+          "columns": ["degree"],
           "orders": []
         },
         {
           "key": "search_institution",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "institution"
-          ],
+          "columns": ["institution"],
           "orders": []
         },
         {
           "key": "search_field",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "fieldOfStudy"
-          ],
+          "columns": ["fieldOfStudy"],
           "orders": []
         },
         {
           "key": "search_location",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "location"
-          ],
+          "columns": ["location"],
           "orders": []
         }
       ]
@@ -7114,27 +6739,21 @@
           "key": "search_name",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "orders": []
         },
         {
           "key": "search_issuer",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "issuer"
-          ],
+          "columns": ["issuer"],
           "orders": []
         },
         {
           "key": "search_description",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
+          "columns": ["description"],
           "orders": []
         }
       ]
@@ -7408,45 +7027,35 @@
           "key": "search_title",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "orders": []
         },
         {
           "key": "search_description",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "description"
-          ],
+          "columns": ["description"],
           "orders": []
         },
         {
           "key": "search_category",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "category"
-          ],
+          "columns": ["category"],
           "orders": []
         },
         {
           "key": "search_type",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "type"
-          ],
+          "columns": ["type"],
           "orders": []
         },
         {
           "key": "search_author",
           "type": "fulltext",
           "status": "available",
-          "columns": [
-            "author"
-          ],
+          "columns": ["author"],
           "orders": []
         }
       ]
@@ -7635,11 +7244,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "elements": [
-            "all_alumni",
-            "connections",
-            "limited"
-          ],
+          "elements": ["all_alumni", "connections", "limited"],
           "format": "enum",
           "default": "all_alumni"
         },
@@ -7676,9 +7281,7 @@
     },
     {
       "$id": "mentoringPrograms",
-      "$permissions": [
-        "read(\"users\")"
-      ],
+      "$permissions": ["read(\"users\")"],
       "databaseId": "alumni",
       "name": "Mentoring Programs",
       "enabled": true,
@@ -7785,10 +7388,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "active",
-            "inactive"
-          ],
+          "elements": ["active", "inactive"],
           "format": "enum",
           "default": null
         }
@@ -7797,10 +7397,7 @@
     },
     {
       "$id": "testimonials",
-      "$permissions": [
-        "read(\"users\")",
-        "read(\"guests\")"
-      ],
+      "$permissions": ["read(\"users\")", "read(\"guests\")"],
       "databaseId": "alumni",
       "name": "Testimonials",
       "enabled": true,
@@ -7862,10 +7459,7 @@
     },
     {
       "$id": "alumniStats",
-      "$permissions": [
-        "read(\"guests\")",
-        "read(\"users\")"
-      ],
+      "$permissions": ["read(\"guests\")", "read(\"users\")"],
       "databaseId": "alumni",
       "name": "Alumni Statistical History",
       "enabled": true,
@@ -7876,12 +7470,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "elements": [
-            "alumni",
-            "events",
-            "mentorships",
-            "jobs"
-          ],
+          "elements": ["alumni", "events", "mentorships", "jobs"],
           "format": "enum",
           "default": null
         },
@@ -7917,10 +7506,7 @@
     },
     {
       "$id": "news",
-      "$permissions": [
-        "read(\"guests\")",
-        "read(\"users\")"
-      ],
+      "$permissions": ["read(\"guests\")", "read(\"users\")"],
       "databaseId": "alumni",
       "name": "News",
       "enabled": true,
@@ -8020,31 +7606,21 @@
           "key": "date",
           "type": "key",
           "status": "available",
-          "columns": [
-            "$createdAt"
-          ],
-          "orders": [
-            "DESC"
-          ]
+          "columns": ["$createdAt"],
+          "orders": ["DESC"]
         },
         {
           "key": "featured",
           "type": "key",
           "status": "available",
-          "columns": [
-            "featured"
-          ],
-          "orders": [
-            "DESC"
-          ]
+          "columns": ["featured"],
+          "orders": ["DESC"]
         }
       ]
     },
     {
       "$id": "stop_places",
-      "$permissions": [
-        "read(\"any\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "entur",
       "name": "Stop Places",
       "enabled": true,
@@ -8090,12 +7666,8 @@
           "key": "idx_stopPlaceId",
           "type": "key",
           "status": "available",
-          "columns": [
-            "stopPlaceId"
-          ],
-          "orders": [
-            "asc"
-          ]
+          "columns": ["stopPlaceId"],
+          "orders": ["asc"]
         }
       ]
     },
@@ -8148,12 +7720,8 @@
           "key": "idx_stopPlaceId",
           "type": "key",
           "status": "available",
-          "columns": [
-            "stopPlaceId"
-          ],
-          "orders": [
-            "asc"
-          ]
+          "columns": ["stopPlaceId"],
+          "orders": ["asc"]
         }
       ]
     },

@@ -58,21 +58,27 @@ export function JobsHero({
                 <div className="mb-1 font-bold text-3xl text-white">
                   {totalPositions}
                 </div>
-                <div className="text-sm text-white/80">{t("hero.openPositions")}</div>
+                <div className="text-sm text-white/80">
+                  {t("hero.openPositions")}
+                </div>
               </div>
               <div className="h-12 w-px bg-background/20" />
               <div className="text-center">
                 <div className="mb-1 font-bold text-3xl text-white">
                   {paidPositions}
                 </div>
-                <div className="text-sm text-white/80">{t("hero.paidRoles")}</div>
+                <div className="text-sm text-white/80">
+                  {t("hero.paidRoles")}
+                </div>
               </div>
               <div className="h-12 w-px bg-background/20" />
               <div className="text-center">
                 <div className="mb-1 font-bold text-3xl text-white">
                   {departmentCount}
                 </div>
-                <div className="text-sm text-white/80">{t("hero.departments")}</div>
+                <div className="text-sm text-white/80">
+                  {t("hero.departments")}
+                </div>
               </div>
             </div>
           </motion.div>

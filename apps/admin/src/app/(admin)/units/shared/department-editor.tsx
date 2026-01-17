@@ -557,10 +557,10 @@ export default function DepartmentEditor({
                 stats={
                   department
                     ? {
-                      userCount: (department as any).userCount,
-                      boardMemberCount: (department as any).boardMemberCount,
-                      socialsCount: (department as any).socialsCount,
-                    }
+                        userCount: (department as any).userCount,
+                        boardMemberCount: (department as any).boardMemberCount,
+                        socialsCount: (department as any).socialsCount,
+                      }
                     : undefined
                 }
                 statusControl={

@@ -40,18 +40,18 @@ export async function submitJob({
       translations: {
         ...(values.en_title &&
           values.en_description && {
-          en: {
-            title: values.en_title,
-            description: values.en_description,
-          },
-        }),
+            en: {
+              title: values.en_title,
+              description: values.en_description,
+            },
+          }),
         ...(values.no_title &&
           values.no_description && {
-          no: {
-            title: values.no_title,
-            description: values.no_description,
-          },
-        }),
+            no: {
+              title: values.no_title,
+              description: values.no_description,
+            },
+          }),
       },
     };
 

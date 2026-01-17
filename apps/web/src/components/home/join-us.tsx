@@ -3,8 +3,8 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export function JoinUs() {
   const t = useTranslations("membership");

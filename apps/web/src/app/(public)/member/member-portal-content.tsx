@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import {
   getBenefitReveals,
   getMemberBenefits,
@@ -6,7 +7,6 @@ import {
 } from "@/app/actions/member-portal";
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
-import { getTranslations } from "next-intl/server";
 
 type MemberPortalContentProps = {
   user: any;
@@ -14,7 +14,7 @@ type MemberPortalContentProps = {
   hasBIIdentity: boolean;
 };
 
-const calculateEstimatedSavings = (userId: string) => {
+const calculateEstimatedSavings = (_userId: string) => {
   // TODO: Implement estimated savings calculation
   return 0;
 };
@@ -36,10 +36,10 @@ export async function MemberPortalContent({
   const [benefits, revealedBenefits, estimatedSavings] =
     user && isMember
       ? await Promise.all([
-        getMemberBenefits(user.user.$id),
-        getBenefitReveals(user.user.$id),
-        calculateEstimatedSavings(user.user.$id),
-      ])
+          getMemberBenefits(user.user.$id),
+          getBenefitReveals(user.user.$id),
+          calculateEstimatedSavings(user.user.$id),
+        ])
       : [[], new Set<string>(), 0];
 
   // Calculate membership info
@@ -62,7 +62,10 @@ export async function MemberPortalContent({
 
   // Get user name and avatar
   const userName =
-    profile?.name || user?.profile?.name || user?.user?.name || tCommon("guest");
+    profile?.name ||
+    user?.profile?.name ||
+    user?.user?.name ||
+    tCommon("guest");
   const userAvatar = profile?.avatar || user?.profile?.avatar || null;
 
   // Get student ID for BI email construction

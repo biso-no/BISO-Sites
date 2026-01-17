@@ -31,10 +31,10 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
   const potentialSavings = isMember
     ? 0
     : regularSubtotal -
-    items.reduce((sum, item) => {
-      const price = item.memberPrice || item.regularPrice;
-      return sum + price * item.quantity;
-    }, 0);
+      items.reduce((sum, item) => {
+        const price = item.memberPrice || item.regularPrice;
+        return sum + price * item.quantity;
+      }, 0);
 
   const handleCheckout = () => {
     startTransition(async () => {

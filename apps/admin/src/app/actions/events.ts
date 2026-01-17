@@ -236,9 +236,9 @@ const buildEventTranslationRefsForUpdate = async (
   const existingTranslations = existingEvent.rows[0]?.translation_refs || [];
   const existingTranslationsArray = Array.isArray(existingTranslations)
     ? existingTranslations.filter(
-      (translation): translation is ContentTranslations =>
-        typeof translation !== "string"
-    )
+        (translation): translation is ContentTranslations =>
+          typeof translation !== "string"
+      )
     : [];
 
   const buildTranslation = (

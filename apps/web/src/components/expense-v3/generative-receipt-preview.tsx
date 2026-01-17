@@ -166,7 +166,7 @@ export function GenerativeReceiptPreview({
 function Header({ isProcessing }: { isProcessing: boolean }) {
   return (
     <div className="mb-8 flex items-center justify-between">
-      <h2 className="font-semibold text-2xl tracking-tight text-foreground dark:text-white">
+      <h2 className="font-semibold text-2xl text-foreground tracking-tight dark:text-white">
         Receipt Details
       </h2>
       <div className="flex items-center gap-2">

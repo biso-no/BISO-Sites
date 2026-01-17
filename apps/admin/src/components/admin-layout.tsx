@@ -1,5 +1,6 @@
 "use client";
 
+import { useCopilotStore } from "@repo/ai/stores/copilot-store";
 import { ModeToggle } from "@repo/ui/components/mode-toggle";
 import {
   Avatar,
@@ -9,7 +10,6 @@ import {
 import { Button } from "@repo/ui/components/ui/button";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { cn } from "@repo/ui/lib/utils";
-import { useCopilotStore } from "@repo/ai/stores/copilot-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Building2,
@@ -27,8 +27,9 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/user";
+import { DEPARTMENT_ROLE, ROLES } from "@/lib/roles";
 import { AssistantSidebar } from "./assistant/assistant-sidebar";
 import { AssistantTrigger } from "./assistant/assistant-trigger";
 import Breadcrumb from "./breadcrumb";
@@ -36,8 +37,6 @@ import { CommandMenu } from "./command-menu";
 import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
-
-import { ROLES, DEPARTMENT_ROLE } from "@/lib/roles";
 
 type AdminLayoutProps = {
   children: ReactNode;

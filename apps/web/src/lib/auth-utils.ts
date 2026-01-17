@@ -1,6 +1,5 @@
-import { Models } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { UserPreferences } from "./types/prefs";
+import type { UserPreferences } from "./types/prefs";
 
 /**
  * Check if the current session belongs to an authenticated user (not anonymous)

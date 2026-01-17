@@ -1,12 +1,15 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import {
+  type StreamEvent,
+  StreamingJSONParser,
+} from "@repo/ai/lib/streaming-json-parser";
 import type { AssistantMessage } from "@repo/ai/types";
-import { StreamingJSONParser, type StreamEvent } from "@repo/ai/lib/streaming-json-parser";
 import type { AgentState } from "@repo/ai/types/agent-state";
 import { inferAgentState } from "@repo/ai/types/agent-state";
-import { DefaultChatTransport } from "ai";
 import type { Data } from "@repo/editor/src";
+import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type PuckContentUpdate = {
@@ -130,7 +133,8 @@ export function usePuckChatStream({
           onPuckContentRef.current?.({
             type: "puck-content",
             blockIndex: event.blockIndex,
-            block: event.type === "block-start" ? event.partialBlock : event.block,
+            block:
+              event.type === "block-start" ? event.partialBlock : event.block,
             isComplete: event.type === "block-complete",
           });
         }
@@ -155,7 +159,7 @@ export function usePuckChatStream({
       handledToolCallsRef.current.add(toolPart.toolCallId);
       setAgentState("navigating");
       onNavigateRef.current?.(toolPart.input.path);
-      
+
       addToolResult({
         toolCallId: toolPart.toolCallId,
         tool: "navigate",
@@ -187,7 +191,7 @@ export function usePuckChatStream({
 
       if (isComplete && !handledToolCallsRef.current.has(toolPart.toolCallId)) {
         handledToolCallsRef.current.add(toolPart.toolCallId);
-        
+
         // Finalize parser
         if (parserRef.current) {
           parserRef.current.finalize();
@@ -239,7 +243,8 @@ export function usePuckChatStream({
   useEffect(() => {
     if (isLoading && agentState === "idle") {
       const hasContent = chatMessages.some(
-        (msg) => msg.role === "assistant" && msg.parts.some((p) => p.type === "text")
+        (msg) =>
+          msg.role === "assistant" && msg.parts.some((p) => p.type === "text")
       );
       const newState = inferAgentState(isLoading, currentToolCall, hasContent);
       setAgentState(newState);

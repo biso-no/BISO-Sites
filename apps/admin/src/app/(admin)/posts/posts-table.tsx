@@ -243,10 +243,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
             {viewType === "list" ? t("view.grid") : t("view.list")}
           </Button>
         </form>
-        <Button
-          className="w-full"
-          onClick={() => router.push("/posts/new")}
-        >
+        <Button className="w-full" onClick={() => router.push("/posts/new")}>
           <PlusCircle />
           {t("create")}
         </Button>
@@ -275,10 +272,11 @@ export function PostTable({ posts }: { posts: Post[] }) {
                   <TableCell>{post.campus?.name}</TableCell>
                   <TableCell>
                     <span
-                      className={`rounded-full px-2 py-1 text-xs ${post.status === "publish"
-                        ? "bg-green-200 text-green-800"
-                        : "bg-yellow-200 text-yellow-800"
-                        }`}
+                      className={`rounded-full px-2 py-1 text-xs ${
+                        post.status === "publish"
+                          ? "bg-green-200 text-green-800"
+                          : "bg-yellow-200 text-yellow-800"
+                      }`}
                     >
                       {getStatusLabel(post.status)}
                     </span>
@@ -328,10 +326,11 @@ export function PostTable({ posts }: { posts: Post[] }) {
                   <p>
                     <strong>{t("table.status")}:</strong>
                     <span
-                      className={`ml-2 rounded-full px-2 py-1 text-xs ${post.status === "publish"
-                        ? "bg-green-200 text-green-800"
-                        : "bg-yellow-200 text-yellow-800"
-                        }`}
+                      className={`ml-2 rounded-full px-2 py-1 text-xs ${
+                        post.status === "publish"
+                          ? "bg-green-200 text-green-800"
+                          : "bg-yellow-200 text-yellow-800"
+                      }`}
                     >
                       {getStatusLabel(post.status)}
                     </span>

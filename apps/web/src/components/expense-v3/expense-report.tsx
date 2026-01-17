@@ -74,7 +74,7 @@ function ReceiptRow({
       onClick={() => onSelect(receipt.id)}
     >
       <td className="p-0" colSpan={3}>
-        <div className="flex w-full items-center border-b border-border px-0 py-4 dark:border-border/50">
+        <div className="flex w-full items-center border-border border-b px-0 py-4 dark:border-border/50">
           <div className="w-full max-w-[200px] px-4 md:max-w-[300px] md:px-8">
             <div className="flex items-center gap-3">
               <div
@@ -334,7 +334,7 @@ export function ExpenseReport({
           initial={{ opacity: 0, y: 20 }}
         >
           {/* Document Header */}
-          <div className="border-b border-border p-6 md:p-8">
+          <div className="border-border border-b p-6 md:p-8">
             <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row">
               <div>
                 <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl dark:text-white">
@@ -427,7 +427,7 @@ export function ExpenseReport({
                   Description
                 </label>
                 {isGeneratingSummary && (
-                  <div className="flex items-center gap-2 text-sky-500 text-xs animate-pulse">
+                  <div className="flex animate-pulse items-center gap-2 text-sky-500 text-xs">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     AI Generating Summary...
                   </div>
@@ -491,7 +491,7 @@ export function ExpenseReport({
           </div>
 
           {/* Footer / Totals */}
-          <div className="border-t border-border bg-muted p-6 md:p-8 dark:bg-inverted/30">
+          <div className="border-border border-t bg-muted p-6 md:p-8 dark:bg-inverted/30">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="text-muted-foreground">
                 <p className="text-sm">
@@ -505,7 +505,7 @@ export function ExpenseReport({
                 </p>
                 <p className="font-bold text-2xl text-foreground tracking-tight md:text-3xl dark:text-white">
                   {totalAmount.toLocaleString()}{" "}
-                  <span className="text-muted-foreground text-lg">NOK</span>
+                  <span className="text-lg text-muted-foreground">NOK</span>
                 </p>
               </div>
             </div>

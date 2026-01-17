@@ -11,6 +11,10 @@
     "./editor": "./src/editor.tsx",
     "./types": "./src/types.ts",
     "./get-puck-schema": "./src/get-puck-schema.ts",
+    "./catalog": "./src/catalog.ts",
+    "./registry": "./src/registry.tsx",
+    "./stream-handler": "./src/puck-stream-handler.ts",
+    "./tree-to-puck": "./src/tree-to-puck.ts",
     "./data/types": "./src/data/types.ts",
     "./data/schemas": "./src/data/schemas.ts",
     "./data/fetch": "./src/data/fetch-data.ts",
@@ -22,6 +26,8 @@
     "lint": "biome lint ."
   },
   "dependencies": {
+    "@json-render/core": "^0.2.0",
+    "@json-render/react": "^0.2.0",
     "@measured/puck": "^0.20.2",
     "@repo/api": "workspace:*",
     "@repo/ui": "workspace:*",

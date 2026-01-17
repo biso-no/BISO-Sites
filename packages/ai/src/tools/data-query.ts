@@ -9,10 +9,16 @@ export const querySchema = z.object({
     .describe("The type of entity to search"),
   filters: z
     .object({
-      status: z.string().optional().describe("Filter by status (draft, published, etc.)"),
+      status: z
+        .string()
+        .optional()
+        .describe("Filter by status (draft, published, etc.)"),
       search: z.string().optional().describe("Search term for title/name"),
       locale: z.string().optional().describe("Filter by locale (en, no)"),
-      limit: z.number().optional().describe("Maximum number of results (default 10)"),
+      limit: z
+        .number()
+        .optional()
+        .describe("Maximum number of results (default 10)"),
       sortBy: z.string().optional().describe("Field to sort by"),
       sortOrder: z.enum(["asc", "desc"]).optional().describe("Sort order"),
     })
@@ -108,7 +114,9 @@ export type GetEntityResult = {
 /**
  * Get entity handler type
  */
-export type GetEntityHandler = (params: GetEntityParams) => Promise<GetEntityResult>;
+export type GetEntityHandler = (
+  params: GetEntityParams
+) => Promise<GetEntityResult>;
 
 /**
  * Tool description for get entity
@@ -175,7 +183,9 @@ export type DashboardStatsResult = {
 /**
  * Dashboard stats handler type
  */
-export type DashboardStatsHandler = (params: DashboardStatsParams) => Promise<DashboardStatsResult>;
+export type DashboardStatsHandler = (
+  params: DashboardStatsParams
+) => Promise<DashboardStatsResult>;
 
 /**
  * Tool description for dashboard stats
@@ -190,8 +200,12 @@ export const dashboardStatsToolDescription = `Get dashboard statistics and overv
  * Create a dashboard stats execute function
  * @param statsHandler - Function that fetches dashboard statistics
  */
-export function createDashboardStatsExecute(statsHandler: DashboardStatsHandler) {
-  return async (params: DashboardStatsParams): Promise<DashboardStatsResult> => {
+export function createDashboardStatsExecute(
+  statsHandler: DashboardStatsHandler
+) {
+  return async (
+    params: DashboardStatsParams
+  ): Promise<DashboardStatsResult> => {
     try {
       const result = await statsHandler(params);
       return result;

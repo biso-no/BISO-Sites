@@ -97,7 +97,7 @@ export default async function ProjectsPage() {
               </Button>
             </div>
           </div>
-          <Card className="border-white/20 /10 backdrop-blur">
+          <Card className="/10 border-white/20 backdrop-blur">
             <CardHeader>
               <CardTitle className="text-white">{t("insight.title")}</CardTitle>
             </CardHeader>
@@ -124,7 +124,7 @@ export default async function ProjectsPage() {
         <div className="grid gap-6 md:grid-cols-2">
           {featuredProjects.map((project) => (
             <Card
-              className="hover:-translate-y-1 overflow-hidden border-primary/10  shadow-lg transition hover:shadow-xl"
+              className="hover:-translate-y-1 overflow-hidden border-primary/10 shadow-lg transition hover:shadow-xl"
               key={project.slug}
             >
               <div
@@ -172,7 +172,7 @@ export default async function ProjectsPage() {
         </div>
 
         {otherEvents.length === 0 ? (
-          <Card className="border-primary/10 ">
+          <Card className="border-primary/10">
             <CardContent className="py-12 text-center text-muted-foreground text-sm">
               {t("schedule.empty")}
             </CardContent>
@@ -180,7 +180,7 @@ export default async function ProjectsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {otherEvents.map((event) => (
-              <Card className="border-primary/10 " key={event.$id}>
+              <Card className="border-primary/10" key={event.$id}>
                 <CardHeader className="space-y-2">
                   <Badge
                     className="w-fit text-primary-70 text-xs uppercase"

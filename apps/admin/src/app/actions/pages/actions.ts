@@ -2,21 +2,18 @@
 
 import {
   getPageById,
+  type ListPagesParams,
   listPages,
+  type UpsertPageInput,
   updatePage,
   upsertPage,
-  type UpsertPageInput,
-  type ListPagesParams,
 } from "@repo/api/page-builder";
 import { createSessionClient } from "@repo/api/server";
 import { PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import type {
-  CreateManagedPageInput,
-  UpdateManagedPageInput,
-} from "./types";
-import { ADMIN_LIST_PATH, cloneDocument, revalidateForPage } from "./utils";
 import { canWriteDocument, isGlobalAdmin } from "@/lib/authorization";
+import type { CreateManagedPageInput, UpdateManagedPageInput } from "./types";
+import { ADMIN_LIST_PATH, cloneDocument, revalidateForPage } from "./utils";
 
 /**
  * List pages that the current user has write access to.
@@ -64,7 +61,10 @@ export async function createManagedPage(input: CreateManagedPageInput) {
       title: translation.title ?? input.title,
       slug: null,
       description: translation.description ?? null,
-      draftDocument: cloneDocument(translation.draftDocument) ?? { root: { props: {} }, content: [] },
+      draftDocument: cloneDocument(translation.draftDocument) ?? {
+        root: { props: {} },
+        content: [],
+      },
       publish: translation.publish ?? false,
     })),
   };

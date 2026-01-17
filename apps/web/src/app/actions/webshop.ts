@@ -5,7 +5,7 @@ import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   ContentType,
-  Locale,
+  type Locale,
 } from "@repo/api/types/appwrite";
 
 type ListProductsParams = {

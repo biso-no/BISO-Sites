@@ -4,14 +4,14 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import {
-  Coffee,
-  Film,
   Briefcase,
+  Coffee,
   Dumbbell,
-  Laptop,
-  Plane,
+  Film,
   GraduationCap,
+  Laptop,
   Lock,
+  Plane,
   Sparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -80,8 +80,8 @@ export function BenefitPreviewCard({
         >
           {/* Background pattern */}
           <div className="absolute inset-0 opacity-20">
-            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/20" />
-            <div className="absolute -bottom-2 -left-2 h-16 w-16 rounded-full bg-white/10" />
+            <div className="-right-4 -top-4 absolute h-24 w-24 rounded-full bg-white/20" />
+            <div className="-bottom-2 -left-2 absolute h-16 w-16 rounded-full bg-white/10" />
           </div>
 
           {/* Category icon */}
@@ -92,7 +92,7 @@ export function BenefitPreviewCard({
           </div>
 
           {/* Lock overlay */}
-          <div className="absolute right-2 top-2">
+          <div className="absolute top-2 right-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
               <Lock className="h-4 w-4 text-white" />
             </div>
@@ -115,7 +115,7 @@ export function BenefitPreviewCard({
 
           {/* Discount text */}
           <div className="mb-4">
-            <span className="font-bold text-xl text-brand">{discountText}</span>
+            <span className="font-bold text-brand text-xl">{discountText}</span>
           </div>
 
           {/* Teaser text */}

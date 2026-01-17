@@ -270,9 +270,7 @@ export default async function AdminJobsPage({
                         size="sm"
                         variant="ghost"
                       >
-                        <Link href={`/jobs/${job.$id}`}>
-                          {t("table.edit")}
-                        </Link>
+                        <Link href={`/jobs/${job.$id}`}>{t("table.edit")}</Link>
                       </Button>
                     </td>
                   </tr>

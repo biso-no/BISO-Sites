@@ -113,15 +113,21 @@ export function BenefitsShowcase() {
       >
         <div className="rounded-xl bg-gradient-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">50+</div>
-          <div className="text-muted-foreground">{t("showcase.stats.partners")}</div>
+          <div className="text-muted-foreground">
+            {t("showcase.stats.partners")}
+          </div>
         </div>
         <div className="rounded-xl bg-gradient-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">~3,000 NOK</div>
-          <div className="text-muted-foreground">{t("showcase.stats.savings")}</div>
+          <div className="text-muted-foreground">
+            {t("showcase.stats.savings")}
+          </div>
         </div>
         <div className="rounded-xl bg-gradient-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">10,000+</div>
-          <div className="text-muted-foreground">{t("showcase.stats.members")}</div>
+          <div className="text-muted-foreground">
+            {t("showcase.stats.members")}
+          </div>
         </div>
       </motion.div>
     </section>

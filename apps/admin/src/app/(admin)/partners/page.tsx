@@ -209,9 +209,7 @@ export default async function PartnersAdminPage() {
                         size="sm"
                         variant="outline"
                       >
-                        <Link href={`/partners/${partner.$id}`}>
-                          Rediger
-                        </Link>
+                        <Link href={`/partners/${partner.$id}`}>Rediger</Link>
                       </Button>
                       <form action={deletePartner} className="inline-flex">
                         <input name="id" type="hidden" value={partner.$id} />

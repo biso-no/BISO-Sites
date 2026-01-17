@@ -9,7 +9,7 @@ export function CartEmptyState() {
       <h2 className="mb-4 font-bold text-2xl text-foreground">
         Your cart is empty
       </h2>
-      <p className="mb-8 text-muted-foreground text-lg">
+      <p className="mb-8 text-lg text-muted-foreground">
         Start adding some amazing BISO products to your cart!
       </p>
       <Button

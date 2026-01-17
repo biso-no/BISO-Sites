@@ -1,13 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  useEntityContext,
+  usePageContext,
+} from "@repo/ai/hooks/use-copilot-context";
+import { useCopilotForm } from "@repo/ai/hooks/use-copilot-form";
+import { eventFormFields } from "@repo/ai/schemas/registry";
 // UI components
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Form } from "@repo/ui/components/ui/form";
-import { useCopilotForm } from "@repo/ai/hooks/use-copilot-form";
-import { useEntityContext, usePageContext, createEntityContext } from "@repo/ai/hooks/use-copilot-context";
-import { eventFormFields } from "@repo/ai/schemas/registry";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -71,13 +74,13 @@ export default function EventEditor({ event }: EventEditorProps) {
   useEntityContext(
     event
       ? {
-        type: "event",
-        id: event.$id,
-        title: eventTitle,
-        data: event as unknown as Record<string, unknown>,
-        locale: event.translation_refs?.[0]?.locale,
-        metadata: { status: event.status },
-      }
+          type: "event",
+          id: event.$id,
+          title: eventTitle,
+          data: event as unknown as Record<string, unknown>,
+          locale: event.translation_refs?.[0]?.locale,
+          metadata: { status: event.status },
+        }
       : null
   );
 

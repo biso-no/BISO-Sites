@@ -1,24 +1,11 @@
 "use server";
 
-import { openai } from "@ai-sdk/openai";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   ContentType,
-  Locale,
-  type WebshopProducts,
 } from "@repo/api/types/appwrite";
-import { generateObject } from "ai";
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import type {
-  CreateProductData,
-  ListProductsParams,
-  Product,
-  ProductTranslation,
-  UpdateProductData,
-} from "@/lib/types/product";
 
 export async function getProduct(
   id: string,

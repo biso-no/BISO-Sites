@@ -58,9 +58,7 @@ export default function AboutAlumniPage() {
                   <h3 className="mb-2 font-semibold text-foreground text-xl">
                     {t("title")}
                   </h3>
-                  <p className="text-muted-foreground">
-                    {t("intro")}
-                  </p>
+                  <p className="text-muted-foreground">{t("intro")}</p>
                 </div>
                 <Button
                   asChild
@@ -87,7 +85,7 @@ export default function AboutAlumniPage() {
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <Button asChild variant="outline" size="lg">
+            <Button asChild size="lg" variant="outline">
               <Link href="/about">← {tAbout("hub.title")}</Link>
             </Button>
           </motion.div>

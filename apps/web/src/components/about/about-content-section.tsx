@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type AboutContentSectionProps = {
   children: ReactNode;
@@ -13,10 +13,7 @@ export function AboutContentSection({
   className = "",
 }: AboutContentSectionProps) {
   return (
-    <section
-      className={`py-16 ${className}`}
-      id="about-content"
-    >
+    <section className={`py-16 ${className}`} id="about-content">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <motion.div
           className="prose prose-lg prose-primary max-w-none"

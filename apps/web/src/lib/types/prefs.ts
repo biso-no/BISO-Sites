@@ -1,5 +1,5 @@
-import { Models } from "@repo/api";
-import { Locale } from "@repo/api/types/appwrite";
+import type { Models } from "@repo/api";
+import type { Locale } from "@repo/api/types/appwrite";
 
 export type UserPreferences = Models.Preferences & {
   campusId?: string;

@@ -1,11 +1,16 @@
-import type { Currency, Orders, Users, Memberships } from "@repo/api/types/appwrite";
+import type {
+  Currency,
+  Memberships,
+  Orders,
+  Users,
+} from "@repo/api/types/appwrite";
 import { OrderStatus } from "@repo/api/types/appwrite";
+import {
+  hasMembershipProduct,
+  syncMembershipTo24SO,
+} from "@repo/connectors/24sevenoffice";
 import { Client } from "@vippsmobilepay/sdk";
 import { ID, Query } from "node-appwrite";
-import {
-  syncMembershipTo24SO,
-  hasMembershipProduct,
-} from "@repo/connectors/24sevenoffice";
 
 const clientId = process.env.VIPPS_CLIENT_ID!;
 const clientSecret = process.env.VIPPS_CLIENT_SECRET!;
@@ -436,22 +441,26 @@ async function deleteUserReservations({
 async function triggerMembershipSync(order: Orders, db: any): Promise<void> {
   // Check if order contains a membership product
   if (!hasMembershipProduct(order.items_json)) {
-    console.log(`[24SO Sync] Order ${order.$id} has no membership products, skipping sync`);
+    console.log(
+      `[24SO Sync] Order ${order.$id} has no membership products, skipping sync`
+    );
     return;
   }
 
-  console.log(`[24SO Sync] Order ${order.$id} contains membership, triggering sync`);
+  console.log(
+    `[24SO Sync] Order ${order.$id} contains membership, triggering sync`
+  );
 
   try {
     // Get user if order has userId
     let user: Users | null = null;
     if (order.userId) {
       try {
-        user = await db.getRow(
+        user = (await db.getRow(
           process.env.APPWRITE_DATABASE_ID!,
           "users",
           order.userId
-        ) as Users;
+        )) as Users;
       } catch (err) {
         console.warn(`[24SO Sync] Could not fetch user ${order.userId}:`, err);
       }
@@ -466,7 +475,7 @@ async function triggerMembershipSync(order: Orders, db: any): Promise<void> {
     );
 
     if (!membershipItem) {
-      console.warn(`[24SO Sync] No membership item found in parsed items`);
+      console.warn("[24SO Sync] No membership item found in parsed items");
       return;
     }
 
@@ -478,13 +487,16 @@ async function triggerMembershipSync(order: Orders, db: any): Promise<void> {
         const memberships = await db.listRows(
           process.env.APPWRITE_DATABASE_ID!,
           "memberships",
-          [Query.equal("membership_id", membershipItem.product_id), Query.limit(1)]
+          [
+            Query.equal("membership_id", membershipItem.product_id),
+            Query.limit(1),
+          ]
         );
         if (memberships.rows.length > 0) {
           membership = memberships.rows[0] as Memberships;
         }
       } catch (err) {
-        console.warn(`[24SO Sync] Could not fetch membership:`, err);
+        console.warn("[24SO Sync] Could not fetch membership:", err);
       }
     }
 
@@ -503,7 +515,9 @@ async function triggerMembershipSync(order: Orders, db: any): Promise<void> {
         category: membershipItem.category || null,
         status: true,
         startDate: new Date().toISOString(),
-        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        expiryDate: new Date(
+          Date.now() + 365 * 24 * 60 * 60 * 1000
+        ).toISOString(),
         canPurchase: true,
         studentId: [],
         payments: [],
@@ -523,7 +537,7 @@ async function triggerMembershipSync(order: Orders, db: any): Promise<void> {
       );
     }
   } catch (error) {
-    console.error(`[24SO Sync] Error during membership sync:`, error);
+    console.error("[24SO Sync] Error during membership sync:", error);
   }
 }
 

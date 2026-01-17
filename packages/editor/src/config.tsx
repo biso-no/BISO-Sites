@@ -87,10 +87,12 @@ const InlineText = ({
     if (ref.current) {
       registerOverlayPortal(ref.current);
     }
-  }, [ref.current]);
+  }, []);
 
   const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
-    if (!selectedItem) return;
+    if (!selectedItem) {
+      return;
+    }
 
     const newValue = e.currentTarget.innerText;
     const currentData = appState.data;
@@ -131,8 +133,8 @@ const InlineText = ({
       contentEditable
       onBlur={handleBlur}
       ref={ref as any}
-      suppressContentEditableWarning
       style={{ display: "inline-block", minWidth: "1em" }}
+      suppressContentEditableWarning
     >
       {children}
     </Component>

@@ -58,24 +58,24 @@ export function MemberPortalHeader({
             scale: [1, 1.2, 1],
             opacity: [0.3, 0.5, 0.3],
           }}
-          className="absolute -left-20 -top-20 h-96 w-96 rounded-full bg-white/10 blur-3xl"
-          transition={{ duration: 8, repeat: Infinity }}
+          className="-left-20 -top-20 absolute h-96 w-96 rounded-full bg-white/10 blur-3xl"
+          transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY }}
         />
         <motion.div
           animate={{
             scale: [1.2, 1, 1.2],
             opacity: [0.2, 0.4, 0.2],
           }}
-          className="absolute -bottom-20 -right-20 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl"
-          transition={{ duration: 6, repeat: Infinity }}
+          className="-bottom-20 -right-20 absolute h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl"
+          transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }}
         />
         <motion.div
           animate={{
             y: [0, 20, 0],
             opacity: [0.1, 0.2, 0.1],
           }}
-          className="absolute left-1/3 top-1/4 h-64 w-64 rounded-full bg-brand-accent/10 blur-2xl"
-          transition={{ duration: 10, repeat: Infinity }}
+          className="absolute top-1/4 left-1/3 h-64 w-64 rounded-full bg-brand-accent/10 blur-2xl"
+          transition={{ duration: 10, repeat: Number.POSITIVE_INFINITY }}
         />
       </div>
 
@@ -108,13 +108,15 @@ export function MemberPortalHeader({
               <div className="relative">
                 <div className="absolute inset-0 rounded-full bg-white/20 blur-xl" />
                 <Avatar className="relative h-24 w-24 border-4 border-white/30 shadow-2xl lg:h-28 lg:w-28">
-                  {userAvatar && <AvatarImage alt={userName} src={userAvatar} />}
+                  {userAvatar && (
+                    <AvatarImage alt={userName} src={userAvatar} />
+                  )}
                   <AvatarFallback className="bg-white/20 text-3xl text-white">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 {isMember && (
-                  <div className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-accent to-yellow-400 shadow-lg">
+                  <div className="-bottom-1 -right-1 absolute flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-accent to-yellow-400 shadow-lg">
                     <Crown className="h-4 w-4 text-brand-gradient-to" />
                   </div>
                 )}
@@ -136,7 +138,9 @@ export function MemberPortalHeader({
                         <Shield className="mr-1.5 h-3.5 w-3.5" />
                         {t("common.member")}
                       </Badge>
-                      <span className="text-white/80">{campus} {t("common.campus")}</span>
+                      <span className="text-white/80">
+                        {campus} {t("common.campus")}
+                      </span>
                     </>
                   ) : (
                     <Badge className="border-brand-accent/50 bg-brand-accent/20 text-brand-accent backdrop-blur-sm">
@@ -157,7 +161,7 @@ export function MemberPortalHeader({
                 transition={{ delay: 0.3 }}
               >
                 <Card className="border-white/20 bg-white/10 px-6 py-4 backdrop-blur-md">
-                  <div className="mb-1 flex items-center gap-2 text-white/70 text-sm">
+                  <div className="mb-1 flex items-center gap-2 text-sm text-white/70">
                     <Gift className="h-4 w-4" />
                     {t("header.benefits")}
                   </div>
@@ -167,7 +171,7 @@ export function MemberPortalHeader({
                 </Card>
 
                 <Card className="border-white/20 bg-white/10 px-6 py-4 backdrop-blur-md">
-                  <div className="mb-1 flex items-center gap-2 text-white/70 text-sm">
+                  <div className="mb-1 flex items-center gap-2 text-sm text-white/70">
                     <Calendar className="h-4 w-4" />
                     {t("common.membershipExpires")}
                   </div>
@@ -181,7 +185,7 @@ export function MemberPortalHeader({
                 </Card>
 
                 <Card className="border-white/20 bg-white/10 px-6 py-4 backdrop-blur-md">
-                  <div className="mb-1 flex items-center gap-2 text-white/70 text-sm">
+                  <div className="mb-1 flex items-center gap-2 text-sm text-white/70">
                     <Clock className="h-4 w-4" />
                     {t("common.daysRemaining")}
                   </div>
@@ -204,7 +208,7 @@ export function MemberPortalHeader({
               >
                 <Link href="/membership">
                   <Button
-                    className="h-14 px-8 text-lg bg-white text-brand-gradient-to shadow-xl hover:bg-white/90"
+                    className="h-14 bg-white px-8 text-brand-gradient-to text-lg shadow-xl hover:bg-white/90"
                     size="lg"
                   >
                     <Crown className="mr-2 h-5 w-5" />
@@ -218,7 +222,7 @@ export function MemberPortalHeader({
       </div>
 
       {/* Wave decoration at bottom */}
-      <div className="absolute -bottom-1 left-0 right-0">
+      <div className="-bottom-1 absolute right-0 left-0">
         <svg
           className="w-full text-background dark:text-background"
           fill="currentColor"

@@ -72,11 +72,7 @@ export default function SAIHPage() {
                   className="bg-linear-to-r from-pink-500 to-rose-500 text-white shadow-lg hover:opacity-90"
                   size="lg"
                 >
-                  <a
-                    href="https://saih.no"
-                    rel="noreferrer"
-                    target="_blank"
-                  >
+                  <a href="https://saih.no" rel="noreferrer" target="_blank">
                     {t("cta")}
                     <ArrowUpRight className="ml-2 h-4 w-4" />
                   </a>
@@ -96,7 +92,7 @@ export default function SAIHPage() {
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <Button asChild variant="outline" size="lg">
+            <Button asChild size="lg" variant="outline">
               <Link href="/about">← {tAbout("hub.title")}</Link>
             </Button>
           </motion.div>

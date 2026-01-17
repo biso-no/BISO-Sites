@@ -48,7 +48,14 @@ export type PageCapability =
 /**
  * Entity type for context
  */
-export type EntityType = "event" | "job" | "product" | "post" | "page" | "user" | "order";
+export type EntityType =
+  | "event"
+  | "job"
+  | "product"
+  | "post"
+  | "page"
+  | "user"
+  | "order";
 
 /**
  * Entity context - the current entity being viewed/edited
@@ -77,7 +84,17 @@ export type EntityContext = {
  */
 export type PageContext = {
   /** What section of admin we're in */
-  section: "dashboard" | "pages" | "events" | "jobs" | "products" | "posts" | "users" | "settings" | "shop" | "other";
+  section:
+    | "dashboard"
+    | "pages"
+    | "events"
+    | "jobs"
+    | "products"
+    | "posts"
+    | "users"
+    | "settings"
+    | "shop"
+    | "other";
   /** Is this a list view, detail view, or editor? */
   viewType: "list" | "detail" | "editor" | "create" | "dashboard";
   /** Breadcrumb path for context */
@@ -272,16 +289,27 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
 
   // Pending Puck content
   setPendingPuckContent: (content) => {
-    console.log("[Store] setPendingPuckContent:", content ? `${content.blocks.length} blocks` : "null");
+    console.log(
+      "[Store] setPendingPuckContent:",
+      content ? `${content.blocks.length} blocks` : "null"
+    );
     set({ pendingPuckContent: content });
   },
   consumePendingPuckContent: () => {
     const { pendingPuckContent } = get();
-    console.log("[Store] consumePendingPuckContent called, current:", pendingPuckContent ? `${pendingPuckContent.blocks.length} blocks` : "null");
+    console.log(
+      "[Store] consumePendingPuckContent called, current:",
+      pendingPuckContent ? `${pendingPuckContent.blocks.length} blocks` : "null"
+    );
     if (pendingPuckContent) {
       // Check if content is still fresh (within 30 seconds)
-      const isExpired = Date.now() - pendingPuckContent.createdAt > 30000;
-      console.log("[Store] Content age:", Date.now() - pendingPuckContent.createdAt, "ms, expired:", isExpired);
+      const isExpired = Date.now() - pendingPuckContent.createdAt > 30_000;
+      console.log(
+        "[Store] Content age:",
+        Date.now() - pendingPuckContent.createdAt,
+        "ms, expired:",
+        isExpired
+      );
       set({ pendingPuckContent: null });
       return isExpired ? null : pendingPuckContent;
     }

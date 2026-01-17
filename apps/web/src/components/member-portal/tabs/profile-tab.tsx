@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
 import {
   Avatar,
@@ -16,6 +15,7 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { Switch } from "@repo/ui/components/ui/switch";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { Check, Eye, EyeOff, Facebook, Linkedin, Twitter } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { updatePublicProfile, uploadAvatar } from "@/app/actions/member-portal";
@@ -37,7 +37,9 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
             <AvatarFallback>G</AvatarFallback>
           </Avatar>
           <h3 className="mb-2 font-bold text-xl">{t("guestTitle")}</h3>
-          <p className="border-border text-muted-foreground">{t("guestDescription")}</p>
+          <p className="border-border text-muted-foreground">
+            {t("guestDescription")}
+          </p>
           <Button asChild className="mt-6" size="lg">
             <Link href="/auth/login">{t("login")}</Link>
           </Button>

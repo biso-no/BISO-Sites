@@ -5,11 +5,8 @@ import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   ContentType,
-  Locale,
-  type News,
-  type Status,
+  type Locale,
 } from "@repo/api/types/appwrite";
-import { revalidatePath } from "next/cache";
 
 type ListNewsParams = {
   limit?: number;

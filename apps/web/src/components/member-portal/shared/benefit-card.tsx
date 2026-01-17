@@ -14,8 +14,8 @@ import {
   Store,
   Ticket,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
@@ -26,7 +26,10 @@ type BenefitCardProps = {
 };
 
 const getCategoryColor = (category: string) => {
-  const colors: Record<string, { bg: string; text: string; border: string; gradient: string }> = {
+  const colors: Record<
+    string,
+    { bg: string; text: string; border: string; gradient: string }
+  > = {
     "Food & Drink": {
       bg: "bg-orange-100 dark:bg-orange-900/20",
       text: "text-orange-700 dark:text-orange-400",
@@ -140,11 +143,11 @@ export function BenefitCard({
 
   return (
     <motion.div
+      animate={{ opacity: 1, y: 0 }}
       className="group relative"
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
+      whileHover={{ y: -4 }}
     >
       <Card className="relative overflow-hidden border-0 p-0 shadow-lg transition-all duration-300 hover:shadow-2xl dark:bg-inverted/50 dark:backdrop-blur-sm">
         {/* Animated gradient border on hover */}
@@ -189,7 +192,9 @@ export function BenefitCard({
                 )}
               </div>
             </div>
-            <Badge className={`${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border}`}>
+            <Badge
+              className={`${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border}`}
+            >
               {benefit.category}
             </Badge>
           </div>
@@ -203,61 +208,37 @@ export function BenefitCard({
           {benefit.type !== "text" && (
             <div className="relative mb-4">
               <AnimatePresence mode="wait">
-                {!revealed ? (
+                {revealed ? (
                   <motion.div
-                    key="reveal-button"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                  >
-                    <Button
-                      className={`w-full bg-gradient-to-r ${categoryStyle.gradient} text-white hover:opacity-90`}
-                      disabled={isRevealing}
-                      onClick={handleReveal}
-                    >
-                      {isRevealing ? (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          className="mr-2 h-4 w-4 border-2 border-white/30 border-t-white rounded-full"
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        />
-                      ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                      )}
-                      {isRevealing ? t("revealing") : t("reveal")}
-                    </Button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="revealed-content"
-                    initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    key="revealed-content"
                   >
                     {benefit.type === "code" && value && (
-                      <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-brand-border bg-brand-muted p-4 dark:border-brand-border-strong dark:bg-brand-muted-strong">
+                      <div className="relative overflow-hidden rounded-xl border-2 border-brand-border border-dashed bg-brand-muted p-4 dark:border-brand-border-strong dark:bg-brand-muted-strong">
                         {/* Confetti animation */}
                         <AnimatePresence>
                           {showConfetti && (
                             <motion.div
-                              className="absolute inset-0 pointer-events-none"
-                              initial={{ opacity: 1 }}
+                              className="pointer-events-none absolute inset-0"
                               exit={{ opacity: 0 }}
+                              initial={{ opacity: 1 }}
                             >
-                              {[...Array(12)].map((_, i) => (
+                              {[...new Array(12)].map((_, i) => (
                                 <motion.div
-                                  key={i}
-                                  className="absolute h-2 w-2 rounded-full bg-brand"
-                                  initial={{
-                                    x: "50%",
-                                    y: "50%",
-                                    scale: 0,
-                                  }}
                                   animate={{
                                     x: `${50 + (Math.random() - 0.5) * 100}%`,
                                     y: `${50 + (Math.random() - 0.5) * 100}%`,
                                     scale: [0, 1, 0],
                                     opacity: [0, 1, 0],
                                   }}
+                                  className="absolute h-2 w-2 rounded-full bg-brand"
+                                  initial={{
+                                    x: "50%",
+                                    y: "50%",
+                                    scale: 0,
+                                  }}
+                                  key={i}
                                   transition={{
                                     duration: 0.6,
                                     delay: i * 0.03,
@@ -313,6 +294,34 @@ export function BenefitCard({
                       </Button>
                     )}
                   </motion.div>
+                ) : (
+                  <motion.div
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0 }}
+                    key="reveal-button"
+                  >
+                    <Button
+                      className={`w-full bg-gradient-to-r ${categoryStyle.gradient} text-white hover:opacity-90`}
+                      disabled={isRevealing}
+                      onClick={handleReveal}
+                    >
+                      {isRevealing ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          className="mr-2 h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
+                          transition={{
+                            duration: 1,
+                            repeat: Number.POSITIVE_INFINITY,
+                            ease: "linear",
+                          }}
+                        />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      {isRevealing ? t("revealing") : t("reveal")}
+                    </Button>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -330,11 +339,14 @@ export function BenefitCard({
               <div className="flex items-center gap-2 text-orange-600 text-xs dark:text-orange-400">
                 <Clock className="h-3.5 w-3.5" />
                 {t("expires", {
-                  date: new Date(benefit.expiresAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  }),
+                  date: new Date(benefit.expiresAt).toLocaleDateString(
+                    "en-US",
+                    {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }
+                  ),
                 })}
               </div>
             )}

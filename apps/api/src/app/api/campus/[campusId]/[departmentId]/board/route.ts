@@ -1,17 +1,17 @@
-import { NextResponse } from "next/server";
+import { ResponseType } from "@microsoft/microsoft-graph-client";
 import { createAdminClient } from "@repo/api/server";
 import { createGraphClient } from "@repo/connectors/azure";
-import { ResponseType } from "@microsoft/microsoft-graph-client";
+import { NextResponse } from "next/server";
 
 // --- Types ---
-interface DepartmentMember {
+type DepartmentMember = {
   name: string;
   email: string;
   phone: string;
   role: string;
   officeLocation: string;
   profilePhotoUrl?: string;
-}
+};
 
 const CAMPUS_MAPPINGS = [
   {
@@ -68,7 +68,7 @@ function getCampusInfo(campusId: string) {
 
 // --- Main Route Handler ---
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ campusId: string; departmentId?: string }> }
 ) {
   try {
@@ -152,7 +152,9 @@ export async function GET(
     // 5. Fetch Photos (Parallelized)
     await Promise.all(
       members.map(async (member) => {
-        if (!member.email) return;
+        if (!member.email) {
+          return;
+        }
         try {
           const photoStream = await graphClient
             .api(`/users/${member.email}/photo/$value`)

@@ -51,13 +51,14 @@ const MEMBERSHIP_BENEFITS = [
 
 export function MembershipCtaSection() {
   const t = useTranslations("memberPortal");
-  const [selectedPlan, setSelectedPlan] =
-    useState<MembershipDuration>("year");
+  const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
   const [isPending, startTransition] = useTransition();
 
   const handlePurchase = () => {
     const option = MEMBERSHIP_OPTIONS.find((o) => o.type === selectedPlan);
-    if (!option) return;
+    if (!option) {
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -78,8 +79,8 @@ export function MembershipCtaSection() {
     <section className="relative overflow-hidden py-16">
       {/* Background decorations */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-20 top-20 h-72 w-72 rounded-full bg-brand opacity-10 blur-3xl" />
-        <div className="absolute -right-20 bottom-20 h-96 w-96 rounded-full bg-cyan-300 opacity-10 blur-3xl" />
+        <div className="-left-20 absolute top-20 h-72 w-72 rounded-full bg-brand opacity-10 blur-3xl" />
+        <div className="-right-20 absolute bottom-20 h-96 w-96 rounded-full bg-cyan-300 opacity-10 blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -114,7 +115,7 @@ export function MembershipCtaSection() {
               transition={{ delay: index * 0.1 }}
             >
               {option.popular && (
-                <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+                <div className="-top-4 -translate-x-1/2 absolute left-1/2 z-10">
                   <Badge className="border-0 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to px-4 py-1.5 text-white shadow-lg">
                     <Zap className="mr-1.5 h-3.5 w-3.5" />
                     {t("cta.popular")}
@@ -186,7 +187,7 @@ export function MembershipCtaSection() {
           transition={{ delay: 0.5 }}
         >
           <Button
-            className="h-14 px-10 text-lg bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-xl shadow-brand/30 hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+            className="h-14 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to px-10 text-lg text-white shadow-brand/30 shadow-xl hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
             disabled={isPending}
             onClick={handlePurchase}
             size="lg"

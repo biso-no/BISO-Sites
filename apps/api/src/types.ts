@@ -1,5 +1,5 @@
-import { Models } from "@repo/api";
-import { ExpenseStatus } from "@repo/api/types/appwrite";
+import type { Models } from "@repo/api";
+import type { ExpenseStatus } from "@repo/api/types/appwrite";
 
 type CreateAttachmentData = Models.Row & {
   date: string;

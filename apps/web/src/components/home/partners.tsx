@@ -1,15 +1,14 @@
-"use client"
-import { Partner } from "@/app/actions/about";
+"use client";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import type { Partner } from "@/app/actions/about";
 
 export function Partners({ partners }: { partners: Partner[] }) {
+  const t = useTranslations("about");
 
-    const t = useTranslations("about");
-
-    return (
-        <>
+  return (
+    <>
       {partners.length > 0 && (
         <section className="bg-section/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -34,10 +33,10 @@ export function Partners({ partners }: { partners: Partner[] }) {
                   >
                     {partner.url ? (
                       <a
+                        className="transition-opacity hover:opacity-80"
                         href={partner.url}
                         rel="noreferrer"
                         target="_blank"
-                        className="transition-opacity hover:opacity-80"
                       >
                         <Image
                           alt={partner.name}
@@ -63,6 +62,6 @@ export function Partners({ partners }: { partners: Partner[] }) {
           </div>
         </section>
       )}
-        </>
-    )
+    </>
+  );
 }

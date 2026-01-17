@@ -48,8 +48,7 @@ export function LockedContentOverlay({
 }: LockedContentOverlayProps) {
   const t = useTranslations("memberPortal");
   const [isPending, startTransition] = useTransition();
-  const [selectedPlan, setSelectedPlan] =
-    useState<MembershipDuration>("year");
+  const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
 
   const handleLinkBIEmail = () => {
     window.location.href = "/api/auth/oauth/bi";
@@ -57,7 +56,9 @@ export function LockedContentOverlay({
 
   const handlePurchase = () => {
     const option = MEMBERSHIP_OPTIONS.find((o) => o.type === selectedPlan);
-    if (!option) return;
+    if (!option) {
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -77,7 +78,7 @@ export function LockedContentOverlay({
   return (
     <div className="relative">
       {/* Semi-visible blurred content */}
-      <div className="pointer-events-none select-none blur-[2px] filter opacity-40">
+      <div className="pointer-events-none select-none opacity-40 blur-[2px] filter">
         {children}
       </div>
 
@@ -91,16 +92,16 @@ export function LockedContentOverlay({
           <Card className="relative overflow-hidden border-2 border-brand/30 p-8 shadow-2xl dark:border-brand/40 dark:bg-inverted/95 dark:backdrop-blur-xl">
             {/* Background decoration */}
             <div className="pointer-events-none absolute inset-0">
-              <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-brand opacity-5 blur-3xl" />
-              <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-cyan-300 opacity-5 blur-3xl" />
+              <div className="-left-20 -top-20 absolute h-64 w-64 rounded-full bg-brand opacity-5 blur-3xl" />
+              <div className="-bottom-20 -right-20 absolute h-64 w-64 rounded-full bg-cyan-300 opacity-5 blur-3xl" />
             </div>
 
             <div className="relative z-10">
               {/* Lock icon with glow */}
               <motion.div
                 animate={{ scale: [1, 1.05, 1] }}
-                className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-xl shadow-brand/30"
-                transition={{ duration: 2, repeat: Infinity }}
+                className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-brand/30 shadow-xl"
+                transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
               >
                 <Lock className="h-10 w-10 text-white" />
               </motion.div>
@@ -143,7 +144,7 @@ export function LockedContentOverlay({
                         onClick={() => setSelectedPlan(option.type)}
                       >
                         {option.popular && (
-                          <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 border-0 bg-brand px-2 py-0.5 text-white text-xs">
+                          <Badge className="-top-2.5 -translate-x-1/2 absolute left-1/2 border-0 bg-brand px-2 py-0.5 text-white text-xs">
                             <Zap className="mr-1 h-3 w-3" />
                             Best
                           </Badge>
@@ -164,7 +165,7 @@ export function LockedContentOverlay({
                   </div>
 
                   <Button
-                    className="w-full h-12 text-base bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg shadow-brand/30 hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+                    className="h-12 w-full bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
                     disabled={isPending}
                     onClick={handlePurchase}
                   >
@@ -211,7 +212,7 @@ export function LockedContentOverlay({
                   </div>
 
                   <Button
-                    className="w-full h-12 text-base bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg shadow-brand/30 hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+                    className="h-12 w-full bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
                     onClick={handleLinkBIEmail}
                   >
                     <LinkIcon className="mr-2 h-5 w-5" />

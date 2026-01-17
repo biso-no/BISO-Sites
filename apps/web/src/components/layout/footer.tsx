@@ -1,12 +1,5 @@
 "use client";
-import {
-  Facebook,
-  Instagram,
-  Linkedin,
-  Mail,
-  MapPin,
-  Twitter,
-} from "lucide-react";
+import { Facebook, Instagram, Linkedin, Mail, MapPin } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";

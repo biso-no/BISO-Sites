@@ -66,7 +66,7 @@ export function StrategyCards() {
                 <h3 className="mb-3 font-semibold text-foreground text-xl">
                   {t(`items.${item.key}.title`)}
                 </h3>
-                <p className="leading-relaxed text-muted-foreground">
+                <p className="text-muted-foreground leading-relaxed">
                   {t(`items.${item.key}.desc`)}
                 </p>
               </Card>

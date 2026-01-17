@@ -1,7 +1,7 @@
 "use client";
 
-import { Card } from "@repo/ui/components/ui/card";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import {
   Briefcase,
   Calendar,
@@ -16,11 +16,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import {
-  getOrgChartUrl,
-  getPartners,
-  type Partner,
-} from "@/app/actions/about";
+import { getOrgChartUrl, getPartners, type Partner } from "@/app/actions/about";
 import { AboutHero } from "@/components/about/about-hero";
 import { StrategyCards } from "@/components/about/strategy-cards";
 import { TopicGrid } from "@/components/about/topic-grid";

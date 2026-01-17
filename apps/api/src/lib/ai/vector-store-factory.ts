@@ -1,5 +1,5 @@
-import { PineconeVectorStore } from "./pinecone";
 import type { IVectorStore } from "@repo/ai/utils/vector-store-types";
+import { PineconeVectorStore } from "./pinecone";
 
 let instance: IVectorStore | null = null;
 

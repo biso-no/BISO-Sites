@@ -176,7 +176,11 @@
 
   /* Buttons with enhanced styling */
   ._Button--primary_10byl_48 {
-    background: linear-gradient(135deg, hsl(217.2, 91.2%, 59.8%) 0%, hsl(217.2, 91.2%, 55%) 100%);
+    background: linear-gradient(
+      135deg,
+      hsl(217.2, 91.2%, 59.8%) 0%,
+      hsl(217.2, 91.2%, 55%) 100%
+    );
     border-radius: 0.625rem;
     box-shadow: 0 2px 8px rgba(61, 169, 224, 0.2);
     transition: all 0.2s ease;
@@ -350,7 +354,11 @@
   }
 
   ._Button--primary_10byl_48 {
-    background: linear-gradient(135deg, hsl(217.2, 91.2%, 59.8%) 0%, hsl(217.2, 91.2%, 55%) 100%);
+    background: linear-gradient(
+      135deg,
+      hsl(217.2, 91.2%, 59.8%) 0%,
+      hsl(217.2, 91.2%, 55%) 100%
+    );
     box-shadow: 0 2px 8px rgba(61, 169, 224, 0.3);
   }
 
@@ -454,7 +462,11 @@
 
 /* Enhanced drag and drop visuals */
 [data-dnd-placeholder] {
-  background: linear-gradient(135deg, rgba(61, 169, 224, 0.2) 0%, rgba(61, 169, 224, 0.1) 100%) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(61, 169, 224, 0.2) 0%,
+    rgba(61, 169, 224, 0.1) 100%
+  ) !important;
   border: 2px dashed rgba(61, 169, 224, 0.4) !important;
   border-radius: 0.625rem !important;
 }
@@ -465,7 +477,9 @@
   transition: all 0.2s ease;
 }
 
-._DraggableComponent--hover_1vaqy_50 > ._DraggableComponent-overlayWrapper_1vaqy_12 > ._DraggableComponent-overlay_1vaqy_12 {
+._DraggableComponent--hover_1vaqy_50
+  > ._DraggableComponent-overlayWrapper_1vaqy_12
+  > ._DraggableComponent-overlay_1vaqy_12 {
   background: rgba(61, 169, 224, 0.1);
   outline: 2px solid rgba(61, 169, 224, 0.4);
   box-shadow: 0 4px 12px rgba(61, 169, 224, 0.15);

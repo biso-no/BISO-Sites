@@ -1,18 +1,18 @@
- import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { Card } from "@repo/ui/components/ui/card";
 import { Badge } from "@repo/ui/components/ui/badge";
+import { Card } from "@repo/ui/components/ui/card";
 import {
+  CheckCircle,
+  Clock,
   CreditCard,
-  Truck,
+  FileText,
+  Mail,
   RotateCcw,
   ShieldCheck,
-  Mail,
-  FileText,
-  Clock,
-  CheckCircle,
+  Truck,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
   title: "Purchase Terms | BISO",
@@ -52,12 +52,12 @@ export default async function TermsPage() {
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to py-20">
         {/* Animated background elements */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
+          <div className="-left-20 absolute top-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="-right-20 absolute bottom-10 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
         </div>
 
         {/* Wave decoration at bottom */}
-        <div className="absolute -bottom-1 left-0 right-0">
+        <div className="-bottom-1 absolute right-0 left-0">
           <svg
             className="w-full text-background"
             fill="currentColor"
@@ -79,7 +79,7 @@ export default async function TermsPage() {
           <p className="mx-auto max-w-2xl text-lg text-white/80">
             {t("intro")}
           </p>
-          <div className="mt-8 flex items-center justify-center gap-4 text-white/60 text-sm">
+          <div className="mt-8 flex items-center justify-center gap-4 text-sm text-white/60">
             <span className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
               {t("lastUpdated")}
@@ -93,9 +93,9 @@ export default async function TermsPage() {
       </section>
 
       {/* Content Grid */}
-      <section className="relative z-10 mx-auto -mt-8 max-w-5xl px-4 pb-20">
+      <section className="-mt-8 relative z-10 mx-auto max-w-5xl px-4 pb-20">
         <div className="grid gap-6 md:grid-cols-2">
-          {sections.map((sectionKey, index) => {
+          {sections.map((sectionKey, _index) => {
             const Icon = sectionIcons[sectionKey];
             const gradient = sectionColors[sectionKey];
 

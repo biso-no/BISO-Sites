@@ -1,14 +1,13 @@
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@repo/ui/components/ui/accordion";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import {
-  AlertTriangle,
   Building2,
   Clock,
   Cookie,
@@ -17,7 +16,6 @@ import {
   Globe,
   Lock,
   Mail,
-  MessageSquare,
   RefreshCw,
   Scale,
   Shield,
@@ -379,7 +377,7 @@ export default function PrivacyPage() {
                   <div className="prose prose-sm max-w-none pl-13 text-muted-foreground">
                     {section.content.split("\n\n").map((paragraph, idx) => (
                       <p
-                        className="mb-3 last:mb-0 whitespace-pre-line"
+                        className="mb-3 whitespace-pre-line last:mb-0"
                         key={idx}
                       >
                         {paragraph.split("**").map((part, partIdx) =>
@@ -410,7 +408,7 @@ export default function PrivacyPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
             <div className="relative flex flex-col items-center gap-6 text-center lg:flex-row lg:justify-between lg:text-left">
               <div>
-                <h2 className="mb-2 font-bold text-xl text-white sm:text-2xl">
+                <h2 className="mb-2 font-bold text-white text-xl sm:text-2xl">
                   Questions about your privacy?
                 </h2>
                 <p className="max-w-xl text-white/80">
