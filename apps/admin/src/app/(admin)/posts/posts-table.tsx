@@ -1,4 +1,5 @@
 "use client";
+import type { Campus, Departments, News } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -37,10 +38,9 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { deletePost } from "@/app/actions/admin";
-import type { News, Campus, Departments } from "@repo/api/types/appwrite";
 
 const getUniqueDepartments = (posts: News[]): Departments[] => {
   const uniqueMap = new Map<string, Departments>();
@@ -49,7 +49,11 @@ const getUniqueDepartments = (posts: News[]): Departments[] => {
     const department = post.department;
 
     // Check if the department has a valid 'id' and add to the map if it's not already present
-    if (department?.Name && !uniqueMap.has(department.Name)) {
+    if (
+      typeof department !== "string" &&
+      department?.Name &&
+      !uniqueMap.has(department.Name)
+    ) {
       uniqueMap.set(department.Name, department);
     }
   }
@@ -57,14 +61,18 @@ const getUniqueDepartments = (posts: News[]): Departments[] => {
   return Array.from(uniqueMap.values());
 };
 
-const getUniqueCampuses = (posts: Post[]): Campus[] => {
+const getUniqueCampuses = (posts: News[]): Campus[] => {
   const uniqueMap = new Map<string, Campus>();
 
   for (const post of posts) {
     const campus = post.campus;
 
     // Check if the department has a valid 'id' and add to the map if it's not already present
-    if (campus?.name && !uniqueMap.has(campus.name)) {
+    if (
+      typeof campus !== "string" &&
+      campus?.name &&
+      !uniqueMap.has(campus.name)
+    ) {
       uniqueMap.set(campus.name, campus);
     }
   }
@@ -72,10 +80,21 @@ const getUniqueCampuses = (posts: Post[]): Campus[] => {
   return Array.from(uniqueMap.values());
 };
 
-export function PostTable({ posts }: { posts: Post[] }) {
+const getPostTitle = (post: News, locale: string): string => {
+  if (!post.translation_refs || post.translation_refs.length === 0) {
+    return "Untitled";
+  }
+  const translation =
+    post.translation_refs.find((t) => t.locale === locale) ||
+    post.translation_refs[0];
+  return translation?.title || "Untitled";
+};
+
+export function PostTable({ posts }: { posts: News[] }) {
   const t = useTranslations("adminPosts");
+  const locale = useLocale();
   const [uniqueCampuses, setUniqueCampuses] = useState<Campus[]>([]);
-  const [uniqueDepartments, setUniqueDepartments] = useState<Department[]>([]);
+  const [uniqueDepartments, setUniqueDepartments] = useState<Departments[]>([]);
   const [page, setPage] = useState(1);
   const [viewType, setViewType] = useState<"list" | "grid">("list");
 
@@ -103,18 +122,25 @@ export function PostTable({ posts }: { posts: Post[] }) {
 
   const filteredPosts = useMemo(
     () =>
-      posts.filter(
-        (post) =>
+      posts.filter((post) => {
+        const title = getPostTitle(post, locale);
+        const departmentName =
+          typeof post.department === "string"
+            ? ""
+            : post.department?.Name || "";
+        const campusName =
+          typeof post.campus === "string" ? "" : post.campus?.name || "";
+
+        return (
           (search === "" ||
-            post.title.toLowerCase().includes(search.toLowerCase())) &&
+            title.toLowerCase().includes(search.toLowerCase())) &&
           (department === "Department" ||
             department === "all" ||
-            post.department.Name === department) &&
-          (campus === "Campus" ||
-            campus === "all" ||
-            post.campus.name === campus)
-      ),
-    [posts, search, department, campus]
+            departmentName === department) &&
+          (campus === "Campus" || campus === "all" || campusName === campus)
+        );
+      }),
+    [posts, search, department, campus, locale]
   );
 
   // dummy comment
@@ -126,10 +152,10 @@ export function PostTable({ posts }: { posts: Post[] }) {
   const totalPages = Math.ceil(filteredPosts.length / 3);
 
   //for the form for filter and view electin
-  const handleChange = (eOrField) => {
+  const handleChange = (eOrField: any) => {
     if (typeof eOrField === "string") {
       // This is for the Select components
-      return (newValue) => {
+      return (newValue: string) => {
         setFormData({
           ...formData,
           [eOrField]: newValue,
@@ -168,9 +194,9 @@ export function PostTable({ posts }: { posts: Post[] }) {
     router.refresh();
   };
 
-  const getStatusLabel = (status: Post["status"]) => {
+  const getStatusLabel = (status: News["status"]) => {
     switch (status) {
-      case "publish":
+      case "published":
         return t("status.published");
       case "draft":
         return t("status.draft");
@@ -204,7 +230,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("filters.allDepartments")}</SelectItem>
-              {uniqueDepartments.map((dep: Department) => (
+              {uniqueDepartments.map((dep: Departments) => (
                 <SelectItem key={dep.Name} value={dep.Name}>
                   {dep.Name}
                 </SelectItem>
@@ -262,18 +288,24 @@ export function PostTable({ posts }: { posts: Post[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPosts.map((post: Post) => (
-                <TableRow key={post.id}>
+              {filteredPosts.map((post: News) => (
+                <TableRow key={post.$id}>
                   <TableCell>
-                    {post.isSticky ? "📌 " : ""}
-                    {post.title}
+                    {post.sticky ? "📌 " : ""}
+                    {getPostTitle(post, locale)}
                   </TableCell>
-                  <TableCell>{post.department?.Name}</TableCell>
-                  <TableCell>{post.campus?.name}</TableCell>
+                  <TableCell>
+                    {typeof post.department !== "string"
+                      ? post.department?.Name
+                      : ""}
+                  </TableCell>
+                  <TableCell>
+                    {typeof post.campus !== "string" ? post.campus?.name : ""}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`rounded-full px-2 py-1 text-xs ${
-                        post.status === "publish"
+                        post.status === "published"
                           ? "bg-green-200 text-green-800"
                           : "bg-yellow-200 text-yellow-800"
                       }`}
@@ -301,33 +333,36 @@ export function PostTable({ posts }: { posts: Post[] }) {
         ) : (
           //grid view
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {paginatedPosts.map((post: Post) => (
-              <Card key={post.id}>
+            {paginatedPosts.map((post: News) => (
+              <Card key={post.$id}>
                 <CardHeader>
                   <CardTitle>
-                    {post.isSticky ? "📌 " : ""}
-                    {post.title}
+                    {post.sticky ? "📌 " : ""}
+                    {getPostTitle(post, locale)}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Image
                     alt={t("imageAlt")}
                     height={400}
-                    src={post.image}
+                    src={post.image || "/placeholder.png"}
                     width={300}
                   />
                   <p>
                     <strong>{t("table.department")}:</strong>{" "}
-                    {post.department.Name}
+                    {typeof post.department !== "string"
+                      ? post.department?.Name
+                      : ""}
                   </p>
                   <p>
-                    <strong>{t("table.campus")}:</strong> {post.campus.name}
+                    <strong>{t("table.campus")}:</strong>{" "}
+                    {typeof post.campus !== "string" ? post.campus?.name : ""}
                   </p>
                   <p>
                     <strong>{t("table.status")}:</strong>
                     <span
                       className={`ml-2 rounded-full px-2 py-1 text-xs ${
-                        post.status === "publish"
+                        post.status === "published"
                           ? "bg-green-200 text-green-800"
                           : "bg-yellow-200 text-yellow-800"
                       }`}
@@ -343,7 +378,7 @@ export function PostTable({ posts }: { posts: Post[] }) {
                 <CardFooter>
                   <Link
                     className="text-blue-600 hover:underline"
-                    href={`/posts/${post.id}`}
+                    href={`/posts/${post.$id}`}
                   >
                     {t("table.viewEdit")}
                   </Link>

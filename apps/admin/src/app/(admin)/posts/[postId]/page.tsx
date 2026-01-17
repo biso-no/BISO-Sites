@@ -7,8 +7,10 @@ import PostEditor from "../post-editor";
 export default async function AdminPostPage({
   params,
 }: {
-  params: { postId: string };
+  params: Promise<{ postId: string }>;
 }) {
+  const { postId } = await params;
+
   const _posts = await getPosts();
 
   const departments = await getDepartments();
@@ -16,8 +18,8 @@ export default async function AdminPostPage({
   const campuses = await getCampuses();
 
   let post: News | null = null;
-  if (params.postId !== "new") {
-    post = await getPost(params.postId);
+  if (postId !== "new") {
+    post = await getPost(postId);
     if (!post) {
       notFound();
     }

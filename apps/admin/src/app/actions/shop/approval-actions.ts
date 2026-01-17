@@ -63,7 +63,9 @@ export async function listPendingProducts(): Promise<PendingProduct[]> {
     // campusNames are derived from SG-App-Campus-* groups (e.g., ["Oslo", "Bergen"])
     products = products.filter((product) => {
       // If product has no campus_id, it's visible to all controllers
-      if (!product.campus_id) { return true; }
+      if (!product.campus_id) {
+        return true;
+      }
       // Check if user belongs to the product's campus
       return ctx.campusNames.includes(product.campus_id);
     });
