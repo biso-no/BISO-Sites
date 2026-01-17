@@ -44,7 +44,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, use, useMemo, useState, useTransition } from "react";
 import {
   bulkUpdateProductPrices,
   bulkUpdateProductStatus,
@@ -77,10 +77,11 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
 const LOW_STOCK_THRESHOLD = 10;
 
 export function ProductsTable({
-  products,
+  productsPromise,
 }: {
-  products: ProductWithTranslations[];
+  productsPromise: Promise<ProductWithTranslations[]>;
 }) {
+  const products = use(productsPromise);
   const t = useTranslations("adminShop");
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

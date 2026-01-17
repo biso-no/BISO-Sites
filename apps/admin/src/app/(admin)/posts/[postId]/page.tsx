@@ -1,6 +1,5 @@
-import type { News } from "@repo/api/types/appwrite";
 import { notFound } from "next/navigation";
-import { getDepartments, getPost, getPosts } from "@/app/actions/admin";
+import { getDepartments, getPost } from "@/app/actions/admin";
 import { getCampuses } from "../actions";
 import PostEditor from "../post-editor";
 
@@ -11,18 +10,18 @@ export default async function AdminPostPage({
 }) {
   const { postId } = await params;
 
-  const _posts = await getPosts();
+  const departmentsPromise = getDepartments();
+  const campusesPromise = getCampuses();
+  const postPromise = postId !== "new" ? getPost(postId) : Promise.resolve(null);
 
-  const departments = await getDepartments();
+  const [departments, campuses, post] = await Promise.all([
+    departmentsPromise,
+    campusesPromise,
+    postPromise,
+  ]);
 
-  const campuses = await getCampuses();
-
-  let post: News | null = null;
-  if (postId !== "new") {
-    post = await getPost(postId);
-    if (!post) {
-      notFound();
-    }
+  if (postId !== "new" && !post) {
+    notFound();
   }
 
   console.log("POST: ", JSON.stringify(post));
