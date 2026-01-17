@@ -59,15 +59,13 @@ export async function listPendingProducts(): Promise<PendingProduct[]> {
   // If not global admin, filter by user's campus teams
   let products = response.rows;
   if (!isAdmin) {
-    // Get campus IDs from the user's campus team names
-    // Teams are named like "SG-App-Campus-Oslo" with Azure GUID as ID
-    // We need to fetch the actual campus_id values that match user's campuses
-    // For now, we rely on the campus_id field matching team membership
-    // This will be enhanced when we have a proper campus-to-team mapping
-    products = products.filter((_product) => {
-      // Controllers can see products from any campus they belong to
-      // Since we're using session client, RLS should handle this
-      return true;
+    // Filter products by user's campus names
+    // campusNames are derived from SG-App-Campus-* groups (e.g., ["Oslo", "Bergen"])
+    products = products.filter((product) => {
+      // If product has no campus_id, it's visible to all controllers
+      if (!product.campus_id) { return true; }
+      // Check if user belongs to the product's campus
+      return ctx.campusNames.includes(product.campus_id);
     });
   }
 

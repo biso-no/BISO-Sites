@@ -385,27 +385,45 @@ export async function canReadDocument(permissions: string[]): Promise<boolean> {
 import { hasNavAccess, type NavKey, ROLES } from "./roles";
 
 /**
- * Simplified user role info for client-side navigation rendering.
- * This is passed to client components to determine which nav items to show.
+ * User role info for client-side navigation rendering and data scoping.
+ * Includes campus and department context for proper access control.
  */
 export type UserRolesForClient = {
   roles: string[];
   hasDepartmentMembership: boolean;
+  campusNames: string[]; // All campuses user belongs to (e.g., ["Oslo"])
+  departmentNames: string[]; // All departments user belongs to (e.g., ["Marketing"])
+  managedCampuses: string[]; // Campuses user manages (campusadmin only)
+  isGlobalAdmin: boolean; // National + OperationsUnit
+  isCampusAdmin: boolean; // Ledelsen{City} + Campus-{City}
 };
 
 /**
- * Get user roles formatted for client-side navigation.
- * Returns roles array and department membership flag.
+ * Get user roles formatted for client-side navigation and data filtering.
+ * Returns full context needed for campus/department-scoped access control.
  */
 export async function getUserRolesForClient(): Promise<UserRolesForClient> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
-    return { roles: [], hasDepartmentMembership: false };
+    return {
+      roles: [],
+      hasDepartmentMembership: false,
+      campusNames: [],
+      departmentNames: [],
+      managedCampuses: [],
+      isGlobalAdmin: false,
+      isCampusAdmin: false,
+    };
   }
 
   return {
     roles: ctx.roles,
     hasDepartmentMembership: ctx.departmentTeamIds.length > 0,
+    campusNames: ctx.campusNames,
+    departmentNames: ctx.departmentNames,
+    managedCampuses: ctx.managedCampuses,
+    isGlobalAdmin: ctx.roles.includes("globaladmin"),
+    isCampusAdmin: ctx.roles.includes("campusadmin"),
   };
 }
 

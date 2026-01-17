@@ -40,10 +40,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { deletePost } from "@/app/actions/admin";
-import type { Campus, Department, Post } from "@/lib/types/post";
+import type { News, Campus, Departments } from "@repo/api/types/appwrite";
 
-const getUniqueDepartments = (posts: Post[]): Department[] => {
-  const uniqueMap = new Map<string, Department>();
+const getUniqueDepartments = (posts: News[]): Departments[] => {
+  const uniqueMap = new Map<string, Departments>();
 
   for (const post of posts) {
     const department = post.department;

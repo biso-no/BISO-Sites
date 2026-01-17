@@ -199,13 +199,13 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/pages",
       icon: FileText,
       label: t("navigation.pages"),
-      roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
     },
     {
       href: "/posts",
       icon: FileText,
       label: t("navigation.posts"),
-      roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
     },
     {
       href: "/shop",
@@ -250,17 +250,17 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/jobs",
       icon: Users,
       label: t("navigation.jobs"),
-      roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
       subItems: [
         {
           href: "/jobs",
           label: t("jobsSubItems.allJobs"),
-          roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.HR, ROLES.PR, DEPARTMENT_ROLE],
         },
         {
           href: "/jobs/applications",
           label: t("jobsSubItems.applications"),
-          roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.PR],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.HR, ROLES.PR],
         },
       ],
     },
@@ -268,17 +268,17 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/events",
       icon: CalendarIcon,
       label: t("navigation.events"),
-      roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
       subItems: [
         {
           href: "/events",
           label: t("eventsSubItems.allEvents"),
-          roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
         },
         {
           href: "/events/new",
           label: t("eventsSubItems.createEvent"),
-          roles: [ROLES.GLOBAL_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
         },
       ],
     },
@@ -309,13 +309,13 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       href: "/units",
       icon: Building2,
       label: t("navigation.units"),
-      roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.HR, ROLES.FINANCE, ROLES.PR],
     },
     {
       href: "/users",
       icon: Users,
       label: t("navigation.users"),
-      roles: [ROLES.GLOBAL_ADMIN, ROLES.HR, ROLES.FINANCE],
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.HR, ROLES.FINANCE],
     },
     {
       href: "/varsling",
