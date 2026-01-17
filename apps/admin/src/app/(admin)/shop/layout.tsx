@@ -1,15 +1,12 @@
 import { redirect } from "next/navigation";
-import { getUserRoles } from "@/app/actions/admin";
+import { checkNavAccess } from "@/lib/authorization";
 
 export default async function ShopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const roles = await getUserRoles();
-  const allowed = ["Admin", "finance"];
-  const hasAccess =
-    roles.includes("Admin") || roles.some((r) => allowed.includes(r));
+  const hasAccess = await checkNavAccess("shop");
   if (!hasAccess) {
     return redirect("/");
   }

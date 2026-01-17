@@ -25,7 +25,6 @@ export default async function AdminPostPage({
 
   console.log("POST: ", JSON.stringify(post));
 
-  // @ts-expect-error - PostEditor expects a local Post type that differs slightly from News, but runtime data is compatible
   return (
     <PostEditor campuses={campuses} departments={departments} post={post} />
   );
