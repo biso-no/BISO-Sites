@@ -1,14 +1,14 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
   Document,
   Image,
   Page,
+  renderToBuffer,
   StyleSheet,
   Text,
   View,
-  renderToBuffer,
 } from "@react-pdf/renderer";
-import fs from "node:fs";
-import path from "node:path";
 
 type ExpenseAttachment = {
   description: string;

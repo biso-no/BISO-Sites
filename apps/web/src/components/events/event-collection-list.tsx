@@ -4,8 +4,8 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { format } from "date-fns";
 import { Calendar, Clock } from "lucide-react";
-import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { formatEventPrice } from "@/lib/types/event";
 
 type EventCollectionListProps = {

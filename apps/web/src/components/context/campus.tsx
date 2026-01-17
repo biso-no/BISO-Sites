@@ -1,5 +1,6 @@
 "use client";
 import type { Campus } from "@repo/api/types/appwrite";
+import { useHydration } from "@repo/ui/hooks/use-hydration";
 import { useRouter } from "next/navigation";
 import {
   createContext,
@@ -10,7 +11,6 @@ import {
   useState,
 } from "react";
 import { getCampuses, setActiveCampus } from "@/app/actions/campus";
-import { useHydration } from "@repo/ui/hooks/use-hydration";
 
 type CampusContextValue = {
   campuses: Campus[];

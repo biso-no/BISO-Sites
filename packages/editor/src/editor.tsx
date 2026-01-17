@@ -5,10 +5,9 @@ import {
   type Data,
   Puck,
   usePuck as usePuckOriginal,
-  createUsePuck,
 } from "@measured/puck";
 import { Button } from "@repo/ui/components/ui/button";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
 import "@measured/puck/puck.css";
@@ -62,18 +61,22 @@ const usePuck = usePuckOriginal;
  * Internal component that lives inside Puck and exposes dispatch to external callers.
  * This is the ONLY way to properly update Puck's internal state from outside.
  */
-function PuckDispatchBridge({ 
-  onDispatchReady 
-}: { 
-  onDispatchReady?: (setData: (data: Data) => void) => void 
+function PuckDispatchBridge({
+  onDispatchReady,
+}: {
+  onDispatchReady?: (setData: (data: Data) => void) => void;
 }) {
   const { dispatch, appState } = usePuck();
-  
+
   useEffect(() => {
     if (onDispatchReady) {
       // Expose a function that uses Puck's dispatch to set data
       onDispatchReady((newData: Data) => {
-        console.log("[PuckDispatchBridge] Dispatching setData with", newData.content?.length, "blocks");
+        console.log(
+          "[PuckDispatchBridge] Dispatching setData with",
+          newData.content?.length,
+          "blocks"
+        );
         dispatch({
           type: "setData",
           data: newData,
@@ -81,7 +84,7 @@ function PuckDispatchBridge({
       });
     }
   }, [dispatch, onDispatchReady]);
-  
+
   return null; // This component renders nothing, it just bridges the API
 }
 
@@ -402,9 +405,7 @@ export function PageEditor({
                   {initialStatus === PageStatus.PUBLISHED && (
                     <Button
                       className="mr-2"
-                      onClick={() =>
-                        window.open(`/${slug}`, "_blank")
-                      }
+                      onClick={() => window.open(`/${slug}`, "_blank")}
                       variant="outline"
                     >
                       <ExternalLink className="mr-2 h-4 w-4" />

@@ -1,4 +1,5 @@
 import type { Models } from "@repo/api";
+import type { News } from "@repo/api/types/appwrite";
 
 export interface Department extends Models.Row {
   Name: string;
@@ -8,12 +9,5 @@ export interface Campus extends Models.Row {
   name: string;
 }
 
-export interface Post extends Models.Row {
-  title: string;
-  url: string;
-  content: string;
-  status: string;
-  image: string;
-  department: Department;
-  campus_id: Campus;
-}
+// Re-export News as Post for backwards compatibility
+export type Post = News;

@@ -23,8 +23,7 @@ export async function POST(req: NextRequest) {
     const { descriptions } = await req.json();
 
     if (
-      !descriptions ||
-      !Array.isArray(descriptions) ||
+      !(descriptions && Array.isArray(descriptions)) ||
       descriptions.length === 0
     ) {
       return NextResponse.json(

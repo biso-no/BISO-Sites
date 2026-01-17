@@ -1,3 +1,4 @@
+import { Locale } from "@repo/api/types/appwrite";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { listNews } from "@/app/actions/news";
@@ -7,7 +8,6 @@ import { NewsGridSkeleton } from "@/components/news/news-grid-skeleton";
 import { NewsHero } from "@/components/news/news-hero";
 import { NewsInfoSection } from "@/components/news/news-info-section";
 import { getUserPreferences } from "@/lib/auth-utils";
-import { Locale } from "@repo/api/types/appwrite";
 
 export const metadata: Metadata = {
   title: "Latest News & Student Stories | BISO",

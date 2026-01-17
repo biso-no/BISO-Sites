@@ -4,20 +4,20 @@ import { EventsSection } from "@/components/home/events-section";
 import { HeroSection } from "@/components/home/hero-section";
 import { JoinUs } from "@/components/home/join-us";
 import { NewsSection } from "@/components/home/news-section";
+import { Partners } from "@/components/home/partners";
 import {
   AboutSkeleton,
   EventsSkeleton,
   HeroSkeleton,
   NewsSkeleton,
 } from "@/components/home/skeletons";
+import { getUserPreferences } from "@/lib/auth-utils";
+import { getPartners } from "../actions/about";
 import { getCampuses } from "../actions/campus";
 import { listEvents } from "../actions/events";
 import { listJobs } from "../actions/jobs";
 import { getLocale } from "../actions/locale";
 import { listNews } from "../actions/news";
-import { getUserPreferences } from "@/lib/auth-utils";
-import { Partners } from "@/components/home/partners";
-import { getPartners } from "../actions/about";
 
 export default async function HomePage() {
   const prefs = await getUserPreferences();

@@ -1,5 +1,6 @@
 import { getLocale } from "@/app/actions/locale";
 import { getProductBySlug } from "@/app/actions/webshop";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { AddToCartCard } from "../product/add-to-cart-card";
 import { MemberBenefits } from "../product/member-benefits";
 import { PickupInfo } from "../product/pickup-info";
@@ -9,7 +10,6 @@ import { ProductOptions } from "../product/product-options";
 import { ProductPriceCard } from "../product/product-price-card";
 import { ProductPurchaseProvider } from "../product/product-purchase-provider";
 import { StockStatus } from "../product/stock-status";
-import { getMembershipStatus } from "@/lib/actions/membership";
 
 export default async function ProductDetailsPage({
   params,

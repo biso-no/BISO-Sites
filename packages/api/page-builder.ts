@@ -3,7 +3,7 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "./server";
 import type { Locale, Pages, PageTranslations } from "./types/appwrite";
-import { PageStatus, PageVisibility } from "./types/appwrite";
+import { PageStatus, type PageVisibility } from "./types/appwrite";
 
 const DATABASE_ID = "app";
 const PAGES_TABLE_ID = "pages";
@@ -159,9 +159,9 @@ function normalizePage(row: Pages): PageRecord {
       .translation_refs
   )
     ? (
-      (row as unknown as { translation_refs?: PageTranslations[] })
-        .translation_refs ?? []
-    ).map(normalizeTranslation)
+        (row as unknown as { translation_refs?: PageTranslations[] })
+          .translation_refs ?? []
+      ).map(normalizeTranslation)
     : [];
 
   return {
@@ -174,8 +174,10 @@ function normalizePage(row: Pages): PageRecord {
     campusId:
       (row as unknown as { campus_id?: string | null }).campus_id ?? null,
     departmentId:
-      (row as unknown as { department_id?: string | null }).department_id ?? null,
-    permissions: (row as unknown as { $permissions?: string[] }).$permissions ?? [],
+      (row as unknown as { department_id?: string | null }).department_id ??
+      null,
+    permissions:
+      (row as unknown as { $permissions?: string[] }).$permissions ?? [],
     createdAt: row.$createdAt,
     updatedAt: row.$updatedAt,
     translations,
@@ -192,7 +194,6 @@ async function fetchPageRow(pageId: string) {
     queries: [Query.select(PAGE_SELECT_FIELDS)],
   });
 }
-
 
 export type ListPagesParams = {
   search?: string;
@@ -215,10 +216,7 @@ export async function listPages(
   // Include $permissions in select fields
   const selectFields = [...PAGE_SELECT_FIELDS, "$permissions"];
 
-  const queries = [
-    Query.select(selectFields),
-    Query.orderDesc("$updatedAt"),
-  ];
+  const queries = [Query.select(selectFields), Query.orderDesc("$updatedAt")];
 
   if (typeof params.limit === "number") {
     queries.push(Query.limit(params.limit));
@@ -323,7 +321,6 @@ export async function getPublishedPage({
   };
 }
 
-
 export type UpdatePageInput = {
   pageId: string;
   slug?: string;
@@ -408,7 +405,7 @@ export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
 
   const pageId = input.pageId ?? ID.unique();
 
-  let existingTranslations: Map<Locale, string> = new Map();
+  const existingTranslations: Map<Locale, string> = new Map();
 
   if (input.pageId) {
     const existingPage = await getPageById(input.pageId);

@@ -3,8 +3,8 @@ import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { format } from "date-fns";
 import { ArrowLeft, Calendar, Clock, MapPin, Users } from "lucide-react";
-import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   type EventCategory,
   getEventCategory,

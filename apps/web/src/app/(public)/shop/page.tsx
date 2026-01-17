@@ -1,11 +1,11 @@
+import { Locale } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
 import { listProducts } from "@/app/actions/webshop";
 import { ShopHero } from "@/components/shop/shop-hero";
 import { ShopListClient } from "@/components/shop/shop-list-client";
-import { getUserPreferences } from "@/lib/auth-utils";
-import { Locale } from "@repo/api/types/appwrite";
 import { getMembershipStatus } from "@/lib/actions/membership";
+import { getUserPreferences } from "@/lib/auth-utils";
 
 export const metadata = {
   title: "Shop | BISO",
@@ -61,8 +61,8 @@ export default async function ShopPage() {
       <Suspense fallback={<ShopListSkeleton />}>
         <ShopList
           campus={prefs?.campusId ?? "all"}
-          locale={prefs?.locale ?? Locale.EN}
           isMember={isMember}
+          locale={prefs?.locale ?? Locale.EN}
         />
       </Suspense>
     </div>

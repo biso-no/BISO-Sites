@@ -64,8 +64,8 @@ export async function updatePost(postId: string, post: News) {
 
       const matchingRef = Array.isArray(post.translation_refs)
         ? (post.translation_refs as ContentTranslations[]).find(
-          (t) => typeof t !== "string" && t.locale === translation.locale
-        )
+            (t) => typeof t !== "string" && t.locale === translation.locale
+          )
         : undefined;
 
       return {

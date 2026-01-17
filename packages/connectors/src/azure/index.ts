@@ -1,6 +1,6 @@
+import { ClientSecretCredential } from "@azure/identity";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { TokenCredentialAuthenticationProvider } from "@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js";
-import { ClientSecretCredential } from "@azure/identity";
 
 export const createGraphClient = (
   tenantId: string,

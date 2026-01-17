@@ -16,7 +16,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { BenefitCard } from "../shared/benefit-card";
@@ -43,14 +43,46 @@ const categories = [
 
 // Preview benefits for non-members
 const PREVIEW_BENEFITS = [
-  { category: "Food & Drink", partnerName: "Restaurant Partner", discountText: "20% off" },
-  { category: "Entertainment", partnerName: "Cinema & Events", discountText: "15% off" },
-  { category: "Career", partnerName: "Professional Development", discountText: "Member Only" },
-  { category: "Health & Fitness", partnerName: "Gym & Wellness", discountText: "25% off" },
-  { category: "Software", partnerName: "Tech & Tools", discountText: "50% off" },
-  { category: "Travel", partnerName: "Student Travel", discountText: "Up to 30% off" },
-  { category: "Food & Drink", partnerName: "Coffee Shop", discountText: "Free upgrade" },
-  { category: "Entertainment", partnerName: "Streaming Service", discountText: "3 months free" },
+  {
+    category: "Food & Drink",
+    partnerName: "Restaurant Partner",
+    discountText: "20% off",
+  },
+  {
+    category: "Entertainment",
+    partnerName: "Cinema & Events",
+    discountText: "15% off",
+  },
+  {
+    category: "Career",
+    partnerName: "Professional Development",
+    discountText: "Member Only",
+  },
+  {
+    category: "Health & Fitness",
+    partnerName: "Gym & Wellness",
+    discountText: "25% off",
+  },
+  {
+    category: "Software",
+    partnerName: "Tech & Tools",
+    discountText: "50% off",
+  },
+  {
+    category: "Travel",
+    partnerName: "Student Travel",
+    discountText: "Up to 30% off",
+  },
+  {
+    category: "Food & Drink",
+    partnerName: "Coffee Shop",
+    discountText: "Free upgrade",
+  },
+  {
+    category: "Entertainment",
+    partnerName: "Streaming Service",
+    discountText: "3 months free",
+  },
 ];
 
 function MemberBenefitsView({
@@ -117,7 +149,7 @@ function MemberBenefitsView({
       >
         {/* Search bar */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="-translate-y-1/2 absolute top-1/2 left-4 h-5 w-5 text-muted-foreground" />
           <Input
             className="h-12 pl-12 text-base"
             onChange={(e) => setSearchQuery(e.target.value)}

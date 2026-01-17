@@ -1,6 +1,11 @@
 import { openai } from "@ai-sdk/openai";
 import { getSystemPrompt } from "@repo/ai/prompts";
 import {
+  CAPABILITY_REGISTRY,
+  getCapabilityFromPath,
+} from "@repo/ai/schemas/registry";
+import type { PageCapability } from "@repo/ai/stores/copilot-store";
+import {
   createFormFillerTool,
   eventFormFields,
 } from "@repo/ai/tools/form-filler";
@@ -8,23 +13,16 @@ import {
   createNavigationTool,
   defaultAdminRoutes,
 } from "@repo/ai/tools/navigation";
+import { createPageCreatorTool } from "@repo/ai/tools/page-creator";
 import {
   createPuckGeneratorTool,
   createTaskAnalyzerTool,
 } from "@repo/ai/tools/puck-generator";
-import { createPageCreatorTool } from "@repo/ai/tools/page-creator";
 import { translateContentTool } from "@repo/ai/tools/translate";
 import {
-  getCapabilityFromPath,
-  getCapabilitiesDescription,
-  getFormFieldsDescription,
-  CAPABILITY_REGISTRY,
-} from "@repo/ai/schemas/registry";
-import type { PageCapability } from "@repo/ai/stores/copilot-store";
-import {
   convertToModelMessages,
-  streamText,
   stepCountIs,
+  streamText,
   type UIMessage,
 } from "ai";
 
@@ -76,21 +74,33 @@ type RequestBody = {
 
 export async function POST(req: Request) {
   console.log("--- AI Chat API Request Received ---");
-  
-  const { messages, capability, formFields, currentPath, puckData, entityContext, pageContext }: RequestBody =
-    await req.json();
-    
+
+  const {
+    messages,
+    capability,
+    formFields,
+    currentPath,
+    puckData,
+    entityContext,
+    pageContext,
+  }: RequestBody = await req.json();
+
   // Log request inputs
   console.log(`Input messages count: ${messages.length}`);
   console.log(`Current Path: ${currentPath}`);
   console.log(`Capability: ${capability || "none"}`);
   console.log(`Form Fields count: ${formFields?.length || 0}`);
   console.log(`Puck Data present (Editor mode): ${!!puckData}`);
-  console.log(`Entity Context: ${entityContext ? `${entityContext.type}:${entityContext.id}` : "none"}`);
-  console.log(`Page Context: ${pageContext ? `${pageContext.section}/${pageContext.viewType}` : "none"}`);
+  console.log(
+    `Entity Context: ${entityContext ? `${entityContext.type}:${entityContext.id}` : "none"}`
+  );
+  console.log(
+    `Page Context: ${pageContext ? `${pageContext.section}/${pageContext.viewType}` : "none"}`
+  );
 
   // Get capability from path if not provided
-  const detectedCapability = capability || (currentPath ? getCapabilityFromPath(currentPath)?.id : null);
+  const detectedCapability =
+    capability || (currentPath ? getCapabilityFromPath(currentPath)?.id : null);
 
   // Hardcoded Puck schema description to avoid client/server import issues
   const schemaDescription = `
@@ -147,7 +157,7 @@ Example page structure:
   ]
 }
 `;
-  
+
   console.log("Using hardcoded Puck schema (avoiding config import issues).");
 
   // --- Tool Initialization and Logging ---
@@ -166,10 +176,10 @@ Example page structure:
 
   // Create Puck content generator tool
   const generatorToolInput = `${schemaDescription}\n\n${puckExample}`;
-  console.log(`Puck Generator tool initialized with schema length: ${generatorToolInput.length} characters.`);
-  const generatePuckContent = createPuckGeneratorTool(
-    generatorToolInput
+  console.log(
+    `Puck Generator tool initialized with schema length: ${generatorToolInput.length} characters.`
   );
+  const generatePuckContent = createPuckGeneratorTool(generatorToolInput);
 
   // Create form filler tool - use provided fields, capability fields, or default to event fields
   let formFieldsForTool;
@@ -188,15 +198,24 @@ Example page structure:
       required: f.required,
       currentValue: f.currentValue,
     }));
-    console.log(`Form filler tool initialized with ${formFieldsForTool.length} fields from request.`);
-  } else if (detectedCapability && CAPABILITY_REGISTRY[detectedCapability]?.formFields.length) {
+    console.log(
+      `Form filler tool initialized with ${formFieldsForTool.length} fields from request.`
+    );
+  } else if (
+    detectedCapability &&
+    CAPABILITY_REGISTRY[detectedCapability]?.formFields.length
+  ) {
     formFieldsForTool = CAPABILITY_REGISTRY[detectedCapability].formFields;
-    console.log(`Form filler tool initialized with ${formFieldsForTool.length} fields from capability registry (${detectedCapability}).`);
+    console.log(
+      `Form filler tool initialized with ${formFieldsForTool.length} fields from capability registry (${detectedCapability}).`
+    );
   } else {
     formFieldsForTool = eventFormFields;
-    console.log(`Form filler tool initialized with default eventFormFields (${formFieldsForTool.length} fields).`);
+    console.log(
+      `Form filler tool initialized with default eventFormFields (${formFieldsForTool.length} fields).`
+    );
   }
-  
+
   const fillFormFields = createFormFillerTool(formFieldsForTool);
 
   const tools = {
@@ -207,9 +226,11 @@ Example page structure:
     fillFormFields,
     translateContent: translateContentTool,
   };
-  
+
   // Log the active tools
-  console.log(`Active tools for this request: ${Object.keys(tools).join(", ")}`);
+  console.log(
+    `Active tools for this request: ${Object.keys(tools).join(", ")}`
+  );
 
   // --- System Prompt Building ---
 
@@ -226,8 +247,12 @@ Example page structure:
     const pageInfo = [
       `Section: ${pageContext.section}`,
       `View Type: ${pageContext.viewType}`,
-      pageContext.breadcrumb?.length ? `Breadcrumb: ${pageContext.breadcrumb.join(" > ")}` : null,
-    ].filter(Boolean).join("\n");
+      pageContext.breadcrumb?.length
+        ? `Breadcrumb: ${pageContext.breadcrumb.join(" > ")}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
     contextParts.push(`## Page Context\n${pageInfo}`);
 
     // List summary if on a list page
@@ -236,9 +261,11 @@ Example page structure:
         `Total items: ${pageContext.listSummary.totalCount}`,
         `Displayed: ${pageContext.listSummary.displayedCount}`,
         pageContext.listSummary.items?.length
-          ? `Recent items:\n${pageContext.listSummary.items.map(i => `  - ${i.title} (${i.status || "unknown"})`).join("\n")}`
+          ? `Recent items:\n${pageContext.listSummary.items.map((i) => `  - ${i.title} (${i.status || "unknown"})`).join("\n")}`
           : null,
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
       contextParts.push(`## List Summary\n${listInfo}`);
     }
   }
@@ -250,44 +277,59 @@ Example page structure:
       `ID: ${entityContext.id}`,
       `Title: "${entityContext.title}"`,
       entityContext.locale ? `Locale: ${entityContext.locale}` : null,
-      entityContext.metadata?.status ? `Status: ${entityContext.metadata.status}` : null,
-    ].filter(Boolean).join("\n");
-    
+      entityContext.metadata?.status
+        ? `Status: ${entityContext.metadata.status}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     // Include relevant entity data (sanitized for prompt)
     const dataPreview = JSON.stringify(entityContext.data, null, 2);
-    const truncatedData = dataPreview.length > 3000 
-      ? dataPreview.substring(0, 3000) + "\n... (truncated)"
-      : dataPreview;
-    
-    contextParts.push(`## Current Entity\n${entityInfo}\n\n### Entity Data:\n\`\`\`json\n${truncatedData}\n\`\`\``);
+    const truncatedData =
+      dataPreview.length > 3000
+        ? `${dataPreview.substring(0, 3000)}\n... (truncated)`
+        : dataPreview;
+
+    contextParts.push(
+      `## Current Entity\n${entityInfo}\n\n### Entity Data:\n\`\`\`json\n${truncatedData}\n\`\`\``
+    );
   }
 
   // Puck editor context
   if (puckData) {
-    contextParts.push("## Editor Mode\nUser is on a Puck page editor. You can modify the page structure using generatePuckContent.");
-    
+    contextParts.push(
+      "## Editor Mode\nUser is on a Puck page editor. You can modify the page structure using generatePuckContent."
+    );
+
     // Include current Puck data structure
     const puckPreview = JSON.stringify(puckData, null, 2);
-    const truncatedPuck = puckPreview.length > 2000
-      ? puckPreview.substring(0, 2000) + "\n... (truncated)"
-      : puckPreview;
-    contextParts.push(`### Current Page Structure:\n\`\`\`json\n${truncatedPuck}\n\`\`\``);
+    const truncatedPuck =
+      puckPreview.length > 2000
+        ? `${puckPreview.substring(0, 2000)}\n... (truncated)`
+        : puckPreview;
+    contextParts.push(
+      `### Current Page Structure:\n\`\`\`json\n${truncatedPuck}\n\`\`\``
+    );
   }
 
   const contextInfo = contextParts.join("\n\n");
-    
-  console.log(`Context Info generated (${contextInfo.length} chars):\n${contextInfo.substring(0, 500)}...`);
+
+  console.log(
+    `Context Info generated (${contextInfo.length} chars):\n${contextInfo.substring(0, 500)}...`
+  );
 
   const systemPrompt = getSystemPrompt("admin", contextInfo);
   // Log the final system prompt (or a snippet)
   console.log(`System Prompt length: ${systemPrompt.length}`);
-  console.log(`System Prompt start:\n---\n${systemPrompt.substring(0, 500)}...\n---`);
-
+  console.log(
+    `System Prompt start:\n---\n${systemPrompt.substring(0, 500)}...\n---`
+  );
 
   // --- Streaming Execution ---
 
   console.log("Starting streamText with gpt-5...");
-  
+
   const result = streamText({
     model: openai("gpt-5"),
     messages: convertToModelMessages(messages),
@@ -300,7 +342,7 @@ Example page structure:
       console.log("=== STREAM FINISHED ===");
       console.log(`Finish Reason: ${finishReason}`);
       console.log(`Text Content Length: ${text?.length || 0}`);
-      console.log(`Text Content: ${text || '[EMPTY]'}`);
+      console.log(`Text Content: ${text || "[EMPTY]"}`);
       console.log(`Tool Calls Count: ${toolCalls?.length || 0}`);
       if (toolCalls && toolCalls.length > 0) {
         console.log("Tool Calls:");

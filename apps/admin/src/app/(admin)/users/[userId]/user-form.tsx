@@ -313,10 +313,11 @@ export function UserForm({ user: initialUser, campuses }: UserFormProps) {
                         const currentRoles = user.roles || [];
                         return (
                           <Button
-                            className={`flex items-center gap-2 rounded-md p-2 transition-colors ${currentRoles.includes(role)
+                            className={`flex items-center gap-2 rounded-md p-2 transition-colors ${
+                              currentRoles.includes(role)
                                 ? "border border-primary/30 bg-primary/10"
                                 : "border border-transparent bg-muted"
-                              }
+                            }
                           `}
                             key={role}
                             onClick={() => handleRoleChange(role)}

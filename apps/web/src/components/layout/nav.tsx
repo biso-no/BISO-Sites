@@ -1,5 +1,6 @@
 "use client";
 import { ImageWithFallback } from "@repo/ui/components/image";
+import { ModeToggle } from "@repo/ui/components/mode-toggle";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Briefcase,
@@ -19,7 +20,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useCampus } from "@/components/context/campus";
 import { SelectCampus } from "@/components/select-campus";
 import { LocaleSwitcher } from "../locale-switcher";
-import { ModeToggle } from "@repo/ui/components/mode-toggle";
 
 type NavigationProps = {
   onEventsClick?: () => void;
@@ -202,9 +202,9 @@ export function Navigation({
                   {item.label}
                 </Link>
               ))}
-              <SelectCampus campuses={campuses} className="text-white w-full" />
+              <SelectCampus campuses={campuses} className="w-full text-white" />
               <LocaleSwitcher
-                className="text-white w-full"
+                className="w-full text-white"
                 size="sm"
                 variant="ghost"
               />

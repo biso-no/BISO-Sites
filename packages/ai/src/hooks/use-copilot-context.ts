@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import {
-  useCopilotStore,
   type EntityContext,
   type EntityType,
   type PageContext,
+  useCopilotStore,
 } from "../stores/copilot-store";
 
 /**
@@ -69,6 +69,8 @@ export function useEntityContext(options: UseEntityContextOptions | null) {
     options?.title,
     options?.locale,
     setEntityContext,
+    options?.data,
+    options,
   ]);
 }
 
@@ -147,7 +149,11 @@ export const createEntityContext = {
     $id: string;
     slug: string;
     status?: string;
-    translation_refs?: Array<{ title?: string; description?: string; locale?: string }>;
+    translation_refs?: Array<{
+      title?: string;
+      description?: string;
+      locale?: string;
+    }>;
     start_date?: string;
     end_date?: string;
     location?: string;
@@ -170,7 +176,11 @@ export const createEntityContext = {
     $id: string;
     slug: string;
     status?: string;
-    translation_refs?: Array<{ title?: string; description?: string; locale?: string }>;
+    translation_refs?: Array<{
+      title?: string;
+      description?: string;
+      locale?: string;
+    }>;
     deadline?: string;
     [key: string]: unknown;
   }): UseEntityContextOptions => ({
@@ -187,13 +197,20 @@ export const createEntityContext = {
   /**
    * Create context for a page
    */
-  page: (page: {
-    id: string;
-    slug: string;
-    status?: string;
-    translations?: Array<{ title?: string; locale?: string; draftDocument?: unknown }>;
-    [key: string]: unknown;
-  }, locale?: string): UseEntityContextOptions => {
+  page: (
+    page: {
+      id: string;
+      slug: string;
+      status?: string;
+      translations?: Array<{
+        title?: string;
+        locale?: string;
+        draftDocument?: unknown;
+      }>;
+      [key: string]: unknown;
+    },
+    locale?: string
+  ): UseEntityContextOptions => {
     const translation = locale
       ? page.translations?.find((t) => t.locale === locale)
       : page.translations?.[0];

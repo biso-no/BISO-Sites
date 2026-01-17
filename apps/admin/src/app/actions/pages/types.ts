@@ -32,4 +32,3 @@ export type UpdateManagedPageInput = {
   template?: string | null;
   campusId?: string | null;
 };
-

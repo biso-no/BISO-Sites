@@ -124,7 +124,8 @@ export const defaultAdminRoutes: RouteInfo[] = [
   {
     path: "/admin/pages",
     label: "Pages",
-    description: "Manage website pages. To create a new page, navigate here and user will use the 'Create Page' button which opens a modal.",
+    description:
+      "Manage website pages. To create a new page, navigate here and user will use the 'Create Page' button which opens a modal.",
     requiredRoles: ["Admin", "pr"],
   },
   {

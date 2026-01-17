@@ -95,9 +95,9 @@ const buildTranslationRefsForUpdate = async (
   const existingTranslations = existingProduct.rows[0]?.translation_refs ?? [];
   const existingTranslationsArray = Array.isArray(existingTranslations)
     ? existingTranslations.filter(
-      (translation): translation is ContentTranslations =>
-        typeof translation !== "string"
-    )
+        (translation): translation is ContentTranslations =>
+          typeof translation !== "string"
+      )
     : [];
 
   const buildTranslation = (
@@ -257,7 +257,9 @@ export async function createProduct(
     const { db } = await createSessionClient();
 
     // Import authorization utilities dynamically to avoid circular imports
-    const { getUserAuthContext, isGlobalAdmin, isController } = await import("@/lib/authorization");
+    const { getUserAuthContext, isGlobalAdmin, isController } = await import(
+      "@/lib/authorization"
+    );
     const ctx = await getUserAuthContext();
 
     // Determine default status based on user role
@@ -297,7 +299,8 @@ export async function createProduct(
     ];
 
     // Get departmentId from context if not provided
-    const departmentId = data.departmentId ??
+    const departmentId =
+      data.departmentId ??
       (ctx?.departmentTeamIds && ctx.departmentTeamIds.length > 0
         ? ctx.departmentTeamIds[0]
         : null);
@@ -321,7 +324,7 @@ export async function createProduct(
         metadata: serializeMetadata(data.metadata),
         // Relationship fields
         campus: data.campus_id,
-        departmentId: departmentId,
+        departmentId,
         department: null,
         translation_refs: translationRefs,
       } as any

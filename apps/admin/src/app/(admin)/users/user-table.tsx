@@ -62,7 +62,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { JSX, useEffect, useMemo, useState } from "react";
+import { type JSX, useEffect, useMemo, useState } from "react";
 import { AdminSummary } from "@/components/admin/admin-summary";
 import { cn } from "@/lib/utils";
 import { formatPercentage } from "@/lib/utils/admin";
@@ -332,7 +332,7 @@ export function UserTable({ initialUsers }: { initialUsers: Users[] }) {
                   className={cn(
                     "rounded-full border border-primary/10 px-3 py-1 font-semibold text-primary-80 text-xs shadow-sm transition",
                     active &&
-                    "bg-primary-40 text-white shadow-[0_18px_40px_-25px_rgba(0,23,49,0.6)] hover:bg-primary-30 hover:text-white"
+                      "bg-primary-40 text-white shadow-[0_18px_40px_-25px_rgba(0,23,49,0.6)] hover:bg-primary-30 hover:text-white"
                   )}
                   key={chip.value}
                   onClick={() => setFilterRole(chip.value)}

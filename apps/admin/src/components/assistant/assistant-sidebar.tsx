@@ -1,15 +1,33 @@
 "use client";
 
+import {
+  getAgentStateDisplay,
+  useCopilotStore,
+} from "@repo/ai/stores/copilot-store";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { motion } from "framer-motion";
-import { Bot, Loader2, Send, Sparkles, Trash2, X, Zap, Navigation, Wand2, PenLine } from "lucide-react";
+import {
+  Bot,
+  Loader2,
+  Navigation,
+  PenLine,
+  Send,
+  Sparkles,
+  Trash2,
+  Wand2,
+  X,
+  Zap,
+} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useCopilotStore, getAgentStateDisplay } from "@repo/ai/stores/copilot-store";
-import { loadChatMessages, saveChatMessages, clearChatHistory } from "@/lib/chat-persistence";
+import {
+  clearChatHistory,
+  loadChatMessages,
+  saveChatMessages,
+} from "@/lib/chat-persistence";
 import { AssistantMessage as MessageComponent } from "./assistant-message";
 import { useChatStream } from "./use-chat-stream";
 
@@ -45,7 +63,12 @@ export function AssistantSidebar() {
   }, [pathname, setCurrentPath]);
 
   const handleCreatePage = useCallback(
-    async (params: { title: string; slug: string; locale: "en" | "no"; description?: string }) => {
+    async (params: {
+      title: string;
+      slug: string;
+      locale: "en" | "no";
+      description?: string;
+    }) => {
       // Navigate to the new page editor - page is NOT created in database until user saves
       // The page editor will use the provided params as initial values
       const searchParams = new URLSearchParams({
@@ -59,11 +82,12 @@ export function AssistantSidebar() {
     [router]
   );
 
-  const { messages, isLoading, sendMessage, clearMessages, setMessages } = useChatStream({
-    api: "/api/admin-assistant",
-    onNavigate: handleNavigate,
-    onCreatePage: handleCreatePage,
-  });
+  const { messages, isLoading, sendMessage, clearMessages, setMessages } =
+    useChatStream({
+      api: "/api/admin-assistant",
+      onNavigate: handleNavigate,
+      onCreatePage: handleCreatePage,
+    });
 
   // Load persisted messages on mount
   useEffect(() => {
@@ -71,7 +95,7 @@ export function AssistantSidebar() {
     if (savedMessages.length > 0 && messages.length === 0) {
       setMessages(savedMessages);
     }
-  }, []);
+  }, [messages.length, setMessages]);
 
   // Save messages whenever they change
   useEffect(() => {
@@ -240,7 +264,9 @@ export function AssistantSidebar() {
 
                   return (
                     <>
-                      <IconComponent className={cn("h-4 w-4", animationClass)} />
+                      <IconComponent
+                        className={cn("h-4 w-4", animationClass)}
+                      />
                       <span>{agentMessage || stateDisplay.text}</span>
                     </>
                   );

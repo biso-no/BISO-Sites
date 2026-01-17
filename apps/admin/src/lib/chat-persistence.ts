@@ -16,8 +16,10 @@ export function generateSessionId(): string {
  * Get or create a session ID
  */
 export function getSessionId(): string {
-  if (typeof window === "undefined") return "";
-  
+  if (typeof window === "undefined") {
+    return "";
+  }
+
   let sessionId = sessionStorage.getItem(CHAT_SESSION_KEY);
   if (!sessionId) {
     sessionId = generateSessionId();
@@ -30,8 +32,10 @@ export function getSessionId(): string {
  * Save chat messages to localStorage
  */
 export function saveChatMessages(messages: UIMessage[]): void {
-  if (typeof window === "undefined") return;
-  
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
     const sessionId = getSessionId();
     const data = {
@@ -49,20 +53,24 @@ export function saveChatMessages(messages: UIMessage[]): void {
  * Load chat messages from localStorage
  */
 export function loadChatMessages(): UIMessage[] {
-  if (typeof window === "undefined") return [];
-  
+  if (typeof window === "undefined") {
+    return [];
+  }
+
   try {
     const stored = localStorage.getItem(CHAT_STORAGE_KEY);
-    if (!stored) return [];
-    
+    if (!stored) {
+      return [];
+    }
+
     const data = JSON.parse(stored);
     const sessionId = getSessionId();
-    
+
     // Only load messages from the current session
     if (data.sessionId === sessionId) {
       return data.messages || [];
     }
-    
+
     return [];
   } catch (error) {
     console.error("Failed to load chat messages:", error);
@@ -74,8 +82,10 @@ export function loadChatMessages(): UIMessage[] {
  * Clear chat history
  */
 export function clearChatHistory(): void {
-  if (typeof window === "undefined") return;
-  
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
     localStorage.removeItem(CHAT_STORAGE_KEY);
     sessionStorage.removeItem(CHAT_SESSION_KEY);
@@ -88,11 +98,15 @@ export function clearChatHistory(): void {
  * Check if there's an active chat session
  */
 export function hasActiveChatSession(): boolean {
-  if (typeof window === "undefined") return false;
-  
+  if (typeof window === "undefined") {
+    return false;
+  }
+
   const stored = localStorage.getItem(CHAT_STORAGE_KEY);
-  if (!stored) return false;
-  
+  if (!stored) {
+    return false;
+  }
+
   try {
     const data = JSON.parse(stored);
     const sessionId = getSessionId();

@@ -102,7 +102,7 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
                 <h3 className="mb-4 font-bold text-3xl text-foreground">
                   {article.title}
                 </h3>
-                <p className="mb-6 text-muted-foreground text-lg">
+                <p className="mb-6 text-lg text-muted-foreground">
                   {shortDescription}
                 </p>
                 <Button className="group w-fit border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">

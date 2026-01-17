@@ -1,7 +1,6 @@
 "use client";
 
 import { ImageWithFallback } from "@repo/ui/components/image";
-import { Badge } from "@repo/ui/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -71,7 +70,7 @@ export function AboutHero({
               transition={{ delay: 0.1, duration: 0.5 }}
             >
               <Breadcrumb>
-                <BreadcrumbList className="flex flex-wrap justify-center gap-1.5 text-white/70 text-sm">
+                <BreadcrumbList className="flex flex-wrap justify-center gap-1.5 text-sm text-white/70">
                   {breadcrumbs.map((bc, idx) => (
                     <Fragment key={`${bc.label}-${idx}`}>
                       <BreadcrumbItem>

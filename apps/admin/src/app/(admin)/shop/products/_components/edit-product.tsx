@@ -331,8 +331,8 @@ function normalizeCustomFields(
     options:
       field.type === "select"
         ? (field.options || [])
-          .map((option) => option.trim())
-          .filter((option) => option.length > 0)
+            .map((option) => option.trim())
+            .filter((option) => option.length > 0)
         : undefined,
   }));
 }
@@ -544,8 +544,8 @@ function getProductDefaultValues(
   const metadataDefaults = (product?.metadata_parsed as ProductMetadata) ?? {};
   const status =
     product?.status === "draft" ||
-      product?.status === "published" ||
-      product?.status === "archived"
+    product?.status === "published" ||
+    product?.status === "archived"
       ? product.status
       : "draft";
 

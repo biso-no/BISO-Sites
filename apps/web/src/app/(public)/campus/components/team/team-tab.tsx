@@ -187,7 +187,7 @@ export function TeamTab({
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <Card
-              className="h-full animate-pulse rounded-3xl border border-primary/10 /80 p-6 shadow-card"
+              className="/80 h-full animate-pulse rounded-3xl border border-primary/10 p-6 shadow-card"
               key={index}
             >
               <div className="flex flex-col items-center gap-4">

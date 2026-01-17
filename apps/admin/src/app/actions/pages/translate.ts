@@ -1,19 +1,21 @@
 "use server";
 
 import { openai } from "@ai-sdk/openai";
+import type { Locale } from "@repo/api/types/appwrite";
 import { generateObject } from "ai";
 import { z } from "zod";
-import type { Locale } from "@repo/api/types/appwrite";
 
 const translatedContentSchema = z.object({
   title: z.string().describe("Translated page title"),
   description: z.string().optional().describe("Translated page description"),
-  content: z.array(
-    z.object({
-      type: z.string(),
-      props: z.record(z.string(), z.unknown()),
-    })
-  ).describe("Translated page content blocks"),
+  content: z
+    .array(
+      z.object({
+        type: z.string(),
+        props: z.record(z.string(), z.unknown()),
+      })
+    )
+    .describe("Translated page content blocks"),
 });
 
 type TranslatePageInput = {

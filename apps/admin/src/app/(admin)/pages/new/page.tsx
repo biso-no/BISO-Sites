@@ -22,14 +22,19 @@ export default async function NewPageEditor({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
-  
+
   // Get initial values from query params (set by AI assistant)
   const initialTitle = params.title || "";
   const initialSlug = params.slug || "";
   const initialDescription = params.description || "";
-  const initialLocale = (params.locale === "en" ? Locale.EN : Locale.NO) as Locale;
+  const initialLocale = (
+    params.locale === "en" ? Locale.EN : Locale.NO
+  ) as Locale;
 
-  const initialLocaleData: Record<Locale, { title: string; description: string; data: Data } | null> = {
+  const initialLocaleData: Record<
+    Locale,
+    { title: string; description: string; data: Data } | null
+  > = {
     [Locale.NO]: {
       title: initialLocale === Locale.NO ? initialTitle : "",
       description: initialLocale === Locale.NO ? initialDescription : "",

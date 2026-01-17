@@ -192,7 +192,7 @@ const SectionsGrid = ({
   return (
     <section className="grid gap-6 md:grid-cols-2">
       {sections.map((section) => (
-        <Card className="border-primary/10 " key={section.title}>
+        <Card className="border-primary/10" key={section.title}>
           <CardHeader>
             <CardTitle className="text-primary-100">{section.title}</CardTitle>
           </CardHeader>
@@ -260,7 +260,7 @@ const CampusScheduleCard = ({
     campusMeta?.campus_name ?? campusMeta?.campus_id ?? campusId;
 
   return (
-    <Card className="border-primary/10 " key={campusId}>
+    <Card className="border-primary/10" key={campusId}>
       <CardHeader>
         <CardTitle className="text-lg text-primary-100">{campusName}</CardTitle>
       </CardHeader>

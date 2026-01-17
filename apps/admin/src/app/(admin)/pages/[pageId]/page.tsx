@@ -20,7 +20,10 @@ export default async function EditPageEditor({ params }: EditorPageProps) {
     notFound();
   }
 
-  const initialLocaleData: Record<Locale, { title: string; description: string; data: Data } | null> = {
+  const initialLocaleData: Record<
+    Locale,
+    { title: string; description: string; data: Data } | null
+  > = {
     [Locale.NO]: null,
     [Locale.EN]: null,
   };

@@ -8,7 +8,6 @@ import { Button } from "@repo/ui/components/ui/button";
 import { MapPin, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useEffect } from "react";
 import { useCampus } from "@/components/context/campus";
 
 type CampusHeroProps = {

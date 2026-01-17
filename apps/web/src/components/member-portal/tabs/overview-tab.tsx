@@ -42,13 +42,13 @@ type AnimatedCounterProps = {
   prefix?: string;
 };
 
-function AnimatedCounter({ value, suffix = "", prefix = "" }: AnimatedCounterProps) {
+function AnimatedCounter({
+  value,
+  suffix = "",
+  prefix = "",
+}: AnimatedCounterProps) {
   return (
-    <motion.span
-      animate={{ opacity: 1 }}
-      initial={{ opacity: 0 }}
-      key={value}
-    >
+    <motion.span animate={{ opacity: 1 }} initial={{ opacity: 0 }} key={value}>
       {prefix}
       <motion.span
         animate={{ scale: [1.2, 1] }}
@@ -118,10 +118,12 @@ function MemberOverview({
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
               {t("stats.benefitsAvailable")}
             </p>
-            <p className="font-bold text-foreground text-3xl dark:text-foreground">
+            <p className="font-bold text-3xl text-foreground dark:text-foreground">
               <AnimatedCounter value={benefitsCount} />
             </p>
-            <p className="mt-1 text-muted-foreground text-sm">{t("stats.exclusiveDeals")}</p>
+            <p className="mt-1 text-muted-foreground text-sm">
+              {t("stats.exclusiveDeals")}
+            </p>
           </div>
         </Card>
 
@@ -135,7 +137,7 @@ function MemberOverview({
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
               {t("stats.daysUntilRenewal")}
             </p>
-            <p className="font-bold text-foreground text-3xl dark:text-foreground">
+            <p className="font-bold text-3xl text-foreground dark:text-foreground">
               <AnimatedCounter suffix=" days" value={daysRemaining} />
             </p>
             <Progress className="mt-3 h-2" value={progressPercentage} />
@@ -152,8 +154,12 @@ function MemberOverview({
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
               {t("stats.estimatedSavings")}
             </p>
-            <p className="font-bold text-foreground text-3xl dark:text-foreground">
-              <AnimatedCounter prefix="~" suffix=" NOK" value={estimatedSavings} />
+            <p className="font-bold text-3xl text-foreground dark:text-foreground">
+              <AnimatedCounter
+                prefix="~"
+                suffix=" NOK"
+                value={estimatedSavings}
+              />
             </p>
             <p className="mt-1 text-green-600 text-sm dark:text-green-400">
               <TrendingUp className="mr-1 inline h-3 w-3" />
@@ -189,8 +195,8 @@ function MemberOverview({
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {featuredBenefits.map((benefit, index) => (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               key={benefit.id}
               transition={{ delay: 0.1 * index }}
             >

@@ -204,9 +204,7 @@ export function ShopListClient({
       {/* Pickup Info */}
       <div className="bg-brand-dark py-12 text-white">
         <div className="mx-auto max-w-4xl px-4 text-center">
-          <h3 className="mb-4 font-bold text-2xl">
-            {t("pickup.title")}
-          </h3>
+          <h3 className="mb-4 font-bold text-2xl">{t("pickup.title")}</h3>
           <p className="mb-4 text-lg text-white/80">
             {t("pickup.description")}
           </p>

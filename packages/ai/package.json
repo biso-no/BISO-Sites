@@ -16,6 +16,7 @@
     "./hooks/use-copilot-form": "./src/hooks/use-copilot-form.ts",
     "./hooks/use-copilot-puck": "./src/hooks/use-copilot-puck.ts",
     "./hooks/use-copilot-context": "./src/hooks/use-copilot-context.ts",
+    "./hooks/use-streaming-puck": "./src/hooks/use-streaming-puck.ts",
     "./tools/navigation": "./src/tools/navigation.ts",
     "./tools/form-filler": "./src/tools/form-filler.ts",
     "./tools/translate": "./src/tools/translate.ts",
@@ -41,6 +42,9 @@
     "react-hook-form": "^7.67.0"
   },
   "dependencies": {
+    "@json-render/react": "^0.2.0",
+    "@measured/puck": "^0.20.2",
+    "@repo/editor": "workspace:*",
     "ai": "^5.0.104",
     "zod": "^4.1.13",
     "zustand": "^5.0.3"

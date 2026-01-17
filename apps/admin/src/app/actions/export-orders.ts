@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { Orders, OrderStatus } from "@repo/api/types/appwrite";
+import type { Orders } from "@repo/api/types/appwrite";
 
 const DATABASE_ID = "app";
 const ORDERS_TABLE = "orders";
@@ -197,7 +197,13 @@ function buildCsvRows(orders: Orders[], format: "standard" | "booking") {
         ...expandOrderItemsBooking(
           items,
           baseColumns,
-          { subtotal, discount, total: totalValue, campusId, membershipApplied },
+          {
+            subtotal,
+            discount,
+            total: totalValue,
+            campusId,
+            membershipApplied,
+          },
           status
         )
       );
@@ -233,7 +239,8 @@ const expandOrderItems = (
 
   for (const item of items) {
     const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
-    const productLabel = item.title || item.name || item.product_slug || "Product";
+    const productLabel =
+      item.title || item.name || item.product_slug || "Product";
     const unitPrice = formatMoney(item.unit_price ?? item.price ?? 0);
 
     for (let i = 0; i < quantity; i++) {
@@ -270,7 +277,8 @@ const expandOrderItemsBooking = (
 
   for (const item of items) {
     const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
-    const productLabel = item.title || item.name || item.product_slug || "Product";
+    const productLabel =
+      item.title || item.name || item.product_slug || "Product";
     const category = item.category || "";
     const productType = item.product_type || "";
     const unitPrice = item.unit_price ?? item.price ?? 0;

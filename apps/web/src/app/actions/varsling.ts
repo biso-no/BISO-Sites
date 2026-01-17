@@ -3,7 +3,6 @@
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { VarslingSettings } from "@repo/api/types/appwrite";
-import { revalidatePath } from "next/cache";
 
 type VarslingSubmission = {
   campus_id: string;

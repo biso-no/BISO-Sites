@@ -1,8 +1,8 @@
+import { ID, MessagingProviderType } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
-import { ID, MessagingProviderType } from "@repo/api";
 import { isProd } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret");
   const redirectTo = request.nextUrl.searchParams.get("redirectTo");
   const _url = request.nextUrl.protocol + request.headers.get("host");
-
 
   if (!(userId && secret)) {
     return redirect("/auth/login?error=invalid_parameters");

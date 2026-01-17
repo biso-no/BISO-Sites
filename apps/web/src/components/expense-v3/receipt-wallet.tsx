@@ -2,6 +2,7 @@
 
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -10,7 +11,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { type ChangeEvent, type DragEvent, useCallback, useState } from "react";
 import type { Receipt } from "./store";
-import { Input } from "@repo/ui/components/ui/input";
 
 type ReceiptWalletProps = {
   receipts: Receipt[];
@@ -74,24 +74,22 @@ export function ReceiptWallet({
   return (
     <div className="flex h-full flex-col bg-card text-foreground dark:bg-card dark:text-white">
       {/* Logo Area */}
-      <div className="flex items-center justify-start gap-4 border-b border-border p-6 dark:border-white/10">
+      <div className="flex items-center justify-start gap-4 border-border border-b p-6 dark:border-white/10">
         <div className="flex flex-row gap-4">
-          <>
-            <Image
-              alt="Home Logo"
-              className="hidden h-12 w-12 object-contain dark:block"
-              height={48}
-              src="/images/logo-dark.png"
-              width={48}
-            />
-            <Image
-              alt="Home Logo"
-              className="block h-12 w-12 object-contain dark:hidden"
-              height={48}
-              src="/images/logo-light.png"
-              width={48}
-            />
-          </>
+          <Image
+            alt="Home Logo"
+            className="hidden h-12 w-12 object-contain dark:block"
+            height={48}
+            src="/images/logo-dark.png"
+            width={48}
+          />
+          <Image
+            alt="Home Logo"
+            className="block h-12 w-12 object-contain dark:hidden"
+            height={48}
+            src="/images/logo-light.png"
+            width={48}
+          />
 
           <Link
             className="ml-auto flex items-center gap-2 font-medium text-lg text-muted-foreground transition-colors hover:text-foreground dark:text-white/60 dark:hover:text-white"
@@ -104,12 +102,12 @@ export function ReceiptWallet({
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border p-6 dark:border-white/10">
+      <div className="flex items-center justify-between border-border border-b p-6 dark:border-white/10">
         <div>
-          <h2 className="font-medium text-lg text-foreground dark:text-white">
+          <h2 className="font-medium text-foreground text-lg dark:text-white">
             Receipts
           </h2>
-          <p className="text-sm text-muted-foreground dark:text-white/40">
+          <p className="text-muted-foreground text-sm dark:text-white/40">
             {receipts.length} {receipts.length === 1 ? "item" : "items"}
           </p>
         </div>
@@ -152,7 +150,7 @@ export function ReceiptWallet({
                     .map((child) => (
                       <div className="relative pl-6" key={child.id}>
                         {/* Connector Line */}
-                        <div className="absolute top-[-10px] bottom-1/2 left-3 w-px rounded-bl-lg border-b border-l border-border bg-border dark:border-white/10 dark:bg-background/10" />
+                        <div className="absolute top-[-10px] bottom-1/2 left-3 w-px rounded-bl-lg border-border border-b border-l bg-border dark:border-white/10 dark:bg-background/10" />
 
                         <ReceiptItem
                           isChild
@@ -171,7 +169,7 @@ export function ReceiptWallet({
           {receipts.length === 0 && (
             <Card
               className={cn(
-                "relative flex h-64 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border transition-all hover:border-muted-foreground hover:bg-muted dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-background/5",
+                "relative flex h-64 flex-col items-center justify-center rounded-xl border-2 border-border border-dashed transition-all hover:border-muted-foreground hover:bg-muted dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-background/5",
                 isDragActive && "border-sky-500 bg-sky-500/10"
               )}
               onDragEnter={handleDragEnter}
@@ -189,7 +187,7 @@ export function ReceiptWallet({
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted dark:bg-background/5">
                 <Upload className="h-6 w-6 text-muted-foreground dark:text-white/40" />
               </div>
-              <p className="text-sm text-muted-foreground dark:text-white/60">
+              <p className="text-muted-foreground text-sm dark:text-white/60">
                 Drop receipts here
               </p>
             </Card>

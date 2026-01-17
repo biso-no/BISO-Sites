@@ -43,7 +43,13 @@ const PRESETS: Preset[] = [
 type StatusOption = "all" | "paid" | "authorized" | "pending" | "cancelled";
 type FormatOption = "standard" | "booking";
 
-const STATUS_OPTIONS: StatusOption[] = ["all", "paid", "authorized", "pending", "cancelled"];
+const STATUS_OPTIONS: StatusOption[] = [
+  "all",
+  "paid",
+  "authorized",
+  "pending",
+  "cancelled",
+];
 const FORMAT_OPTIONS: FormatOption[] = ["standard", "booking"];
 
 export function OrderExportPopover() {
@@ -178,14 +184,18 @@ export function OrderExportPopover() {
           <Label className="font-medium text-sm">
             {t("orders.exportDialog.statusFilter") ?? "Order Status"}
           </Label>
-          <Select value={status} onValueChange={(v) => setStatus(v as StatusOption)}>
+          <Select
+            onValueChange={(v) => setStatus(v as StatusOption)}
+            value={status}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {STATUS_OPTIONS.map((opt) => (
                 <SelectItem key={opt} value={opt}>
-                  {t(`orders.exportDialog.statusOptions.${opt}`) ?? opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  {t(`orders.exportDialog.statusOptions.${opt}`) ??
+                    opt.charAt(0).toUpperCase() + opt.slice(1)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -197,7 +207,10 @@ export function OrderExportPopover() {
           <Label className="font-medium text-sm">
             {t("orders.exportDialog.formatLabel") ?? "Export Format"}
           </Label>
-          <Select value={format} onValueChange={(v) => setFormat(v as FormatOption)}>
+          <Select
+            onValueChange={(v) => setFormat(v as FormatOption)}
+            value={format}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -206,13 +219,15 @@ export function OrderExportPopover() {
                 {t("orders.exportDialog.formatOptions.standard") ?? "Standard"}
               </SelectItem>
               <SelectItem value="booking">
-                {t("orders.exportDialog.formatOptions.booking") ?? "Booking (24SO)"}
+                {t("orders.exportDialog.formatOptions.booking") ??
+                  "Booking (24SO)"}
               </SelectItem>
             </SelectContent>
           </Select>
           {format === "booking" && (
             <p className="text-muted-foreground text-xs">
-              {t("orders.exportDialog.bookingFormatHint") ?? "Extended columns for 24SevenOffice booking"}
+              {t("orders.exportDialog.bookingFormatHint") ??
+                "Extended columns for 24SevenOffice booking"}
             </p>
           )}
         </div>
@@ -272,4 +287,3 @@ function triggerDownload(filename: string, content: string) {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
-

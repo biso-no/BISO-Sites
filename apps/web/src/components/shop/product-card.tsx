@@ -133,7 +133,7 @@ export function ProductCard({
           <div className="mb-6">
             {hasDiscount ? (
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-lg line-through">
+                <span className="text-lg text-muted-foreground line-through">
                   {formatPrice(productData.regular_price)}
                 </span>
                 <span className="font-bold text-brand text-xl">
@@ -150,7 +150,9 @@ export function ProductCard({
               productData.member_price &&
               productData.member_price < productData.regular_price && (
                 <p className="mt-1 text-muted-foreground text-sm">
-                  {t("card.membersPay", { price: formatPrice(productData.member_price) })}
+                  {t("card.membersPay", {
+                    price: formatPrice(productData.member_price),
+                  })}
                 </p>
               )}
           </div>
@@ -160,7 +162,9 @@ export function ProductCard({
             disabled={productData.stock === 0}
             onClick={() => onViewDetails(product)}
           >
-            {productData.stock === 0 ? t("card.outOfStock") : t("card.viewDetails")}
+            {productData.stock === 0
+              ? t("card.outOfStock")
+              : t("card.viewDetails")}
           </Button>
         </div>
       </Card>

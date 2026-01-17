@@ -5,41 +5,56 @@
  * Used to sync membership purchases with customer records.
  */
 
-// Customer sync function
-export { syncMembershipTo24SO, hasMembershipProduct } from "./sync";
-
-// Customer management
-export { findOrCreateCompany, getCompanyById, getCompaniesByIds, searchCustomerByStudentId, createStudentCustomer } from "./company";
-
-// Category management
-export { saveCustomerCategories, assignMembershipCategory, getCustomerCategories, getAllCategories, getMembershipCategories, getCustomerCategoryTree, type CustomerCategoryMapping } from "./categories";
-
-// Products management
-export { getProducts, getMembershipProducts } from "./products";
-
-// Invoice management
-export { createMembershipInvoice, CAMPUS_DEPARTMENT_IDS, CAMPUS_NAMES } from "./invoice";
-
-
-
-// Membership product sync (admin)
-export { syncMembershipsFrom24SO, previewMembershipSync, parseExpiryDate, parseStartDate, isActiveByDate } from "./membership-sync";
-
 // Authentication (lower-level, usually not needed directly)
 export { getValidSession, hasSession } from "./auth";
-
-// Types
-export type {
-  Company,
-  CompanySearchParams,
-  CustomerData,
-  MembershipSyncResult,
-  Credentials,
-  Product,
-  CategoryDefinition,
-  MembershipProductSyncItem,
-  MembershipProductSyncResult,
-} from "./types";
-
+// Category management
+export {
+  assignMembershipCategory,
+  type CustomerCategoryMapping,
+  getAllCategories,
+  getCustomerCategories,
+  getCustomerCategoryTree,
+  getMembershipCategories,
+  saveCustomerCategories,
+} from "./categories";
+// Customer management
+export {
+  createStudentCustomer,
+  findOrCreateCompany,
+  getCompaniesByIds,
+  getCompanyById,
+  searchCustomerByStudentId,
+} from "./company";
 export type { InvoiceOrder, InvoiceRow } from "./invoice";
 
+// Invoice management
+export {
+  CAMPUS_DEPARTMENT_IDS,
+  CAMPUS_NAMES,
+  createMembershipInvoice,
+} from "./invoice";
+
+// Membership product sync (admin)
+export {
+  isActiveByDate,
+  parseExpiryDate,
+  parseStartDate,
+  previewMembershipSync,
+  syncMembershipsFrom24SO,
+} from "./membership-sync";
+// Products management
+export { getMembershipProducts, getProducts } from "./products";
+// Customer sync function
+export { hasMembershipProduct, syncMembershipTo24SO } from "./sync";
+// Types
+export type {
+  CategoryDefinition,
+  Company,
+  CompanySearchParams,
+  Credentials,
+  CustomerData,
+  MembershipProductSyncItem,
+  MembershipProductSyncResult,
+  MembershipSyncResult,
+  Product,
+} from "./types";

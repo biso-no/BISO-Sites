@@ -198,6 +198,9 @@
       "name": "@repo/ai",
       "version": "0.0.0",
       "dependencies": {
+        "@json-render/react": "^0.2.0",
+        "@measured/puck": "^0.20.2",
+        "@repo/editor": "workspace:*",
         "ai": "^5.0.104",
         "zod": "^4.1.13",
         "zustand": "^5.0.3",
@@ -246,6 +249,8 @@
       "name": "@repo/editor",
       "version": "0.0.0",
       "dependencies": {
+        "@json-render/core": "^0.2.0",
+        "@json-render/react": "^0.2.0",
         "@measured/puck": "^0.20.2",
         "@repo/api": "workspace:*",
         "@repo/ui": "workspace:*",
@@ -580,6 +585,10 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@json-render/core": ["@json-render/core@0.2.0", "", { "dependencies": { "zod": "^4.0.0" } }, "sha512-LBKv4M5skz7JRpTn53g6qF/zj5u/xUhuCp6WtJn/ZTIxGEAogH8sn3Ql/Nk/O0sgbQHtriRmoJuI23/5fGCXPw=="],
+
+    "@json-render/react": ["@json-render/react@0.2.0", "", { "dependencies": { "@json-render/core": "0.2.0" }, "peerDependencies": { "react": "^19.0.0" } }, "sha512-4tdoMfc3t0Je+DMNsyJguz7aJkqfLhEY8/mvBchL9kweRfJHAZocT7doyqRCGAnCBtIXCKQ8YAbm0sb0Qr9OFw=="],
 
     "@juggle/resize-observer": ["@juggle/resize-observer@3.4.0", "", {}, "sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA=="],
 

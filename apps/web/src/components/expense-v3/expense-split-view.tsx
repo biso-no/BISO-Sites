@@ -250,29 +250,29 @@ export function ExpenseSplitView({
   return (
     <div className="flex min-h-dvh w-full flex-col bg-background md:h-dvh md:flex-row md:overflow-hidden">
       {/* Mobile Tab Navigation */}
-      <div className="flex border-b border-border bg-card md:hidden dark:bg-card">
+      <div className="flex border-border border-b bg-card md:hidden dark:bg-card">
         <Button
-          variant="ghost"
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-none border-b-2 border-transparent py-4 text-sm font-medium transition-colors",
+            "flex flex-1 items-center justify-center gap-2 rounded-none border-transparent border-b-2 py-4 font-medium text-sm transition-colors",
             mobileView === "wallet"
               ? "bg-muted text-foreground dark:bg-background/10 dark:text-white"
               : "text-muted-foreground hover:bg-muted/60 dark:text-white/70 dark:hover:bg-background/5"
           )}
           onClick={() => setMobileView("wallet")}
+          variant="ghost"
         >
           <Wallet className="h-4 w-4" />
           Receipts
         </Button>
         <Button
-          variant="ghost"
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-none border-b-2 border-transparent py-4 text-sm font-medium transition-colors",
+            "flex flex-1 items-center justify-center gap-2 rounded-none border-transparent border-b-2 py-4 font-medium text-sm transition-colors",
             mobileView === "report"
               ? "bg-muted text-foreground dark:bg-background/10 dark:text-white"
               : "text-muted-foreground hover:bg-muted/60 dark:text-white/70 dark:hover:bg-background/5"
           )}
           onClick={() => setMobileView("report")}
+          variant="ghost"
         >
           <FileText className="h-4 w-4" />
           Report
@@ -282,7 +282,7 @@ export function ExpenseSplitView({
       {/* Left Pane: Wallet */}
       <div
         className={cn(
-          "w-full shrink-0 border-r border-border bg-card md:w-[350px] lg:w-[400px] dark:border-white/10 dark:bg-card md:max-h-dvh md:overflow-y-auto",
+          "w-full shrink-0 border-border border-r bg-card md:max-h-dvh md:w-[350px] md:overflow-y-auto lg:w-[400px] dark:border-white/10 dark:bg-card",
           mobileView === "wallet" ? "block" : "hidden md:block"
         )}
       >
@@ -301,7 +301,7 @@ export function ExpenseSplitView({
       {/* Right Pane: Report or Preview */}
       <div
         className={cn(
-          "flex-1 bg-muted/50 dark:bg-inverted md:overflow-y-auto",
+          "flex-1 bg-muted/50 md:overflow-y-auto dark:bg-inverted",
           mobileView === "report" ? "block" : "hidden md:block"
         )}
       >

@@ -12,7 +12,7 @@ type ShopHeroProps = {
 
 export function ShopHero({ isMember = false }: ShopHeroProps) {
   const t = useTranslations("shop");
-  
+
   return (
     <div className="relative h-[50vh] overflow-hidden">
       <ImageWithFallback

@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
-import { useCopilotStore, type PageCapability } from "../stores/copilot-store";
+import { useCallback, useEffect, useRef } from "react";
+import { type PageCapability, useCopilotStore } from "../stores/copilot-store";
+
+// Re-export the new streaming hook for easy access
+export { useStreamingPuck, useStreamingPuckRaw } from "./use-streaming-puck";
 
 type PuckBlock = {
   type: string;
@@ -45,6 +48,12 @@ type UseCopilotPuckOptions = {
  * 2. Provides a handler for the AI to stream blocks into the editor
  * 3. Unregisters when unmounted
  *
+ * For real-time streaming with json-render patches, use `useStreamingPuck` instead,
+ * which provides:
+ * - JSONL patch-based streaming for inline updates
+ * - Block selection context for targeted editing
+ * - Integration with json-render's useUIStream
+ *
  * @example
  * ```tsx
  * const [data, setData] = useState<Data>(initialData);
@@ -83,14 +92,16 @@ export function useCopilotPuck({
    * Supports streaming blocks one at a time
    */
   const handlePuckContent = useCallback(
-    (update: {
-      blockIndex: number;
-      block: PuckBlock;
-      isComplete: boolean;
-    }) => {
+    (update: { blockIndex: number; block: PuckBlock; isComplete: boolean }) => {
       const { blockIndex, block, isComplete } = update;
 
-      console.log("[Puck] handlePuckContent called:", blockIndex, block.type, "isComplete:", isComplete);
+      console.log(
+        "[Puck] handlePuckContent called:",
+        blockIndex,
+        block.type,
+        "isComplete:",
+        isComplete
+      );
 
       setAgentState("generating-content", `Adding ${block.type} block...`);
 
@@ -99,8 +110,10 @@ export function useCopilotPuck({
 
       // Build content from ALL accumulated blocks (handles synchronous batch calls)
       const accumulatedBlocks: PuckBlock[] = [];
-      const sortedIndices = [...streamingBlocksRef.current.keys()].sort((a, b) => a - b);
-      
+      const sortedIndices = [...streamingBlocksRef.current.keys()].sort(
+        (a, b) => a - b
+      );
+
       for (const idx of sortedIndices) {
         const b = streamingBlocksRef.current.get(idx);
         if (b) {
@@ -150,7 +163,9 @@ export function useCopilotPuck({
   );
 
   // Consume pending content from store
-  const consumePendingPuckContent = useCopilotStore((state) => state.consumePendingPuckContent);
+  const consumePendingPuckContent = useCopilotStore(
+    (state) => state.consumePendingPuckContent
+  );
 
   // Register with copilot store on mount
   useEffect(() => {
@@ -167,12 +182,20 @@ export function useCopilotPuck({
     // Check for pending content that was queued before this editor mounted
     // This handles the case where AI navigated here and generated content
     const pendingContent = consumePendingPuckContent();
-    console.log("[Puck] Editor mounted, checking pending content:", pendingContent);
-    
+    console.log(
+      "[Puck] Editor mounted, checking pending content:",
+      pendingContent
+    );
+
     if (pendingContent) {
       const { blocks, mode } = pendingContent;
-      console.log("[Puck] Applying", blocks.length, "pending blocks, mode:", mode);
-      
+      console.log(
+        "[Puck] Applying",
+        blocks.length,
+        "pending blocks, mode:",
+        mode
+      );
+
       if (mode === "replace") {
         // Replace all content
         onDataChangeRef.current({
@@ -186,7 +209,7 @@ export function useCopilotPuck({
           content: [...dataRef.current.content, ...blocks],
         });
       }
-      
+
       setAgentState("idle", "Content applied from AI");
     }
 
@@ -194,7 +217,15 @@ export function useCopilotPuck({
       streamingBlocksRef.current.clear();
       unregisterHandler();
     };
-  }, [capability, enabled, handlePuckContent, registerHandler, unregisterHandler, consumePendingPuckContent, setAgentState]);
+  }, [
+    capability,
+    enabled,
+    handlePuckContent,
+    registerHandler,
+    unregisterHandler,
+    consumePendingPuckContent,
+    setAgentState,
+  ]);
 
   // Update puck data in the store when it changes
   useEffect(() => {

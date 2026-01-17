@@ -1,8 +1,8 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import type { AssistantMessage } from "@repo/ai/types";
 import { useCopilotStore } from "@repo/ai/stores/copilot-store";
+import type { AssistantMessage } from "@repo/ai/types";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MarkdownBuffer } from "@/lib/markdown-buffer";
@@ -44,7 +44,12 @@ type PuckContentUpdate = {
 type UseChatStreamOptions = {
   api: string;
   onNavigate?: (path: string) => void;
-  onCreatePage?: (params: { title: string; slug: string; locale: "en" | "no"; description?: string }) => Promise<void>;
+  onCreatePage?: (params: {
+    title: string;
+    slug: string;
+    locale: "en" | "no";
+    description?: string;
+  }) => Promise<void>;
   /** @deprecated Use useCopilotForm hook instead - kept for backward compatibility */
   onFormField?: (update: FormFieldUpdate) => void;
   /** @deprecated Use useCopilotPuck hook instead - kept for backward compatibility */
@@ -84,7 +89,12 @@ type TranslateContentToolPart = ChatMessagePart & {
 
 type CreatePageToolPart = ChatMessagePart & {
   type: "tool-createPage";
-  input: { title: string; slug: string; locale: "en" | "no"; description?: string };
+  input: {
+    title: string;
+    slug: string;
+    locale: "en" | "no";
+    description?: string;
+  };
   toolCallId: string;
   state: string;
 };
@@ -144,9 +154,7 @@ const isTranslateContentPart = (
   typeof part.toolCallId === "string" &&
   typeof part.state === "string";
 
-const isCreatePagePart = (
-  part: ChatMessagePart
-): part is CreatePageToolPart =>
+const isCreatePagePart = (part: ChatMessagePart): part is CreatePageToolPart =>
   part.type === "tool-createPage" &&
   typeof part.toolCallId === "string" &&
   typeof part.state === "string" &&
@@ -183,7 +191,9 @@ export function useChatStream({
 
   // Use store handlers if available, otherwise fall back to props (backward compatibility)
   const onFormFieldRef = useRef(onFormField ?? activeHandler?.onFormField);
-  const onPuckContentRef = useRef(onPuckContent ?? activeHandler?.onPuckContent);
+  const onPuckContentRef = useRef(
+    onPuckContent ?? activeHandler?.onPuckContent
+  );
   const puckDataRef = useRef(puckData ?? activeHandler?.puckData);
   const currentPathRef = useRef(currentPath ?? storePath);
 
@@ -195,7 +205,16 @@ export function useChatStream({
     onPuckContentRef.current = activeHandler?.onPuckContent ?? onPuckContent;
     puckDataRef.current = activeHandler?.puckData ?? puckData;
     currentPathRef.current = storePath || currentPath || "/";
-  }, [onNavigate, onCreatePage, onFormField, onPuckContent, puckData, currentPath, activeHandler, storePath]);
+  }, [
+    onNavigate,
+    onCreatePage,
+    onFormField,
+    onPuckContent,
+    puckData,
+    currentPath,
+    activeHandler,
+    storePath,
+  ]);
 
   // Create transport with dynamic body data from store - includes full context
   const transport = useMemo(
@@ -339,7 +358,10 @@ export function useChatStream({
   // Handle navigation tool calls
   const handleNavigateTool = useCallback(
     (toolPart: NavigateToolPart) => {
-      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
+      if (
+        toolPart.state !== "input-available" &&
+        toolPart.state !== "output-available"
+      ) {
         return;
       }
       if (!toolPart.input?.path) {
@@ -363,7 +385,10 @@ export function useChatStream({
   // Handle create-page tool calls
   const handleCreatePageTool = useCallback(
     async (toolPart: CreatePageToolPart) => {
-      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
+      if (
+        toolPart.state !== "input-available" &&
+        toolPart.state !== "output-available"
+      ) {
         return;
       }
       if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
@@ -371,7 +396,7 @@ export function useChatStream({
       }
 
       handledToolCallsRef.current.add(toolPart.toolCallId);
-      
+
       try {
         await onCreatePageRef.current?.(toolPart.input);
         addToolResult({
@@ -419,7 +444,10 @@ export function useChatStream({
   // Handle translate tool calls
   const handleTranslateTool = useCallback(
     (toolPart: TranslateContentToolPart) => {
-      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
+      if (
+        toolPart.state !== "input-available" &&
+        toolPart.state !== "output-available"
+      ) {
         return;
       }
       if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
@@ -438,7 +466,9 @@ export function useChatStream({
 
   const handleFillFormFieldsPart = useCallback(
     (toolPart: FillFormFieldsToolPart) => {
-      const isComplete = toolPart.state === "input-available" || toolPart.state === "output-available";
+      const isComplete =
+        toolPart.state === "input-available" ||
+        toolPart.state === "output-available";
       const isStreaming = toolPart.state === "partial";
 
       if ((isStreaming || isComplete) && toolPart.input?.updates) {
@@ -467,7 +497,10 @@ export function useChatStream({
   const handleGeneratePuckContentPart = useCallback(
     (toolPart: GeneratePuckContentToolPart) => {
       // Tool state can be "input-available" or "output-available" depending on AI SDK version
-      if (toolPart.state !== "input-available" && toolPart.state !== "output-available") {
+      if (
+        toolPart.state !== "input-available" &&
+        toolPart.state !== "output-available"
+      ) {
         return;
       }
       if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
@@ -475,23 +508,38 @@ export function useChatStream({
       }
 
       handledToolCallsRef.current.add(toolPart.toolCallId);
-      
+
       // The input structure is { content: [...blocks...] } where content is directly the array
       const inputContent = toolPart.input?.content;
-      const blocks = Array.isArray(inputContent) 
-        ? inputContent as Array<{ type: string; props: Record<string, unknown> }>
+      const blocks = Array.isArray(inputContent)
+        ? (inputContent as Array<{
+            type: string;
+            props: Record<string, unknown>;
+          }>)
         : null;
-      
-      console.log("[AI] generatePuckContent input:", JSON.stringify(toolPart.input).slice(0, 200));
-      
+
+      console.log(
+        "[AI] generatePuckContent input:",
+        JSON.stringify(toolPart.input).slice(0, 200)
+      );
+
       if (blocks && blocks.length > 0) {
         // Get current handler state directly from store (refs may be stale after navigation)
         const currentHandler = useCopilotStore.getState().activeHandler;
         const puckHandler = currentHandler?.onPuckContent;
-        
-        console.log("[AI] generatePuckContent received", blocks.length, "blocks");
-        console.log("[AI] Current handler:", currentHandler?.capability, "puckHandler:", !!puckHandler);
-        
+
+        console.log(
+          "[AI] generatePuckContent received",
+          blocks.length,
+          "blocks"
+        );
+        console.log(
+          "[AI] Current handler:",
+          currentHandler?.capability,
+          "puckHandler:",
+          !!puckHandler
+        );
+
         if (puckHandler) {
           // Handler available - send content directly
           console.log("[AI] Sending blocks directly to handler");
@@ -549,7 +597,13 @@ export function useChatStream({
         handleTranslateTool(part);
       }
     },
-    [handleCreatePageTool, handleGeneratePuckContentPart, handleFillFormFieldsPart, handleNavigateTool, handleTranslateTool]
+    [
+      handleCreatePageTool,
+      handleGeneratePuckContentPart,
+      handleFillFormFieldsPart,
+      handleNavigateTool,
+      handleTranslateTool,
+    ]
   );
 
   // Watch for tool calls in message parts and handle them

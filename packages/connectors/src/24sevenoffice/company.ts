@@ -5,8 +5,8 @@
  * Companies in 24SO represent customers - including individual consumers.
  */
 
-import { createAuthenticatedClient } from "./client";
 import { getValidSession } from "./auth";
+import { createAuthenticatedClient } from "./client";
 import type {
   Company,
   CompanySearchParams,
@@ -46,7 +46,9 @@ export async function findOrCreateCompany(
 
   // Try each search strategy
   for (const params of searchStrategies) {
-    if (!params) continue;
+    if (!params) {
+      continue;
+    }
 
     const companies = await getCompanies(session, params);
     if (companies.length > 0) {
@@ -155,7 +157,9 @@ async function saveCompany(
 /**
  * Get a company by ID
  */
-export async function getCompanyById(companyId: number): Promise<Company | null> {
+export async function getCompanyById(
+  companyId: number
+): Promise<Company | null> {
   const session = await getValidSession();
   const companies = await getCompanies(session, { CompanyId: companyId });
   return companies[0] ?? null;
@@ -169,7 +173,9 @@ export async function getCompanyById(companyId: number): Promise<Company | null>
  * @param companyIds - Array of company IDs to fetch
  * @returns Array of companies found
  */
-export async function getCompaniesByIds(companyIds: number[]): Promise<Company[]> {
+export async function getCompaniesByIds(
+  companyIds: number[]
+): Promise<Company[]> {
   if (companyIds.length === 0) {
     return [];
   }
@@ -204,15 +210,13 @@ export async function getCompaniesByIds(companyIds: number[]): Promise<Company[]
 
     // Add a small delay between batches to be nice to the API
     if (i + PARALLEL_BATCH_SIZE < companyIds.length) {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
 
   console.log(`[24SO Company] Fetched ${allCompanies.length} companies by IDs`);
   return allCompanies;
 }
-
-
 
 /**
  * Search for a customer by student ID.
@@ -243,8 +247,8 @@ export async function searchCustomerByStudentId(
   }
 
   // Also search by CompanyId (numeric ID) as fallback
-  const numericId = parseInt(sanitizedId, 10);
-  if (!isNaN(numericId)) {
+  const numericId = Number.parseInt(sanitizedId, 10);
+  if (!Number.isNaN(numericId)) {
     const byCompanyId = await getCompanies(session, { CompanyId: numericId });
     if (byCompanyId.length > 0) {
       console.log(
@@ -257,7 +261,6 @@ export async function searchCustomerByStudentId(
   console.log(`[24SO Company] No customer found for ID ${sanitizedId}`);
   return null;
 }
-
 
 /**
  * Create a student customer in 24SevenOffice with standard naming format.
@@ -305,12 +308,16 @@ export async function createStudentCustomer(
 
   const saved = result.SaveCompaniesResult?.Company;
   if (!saved) {
-    throw new Error("[24SO Company] Failed to create student customer - no result");
+    throw new Error(
+      "[24SO Company] Failed to create student customer - no result"
+    );
   }
 
   const company = Array.isArray(saved) ? saved[0] : saved;
   if (!company) {
-    throw new Error("[24SO Company] Failed to create student customer - empty result");
+    throw new Error(
+      "[24SO Company] Failed to create student customer - empty result"
+    );
   }
 
   console.log(

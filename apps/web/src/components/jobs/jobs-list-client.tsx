@@ -15,8 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { JobCard } from "./job-card";
 
@@ -58,7 +58,7 @@ const getCategoriesWithTranslations = (t: (key: string) => string) => [
     name: "Projects",
     label: t("filters.projects"),
     icon: Rocket,
-    color: "from-purple-500 to-pink-500"
+    color: "from-purple-500 to-pink-500",
   },
 ];
 
@@ -230,9 +230,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
           <h2 className="mb-4 font-bold text-3xl text-white">
             {t("cta.title")}
           </h2>
-          <p className="mb-8 text-lg text-white/90">
-            {t("cta.description")}
-          </p>
+          <p className="mb-8 text-lg text-white/90">{t("cta.description")}</p>
           <div className="flex flex-wrap justify-center gap-4">
             <Button className="bg-background text-brand-dark hover:bg-background/90">
               {t("cta.contactButton")}

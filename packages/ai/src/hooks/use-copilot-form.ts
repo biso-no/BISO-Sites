@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
-import type { UseFormReturn, FieldValues, Path } from "react-hook-form";
-import { useCopilotStore, type PageCapability } from "../stores/copilot-store";
+import { useCallback, useEffect, useRef } from "react";
+import type { FieldValues, Path, UseFormReturn } from "react-hook-form";
+import { type PageCapability, useCopilotStore } from "../stores/copilot-store";
 import type { FormFieldInfo } from "../types";
 
 type UseCopilotFormOptions<T extends FieldValues> = {
@@ -61,9 +61,9 @@ export function useCopilotForm<T extends FieldValues>({
   formRef.current = form;
 
   // Track streaming state for typewriter effect
-  const streamingFieldsRef = useRef<Map<string, { interval: ReturnType<typeof setInterval> | null }>>(
-    new Map()
-  );
+  const streamingFieldsRef = useRef<
+    Map<string, { interval: ReturnType<typeof setInterval> | null }>
+  >(new Map());
 
   /**
    * Handle form field updates from the AI
@@ -138,7 +138,14 @@ export function useCopilotForm<T extends FieldValues>({
       streamingFieldsRef.current.clear();
       unregisterHandler();
     };
-  }, [capability, enabled, fields, handleFormField, registerHandler, unregisterHandler]);
+  }, [
+    capability,
+    enabled,
+    fields,
+    handleFormField,
+    registerHandler,
+    unregisterHandler,
+  ]);
 
   // Update field values in the store when form values change
   useEffect(() => {
@@ -148,7 +155,10 @@ export function useCopilotForm<T extends FieldValues>({
 
     const subscription = form.watch((values: Partial<T>) => {
       const activeHandler = useCopilotStore.getState().activeHandler;
-      if (activeHandler?.capability === capability && activeHandler.formFields) {
+      if (
+        activeHandler?.capability === capability &&
+        activeHandler.formFields
+      ) {
         const updatedFields = activeHandler.formFields.map((field) => ({
           ...field,
           currentValue: getNestedValue(values, field.id),
@@ -189,7 +199,7 @@ export function useCopilotForm<T extends FieldValues>({
  */
 function getNestedValue(obj: unknown, path: string): unknown {
   if (!obj || typeof obj !== "object") {
-    return undefined;
+    return;
   }
 
   const keys = path.split(".");
@@ -197,10 +207,10 @@ function getNestedValue(obj: unknown, path: string): unknown {
 
   for (const key of keys) {
     if (current === null || current === undefined) {
-      return undefined;
+      return;
     }
     if (typeof current !== "object") {
-      return undefined;
+      return;
     }
     current = (current as Record<string, unknown>)[key];
   }

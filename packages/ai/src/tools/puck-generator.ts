@@ -131,12 +131,10 @@ export function createTaskAnalyzerTool() {
 Use this tool FIRST to understand what the user wants before taking any action.
 This helps plan the workflow: navigation → content generation → execution`,
     inputSchema: taskAnalysisSchema,
-    execute: async (analysis: TaskAnalysisParams) => {
-      return {
-        success: true,
-        analysis,
-        message: `Task identified: ${analysis.intent}${analysis.requiresNavigation ? " (navigation required)" : ""}${analysis.requiresContentGeneration ? " (content generation required)" : ""}`,
-      };
-    },
+    execute: async (analysis: TaskAnalysisParams) => ({
+      success: true,
+      analysis,
+      message: `Task identified: ${analysis.intent}${analysis.requiresNavigation ? " (navigation required)" : ""}${analysis.requiresContentGeneration ? " (content generation required)" : ""}`,
+    }),
   });
 }

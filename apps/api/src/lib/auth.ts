@@ -9,7 +9,7 @@ export function extractJwtFromRequest(req: NextRequest): string | undefined {
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.slice(7);
   }
-  return undefined;
+  return;
 }
 
 /**

@@ -1,17 +1,23 @@
 "use client";
 
+import {
+  useEntityContext,
+  usePageContext,
+} from "@repo/ai/hooks/use-copilot-context";
+import {
+  useCopilotPuck,
+  useStreamingPuck,
+} from "@repo/ai/hooks/use-copilot-puck";
 import type {
   Locale,
   PageStatus,
   PageVisibility,
 } from "@repo/api/types/appwrite";
-import { PageStatus as PS, PageVisibility as PV } from "@repo/api/types/appwrite";
+import { PageStatus as PS } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
-import { useCopilotPuck } from "@repo/ai/hooks/use-copilot-puck";
-import { useEntityContext, usePageContext } from "@repo/ai/hooks/use-copilot-context";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { upsertManagedPage } from "@/app/actions/pages/actions";
 import { translatePageContent } from "@/app/actions/pages/translate";
@@ -63,13 +69,18 @@ export function UnifiedEditorClient({
   visibility: initialVisibility,
 }: UnifiedEditorClientProps) {
   const router = useRouter();
-  const [currentLocale, setCurrentLocale] = useState<Locale>(initialCurrentLocale);
-  const [localeData, setLocaleData] = useState<Record<Locale, LocaleData | null>>(
-    initialLocaleData
-  );
+  const [currentLocale, setCurrentLocale] =
+    useState<Locale>(initialCurrentLocale);
+  const [localeData, setLocaleData] =
+    useState<Record<Locale, LocaleData | null>>(initialLocaleData);
   const [slug, setSlug] = useState(initialSlug);
   const [isSaving, setIsSaving] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Track selected block index for targeted AI editing
+  const [selectedBlockIndex, setSelectedBlockIndex] = useState<
+    number | undefined
+  >(undefined);
 
   const currentLocaleInfo = localeData[currentLocale] ?? {
     title: "",
@@ -77,17 +88,20 @@ export function UnifiedEditorClient({
     data: EMPTY_DATA,
   };
 
-  const currentData: Data = {
-    ...currentLocaleInfo.data,
-    root: {
-      ...currentLocaleInfo.data.root,
-      props: {
-        ...(currentLocaleInfo.data.root?.props as any),
-        title: currentLocaleInfo.title,
-        slug: slug,
-      } as any,
-    },
-  };
+  const currentData: Data = useMemo(
+    () => ({
+      ...currentLocaleInfo.data,
+      root: {
+        ...currentLocaleInfo.data.root,
+        props: {
+          ...(currentLocaleInfo.data.root?.props as any),
+          title: currentLocaleInfo.title,
+          slug,
+        } as any,
+      },
+    }),
+    [currentLocaleInfo, slug]
+  );
 
   // Track if AI is generating content
   const [isGenerating, setIsGenerating] = useState(false);
@@ -101,11 +115,13 @@ export function UnifiedEditorClient({
     setEditorDataRef.current = setData;
   }, []);
 
-  // Register Puck editor with AI copilot for streaming block generation
-  useCopilotPuck({
-    data: currentData,
-    onDataChange: (newData) => {
-      console.log("[Editor] onDataChange called, content length:", newData.content?.length);
+  // Handler for data changes from AI (used by both hooks)
+  const handleDataChange = useCallback(
+    (newData: Data) => {
+      console.log(
+        "[Editor] onDataChange called, content length:",
+        newData.content?.length
+      );
       setIsGenerating(true);
 
       // Update our local state
@@ -126,32 +142,48 @@ export function UnifiedEditorClient({
       // Reset generating state after a short delay
       setTimeout(() => setIsGenerating(false), 500);
     },
+    [currentLocale, currentLocaleInfo]
+  );
+
+  // Register Puck editor with AI copilot for streaming block generation
+  useCopilotPuck({
+    data: currentData,
+    onDataChange: handleDataChange as (data: { content: { type: string; props: Record<string, unknown>; }[]; root?: { props?: Record<string, unknown> | undefined; } | undefined; }) => void,
     capability: pageId ? "edit-page" : "create-page",
+  });
+
+  // NEW: Use streaming hook for json-render based generation
+  const { isStreaming, generate, abort } = useStreamingPuck({
+    data: currentData,
+    onDataChange: handleDataChange,
+    selectedBlockIndex,
   });
 
   // Register entity context with AI copilot (so AI knows what page we're editing)
   useEntityContext(
     pageId
       ? {
-        type: "page",
-        id: pageId,
-        title: currentLocaleInfo.title || slug,
-        data: {
-          slug,
-          status: initialStatus,
-          visibility: initialVisibility,
-          currentLocale,
-          availableLocales,
-          localeData: Object.fromEntries(
-            Object.entries(localeData).map(([locale, data]) => [
-              locale,
-              data ? { title: data.title, description: data.description } : null,
-            ])
-          ),
-        },
-        locale: currentLocale,
-        metadata: { status: initialStatus },
-      }
+          type: "page",
+          id: pageId,
+          title: currentLocaleInfo.title || slug,
+          data: {
+            slug,
+            status: initialStatus,
+            visibility: initialVisibility,
+            currentLocale,
+            availableLocales,
+            localeData: Object.fromEntries(
+              Object.entries(localeData).map(([locale, data]) => [
+                locale,
+                data
+                  ? { title: data.title, description: data.description }
+                  : null,
+              ])
+            ),
+          },
+          locale: currentLocale,
+          metadata: { status: initialStatus },
+        }
       : null
   );
 
@@ -159,15 +191,14 @@ export function UnifiedEditorClient({
   usePageContext({
     section: "pages",
     viewType: pageId ? "editor" : "create",
-    breadcrumb: pageId ? ["Pages", currentLocaleInfo.title || slug] : ["Pages", "New Page"],
+    breadcrumb: pageId
+      ? ["Pages", currentLocaleInfo.title || slug]
+      : ["Pages", "New Page"],
   });
 
-  const handleLocaleChange = useCallback(
-    (newLocale: Locale) => {
-      setCurrentLocale(newLocale);
-    },
-    []
-  );
+  const handleLocaleChange = useCallback((newLocale: Locale) => {
+    setCurrentLocale(newLocale);
+  }, []);
 
   const handleTranslate = async (
     data: Data,
@@ -188,7 +219,10 @@ export function UnifiedEditorClient({
         targetLocale,
         title: titleFromRoot,
         description: metadata.description,
-        content: data.content as Array<{ type: string; props: Record<string, unknown> }>,
+        content: data.content as Array<{
+          type: string;
+          props: Record<string, unknown>;
+        }>,
       });
 
       setLocaleData((prev) => ({
@@ -215,7 +249,9 @@ export function UnifiedEditorClient({
         },
       }));
 
-      toast.success(`Content translated to ${targetLocale === "en" ? "English" : "Norwegian"}`);
+      toast.success(
+        `Content translated to ${targetLocale === "en" ? "English" : "Norwegian"}`
+      );
     } catch (error) {
       console.error(error);
       toast.error("Failed to translate content");
@@ -231,7 +267,8 @@ export function UnifiedEditorClient({
     setIsSaving(true);
     try {
       const titleFromRoot = (data.root?.props as any)?.title || metadata.title;
-      const slugFromRoot = (data.root?.props as any)?.slug || slug || sanitizeSlug(titleFromRoot);
+      const slugFromRoot =
+        (data.root?.props as any)?.slug || slug || sanitizeSlug(titleFromRoot);
 
       const updatedLocaleData = {
         ...localeData,
@@ -246,18 +283,17 @@ export function UnifiedEditorClient({
         .map((locale) => {
           const locData = updatedLocaleData[locale];
 
-          if (!locData || !locData.title.trim()) {
-            return null;
+          if (locData?.title.trim()) {
+            return {
+              locale,
+              title: locData.title,
+              slug: null,
+              description: locData.description || null,
+              draftDocument: locData.data,
+              publish: false,
+            };
           }
-
-          return {
-            locale,
-            title: locData.title,
-            slug: null,
-            description: locData.description || null,
-            draftDocument: locData.data,
-            publish: false,
-          };
+          return null;
         })
         .filter((t) => t !== null);
 
@@ -278,11 +314,11 @@ export function UnifiedEditorClient({
       setLocaleData(updatedLocaleData);
       setSlug(slugFromRoot);
 
-      if (!pageId) {
+      if (pageId) {
+        toast.success("Draft saved successfully");
+      } else {
         router.push(`/pages/${result.id}`);
         toast.success("Page created and draft saved");
-      } else {
-        toast.success("Draft saved successfully");
       }
     } catch (error) {
       console.error(error);
@@ -297,7 +333,8 @@ export function UnifiedEditorClient({
     metadata: { title: string; slug: string; description?: string }
   ) => {
     const titleFromRoot = (data.root?.props as any)?.title || metadata.title;
-    const slugFromRoot = (data.root?.props as any)?.slug || slug || sanitizeSlug(titleFromRoot);
+    const slugFromRoot =
+      (data.root?.props as any)?.slug || slug || sanitizeSlug(titleFromRoot);
 
     const updatedLocaleData = {
       ...localeData,
@@ -350,11 +387,11 @@ export function UnifiedEditorClient({
       setLocaleData(updatedLocaleData);
       setSlug(slugFromRoot);
 
-      if (!pageId) {
+      if (pageId) {
+        toast.success("Page published successfully");
+      } else {
         router.push(`/pages/${result.id}`);
         toast.success("Page created and published");
-      } else {
-        toast.success("Page published successfully");
       }
     } catch (error) {
       console.error(error);
@@ -383,7 +420,7 @@ export function UnifiedEditorClient({
         visibility={initialVisibility}
       />
 
-      <PuckGenerationIndicator isGenerating={isGenerating} />
+      <PuckGenerationIndicator isGenerating={isGenerating || isStreaming} />
     </>
   );
 }

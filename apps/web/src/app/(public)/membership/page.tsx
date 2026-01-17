@@ -2,9 +2,9 @@ import type { Locale } from "@repo/i18n/config";
 import { getCampusData } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
 import { getGlobalMembershipBenefits } from "@/app/actions/membership";
+import { getUserPreferences } from "@/lib/auth-utils";
 import type { CampusData } from "@/lib/types/campus-data";
 import { MembershipPageClient } from "./membership-page-client";
-import { getUserPreferences } from "@/lib/auth-utils";
 
 export const revalidate = 0;
 

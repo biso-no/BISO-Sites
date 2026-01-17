@@ -1,4 +1,4 @@
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 

@@ -7,9 +7,9 @@
  * 2. Assign the membership category to the customer
  */
 
-import type { Orders, Users, Memberships } from "@repo/api/types/appwrite";
-import { findOrCreateCompany } from "./company";
+import type { Memberships, Orders, Users } from "@repo/api/types/appwrite";
 import { assignMembershipCategory } from "./categories";
+import { findOrCreateCompany } from "./company";
 import type { CustomerData, MembershipSyncResult } from "./types";
 
 /**
@@ -29,9 +29,7 @@ export async function syncMembershipTo24SO(
   membership: Memberships
 ): Promise<MembershipSyncResult> {
   try {
-    console.log(
-      `[24SO Sync] Starting membership sync for order ${order.$id}`
-    );
+    console.log(`[24SO Sync] Starting membership sync for order ${order.$id}`);
 
     // 1. Parse customer information
     const customerData = extractCustomerData(order, user);
@@ -80,13 +78,9 @@ export async function syncMembershipTo24SO(
 /**
  * Extract customer data from order and user
  */
-function extractCustomerData(
-  order: Orders,
-  user: Users | null
-): CustomerData {
+function extractCustomerData(order: Orders, user: Users | null): CustomerData {
   // Try to get name from user first, then from order
-  const fullName =
-    user?.name || order.buyer_name || "Unknown Customer";
+  const fullName = user?.name || order.buyer_name || "Unknown Customer";
 
   // Split name into first and last
   const nameParts = fullName.trim().split(/\s+/);
@@ -98,7 +92,8 @@ function extractCustomerData(
   const phone = user?.phone || order.buyer_phone || undefined;
 
   // Get student ID if available - studentId is a relation to StudentIds
-  const studentId = user?.studentId?.student_id || user?.student_id || undefined;
+  const studentId =
+    user?.studentId?.student_id || user?.student_id || undefined;
 
   // Get user ID
   const userId = user?.$id || order.userId || "guest";
@@ -120,11 +115,15 @@ function extractCustomerData(
  * @returns true if order contains a membership product
  */
 export function hasMembershipProduct(itemsJson: string | null): boolean {
-  if (!itemsJson) return false;
+  if (!itemsJson) {
+    return false;
+  }
 
   try {
     const items = JSON.parse(itemsJson);
-    if (!Array.isArray(items)) return false;
+    if (!Array.isArray(items)) {
+      return false;
+    }
 
     return items.some(
       (item) =>
