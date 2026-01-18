@@ -5,12 +5,12 @@ import {
   type Data,
   Puck,
   usePuck as usePuckOriginal,
-} from "@measured/puck";
+} from "@puckeditor/core";
 import { Button } from "@repo/ui/components/ui/button";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
-import "@measured/puck/puck.css";
+import "@puckeditor/core/puck.css";
 import "./puck-theme.css";
 import {
   type Locale,

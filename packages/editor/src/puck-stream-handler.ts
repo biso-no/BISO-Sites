@@ -12,7 +12,7 @@
  * - Remove blocks: remove operation on /content/N
  */
 
-import type { Data } from "@measured/puck";
+import type { Data } from "@puckeditor/core";
 
 /**
  * JSONL Patch operation format from json-render

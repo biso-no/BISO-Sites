@@ -12,7 +12,7 @@
 
 import type { UITree } from "@json-render/core";
 import { useUIStream } from "@json-render/react";
-import type { Data } from "@measured/puck";
+import type { Data } from "@puckeditor/core";
 import { createStreamHandler } from "@repo/editor/stream-handler";
 import { treeToPuckData } from "@repo/editor/tree-to-puck";
 import { useCallback, useEffect, useRef, useState } from "react";

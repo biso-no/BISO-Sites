@@ -28,7 +28,7 @@
   "dependencies": {
     "@json-render/core": "^0.2.0",
     "@json-render/react": "^0.2.0",
-    "@measured/puck": "^0.20.2",
+    "@puckeditor/core": "^0.21.0",
     "@repo/api": "workspace:*",
     "@repo/ui": "workspace:*",
     "lucide-react": "^0.552.0",

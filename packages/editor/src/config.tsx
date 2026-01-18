@@ -4,7 +4,7 @@ import {
   registerOverlayPortal,
   type Slot,
   usePuck,
-} from "@measured/puck";
+} from "@puckeditor/core";
 import {
   AccordionBlock,
   type AccordionBlockProps,
@@ -202,7 +202,7 @@ type TimelinePropsWithSlot = TimelineProps & {
   dataSource?: DataSourceValue;
 };
 
-type Props = {
+export type Props = {
   Hero: HeroPropsWithSlot;
   About: AboutProps;
   JoinUs: EditorJoinUsProps;
@@ -227,6 +227,7 @@ type Props = {
   TableOfContents: TableOfContentsProps;
 };
 
+// Explicitly type the Config with Props to help TS inference
 export const config: Config<Props> = {
   root: {
     fields: {
@@ -259,7 +260,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <AccordionBlock {...props} />,
+      render: (props: AccordionBlockProps) => <AccordionBlock {...props} />,
       defaultProps: {
         type: "single",
         items: [
@@ -282,7 +283,7 @@ export const config: Config<Props> = {
           ],
         },
       },
-      render: (props) => <Spacer {...props} />,
+      render: (props: SpacerProps) => <Spacer {...props} />,
       defaultProps: {
         size: "md",
       },
@@ -449,7 +450,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <FeatureGrid {...props} />,
+      render: (props: FeatureGridProps) => <FeatureGrid {...props} />,
       defaultProps: {
         columns: 3,
         variant: "card",
@@ -514,7 +515,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <StatsGrid {...props} />,
+      render: (props: StatsGridProps) => <StatsGrid {...props} />,
       defaultProps: {
         columns: 4,
         variant: "simple",
@@ -556,7 +557,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <TeamGrid {...props} />,
+      render: (props: TeamGridProps) => <TeamGrid {...props} />,
       defaultProps: {
         columns: 3,
         variant: "card",
@@ -683,7 +684,7 @@ export const config: Config<Props> = {
 
         return { props: resolvedProps };
       },
-      render: (props) => <Timeline {...props} />,
+      render: (props: TimelineProps) => <Timeline {...props} />,
       defaultProps: {
         title: "Our History",
         subtitle: "A timeline of our journey and milestones.",
@@ -742,7 +743,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <LogoGrid {...props} />,
+      render: (props: LogoGridProps) => <LogoGrid {...props} />,
       defaultProps: {
         columns: 4,
         variant: "bordered",
@@ -809,7 +810,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <CTA {...props} />,
+      render: (props: CTAProps) => <CTA {...props} />,
       defaultProps: {
         title: "Ready to join?",
         description: "Get started today.",
@@ -1162,7 +1163,7 @@ export const config: Config<Props> = {
         },
         videoUrl: { type: "text" },
       },
-      render: (props) => <About {...props} />,
+      render: (props: AboutProps) => <About {...props} />,
       defaultProps: {
         stats: [
           { number: "100+", label: "Events", iconName: "Calendar" },
@@ -1250,10 +1251,12 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => {
+      render: (props: EditorJoinUsProps) => {
         const componentProps = {
           ...props,
-          memberFeatures: props.memberFeatures?.map((f) => f.feature) || [],
+          memberFeatures:
+            props.memberFeatures?.map((f: { feature: string }) => f.feature) ||
+            [],
         };
         return <JoinUs {...componentProps} />;
       },
@@ -1363,7 +1366,7 @@ export const config: Config<Props> = {
           return { props: {} };
         }
       },
-      render: (props) => <FilteredNews {...props} />,
+      render: (props: EditorNewsProps) => <FilteredNews {...props} />,
       defaultProps: {
         dataMode: "manual",
         news: [],
@@ -1397,7 +1400,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <FilterBar {...props} />,
+      render: (props: FilterBarProps) => <FilterBar {...props} />,
       defaultProps: {
         showSearch: true,
         categories: [
@@ -1441,7 +1444,7 @@ export const config: Config<Props> = {
           },
         },
       },
-      render: (props) => <JobsList {...props} />,
+      render: (props: JobsListProps) => <JobsList {...props} />,
       defaultProps: {
         jobs: [
           {
@@ -1554,7 +1557,7 @@ export const config: Config<Props> = {
           return { props: {} };
         }
       },
-      render: (props) => <FilteredEvents {...props} />,
+      render: (props: EditorEventsProps) => <FilteredEvents {...props} />,
       defaultProps: {
         dataMode: "manual",
         events: [],
@@ -1692,7 +1695,7 @@ export const config: Config<Props> = {
           return { props: {} };
         }
       },
-      render: (props) => <Collection {...props} />,
+      render: (props: EditorCollectionProps) => <Collection {...props} />,
       defaultProps: {
         layout: "card-grid",
         dataMode: "manual",
@@ -1723,7 +1726,7 @@ export const config: Config<Props> = {
           ],
         },
       },
-      render: (props) => <RichText {...props} />,
+      render: (props: RichTextProps) => <RichText {...props} />,
       defaultProps: {
         content:
           "## Section Title\n\nThis is a paragraph of text. You can use **bold** and *italic* formatting.\n\n### Subsection\n\n- List item 1\n- List item 2\n- List item 3\n\nLearn more at [our website](https://example.com).",
@@ -1760,7 +1763,7 @@ export const config: Config<Props> = {
           ],
         },
       },
-      render: (props) => <PageHeader {...props} />,
+      render: (props: PageHeaderProps) => <PageHeader {...props} />,
       defaultProps: {
         title: "Privacy Policy",
         subtitle:
@@ -1806,7 +1809,7 @@ export const config: Config<Props> = {
           ],
         },
       },
-      render: (props) => <TableOfContents {...props} />,
+      render: (props: TableOfContentsProps) => <TableOfContents {...props} />,
       defaultProps: {
         title: "Table of Contents",
         items: [
