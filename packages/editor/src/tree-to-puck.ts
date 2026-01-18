@@ -7,7 +7,7 @@
  */
 
 import type { UIElement, UITree } from "@json-render/core";
-import type { Data } from "@measured/puck";
+import type { Data } from "@puckeditor/core";
 
 /**
  * Puck block structure

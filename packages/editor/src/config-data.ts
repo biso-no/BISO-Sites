@@ -6,7 +6,7 @@
 
 // Import the actual config (which has "use client")
 // But we'll only use it to extract the data structure
-import type { Config } from "@measured/puck";
+import type { Config } from "@puckeditor/core";
 
 // Re-export a function that returns the config
 // This works around the "use client" limitation

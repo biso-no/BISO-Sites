@@ -1,10 +1,10 @@
 "use client";
 
-import { type Data, Render } from "@measured/puck";
-import { config } from "./config";
+import { type Config, type Data, Render } from "@puckeditor/core";
+import { config, type Props } from "./config";
 
-export function PageRender({ data }: { data: Data }) {
-  return <Render config={config} data={data} />;
+export function PageRender({ data }: { data: Data<Props> }) {
+  return <Render config={config as Config} data={data} />;
 }
 
 export type { Data };
