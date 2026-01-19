@@ -30,7 +30,6 @@ export type {
 } from "@repo/shared/types/vipps";
 
 // Re-export client and getAccessToken for compatibility
-// biome-ignore lint/performance/noBarrelFile: Entry point for vipps logic
 export { client, getAccessToken } from "@repo/shared/utils/vipps-client";
 
 // ============= Main Functions =============

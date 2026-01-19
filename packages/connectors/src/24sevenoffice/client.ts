@@ -5,7 +5,7 @@
  * Uses the soap library for Node.js SOAP client functionality.
  */
 
-import * as soap from "soap";
+import { createClientAsync, type Client as SoapClient } from "soap";
 
 // WSDL endpoints for 24SevenOffice services
 export const WSDL_URLS = {
@@ -22,14 +22,14 @@ export const WSDL_URLS = {
 export type ServiceName = keyof typeof WSDL_URLS;
 
 // Client cache to avoid recreating clients
-const clientCache = new Map<string, soap.Client>();
+const clientCache = new Map<string, SoapClient>();
 
 /**
  * Create a SOAP client for a 24SevenOffice service
  */
 export async function createSoapClient(
   serviceName: ServiceName
-): Promise<soap.Client> {
+): Promise<SoapClient> {
   const wsdlUrl = WSDL_URLS[serviceName];
   const cacheKey = serviceName;
 
@@ -40,7 +40,7 @@ export async function createSoapClient(
   }
 
   // Create new client
-  const client = await soap.createClientAsync(wsdlUrl);
+  const client = await createClientAsync(wsdlUrl);
 
   // Cache the client
   clientCache.set(cacheKey, client);
@@ -54,7 +54,7 @@ export async function createSoapClient(
 export async function createAuthenticatedClient(
   serviceName: ServiceName,
   sessionToken: string
-): Promise<soap.Client> {
+): Promise<SoapClient> {
   const client = await createSoapClient(serviceName);
 
   // Add session cookie to all requests

@@ -27,6 +27,56 @@ const TABLE_COLLECTION_MAP: Record<string, string> = {
   milestones: "milestones",
 };
 
+const CONTENT_TABLES = [
+  "events",
+  "news",
+  "jobs",
+  "products",
+  "departments",
+  "pages",
+];
+
+/**
+ * Build all queries from config
+ */
+function buildQueriesFromConfig(config: DataSourceConfig): string[] {
+  const queries: string[] = [];
+
+  // Add filters
+  if (config.filters?.length) {
+    for (const filter of config.filters) {
+      const query = buildQuery(filter);
+      if (query) {
+        queries.push(query);
+      }
+    }
+  }
+
+  // Add sorting
+  if (config.sort) {
+    const sortQuery =
+      config.sort.direction === "desc"
+        ? Query.orderDesc(config.sort.field)
+        : Query.orderAsc(config.sort.field);
+    queries.push(sortQuery);
+  }
+
+  // Add pagination
+  if (typeof config.limit === "number") {
+    queries.push(Query.limit(config.limit));
+  }
+  if (typeof config.offset === "number") {
+    queries.push(Query.offset(config.offset));
+  }
+
+  // Include translation relations for content tables
+  if (CONTENT_TABLES.includes(config.table)) {
+    queries.push(Query.select(["*", "translation_refs.*"]));
+  }
+
+  return queries;
+}
+
 /** Map operators to Appwrite Query methods */
 function buildQuery(filter: DataFilter): string | null {
   const { field, operator, value } = filter;
@@ -70,49 +120,7 @@ export async function fetchDynamicData(
   try {
     const { db } = await createAdminClient();
     const collectionId = TABLE_COLLECTION_MAP[config.table] || config.table;
-
-    // Build queries
-    const queries: string[] = [];
-
-    // Add filters
-    if (config.filters?.length) {
-      for (const filter of config.filters) {
-        const query = buildQuery(filter);
-        if (query) {
-          queries.push(query);
-        }
-      }
-    }
-
-    // Add sorting
-    if (config.sort) {
-      const sortQuery =
-        config.sort.direction === "desc"
-          ? Query.orderDesc(config.sort.field)
-          : Query.orderAsc(config.sort.field);
-      queries.push(sortQuery);
-    }
-
-    // Add pagination
-    if (typeof config.limit === "number") {
-      queries.push(Query.limit(config.limit));
-    }
-    if (typeof config.offset === "number") {
-      queries.push(Query.offset(config.offset));
-    }
-
-    // Include translation relations for content tables
-    const contentTables = [
-      "events",
-      "news",
-      "jobs",
-      "products",
-      "departments",
-      "pages",
-    ];
-    if (contentTables.includes(config.table)) {
-      queries.push(Query.select(["*", "translation_refs.*"]));
-    }
+    const queries = buildQueriesFromConfig(config);
 
     const response = await db.listRows({
       databaseId: DATABASE_ID,

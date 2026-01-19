@@ -54,6 +54,7 @@ export async function createSessionClient(jwt?: string) {
   };
 }
 
+// biome-ignore lint/suspicious/useAwait: Needs to be async.
 export async function createAdminClient() {
   const client = new Client()
     .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)

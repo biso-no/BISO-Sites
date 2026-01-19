@@ -3,4 +3,5 @@
 export * from "./content-types";
 export * from "./document-utils";
 export * from "./mime-utils";
+export * from "./streaming";
 export * from "./vector-store.types";

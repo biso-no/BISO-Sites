@@ -40,7 +40,7 @@ IMPORTANT RULES:
 4. Ensure all required fields are populated
 5. The content array defines the page structure from top to bottom`,
     inputSchema: puckContentSchema,
-    execute: async ({ content, root }: PuckContentParams) => {
+    execute: ({ content, root }: PuckContentParams) => {
       // Validate that all components have IDs
       const missingIds = content.filter(
         (block) => !block.props || typeof block.props.id !== "string"
@@ -131,7 +131,7 @@ export function createTaskAnalyzerTool() {
 Use this tool FIRST to understand what the user wants before taking any action.
 This helps plan the workflow: navigation → content generation → execution`,
     inputSchema: taskAnalysisSchema,
-    execute: async (analysis: TaskAnalysisParams) => ({
+    execute: (analysis: TaskAnalysisParams) => ({
       success: true,
       analysis,
       message: `Task identified: ${analysis.intent}${analysis.requiresNavigation ? " (navigation required)" : ""}${analysis.requiresContentGeneration ? " (content generation required)" : ""}`,

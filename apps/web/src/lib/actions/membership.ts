@@ -56,7 +56,7 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
   const freshStatus = await fetchMembershipFromFinago();
 
   // 3. Cache the result in a cookie
-  await cacheMembershipStatus(cookieStore, freshStatus);
+  cacheMembershipStatus(cookieStore, freshStatus);
 
   return freshStatus;
 }
@@ -70,7 +70,7 @@ export async function refreshMembershipStatus(): Promise<MembershipStatus> {
 
   console.log("[Membership] Force refreshing membership status");
   const freshStatus = await fetchMembershipFromFinago();
-  await cacheMembershipStatus(cookieStore, freshStatus);
+  cacheMembershipStatus(cookieStore, freshStatus);
 
   return freshStatus;
 }
@@ -117,10 +117,10 @@ function getCachedMembership(
  * Note: This will only succeed in a Server Action or Route Handler context.
  * When called from a Server Component render, the set operation will fail silently.
  */
-async function cacheMembershipStatus(
+function cacheMembershipStatus(
   cookieStore: Awaited<ReturnType<typeof cookies>>,
   status: MembershipStatus
-): Promise<void> {
+): void {
   const data: CachedMembershipData = {
     status,
     expiresAt: Date.now() + COOKIE_TTL_SECONDS * 1000,
@@ -167,20 +167,22 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
     // 2. Get user profile
     let profile: Users | null = null;
     try {
-      const { account, db } = await createSessionClient();
-      const user = await account.get();
+      const { account, db: sessionDb } = await createSessionClient();
+      const currentUser = await account.get();
 
       // Check if this is a real authenticated user
-      const hasEmail = user.email && user.email.length > 0;
+      const hasEmail = currentUser.email && currentUser.email.length > 0;
       const hasRealName =
-        user.name && user.name.length > 0 && !user.name.startsWith("guest_");
-      const isEmailVerified = user.emailVerification;
+        currentUser.name &&
+        currentUser.name.length > 0 &&
+        !currentUser.name.startsWith("guest_");
+      const isEmailVerified = currentUser.emailVerification;
 
       if (!(hasEmail || (hasRealName && isEmailVerified))) {
         return notAuthenticated;
       }
 
-      profile = await db.getRow<Users>("app", "user", user.$id);
+      profile = await sessionDb.getRow<Users>("app", "user", currentUser.$id);
     } catch (error) {
       console.error("[Membership] Failed to get user profile:", error);
       return notAuthenticated;

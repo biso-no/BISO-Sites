@@ -3,6 +3,9 @@ import { createAdminClient } from "@repo/api/server";
 import { createGraphClient } from "@repo/connectors/azure";
 import { NextResponse } from "next/server";
 
+// Top-level regex for manager/president role detection
+const MANAGER_ROLE_REGEX = /manager|president/i;
+
 // --- Types ---
 type DepartmentMember = {
   name: string;
@@ -143,10 +146,18 @@ export async function GET(
     // Sort: Managers/Presidents first
     members.sort((a, b) => {
       const isManagerA =
-        /manager|president/i.test(a.role) || /manager|president/i.test(a.email);
+        MANAGER_ROLE_REGEX.test(a.role) || MANAGER_ROLE_REGEX.test(a.email);
       const isManagerB =
-        /manager|president/i.test(b.role) || /manager|president/i.test(b.email);
-      return isManagerA === isManagerB ? 0 : isManagerA ? -1 : 1;
+        MANAGER_ROLE_REGEX.test(b.role) || MANAGER_ROLE_REGEX.test(b.email);
+      const aFirst = isManagerA && !isManagerB;
+      const bFirst = isManagerB && !isManagerA;
+      if (aFirst) {
+        return -1;
+      }
+      if (bFirst) {
+        return 1;
+      }
+      return 0;
     });
 
     // 5. Fetch Photos (Parallelized)
