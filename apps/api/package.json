@@ -21,6 +21,7 @@
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
     "@repo/payment": "workspace:*",
+    "@repo/ai": "workspace:*",
     "ai": "^5.0.104",
     "gpt-tokenizer": "^3.4.0",
     "jszip": "^3.10.1",
