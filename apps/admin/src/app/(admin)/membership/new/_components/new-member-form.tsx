@@ -61,6 +61,163 @@ const CAMPUS_OPTIONS = [
   { id: "5", name: "National" },
 ];
 
+const STEP_ORDER: Step[] = ["student", "membership", "confirm", "result"];
+
+function getStepClassName(
+  stepValue: Step,
+  currentStep: Step,
+  stepIndex: number
+): string {
+  const currentStepIndex = STEP_ORDER.indexOf(currentStep);
+  if (currentStep === stepValue) {
+    return "bg-primary text-primary-foreground";
+  }
+  if (stepIndex < currentStepIndex) {
+    return "bg-emerald-500 text-white";
+  }
+  return "bg-muted text-muted-foreground";
+}
+
+function StepIndicator({ currentStep }: { currentStep: Step }) {
+  const currentStepIndex = STEP_ORDER.indexOf(currentStep);
+
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {STEP_ORDER.map((s, i) => (
+        <div className="flex items-center" key={s}>
+          <div
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm",
+              getStepClassName(s, currentStep, i)
+            )}
+          >
+            {i + 1}
+          </div>
+          {i < 3 && (
+            <div
+              className={cn(
+                "mx-1 h-0.5 w-12",
+                i < currentStepIndex ? "bg-emerald-500" : "bg-muted"
+              )}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SearchResultDisplay({
+  searchResult,
+}: {
+  searchResult: StudentSearchResult;
+}) {
+  if (searchResult.found) {
+    return (
+      <div className="flex items-center gap-3">
+        <User className="h-5 w-5 text-emerald-600" />
+        <div>
+          <p className="font-medium">{searchResult.customer?.name}</p>
+          <p className="text-muted-foreground text-sm">
+            Customer ID: {searchResult.customer?.id} • External ID:{" "}
+            {searchResult.customer?.externalId}
+          </p>
+        </div>
+        <Badge className="ml-auto bg-emerald-100 text-emerald-700">
+          <CheckCircle className="mr-1 h-3 w-3" />
+          Found
+        </Badge>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <UserPlus className="h-5 w-5 text-amber-600" />
+      <div>
+        <p className="font-medium">Student not found</p>
+        <p className="text-muted-foreground text-sm">
+          Enter the student's name to create a new customer.
+        </p>
+      </div>
+      <Badge
+        className="ml-auto border-amber-300 text-amber-600"
+        variant="outline"
+      >
+        New
+      </Badge>
+    </div>
+  );
+}
+
+function ResultCard({
+  result,
+  onReset,
+}: {
+  result: CreateMemberResult;
+  onReset: () => void;
+}) {
+  const isSuccess = result.success;
+
+  return (
+    <Card
+      className={cn(
+        "glass-panel border-2",
+        isSuccess ? "border-emerald-500" : "border-rose-500"
+      )}
+    >
+      <CardHeader>
+        <CardTitle
+          className={cn(
+            "flex items-center gap-2",
+            isSuccess ? "text-emerald-600" : "text-rose-600"
+          )}
+        >
+          {isSuccess ? (
+            <>
+              <CheckCircle className="h-5 w-5" />
+              Membership Created Successfully
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-5 w-5" />
+              Failed to Create Membership
+            </>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isSuccess ? (
+          <div className="space-y-2 text-sm">
+            <p>
+              <span className="text-muted-foreground">Customer:</span>{" "}
+              {result.customerName} (ID: {result.customerId})
+            </p>
+            {result.categoryAssigned && (
+              <p>
+                <span className="text-muted-foreground">Category:</span>{" "}
+                {result.categoryAssigned}
+              </p>
+            )}
+            <p>
+              <span className="text-muted-foreground">Invoice Order ID:</span>{" "}
+              {result.invoiceOrderId}
+            </p>
+          </div>
+        ) : (
+          <p className="text-rose-600">{result.error}</p>
+        )}
+
+        <div className="flex justify-center">
+          <Button onClick={onReset}>
+            {isSuccess ? "Create Another" : "Try Again"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function NewMemberForm({ memberships }: NewMemberFormProps) {
   const [step, setStep] = useState<Step>("student");
   const [isPending, startTransition] = useTransition();
@@ -91,8 +248,8 @@ export function NewMemberForm({ memberships }: NewMemberFormProps) {
     const timeoutId = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const result = await searchStudentInCRM(studentId);
-        setSearchResult(result);
+        const searchData = await searchStudentInCRM(studentId);
+        setSearchResult(searchData);
       } catch (error) {
         console.error("Search failed:", error);
         setSearchResult({ found: false, customer: null });
@@ -167,43 +324,7 @@ export function NewMemberForm({ memberships }: NewMemberFormProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      {/* Progress Steps */}
-      <div className="flex items-center justify-center gap-2">
-        {(["student", "membership", "confirm", "result"] as Step[]).map(
-          (s, i) => (
-            <div className="flex items-center" key={s}>
-              <div
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm",
-                  step === s
-                    ? "bg-primary text-primary-foreground"
-                    : i <
-                        ["student", "membership", "confirm", "result"].indexOf(
-                          step
-                        )
-                      ? "bg-emerald-500 text-white"
-                      : "bg-muted text-muted-foreground"
-                )}
-              >
-                {i + 1}
-              </div>
-              {i < 3 && (
-                <div
-                  className={cn(
-                    "mx-1 h-0.5 w-12",
-                    i <
-                      ["student", "membership", "confirm", "result"].indexOf(
-                        step
-                      )
-                      ? "bg-emerald-500"
-                      : "bg-muted"
-                  )}
-                />
-              )}
-            </div>
-          )
-        )}
-      </div>
+      <StepIndicator currentStep={step} />
 
       {/* Step 1: Student Lookup */}
       {step === "student" && (
@@ -245,40 +366,7 @@ export function NewMemberForm({ memberships }: NewMemberFormProps) {
                     : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
                 )}
               >
-                {searchResult.found ? (
-                  <div className="flex items-center gap-3">
-                    <User className="h-5 w-5 text-emerald-600" />
-                    <div>
-                      <p className="font-medium">
-                        {searchResult.customer?.name}
-                      </p>
-                      <p className="text-muted-foreground text-sm">
-                        Customer ID: {searchResult.customer?.id} • External ID:{" "}
-                        {searchResult.customer?.externalId}
-                      </p>
-                    </div>
-                    <Badge className="ml-auto bg-emerald-100 text-emerald-700">
-                      <CheckCircle className="mr-1 h-3 w-3" />
-                      Found
-                    </Badge>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <UserPlus className="h-5 w-5 text-amber-600" />
-                    <div>
-                      <p className="font-medium">Student not found</p>
-                      <p className="text-muted-foreground text-sm">
-                        Enter the student's name to create a new customer.
-                      </p>
-                    </div>
-                    <Badge
-                      className="ml-auto border-amber-300 text-amber-600"
-                      variant="outline"
-                    >
-                      New
-                    </Badge>
-                  </div>
-                )}
+                <SearchResultDisplay searchResult={searchResult} />
               </div>
             )}
 
@@ -517,63 +605,7 @@ export function NewMemberForm({ memberships }: NewMemberFormProps) {
 
       {/* Step 4: Result */}
       {step === "result" && result && (
-        <Card
-          className={cn(
-            "glass-panel border-2",
-            result.success ? "border-emerald-500" : "border-rose-500"
-          )}
-        >
-          <CardHeader>
-            <CardTitle
-              className={cn(
-                "flex items-center gap-2",
-                result.success ? "text-emerald-600" : "text-rose-600"
-              )}
-            >
-              {result.success ? (
-                <>
-                  <CheckCircle className="h-5 w-5" />
-                  Membership Created Successfully
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-5 w-5" />
-                  Failed to Create Membership
-                </>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {result.success ? (
-              <div className="space-y-2 text-sm">
-                <p>
-                  <span className="text-muted-foreground">Customer:</span>{" "}
-                  {result.customerName} (ID: {result.customerId})
-                </p>
-                {result.categoryAssigned && (
-                  <p>
-                    <span className="text-muted-foreground">Category:</span>{" "}
-                    {result.categoryAssigned}
-                  </p>
-                )}
-                <p>
-                  <span className="text-muted-foreground">
-                    Invoice Order ID:
-                  </span>{" "}
-                  {result.invoiceOrderId}
-                </p>
-              </div>
-            ) : (
-              <p className="text-rose-600">{result.error}</p>
-            )}
-
-            <div className="flex justify-center">
-              <Button onClick={handleReset}>
-                {result.success ? "Create Another" : "Try Again"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <ResultCard onReset={handleReset} result={result} />
       )}
     </div>
   );

@@ -133,10 +133,10 @@ function puckBlockToElement(block: PuckBlock): UIElement {
     [key: string]: unknown;
   };
 
-  const key = (id as string) || `${block.type}-${Date.now()}`;
+  const blockId = (id as string) || `${block.type}-${Date.now()}`;
 
   return {
-    key,
+    key: blockId,
     type: block.type,
     props: restProps,
   };

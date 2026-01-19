@@ -29,12 +29,13 @@ export function parseExpiryDate(name: string): string {
   const pattern = /(spring|fall)\s+(\d{4})/gi;
   const matches: Array<{ season: string; year: number }> = [];
 
-  let match;
-  while ((match = pattern.exec(name)) !== null) {
+  let match = pattern.exec(name);
+  while (match !== null) {
     matches.push({
       season: match[1].toLowerCase(),
       year: Number.parseInt(match[2], 10),
     });
+    match = pattern.exec(name);
   }
 
   if (matches.length === 0) {
@@ -44,7 +45,8 @@ export function parseExpiryDate(name: string): string {
   }
 
   // Use the LAST season/year mentioned (rightmost in the name)
-  const lastMatch = matches.at(-1);
+  // Safe to use non-null assertion since we checked matches.length > 0 above
+  const lastMatch = matches.at(-1)!;
 
   if (lastMatch.season === "spring") {
     return `${lastMatch.year}-06-30`;
@@ -104,6 +106,61 @@ function findCategoryForProduct(
 }
 
 /**
+ * Build a sync item from a product
+ */
+function buildSyncItem(
+  product: Product,
+  membershipCategories: CategoryDefinition[]
+): MembershipProductSyncItem {
+  const category = findCategoryForProduct(product, membershipCategories);
+  const expiryDate = parseExpiryDate(product.Name!);
+  const startDate = parseStartDate(product.Name!);
+  const isActive = isActiveByDate(expiryDate);
+
+  return {
+    productId: product.Id!,
+    productName: product.Name!,
+    productNo: product.No || "",
+    categoryId: category?.Id || null,
+    categoryName: category?.Name || null,
+    expiryDate,
+    startDate,
+    isActive,
+  };
+}
+
+/**
+ * Upsert a membership to Appwrite
+ */
+async function upsertMembership(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  syncItem: MembershipProductSyncItem
+): Promise<"created" | "updated"> {
+  const docId = String(syncItem.productId);
+  const docData = {
+    membership_id: docId,
+    name: syncItem.productName,
+    category: syncItem.categoryId ? String(syncItem.categoryId) : null,
+    expiryDate: syncItem.expiryDate,
+    startDate: syncItem.startDate,
+    status: syncItem.isActive,
+    price: 0,
+    canPurchase: false,
+  };
+
+  try {
+    await db.updateRow("app", "memberships", docId, docData);
+    return "updated";
+  } catch (updateError: any) {
+    if (updateError?.code === 404) {
+      await db.createRow("app", "memberships", docId, docData);
+      return "created";
+    }
+    throw updateError;
+  }
+}
+
+/**
  * Sync membership products from 24SevenOffice to Appwrite.
  *
  * This function:
@@ -151,60 +208,21 @@ export async function syncMembershipsFrom24SO(): Promise<MembershipProductSyncRe
     // 3. Process each product
     for (const product of products) {
       if (!(product.Id && product.Name)) {
-        result.skipped++;
+        result.skipped += 1;
         continue;
       }
 
       try {
-        // Find matching category
-        const category = findCategoryForProduct(product, membershipCategories);
-
-        // Parse dates
-        const expiryDate = parseExpiryDate(product.Name);
-        const startDate = parseStartDate(product.Name);
-        const isActive = isActiveByDate(expiryDate);
-
-        const syncItem: MembershipProductSyncItem = {
-          productId: product.Id,
-          productName: product.Name,
-          productNo: product.No || "",
-          categoryId: category?.Id || null,
-          categoryName: category?.Name || null,
-          expiryDate,
-          startDate,
-          isActive,
-        };
-
+        const syncItem = buildSyncItem(product, membershipCategories);
         result.items.push(syncItem);
 
-        // Prepare Appwrite document
-        const docId = String(product.Id);
-        const docData = {
-          membership_id: docId,
-          name: product.Name,
-          category: category?.Id ? String(category.Id) : null,
-          expiryDate,
-          startDate,
-          status: isActive,
-          price: 0, // Set manually if needed
-          canPurchase: false, // Controlled separately
-        };
-
-        // Upsert to Appwrite
-        try {
-          // Try to update existing
-          await db.updateRow("app", "memberships", docId, docData);
-          result.updated++;
+        const action = await upsertMembership(db, syncItem);
+        if (action === "created") {
+          result.created += 1;
+          console.log(`[Membership Sync] Created: ${product.Name}`);
+        } else {
+          result.updated += 1;
           console.log(`[Membership Sync] Updated: ${product.Name}`);
-        } catch (updateError: any) {
-          // If not found, create new
-          if (updateError?.code === 404) {
-            await db.createRow("app", "memberships", docId, docData);
-            result.created++;
-            console.log(`[Membership Sync] Created: ${product.Name}`);
-          } else {
-            throw updateError;
-          }
         }
       } catch (itemError: any) {
         const errorMsg = `Failed to sync product ${product.Id}: ${itemError.message}`;

@@ -1,4 +1,3 @@
-// biome-ignore lint/performance/noBarrelFile: local alias for admin imports
 export {
   DEFAULT_LOCALE,
   isLocale,

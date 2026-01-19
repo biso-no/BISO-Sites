@@ -19,7 +19,7 @@ export default async function DashboardPage({
 
   const t = await getTranslations("adminShop");
   const filters = buildProductFilters(params);
-  
+
   const productsPromise = listProducts(filters);
   const optionsPromise = listProducts({ limit: 200 }).then(buildFilterOptions);
 

@@ -43,10 +43,10 @@ import { formatPercentage, getStatusToken } from "@/lib/utils/admin";
 
 const _TableSkeleton = () => (
   <div className="space-y-3">
-    {Array.from({ length: 6 }).map((_, row) => (
-      <div className="flex gap-3" key={row}>
-        {Array.from({ length: 6 }).map((_, cell) => (
-          <Skeleton className="h-10 flex-1 rounded-xl" key={cell} />
+    {Array.from({ length: 6 }).map((_unused1, rowIdx) => (
+      <div className="flex gap-3" key={rowIdx}>
+        {Array.from({ length: 6 }).map((_unused2, cellIdx) => (
+          <Skeleton className="h-10 flex-1 rounded-xl" key={cellIdx} />
         ))}
       </div>
     ))}
@@ -74,6 +74,37 @@ const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
   currency: "NOK",
   maximumFractionDigits: 0,
 });
+
+/**
+ * Compare two values for sorting, handling nulls and undefined
+ */
+function compareValues(
+  aVal: unknown,
+  bVal: unknown,
+  direction: "asc" | "desc"
+): number {
+  if (aVal === bVal) {
+    return 0;
+  }
+  if (aVal === undefined || aVal === null) {
+    return 1;
+  }
+  if (bVal === undefined || bVal === null) {
+    return -1;
+  }
+  const comparison = aVal < bVal ? -1 : 1;
+  return direction === "asc" ? comparison : -comparison;
+}
+/**
+ * Get the sortable value from an expense based on the sort key
+ */
+function getSortValue(expense: Expenses, key: keyof Expenses): unknown {
+  const value = expense[key];
+  if (key === "user" && typeof value === "object" && value !== null) {
+    return (value as { name?: string }).name;
+  }
+  return value;
+}
 
 const StatusBadge = ({ status }: { status: string }) => {
   const token = getStatusToken(status, EXPENSE_STATUS_TOKENS);
@@ -153,32 +184,9 @@ export function AdminExpenseTable({ expenses }: { expenses: Expenses[] }) {
     const sorted = [...filteredExpenses];
     if (sortConfig.key) {
       sorted.sort((a, b) => {
-        let aValue = a[sortConfig.key!];
-        let bValue = b[sortConfig.key!];
-
-        if (sortConfig.key === "user") {
-          // @ts-expect-error
-          aValue = aValue?.name;
-          // @ts-expect-error
-          bValue = bValue?.name;
-        }
-
-        if (aValue === bValue) {
-          return 0;
-        }
-        if (aValue === undefined || aValue === null) {
-          return 1;
-        }
-        if (bValue === undefined || bValue === null) {
-          return -1;
-        }
-        if (aValue < bValue) {
-          return sortConfig.direction === "asc" ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === "asc" ? 1 : -1;
-        }
-        return 0;
+        const aValue = getSortValue(a, sortConfig.key!);
+        const bValue = getSortValue(b, sortConfig.key!);
+        return compareValues(aValue, bValue, sortConfig.direction);
       });
     }
     return sorted;

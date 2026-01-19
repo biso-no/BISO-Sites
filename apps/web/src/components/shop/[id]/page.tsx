@@ -25,7 +25,7 @@ export default async function ProductDetailsPage({
   }
 
   const { isMember } = await getMembershipStatus();
-  const userId = null;
+  const userId: string | null = null;
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">

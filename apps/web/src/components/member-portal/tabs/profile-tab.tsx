@@ -28,6 +28,13 @@ type ProfileTabProps = {
 
 export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
   const t = useTranslations("memberPortal.profile");
+  const [isPending, startTransition] = useTransition();
+  const [formData, setFormData] = useState({
+    name: user?.name || "",
+    isPublic: publicProfile?.email_visible || publicProfile?.phone_visible,
+    emailVisible: publicProfile?.email_visible,
+    phoneVisible: publicProfile?.phone_visible,
+  });
 
   if (!user) {
     return (
@@ -47,14 +54,6 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
       </TabsContent>
     );
   }
-
-  const [isPending, startTransition] = useTransition();
-  const [formData, setFormData] = useState({
-    name: user.name || "",
-    isPublic: publicProfile?.email_visible || publicProfile?.phone_visible,
-    emailVisible: publicProfile?.email_visible,
-    phoneVisible: publicProfile?.phone_visible,
-  });
 
   const initials = (user.name || "U")
     .split(" ")

@@ -12,6 +12,9 @@ import { assignMembershipCategory } from "./categories";
 import { findOrCreateCompany } from "./company";
 import type { CustomerData, MembershipSyncResult } from "./types";
 
+// Top-level regex for whitespace splitting
+const WHITESPACE_REGEX = /\s+/;
+
 /**
  * Sync a membership purchase to 24SevenOffice
  *
@@ -83,7 +86,7 @@ function extractCustomerData(order: Orders, user: Users | null): CustomerData {
   const fullName = user?.name || order.buyer_name || "Unknown Customer";
 
   // Split name into first and last
-  const nameParts = fullName.trim().split(/\s+/);
+  const nameParts = fullName.trim().split(WHITESPACE_REGEX);
   const firstName = nameParts[0] || "Unknown";
   const lastName = nameParts.slice(1).join(" ") || "Customer";
 

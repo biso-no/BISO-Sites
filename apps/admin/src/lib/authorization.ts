@@ -52,8 +52,6 @@ function getManagedCampuses(
   departmentNames: string[]
 ): string[] {
   const managedCampuses: string[] = [];
-
-  // Check each campus (excluding National, which grants globaladmin via OperationsUnit)
   const cityNames = ["Oslo", "Bergen", "Stavanger", "Trondheim"];
 
   for (const city of cityNames) {
@@ -66,6 +64,80 @@ function getManagedCampuses(
   }
 
   return managedCampuses;
+}
+
+type TeamParseResult = {
+  campusTeamIds: string[];
+  campusNames: string[];
+  departmentTeamIds: string[];
+  departmentNames: string[];
+  roles: string[];
+};
+
+/**
+ * Parse team memberships into categorized arrays
+ */
+function parseTeamMemberships(
+  teams: Array<{ $id: string; name: string }>
+): TeamParseResult {
+  const result: TeamParseResult = {
+    campusTeamIds: [],
+    campusNames: [],
+    departmentTeamIds: [],
+    departmentNames: [],
+    roles: [],
+  };
+
+  for (const team of teams) {
+    const name = team.name;
+
+    if (name.startsWith("SG-App-Campus-")) {
+      result.campusTeamIds.push(team.$id);
+      result.campusNames.push(name.replace("SG-App-Campus-", ""));
+    } else if (name.startsWith("SG-App-Dept-")) {
+      result.departmentTeamIds.push(team.$id);
+      result.departmentNames.push(name.replace("SG-App-Dept-", ""));
+    } else if (name.startsWith("SG-App-Role-")) {
+      const roleName = name
+        .replace("SG-App-Role-", "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      result.roles.push(roleName);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Derive additional roles from team memberships and labels
+ */
+function deriveRoles(
+  parsed: TeamParseResult,
+  labels: string[]
+): { roles: string[]; managedCampuses: string[] } {
+  const roles = [...parsed.roles];
+
+  const hasGlobalAdminLabel =
+    labels.includes("admin") || labels.includes("globaladmin");
+  const isNatOps = isNationalOperations(
+    parsed.campusNames,
+    parsed.departmentNames
+  );
+
+  if ((hasGlobalAdminLabel || isNatOps) && !roles.includes("globaladmin")) {
+    roles.push("globaladmin");
+  }
+
+  const managedCampuses = getManagedCampuses(
+    parsed.campusNames,
+    parsed.departmentNames
+  );
+  if (managedCampuses.length > 0 && !roles.includes("campusadmin")) {
+    roles.push("campusadmin");
+  }
+
+  return { roles, managedCampuses };
 }
 
 /**
@@ -82,69 +154,18 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
   try {
     const { account, teams } = await createSessionClient();
     const user = await account.get();
-
-    // Get all teams the user is a member of
     const teamMemberships = await teams.list();
 
-    const campusTeamIds: string[] = [];
-    const campusNames: string[] = [];
-    const departmentTeamIds: string[] = [];
-    const departmentNames: string[] = [];
-    const roles: string[] = [];
-
-    for (const team of teamMemberships.teams) {
-      const name = team.name;
-
-      if (name.startsWith("SG-App-Campus-")) {
-        campusTeamIds.push(team.$id);
-        // Extract campus name: "SG-App-Campus-Oslo" -> "Oslo"
-        const campusName = name.replace("SG-App-Campus-", "");
-        campusNames.push(campusName);
-      } else if (name.startsWith("SG-App-Dept-")) {
-        departmentTeamIds.push(team.$id);
-        // Extract department name: "SG-App-Dept-OperationsUnit" -> "OperationsUnit"
-        const deptName = name.replace("SG-App-Dept-", "");
-        departmentNames.push(deptName);
-      } else if (name.startsWith("SG-App-Role-")) {
-        // Extract role name: "SG-App-Role-globaladmin" -> "globaladmin"
-        const roleName = name
-          .replace("SG-App-Role-", "")
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, "");
-        roles.push(roleName);
-      }
-    }
-
+    const parsed = parseTeamMemberships(teamMemberships.teams);
     const labels = user.labels || [];
-
-    // Derive globaladmin from Appwrite labels
-    if (
-      (labels.includes("admin") || labels.includes("globaladmin")) &&
-      !roles.includes("globaladmin")
-    ) {
-      roles.push("globaladmin");
-    }
-
-    // Derive globaladmin from National + OperationsUnit combination
-    if (
-      isNationalOperations(campusNames, departmentNames) &&
-      !roles.includes("globaladmin")
-    ) {
-      roles.push("globaladmin");
-    }
-
-    // Derive campusadmin from Ledelsen{City} + Campus-{City} combination
-    const managedCampuses = getManagedCampuses(campusNames, departmentNames);
-    if (managedCampuses.length > 0 && !roles.includes("campusadmin")) {
-      roles.push("campusadmin");
-    }
+    const { roles, managedCampuses } = deriveRoles(parsed, labels);
 
     return {
       userId: user.$id,
-      campusTeamIds,
-      campusNames,
-      departmentTeamIds,
-      departmentNames,
+      campusTeamIds: parsed.campusTeamIds,
+      campusNames: parsed.campusNames,
+      departmentTeamIds: parsed.departmentTeamIds,
+      departmentNames: parsed.departmentNames,
       roles,
       labels,
       managedCampuses,
@@ -231,6 +252,8 @@ export async function belongsToDepartment(
 // Permission Checking Utilities (for $permissions arrays)
 // ============================================================================
 
+const PERMISSION_REGEX = /^(\w+)\("([^"]+)"\)$/;
+
 /**
  * Parse a permission string to extract the type and target
  * Example: 'update("team:abc123")' -> { type: "update", target: "team:abc123" }
@@ -238,11 +261,45 @@ export async function belongsToDepartment(
 function parsePermission(
   perm: string
 ): { type: string; target: string } | null {
-  const match = perm.match(/^(\w+)\("([^"]+)"\)$/);
+  const match = perm.match(PERMISSION_REGEX);
   if (!match) {
     return null;
   }
   return { type: match[1], target: match[2] };
+}
+
+/**
+ * Check if a permission target matches the user's context
+ */
+function targetMatchesContext(target: string, ctx: UserAuthContext): boolean {
+  if (target.startsWith("team:")) {
+    const teamId = target.replace("team:", "");
+    return (
+      ctx.campusTeamIds.includes(teamId) ||
+      ctx.departmentTeamIds.includes(teamId)
+    );
+  }
+
+  if (target.startsWith("label:")) {
+    const label = target.replace("label:", "");
+    return ctx.labels.includes(label) || ctx.roles.includes(label);
+  }
+
+  if (target.startsWith("user:")) {
+    const userId = target.replace("user:", "");
+    return userId === ctx.userId;
+  }
+
+  return target === "any";
+}
+
+/**
+ * Check if user is a global admin based on context
+ */
+function isGlobalAdminContext(ctx: UserAuthContext): boolean {
+  return (
+    ctx.roles.includes("globaladmin") || ctx.labels.includes("globaladmin")
+  );
 }
 
 /**
@@ -256,8 +313,7 @@ export async function canWriteDocument(
     return false;
   }
 
-  // Global admins always have write access
-  if (ctx.roles.includes("globaladmin") || ctx.labels.includes("globaladmin")) {
+  if (isGlobalAdminContext(ctx)) {
     return true;
   }
 
@@ -267,42 +323,8 @@ export async function canWriteDocument(
       continue;
     }
 
-    // Check for update or write permissions
-    if (parsed.type !== "update" && parsed.type !== "write") {
-      continue;
-    }
-
-    const target = parsed.target;
-
-    // Check if permission matches user's teams
-    if (target.startsWith("team:")) {
-      const teamId = target.replace("team:", "");
-      if (
-        ctx.campusTeamIds.includes(teamId) ||
-        ctx.departmentTeamIds.includes(teamId)
-      ) {
-        return true;
-      }
-    }
-
-    // Check if permission matches user's labels
-    if (target.startsWith("label:")) {
-      const label = target.replace("label:", "");
-      if (ctx.labels.includes(label) || ctx.roles.includes(label)) {
-        return true;
-      }
-    }
-
-    // Check for user-specific permission
-    if (target.startsWith("user:")) {
-      const userId = target.replace("user:", "");
-      if (userId === ctx.userId) {
-        return true;
-      }
-    }
-
-    // "any" permission grants access to everyone
-    if (target === "any") {
+    const isWriteType = parsed.type === "update" || parsed.type === "write";
+    if (isWriteType && targetMatchesContext(parsed.target, ctx)) {
       return true;
     }
   }
@@ -319,8 +341,7 @@ export async function canReadDocument(permissions: string[]): Promise<boolean> {
     return false;
   }
 
-  // Global admins always have read access
-  if (ctx.roles.includes("globaladmin") || ctx.labels.includes("globaladmin")) {
+  if (isGlobalAdminContext(ctx)) {
     return true;
   }
 
@@ -330,47 +351,16 @@ export async function canReadDocument(permissions: string[]): Promise<boolean> {
       continue;
     }
 
-    // Check for read permissions
     if (parsed.type !== "read") {
       continue;
     }
 
-    const target = parsed.target;
-
-    // Check if permission matches user's teams
-    if (target.startsWith("team:")) {
-      const teamId = target.replace("team:", "");
-      if (
-        ctx.campusTeamIds.includes(teamId) ||
-        ctx.departmentTeamIds.includes(teamId)
-      ) {
-        return true;
-      }
-    }
-
-    // Check if permission matches user's labels
-    if (target.startsWith("label:")) {
-      const label = target.replace("label:", "");
-      if (ctx.labels.includes(label) || ctx.roles.includes(label)) {
-        return true;
-      }
-    }
-
-    // Check for user-specific permission
-    if (target.startsWith("user:")) {
-      const userId = target.replace("user:", "");
-      if (userId === ctx.userId) {
-        return true;
-      }
-    }
-
-    // "any" grants read to everyone
-    if (target === "any") {
+    // "users" grants read to all authenticated users
+    if (parsed.target === "users") {
       return true;
     }
 
-    // "users" grants read to all authenticated users
-    if (target === "users") {
+    if (targetMatchesContext(parsed.target, ctx)) {
       return true;
     }
   }

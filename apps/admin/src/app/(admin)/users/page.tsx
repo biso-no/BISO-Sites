@@ -3,7 +3,7 @@ import { getUsers } from "@/app/actions/admin";
 import { UserTable } from "./user-table";
 import { UserTableSkeleton } from "./user-table-skeleton";
 
-export default async function AdminUsersPage() {
+export default function AdminUsersPage() {
   const usersPromise = getUsers();
 
   return (

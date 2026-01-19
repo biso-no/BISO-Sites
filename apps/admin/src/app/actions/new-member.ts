@@ -201,13 +201,13 @@ export async function createMembershipForStudent(params: {
       return { success: false, error: "Invalid product ID" };
     }
 
-    const invoice = await createMembershipInvoice(
+    const invoice = await createMembershipInvoice({
       customerId,
       productId,
-      membership.name,
-      membership.price,
-      campusId
-    );
+      productName: membership.name,
+      price: membership.price,
+      campusId,
+    });
 
     return {
       success: true,

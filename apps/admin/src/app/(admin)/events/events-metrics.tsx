@@ -1,13 +1,13 @@
 "use client";
 
-import { Status } from "@repo/api/types/appwrite";
-import { AdminSummary } from "@/components/admin/admin-summary";
 import type { Events } from "@repo/api/types/appwrite";
-import { formatPercentage } from "@/lib/utils/admin";
-import Link from "next/link";
+import { Status } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { use } from "react";
+import { AdminSummary } from "@/components/admin/admin-summary";
+import { formatPercentage } from "@/lib/utils/admin";
 
 export function EventsSummary({
   eventsPromise,
@@ -21,7 +21,9 @@ export function EventsSummary({
   const publishedEvents = events.filter(
     (evt) => evt.status === Status.PUBLISHED
   ).length;
-  const draftEvents = events.filter((evt) => evt.status === Status.DRAFT).length;
+  const draftEvents = events.filter(
+    (evt) => evt.status === Status.DRAFT
+  ).length;
   const translationCoverage = formatPercentage(
     events.filter((evt) => {
       const refs = evt.translation_refs ?? [];
@@ -44,7 +46,6 @@ export function EventsSummary({
     },
     {
       label: t("metrics.drafts"),
-      value: totalEvents - publishedEvents, // Simplified logic or reuse exact count
       // Actually let's use drafts count
       value: draftEvents,
       description: t("metrics.forReview"),

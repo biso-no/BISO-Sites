@@ -423,7 +423,10 @@ export function ExpenseReport({
             {/* Description / Summary */}
             <div className="mt-8">
               <div className="mb-2 flex items-center justify-between">
-                <label className="font-medium text-foreground text-sm">
+                <label
+                  className="font-medium text-foreground text-sm"
+                  htmlFor="expense-description"
+                >
                   Description
                 </label>
                 {isGeneratingSummary && (
@@ -436,6 +439,7 @@ export function ExpenseReport({
               <Textarea
                 className="min-h-[80px] resize-none border-border bg-muted text-sm focus:bg-background dark:border-border dark:bg-inverted/50 dark:focus:bg-inverted"
                 disabled={isGeneratingSummary}
+                id="expense-description"
                 onChange={(e) => onDescriptionChange(e.target.value)}
                 placeholder="Brief description of the expenses (e.g. 'Cabintrip with the unit')..."
                 value={description}

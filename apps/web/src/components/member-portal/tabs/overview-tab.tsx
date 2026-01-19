@@ -357,7 +357,7 @@ export function OverviewTab({
   benefits,
   revealedBenefits,
   isMember,
-  hasBIIdentity,
+  _hasBIIdentity,
   onTabChange,
 }: OverviewTabProps) {
   return (

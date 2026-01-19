@@ -77,7 +77,7 @@ export async function saveCustomerCategories(
 /**
  * Assign a single category to a customer
  */
-export async function assignMembershipCategory(
+export function assignMembershipCategory(
   companyId: number,
   category: string
 ): Promise<void> {

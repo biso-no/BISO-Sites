@@ -93,14 +93,14 @@ function handleRootPatch(
   pathParts: string[],
   patch: PatchOperation
 ): Data {
-  if (pathParts.length === 0) {
-    // Replace entire root
-    if (patch.op === "set" || patch.op === "replace") {
-      return {
-        ...data,
-        root: patch.value as Data["root"],
-      };
-    }
+  const isRootReplacement =
+    pathParts.length === 0 && (patch.op === "set" || patch.op === "replace");
+
+  if (isRootReplacement) {
+    return {
+      ...data,
+      root: patch.value as Data["root"],
+    };
   }
 
   // Nested root prop update (e.g., /root/props/title)
@@ -122,6 +122,50 @@ function handleRootPatch(
 }
 
 /**
+ * Handle operations on the entire content array
+ */
+function handleWholeContentPatch(
+  data: Data,
+  content: PuckBlock[],
+  patch: PatchOperation
+): Data {
+  switch (patch.op) {
+    case "set":
+    case "replace":
+      return { ...data, content: patch.value as PuckBlock[] };
+    case "add":
+      return { ...data, content: [...content, patch.value as PuckBlock] };
+    default:
+      return data;
+  }
+}
+
+/**
+ * Handle operations on a specific block by index
+ */
+function handleBlockIndexPatch(
+  data: Data,
+  content: PuckBlock[],
+  blockIndex: number,
+  patch: PatchOperation
+): Data {
+  switch (patch.op) {
+    case "set":
+    case "replace":
+      content[blockIndex] = patch.value as PuckBlock;
+      return { ...data, content };
+    case "add":
+      content.splice(blockIndex, 0, patch.value as PuckBlock);
+      return { ...data, content };
+    case "remove":
+      content.splice(blockIndex, 1);
+      return { ...data, content };
+    default:
+      return data;
+  }
+}
+
+/**
  * Handle patches to content array
  */
 function handleContentPatch(
@@ -131,84 +175,36 @@ function handleContentPatch(
 ): Data {
   const content = [...(data.content || [])];
 
-  // /content with no index - operations on the whole array
   if (pathParts.length === 0) {
-    switch (patch.op) {
-      case "set":
-      case "replace":
-        return {
-          ...data,
-          content: patch.value as PuckBlock[],
-        };
-      case "add":
-        // Add to end of array
-        return {
-          ...data,
-          content: [...content, patch.value as PuckBlock],
-        };
-      default:
-        return data;
-    }
+    return handleWholeContentPatch(data, content, patch);
   }
 
-  // Parse block index
   const blockIndex = Number.parseInt(pathParts[0], 10);
   if (Number.isNaN(blockIndex)) {
     console.warn(`[PuckStreamHandler] Invalid block index: ${pathParts[0]}`);
     return data;
   }
 
-  // /content/N - operations on a specific block
   if (pathParts.length === 1) {
-    switch (patch.op) {
-      case "set":
-      case "replace":
-        // Replace block at index
-        content[blockIndex] = patch.value as PuckBlock;
-        return { ...data, content };
+    return handleBlockIndexPatch(data, content, blockIndex, patch);
+  }
 
-      case "add":
-        // Insert at index, shift others
-        content.splice(blockIndex, 0, patch.value as PuckBlock);
-        return { ...data, content };
-
-      case "remove":
-        // Remove block at index
-        content.splice(blockIndex, 1);
-        return { ...data, content };
-
-      default:
-        return data;
-    }
+  const currentBlock = content[blockIndex];
+  if (!currentBlock) {
+    console.warn(`[PuckStreamHandler] Block at index ${blockIndex} not found`);
+    return data;
   }
 
   // /content/N/props/... - update nested prop
   if (pathParts[1] === "props" && pathParts.length >= 3) {
-    const currentBlock = content[blockIndex];
-    if (!currentBlock) {
-      console.warn(
-        `[PuckStreamHandler] Block at index ${blockIndex} not found`
-      );
-      return data;
-    }
-
     const propPath = pathParts.slice(2);
-    const updatedBlock = updateNestedProp(currentBlock, propPath, patch);
-    content[blockIndex] = updatedBlock;
+    content[blockIndex] = updateNestedProp(currentBlock, propPath, patch);
     return { ...data, content };
   }
 
   // /content/N/type - update block type
   if (pathParts[1] === "type" && pathParts.length === 2) {
-    const currentBlock = content[blockIndex];
-    if (!currentBlock) {
-      return data;
-    }
-
-    content[blockIndex] = {
-      ...currentBlock,
-      type: patch.value as string,
-    };
+    content[blockIndex] = { ...currentBlock, type: patch.value as string };
     return { ...data, content };
   }
 

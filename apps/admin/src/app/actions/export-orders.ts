@@ -120,96 +120,97 @@ async function fetchAllOrders(
   return allOrders;
 }
 
+const STANDARD_HEADER = [
+  "order_id",
+  "date",
+  "customer_name",
+  "customer_email",
+  "customer_phone",
+  "product",
+  "unit_price",
+  "order_total",
+  "status",
+];
+
+const BOOKING_HEADER = [
+  "order_id",
+  "date",
+  "customer_name",
+  "customer_email",
+  "customer_phone",
+  "product",
+  "product_category",
+  "product_type",
+  "unit_price",
+  "quantity",
+  "line_total",
+  "subtotal",
+  "discount",
+  "order_total",
+  "campus_id",
+  "status",
+  "membership_applied",
+];
+
+function buildOrderRowStandard(order: Orders): string[] {
+  const status = (order.status || "pending").toLowerCase();
+  const totalValue = Number(order.total ?? 0);
+  const baseColumns = buildBaseColumns(order);
+  const items = parseOrderItems(order.items_json);
+
+  if (items.length === 0) {
+    return [formatEmptyOrderRow(baseColumns, totalValue, status)];
+  }
+
+  return expandOrderItems(items, baseColumns, totalValue, status);
+}
+
+function buildOrderRowBooking(order: Orders): string[] {
+  const status = (order.status || "pending").toLowerCase();
+  const totalValue = Number(order.total ?? 0);
+  const subtotal = Number(order.subtotal ?? 0);
+  const discount = Number(order.discount_total ?? 0);
+  const campusId = order.campus_id || "";
+  const membershipApplied = order.membership_applied ? "Yes" : "No";
+  const baseColumns = buildBaseColumns(order);
+  const items = parseOrderItems(order.items_json);
+
+  if (items.length === 0) {
+    return [
+      formatCsvRow([
+        ...baseColumns,
+        "", // product
+        "", // category
+        "", // type
+        "", // unit_price
+        "", // quantity
+        "", // line_total
+        formatMoney(subtotal),
+        formatMoney(discount),
+        formatMoney(totalValue),
+        campusId,
+        status,
+        membershipApplied,
+      ]),
+    ];
+  }
+
+  return expandOrderItemsBooking(
+    items,
+    baseColumns,
+    { subtotal, discount, total: totalValue, campusId, membershipApplied },
+    status
+  );
+}
+
 function buildCsvRows(orders: Orders[], format: "standard" | "booking") {
-  // Headers differ based on format
-  const standardHeader = [
-    "order_id",
-    "date",
-    "customer_name",
-    "customer_email",
-    "customer_phone",
-    "product",
-    "unit_price",
-    "order_total",
-    "status",
-  ];
-
-  const bookingHeader = [
-    "order_id",
-    "date",
-    "customer_name",
-    "customer_email",
-    "customer_phone",
-    "product",
-    "product_category",
-    "product_type",
-    "unit_price",
-    "quantity",
-    "line_total",
-    "subtotal",
-    "discount",
-    "order_total",
-    "campus_id",
-    "status",
-    "membership_applied",
-  ];
-
-  const header = format === "booking" ? bookingHeader : standardHeader;
+  const header = format === "booking" ? BOOKING_HEADER : STANDARD_HEADER;
   const rows = [header.join(",")];
+  const buildRow =
+    format === "booking" ? buildOrderRowBooking : buildOrderRowStandard;
 
   for (const order of orders) {
-    const status = (order.status || "pending").toLowerCase();
-    const totalValue = Number(order.total ?? 0);
-    const subtotal = Number(order.subtotal ?? 0);
-    const discount = Number(order.discount_total ?? 0);
-    const campusId = order.campus_id || "";
-    const membershipApplied = order.membership_applied ? "Yes" : "No";
-    const baseColumns = buildBaseColumns(order);
-    const items = parseOrderItems(order.items_json);
-
-    if (items.length === 0) {
-      if (format === "booking") {
-        rows.push(
-          formatCsvRow([
-            ...baseColumns,
-            "", // product
-            "", // category
-            "", // type
-            "", // unit_price
-            "", // quantity
-            "", // line_total
-            formatMoney(subtotal),
-            formatMoney(discount),
-            formatMoney(totalValue),
-            campusId,
-            status,
-            membershipApplied,
-          ])
-        );
-      } else {
-        rows.push(formatEmptyOrderRow(baseColumns, totalValue, status));
-      }
-      continue;
-    }
-
-    if (format === "booking") {
-      rows.push(
-        ...expandOrderItemsBooking(
-          items,
-          baseColumns,
-          {
-            subtotal,
-            discount,
-            total: totalValue,
-            campusId,
-            membershipApplied,
-          },
-          status
-        )
-      );
-    } else {
-      rows.push(...expandOrderItems(items, baseColumns, totalValue, status));
-    }
+    rows.push(...buildRow(order));
   }
 
   return rows;
