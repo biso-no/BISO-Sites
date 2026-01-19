@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 export function proxy(req: NextRequest) {
-  const existingCookie = req.cookies.get("a_session_biso");
+  const existingCookie = req.cookies.get("a_session_biso_admin");
   if (!existingCookie) {
     return NextResponse.redirect(new URL("/auth/login", req.url));
   }
