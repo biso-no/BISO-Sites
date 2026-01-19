@@ -72,6 +72,130 @@ type RequestBody = {
   pageContext?: PageContext;
 };
 
+type StreamFinishParams = {
+  text?: string;
+  toolCalls?: Array<{ toolName: string; toolCallId: string; args?: unknown }>;
+  toolResults?: Array<{ toolName: string; result?: unknown }>;
+  finishReason: string;
+  usage?: unknown;
+};
+
+function logToolCalls(toolCalls: StreamFinishParams["toolCalls"]): void {
+  if (!toolCalls?.length) {
+    return;
+  }
+  console.log("Tool Calls:");
+  for (const call of toolCalls) {
+    console.log(`  - ${call.toolName} (ID: ${call.toolCallId})`);
+    const argsStr = JSON.stringify(call.args || {});
+    console.log(`    Args: ${argsStr.substring(0, 200)}`);
+  }
+}
+
+function logToolResults(toolResults: StreamFinishParams["toolResults"]): void {
+  if (!toolResults?.length) {
+    return;
+  }
+  console.log("Tool Results:");
+  for (const toolResult of toolResults) {
+    console.log(`  - Tool: ${toolResult.toolName}`);
+    const resultStr = JSON.stringify(toolResult.result || {});
+    console.log(`    Result: ${resultStr.substring(0, 200)}`);
+  }
+}
+
+function logStreamFinished(params: StreamFinishParams): void {
+  console.log("=== STREAM FINISHED ===");
+  console.log(`Finish Reason: ${params.finishReason}`);
+  console.log(`Text Content Length: ${params.text?.length || 0}`);
+  console.log(`Text Content: ${params.text || "[EMPTY]"}`);
+  console.log(`Tool Calls Count: ${params.toolCalls?.length || 0}`);
+  logToolCalls(params.toolCalls);
+  console.log(`Tool Results Count: ${params.toolResults?.length || 0}`);
+  logToolResults(params.toolResults);
+  console.log(`Usage: ${JSON.stringify(params.usage)}`);
+  console.log("======================");
+}
+
+/**
+ * Build page context section for AI prompt
+ */
+function buildPageContextSection(pageContext: PageContext): string[] {
+  const parts: string[] = [];
+
+  const pageInfo = [
+    `Section: ${pageContext.section}`,
+    `View Type: ${pageContext.viewType}`,
+    pageContext.breadcrumb?.length
+      ? `Breadcrumb: ${pageContext.breadcrumb.join(" > ")}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  parts.push(`## Page Context\n${pageInfo}`);
+
+  if (pageContext.listSummary) {
+    const listInfo = [
+      `Total items: ${pageContext.listSummary.totalCount}`,
+      `Displayed: ${pageContext.listSummary.displayedCount}`,
+      pageContext.listSummary.items?.length
+        ? `Recent items:\n${pageContext.listSummary.items.map((i) => `  - ${i.title} (${i.status || "unknown"})`).join("\n")}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    parts.push(`## List Summary\n${listInfo}`);
+  }
+
+  return parts;
+}
+
+/**
+ * Build entity context section for AI prompt
+ */
+function buildEntityContextSection(entityContext: EntityContext): string {
+  const entityInfo = [
+    `Type: ${entityContext.type}`,
+    `ID: ${entityContext.id}`,
+    `Title: "${entityContext.title}"`,
+    entityContext.locale ? `Locale: ${entityContext.locale}` : null,
+    entityContext.metadata?.status
+      ? `Status: ${entityContext.metadata.status}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const dataPreview = JSON.stringify(entityContext.data, null, 2);
+  const truncatedData =
+    dataPreview.length > 3000
+      ? `${dataPreview.substring(0, 3000)}\n... (truncated)`
+      : dataPreview;
+
+  return `## Current Entity\n${entityInfo}\n\n### Entity Data:\n\`\`\`json\n${truncatedData}\n\`\`\``;
+}
+
+/**
+ * Build puck editor context section for AI prompt
+ */
+function buildPuckContextSection(puckData: unknown): string[] {
+  const parts: string[] = [];
+  parts.push(
+    "## Editor Mode\nUser is on a Puck page editor. You can modify the page structure using generatePuckContent."
+  );
+
+  const puckPreview = JSON.stringify(puckData, null, 2);
+  const truncatedPuck =
+    puckPreview.length > 2000
+      ? `${puckPreview.substring(0, 2000)}\n... (truncated)`
+      : puckPreview;
+  parts.push(
+    `### Current Page Structure:\n\`\`\`json\n${truncatedPuck}\n\`\`\``
+  );
+
+  return parts;
+}
+
 export async function POST(req: Request) {
   console.log("--- AI Chat API Request Received ---");
 
@@ -182,7 +306,14 @@ Example page structure:
   const generatePuckContent = createPuckGeneratorTool(generatorToolInput);
 
   // Create form filler tool - use provided fields, capability fields, or default to event fields
-  let formFieldsForTool;
+  let formFieldsForTool: Array<{
+    id: string;
+    name: string;
+    type: "text" | "textarea" | "number" | "date" | "select" | "checkbox";
+    label: string;
+    required?: boolean;
+    currentValue?: unknown;
+  }>;
   if (formFields && formFields.length > 0) {
     formFieldsForTool = formFields.map((f) => ({
       id: f.id,
@@ -234,7 +365,7 @@ Example page structure:
 
   // --- System Prompt Building ---
 
-  // Build rich context for the AI
+  // Build rich context for the AI using extracted helpers
   const contextParts: string[] = [];
 
   // Current location
@@ -244,73 +375,17 @@ Example page structure:
 
   // Page context (what section/view type)
   if (pageContext) {
-    const pageInfo = [
-      `Section: ${pageContext.section}`,
-      `View Type: ${pageContext.viewType}`,
-      pageContext.breadcrumb?.length
-        ? `Breadcrumb: ${pageContext.breadcrumb.join(" > ")}`
-        : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
-    contextParts.push(`## Page Context\n${pageInfo}`);
-
-    // List summary if on a list page
-    if (pageContext.listSummary) {
-      const listInfo = [
-        `Total items: ${pageContext.listSummary.totalCount}`,
-        `Displayed: ${pageContext.listSummary.displayedCount}`,
-        pageContext.listSummary.items?.length
-          ? `Recent items:\n${pageContext.listSummary.items.map((i) => `  - ${i.title} (${i.status || "unknown"})`).join("\n")}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      contextParts.push(`## List Summary\n${listInfo}`);
-    }
+    contextParts.push(...buildPageContextSection(pageContext));
   }
 
   // Entity context (the thing being viewed/edited)
   if (entityContext) {
-    const entityInfo = [
-      `Type: ${entityContext.type}`,
-      `ID: ${entityContext.id}`,
-      `Title: "${entityContext.title}"`,
-      entityContext.locale ? `Locale: ${entityContext.locale}` : null,
-      entityContext.metadata?.status
-        ? `Status: ${entityContext.metadata.status}`
-        : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    // Include relevant entity data (sanitized for prompt)
-    const dataPreview = JSON.stringify(entityContext.data, null, 2);
-    const truncatedData =
-      dataPreview.length > 3000
-        ? `${dataPreview.substring(0, 3000)}\n... (truncated)`
-        : dataPreview;
-
-    contextParts.push(
-      `## Current Entity\n${entityInfo}\n\n### Entity Data:\n\`\`\`json\n${truncatedData}\n\`\`\``
-    );
+    contextParts.push(buildEntityContextSection(entityContext));
   }
 
   // Puck editor context
   if (puckData) {
-    contextParts.push(
-      "## Editor Mode\nUser is on a Puck page editor. You can modify the page structure using generatePuckContent."
-    );
-
-    // Include current Puck data structure
-    const puckPreview = JSON.stringify(puckData, null, 2);
-    const truncatedPuck =
-      puckPreview.length > 2000
-        ? `${puckPreview.substring(0, 2000)}\n... (truncated)`
-        : puckPreview;
-    contextParts.push(
-      `### Current Page Structure:\n\`\`\`json\n${truncatedPuck}\n\`\`\``
-    );
+    contextParts.push(...buildPuckContextSection(puckData));
   }
 
   const contextInfo = contextParts.join("\n\n");
@@ -338,31 +413,8 @@ Example page structure:
     // Enable multi-step agentic execution - AI can chain multiple tool calls
     // stepCountIs(10) allows up to 10 steps: tool calls → process results → more tools → final response
     stopWhen: stepCountIs(10),
-    onFinish: async ({ text, toolCalls, toolResults, finishReason, usage }) => {
-      console.log("=== STREAM FINISHED ===");
-      console.log(`Finish Reason: ${finishReason}`);
-      console.log(`Text Content Length: ${text?.length || 0}`);
-      console.log(`Text Content: ${text || "[EMPTY]"}`);
-      console.log(`Tool Calls Count: ${toolCalls?.length || 0}`);
-      if (toolCalls && toolCalls.length > 0) {
-        console.log("Tool Calls:");
-        for (const call of toolCalls) {
-          console.log(`  - ${call.toolName} (ID: ${call.toolCallId})`);
-          const argsStr = JSON.stringify((call as any).args || {});
-          console.log(`    Args: ${argsStr.substring(0, 200)}`);
-        }
-      }
-      console.log(`Tool Results Count: ${toolResults?.length || 0}`);
-      if (toolResults && toolResults.length > 0) {
-        console.log("Tool Results:");
-        for (const result of toolResults) {
-          console.log(`  - Tool: ${result.toolName}`);
-          const resultStr = JSON.stringify((result as any).result || {});
-          console.log(`    Result: ${resultStr.substring(0, 200)}`);
-        }
-      }
-      console.log(`Usage: ${JSON.stringify(usage)}`);
-      console.log("======================");
+    onFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
+      logStreamFinished({ text, toolCalls, toolResults, finishReason, usage });
     },
   });
 

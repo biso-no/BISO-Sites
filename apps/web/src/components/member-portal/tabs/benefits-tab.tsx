@@ -338,7 +338,7 @@ export function BenefitsTab({
   benefits,
   revealedBenefits,
   isMember,
-  hasBIIdentity,
+  _hasBIIdentity,
 }: BenefitsTabProps) {
   return (
     <TabsContent className="space-y-8" value="benefits">

@@ -10,9 +10,11 @@ import {
 } from "@repo/connectors/24sevenoffice";
 
 export async function previewSync(): Promise<MembershipProductSyncItem[]> {
-  return previewMembershipSync();
+  const result = await previewMembershipSync();
+  return result;
 }
 
 export async function executeSync(): Promise<MembershipProductSyncResult> {
-  return syncMembershipsFrom24SO();
+  const result = await syncMembershipsFrom24SO();
+  return result;
 }

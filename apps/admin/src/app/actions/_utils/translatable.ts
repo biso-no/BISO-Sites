@@ -2,12 +2,10 @@ import type {
   ContentTranslations,
   Events,
   Jobs,
-  News,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import type { AdminEvent, EventMetadata } from "@/lib/types/event";
 import type { AdminJob, JobMetadata } from "@/lib/types/job";
-import type { NewsItemWithTranslations } from "@/lib/types/news";
 import type {
   ProductMetadata,
   ProductWithTranslations,
@@ -141,16 +139,4 @@ export const normalizeProductRow = (
     translation_refs: translationRefs,
     metadata_parsed: metadata,
   } as ProductWithTranslations;
-};
-
-const _normalizeNewsRow = (
-  row: WithTranslations<News>
-): NewsItemWithTranslations => {
-  const translationRefs = ensureTranslationArray(row.translation_refs);
-
-  return {
-    ...row,
-    translation_refs: translationRefs,
-    translations: buildTranslationMap(translationRefs),
-  };
 };

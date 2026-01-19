@@ -3,10 +3,10 @@
 import { Status } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { type EventWithTranslations } from "@/lib/types/event";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { use } from "react";
+import type { EventWithTranslations } from "@/lib/types/event";
 import {
   getLocaleLabel,
   getStatusToken,

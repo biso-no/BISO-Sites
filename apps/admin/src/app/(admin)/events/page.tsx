@@ -1,12 +1,24 @@
-import { Suspense } from "react";
-import { getTranslations } from "next-intl/server";
-import { listEvents } from "@/app/actions/events";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
-import { Input } from "@repo/ui/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select";
 import { Button } from "@repo/ui/components/ui/button";
-import { EventsTable } from "./events-table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
+import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
+import { listEvents } from "@/app/actions/events";
 import { EventsSummary } from "./events-metrics";
+import { EventsTable } from "./events-table";
 
 export default async function AdminEventsPage({
   searchParams,

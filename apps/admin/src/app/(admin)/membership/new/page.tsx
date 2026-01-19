@@ -4,7 +4,7 @@ import { NewMemberForm } from "./_components/new-member-form";
 export const dynamic = "force-dynamic";
 
 export default async function NewMemberPage() {
-  let memberships;
+  let memberships: Awaited<ReturnType<typeof getPurchasableMemberships>>;
   try {
     memberships = await getPurchasableMemberships();
   } catch (error) {

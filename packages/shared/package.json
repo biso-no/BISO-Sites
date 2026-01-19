@@ -1,0 +1,22 @@
+{
+  "name": "@repo/shared",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./utils/*": "./utils/*.ts",
+    "./types/*": "./types/*.ts"
+  },
+  "scripts": {
+    "clean": "rm -rf dist node_modules .turbo"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.10.7"
+  },
+  "dependencies": {
+    "@repo/api": "workspace:*",
+    "@repo/connectors": "workspace:*",
+    "node-appwrite": "^14.1.0",
+    "@vippsmobilepay/sdk": "^2.4.2"
+  }
+}

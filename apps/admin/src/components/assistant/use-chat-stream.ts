@@ -41,6 +41,46 @@ type PuckContentUpdate = {
   isComplete: boolean;
 };
 
+type PuckBlock = {
+  type: string;
+  props: Record<string, unknown>;
+};
+
+/**
+ * Process Puck content blocks - either send to handler or queue for later
+ */
+function processPuckBlocks(blocks: PuckBlock[]): void {
+  const currentHandler = useCopilotStore.getState().activeHandler;
+  const puckHandler = currentHandler?.onPuckContent;
+
+  console.log("[AI] generatePuckContent received", blocks.length, "blocks");
+  console.log(
+    "[AI] Current handler:",
+    currentHandler?.capability,
+    "puckHandler:",
+    !!puckHandler
+  );
+
+  if (puckHandler) {
+    console.log("[AI] Sending blocks directly to handler");
+    for (const [index, block] of blocks.entries()) {
+      puckHandler({
+        blockIndex: index,
+        block,
+        isComplete: index === blocks.length - 1,
+      });
+    }
+  } else {
+    console.log("[AI] No handler - queuing content for later");
+    const { setPendingPuckContent } = useCopilotStore.getState();
+    setPendingPuckContent({
+      blocks,
+      mode: "replace",
+      createdAt: Date.now(),
+    });
+  }
+}
+
 type UseChatStreamOptions = {
   api: string;
   onNavigate?: (path: string) => void;
@@ -404,11 +444,11 @@ export function useChatStream({
           tool: "createPage",
           output: { success: true, created: toolPart.input },
         });
-      } catch (error) {
+      } catch (catchError) {
         addToolResult({
           toolCallId: toolPart.toolCallId,
           tool: "createPage",
-          output: { success: false, error: String(error) },
+          output: { success: false, error: String(catchError) },
         });
       }
     },
@@ -496,11 +536,10 @@ export function useChatStream({
 
   const handleGeneratePuckContentPart = useCallback(
     (toolPart: GeneratePuckContentToolPart) => {
-      // Tool state can be "input-available" or "output-available" depending on AI SDK version
-      if (
-        toolPart.state !== "input-available" &&
-        toolPart.state !== "output-available"
-      ) {
+      const isValidState =
+        toolPart.state === "input-available" ||
+        toolPart.state === "output-available";
+      if (!isValidState) {
         return;
       }
       if (handledToolCallsRef.current.has(toolPart.toolCallId)) {
@@ -509,13 +548,9 @@ export function useChatStream({
 
       handledToolCallsRef.current.add(toolPart.toolCallId);
 
-      // The input structure is { content: [...blocks...] } where content is directly the array
       const inputContent = toolPart.input?.content;
       const blocks = Array.isArray(inputContent)
-        ? (inputContent as Array<{
-            type: string;
-            props: Record<string, unknown>;
-          }>)
+        ? (inputContent as PuckBlock[])
         : null;
 
       console.log(
@@ -524,42 +559,7 @@ export function useChatStream({
       );
 
       if (blocks && blocks.length > 0) {
-        // Get current handler state directly from store (refs may be stale after navigation)
-        const currentHandler = useCopilotStore.getState().activeHandler;
-        const puckHandler = currentHandler?.onPuckContent;
-
-        console.log(
-          "[AI] generatePuckContent received",
-          blocks.length,
-          "blocks"
-        );
-        console.log(
-          "[AI] Current handler:",
-          currentHandler?.capability,
-          "puckHandler:",
-          !!puckHandler
-        );
-
-        if (puckHandler) {
-          // Handler available - send content directly
-          console.log("[AI] Sending blocks directly to handler");
-          for (const [index, block] of blocks.entries()) {
-            puckHandler({
-              blockIndex: index,
-              block,
-              isComplete: index === blocks.length - 1,
-            });
-          }
-        } else {
-          // No handler yet (likely after navigation) - queue content for when editor mounts
-          console.log("[AI] No handler - queuing content for later");
-          const { setPendingPuckContent } = useCopilotStore.getState();
-          setPendingPuckContent({
-            blocks,
-            mode: "replace",
-            createdAt: Date.now(),
-          });
-        }
+        processPuckBlocks(blocks);
       }
 
       addToolResult({
