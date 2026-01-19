@@ -28,8 +28,8 @@ export function TabNavigation({
   defaultTab = "overview",
   benefitsCount,
   isMember,
-  hasBIIdentity,
-  isGuest = false,
+  _hasBIIdentity,
+  _isGuest = false,
   children,
 }: TabNavigationProps) {
   const t = useTranslations("memberPortal.tabs");

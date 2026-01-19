@@ -13,7 +13,7 @@ export default async function AllMembersPage({ searchParams }: PageProps) {
     typeof params.page === "string" ? Number.parseInt(params.page, 10) : 1;
   const search = typeof params.search === "string" ? params.search : undefined;
 
-  let data;
+  let data: Awaited<ReturnType<typeof getSyncedMembers>>;
   try {
     // Fetch from Appwrite synced collection
     data = await getSyncedMembers(page, 20, search);

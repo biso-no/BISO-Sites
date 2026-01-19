@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MembershipsSettingsPage() {
   // Fetch initial preview data on server
-  let initialItems;
+  let initialItems: Awaited<ReturnType<typeof previewMembershipSync>>;
   try {
     initialItems = await previewMembershipSync();
   } catch (error) {

@@ -104,7 +104,7 @@ export async function bulkUpdateMemberships(
 
       if (Object.keys(data).length > 0) {
         await db.updateRow("app", "memberships", update.id, data);
-        updated++;
+        updated += 1;
       }
     } catch (error: any) {
       errors.push(`Failed to update ${update.id}: ${error.message}`);

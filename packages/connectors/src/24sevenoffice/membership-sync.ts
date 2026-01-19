@@ -29,12 +29,13 @@ export function parseExpiryDate(name: string): string {
   const pattern = /(spring|fall)\s+(\d{4})/gi;
   const matches: Array<{ season: string; year: number }> = [];
 
-  let match;
-  while ((match = pattern.exec(name)) !== null) {
+  let match = pattern.exec(name);
+  while (match !== null) {
     matches.push({
       season: match[1].toLowerCase(),
       year: Number.parseInt(match[2], 10),
     });
+    match = pattern.exec(name);
   }
 
   if (matches.length === 0) {
@@ -151,7 +152,7 @@ export async function syncMembershipsFrom24SO(): Promise<MembershipProductSyncRe
     // 3. Process each product
     for (const product of products) {
       if (!(product.Id && product.Name)) {
-        result.skipped++;
+        result.skipped += 1;
         continue;
       }
 
@@ -194,13 +195,13 @@ export async function syncMembershipsFrom24SO(): Promise<MembershipProductSyncRe
         try {
           // Try to update existing
           await db.updateRow("app", "memberships", docId, docData);
-          result.updated++;
+          result.updated += 1;
           console.log(`[Membership Sync] Updated: ${product.Name}`);
         } catch (updateError: any) {
           // If not found, create new
           if (updateError?.code === 404) {
             await db.createRow("app", "memberships", docId, docData);
-            result.created++;
+            result.created += 1;
             console.log(`[Membership Sync] Created: ${product.Name}`);
           } else {
             throw updateError;

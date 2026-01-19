@@ -44,7 +44,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { FormEvent } from "react";
-import { useEffect, use, useMemo, useState, useTransition } from "react";
+import { use, useEffect, useMemo, useState, useTransition } from "react";
 import {
   bulkUpdateProductPrices,
   bulkUpdateProductStatus,

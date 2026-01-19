@@ -63,7 +63,7 @@ export function AssistantSidebar() {
   }, [pathname, setCurrentPath]);
 
   const handleCreatePage = useCallback(
-    async (params: {
+    (params: {
       title: string;
       slug: string;
       locale: "en" | "no";

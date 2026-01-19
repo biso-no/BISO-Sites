@@ -163,19 +163,17 @@ export function ProfileCompletionBanner({
                   id={field}
                   onChange={(e) => handleInputChange(field, e.target.value)}
                   placeholder={
-                    field === "bank_account"
-                      ? "1234 56 78901"
-                      : field === "phone"
-                        ? "+47 123 45 678"
-                        : field === "email"
-                          ? "your@email.com"
-                          : field === "address"
-                            ? "Street name 123"
-                            : field === "zip"
-                              ? "0123"
-                              : field === "city"
-                                ? "Oslo"
-                                : "Your full name"
+                    (
+                      {
+                        bank_account: "1234 56 78901",
+                        phone: "+47 123 45 678",
+                        email: "your@email.com",
+                        address: "Street name 123",
+                        zip: "0123",
+                        city: "Oslo",
+                        name: "Your full name",
+                      } as Record<string, string>
+                    )[field] || "Enter value"
                   }
                   type={field === "email" ? "email" : "text"}
                   value={formData[field] ?? ""}

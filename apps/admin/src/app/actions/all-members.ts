@@ -4,46 +4,89 @@ import { ID, Query } from "@repo/api/client";
 import { createAdminClient } from "@repo/api/server";
 import type { Memberships, SyncedMembers } from "@repo/api/types/appwrite";
 import {
-  type Company,
   getCompaniesByIds,
   getCustomerCategoryTree,
 } from "@repo/connectors/24sevenoffice";
 import { revalidatePath } from "next/cache";
+import {
+  buildCategoryToMembershipMap,
+  buildCompanyCategoriesMap,
+  buildCompanyDocument,
+  buildMembershipNameMap,
+  getActiveCategoryIds,
+  mapSyncedMemberToInfo
+} from "./_utils/all-members.utils";
 
-// ============= Types =============
-
-export type MemberInfo = {
-  companyId: number;
-  name: string;
-  externalId: string | null;
-  memberships: {
-    id: string;
-    name: string;
-    categoryId: string;
-    expiryDate: string;
-  }[];
-  lastSynced?: string;
-};
-
-export type AllMembersResult = {
-  members: MemberInfo[];
-  totalCount: number;
-  activeMembershipCount: number;
-  lastSynced: string | null;
-};
-
-export type SyncState = {
-  job_id: string;
-  status: "idle" | "running" | "stopping" | "error" | "success";
-  progress_current: number;
-  progress_total: number;
-  message?: string;
-  updated_at: string;
-};
+import type {
+  AllMembersResult,
+  MemberInfo,
+  SyncState,
+} from "./all-members.types";
 
 const JOB_ID = "member_sync";
+const PARALLEL_BATCH_SIZE = 5;
 
-// ============= Server Actions =============
+type BatchContext = {
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"];
+  companyCategories: Map<number, number[]>;
+  categoryToMembership: Map<string, Memberships>;
+  timestamp: string;
+};
+
+/**
+ * Process a single batch of companies and sync to Appwrite
+ */
+async function processBatch(
+  batchIds: number[],
+  ctx: BatchContext
+): Promise<number> {
+  const batchCompanies = await getCompaniesByIds(batchIds);
+  let count = 0;
+
+  for (const company of batchCompanies) {
+    const doc = buildCompanyDocument(
+      company,
+      ctx.companyCategories,
+      ctx.categoryToMembership,
+      ctx.timestamp
+    );
+
+    if (!doc) {
+      continue;
+    }
+
+    try {
+      await (ctx.db as any).upsertRow("app", "members", doc.id, doc.data);
+      count += 1;
+    } catch (err) {
+      console.error(`[Sync] upsert error for ${doc.id}:`, err);
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Report sync error to state document
+ */
+async function reportSyncError(errorMessage: string): Promise<void> {
+  try {
+    const { db } = await createAdminClient();
+    const existingStates = await db.listRows<any>("app", "sync_states", [
+      Query.equal("job_id", JOB_ID),
+      Query.limit(1),
+    ]);
+    if (existingStates.rows.length > 0) {
+      await db.updateRow("app", "sync_states", existingStates.rows[0].$id, {
+        status: "error",
+        message: `Error: ${errorMessage}`,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Get the current status of the sync job.
@@ -176,15 +219,9 @@ export async function syncAllMembers(): Promise<{
     }
 
     // Mapping: Category ID -> Membership Data
-    const categoryToMembership = new Map<string, Memberships>();
-    for (const m of activeMemberships) {
-      if (m.category) {
-        categoryToMembership.set(m.category, m);
-      }
-    }
-    const activeCategoryIds = new Set(
-      [...categoryToMembership.keys()].map((id) => Number.parseInt(id, 10))
-    );
+    const categoryToMembership =
+      buildCategoryToMembershipMap(activeMemberships);
+    const activeCategoryIds = getActiveCategoryIds(categoryToMembership);
 
     // 3. Get all customer-category mappings from 24SO
     await updateState({
@@ -199,14 +236,10 @@ export async function syncAllMembers(): Promise<{
 
     // 4. Filter active customers
     await updateState({ message: "Filtering active customers..." });
-    const companyCategories = new Map<number, number[]>();
-    for (const mapping of allMappings) {
-      if (activeCategoryIds.has(mapping.categoryId)) {
-        const existing = companyCategories.get(mapping.companyId) || [];
-        existing.push(mapping.categoryId);
-        companyCategories.set(mapping.companyId, existing);
-      }
-    }
+    const companyCategories = buildCompanyCategoriesMap(
+      allMappings,
+      activeCategoryIds
+    );
 
     const activeCompanyIds = [...companyCategories.keys()];
     const totalCount = activeCompanyIds.length;
@@ -227,20 +260,9 @@ export async function syncAllMembers(): Promise<{
     }
 
     // 5. Batch fetch company details & Sync
-    // We'll perform batches here manually to track progress and checking cancellation
-    const PARALLEL_BATCH_SIZE = 5;
-    const companies = await getCompaniesByIds([]); // Helper reuse to get session if needed, but we'll use loop below.
-    // Actually, we need to call company fetch in loop here to update progress properly.
-    // Re-implementing the loop logic from getCompaniesByIds but inside here to track progress.
-
     let syncedCount = 0;
-    const companyMap = new Map<number, Company>();
-
-    // We fetch companies in batches and UPSERT immediately to Appwrite
-    // This keeps memory usage low and provides granular progress
 
     for (let i = 0; i < activeCompanyIds.length; i += PARALLEL_BATCH_SIZE) {
-      // Check for stop signal
       if (await shouldStop()) {
         await updateState({ status: "idle", message: "Stopped by user." });
         return { success: false, count: syncedCount, error: "Stopped by user" };
@@ -253,48 +275,15 @@ export async function syncAllMembers(): Promise<{
         message: `Syncing members ${currentBatchStart} - ${Math.min(i + PARALLEL_BATCH_SIZE, totalCount)} of ${totalCount}...`,
       });
 
-      // Fetch batch details using our existing optimized function (which we can assume handles a small list fine)
-      // But wait, the existing function `getCompaniesByIds` handles batching internally.
-      // If we call it with a small batch, it works fine.
-      const batchCompanies = await getCompaniesByIds(batchIds);
+      const batchCount = await processBatch(batchIds, {
+        db,
+        companyCategories,
+        categoryToMembership,
+        timestamp: now,
+      });
+      syncedCount += batchCount;
 
-      // Process batch
-      for (const company of batchCompanies) {
-        if (!company.Id) {
-          continue;
-        }
-        const categoryIds = companyCategories.get(company.Id) || [];
-
-        // Resolve active category names
-        const activeCategoryNames = categoryIds
-          .map((catId) => categoryToMembership.get(catId.toString())?.name)
-          .filter((n): n is string => !!n);
-
-        const docData = {
-          company_id: company.Id,
-          name: company.Name || "Unknown",
-          external_id: company.ExternalId || "",
-          active_categories: activeCategoryNames,
-          last_synced: now,
-        };
-
-        try {
-          await (db as any).upsertRow(
-            "app",
-            "members",
-            company.Id.toString(),
-            docData
-          );
-          syncedCount++;
-        } catch (err) {
-          console.error(`[Sync] upsert error for ${company.Id}:`, err);
-        }
-      }
-
-      // Update progress
       await updateState({ progress_current: syncedCount });
-
-      // Revalidate occasionally so UI updates list if needed (optional)
     }
 
     await updateState({
@@ -311,25 +300,7 @@ export async function syncAllMembers(): Promise<{
     return { success: true, count: syncedCount };
   } catch (error: any) {
     console.error("[Sync] Sync failed:", error);
-
-    // Try to report error to state
-    try {
-      const { db } = await createAdminClient();
-      const existingStates = await db.listRows<any>("app", "sync_states", [
-        Query.equal("job_id", JOB_ID),
-        Query.limit(1),
-      ]);
-      if (existingStates.rows.length > 0) {
-        await db.updateRow("app", "sync_states", existingStates.rows[0].$id, {
-          status: "error",
-          message: `Error: ${error.message}`,
-          updated_at: new Date().toISOString(),
-        });
-      }
-    } catch (e) {
-      // ignore
-    }
-
+    await reportSyncError(error.message);
     return { success: false, count: 0, error: error.message };
   }
 }
@@ -364,10 +335,7 @@ export async function getSyncedMembers(
     [Query.equal("status", true)]
   );
   const activeMemberships = membershipsResponse.rows;
-  const membershipMap = new Map<string, Memberships>();
-  for (const m of activeMemberships) {
-    membershipMap.set(m.name, m);
-  }
+  const membershipMap = buildMembershipNameMap(activeMemberships);
 
   const { rows, total } = await db.listRows<SyncedMembers>(
     "app",
@@ -375,31 +343,9 @@ export async function getSyncedMembers(
     queries
   );
 
-  const members: MemberInfo[] = rows.map((row) => {
-    // Map stored category names back to full membership details for display
-    const memberMemberships = row.active_categories
-      .map((name) => {
-        const m = membershipMap.get(name);
-        if (!m) {
-          return null;
-        }
-        return {
-          id: m.$id,
-          name: m.name,
-          categoryId: m.category!,
-          expiryDate: m.expiryDate,
-        };
-      })
-      .filter((m): m is NonNullable<typeof m> => !!m);
-
-    return {
-      companyId: row.company_id,
-      name: row.name,
-      externalId: row.external_id,
-      memberships: memberMemberships,
-      lastSynced: row.last_synced,
-    };
-  });
+  const members: MemberInfo[] = rows.map((row) =>
+    mapSyncedMemberToInfo(row, membershipMap)
+  );
 
   // Get the timestamp of the most recently synced item (proxy for global last sync)
   // or we could store a global sync state object.

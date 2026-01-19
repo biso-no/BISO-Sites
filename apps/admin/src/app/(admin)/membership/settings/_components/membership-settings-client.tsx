@@ -109,7 +109,7 @@ export function MembershipSettingsClient({
     }
   };
 
-  const handleStatusToggle = async (id: string, currentValue: boolean) => {
+  const handleStatusToggle = (id: string, currentValue: boolean) => {
     const newValue = !currentValue;
 
     // Optimistic update
@@ -139,7 +139,7 @@ export function MembershipSettingsClient({
     });
   };
 
-  const handlePurchasableToggle = async (id: string, currentValue: boolean) => {
+  const handlePurchasableToggle = (id: string, currentValue: boolean) => {
     const newValue = !currentValue;
 
     // Optimistic update
