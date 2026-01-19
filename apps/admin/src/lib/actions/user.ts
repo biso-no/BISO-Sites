@@ -65,7 +65,7 @@ async function _getCurrentSession() {
 
 export async function getUserById(userId: string): Promise<Users | null> {
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const user = await db.getRow<Users>("app", "user", userId);
     return user;
   } catch (error) {
