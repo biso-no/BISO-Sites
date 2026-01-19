@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   const fetchedCookies = await cookies();
 
-  fetchedCookies.set("a_session_biso", session.secret, {
+  fetchedCookies.set("a_session_biso_admin", session.secret, {
     path: "/",
     httpOnly: true,
     sameSite: isProd ? "none" : "lax",

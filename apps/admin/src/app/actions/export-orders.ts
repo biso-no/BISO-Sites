@@ -42,7 +42,7 @@ export async function exportOrdersToCSV(
   const { startIso, endIso } = normalizeRange(params.startDate, params.endDate);
   const format = params.format || "standard";
 
-  const baseQueries: unknown[] = [
+  const baseQueries: string[] = [
     Query.select([
       "$id",
       "$createdAt",
@@ -88,7 +88,7 @@ export async function exportOrdersToCSV(
 
 async function fetchAllOrders(
   db: Awaited<ReturnType<typeof createSessionClient>>["db"],
-  baseQueries: unknown[],
+  baseQueries: string[],
   batchSize = 200
 ) {
   const allOrders: Orders[] = [];
@@ -114,7 +114,7 @@ async function fetchAllOrders(
     if (batch.length < batchSize) {
       break;
     }
-    cursor = batch.at(-1).$id;
+    cursor = batch.at(-1)?.$id || null;
   }
 
   return allOrders;
