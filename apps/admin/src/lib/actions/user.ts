@@ -14,7 +14,7 @@ export async function getLoggedInUser(): Promise<{
 } | null> {
   try {
     const cookiesStore = await cookies();
-    const session = cookiesStore.get("a_session_biso");
+    const session = cookiesStore.get("a_session_biso_admin");
     if (!session) {
       return null;
     }
@@ -65,7 +65,7 @@ async function _getCurrentSession() {
 
 export async function getUserById(userId: string): Promise<Users | null> {
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const user = await db.getRow<Users>("app", "user", userId);
     return user;
   } catch (error) {
@@ -234,7 +234,7 @@ async function _createJWT(): Promise<string | null> {
 export async function signOut(): Promise<void> {
   const { account } = await createSessionClient();
 
-  (await cookies()).delete("a_session_biso");
+  (await cookies()).delete("a_session_biso_admin");
   await account.deleteSession("current");
 
   redirect("/auth/login");

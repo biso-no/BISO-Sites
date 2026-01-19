@@ -8,7 +8,7 @@ const API_KEY = process.env.NEXT_PUBLIC_APPWRITE_API_KEY;
 
 // Cookie name mapping
 const COOKIE_NAME_MAP = {
-  a_session_biso: "a_session_biso",
+  a_session_biso_admin: "a_session_biso_admin",
 };
 
 export async function GET(request: NextRequest) {

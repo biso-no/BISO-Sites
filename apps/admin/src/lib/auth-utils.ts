@@ -1,5 +1,6 @@
 "use server";
 import { createSessionClient } from "@repo/api/server";
+import { cookies } from "next/headers";
 
 /**
  * Check if the current session belongs to an authenticated user (not anonymous)
@@ -47,6 +48,15 @@ export async function getAuthStatus(): Promise<{
   isAnonymous: boolean;
 }> {
   try {
+    const availableCookies = await cookies();
+    const adminCookie = availableCookies.get("a_session_biso_admin");
+    if (!adminCookie) { 
+      return {
+        hasSession: false,
+        isAuthenticated: false,
+        isAnonymous: false,
+      };
+    }
     const { account } = await createSessionClient();
     const user = await account.get();
 
