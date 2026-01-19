@@ -8,14 +8,16 @@
       "**",
       "!!**/pdf.worker.min.js",
       "!!apps/admin/src/app/(admin)/admin/expenses/expense-table.tsx",
-      "!!packages/ui/*"
+      "!!packages/ui/*",
+      "!!apps/api/public/expense-template.html"
     ]
   },
 
   "linter": {
     "rules": {
       "performance": {
-        "noNamespaceImport": "warn"
+        "noNamespaceImport": "warn",
+        "noBarrelFile": "off"
       },
       "suspicious": {
         "noExplicitAny": "off",

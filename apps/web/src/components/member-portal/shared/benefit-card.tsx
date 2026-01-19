@@ -2,23 +2,19 @@
 
 import type { MemberBenefit } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import {
-  Check,
-  Clock,
-  Copy,
-  ExternalLink,
-  QrCode,
-  Sparkles,
-  Store,
-  Ticket,
-} from "lucide-react";
+import { Clock, Copy, ExternalLink, QrCode, Store, Ticket } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
+import {
+  CodeReveal,
+  LinkReveal,
+  QrReveal,
+  RevealButton,
+} from "./benefit-card-parts";
 
 type BenefitCardProps = {
   benefit: MemberBenefit;
@@ -83,18 +79,13 @@ const getCategoryColor = (category: string) => {
   );
 };
 
-const getBenefitIcon = (type: string) => {
-  switch (type) {
-    case "code":
-      return Copy;
-    case "qr":
-      return QrCode;
-    case "link":
-      return ExternalLink;
-    default:
-      return Ticket;
-  }
+const BENEFIT_ICONS: Record<string, typeof Copy> = {
+  code: Copy,
+  qr: QrCode,
+  link: ExternalLink,
 };
+
+const getBenefitIcon = (type: string) => BENEFIT_ICONS[type] || Ticket;
 
 export function BenefitCard({
   benefit,
@@ -215,113 +206,34 @@ export function BenefitCard({
                     key="revealed-content"
                   >
                     {benefit.type === "code" && value && (
-                      <div className="relative overflow-hidden rounded-xl border-2 border-brand-border border-dashed bg-brand-muted p-4 dark:border-brand-border-strong dark:bg-brand-muted-strong">
-                        {/* Confetti animation */}
-                        <AnimatePresence>
-                          {showConfetti && (
-                            <motion.div
-                              className="pointer-events-none absolute inset-0"
-                              exit={{ opacity: 0 }}
-                              initial={{ opacity: 1 }}
-                            >
-                              {[...new Array(12)].map((_, i) => (
-                                <motion.div
-                                  animate={{
-                                    x: `${50 + (Math.random() - 0.5) * 100}%`,
-                                    y: `${50 + (Math.random() - 0.5) * 100}%`,
-                                    scale: [0, 1, 0],
-                                    opacity: [0, 1, 0],
-                                  }}
-                                  className="absolute h-2 w-2 rounded-full bg-brand"
-                                  initial={{
-                                    x: "50%",
-                                    y: "50%",
-                                    scale: 0,
-                                  }}
-                                  key={i}
-                                  transition={{
-                                    duration: 0.6,
-                                    delay: i * 0.03,
-                                  }}
-                                />
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-
-                        <div className="flex items-center justify-between gap-4">
-                          <code className="font-mono text-foreground text-lg dark:text-foreground">
-                            {value}
-                          </code>
-                          <Button
-                            className="shrink-0"
-                            onClick={handleCopyCode}
-                            size="sm"
-                            variant="outline"
-                          >
-                            {copiedCode ? (
-                              <>
-                                <Check className="mr-2 h-4 w-4 text-green-500" />
-                                {t("copied")}
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="mr-2 h-4 w-4" />
-                                {t("copy")}
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
+                      <CodeReveal
+                        copiedCode={copiedCode}
+                        copiedLabel={t("copied")}
+                        copyLabel={t("copy")}
+                        onCopy={handleCopyCode}
+                        showConfetti={showConfetti}
+                        value={value}
+                      />
                     )}
-
                     {benefit.type === "qr" && value && (
-                      <div className="flex justify-center rounded-xl bg-section p-6 dark:bg-inverted">
-                        <div className="flex h-36 w-36 items-center justify-center rounded-xl border-2 border-border bg-background dark:border-border dark:bg-inverted">
-                          {/* QR code would be rendered here with a library */}
-                          <QrCode className="h-24 w-24 text-muted-foreground dark:text-muted-foreground" />
-                        </div>
-                      </div>
+                      <QrReveal value={value} />
                     )}
-
                     {benefit.type === "link" && value && (
-                      <Button
-                        className={`w-full bg-gradient-to-r ${categoryStyle.gradient} text-white hover:opacity-90`}
-                        onClick={() => window.open(value, "_blank")}
-                      >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        {t("activateBenefit")}
-                      </Button>
+                      <LinkReveal
+                        gradient={categoryStyle.gradient}
+                        label={t("activateBenefit")}
+                        value={value}
+                      />
                     )}
                   </motion.div>
                 ) : (
-                  <motion.div
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    initial={{ opacity: 0 }}
-                    key="reveal-button"
-                  >
-                    <Button
-                      className={`w-full bg-gradient-to-r ${categoryStyle.gradient} text-white hover:opacity-90`}
-                      disabled={isRevealing}
-                      onClick={handleReveal}
-                    >
-                      {isRevealing ? (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          className="mr-2 h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
-                          transition={{
-                            duration: 1,
-                            repeat: Number.POSITIVE_INFINITY,
-                            ease: "linear",
-                          }}
-                        />
-                      ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                      )}
-                      {isRevealing ? t("revealing") : t("reveal")}
-                    </Button>
-                  </motion.div>
+                  <RevealButton
+                    gradient={categoryStyle.gradient}
+                    isRevealing={isRevealing}
+                    onReveal={handleReveal}
+                    revealingLabel={t("revealing")}
+                    revealLabel={t("reveal")}
+                  />
                 )}
               </AnimatePresence>
             </div>

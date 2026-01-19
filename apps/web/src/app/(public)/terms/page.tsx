@@ -59,6 +59,7 @@ export default async function TermsPage() {
         {/* Wave decoration at bottom */}
         <div className="-bottom-1 absolute right-0 left-0">
           <svg
+            aria-hidden="true"
             className="w-full text-background"
             fill="currentColor"
             preserveAspectRatio="none"

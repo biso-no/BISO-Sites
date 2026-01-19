@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@repo/ui/components/ui/table";
 import { Clock, Package } from "lucide-react";
+import Image from "next/image";
 import { listPendingProducts } from "@/app/actions/shop/approval-actions";
 import { ApprovalActions } from "./_components/approval-actions";
 
@@ -70,10 +71,12 @@ export default async function ApprovalQueuePage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {product.image ? (
-                          <img
+                          <Image
                             alt=""
                             className="h-12 w-12 rounded-lg object-cover"
+                            height={48}
                             src={product.image}
+                            width={48}
                           />
                         ) : (
                           <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">

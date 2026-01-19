@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAI } from "../provider";
 import type { AssistantAction, AssistantMessage } from "../types";
+import { streamResponse } from "../utils/streaming";
 
 type UseAssistantOptions = {
   /** API endpoint for the assistant */
@@ -64,6 +65,17 @@ export function useAssistant({
     }
   }, [ai.pendingActions, executeAction]);
 
+  const updateLastAssistantMessage = useCallback((fullText: string) => {
+    setLocalMessages((prev) => {
+      const updated = [...prev];
+      const lastMessage = updated.at(-1);
+      if (lastMessage && lastMessage.role === "assistant") {
+        lastMessage.parts = [{ type: "text", text: fullText }];
+      }
+      return updated;
+    });
+  }, []);
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim()) {
@@ -76,67 +88,35 @@ export function useAssistant({
         parts: [{ type: "text", text: content }],
       };
 
-      setLocalMessages((prev) => [...prev, userMessage]);
+      const assistantMessage: AssistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        parts: [{ type: "text", text: "" }],
+      };
+
+      setLocalMessages((prev) => [...prev, userMessage, assistantMessage]);
       setInput("");
       setIsLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(api, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        await streamResponse(
+          api,
+          {
             messages: [...localMessages, userMessage],
             context: ai.context,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error("No response body");
-        }
-
-        const assistantMessage: AssistantMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          parts: [{ type: "text", text: "" }],
-        };
-
-        setLocalMessages((prev) => [...prev, assistantMessage]);
-
-        const decoder = new TextDecoder();
-        let fullText = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
+          },
+          {
+            onChunk: updateLastAssistantMessage,
           }
-
-          const chunk = decoder.decode(value, { stream: true });
-          fullText += chunk;
-
-          // Update the assistant message with accumulated text
-          setLocalMessages((prev) => {
-            const updated = [...prev];
-            const lastMessage = updated.at(-1);
-            if (lastMessage && lastMessage.role === "assistant") {
-              lastMessage.parts = [{ type: "text", text: fullText }];
-            }
-            return updated;
-          });
-        }
+        );
       } catch (err) {
         setError(err instanceof Error ? err : new Error("Unknown error"));
       } finally {
         setIsLoading(false);
       }
     },
-    [api, localMessages, ai.context]
+    [api, localMessages, ai.context, updateLastAssistantMessage]
   );
 
   const clearChat = useCallback(() => {

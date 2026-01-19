@@ -14,7 +14,7 @@ import {
   buildCompanyDocument,
   buildMembershipNameMap,
   getActiveCategoryIds,
-  mapSyncedMemberToInfo
+  mapSyncedMemberToInfo,
 } from "./_utils/all-members.utils";
 
 import type {

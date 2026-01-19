@@ -18,7 +18,7 @@ export function extractJwtFromRequest(req: NextRequest): string | undefined {
  * - JWT via Authorization header (for direct API calls from mobile/web clients)
  * - Session cookie (for proxied requests from Next.js web app)
  */
-export async function createAuthenticatedClient(req: NextRequest) {
+export function createAuthenticatedClient(req: NextRequest) {
   const jwt = extractJwtFromRequest(req);
   return createSessionClient(jwt);
 }

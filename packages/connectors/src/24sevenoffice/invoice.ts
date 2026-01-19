@@ -62,28 +62,29 @@ export const CAMPUS_NAMES: Record<string, string> = {
   "5": "National",
 };
 
+export type CreateMembershipInvoiceParams = {
+  customerId: number;
+  productId: number;
+  productName: string;
+  price: number;
+  campusId: string;
+};
+
 /**
  * Create a membership invoice in 24SevenOffice
  *
- * @param customerId - The 24SO customer/company ID
- * @param productId - The membership product ID from 24SO
- * @param productName - The membership product name
- * @param price - The invoice amount in NOK
- * @param campusId - The campus ID (1-5) for department assignment
+ * @param params - Invoice creation parameters
  * @returns The created invoice order with OrderId
  */
 export async function createMembershipInvoice(
-  customerId: number,
-  productId: number,
-  productName: string,
-  price: number,
-  campusId: string
+  params: CreateMembershipInvoiceParams
 ): Promise<InvoiceOrder> {
+  const { customerId, productId, productName, price, campusId } = params;
   const session = await getValidSession();
   const client = await createAuthenticatedClient("invoice", session);
 
   // Get department ID for the campus
-  const departmentId = CAMPUS_DEPARTMENT_IDS[campusId];
+  const departmentId = CAMPUS_DEPARTMENT_IDS[params.campusId];
   if (!departmentId) {
     throw new Error(`Invalid campus ID: ${campusId}`);
   }
