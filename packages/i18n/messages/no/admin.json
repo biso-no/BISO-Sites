@@ -105,9 +105,9 @@
       "hr": "HR"
     },
     "hero": {
-      "badge": "Admin-intelligens",
-      "title": "Samlet kontrollsenter",
-      "description": "Overvåk vekst, engasjement, økonomi og personalanalyse fra ett samlet premium-arbeidsområde tilpasset BISO."
+      "badge": "BISO Admin",
+      "title": "Kontrollsenter",
+      "description": "Overvåk vekst, engasjement, økonomi og personalanalyse fra ett samlet arbeidsområde tilpasset BISO."
     },
     "focus": {
       "title": "Fokusområder",

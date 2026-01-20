@@ -105,9 +105,9 @@
       "hr": "HR"
     },
     "hero": {
-      "badge": "Admin intelligence",
-      "title": "Unified control center",
-      "description": "Monitor growth, engagement, finance, and people analytics from a single premium workspace tuned for BISO."
+      "badge": "BISO Admin",
+      "title": "Control center",
+      "description": "Monitor growth, engagement, finance, and people analytics from a single workspace tuned for BISO."
     },
     "focus": {
       "title": "Focus areas",
