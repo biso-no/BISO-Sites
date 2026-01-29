@@ -25,36 +25,17 @@ import {
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import { cn } from "@repo/ui/lib/utils";
+import {
+  BarChartCard,
+  LineChartCard,
+  PieChartCard,
+} from "@repo/ui/components/ui/charts";
+import type { ChartConfig } from "@repo/ui/components/ui/charts";
 import { AlertCircleIcon, BellIcon, CheckCircleIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import type { DashboardMetrics } from "@/lib/actions/admin-dashboard";
 import { ROLES } from "@/lib/roles";
-
-// Fallback colors for SSR
-const FALLBACK_COLORS = [
-  "#004797",
-  "#3DA9E0",
-  "#F7D64A",
-  "#82ca9d",
-  "#FF8042",
-  "#8884D8",
-];
 
 const formatNumber = (value: number) => {
   if (value === undefined || value === null) {
@@ -74,6 +55,66 @@ const formatPercent = (value: number) => {
     return "0%";
   }
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+};
+
+// Chart configurations
+const pageViewsConfig: ChartConfig = {
+  views: { label: "Views", color: "var(--chart-1)" },
+};
+
+const userGrowthConfig: ChartConfig = {
+  users: { label: "Users", color: "var(--chart-1)" },
+};
+
+const userDistributionConfig: ChartConfig = {
+  admin: { label: "Admin", color: "var(--chart-1)" },
+  member: { label: "Member", color: "var(--chart-2)" },
+  guest: { label: "Guest", color: "var(--chart-3)" },
+  premium: { label: "Premium", color: "var(--chart-4)" },
+  other: { label: "Other", color: "var(--chart-5)" },
+};
+
+const trafficConfig: ChartConfig = {
+  organic: { label: "Organic", color: "var(--chart-1)" },
+  direct: { label: "Direct", color: "var(--chart-2)" },
+  referral: { label: "Referral", color: "var(--chart-3)" },
+  social: { label: "Social", color: "var(--chart-4)" },
+  other: { label: "Other", color: "var(--chart-5)" },
+};
+
+const postEngagementConfig: ChartConfig = {
+  likes: { label: "Likes", color: "var(--chart-1)" },
+  comments: { label: "Comments", color: "var(--chart-2)" },
+  shares: { label: "Shares", color: "var(--chart-3)" },
+};
+
+const audienceGrowthConfig: ChartConfig = {
+  followers: { label: "Followers", color: "var(--chart-1)" },
+};
+
+const revenueConfig: ChartConfig = {
+  revenue: { label: "Revenue", color: "var(--chart-2)" },
+};
+
+const expenseConfig: ChartConfig = {
+  marketing: { label: "Marketing", color: "var(--chart-1)" },
+  operations: { label: "Operations", color: "var(--chart-2)" },
+  salaries: { label: "Salaries", color: "var(--chart-3)" },
+  equipment: { label: "Equipment", color: "var(--chart-4)" },
+  other: { label: "Other", color: "var(--chart-5)" },
+};
+
+const jobApplicationsConfig: ChartConfig = {
+  applications: { label: "Applications", color: "var(--chart-1)" },
+  openPositions: { label: "Open Positions", color: "var(--chart-2)" },
+};
+
+const employeeConfig: ChartConfig = {
+  engineering: { label: "Engineering", color: "var(--chart-1)" },
+  design: { label: "Design", color: "var(--chart-2)" },
+  marketing: { label: "Marketing", color: "var(--chart-3)" },
+  sales: { label: "Sales", color: "var(--chart-4)" },
+  other: { label: "Other", color: "var(--chart-5)" },
 };
 
 export type DateRange = "7d" | "30d" | "90d" | "all";
@@ -138,25 +179,6 @@ export default function AdminDashboard({
     { value: "all" as const, label: t("dashboard.dateRange.allTime") },
   ];
 
-  // Get chart colors from CSS variables (supports dark mode)
-  const chartColors = useMemo(() => {
-    if (typeof window === "undefined") {
-      return FALLBACK_COLORS;
-    }
-
-    const root = document.documentElement;
-    const computedStyle = getComputedStyle(root);
-
-    return [
-      `hsl(${computedStyle.getPropertyValue("--chart-1")})`,
-      `hsl(${computedStyle.getPropertyValue("--chart-2")})`,
-      `hsl(${computedStyle.getPropertyValue("--chart-3")})`,
-      `hsl(${computedStyle.getPropertyValue("--chart-4")})`,
-      `hsl(${computedStyle.getPropertyValue("--chart-5")})`,
-      `hsl(${computedStyle.getPropertyValue("--primary")})`,
-    ];
-  }, []);
-
   // Filter data based on selected date range
   const getDateCutoff = useCallback((range: DateRange): Date | null => {
     if (range === "all") {
@@ -189,8 +211,6 @@ export default function AdminDashboard({
       };
     }
 
-    // Filter metrics based on date (client-side for quick UI updates)
-    // Note: Server already pre-filters, this is just for UI responsiveness
     return {
       pageViews,
       revenueByProduct,
@@ -210,7 +230,6 @@ export default function AdminDashboard({
     getDateCutoff,
   ]);
 
-  // Use optimized counts from $sequence field
   const topPage = filteredData.pageViews.reduce(
     (best, current) => (current.views > (best?.views ?? 0) ? current : best),
     filteredData.pageViews[0] ?? null
@@ -233,10 +252,6 @@ export default function AdminDashboard({
   );
 
   const totalAlerts = systemAlerts.length;
-  const _totalRevenue = revenueByProduct.reduce(
-    (sum, product) => sum + product.revenue,
-    0
-  );
   const openPositions = jobApplications.reduce(
     (sum, job) => sum + (job.openPositions ?? 0),
     0
@@ -324,80 +339,39 @@ export default function AdminDashboard({
 
   const renderAdminOverview = () => (
     <>
-      <Card className={cn(baseCardClasses, "col-span-2")}>
-        <CardHeader>
-          <CardTitle>{t("dashboard.cards.pageViews.title")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.cards.pageViews.description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer height="100%" width="100%">
-            <BarChart data={filteredData.pageViews}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="views" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-      <Card className={baseCardClasses}>
-        <CardHeader>
-          <CardTitle>{t("dashboard.cards.userDistribution.title")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.cards.userDistribution.description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer height="100%" width="100%">
-            <PieChart>
-              <Pie
-                cx="50%"
-                cy="50%"
-                data={userDistribution}
-                dataKey="value"
-                fill="#8884d8"
-                label={({ name, percent }) =>
-                  `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
-                }
-                labelLine={false}
-                outerRadius={80}
-              >
-                {userDistribution.map((_entry, index) => (
-                  <Cell
-                    fill={chartColors[index % chartColors.length]}
-                    key={`cell-${index}`}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-      <Card className={cn(baseCardClasses, "col-span-3")}>
-        <CardHeader>
-          <CardTitle>{t("dashboard.cards.userGrowth.title")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.cards.userGrowth.overviewDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer height="100%" width="100%">
-            <LineChart data={userGrowth}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line dataKey="users" stroke="#8884d8" type="monotone" />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <BarChartCard
+        title={t("dashboard.cards.pageViews.title")}
+        description={t("dashboard.cards.pageViews.description")}
+        data={filteredData.pageViews}
+        config={pageViewsConfig}
+        dataKeys="views"
+        xAxisKey="name"
+        xAxisFormatter={(value) => value.slice(0, 10)}
+        className={cn(baseCardClasses, "col-span-2")}
+      />
+      <PieChartCard
+        title={t("dashboard.cards.userDistribution.title")}
+        description={t("dashboard.cards.userDistribution.description")}
+        data={userDistribution}
+        config={userDistributionConfig}
+        dataKey="value"
+        nameKey="name"
+        outerRadius={80}
+        showLabels
+        labelRenderer={({ name, percent }) =>
+          `${name} ${(percent * 100).toFixed(0)}%`
+        }
+        className={baseCardClasses}
+      />
+      <LineChartCard
+        title={t("dashboard.cards.userGrowth.title")}
+        description={t("dashboard.cards.userGrowth.overviewDescription")}
+        data={userGrowth}
+        config={userGrowthConfig}
+        dataKeys="users"
+        xAxisKey="date"
+        className={cn(baseCardClasses, "col-span-3")}
+      />
     </>
   );
 
@@ -469,40 +443,20 @@ export default function AdminDashboard({
         </CardContent>
       </Card>
 
-      <Card className={cn(baseCardClasses, "col-span-2")}>
-        <CardHeader>
-          <CardTitle>{t("dashboard.cards.trafficBreakdown.title")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.cards.trafficBreakdown.description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer height="100%" width="100%">
-            <PieChart>
-              <Pie
-                cx="50%"
-                cy="50%"
-                data={trafficSources}
-                dataKey="value"
-                fill="#8884d8"
-                label={({ name, percent }) =>
-                  `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
-                }
-                labelLine={false}
-                outerRadius={100}
-              >
-                {trafficSources.map((_entry, index) => (
-                  <Cell
-                    fill={chartColors[index % chartColors.length]}
-                    key={`traffic-cell-${index}`}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <PieChartCard
+        title={t("dashboard.cards.trafficBreakdown.title")}
+        description={t("dashboard.cards.trafficBreakdown.description")}
+        data={trafficSources}
+        config={trafficConfig}
+        dataKey="value"
+        nameKey="name"
+        outerRadius={100}
+        showLabels
+        labelRenderer={({ name, percent }) =>
+          `${name} ${(percent * 100).toFixed(0)}%`
+        }
+        className={cn(baseCardClasses, "col-span-2")}
+      />
     </>
   );
 
@@ -661,59 +615,26 @@ export default function AdminDashboard({
       case "overview":
         return (
           <>
-            <Card className={cn(baseCardClasses, "col-span-2")}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.postEngagement.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.postEngagement.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <BarChart data={filteredData.postEngagement}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="likes" fill="#8884d8" />
-                    <Bar dataKey="comments" fill="#82ca9d" />
-                    <Bar dataKey="shares" fill="#ffc658" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.audienceGrowth.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.audienceGrowth.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <LineChart data={filteredData.audienceGrowth}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      dataKey="followers"
-                      stroke="#8884d8"
-                      type="monotone"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <BarChartCard
+              title={t("dashboard.cards.postEngagement.title")}
+              description={t("dashboard.cards.postEngagement.description")}
+              data={filteredData.postEngagement}
+              config={postEngagementConfig}
+              dataKeys={["likes", "comments", "shares"]}
+              xAxisKey="name"
+              className={cn(baseCardClasses, "col-span-2")}
+            />
+            <LineChartCard
+              title={t("dashboard.cards.audienceGrowth.title")}
+              description={t("dashboard.cards.audienceGrowth.description")}
+              data={filteredData.audienceGrowth}
+              config={audienceGrowthConfig}
+              dataKeys="followers"
+              xAxisKey="date"
+              className={baseCardClasses}
+            />
           </>
         );
-      // ... (other tabs for PR role)
       default:
         return <div>{t("dashboard.emptyContent")}</div>;
     }
@@ -724,67 +645,31 @@ export default function AdminDashboard({
       case "overview":
         return (
           <>
-            <Card className={cn(baseCardClasses, "col-span-2")}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.revenueByProduct.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.revenueByProduct.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <BarChart data={filteredData.revenueByProduct}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.expenseCategories.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.expenseCategories.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <PieChart>
-                    <Pie
-                      cx="50%"
-                      cy="50%"
-                      data={filteredData.expenseCategories}
-                      dataKey="amount"
-                      fill="#8884d8"
-                      label={({ name, percent }) =>
-                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                      outerRadius={80}
-                    >
-                      {expenseCategories.map((_entry, index) => (
-                        <Cell
-                          fill={chartColors[index % chartColors.length]}
-                          key={`cell-${index}`}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <BarChartCard
+              title={t("dashboard.cards.revenueByProduct.title")}
+              description={t("dashboard.cards.revenueByProduct.description")}
+              data={filteredData.revenueByProduct}
+              config={revenueConfig}
+              dataKeys="revenue"
+              xAxisKey="name"
+              className={cn(baseCardClasses, "col-span-2")}
+            />
+            <PieChartCard
+              title={t("dashboard.cards.expenseCategories.title")}
+              description={t("dashboard.cards.expenseCategories.description")}
+              data={filteredData.expenseCategories}
+              config={expenseConfig}
+              dataKey="amount"
+              nameKey="name"
+              outerRadius={80}
+              showLabels
+              labelRenderer={({ name, percent }) =>
+                `${name} ${(percent * 100).toFixed(0)}%`
+              }
+              className={baseCardClasses}
+            />
           </>
         );
-      // ... (other tabs for Finance role)
       default:
         return <div>{t("dashboard.emptyContent")}</div>;
     }
@@ -795,77 +680,31 @@ export default function AdminDashboard({
       case "overview":
         return (
           <>
-            <Card className={cn(baseCardClasses, "col-span-2")}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.jobApplications.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.jobApplications.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <BarChart data={filteredData.jobApplications}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="position" />
-                    <YAxis orientation="left" stroke="#8884d8" yAxisId="left" />
-                    <YAxis
-                      orientation="right"
-                      stroke="#82ca9d"
-                      yAxisId="right"
-                    />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="applications" fill="#8884d8" yAxisId="left" />
-                    <Bar
-                      dataKey="openPositions"
-                      fill="#82ca9d"
-                      yAxisId="right"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className={baseCardClasses}>
-              <CardHeader>
-                <CardTitle>
-                  {t("dashboard.cards.employeeDistribution.title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("dashboard.cards.employeeDistribution.description")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer height="100%" width="100%">
-                  <PieChart>
-                    <Pie
-                      cx="50%"
-                      cy="50%"
-                      data={employeeDistribution}
-                      dataKey="value"
-                      fill="#8884d8"
-                      label={({ name, percent }) =>
-                        `${name} ${(percent ?? 0 * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                      outerRadius={80}
-                    >
-                      {employeeDistribution.map((_entry, index) => (
-                        <Cell
-                          fill={chartColors[index % chartColors.length]}
-                          key={`cell-${index}`}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <BarChartCard
+              title={t("dashboard.cards.jobApplications.title")}
+              description={t("dashboard.cards.jobApplications.description")}
+              data={filteredData.jobApplications}
+              config={jobApplicationsConfig}
+              dataKeys={["applications", "openPositions"]}
+              xAxisKey="position"
+              className={cn(baseCardClasses, "col-span-2")}
+            />
+            <PieChartCard
+              title={t("dashboard.cards.employeeDistribution.title")}
+              description={t("dashboard.cards.employeeDistribution.description")}
+              data={employeeDistribution}
+              config={employeeConfig}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={80}
+              showLabels
+              labelRenderer={({ name, percent }) =>
+                `${name} ${(percent * 100).toFixed(0)}%`
+              }
+              className={baseCardClasses}
+            />
           </>
         );
-      // ... (other tabs for HR role)
       default:
         return <div>{t("dashboard.emptyContent")}</div>;
     }
