@@ -25,7 +25,9 @@ export async function createSessionClient(jwt?: string) {
   if (jwt) {
     client.setJWT(jwt);
   } else {
-    const session = (await cookies()).get("a_session_biso") || (await cookies()).get("a_session_biso_admin");
+    const session =
+      (await cookies()).get("a_session_biso") ||
+      (await cookies()).get("a_session_biso_admin");
 
     if (session) {
       client.setSession(session.value);

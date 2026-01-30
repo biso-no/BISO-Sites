@@ -9,6 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/ui/card";
+import type { ChartConfig } from "@repo/ui/components/ui/charts";
+import {
+  BarChartCard,
+  LineChartCard,
+  PieChartCard,
+} from "@repo/ui/components/ui/charts";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import {
   Table,
@@ -25,12 +31,6 @@ import {
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import { cn } from "@repo/ui/lib/utils";
-import {
-  BarChartCard,
-  LineChartCard,
-  PieChartCard,
-} from "@repo/ui/components/ui/charts";
-import type { ChartConfig } from "@repo/ui/components/ui/charts";
 import { AlertCircleIcon, BellIcon, CheckCircleIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
@@ -340,37 +340,37 @@ export default function AdminDashboard({
   const renderAdminOverview = () => (
     <>
       <BarChartCard
-        title={t("dashboard.cards.pageViews.title")}
-        description={t("dashboard.cards.pageViews.description")}
-        data={filteredData.pageViews}
-        config={pageViewsConfig}
-        dataKeys="views"
-        xAxisKey="name"
-        xAxisFormatter={(value) => value.slice(0, 10)}
         className={cn(baseCardClasses, "col-span-2")}
+        config={pageViewsConfig}
+        data={filteredData.pageViews}
+        dataKeys="views"
+        description={t("dashboard.cards.pageViews.description")}
+        title={t("dashboard.cards.pageViews.title")}
+        xAxisFormatter={(value) => value.slice(0, 10)}
+        xAxisKey="name"
       />
       <PieChartCard
-        title={t("dashboard.cards.userDistribution.title")}
-        description={t("dashboard.cards.userDistribution.description")}
-        data={userDistribution}
+        className={baseCardClasses}
         config={userDistributionConfig}
+        data={userDistribution}
         dataKey="value"
-        nameKey="name"
-        outerRadius={80}
-        showLabels
+        description={t("dashboard.cards.userDistribution.description")}
         labelRenderer={({ name, percent }) =>
           `${name} ${(percent * 100).toFixed(0)}%`
         }
-        className={baseCardClasses}
+        nameKey="name"
+        outerRadius={80}
+        showLabels
+        title={t("dashboard.cards.userDistribution.title")}
       />
       <LineChartCard
-        title={t("dashboard.cards.userGrowth.title")}
-        description={t("dashboard.cards.userGrowth.overviewDescription")}
-        data={userGrowth}
-        config={userGrowthConfig}
-        dataKeys="users"
-        xAxisKey="date"
         className={cn(baseCardClasses, "col-span-3")}
+        config={userGrowthConfig}
+        data={userGrowth}
+        dataKeys="users"
+        description={t("dashboard.cards.userGrowth.overviewDescription")}
+        title={t("dashboard.cards.userGrowth.title")}
+        xAxisKey="date"
       />
     </>
   );
@@ -444,18 +444,18 @@ export default function AdminDashboard({
       </Card>
 
       <PieChartCard
-        title={t("dashboard.cards.trafficBreakdown.title")}
-        description={t("dashboard.cards.trafficBreakdown.description")}
-        data={trafficSources}
+        className={cn(baseCardClasses, "col-span-2")}
         config={trafficConfig}
+        data={trafficSources}
         dataKey="value"
-        nameKey="name"
-        outerRadius={100}
-        showLabels
+        description={t("dashboard.cards.trafficBreakdown.description")}
         labelRenderer={({ name, percent }) =>
           `${name} ${(percent * 100).toFixed(0)}%`
         }
-        className={cn(baseCardClasses, "col-span-2")}
+        nameKey="name"
+        outerRadius={100}
+        showLabels
+        title={t("dashboard.cards.trafficBreakdown.title")}
       />
     </>
   );
@@ -616,22 +616,22 @@ export default function AdminDashboard({
         return (
           <>
             <BarChartCard
-              title={t("dashboard.cards.postEngagement.title")}
-              description={t("dashboard.cards.postEngagement.description")}
-              data={filteredData.postEngagement}
-              config={postEngagementConfig}
-              dataKeys={["likes", "comments", "shares"]}
-              xAxisKey="name"
               className={cn(baseCardClasses, "col-span-2")}
+              config={postEngagementConfig}
+              data={filteredData.postEngagement}
+              dataKeys={["likes", "comments", "shares"]}
+              description={t("dashboard.cards.postEngagement.description")}
+              title={t("dashboard.cards.postEngagement.title")}
+              xAxisKey="name"
             />
             <LineChartCard
-              title={t("dashboard.cards.audienceGrowth.title")}
-              description={t("dashboard.cards.audienceGrowth.description")}
-              data={filteredData.audienceGrowth}
-              config={audienceGrowthConfig}
-              dataKeys="followers"
-              xAxisKey="date"
               className={baseCardClasses}
+              config={audienceGrowthConfig}
+              data={filteredData.audienceGrowth}
+              dataKeys="followers"
+              description={t("dashboard.cards.audienceGrowth.description")}
+              title={t("dashboard.cards.audienceGrowth.title")}
+              xAxisKey="date"
             />
           </>
         );
@@ -646,27 +646,27 @@ export default function AdminDashboard({
         return (
           <>
             <BarChartCard
-              title={t("dashboard.cards.revenueByProduct.title")}
-              description={t("dashboard.cards.revenueByProduct.description")}
-              data={filteredData.revenueByProduct}
-              config={revenueConfig}
-              dataKeys="revenue"
-              xAxisKey="name"
               className={cn(baseCardClasses, "col-span-2")}
+              config={revenueConfig}
+              data={filteredData.revenueByProduct}
+              dataKeys="revenue"
+              description={t("dashboard.cards.revenueByProduct.description")}
+              title={t("dashboard.cards.revenueByProduct.title")}
+              xAxisKey="name"
             />
             <PieChartCard
-              title={t("dashboard.cards.expenseCategories.title")}
-              description={t("dashboard.cards.expenseCategories.description")}
-              data={filteredData.expenseCategories}
+              className={baseCardClasses}
               config={expenseConfig}
+              data={filteredData.expenseCategories}
               dataKey="amount"
-              nameKey="name"
-              outerRadius={80}
-              showLabels
+              description={t("dashboard.cards.expenseCategories.description")}
               labelRenderer={({ name, percent }) =>
                 `${name} ${(percent * 100).toFixed(0)}%`
               }
-              className={baseCardClasses}
+              nameKey="name"
+              outerRadius={80}
+              showLabels
+              title={t("dashboard.cards.expenseCategories.title")}
             />
           </>
         );
@@ -681,27 +681,29 @@ export default function AdminDashboard({
         return (
           <>
             <BarChartCard
-              title={t("dashboard.cards.jobApplications.title")}
-              description={t("dashboard.cards.jobApplications.description")}
-              data={filteredData.jobApplications}
-              config={jobApplicationsConfig}
-              dataKeys={["applications", "openPositions"]}
-              xAxisKey="position"
               className={cn(baseCardClasses, "col-span-2")}
+              config={jobApplicationsConfig}
+              data={filteredData.jobApplications}
+              dataKeys={["applications", "openPositions"]}
+              description={t("dashboard.cards.jobApplications.description")}
+              title={t("dashboard.cards.jobApplications.title")}
+              xAxisKey="position"
             />
             <PieChartCard
-              title={t("dashboard.cards.employeeDistribution.title")}
-              description={t("dashboard.cards.employeeDistribution.description")}
-              data={employeeDistribution}
+              className={baseCardClasses}
               config={employeeConfig}
+              data={employeeDistribution}
               dataKey="value"
-              nameKey="name"
-              outerRadius={80}
-              showLabels
+              description={t(
+                "dashboard.cards.employeeDistribution.description"
+              )}
               labelRenderer={({ name, percent }) =>
                 `${name} ${(percent * 100).toFixed(0)}%`
               }
-              className={baseCardClasses}
+              nameKey="name"
+              outerRadius={80}
+              showLabels
+              title={t("dashboard.cards.employeeDistribution.title")}
             />
           </>
         );

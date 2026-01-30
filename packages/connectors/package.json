@@ -8,6 +8,7 @@
   },
   "exports": {
     "./azure": "./src/azure/index.ts",
+    "./azure/users": "./src/azure/users.ts",
     "./24sevenoffice": "./src/24sevenoffice/index.ts"
   },
   "devDependencies": {

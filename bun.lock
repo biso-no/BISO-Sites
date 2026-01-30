@@ -308,6 +308,7 @@
         "@repo/connectors": "workspace:*",
         "@vippsmobilepay/sdk": "^2.4.2",
         "node-appwrite": "^14.1.0",
+        "zod": "^3.22.4",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
@@ -2570,6 +2571,8 @@
     "@repo/shared/@types/node": ["@types/node@22.19.1", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-LCCV0HdSZZZb34qifBsyWlUmok6W7ouER+oQIGBScS8EsZsQbrtFTUrDX4hOl+CS6p7cnNC4td+qrSVGSCTUfQ=="],
 
     "@repo/shared/node-appwrite": ["node-appwrite@14.2.0", "", { "dependencies": { "node-fetch-native-with-agent": "1.7.2" } }, "sha512-sPPA+JzdBJRS+lM6azX85y3/6iyKQYlHcXCbjMuWLROh6IiU9EfXRW3XSUTa5HDoBrlo8ve+AnVA6BIjQfUs1g=="],
+
+    "@repo/shared/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "@repo/ui/@types/node": ["@types/node@22.19.1", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-LCCV0HdSZZZb34qifBsyWlUmok6W7ouER+oQIGBScS8EsZsQbrtFTUrDX4hOl+CS6p7cnNC4td+qrSVGSCTUfQ=="],
 

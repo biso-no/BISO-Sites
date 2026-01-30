@@ -28,7 +28,8 @@
         "AZURE_CERT_PASS",
         "SHAREPOINT_CLIENT_SECRET",
         "VIPPS_TEST_MODE",
-        "VIPPS_MERCHANT_SERIAL_NUMBER"
+        "VIPPS_MERCHANT_SERIAL_NUMBER",
+        "AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["**/.next/**", "!**/.next/cache/**", "**/dist/**"]

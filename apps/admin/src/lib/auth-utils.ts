@@ -50,7 +50,7 @@ export async function getAuthStatus(): Promise<{
   try {
     const availableCookies = await cookies();
     const adminCookie = availableCookies.get("a_session_biso_admin");
-    if (!adminCookie) { 
+    if (!adminCookie) {
       return {
         hasSession: false,
         isAuthenticated: false,
