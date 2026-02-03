@@ -10,9 +10,9 @@
     "./render": "./src/render.tsx",
     "./editor": "./src/editor.tsx",
     "./types": "./src/types.ts",
-    "./get-puck-schema": "./src/get-puck-schema.ts",
+    "./editor-context": "./src/editor-context.ts",
+    "./migrate": "./src/migrate.ts",
     "./catalog": "./src/catalog.ts",
-    "./registry": "./src/registry.tsx",
     "./stream-handler": "./src/puck-stream-handler.ts",
     "./tree-to-puck": "./src/tree-to-puck.ts",
     "./data/types": "./src/data/types.ts",
@@ -22,7 +22,7 @@
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "check-types": "tsc --noEmit",
+    "check-types": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
     "lint": "biome lint ."
   },
   "dependencies": {
@@ -35,7 +35,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "sonner": "^2.0.7",
-    "zod": "^4.3.5"
+    "zod": "4.1.13"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

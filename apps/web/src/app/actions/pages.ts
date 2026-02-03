@@ -53,7 +53,6 @@ export async function getDemoPage(
       ]),
     ],
   });
-  console.log("response", response);
 
   if (!response.rows.length) {
     return null;

@@ -1,5 +1,8 @@
 import { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
+import { listPages } from "@repo/api/page-builder";
 import type { Data } from "@repo/editor";
+import { redirect } from "next/navigation";
+import { getUserRolesForClient } from "@/lib/authorization";
 import { UnifiedEditorClient } from "../_components/unified-editor-client";
 
 const SUPPORTED_LOCALES: Locale[] = [Locale.NO, Locale.EN];
@@ -22,10 +25,39 @@ export default async function NewPageEditor({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
+  const userRoles = await getUserRolesForClient();
+
+  const isDepartmentUser =
+    userRoles.departmentNames.length > 0 &&
+    !userRoles.isGlobalAdmin &&
+    !userRoles.isCampusAdmin;
+
+  const departmentName = isDepartmentUser ? userRoles.departmentNames[0] : null;
+  const departmentSlug = departmentName
+    ? departmentName
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "")
+    : null;
+
+  if (isDepartmentUser && departmentName) {
+    const existing = await listPages({
+      useSession: true,
+      departmentId: departmentName,
+      limit: 1,
+    });
+
+    if (existing.length > 0) {
+      redirect(`/pages/${existing[0]!.id}`);
+    }
+  }
 
   // Get initial values from query params (set by AI assistant)
-  const initialTitle = params.title || "";
-  const initialSlug = params.slug || "";
+  const initialTitle = departmentName ?? params.title ?? "";
+  const initialSlug = departmentSlug ?? params.slug ?? "";
   const initialDescription = params.description || "";
   const initialLocale = (
     params.locale === "en" ? Locale.EN : Locale.NO
@@ -54,6 +86,16 @@ export default async function NewPageEditor({
       initialLocaleData={initialLocaleData}
       initialSlug={initialSlug}
       status={PageStatus.DRAFT}
+      pageContext={{
+        departmentId: departmentName,
+      }}
+      userContext={{
+        campusNames: userRoles.campusNames,
+        departmentNames: userRoles.departmentNames,
+        managedCampuses: userRoles.managedCampuses,
+        isGlobalAdmin: userRoles.isGlobalAdmin,
+        isCampusAdmin: userRoles.isCampusAdmin,
+      }}
       visibility={PageVisibility.PUBLIC}
     />
   );

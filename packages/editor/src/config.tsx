@@ -241,6 +241,32 @@ export const config: Config<Props> = {
       },
     },
   },
+  categories: {
+    layout: {
+      title: "Layout",
+      components: ["Section", "Columns", "Spacer", "Tabs"],
+    },
+    heroes: {
+      title: "Heroes & Headers",
+      components: ["Hero", "PageHeader"],
+    },
+    grids: {
+      title: "Grids & Lists",
+      components: ["FeatureGrid", "StatsGrid", "TeamGrid", "LogoGrid"],
+    },
+    content: {
+      title: "Content",
+      components: ["Accordion", "Timeline", "RichText", "TableOfContents"],
+    },
+    marketing: {
+      title: "Marketing & CTA",
+      components: ["CTA", "About", "JoinUs"],
+    },
+    dataDisplay: {
+      title: "Data Display",
+      components: ["News", "Events", "JobsList", "FilterBar", "Collection"],
+    },
+  },
   components: {
     Accordion: {
       fields: {

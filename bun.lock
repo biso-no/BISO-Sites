@@ -224,6 +224,7 @@
       "name": "@repo/api",
       "version": "0.0.0",
       "dependencies": {
+        "@puckeditor/core": "^0.21.0",
         "@types/node": "^24.9.2",
         "appwrite": "^21.3.0",
         "next": "16.0.7",
@@ -262,7 +263,7 @@
         "react": "^19.2.1",
         "react-dom": "^19.2.1",
         "sonner": "^2.0.7",
-        "zod": "^4.3.5",
+        "zod": "4.1.13",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
@@ -2563,6 +2564,8 @@
     "@reduxjs/toolkit/redux": ["redux@5.0.1", "", {}, "sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w=="],
 
     "@repo/connectors/@types/node": ["@types/node@22.19.1", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-LCCV0HdSZZZb34qifBsyWlUmok6W7ouER+oQIGBScS8EsZsQbrtFTUrDX4hOl+CS6p7cnNC4td+qrSVGSCTUfQ=="],
+
+    "@repo/editor/zod": ["zod@4.1.13", "", {}, "sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig=="],
 
     "@repo/i18n/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 

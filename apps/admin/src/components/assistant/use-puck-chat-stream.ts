@@ -8,7 +8,7 @@ import {
 import type { AssistantMessage } from "@repo/ai/types";
 import type { AgentState } from "@repo/ai/types/agent-state";
 import { inferAgentState } from "@repo/ai/types/agent-state";
-import type { Data } from "@repo/editor/src";
+import type { Data } from "@repo/editor";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 

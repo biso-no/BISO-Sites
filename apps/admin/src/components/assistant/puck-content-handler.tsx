@@ -1,6 +1,6 @@
 "use client";
 
-import type { Data } from "@repo/editor/src";
+import type { Data } from "@repo/editor";
 import { useCallback, useRef } from "react";
 
 type PuckContentUpdate = {

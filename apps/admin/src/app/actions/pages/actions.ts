@@ -12,8 +12,75 @@ import { createSessionClient } from "@repo/api/server";
 import { PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { canWriteDocument, isGlobalAdmin } from "@/lib/authorization";
+import { getUserAuthContext } from "@/lib/authorization";
+import {
+  buildCampusPagePermissions,
+  buildDepartmentPagePermissions,
+} from "@/lib/permissions";
 import type { CreateManagedPageInput, UpdateManagedPageInput } from "./types";
 import { ADMIN_LIST_PATH, cloneDocument, revalidateForPage } from "./utils";
+
+function sanitizeSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function applyUserPageScope(input: UpsertPageInput): Promise<UpsertPageInput> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    return input;
+  }
+
+  const isGlobal = ctx.roles.includes("globaladmin");
+  const isCampus = ctx.roles.includes("campusadmin");
+  const isDepartmentUser =
+    ctx.departmentTeamIds.length > 0 && !isGlobal && !isCampus;
+
+  if (isDepartmentUser) {
+    const departmentName = ctx.departmentNames[0] ?? null;
+    const departmentTeamId = ctx.departmentTeamIds[0] ?? null;
+    const enforcedSlug = departmentName ? sanitizeSlug(departmentName) : input.slug;
+
+    let enforcedPageId = input.pageId;
+    if (!enforcedPageId && departmentName) {
+      const existing = await listPages({
+        useSession: true,
+        departmentId: departmentName,
+        limit: 1,
+      });
+      if (existing.length > 0) {
+        enforcedPageId = existing[0]!.id;
+      }
+    }
+
+    return {
+      ...input,
+      pageId: enforcedPageId,
+      slug: enforcedSlug,
+      departmentId: departmentName ?? input.departmentId ?? null,
+      permissions: departmentTeamId
+        ? buildDepartmentPagePermissions(departmentTeamId)
+        : input.permissions,
+    };
+  }
+
+  if (isCampus) {
+    const campusTeamId = ctx.campusTeamIds[0] ?? null;
+    return {
+      ...input,
+      permissions:
+        input.permissions ??
+        (campusTeamId ? buildCampusPagePermissions(campusTeamId) : undefined),
+    };
+  }
+
+  return input;
+}
 
 /**
  * List pages that the current user has write access to.
@@ -56,6 +123,7 @@ export async function createManagedPage(input: CreateManagedPageInput) {
     visibility: input.visibility ?? PageVisibility.PUBLIC,
     template: input.template,
     campusId: input.campusId,
+    departmentId: input.departmentId,
     translations: input.translations.map((translation) => ({
       locale: translation.locale,
       title: translation.title ?? input.title,
@@ -69,7 +137,7 @@ export async function createManagedPage(input: CreateManagedPageInput) {
     })),
   };
 
-  const page = await upsertPage(payload);
+  const page = await upsertPage(await applyUserPageScope(payload));
   revalidateForPage(page);
   return page;
 }
@@ -94,7 +162,7 @@ export async function deleteManagedPage(pageId: string) {
 }
 
 export async function upsertManagedPage(input: UpsertPageInput) {
-  const page = await upsertPage(input);
+  const page = await upsertPage(await applyUserPageScope(input));
   revalidateForPage(page);
   return page;
 }

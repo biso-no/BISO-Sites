@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  type Config,
-  type Data,
-  Puck,
-  usePuck as usePuckOriginal,
-} from "@puckeditor/core";
+import { type Config, type Data, Puck } from "@puckeditor/core";
 import { Button } from "@repo/ui/components/ui/button";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -17,10 +12,6 @@ import {
   PageStatus,
   PageVisibility,
 } from "@repo/api/types/appwrite";
-import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
-import { FileUpload } from "@repo/ui/components/file-upload";
-import { LinkPicker } from "@repo/ui/components/link-picker";
-import { TablePicker } from "@repo/ui/components/table-picker";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import {
@@ -49,44 +40,7 @@ import {
   Smartphone,
   Tablet,
 } from "lucide-react";
-import { TABLE_SCHEMAS } from "./data/schemas";
-import { getPages } from "./get-pages";
-import { getTables } from "./get-tables";
-import { listImages, uploadImage } from "./upload-image";
-
-// Use the standard hook
-const usePuck = usePuckOriginal;
-
-/**
- * Internal component that lives inside Puck and exposes dispatch to external callers.
- * This is the ONLY way to properly update Puck's internal state from outside.
- */
-function PuckDispatchBridge({
-  onDispatchReady,
-}: {
-  onDispatchReady?: (setData: (data: Data) => void) => void;
-}) {
-  const { dispatch, appState } = usePuck();
-
-  useEffect(() => {
-    if (onDispatchReady) {
-      // Expose a function that uses Puck's dispatch to set data
-      onDispatchReady((newData: Data) => {
-        console.log(
-          "[PuckDispatchBridge] Dispatching setData with",
-          newData.content?.length,
-          "blocks"
-        );
-        dispatch({
-          type: "setData",
-          data: newData,
-        });
-      });
-    }
-  }, [dispatch, onDispatchReady]);
-
-  return null; // This component renders nothing, it just bridges the API
-}
+import type { EditorContext } from "./editor-context";
 
 export type PageEditorProps = {
   initialData: Data;
@@ -97,6 +51,7 @@ export type PageEditorProps = {
   availableLocales: Locale[];
   status: PageStatus;
   visibility: PageVisibility;
+  editorContext?: EditorContext;
   onSave: (
     data: Data,
     metadata: { title: string; slug: string; description?: string }
@@ -112,8 +67,6 @@ export type PageEditorProps = {
     metadata: { title: string; slug: string; description?: string },
     targetLocale: Locale
   ) => Promise<void>;
-  /** Ref callback to expose a function for setting data externally (e.g., from AI) */
-  onDispatchReady?: (setData: (data: Data) => void) => void;
 };
 
 export function PageEditor({
@@ -125,12 +78,12 @@ export function PageEditor({
   availableLocales,
   status: initialStatus,
   visibility: initialVisibility,
+  editorContext,
   onSave,
   onPublish,
   onLocaleChange,
   onBack,
   onTranslate,
-  onDispatchReady,
 }: PageEditorProps) {
   const [data, setData] = useState<Data>(initialData);
   const [saving, setSaving] = useState(false);
@@ -175,11 +128,6 @@ export function PageEditor({
     }
   };
 
-  const handleImageUpload = async (newData: File) => {
-    const result = await uploadImage(newData);
-    return result;
-  };
-
   const handleTranslate = async (newData: Data, targetLocale: Locale) => {
     if (!onTranslate) {
       toast.error("Translation is not available");
@@ -206,235 +154,189 @@ export function PageEditor({
         data={data}
         headerPath={`/${locale}/${slug}`}
         headerTitle={title}
+        metadata={editorContext as any}
+        permissions={
+          initialStatus === PageStatus.PUBLISHED &&
+          !(editorContext?.user.isGlobalAdmin ?? false)
+            ? {
+                drag: false,
+                duplicate: false,
+                delete: false,
+                insert: false,
+                edit: true,
+              }
+            : undefined
+        }
+        onChange={(nextData) => setData(nextData as Data)}
         onPublish={handleSave}
-        overrides={{
-          // Bridge component to expose dispatch to external callers (AI copilot)
-          puck: ({ children }) => (
-            <>
-              <PuckDispatchBridge onDispatchReady={onDispatchReady} />
-              {children}
-            </>
-          ),
-          fieldTypes: {
-            link: ({ onChange, value }) => (
-              <LinkPicker
-                getPages={getPages}
-                onChange={onChange}
-                value={value}
-              />
-            ),
-            "table-picker": ({ onChange, value }) => (
-              <TablePicker
-                getTables={getTables}
-                onChange={onChange}
-                value={value}
-              />
-            ),
-            "data-source": ({ onChange, value }) => (
-              <DataSourcePicker
-                onChange={onChange}
-                schemas={TABLE_SCHEMAS}
-                value={value ?? {}}
-              />
-            ),
-            image: ({ name, onChange, value }) => (
-              <FileUpload
-                getImages={listImages}
-                name={name}
-                onChange={(fileOrUrl) => {
-                  if (fileOrUrl instanceof File) {
-                    handleImageUpload(fileOrUrl).then((url) => onChange(url));
-                  } else if (typeof fileOrUrl === "string") {
-                    onChange(fileOrUrl);
-                  }
-                }}
-                value={value}
-              />
-            ),
-          },
-          headerActions: ({ children: _children }) => {
-            // Get current app state (including data) from Puck
-            // biome-ignore lint/correctness/useHookAtTopLevel: usePuck is designed for Puck override functions
-            const { appState } = usePuck();
-            const currentData = appState.data as Data;
+        renderHeaderActions={({ state }) => {
+          const currentData = state.data as Data;
 
-            return (
-              <>
-                <div className="flex items-center gap-2">
-                  {/* Locale Switcher */}
-                  <Select
-                    onValueChange={(v) => onLocaleChange(v as Locale)}
-                    value={locale}
-                  >
-                    <SelectTrigger className="h-9 w-[140px] border-white/20 bg-white/10 text-white">
-                      <Globe className="mr-2 h-4 w-4" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableLocales.map((l) => (
+          return (
+            <div className="flex items-center gap-2">
+              {/* Locale Switcher */}
+              <Select
+                onValueChange={(v) => onLocaleChange(v as Locale)}
+                value={locale}
+              >
+                <SelectTrigger className="h-9 w-[140px] border-white/20 bg-white/10 text-white">
+                  <Globe className="mr-2 h-4 w-4" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableLocales.map((l) => (
+                    <SelectItem key={l} value={l}>
+                      {l === "no" ? "Norwegian" : "English"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button className="ml-2 h-9 w-9" size="icon" variant="outline">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Page Settings</SheetTitle>
+                    <SheetDescription>
+                      Configure page properties and metadata.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        onChange={(e) => setTitle(e.target.value)}
+                        value={title}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="slug">Slug</Label>
+                      <Input
+                        disabled={editorContext?.constraints.slugLocked}
+                        id="slug"
+                        onChange={(e) => setSlug(e.target.value)}
+                        value={slug}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        className="resize-none"
+                        id="description"
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={3}
+                        value={description}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select disabled value={initialStatus as string}>
+                        <SelectTrigger id="status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={PageStatus.DRAFT}>Draft</SelectItem>
+                          <SelectItem value={PageStatus.PUBLISHED}>
+                            Published
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="visibility">Visibility</Label>
+                      <Select disabled value={initialVisibility as string}>
+                        <SelectTrigger id="visibility">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={PageVisibility.PUBLIC}>
+                            Public
+                          </SelectItem>
+                          <SelectItem value={PageVisibility.AUTHENTICATED}>
+                            Authenticated
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              {/* AI Translate Button */}
+              {onTranslate && availableLocales.length > 1 && (
+                <Select
+                  disabled={translating}
+                  onValueChange={(targetLocale) => {
+                    if (targetLocale !== locale) {
+                      handleTranslate(currentData, targetLocale as Locale);
+                    }
+                  }}
+                  value=""
+                >
+                  <SelectTrigger className="h-9 w-[160px] border-white/20 bg-white/10 text-white">
+                    {translating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <span>Translating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Languages className="mr-2 h-4 w-4" />
+                        <span>AI Translate</span>
+                      </>
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableLocales
+                      .filter((l) => l !== locale)
+                      .map((l) => (
                         <SelectItem key={l} value={l}>
-                          {l === "no" ? "Norwegian" : "English"}
+                          Translate to {l === "no" ? "Norwegian" : "English"}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
+                  </SelectContent>
+                </Select>
+              )}
 
-                  <Sheet>
-                    <SheetTrigger asChild>
-                      <Button
-                        className="ml-2 h-9 w-9"
-                        size="icon"
-                        variant="outline"
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent>
-                      <SheetHeader>
-                        <SheetTitle>Page Settings</SheetTitle>
-                        <SheetDescription>
-                          Configure page properties and metadata.
-                        </SheetDescription>
-                      </SheetHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="title">Title</Label>
-                          <Input
-                            id="title"
-                            onChange={(e) => setTitle(e.target.value)}
-                            value={title}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="slug">Slug</Label>
-                          <Input
-                            id="slug"
-                            onChange={(e) => setSlug(e.target.value)}
-                            value={slug}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="description">Description</Label>
-                          <Textarea
-                            className="resize-none"
-                            id="description"
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={3}
-                            value={description}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="status">Status</Label>
-                          <Select disabled value={initialStatus as string}>
-                            <SelectTrigger id="status">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={PageStatus.DRAFT}>
-                                Draft
-                              </SelectItem>
-                              <SelectItem value={PageStatus.PUBLISHED}>
-                                Published
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="visibility">Visibility</Label>
-                          <Select disabled value={initialVisibility as string}>
-                            <SelectTrigger id="visibility">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={PageVisibility.PUBLIC}>
-                                Public
-                              </SelectItem>
-                              <SelectItem value={PageVisibility.AUTHENTICATED}>
-                                Authenticated
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </SheetContent>
-                  </Sheet>
+              <div className="mx-2 h-6 w-px bg-white/20" />
 
-                  {/* AI Translate Button */}
-                  {onTranslate && availableLocales.length > 1 && (
-                    <Select
-                      disabled={translating}
-                      onValueChange={(targetLocale) => {
-                        if (targetLocale !== locale) {
-                          handleTranslate(currentData, targetLocale as Locale);
-                        }
-                      }}
-                      value=""
-                    >
-                      <SelectTrigger className="h-9 w-[160px] border-white/20 bg-white/10 text-white">
-                        {translating ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            <span>Translating...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Languages className="mr-2 h-4 w-4" />
-                            <span>AI Translate</span>
-                          </>
-                        )}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableLocales
-                          .filter((l) => l !== locale)
-                          .map((l) => (
-                            <SelectItem key={l} value={l}>
-                              Translate to{" "}
-                              {l === "no" ? "Norwegian" : "English"}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+              <Button className="mr-2" onClick={onBack} variant="outline">
+                Back
+              </Button>
 
-                  <div className="mx-2 h-6 w-px bg-white/20" />
+              {initialStatus === PageStatus.PUBLISHED && (
+                <Button
+                  className="mr-2"
+                  onClick={() => window.open(`/${slug}`, "_blank")}
+                  variant="outline"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  View
+                </Button>
+              )}
 
-                  <Button className="mr-2" onClick={onBack} variant="outline">
-                    Back
-                  </Button>
+              <Button
+                disabled={saving}
+                onClick={() => handleSave(currentData)}
+                variant="secondary"
+              >
+                Save Draft
+              </Button>
 
-                  {initialStatus === PageStatus.PUBLISHED && (
-                    <Button
-                      className="mr-2"
-                      onClick={() => window.open(`/${slug}`, "_blank")}
-                      variant="outline"
-                    >
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      View
-                    </Button>
-                  )}
-
-                  <Button
-                    disabled={saving}
-                    onClick={() => handleSave(currentData)}
-                    variant="secondary"
-                  >
-                    Save Draft
-                  </Button>
-
-                  <Button
-                    className="bg-[#001731] text-white hover:bg-[#001731]/90"
-                    disabled={saving}
-                    onClick={() => handlePublish(currentData)}
-                  >
-                    Publish
-                  </Button>
-                </div>
-
-                {/* Optionally render the default header actions (e.g. default Publish) */}
-                {/* {children} */}
-              </>
-            );
-          },
+              <Button
+                className="bg-[#001731] text-white hover:bg-[#001731]/90"
+                disabled={saving}
+                onClick={() => handlePublish(currentData)}
+              >
+                Publish
+              </Button>
+            </div>
+          );
         }}
         viewports={[
           {

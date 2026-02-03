@@ -1,6 +1,7 @@
 "use server";
 
 import { ID, Query } from "@repo/api";
+import { migrate } from "@puckeditor/core/rsc";
 import { createAdminClient, createSessionClient } from "./server";
 import type { Locale, Pages, PageTranslations } from "./types/appwrite";
 import { PageStatus, type PageVisibility } from "./types/appwrite";
@@ -74,6 +75,23 @@ function decodeDocument(value: unknown): PageDocument | null {
   return null;
 }
 
+function maybeMigrateDocument(document: PageDocument | null): PageDocument | null {
+  if (!document) {
+    return null;
+  }
+
+  const maybe = document as unknown as { content?: unknown };
+  if (!Array.isArray(maybe.content)) {
+    return document;
+  }
+
+  try {
+    return migrate(document as any) as unknown as PageDocument;
+  } catch {
+    return document;
+  }
+}
+
 function serializeDraft(document: PageDocument | null | undefined): string {
   return JSON.stringify(document ? cloneDocument(document) : EMPTY_DOCUMENT);
 }
@@ -125,12 +143,19 @@ export type PublishedPage = {
 };
 
 function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
-  const draft = decodeDocument(
-    (row as unknown as { draft_document?: unknown }).draft_document
+  const draft = maybeMigrateDocument(
+    decodeDocument(
+      (row as unknown as { draft_document?: unknown }).draft_document
+    )
   );
-  const published = decodeDocument(
-    (row as unknown as { puck_document?: unknown }).puck_document
+  const published = maybeMigrateDocument(
+    decodeDocument(
+      (row as unknown as { puck_document?: unknown }).puck_document
+    )
   );
+
+  const draftDocument = ensureDocument(draft ?? published);
+  const publishedDocument = published ? cloneDocument(published) : null;
 
   return {
     id: row.$id,
@@ -143,8 +168,8 @@ function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
     slug: (row as unknown as { slug?: string | null }).slug ?? null,
     description:
       (row as unknown as { description?: string | null }).description ?? null,
-    draftDocument: ensureDocument(draft ?? published),
-    publishedDocument: published ? cloneDocument(published) : null,
+    draftDocument,
+    publishedDocument,
     isPublished: !!(row as unknown as { is_published?: boolean }).is_published,
     publishedAt:
       (row as unknown as { published_at?: string | null }).published_at ?? null,

@@ -20,6 +20,7 @@ export type CreateManagedPageInput = {
   visibility?: PageVisibility;
   template?: string | null;
   campusId?: string | null;
+  departmentId?: string | null;
   translations: ManagedPageTranslationInput[];
 };
 
@@ -31,4 +32,5 @@ export type UpdateManagedPageInput = {
   visibility?: PageVisibility;
   template?: string | null;
   campusId?: string | null;
+  departmentId?: string | null;
 };

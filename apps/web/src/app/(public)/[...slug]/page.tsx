@@ -1,12 +1,8 @@
 import type { Locale } from "@repo/api/types/appwrite";
-import dynamic from "next/dynamic";
+import { PageRender } from "@repo/editor/render";
 import { notFound } from "next/navigation";
 import { getLocale } from "@/app/actions/locale";
 import { getDemoPage } from "@/app/actions/pages";
-
-const PageRender = dynamic(() =>
-  import("@repo/editor/render").then((mod) => mod.PageRender)
-);
 
 type PageProps = {
   params: Promise<{
@@ -20,7 +16,6 @@ export default async function Page({ params }: PageProps) {
   const locale = await getLocale();
 
   const pageData = await getDemoPage(path, locale as Locale);
-  console.log("Page data: ", pageData);
 
   if (!pageData) {
     notFound();

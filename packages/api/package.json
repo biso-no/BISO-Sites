@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@types/node": "^24.9.2",
+    "@puckeditor/core": "^0.21.0",
     "appwrite": "^21.3.0",
     "next": "16.0.7",
     "node-appwrite": "^20.2.1",

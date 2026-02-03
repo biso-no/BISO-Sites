@@ -15,9 +15,10 @@ import type {
 } from "@repo/api/types/appwrite";
 import { PageStatus as PS } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
+import type { EditorContext } from "@repo/editor/editor-context";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { upsertManagedPage } from "@/app/actions/pages/actions";
 import { translatePageContent } from "@/app/actions/pages/translate";
@@ -42,6 +43,17 @@ type UnifiedEditorClientProps = {
   availableLocales: Locale[];
   status: PageStatus;
   visibility: PageVisibility;
+  pageContext?: {
+    campusId?: string | null;
+    departmentId?: string | null;
+  };
+  userContext: {
+    campusNames: string[];
+    departmentNames: string[];
+    managedCampuses: string[];
+    isGlobalAdmin: boolean;
+    isCampusAdmin: boolean;
+  };
 };
 
 const EMPTY_DATA: Data = {
@@ -67,6 +79,8 @@ export function UnifiedEditorClient({
   availableLocales,
   status: initialStatus,
   visibility: initialVisibility,
+  pageContext,
+  userContext,
 }: UnifiedEditorClientProps) {
   const router = useRouter();
   const [currentLocale, setCurrentLocale] =
@@ -88,6 +102,17 @@ export function UnifiedEditorClient({
     data: EMPTY_DATA,
   };
 
+  const isDepartmentUser =
+    userContext.departmentNames.length > 0 &&
+    !userContext.isGlobalAdmin &&
+    !userContext.isCampusAdmin;
+
+  const enforcedDepartmentSlug = isDepartmentUser
+    ? sanitizeSlug(userContext.departmentNames[0] ?? "")
+    : null;
+
+  const effectiveSlug = enforcedDepartmentSlug ?? slug;
+
   const currentData: Data = useMemo(
     () => ({
       ...currentLocaleInfo.data,
@@ -96,32 +121,19 @@ export function UnifiedEditorClient({
         props: {
           ...(currentLocaleInfo.data.root?.props as any),
           title: currentLocaleInfo.title,
-          slug,
+          slug: effectiveSlug,
         } as any,
       },
     }),
-    [currentLocaleInfo, slug]
+    [currentLocaleInfo, effectiveSlug]
   );
 
   // Track if AI is generating content
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Ref to hold the setData function from PageEditor
-  const setEditorDataRef = useRef<((data: Data) => void) | null>(null);
-
-  // Callback when PageEditor exposes its setData function
-  const handleDispatchReady = useCallback((setData: (data: Data) => void) => {
-    console.log("[UnifiedEditor] PageEditor dispatch ready");
-    setEditorDataRef.current = setData;
-  }, []);
-
   // Handler for data changes from AI (used by both hooks)
   const handleDataChange = useCallback(
     (newData: Data) => {
-      console.log(
-        "[Editor] onDataChange called, content length:",
-        newData.content?.length
-      );
       setIsGenerating(true);
 
       // Update our local state
@@ -132,12 +144,6 @@ export function UnifiedEditorClient({
           data: newData,
         },
       }));
-
-      // ALSO update Puck's internal state directly via the exposed setData
-      if (setEditorDataRef.current) {
-        console.log("[Editor] Calling PageEditor setData directly");
-        setEditorDataRef.current(newData as Data);
-      }
 
       // Reset generating state after a short delay
       setTimeout(() => setIsGenerating(false), 500);
@@ -271,7 +277,10 @@ export function UnifiedEditorClient({
     try {
       const titleFromRoot = (data.root?.props as any)?.title || metadata.title;
       const slugFromRoot =
-        (data.root?.props as any)?.slug || slug || sanitizeSlug(titleFromRoot);
+        (data.root?.props as any)?.slug ||
+        effectiveSlug ||
+        sanitizeSlug(titleFromRoot);
+      const resolvedSlug = enforcedDepartmentSlug ?? slugFromRoot;
 
       const updatedLocaleData = {
         ...localeData,
@@ -307,7 +316,7 @@ export function UnifiedEditorClient({
 
       const result = await upsertManagedPage({
         pageId,
-        slug: slugFromRoot,
+        slug: resolvedSlug,
         title: titleFromRoot,
         status: PS.DRAFT,
         visibility: initialVisibility,
@@ -315,7 +324,7 @@ export function UnifiedEditorClient({
       });
 
       setLocaleData(updatedLocaleData);
-      setSlug(slugFromRoot);
+      setSlug(resolvedSlug);
 
       if (pageId) {
         toast.success("Draft saved successfully");
@@ -337,7 +346,10 @@ export function UnifiedEditorClient({
   ) => {
     const titleFromRoot = (data.root?.props as any)?.title || metadata.title;
     const slugFromRoot =
-      (data.root?.props as any)?.slug || slug || sanitizeSlug(titleFromRoot);
+      (data.root?.props as any)?.slug ||
+      effectiveSlug ||
+      sanitizeSlug(titleFromRoot);
+    const resolvedSlug = enforcedDepartmentSlug ?? slugFromRoot;
 
     const updatedLocaleData = {
       ...localeData,
@@ -380,7 +392,7 @@ export function UnifiedEditorClient({
 
       const result = await upsertManagedPage({
         pageId,
-        slug: slugFromRoot,
+        slug: resolvedSlug,
         title: titleFromRoot,
         status: PS.PUBLISHED,
         visibility: initialVisibility,
@@ -388,7 +400,7 @@ export function UnifiedEditorClient({
       });
 
       setLocaleData(updatedLocaleData);
-      setSlug(slugFromRoot);
+      setSlug(resolvedSlug);
 
       if (pageId) {
         toast.success("Page published successfully");
@@ -404,20 +416,46 @@ export function UnifiedEditorClient({
     }
   };
 
+  const scope: EditorContext["page"]["scope"] = pageContext?.departmentId
+    ? "department"
+    : pageContext?.campusId
+      ? "campus"
+      : isDepartmentUser
+        ? "department"
+        : userContext.isCampusAdmin
+          ? "campus"
+          : "global";
+
+  const editorContext: EditorContext = {
+    page: {
+      id: pageId,
+      status: initialStatus,
+      scope,
+      campusId: pageContext?.campusId ?? null,
+      departmentId:
+        pageContext?.departmentId ??
+        (isDepartmentUser ? userContext.departmentNames[0] ?? null : null),
+    },
+    user: userContext,
+    constraints: {
+      slugLocked: !!enforcedDepartmentSlug,
+    },
+  };
+
   return (
     <>
       <PageEditor
         availableLocales={availableLocales}
         description={currentLocaleInfo.description}
+        editorContext={editorContext}
         initialData={currentData}
         locale={currentLocale}
         onBack={() => router.push("/pages")}
-        onDispatchReady={handleDispatchReady}
         onLocaleChange={handleLocaleChange}
         onPublish={handlePublish}
         onSave={handleSave}
         onTranslate={handleTranslate}
-        slug={slug}
+        slug={effectiveSlug}
         status={initialStatus}
         title={currentLocaleInfo.title}
         visibility={initialVisibility}

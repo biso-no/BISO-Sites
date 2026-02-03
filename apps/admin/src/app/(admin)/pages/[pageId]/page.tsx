@@ -2,6 +2,7 @@ import { Locale } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
 import { notFound } from "next/navigation";
 import { getManagedPage } from "@/app/actions/pages/actions";
+import { getUserRolesForClient } from "@/lib/authorization";
 import { UnifiedEditorClient } from "../_components/unified-editor-client";
 
 type EditorPageProps = {
@@ -15,6 +16,7 @@ const SUPPORTED_LOCALES: Locale[] = [Locale.NO, Locale.EN];
 export default async function EditPageEditor({ params }: EditorPageProps) {
   const { pageId } = await params;
   const page = await getManagedPage(pageId);
+  const userRoles = await getUserRolesForClient();
 
   if (!page) {
     notFound();
@@ -50,7 +52,15 @@ export default async function EditPageEditor({ params }: EditorPageProps) {
       initialLocaleData={initialLocaleData}
       initialSlug={page.slug}
       pageId={pageId}
+      pageContext={{ campusId: page.campusId, departmentId: page.departmentId }}
       status={page.status}
+      userContext={{
+        campusNames: userRoles.campusNames,
+        departmentNames: userRoles.departmentNames,
+        managedCampuses: userRoles.managedCampuses,
+        isGlobalAdmin: userRoles.isGlobalAdmin,
+        isCampusAdmin: userRoles.isCampusAdmin,
+      }}
       visibility={page.visibility}
     />
   );
