@@ -2,8 +2,7 @@
 import {
   type Config,
   registerOverlayPortal,
-  type Slot,
-  usePuck,
+  type Slot
 } from "@puckeditor/core";
 import {
   AccordionBlock,
@@ -67,79 +66,6 @@ import type { NewsProps } from "@repo/ui/components/sections/news";
 import { useEffect, useRef } from "react";
 import { getDynamicContent } from "./get-dynamic-content";
 
-// Component for inline editing
-const InlineText = ({
-  children,
-  name,
-  index,
-  multiline = false,
-}: {
-  children: React.ReactNode;
-  name: string;
-  index?: number;
-  multiline?: boolean;
-}) => {
-  const ref = useRef<HTMLElement>(null);
-  const { appState, dispatch } = usePuck();
-  const { selectedItem } = appState.ui as any;
-
-  useEffect(() => {
-    if (ref.current) {
-      registerOverlayPortal(ref.current);
-    }
-  }, []);
-
-  const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
-    if (!selectedItem) {
-      return;
-    }
-
-    const newValue = e.currentTarget.innerText;
-    const currentData = appState.data;
-
-    // Create a new content array with the updated item
-    const newContent = currentData.content.map((item) => {
-      if (item.props.id === selectedItem.props.id) {
-        const newProps = { ...item.props };
-
-        if (typeof index === "number") {
-          // Update array item
-          const newItems = [...(newProps.items || [])];
-          newItems[index] = {
-            ...newItems[index],
-            [name]: newValue,
-          };
-          newProps.items = newItems;
-        } else {
-          // Update top-level prop
-          newProps[name] = newValue;
-        }
-
-        return { ...item, props: newProps };
-      }
-      return item;
-    });
-
-    dispatch({
-      type: "setData",
-      data: { ...currentData, content: newContent },
-    });
-  };
-
-  const Component = multiline ? "div" : "span";
-
-  return (
-    <Component
-      contentEditable
-      onBlur={handleBlur}
-      ref={ref as any}
-      style={{ display: "inline-block", minWidth: "1em" }}
-      suppressContentEditableWarning
-    >
-      {children}
-    </Component>
-  );
-};
 
 type EditorJoinUsProps = Omit<JoinUsProps, "memberFeatures"> & {
   memberFeatures: { feature: string }[];
