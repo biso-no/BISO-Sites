@@ -155,6 +155,16 @@ export function UserCreateForm() {
     );
   }
 
+  function getDepartmentPlaceholder() {
+    if (loadingDepts) {
+      return "Loading...";
+    }
+    if (selectedCampusId) {
+      return "Select department...";
+    }
+    return "Select campus first";
+  }
+
   return (
     <Card className="mx-auto w-full max-w-2xl">
       <CardHeader>
@@ -249,15 +259,7 @@ export function UserCreateForm() {
               value={selectedDepartmentId}
             >
               <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    loadingDepts
-                      ? "Loading..."
-                      : selectedCampusId
-                        ? "Select department..."
-                        : "Select campus first"
-                  }
-                />
+                <SelectValue placeholder={getDepartmentPlaceholder()} />
               </SelectTrigger>
               <SelectContent>
                 {departments.map((dept) => (

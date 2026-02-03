@@ -18,6 +18,25 @@ function computeManagedCampusNames(
   return all;
 }
 
+// Helper to compute managed campuses based on city membership
+function computeManagedCampuses(
+  campusNames: string[],
+  departmentNames: string[]
+): string[] {
+  const cityNames = ["Oslo", "Bergen", "Stavanger", "Trondheim"];
+  const managedCampuses: string[] = [];
+
+  for (const city of cityNames) {
+    const hasCampus = campusNames.includes(city);
+    const hasManagement = departmentNames.includes(`Ledelsen${city}`);
+    if (hasCampus && hasManagement) {
+      managedCampuses.push(city);
+    }
+  }
+
+  return managedCampuses;
+}
+
 /**
  * Extracts JWT from Authorization header (Bearer token)
  */
@@ -67,16 +86,7 @@ export async function getAdminScope(
     const isGlobalAdmin = (hasNational && hasOperationsUnit) || hasAdminLabel;
 
     // Check for campus admin (Ledelsen{City} + Campus-{City})
-    const cityNames = ["Oslo", "Bergen", "Stavanger", "Trondheim"];
-    const managedCampuses: string[] = [];
-
-    for (const city of cityNames) {
-      const hasCampus = campusNames.includes(city);
-      const hasManagement = departmentNames.includes(`Ledelsen${city}`);
-      if (hasCampus && hasManagement) {
-        managedCampuses.push(city);
-      }
-    }
+    const managedCampuses = computeManagedCampuses(campusNames, departmentNames);
 
     const isCampusAdmin = managedCampuses.length > 0;
 
