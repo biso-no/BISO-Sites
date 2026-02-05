@@ -1,5 +1,5 @@
-import { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import { listPages } from "@repo/api/page-builder";
+import { Locale, PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
 import { redirect } from "next/navigation";
 import { getUserRolesForClient } from "@/lib/authorization";
@@ -85,10 +85,10 @@ export default async function NewPageEditor({
       currentLocale={initialLocale}
       initialLocaleData={initialLocaleData}
       initialSlug={initialSlug}
-      status={PageStatus.DRAFT}
       pageContext={{
         departmentId: departmentName,
       }}
+      status={PageStatus.DRAFT}
       userContext={{
         campusNames: userRoles.campusNames,
         departmentNames: userRoles.departmentNames,

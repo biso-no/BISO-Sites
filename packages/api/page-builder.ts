@@ -1,7 +1,7 @@
 "use server";
 
-import { ID, Query } from "@repo/api";
 import { migrate } from "@puckeditor/core/rsc";
+import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "./server";
 import type { Locale, Pages, PageTranslations } from "./types/appwrite";
 import { PageStatus, type PageVisibility } from "./types/appwrite";
@@ -75,7 +75,9 @@ function decodeDocument(value: unknown): PageDocument | null {
   return null;
 }
 
-function maybeMigrateDocument(document: PageDocument | null): PageDocument | null {
+function maybeMigrateDocument(
+  document: PageDocument | null
+): PageDocument | null {
   if (!document) {
     return null;
   }

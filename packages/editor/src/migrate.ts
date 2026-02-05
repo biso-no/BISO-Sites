@@ -1,5 +1,5 @@
-import { migrate } from "@puckeditor/core/rsc";
 import type { Data } from "@puckeditor/core";
+import { migrate } from "@puckeditor/core/rsc";
 
 const EMPTY_DATA: Data = {
   root: { props: {} },
@@ -37,4 +37,3 @@ export function migratePuckData(value: unknown): Data {
     return data;
   }
 }
-

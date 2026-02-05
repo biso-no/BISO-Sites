@@ -72,7 +72,9 @@ export function BulkTurnoverForm() {
   }
 
   function removeRow(id: string) {
-    if (rows.length === 1) { return; }
+    if (rows.length === 1) {
+      return;
+    }
     setRows(rows.filter((r) => r.id !== id));
   }
 

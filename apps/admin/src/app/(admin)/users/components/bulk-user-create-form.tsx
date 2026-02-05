@@ -97,7 +97,9 @@ export function BulkUserCreateForm() {
 
   // Fetch departments when campuses are selected
   async function fetchDepartmentsForCampus(campusId: string) {
-    if (departmentsByCompus[campusId]) { return; }
+    if (departmentsByCompus[campusId]) {
+      return;
+    }
 
     try {
       const data = await apiClient.fetch<{ departments: Department[] }>(
@@ -117,14 +119,18 @@ export function BulkUserCreateForm() {
   }
 
   function removeRow(id: string) {
-    if (rows.length === 1) { return; }
+    if (rows.length === 1) {
+      return;
+    }
     setRows(rows.filter((r) => r.id !== id));
   }
 
   function updateRow(id: string, field: keyof UserRow, value: string) {
     setRows(
       rows.map((r) => {
-        if (r.id !== id) { return r; }
+        if (r.id !== id) {
+          return r;
+        }
         const updated = { ...r, [field]: value };
         // Clear department if campus changed
         if (field === "campusId") {

@@ -51,8 +51,8 @@ export default async function EditPageEditor({ params }: EditorPageProps) {
       currentLocale={defaultLocale}
       initialLocaleData={initialLocaleData}
       initialSlug={page.slug}
-      pageId={pageId}
       pageContext={{ campusId: page.campusId, departmentId: page.departmentId }}
+      pageId={pageId}
       status={page.status}
       userContext={{
         campusNames: userRoles.campusNames,

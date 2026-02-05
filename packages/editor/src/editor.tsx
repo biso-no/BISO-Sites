@@ -155,6 +155,8 @@ export function PageEditor({
         headerPath={`/${locale}/${slug}`}
         headerTitle={title}
         metadata={editorContext as any}
+        onChange={(nextData) => setData(nextData as Data)}
+        onPublish={handleSave}
         permissions={
           initialStatus === PageStatus.PUBLISHED &&
           !(editorContext?.user.isGlobalAdmin ?? false)
@@ -167,8 +169,6 @@ export function PageEditor({
               }
             : undefined
         }
-        onChange={(nextData) => setData(nextData as Data)}
-        onPublish={handleSave}
         renderHeaderActions={({ state }) => {
           const currentData = state.data as Data;
 
@@ -194,7 +194,11 @@ export function PageEditor({
 
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button className="ml-2 h-9 w-9" size="icon" variant="outline">
+                  <Button
+                    className="ml-2 h-9 w-9"
+                    size="icon"
+                    variant="outline"
+                  >
                     <Settings className="h-4 w-4" />
                   </Button>
                 </SheetTrigger>
@@ -240,7 +244,9 @@ export function PageEditor({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={PageStatus.DRAFT}>Draft</SelectItem>
+                          <SelectItem value={PageStatus.DRAFT}>
+                            Draft
+                          </SelectItem>
                           <SelectItem value={PageStatus.PUBLISHED}>
                             Published
                           </SelectItem>

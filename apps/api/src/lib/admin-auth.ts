@@ -86,7 +86,10 @@ export async function getAdminScope(
     const isGlobalAdmin = (hasNational && hasOperationsUnit) || hasAdminLabel;
 
     // Check for campus admin (Ledelsen{City} + Campus-{City})
-    const managedCampuses = computeManagedCampuses(campusNames, departmentNames);
+    const managedCampuses = computeManagedCampuses(
+      campusNames,
+      departmentNames
+    );
 
     const isCampusAdmin = managedCampuses.length > 0;
 

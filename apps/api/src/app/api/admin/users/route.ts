@@ -75,7 +75,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
 
       users = users.filter((user) => {
-        if (!user.campus_id) { return false; }
+        if (!user.campus_id) {
+          return false;
+        }
         const campusName = campusMap.get(user.campus_id);
         return campusName ? canManageCampus(scope, campusName) : false;
       });

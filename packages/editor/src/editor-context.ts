@@ -17,4 +17,3 @@ export type EditorContext = {
     slugLocked: boolean;
   };
 };
-

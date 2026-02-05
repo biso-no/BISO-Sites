@@ -2,7 +2,7 @@
 import {
   type Config,
   registerOverlayPortal,
-  type Slot
+  type Slot,
 } from "@puckeditor/core";
 import {
   AccordionBlock,
@@ -65,7 +65,6 @@ import { JoinUs, type JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
 import { useEffect, useRef } from "react";
 import { getDynamicContent } from "./get-dynamic-content";
-
 
 type EditorJoinUsProps = Omit<JoinUsProps, "memberFeatures"> & {
   memberFeatures: { feature: string }[];

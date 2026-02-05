@@ -11,8 +11,11 @@ import {
 import { createSessionClient } from "@repo/api/server";
 import { PageStatus, PageVisibility } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { canWriteDocument, isGlobalAdmin } from "@/lib/authorization";
-import { getUserAuthContext } from "@/lib/authorization";
+import {
+  canWriteDocument,
+  getUserAuthContext,
+  isGlobalAdmin,
+} from "@/lib/authorization";
 import {
   buildCampusPagePermissions,
   buildDepartmentPagePermissions,
@@ -30,7 +33,9 @@ function sanitizeSlug(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-async function applyUserPageScope(input: UpsertPageInput): Promise<UpsertPageInput> {
+async function applyUserPageScope(
+  input: UpsertPageInput
+): Promise<UpsertPageInput> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return input;
@@ -44,7 +49,9 @@ async function applyUserPageScope(input: UpsertPageInput): Promise<UpsertPageInp
   if (isDepartmentUser) {
     const departmentName = ctx.departmentNames[0] ?? null;
     const departmentTeamId = ctx.departmentTeamIds[0] ?? null;
-    const enforcedSlug = departmentName ? sanitizeSlug(departmentName) : input.slug;
+    const enforcedSlug = departmentName
+      ? sanitizeSlug(departmentName)
+      : input.slug;
 
     let enforcedPageId = input.pageId;
     if (!enforcedPageId && departmentName) {
