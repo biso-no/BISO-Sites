@@ -30,6 +30,11 @@ import {
   SheetTrigger,
 } from "@repo/ui/components/ui/sheet";
 import { Textarea } from "@repo/ui/components/ui/textarea";
+import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
+import type { DataSourceValue } from "@repo/ui/components/data-source-picker";
+import { FileUpload } from "@repo/ui/components/file-upload";
+import { LinkPicker } from "@repo/ui/components/link-picker";
+import { TablePicker } from "@repo/ui/components/table-picker";
 import {
   ExternalLink,
   Globe,
@@ -41,6 +46,11 @@ import {
   Tablet,
 } from "lucide-react";
 import type { EditorContext } from "./editor-context";
+import { getPages } from "./get-pages";
+import { getTables } from "./get-tables";
+import { TABLE_SCHEMAS } from "./data/schemas";
+import { templatesPlugin } from "./plugins/templates";
+import { listImages, uploadImage } from "./upload-image";
 
 export type PageEditorProps = {
   initialData: Data;
@@ -154,9 +164,115 @@ export function PageEditor({
         data={data}
         headerPath={`/${locale}/${slug}`}
         headerTitle={title}
-        metadata={editorContext as any}
+        metadata={{ ...editorContext, locale } as any}
         onChange={(nextData) => setData(nextData as Data)}
         onPublish={handleSave}
+        plugins={[templatesPlugin]}
+        overrides={{
+          fieldTypes: {
+            image: ({ value, onChange, readOnly, name }) => (
+              <div
+                aria-disabled={readOnly}
+                className={readOnly ? "opacity-60" : ""}
+              >
+                <FileUpload
+                  getImages={listImages}
+                  name={name}
+                  onChange={(fileOrUrl) => {
+                    if (readOnly) {
+                      return;
+                    }
+
+                    if (fileOrUrl instanceof File) {
+                      uploadImage(fileOrUrl)
+                        .then((url) => onChange(url))
+                        .catch(() => onChange(null));
+                      return;
+                    }
+
+                    if (
+                      typeof fileOrUrl === "string" ||
+                      fileOrUrl === null
+                    ) {
+                      onChange(fileOrUrl);
+                    }
+                  }}
+                  value={
+                    value instanceof File || typeof value === "string"
+                      ? value
+                      : null
+                  }
+                />
+              </div>
+            ),
+            link: ({ value, onChange, readOnly }) => (
+              <div
+                aria-disabled={readOnly}
+                className={readOnly ? "opacity-60" : ""}
+              >
+                <LinkPicker
+                  getPages={getPages}
+                  onChange={(next) => {
+                    if (readOnly) {
+                      return;
+                    }
+                    onChange(next);
+                  }}
+                  value={typeof value === "string" ? value : ""}
+                />
+              </div>
+            ),
+            "table-picker": ({ value, onChange, readOnly }) => (
+              <div
+                aria-disabled={readOnly}
+                className={readOnly ? "opacity-60" : ""}
+              >
+                <TablePicker
+                  getTables={getTables}
+                  onChange={(next) => {
+                    if (readOnly) {
+                      return;
+                    }
+                    onChange(next);
+                  }}
+                  value={(value ?? {}) as any}
+                />
+              </div>
+            ),
+            "data-source": ({ value, onChange, readOnly, field }) => {
+              const schemas =
+                (field as unknown as { schemas?: unknown }).schemas ??
+                TABLE_SCHEMAS;
+              const showLimit =
+                (field as unknown as { showLimit?: boolean }).showLimit ?? true;
+              const showSort =
+                (field as unknown as { showSort?: boolean }).showSort ?? true;
+              const maxLimit =
+                (field as unknown as { maxLimit?: number }).maxLimit ?? 100;
+
+              return (
+                <div
+                  aria-disabled={readOnly}
+                  className={readOnly ? "opacity-60" : ""}
+                >
+                  <DataSourcePicker
+                    maxLimit={maxLimit}
+                    onChange={(next: DataSourceValue) => {
+                      if (readOnly) {
+                        return;
+                      }
+                      onChange(next);
+                    }}
+                    schemas={schemas as any}
+                    showLimit={showLimit}
+                    showSort={showSort}
+                    value={(value ?? {}) as any}
+                  />
+                </div>
+              );
+            },
+          },
+        }}
         permissions={
           initialStatus === PageStatus.PUBLISHED &&
           !(editorContext?.user.isGlobalAdmin ?? false)

@@ -120,6 +120,7 @@ export const TABLE_SCHEMAS: TableSchema[] = [
     label: "Departments",
     description: "Student organizations and committees",
     fields: [
+      { name: "Id", type: "string", label: "Department Code" },
       { name: "Name", type: "string", label: "Name" },
       { name: "logo", type: "string", label: "Logo" },
       { name: "type", type: "string", label: "Type" },
@@ -201,6 +202,19 @@ export const TABLE_SCHEMAS: TableSchema[] = [
         label: "Published",
         filters: [{ field: "status", operator: "equal", value: "published" }],
       },
+    ],
+  },
+  {
+    id: "milestones",
+    label: "Milestones",
+    description: "Timeline milestones and highlights",
+    fields: [
+      { name: "title", type: "string", label: "Title" },
+      { name: "description", type: "string", label: "Description" },
+      { name: "date", type: "date", label: "Date" },
+      { name: "year", type: "string", label: "Year" },
+      { name: "icon", type: "string", label: "Icon" },
+      { name: "image", type: "string", label: "Image" },
     ],
   },
 ];

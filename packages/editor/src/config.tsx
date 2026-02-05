@@ -12,7 +12,10 @@ import { Collection } from "@repo/ui/components/puck/collection/collection";
 import type { CollectionProps } from "@repo/ui/components/puck/collection/types";
 import { LAYOUT_OPTIONS } from "@repo/ui/components/puck/collection/types";
 import { Columns, type ColumnsProps } from "@repo/ui/components/puck/columns";
+import { ButtonRow, type ButtonRowProps } from "@repo/ui/components/puck/button-row";
 import { CTA, type CTAProps } from "@repo/ui/components/puck/cta";
+import { Divider, type DividerProps } from "@repo/ui/components/puck/divider";
+import { Heading, type HeadingProps } from "@repo/ui/components/puck/heading";
 import {
   FeatureGrid,
   type FeatureGridProps,
@@ -25,6 +28,10 @@ import { FilteredEvents } from "@repo/ui/components/puck/filtered-events";
 import { FilteredNews } from "@repo/ui/components/puck/filtered-news";
 import { Hero, type HeroProps } from "@repo/ui/components/puck/hero";
 import {
+  Image as PuckImage,
+  type ImageProps as PuckImageProps,
+} from "@repo/ui/components/puck/image";
+import {
   JobsList,
   type JobsListProps,
 } from "@repo/ui/components/puck/jobs-list";
@@ -36,6 +43,10 @@ import {
   PageHeader,
   type PageHeaderProps,
 } from "@repo/ui/components/puck/page-header";
+import {
+  ProductsGrid,
+  type ProductsGridProps,
+} from "@repo/ui/components/puck/products-grid";
 import {
   RichText,
   type RichTextProps,
@@ -50,6 +61,7 @@ import {
   TableOfContents,
   type TableOfContentsProps,
 } from "@repo/ui/components/puck/table-of-contents";
+import { Text, type TextProps } from "@repo/ui/components/puck/text";
 import { Tabs, type TabsProps } from "@repo/ui/components/puck/tabs";
 import {
   TeamGrid,
@@ -65,6 +77,25 @@ import { JoinUs, type JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
 import { useEffect, useRef } from "react";
 import { getDynamicContent } from "./get-dynamic-content";
+import { TABLE_SCHEMAS } from "./data/schemas";
+import {
+  ALIGN_OPTIONS,
+  BUTTON_SIZE_OPTIONS,
+  BUTTON_VARIANT_OPTIONS,
+  DIVIDER_SPACING_OPTIONS,
+  DIVIDER_STYLE_OPTIONS,
+  GRADIENT_OPTIONS,
+  HEADING_LEVEL_OPTIONS,
+  HEADING_SIZE_OPTIONS,
+  IMAGE_ASPECT_OPTIONS,
+  IMAGE_ROUNDED_OPTIONS,
+  ICON_OPTIONS,
+  MAX_WIDTH_OPTIONS,
+  PADDING_OPTIONS,
+  SECTION_BG_OPTIONS,
+  TEXT_COLUMNS_OPTIONS,
+  TEXT_VARIANT_OPTIONS,
+} from "./puck-tokens";
 
 type EditorJoinUsProps = Omit<JoinUsProps, "memberFeatures"> & {
   memberFeatures: { feature: string }[];
@@ -77,7 +108,10 @@ type EditorCollectionProps = CollectionProps & {
     filters?: { field: string; operator: string; value: unknown }[];
     sort?: { field: string; direction: "asc" | "desc" };
     limit?: number;
+    offset?: number;
+    locale?: string;
   };
+  scope?: "page" | "all";
 };
 
 type SectionPropsWithSlot = SectionProps & { content?: Slot };
@@ -96,8 +130,8 @@ type TabsPropsWithSlots = TabsProps & {
 
 type HeroPropsWithSlot = HeroProps & {
   rightSlot?: Slot;
-  slidesSource?: any;
-  statsSource?: any;
+  slidesSource?: DataSourceValue;
+  statsSource?: DataSourceValue;
   slidesMode?: "manual" | "dynamic";
   statsMode?: "manual" | "dynamic";
   styling?: { padding?: string; className?: string };
@@ -108,18 +142,32 @@ type DataSourceValue = {
   filters?: { field: string; operator: string; value: unknown }[];
   sort?: { field: string; direction: "asc" | "desc" };
   limit?: number;
+  offset?: number;
+  locale?: string;
 };
 
 type EditorEventsProps = EventsProps & {
   dataMode?: "manual" | "dynamic";
   dataSource?: DataSourceValue;
-  limit?: number;
+  scope?: "page" | "all";
 };
 
 type EditorNewsProps = NewsProps & {
   dataMode?: "manual" | "dynamic";
   dataSource?: DataSourceValue;
-  limit?: number;
+  scope?: "page" | "all";
+};
+
+type EditorJobsListProps = JobsListProps & {
+  dataMode?: "manual" | "dynamic";
+  dataSource?: DataSourceValue;
+  scope?: "page" | "all";
+};
+
+type EditorProductsGridProps = ProductsGridProps & {
+  dataMode?: "manual" | "dynamic";
+  dataSource?: DataSourceValue;
+  scope?: "page" | "all";
 };
 
 type TimelinePropsWithSlot = TimelineProps & {
@@ -127,12 +175,134 @@ type TimelinePropsWithSlot = TimelineProps & {
   dataSource?: DataSourceValue;
 };
 
+type EditorMetadata = {
+  locale?: string;
+  page?: { campusId?: string | null; departmentId?: string | null };
+};
+
+const resolvedDepartmentIdCache = new Map<string, string>();
+
+async function resolveDepartmentId(rawDepartmentId: string): Promise<string> {
+  const cached = resolvedDepartmentIdCache.get(rawDepartmentId);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    // Prefer matching the "Id" (code) field, then fall back to "Name"
+    const byCode = await getDynamicContent({
+      table: "departments",
+      limit: 1,
+      filters: [{ field: "Id", operator: "equal", value: rawDepartmentId }],
+    });
+    const resolvedByCode = byCode[0]?.id;
+    if (resolvedByCode) {
+      resolvedDepartmentIdCache.set(rawDepartmentId, resolvedByCode);
+      return resolvedByCode;
+    }
+
+    const byName = await getDynamicContent({
+      table: "departments",
+      limit: 1,
+      filters: [{ field: "Name", operator: "equal", value: rawDepartmentId }],
+    });
+    const resolvedByName = byName[0]?.id;
+    if (resolvedByName) {
+      resolvedDepartmentIdCache.set(rawDepartmentId, resolvedByName);
+      return resolvedByName;
+    }
+  } catch {
+    // Ignore and fall back to raw ID
+  }
+
+  resolvedDepartmentIdCache.set(rawDepartmentId, rawDepartmentId);
+  return rawDepartmentId;
+}
+
+function mergeFilters(
+  base: DataSourceValue["filters"] | undefined,
+  extra: DataSourceValue["filters"] | undefined
+): DataSourceValue["filters"] {
+  const baseFilters = base ?? [];
+  const extraFilters = extra ?? [];
+
+  if (baseFilters.length === 0 && extraFilters.length === 0) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const merged: DataSourceValue["filters"] = [];
+
+  for (const filter of [...baseFilters, ...extraFilters]) {
+    const key = `${filter.field}:${filter.operator}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(filter);
+  }
+
+  return merged;
+}
+
+async function buildPageScopeFilters(
+  table: "events" | "news" | "jobs" | "products",
+  scope: "page" | "all" | undefined,
+  metadata: EditorMetadata | undefined
+): Promise<DataSourceValue["filters"]> {
+  if (scope !== "page") {
+    return [];
+  }
+
+  const campusId = metadata?.page?.campusId ?? null;
+  const rawDepartmentId = metadata?.page?.departmentId ?? null;
+
+  if (rawDepartmentId) {
+    const departmentId = await resolveDepartmentId(rawDepartmentId);
+    const departmentField = table === "products" ? "departmentId" : "department_id";
+    return [{ field: departmentField, operator: "equal", value: departmentId }];
+  }
+
+  if (campusId) {
+    return [{ field: "campus_id", operator: "equal", value: campusId }];
+  }
+
+  return [];
+}
+
+const nokFormatter = new Intl.NumberFormat("no-NO", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+function formatNokPrice(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `${nokFormatter.format(value)} NOK`;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return `${nokFormatter.format(parsed)} NOK`;
+    }
+    return value;
+  }
+
+  return;
+}
+
 export type Props = {
+  Heading: HeadingProps;
+  Text: TextProps;
+  Image: PuckImageProps;
+  ButtonRow: ButtonRowProps;
+  Divider: DividerProps;
   Hero: HeroPropsWithSlot;
   About: AboutProps;
   JoinUs: EditorJoinUsProps;
   News: EditorNewsProps;
   Events: EditorEventsProps;
+  ProductsGrid: EditorProductsGridProps;
   Section: SectionPropsWithSlot;
   FeatureGrid: FeatureGridProps;
   CTA: CTAProps;
@@ -145,7 +315,7 @@ export type Props = {
   Timeline: TimelinePropsWithSlot;
   LogoGrid: LogoGridProps;
   FilterBar: FilterBarProps;
-  JobsList: JobsListProps;
+  JobsList: EditorJobsListProps;
   Collection: EditorCollectionProps;
   RichText: RichTextProps;
   PageHeader: PageHeaderProps;
@@ -167,6 +337,10 @@ export const config: Config<Props> = {
     },
   },
   categories: {
+    basics: {
+      title: "Basics",
+      components: ["Heading", "Text", "Image", "ButtonRow", "Divider"],
+    },
     layout: {
       title: "Layout",
       components: ["Section", "Columns", "Spacer", "Tabs"],
@@ -189,10 +363,153 @@ export const config: Config<Props> = {
     },
     dataDisplay: {
       title: "Data Display",
-      components: ["News", "Events", "JobsList", "FilterBar", "Collection"],
+      components: [
+        "News",
+        "Events",
+        "JobsList",
+        "ProductsGrid",
+        "FilterBar",
+        "Collection",
+      ],
     },
   },
   components: {
+    Heading: {
+      fields: {
+        text: { type: "text", contentEditable: true } as any,
+        level: {
+          type: "select",
+          options: HEADING_LEVEL_OPTIONS,
+        },
+        size: {
+          type: "select",
+          options: HEADING_SIZE_OPTIONS,
+        },
+        align: {
+          type: "radio",
+          options: ALIGN_OPTIONS,
+        },
+        id: { type: "text", label: "Anchor ID" },
+      },
+      render: (props: HeadingProps) => <Heading {...props} />,
+      defaultProps: {
+        text: "Heading",
+        level: 2,
+        size: "lg",
+        align: "left",
+      },
+    },
+    Text: {
+      fields: {
+        content: { type: "richtext", contentEditable: true } as any,
+        variant: {
+          type: "select",
+          options: TEXT_VARIANT_OPTIONS,
+        },
+        columns: {
+          type: "radio",
+          options: TEXT_COLUMNS_OPTIONS,
+        },
+        align: {
+          type: "radio",
+          options: ALIGN_OPTIONS,
+        },
+      },
+      render: (props: TextProps) => <Text {...props} />,
+      defaultProps: {
+        content: "<p>Write something...</p>",
+        variant: "default",
+        columns: 1,
+        align: "left",
+      },
+    },
+    Image: {
+      fields: {
+        src: { type: "image" } as any,
+        alt: { type: "text" },
+        caption: { type: "text" },
+        aspect: {
+          type: "select",
+          options: IMAGE_ASPECT_OPTIONS,
+        },
+        rounded: {
+          type: "select",
+          options: IMAGE_ROUNDED_OPTIONS,
+        },
+        maxWidth: {
+          type: "select",
+          options: MAX_WIDTH_OPTIONS,
+        },
+        align: {
+          type: "radio",
+          options: ALIGN_OPTIONS,
+        },
+      },
+      render: (props: PuckImageProps) => <PuckImage {...props} />,
+      defaultProps: {
+        src: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200",
+        alt: "Image",
+        aspect: "auto",
+        rounded: "md",
+        maxWidth: "default",
+        align: "center",
+      },
+    },
+    ButtonRow: {
+      fields: {
+        align: {
+          type: "radio",
+          options: ALIGN_OPTIONS,
+        },
+        size: {
+          type: "select",
+          options: BUTTON_SIZE_OPTIONS,
+        },
+        buttons: {
+          type: "array",
+          getItemSummary: (item: { label?: string }) => item.label || "Button",
+          arrayFields: {
+            label: { type: "text" },
+            href: { type: "link" } as any,
+            variant: {
+              type: "select",
+              options: BUTTON_VARIANT_OPTIONS,
+            },
+          },
+          defaultItemProps: {
+            label: "Button",
+            href: "/",
+            variant: "default",
+          },
+        },
+      },
+      render: (props: ButtonRowProps) => <ButtonRow {...props} />,
+      defaultProps: {
+        align: "left",
+        size: "md",
+        buttons: [
+          { label: "Get started", href: "/", variant: "default" },
+          { label: "Learn more", href: "/about", variant: "outline" },
+        ],
+      },
+    },
+    Divider: {
+      fields: {
+        style: {
+          type: "select",
+          options: DIVIDER_STYLE_OPTIONS,
+        },
+        spacing: {
+          type: "select",
+          options: DIVIDER_SPACING_OPTIONS,
+        },
+      },
+      render: (props: DividerProps) => <Divider {...props} />,
+      defaultProps: {
+        style: "line",
+        spacing: "md",
+      },
+    },
     Accordion: {
       fields: {
         type: {
@@ -361,10 +678,7 @@ export const config: Config<Props> = {
         },
         align: {
           type: "radio",
-          options: [
-            { label: "Center", value: "center" },
-            { label: "Left", value: "left" },
-          ],
+          options: ALIGN_OPTIONS,
         },
         items: {
           type: "array",
@@ -375,27 +689,7 @@ export const config: Config<Props> = {
             badge: { type: "text" },
             icon: {
               type: "select",
-              options: [
-                { label: "Sparkles", value: "Sparkles" },
-                { label: "Gift", value: "Gift" },
-                { label: "Crown", value: "Crown" },
-                { label: "Zap", value: "Zap" },
-                { label: "Check", value: "Check" },
-                { label: "Calendar", value: "Calendar" },
-                { label: "Briefcase", value: "Briefcase" },
-                { label: "Rocket", value: "Rocket" },
-                { label: "Trophy", value: "Trophy" },
-                { label: "Megaphone", value: "Megaphone" },
-                { label: "Link", value: "Link" },
-                { label: "Users", value: "Users" },
-                { label: "Globe", value: "Globe" },
-                { label: "BookOpen", value: "BookOpen" },
-                { label: "Building", value: "Building" },
-                { label: "Heart", value: "Heart" },
-                { label: "MapPin", value: "MapPin" },
-                { label: "CheckCircle", value: "CheckCircle" },
-                { label: "ArrowRight", value: "ArrowRight" },
-              ],
+              options: ICON_OPTIONS,
             },
             href: { type: "link" } as any,
           },
@@ -437,10 +731,7 @@ export const config: Config<Props> = {
         },
         align: {
           type: "radio",
-          options: [
-            { label: "Center", value: "center" },
-            { label: "Left", value: "left" },
-          ],
+          options: ALIGN_OPTIONS,
         },
         items: {
           type: "array",
@@ -451,17 +742,7 @@ export const config: Config<Props> = {
             description: { type: "text" },
             icon: {
               type: "select",
-              options: [
-                { label: "None", value: "" },
-                { label: "Users", value: "Users" },
-                { label: "Calendar", value: "Calendar" },
-                { label: "Trophy", value: "Trophy" },
-                { label: "Briefcase", value: "Briefcase" },
-                { label: "Globe", value: "Globe" },
-                { label: "Building", value: "Building" },
-                { label: "Heart", value: "Heart" },
-                { label: "Sparkles", value: "Sparkles" },
-              ],
+              options: ICON_OPTIONS,
             },
           },
         },
@@ -535,16 +816,13 @@ export const config: Config<Props> = {
       },
     },
     Timeline: {
-      resolveFields: (data) => {
+      resolveFields: (data, { metadata }) => {
         const fields: any = {
           title: { type: "text", contentEditable: true } as any,
           subtitle: { type: "textarea", contentEditable: true },
           align: {
             type: "radio",
-            options: [
-              { label: "Center", value: "center" },
-              { label: "Left", value: "left" },
-            ],
+            options: ALIGN_OPTIONS,
           },
           mode: {
             type: "select",
@@ -566,8 +844,12 @@ export const config: Config<Props> = {
 
         if (data.props.dataMode === "dynamic") {
           fields.dataSource = {
-            type: "table-picker",
-            label: "Dynamic Items (Database)",
+            type: "data-source",
+            label: "Milestones Source",
+            schemas: TABLE_SCHEMAS.filter((s) => s.id === "milestones"),
+            showSort: false,
+            showLimit: true,
+            maxLimit: 50,
           };
         } else {
           fields.items = {
@@ -580,27 +862,7 @@ export const config: Config<Props> = {
               image: { type: "image" },
               icon: {
                 type: "select",
-                options: [
-                  { label: "Sparkles", value: "Sparkles" },
-                  { label: "Gift", value: "Gift" },
-                  { label: "Crown", value: "Crown" },
-                  { label: "Zap", value: "Zap" },
-                  { label: "Check", value: "Check" },
-                  { label: "Calendar", value: "Calendar" },
-                  { label: "Briefcase", value: "Briefcase" },
-                  { label: "Rocket", value: "Rocket" },
-                  { label: "Trophy", value: "Trophy" },
-                  { label: "Megaphone", value: "Megaphone" },
-                  { label: "Link", value: "Link" },
-                  { label: "Users", value: "Users" },
-                  { label: "Globe", value: "Globe" },
-                  { label: "BookOpen", value: "BookOpen" },
-                  { label: "Building", value: "Building" },
-                  { label: "Heart", value: "Heart" },
-                  { label: "MapPin", value: "MapPin" },
-                  { label: "CheckCircle", value: "CheckCircle" },
-                  { label: "ArrowRight", value: "ArrowRight" },
-                ],
+                options: ICON_OPTIONS,
               },
             },
             defaultItemProps: {
@@ -614,13 +876,30 @@ export const config: Config<Props> = {
 
         return fields;
       },
-      resolveData: async ({ props }) => {
+      resolveData: async ({ props }, { changed, trigger, metadata }) => {
         const { dataMode, dataSource } = props;
         const resolvedProps: Partial<TimelinePropsWithSlot> = {};
 
+        const shouldResolve =
+          trigger === "insert" ||
+          trigger === "load" ||
+          trigger === "force" ||
+          trigger === "move" ||
+          Boolean(changed.dataMode || changed.dataSource);
+
+        if (!shouldResolve) {
+          return { props: {} };
+        }
+
         if (dataMode === "dynamic" && dataSource) {
           try {
-            const items = await getDynamicContent(dataSource);
+            const locale =
+              (metadata as { locale?: string })?.locale ?? dataSource.locale;
+            const items = await getDynamicContent({
+              ...dataSource,
+              table: "milestones",
+              locale,
+            });
             resolvedProps.items = items.map((item) => ({
               date: item.date || "",
               title: item.title,
@@ -734,10 +1013,7 @@ export const config: Config<Props> = {
         },
         align: {
           type: "radio",
-          options: [
-            { label: "Center", value: "center" },
-            { label: "Left", value: "left" },
-          ],
+          options: ALIGN_OPTIONS,
         },
         buttons: {
           type: "array",
@@ -773,31 +1049,15 @@ export const config: Config<Props> = {
       fields: {
         backgroundColor: {
           type: "select",
-          options: [
-            { label: "White", value: "white" },
-            { label: "Gray", value: "gray" },
-            { label: "Primary (Light)", value: "primary" },
-            { label: "Primary (Strong)", value: "primary-strong" },
-            { label: "Dark", value: "dark" },
-          ],
+          options: SECTION_BG_OPTIONS,
         },
         padding: {
           type: "select",
-          options: [
-            { label: "None", value: "none" },
-            { label: "Small", value: "sm" },
-            { label: "Medium", value: "md" },
-            { label: "Large", value: "lg" },
-            { label: "Extra Large", value: "xl" },
-          ],
+          options: PADDING_OPTIONS,
         },
         maxWidth: {
           type: "select",
-          options: [
-            { label: "Default", value: "default" },
-            { label: "Full", value: "full" },
-            { label: "Narrow", value: "narrow" },
-          ],
+          options: MAX_WIDTH_OPTIONS,
         },
         id: { type: "text" },
         content: { type: "slot" },
@@ -812,7 +1072,11 @@ export const config: Config<Props> = {
       },
     },
     Hero: {
-      resolveFields: (data) => {
+      resolveFields: (data, { metadata }) => {
+        const isGlobalAdmin = Boolean(
+          (metadata as { user?: { isGlobalAdmin?: boolean } })?.user
+            ?.isGlobalAdmin
+        );
         const fields: any = {
           layout: {
             type: "select",
@@ -880,10 +1144,16 @@ export const config: Config<Props> = {
                   { label: "Large", value: "py-24" },
                 ],
               },
-              className: { type: "text", label: "Custom CSS Class" },
             },
           },
         };
+
+        if (isGlobalAdmin) {
+          fields.styling.objectFields.className = {
+            type: "text",
+            label: "Custom CSS Class",
+          };
+        }
 
         // Conditional fields
         if (data.props.layout === "split") {
@@ -902,8 +1172,13 @@ export const config: Config<Props> = {
 
           if (data.props.slidesMode === "dynamic") {
             fields.slidesSource = {
-              type: "table-picker",
-              label: "Dynamic Slides (Database)",
+              type: "data-source",
+              label: "Slides Source",
+              schemas: TABLE_SCHEMAS.filter((s) =>
+                ["events", "news", "pages", "products"].includes(
+                  String(s.id)
+                )
+              ),
             };
           } else {
             fields.slides = {
@@ -958,8 +1233,9 @@ export const config: Config<Props> = {
 
         if (data.props.statsMode === "dynamic") {
           fields.statsSource = {
-            type: "table-picker",
-            label: "Dynamic Stats (Database)",
+            type: "data-source",
+            label: "Stats Source",
+            schemas: TABLE_SCHEMAS,
           };
         } else {
           fields.stats = {
@@ -987,31 +1263,35 @@ export const config: Config<Props> = {
             text: { type: "text" },
             icon: {
               type: "select",
-              options: [
-                { label: "Sparkles", value: "Sparkles" },
-                { label: "MapPin", value: "MapPin" },
-                { label: "Calendar", value: "Calendar" },
-                { label: "Users", value: "Users" },
-                { label: "Briefcase", value: "Briefcase" },
-                { label: "Trophy", value: "Trophy" },
-                { label: "Megaphone", value: "Megaphone" },
-                { label: "CheckCircle", value: "CheckCircle" },
-                { label: "ArrowRight", value: "ArrowRight" },
-                { label: "Heart", value: "Heart" },
-              ],
+              options: ICON_OPTIONS,
             },
           },
         };
 
         return fields;
       },
-      resolveData: async ({ props }) => {
+      resolveData: async ({ props }, { changed, trigger, metadata }) => {
         const { slidesMode, slidesSource, statsMode, statsSource } = props;
         const resolvedProps: Partial<HeroPropsWithSlot> = {};
 
-        if (slidesMode === "dynamic" && slidesSource) {
+        const shouldResolveSlides =
+          slidesMode === "dynamic" &&
+          Boolean(slidesSource) &&
+          (trigger === "insert" ||
+            trigger === "load" ||
+            trigger === "force" ||
+            trigger === "move" ||
+            Boolean(changed.slidesMode || changed.slidesSource));
+
+        if (shouldResolveSlides) {
           try {
-            const items = await getDynamicContent(slidesSource);
+            const locale =
+              (metadata as { locale?: string })?.locale ??
+              slidesSource?.locale;
+            const items = await getDynamicContent({
+              ...slidesSource,
+              locale,
+            });
             resolvedProps.slides = items.map((item) => ({
               title: item.title,
               subtitle: item.subtitle || "",
@@ -1025,9 +1305,24 @@ export const config: Config<Props> = {
           }
         }
 
-        if (statsMode === "dynamic" && statsSource) {
+        const shouldResolveStats =
+          statsMode === "dynamic" &&
+          Boolean(statsSource) &&
+          (trigger === "insert" ||
+            trigger === "load" ||
+            trigger === "force" ||
+            trigger === "move" ||
+            Boolean(changed.statsMode || changed.statsSource));
+
+        if (shouldResolveStats) {
           try {
-            const items = await getDynamicContent(statsSource);
+            const locale =
+              (metadata as { locale?: string })?.locale ??
+              statsSource?.locale;
+            const items = await getDynamicContent({
+              ...statsSource,
+              locale,
+            });
             resolvedProps.stats = items.map((item) => ({
               value: item.value || "0",
               label: item.label || item.title,
@@ -1069,50 +1364,77 @@ export const config: Config<Props> = {
       },
     },
     About: {
-      fields: {
-        stats: {
-          type: "array",
-          arrayFields: {
-            number: { type: "text" },
-            label: { type: "text" },
-            iconName: {
-              type: "select",
-              options: [
-                { label: "Calendar", value: "Calendar" },
-                { label: "Briefcase", value: "Briefcase" },
-                { label: "Rocket", value: "Rocket" },
-                { label: "Trophy", value: "Trophy" },
-              ],
+      resolveFields: (data, { metadata }): any => {
+        const isGlobalAdmin = Boolean(
+          (metadata as { user?: { isGlobalAdmin?: boolean } })?.user
+            ?.isGlobalAdmin
+        );
+
+        const currentGradients = Array.isArray((data.props as any).values)
+          ? ((data.props as any).values as any[])
+              .map((v) => (typeof v?.gradient === "string" ? v.gradient : null))
+              .filter(Boolean)
+          : [];
+
+        const extraGradientOptions = currentGradients
+          .filter(
+            (value: string) =>
+              !GRADIENT_OPTIONS.some((opt) => opt.value === value)
+          )
+          .map((value: string) => ({
+            label: `Custom: ${value}`,
+            value,
+          }));
+
+        const gradientOptions = [...GRADIENT_OPTIONS, ...extraGradientOptions];
+
+        return {
+          stats: {
+            type: "array",
+            arrayFields: {
+              number: { type: "text" },
+              label: { type: "text" },
+              iconName: {
+                type: "select",
+                options: [
+                  { label: "Calendar", value: "Calendar" },
+                  { label: "Briefcase", value: "Briefcase" },
+                  { label: "Rocket", value: "Rocket" },
+                  { label: "Trophy", value: "Trophy" },
+                ],
+              },
             },
           },
-        },
-        values: {
-          type: "array",
-          arrayFields: {
-            title: { type: "text" },
-            description: { type: "textarea" },
-            iconName: {
-              type: "select",
-              options: [
-                { label: "Megaphone", value: "Megaphone" },
-                { label: "Link", value: "Link" },
-                { label: "Sparkles", value: "Sparkles" },
-              ],
+          values: {
+            type: "array",
+            arrayFields: {
+              title: { type: "text" },
+              description: { type: "textarea" },
+              iconName: {
+                type: "select",
+                options: [
+                  { label: "Megaphone", value: "Megaphone" },
+                  { label: "Link", value: "Link" },
+                  { label: "Sparkles", value: "Sparkles" },
+                ],
+              },
+              gradient: isGlobalAdmin
+                ? { type: "text", label: "Gradient (classes)" }
+                : { type: "select", options: gradientOptions },
             },
-            gradient: { type: "text" },
           },
-        },
-        mainContent: {
-          type: "object",
-          objectFields: {
-            tag: { type: "text" },
-            titleLine1: { type: "text", contentEditable: true } as any,
-            titleLine2: { type: "text", contentEditable: true } as any,
-            paragraph1: { type: "textarea", contentEditable: true },
-            paragraph2: { type: "textarea", contentEditable: true },
+          mainContent: {
+            type: "object",
+            objectFields: {
+              tag: { type: "text" },
+              titleLine1: { type: "text", contentEditable: true } as any,
+              titleLine2: { type: "text", contentEditable: true } as any,
+              paragraph1: { type: "textarea", contentEditable: true },
+              paragraph2: { type: "textarea", contentEditable: true },
+            },
           },
-        },
-        videoUrl: { type: "text" },
+          videoUrl: { type: "text" },
+        };
       },
       render: (props: AboutProps) => <About {...props} />,
       defaultProps: {
@@ -1139,68 +1461,88 @@ export const config: Config<Props> = {
       },
     },
     JoinUs: {
-      fields: {
-        tag: { type: "text" },
-        titleLine1: { type: "text" },
-        titleLine2: { type: "text" },
-        subtitle: { type: "textarea" },
-        heroBadge: { type: "text" },
-        heroSubtitle: { type: "textarea" },
-        memberFeaturesHeader: { type: "text" },
-        memberFeatures: {
-          type: "array",
-          arrayFields: {
-            // Puck array of strings is a bit tricky, usually needs object
-            // But I'll assume string support or wrapper
-            // Actually Puck requires object for array items usually?
-            // Let's use a simple object wrapper in component if needed, but component takes string[]
-            // In Puck config, we can adapt.
-            // For now, I'll just use text fields in array.
-            feature: { type: "text" },
-          },
-          // I need to map the output
-        },
-        benefits: {
-          type: "array",
-          arrayFields: {
-            text: { type: "text" },
-            iconName: {
-              type: "select",
-              options: [
-                { label: "Sparkles", value: "Sparkles" },
-                { label: "Gift", value: "Gift" },
-                { label: "Crown", value: "Crown" },
-                { label: "Zap", value: "Zap" },
-                { label: "Check", value: "Check" },
-              ],
+      resolveFields: (data, { metadata }): any => {
+        const isGlobalAdmin = Boolean(
+          (metadata as { user?: { isGlobalAdmin?: boolean } })?.user
+            ?.isGlobalAdmin
+        );
+
+        const currentGradients = Array.isArray((data.props as any).durations)
+          ? ((data.props as any).durations as any[])
+              .map((v) => (typeof v?.gradient === "string" ? v.gradient : null))
+              .filter(Boolean)
+          : [];
+
+        const extraGradientOptions = currentGradients
+          .filter(
+            (value: string) =>
+              !GRADIENT_OPTIONS.some((opt) => opt.value === value)
+          )
+          .map((value: string) => ({
+            label: `Custom: ${value}`,
+            value,
+          }));
+
+        const gradientOptions = [...GRADIENT_OPTIONS, ...extraGradientOptions];
+
+        return {
+          tag: { type: "text" },
+          titleLine1: { type: "text" },
+          titleLine2: { type: "text" },
+          subtitle: { type: "textarea" },
+          heroBadge: { type: "text" },
+          heroSubtitle: { type: "textarea" },
+          memberFeaturesHeader: { type: "text" },
+          memberFeatures: {
+            type: "array",
+            arrayFields: {
+              feature: { type: "text" },
             },
           },
-        },
-        durations: {
-          type: "array",
-          arrayFields: {
-            name: { type: "text" },
-            price: { type: "text" },
-            period: { type: "text" },
-            savings: { type: "text" },
-            popular: {
-              type: "radio",
-              options: [
-                { label: "Yes", value: true },
-                { label: "No", value: false },
-              ],
+          benefits: {
+            type: "array",
+            arrayFields: {
+              text: { type: "text" },
+              iconName: {
+                type: "select",
+                options: [
+                  { label: "Sparkles", value: "Sparkles" },
+                  { label: "Gift", value: "Gift" },
+                  { label: "Crown", value: "Crown" },
+                  { label: "Zap", value: "Zap" },
+                  { label: "Check", value: "Check" },
+                ],
+              },
             },
-            gradient: { type: "text" },
           },
-        },
-        cta: {
-          type: "object",
-          objectFields: {
-            title: { type: "text" },
-            subtitle: { type: "textarea" },
-            buttonText: { type: "text" },
+          durations: {
+            type: "array",
+            arrayFields: {
+              name: { type: "text" },
+              price: { type: "text" },
+              period: { type: "text" },
+              savings: { type: "text" },
+              popular: {
+                type: "radio",
+                options: [
+                  { label: "Yes", value: true },
+                  { label: "No", value: false },
+                ],
+              },
+              gradient: isGlobalAdmin
+                ? { type: "text", label: "Gradient (classes)" }
+                : { type: "select", options: gradientOptions },
+            },
           },
-        },
+          cta: {
+            type: "object",
+            objectFields: {
+              title: { type: "text" },
+              subtitle: { type: "textarea" },
+              buttonText: { type: "text" },
+            },
+          },
+        };
       },
       render: (props: EditorJoinUsProps) => {
         const componentProps = {
@@ -1251,13 +1593,21 @@ export const config: Config<Props> = {
         };
 
         if (data.props.dataMode === "dynamic") {
+          fields.scope = {
+            type: "radio",
+            label: "Scope",
+            options: [
+              { label: "This page", value: "page" },
+              { label: "All content", value: "all" },
+            ],
+          };
           fields.dataSource = {
             type: "data-source",
             label: "News Source",
-          };
-          fields.limit = {
-            type: "number",
-            label: "Max Articles",
+            schemas: TABLE_SCHEMAS.filter((s) => s.id === "news"),
+            showLimit: true,
+            showSort: true,
+            maxLimit: 50,
           };
         } else {
           fields.news = {
@@ -1290,16 +1640,42 @@ export const config: Config<Props> = {
 
         return fields;
       },
-      resolveData: async ({ props }) => {
+      resolveData: async ({ props }, { changed, trigger, metadata }) => {
+        const shouldResolve =
+          trigger === "insert" ||
+          trigger === "load" ||
+          trigger === "force" ||
+          trigger === "move" ||
+          Boolean(
+            changed.dataMode ||
+              changed.dataSource ||
+              changed.scope
+          );
+
+        if (!shouldResolve) {
+          return { props: {} };
+        }
+
         if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
           return { props: {} };
         }
 
         try {
+          const editorMetadata = metadata as EditorMetadata | undefined;
+          const locale =
+            editorMetadata?.locale ?? props.dataSource.locale;
+          const scopeFilters = await buildPageScopeFilters(
+            "news",
+            props.scope,
+            editorMetadata
+          );
+
           const items = await getDynamicContent({
-            table: "news",
             ...props.dataSource,
-            limit: props.limit || 6,
+            table: "news",
+            locale,
+            filters: mergeFilters(props.dataSource.filters, scopeFilters),
+            limit: props.dataSource.limit ?? 6,
           });
 
           const news = items.map((item) => ({
@@ -1319,7 +1695,14 @@ export const config: Config<Props> = {
       },
       render: (props: EditorNewsProps) => <FilteredNews {...props} />,
       defaultProps: {
-        dataMode: "manual",
+        dataMode: "dynamic",
+        scope: "page",
+        dataSource: {
+          table: "news",
+          limit: 6,
+          sort: { field: "$createdAt", direction: "desc" },
+          filters: [{ field: "status", operator: "equal", value: "published" }],
+        },
         news: [],
         labels: {
           empty: "No news yet",
@@ -1362,29 +1745,60 @@ export const config: Config<Props> = {
       },
     },
     JobsList: {
-      fields: {
-        jobs: {
-          type: "array",
-          getItemSummary: (item) => item.title || "Job",
-          arrayFields: {
-            title: { type: "text" },
-            department: { type: "text" },
-            location: { type: "text" },
-            type: { type: "text" },
-            paid: {
-              type: "radio",
-              options: [
-                { label: "Yes", value: true },
-                { label: "No", value: false },
-              ],
-            },
-            category: { type: "text" },
-            description: { type: "textarea" },
-            slug: { type: "text" },
-            deadline: { type: "text" },
+      resolveFields: (data): any => {
+        const fields: Record<string, unknown> = {
+          dataMode: {
+            type: "radio",
+            label: "Data Source",
+            options: [
+              { label: "Manual Entry", value: "manual" },
+              { label: "Dynamic (Database)", value: "dynamic" },
+            ],
           },
-        },
-        labels: {
+        };
+
+        if (data.props.dataMode === "dynamic") {
+          fields.scope = {
+            type: "radio",
+            label: "Scope",
+            options: [
+              { label: "This page", value: "page" },
+              { label: "All content", value: "all" },
+            ],
+          };
+          fields.dataSource = {
+            type: "data-source",
+            label: "Jobs Source",
+            schemas: TABLE_SCHEMAS.filter((s) => s.id === "jobs"),
+            showLimit: true,
+            showSort: true,
+            maxLimit: 100,
+          };
+        } else {
+          fields.jobs = {
+            type: "array",
+            getItemSummary: (item: { title?: string }) => item.title || "Job",
+            arrayFields: {
+              title: { type: "text" },
+              department: { type: "text" },
+              location: { type: "text" },
+              type: { type: "text" },
+              paid: {
+                type: "radio",
+                options: [
+                  { label: "Yes", value: true },
+                  { label: "No", value: false },
+                ],
+              },
+              category: { type: "text" },
+              description: { type: "textarea" },
+              slug: { type: "text" },
+              deadline: { type: "text" },
+            },
+          };
+        }
+
+        fields.labels = {
           type: "object",
           objectFields: {
             viewDetails: { type: "text" },
@@ -1393,21 +1807,108 @@ export const config: Config<Props> = {
             deadline: { type: "text" },
             noJobs: { type: "text" },
           },
-        },
+        };
+
+        return fields;
       },
-      render: (props: JobsListProps) => <JobsList {...props} />,
+      resolveData: async ({ props }, { changed, trigger, metadata }) => {
+        const shouldResolve =
+          trigger === "insert" ||
+          trigger === "load" ||
+          trigger === "force" ||
+          trigger === "move" ||
+          Boolean(changed.dataMode || changed.dataSource || changed.scope);
+
+        if (!shouldResolve) {
+          return { props: {} };
+        }
+
+        if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+          return { props: {} };
+        }
+
+        try {
+          const editorMetadata = metadata as EditorMetadata | undefined;
+          const locale = editorMetadata?.locale ?? props.dataSource.locale;
+          const scopeFilters = await buildPageScopeFilters(
+            "jobs",
+            props.scope,
+            editorMetadata
+          );
+
+          const items = await getDynamicContent({
+            ...props.dataSource,
+            table: "jobs",
+            locale,
+            filters: mergeFilters(props.dataSource.filters, scopeFilters),
+            limit: props.dataSource.limit ?? 12,
+          });
+
+          const jobs = items.map((item) => {
+            const meta = (item.metadata ?? {}) as Record<string, unknown>;
+
+            const href = typeof item.href === "string" ? item.href : "";
+            const slug =
+              typeof meta.slug === "string"
+                ? meta.slug
+                : href.startsWith("/jobs/")
+                  ? href.replace("/jobs/", "")
+                  : undefined;
+
+            const subtitle =
+              typeof item.subtitle === "string" && item.subtitle !== "[object Object]"
+                ? item.subtitle
+                : undefined;
+
+            const department =
+              (typeof meta.department === "string" ? meta.department : undefined) ??
+              subtitle;
+
+            const paid =
+              typeof meta.paid === "boolean"
+                ? meta.paid
+                : String(item.badge).toLowerCase() === "paid";
+
+            const deadline =
+              (typeof meta.deadline === "string" ? meta.deadline : undefined) ??
+              item.date;
+
+            return {
+              title: item.title,
+              department,
+              location:
+                (typeof meta.location === "string" ? meta.location : undefined) ??
+                item.location,
+              type:
+                (typeof meta.type === "string" ? meta.type : undefined) ??
+                item.category,
+              paid,
+              category:
+                (typeof meta.category === "string" ? meta.category : undefined) ??
+                item.category,
+              description: item.description,
+              slug,
+              deadline,
+            };
+          });
+
+          return { props: { jobs } };
+        } catch (e) {
+          console.error("Failed to resolve jobs", e);
+          return { props: {} };
+        }
+      },
+      render: (props: EditorJobsListProps) => <JobsList {...props} />,
       defaultProps: {
-        jobs: [
-          {
-            title: "Event Coordinator",
-            department: "Social Committee",
-            location: "Oslo",
-            type: "Volunteer",
-            paid: false,
-            category: "Social",
-            description: "Plan amazing events.",
-          },
-        ],
+        dataMode: "dynamic",
+        scope: "page",
+        dataSource: {
+          table: "jobs",
+          limit: 12,
+          sort: { field: "$createdAt", direction: "desc" },
+          filters: [{ field: "status", operator: "equal", value: "published" }],
+        },
+        jobs: [],
         labels: {
           viewDetails: "View Details",
           paid: "Paid",
@@ -1415,6 +1916,156 @@ export const config: Config<Props> = {
           deadline: "Deadline:",
           noJobs: "No positions found.",
         },
+      },
+    },
+    ProductsGrid: {
+      resolveFields: (data): any => {
+        const fields: Record<string, unknown> = {
+          title: { type: "text", contentEditable: true } as any,
+          subtitle: { type: "textarea", contentEditable: true },
+          variant: {
+            type: "select",
+            options: [
+              { label: "Grid", value: "grid" },
+              { label: "Carousel", value: "carousel" },
+            ],
+          },
+          columns: {
+            type: "select",
+            options: [
+              { label: "2", value: 2 },
+              { label: "3", value: 3 },
+              { label: "4", value: 4 },
+            ],
+          },
+          dataMode: {
+            type: "radio",
+            label: "Data Source",
+            options: [
+              { label: "Manual Entry", value: "manual" },
+              { label: "Dynamic (Database)", value: "dynamic" },
+            ],
+          },
+        };
+
+        if (data.props.dataMode === "dynamic") {
+          fields.scope = {
+            type: "radio",
+            label: "Scope",
+            options: [
+              { label: "This page", value: "page" },
+              { label: "All content", value: "all" },
+            ],
+          };
+          fields.dataSource = {
+            type: "data-source",
+            label: "Products Source",
+            schemas: TABLE_SCHEMAS.filter((s) => s.id === "products"),
+            showLimit: true,
+            showSort: true,
+            maxLimit: 50,
+          };
+        } else {
+          fields.products = {
+            type: "array",
+            getItemSummary: (item: { title?: string }) =>
+              item.title || "Product",
+            arrayFields: {
+              id: { type: "text" },
+              title: { type: "text" },
+              image: { type: "image" },
+              href: { type: "link" },
+              price: { type: "text" },
+              badge: { type: "text" },
+            },
+            defaultItemProps: () => ({
+              id: crypto.randomUUID(),
+              title: "New Product",
+              href: "/shop",
+            }),
+          };
+        }
+
+        return fields;
+      },
+      resolveData: async ({ props }, { changed, trigger, metadata }) => {
+        const shouldResolve =
+          trigger === "insert" ||
+          trigger === "load" ||
+          trigger === "force" ||
+          trigger === "move" ||
+          Boolean(changed.dataMode || changed.dataSource || changed.scope);
+
+        if (!shouldResolve) {
+          return { props: {} };
+        }
+
+        if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+          return { props: {} };
+        }
+
+        try {
+          const editorMetadata = metadata as EditorMetadata | undefined;
+          const locale = editorMetadata?.locale ?? props.dataSource.locale;
+          const scopeFilters = await buildPageScopeFilters(
+            "products",
+            props.scope,
+            editorMetadata
+          );
+
+          const items = await getDynamicContent({
+            ...props.dataSource,
+            table: "products",
+            locale,
+            filters: mergeFilters(props.dataSource.filters, scopeFilters),
+            limit: props.dataSource.limit ?? 12,
+          });
+
+          const products = items.map((item) => {
+            const meta = (item.metadata ?? {}) as Record<string, unknown>;
+            const stock =
+              typeof meta.stock === "number"
+                ? meta.stock
+                : typeof meta.stock === "string"
+                  ? Number(meta.stock)
+                  : undefined;
+
+            const price = formatNokPrice(meta.price);
+
+            return {
+              id: item.id || crypto.randomUUID(),
+              title: item.title,
+              image: item.image,
+              href: item.href,
+              price,
+              badge: stock === 0 ? "Out of stock" : item.category,
+            };
+          });
+
+          return { props: { products } };
+        } catch (e) {
+          console.error("Failed to resolve products", e);
+          return { props: {} };
+        }
+      },
+      render: (props: EditorProductsGridProps) => <ProductsGrid {...props} />,
+      defaultProps: {
+        title: "Shop",
+        subtitle: "Popular items from the webshop.",
+        variant: "grid",
+        columns: 3,
+        dataMode: "dynamic",
+        scope: "page",
+        dataSource: {
+          table: "products",
+          limit: 8,
+          sort: { field: "$createdAt", direction: "desc" },
+          filters: [
+            { field: "status", operator: "equal", value: "published" },
+            { field: "stock", operator: "greaterThan", value: 0 },
+          ],
+        },
+        products: [],
       },
     },
     Events: {
@@ -1431,13 +2082,21 @@ export const config: Config<Props> = {
         };
 
         if (data.props.dataMode === "dynamic") {
+          fields.scope = {
+            type: "radio",
+            label: "Scope",
+            options: [
+              { label: "This page", value: "page" },
+              { label: "All content", value: "all" },
+            ],
+          };
           fields.dataSource = {
             type: "data-source",
             label: "Events Source",
-          };
-          fields.limit = {
-            type: "number",
-            label: "Max Events",
+            schemas: TABLE_SCHEMAS.filter((s) => s.id === "events"),
+            showLimit: true,
+            showSort: true,
+            maxLimit: 50,
           };
         } else {
           fields.events = {
@@ -1480,16 +2139,42 @@ export const config: Config<Props> = {
 
         return fields;
       },
-      resolveData: async ({ props }) => {
+      resolveData: async ({ props }, { changed, trigger, metadata }) => {
+        const shouldResolve =
+          trigger === "insert" ||
+          trigger === "load" ||
+          trigger === "force" ||
+          trigger === "move" ||
+          Boolean(
+            changed.dataMode ||
+              changed.dataSource ||
+              changed.scope
+          );
+
+        if (!shouldResolve) {
+          return { props: {} };
+        }
+
         if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
           return { props: {} };
         }
 
         try {
+          const editorMetadata = metadata as EditorMetadata | undefined;
+          const locale =
+            editorMetadata?.locale ?? props.dataSource.locale;
+          const scopeFilters = await buildPageScopeFilters(
+            "events",
+            props.scope,
+            editorMetadata
+          );
+
           const items = await getDynamicContent({
-            table: "events",
             ...props.dataSource,
-            limit: props.limit || 6,
+            table: "events",
+            locale,
+            filters: mergeFilters(props.dataSource.filters, scopeFilters),
+            limit: props.dataSource.limit ?? 6,
           });
 
           const events = items.map((item) => ({
@@ -1510,7 +2195,17 @@ export const config: Config<Props> = {
       },
       render: (props: EditorEventsProps) => <FilteredEvents {...props} />,
       defaultProps: {
-        dataMode: "manual",
+        dataMode: "dynamic",
+        scope: "page",
+        dataSource: {
+          table: "events",
+          limit: 6,
+          sort: { field: "start_date", direction: "asc" },
+          filters: [
+            { field: "start_date", operator: "greaterThan", value: "$now" },
+            { field: "status", operator: "equal", value: "published" },
+          ],
+        },
         events: [],
         labels: {
           empty: "No events",
@@ -1560,6 +2255,10 @@ export const config: Config<Props> = {
           fields.dataSource = {
             type: "data-source",
             label: "Data Source",
+            schemas: TABLE_SCHEMAS,
+            showLimit: true,
+            showSort: true,
+            maxLimit: 100,
           };
         } else {
           fields.items = {
@@ -1619,7 +2318,18 @@ export const config: Config<Props> = {
 
         return fields;
       },
-      resolveData: async ({ props }) => {
+      resolveData: async ({ props }, { changed, trigger, metadata }) => {
+        const shouldResolve =
+          trigger === "insert" ||
+          trigger === "load" ||
+          trigger === "force" ||
+          trigger === "move" ||
+          Boolean(changed.dataMode || changed.dataSource);
+
+        if (!shouldResolve) {
+          return { props: {} };
+        }
+
         if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
           return { props: {} };
         }
@@ -1627,6 +2337,9 @@ export const config: Config<Props> = {
         try {
           const items = await getDynamicContent({
             ...props.dataSource,
+            locale:
+              (metadata as EditorMetadata | undefined)?.locale ??
+              props.dataSource.locale,
           });
 
           const collectionItems = items.map((item) => ({

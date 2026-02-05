@@ -17,6 +17,7 @@ export type DynamicContentItem = {
   badge?: string;
   icon?: string;
   id?: string;
+  metadata?: Record<string, unknown>;
 };
 
 /**
@@ -35,6 +36,7 @@ function toDynamicContentItem(item: NormalizedItem): DynamicContentItem {
     location: item.location,
     category: item.category,
     badge: item.badge,
+    metadata: item.metadata,
     icon: item.metadata?.icon as string,
     // Legacy fields for stats/counters
     value: item.metadata?.value as string,
@@ -64,6 +66,9 @@ export async function getDynamicContent(
   const config: DataSourceConfig = {
     table: source.table,
     limit: source.limit,
+    offset: (source as DataSourceConfig).offset,
+    sort: (source as DataSourceConfig).sort,
+    locale: (source as DataSourceConfig).locale,
     filters: source.filters?.map((f: unknown) => {
       const filter = f as { field: string; operator: string; value: unknown };
       return {

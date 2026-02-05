@@ -244,6 +244,7 @@ const NORMALIZERS: Record<
   products: normalizeProduct,
   memberships: normalizeMembership,
   pages: normalizePage,
+  milestones: normalizeMilestone,
 };
 
 /**

@@ -1,4 +1,8 @@
 export type EditorContext = {
+  /**
+   * Optional locale for dynamic content resolution (e.g. translated fields)
+   */
+  locale?: string;
   page: {
     id?: string;
     status: "draft" | "published" | "archived";
