@@ -8,14 +8,16 @@ import {
   AccordionBlock,
   type AccordionBlockProps,
 } from "@repo/ui/components/puck/accordion";
+import {
+  ButtonRow,
+  type ButtonRowProps,
+} from "@repo/ui/components/puck/button-row";
 import { Collection } from "@repo/ui/components/puck/collection/collection";
 import type { CollectionProps } from "@repo/ui/components/puck/collection/types";
 import { LAYOUT_OPTIONS } from "@repo/ui/components/puck/collection/types";
 import { Columns, type ColumnsProps } from "@repo/ui/components/puck/columns";
-import { ButtonRow, type ButtonRowProps } from "@repo/ui/components/puck/button-row";
 import { CTA, type CTAProps } from "@repo/ui/components/puck/cta";
 import { Divider, type DividerProps } from "@repo/ui/components/puck/divider";
-import { Heading, type HeadingProps } from "@repo/ui/components/puck/heading";
 import {
   FeatureGrid,
   type FeatureGridProps,
@@ -26,6 +28,7 @@ import {
 } from "@repo/ui/components/puck/filter-bar";
 import { FilteredEvents } from "@repo/ui/components/puck/filtered-events";
 import { FilteredNews } from "@repo/ui/components/puck/filtered-news";
+import { Heading, type HeadingProps } from "@repo/ui/components/puck/heading";
 import { Hero, type HeroProps } from "@repo/ui/components/puck/hero";
 import {
   Image as PuckImage,
@@ -61,12 +64,12 @@ import {
   TableOfContents,
   type TableOfContentsProps,
 } from "@repo/ui/components/puck/table-of-contents";
-import { Text, type TextProps } from "@repo/ui/components/puck/text";
 import { Tabs, type TabsProps } from "@repo/ui/components/puck/tabs";
 import {
   TeamGrid,
   type TeamGridProps,
 } from "@repo/ui/components/puck/team-grid";
+import { Text, type TextProps } from "@repo/ui/components/puck/text";
 import {
   Timeline,
   type TimelineProps,
@@ -76,8 +79,8 @@ import type { EventsProps } from "@repo/ui/components/sections/events";
 import { JoinUs, type JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
 import { useEffect, useRef } from "react";
-import { getDynamicContent } from "./get-dynamic-content";
 import { TABLE_SCHEMAS } from "./data/schemas";
+import { getDynamicContent } from "./get-dynamic-content";
 import {
   ALIGN_OPTIONS,
   BUTTON_SIZE_OPTIONS,
@@ -87,9 +90,9 @@ import {
   GRADIENT_OPTIONS,
   HEADING_LEVEL_OPTIONS,
   HEADING_SIZE_OPTIONS,
+  ICON_OPTIONS,
   IMAGE_ASPECT_OPTIONS,
   IMAGE_ROUNDED_OPTIONS,
-  ICON_OPTIONS,
   MAX_WIDTH_OPTIONS,
   PADDING_OPTIONS,
   SECTION_BG_OPTIONS,
@@ -259,7 +262,8 @@ async function buildPageScopeFilters(
 
   if (rawDepartmentId) {
     const departmentId = await resolveDepartmentId(rawDepartmentId);
-    const departmentField = table === "products" ? "departmentId" : "department_id";
+    const departmentField =
+      table === "products" ? "departmentId" : "department_id";
     return [{ field: departmentField, operator: "equal", value: departmentId }];
   }
 
@@ -286,6 +290,50 @@ function formatNokPrice(value: unknown): string | undefined {
       return `${nokFormatter.format(parsed)} NOK`;
     }
     return value;
+  }
+
+  return;
+}
+
+function getMetaString(
+  meta: Record<string, unknown>,
+  key: string
+): string | undefined {
+  const value = meta[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function getMetaBoolean(
+  meta: Record<string, unknown>,
+  key: string
+): boolean | undefined {
+  const value = meta[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function normalizeSubtitle(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return;
+  }
+
+  if (value === "[object Object]") {
+    return;
+  }
+
+  return value;
+}
+
+function deriveJobSlug(
+  meta: Record<string, unknown>,
+  href: string
+): string | undefined {
+  const explicit = getMetaString(meta, "slug");
+  if (explicit) {
+    return explicit;
+  }
+
+  if (href.startsWith("/jobs/")) {
+    return href.replace("/jobs/", "");
   }
 
   return;
@@ -816,7 +864,7 @@ export const config: Config<Props> = {
       },
     },
     Timeline: {
-      resolveFields: (data, { metadata }) => {
+      resolveFields: (data) => {
         const fields: any = {
           title: { type: "text", contentEditable: true } as any,
           subtitle: { type: "textarea", contentEditable: true },
@@ -1175,9 +1223,7 @@ export const config: Config<Props> = {
               type: "data-source",
               label: "Slides Source",
               schemas: TABLE_SCHEMAS.filter((s) =>
-                ["events", "news", "pages", "products"].includes(
-                  String(s.id)
-                )
+                ["events", "news", "pages", "products"].includes(String(s.id))
               ),
             };
           } else {
@@ -1286,8 +1332,7 @@ export const config: Config<Props> = {
         if (shouldResolveSlides) {
           try {
             const locale =
-              (metadata as { locale?: string })?.locale ??
-              slidesSource?.locale;
+              (metadata as { locale?: string })?.locale ?? slidesSource?.locale;
             const items = await getDynamicContent({
               ...slidesSource,
               locale,
@@ -1317,8 +1362,7 @@ export const config: Config<Props> = {
         if (shouldResolveStats) {
           try {
             const locale =
-              (metadata as { locale?: string })?.locale ??
-              statsSource?.locale;
+              (metadata as { locale?: string })?.locale ?? statsSource?.locale;
             const items = await getDynamicContent({
               ...statsSource,
               locale,
@@ -1646,11 +1690,7 @@ export const config: Config<Props> = {
           trigger === "load" ||
           trigger === "force" ||
           trigger === "move" ||
-          Boolean(
-            changed.dataMode ||
-              changed.dataSource ||
-              changed.scope
-          );
+          Boolean(changed.dataMode || changed.dataSource || changed.scope);
 
         if (!shouldResolve) {
           return { props: {} };
@@ -1662,8 +1702,7 @@ export const config: Config<Props> = {
 
         try {
           const editorMetadata = metadata as EditorMetadata | undefined;
-          const locale =
-            editorMetadata?.locale ?? props.dataSource.locale;
+          const locale = editorMetadata?.locale ?? props.dataSource.locale;
           const scopeFilters = await buildPageScopeFilters(
             "news",
             props.scope,
@@ -1848,44 +1887,24 @@ export const config: Config<Props> = {
             const meta = (item.metadata ?? {}) as Record<string, unknown>;
 
             const href = typeof item.href === "string" ? item.href : "";
-            const slug =
-              typeof meta.slug === "string"
-                ? meta.slug
-                : href.startsWith("/jobs/")
-                  ? href.replace("/jobs/", "")
-                  : undefined;
-
-            const subtitle =
-              typeof item.subtitle === "string" && item.subtitle !== "[object Object]"
-                ? item.subtitle
-                : undefined;
-
-            const department =
-              (typeof meta.department === "string" ? meta.department : undefined) ??
-              subtitle;
-
+            const slug = deriveJobSlug(meta, href);
+            const subtitle = normalizeSubtitle(item.subtitle);
+            const department = getMetaString(meta, "department") ?? subtitle;
             const paid =
-              typeof meta.paid === "boolean"
-                ? meta.paid
-                : String(item.badge).toLowerCase() === "paid";
-
-            const deadline =
-              (typeof meta.deadline === "string" ? meta.deadline : undefined) ??
-              item.date;
+              getMetaBoolean(meta, "paid") ??
+              String(item.badge).toLowerCase() === "paid";
+            const deadline = getMetaString(meta, "deadline") ?? item.date;
+            const location = getMetaString(meta, "location") ?? item.location;
+            const type = getMetaString(meta, "type") ?? item.category;
+            const category = getMetaString(meta, "category") ?? item.category;
 
             return {
               title: item.title,
               department,
-              location:
-                (typeof meta.location === "string" ? meta.location : undefined) ??
-                item.location,
-              type:
-                (typeof meta.type === "string" ? meta.type : undefined) ??
-                item.category,
+              location,
+              type,
               paid,
-              category:
-                (typeof meta.category === "string" ? meta.category : undefined) ??
-                item.category,
+              category,
               description: item.description,
               slug,
               deadline,
@@ -2023,12 +2042,13 @@ export const config: Config<Props> = {
 
           const products = items.map((item) => {
             const meta = (item.metadata ?? {}) as Record<string, unknown>;
-            const stock =
-              typeof meta.stock === "number"
-                ? meta.stock
-                : typeof meta.stock === "string"
-                  ? Number(meta.stock)
-                  : undefined;
+
+            let stock: number | undefined;
+            if (typeof meta.stock === "number") {
+              stock = meta.stock;
+            } else if (typeof meta.stock === "string") {
+              stock = Number(meta.stock);
+            }
 
             const price = formatNokPrice(meta.price);
 
@@ -2145,11 +2165,7 @@ export const config: Config<Props> = {
           trigger === "load" ||
           trigger === "force" ||
           trigger === "move" ||
-          Boolean(
-            changed.dataMode ||
-              changed.dataSource ||
-              changed.scope
-          );
+          Boolean(changed.dataMode || changed.dataSource || changed.scope);
 
         if (!shouldResolve) {
           return { props: {} };
@@ -2161,8 +2177,7 @@ export const config: Config<Props> = {
 
         try {
           const editorMetadata = metadata as EditorMetadata | undefined;
-          const locale =
-            editorMetadata?.locale ?? props.dataSource.locale;
+          const locale = editorMetadata?.locale ?? props.dataSource.locale;
           const scopeFilters = await buildPageScopeFilters(
             "events",
             props.scope,

@@ -12,6 +12,11 @@ import {
   PageStatus,
   PageVisibility,
 } from "@repo/api/types/appwrite";
+import type { DataSourceValue } from "@repo/ui/components/data-source-picker";
+import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
+import { FileUpload } from "@repo/ui/components/file-upload";
+import { LinkPicker } from "@repo/ui/components/link-picker";
+import { TablePicker } from "@repo/ui/components/table-picker";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import {
@@ -30,11 +35,6 @@ import {
   SheetTrigger,
 } from "@repo/ui/components/ui/sheet";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
-import type { DataSourceValue } from "@repo/ui/components/data-source-picker";
-import { FileUpload } from "@repo/ui/components/file-upload";
-import { LinkPicker } from "@repo/ui/components/link-picker";
-import { TablePicker } from "@repo/ui/components/table-picker";
 import {
   ExternalLink,
   Globe,
@@ -45,10 +45,10 @@ import {
   Smartphone,
   Tablet,
 } from "lucide-react";
+import { TABLE_SCHEMAS } from "./data/schemas";
 import type { EditorContext } from "./editor-context";
 import { getPages } from "./get-pages";
 import { getTables } from "./get-tables";
-import { TABLE_SCHEMAS } from "./data/schemas";
 import { templatesPlugin } from "./plugins/templates";
 import { listImages, uploadImage } from "./upload-image";
 
@@ -167,7 +167,6 @@ export function PageEditor({
         metadata={{ ...editorContext, locale } as any}
         onChange={(nextData) => setData(nextData as Data)}
         onPublish={handleSave}
-        plugins={[templatesPlugin]}
         overrides={{
           fieldTypes: {
             image: ({ value, onChange, readOnly, name }) => (
@@ -190,10 +189,7 @@ export function PageEditor({
                       return;
                     }
 
-                    if (
-                      typeof fileOrUrl === "string" ||
-                      fileOrUrl === null
-                    ) {
+                    if (typeof fileOrUrl === "string" || fileOrUrl === null) {
                       onChange(fileOrUrl);
                     }
                   }}
@@ -285,6 +281,7 @@ export function PageEditor({
               }
             : undefined
         }
+        plugins={[templatesPlugin]}
         renderHeaderActions={({ state }) => {
           const currentData = state.data as Data;
 

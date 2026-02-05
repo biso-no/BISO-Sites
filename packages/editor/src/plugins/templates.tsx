@@ -76,7 +76,10 @@ function buildItem(
   type: string,
   props: Record<string, unknown> = {}
 ): ComponentData {
-  return cloneWithNewIds({ type, props: props as any } as ComponentData, config);
+  return cloneWithNewIds(
+    { type, props: props as any } as ComponentData,
+    config
+  );
 }
 
 type Template = {
@@ -86,7 +89,10 @@ type Template = {
   build: (config: Config) => ComponentData[];
 };
 
-function getDefaultProps(config: Config, type: string): Record<string, unknown> {
+function getDefaultProps(
+  config: Config,
+  type: string
+): Record<string, unknown> {
   return (
     (config.components?.[type]?.defaultProps as Record<string, unknown>) ?? {}
   );
@@ -121,7 +127,8 @@ function TemplatesPanel() {
             items: [
               {
                 title: "Build community",
-                description: "Create spaces for students to connect and thrive.",
+                description:
+                  "Create spaces for students to connect and thrive.",
                 icon: "Users",
               },
               {
@@ -140,10 +147,13 @@ function TemplatesPanel() {
           buildItem(cfg, "News", getDefaultProps(cfg, "News")),
           buildItem(cfg, "CTA", {
             title: "Want to get involved?",
-            description: "Become part of the team and help shape the community.",
+            description:
+              "Become part of the team and help shape the community.",
             variant: "brand",
             align: "center",
-            buttons: [{ label: "Apply now", href: "/jobs", variant: "secondary" }],
+            buttons: [
+              { label: "Apply now", href: "/jobs", variant: "secondary" },
+            ],
           }),
         ],
       },
@@ -153,7 +163,8 @@ function TemplatesPanel() {
         description: "Page header + filters + a larger dynamic Events section.",
         build: (cfg) => {
           const defaults = getDefaultProps(cfg, "Events");
-          const dataSource = (defaults.dataSource as Record<string, unknown>) ?? {};
+          const dataSource =
+            (defaults.dataSource as Record<string, unknown>) ?? {};
 
           return [
             buildItem(cfg, "PageHeader", {
@@ -184,11 +195,16 @@ function TemplatesPanel() {
         build: (cfg) => [
           buildItem(cfg, "PageHeader", {
             title: "Information",
-            subtitle: "A structured page for policies, bylaws, or documentation.",
+            subtitle:
+              "A structured page for policies, bylaws, or documentation.",
             variant: "default",
             breadcrumbs: [{ label: "Information" }],
           }),
-          buildItem(cfg, "TableOfContents", getDefaultProps(cfg, "TableOfContents")),
+          buildItem(
+            cfg,
+            "TableOfContents",
+            getDefaultProps(cfg, "TableOfContents")
+          ),
           buildItem(cfg, "RichText", getDefaultProps(cfg, "RichText")),
           buildItem(cfg, "Spacer", { size: "md" }),
         ],
@@ -294,4 +310,3 @@ export const templatesPlugin: Plugin = {
   icon: <LayoutTemplate size={18} />,
   render: () => <TemplatesPanel />,
 };
-
