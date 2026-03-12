@@ -37,6 +37,8 @@ import { CommandMenu } from "./command-menu";
 import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -177,6 +179,8 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
     roles.includes(ROLES.GLOBAL_ADMIN) ? ROLES.GLOBAL_ADMIN : roles[0] || ""
   );
   const [isLoading, setIsLoading] = useState(true);
+
+  const router = useRouter();
 
   // Use copilot store for assistant sidebar state
   const openAssistant = useCopilotStore((state) => state.open);
@@ -423,17 +427,19 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           animate={{
             justifyContent: isSidebarExpanded ? "flex-start" : "center",
           }}
-          className="flex items-center gap-3 px-4 pt-5 pb-4"
+          className="flex cursor-pointer items-center gap-3 px-4 pt-5 pb-4"
           initial={false}
         >
-          <Link
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 font-semibold text-lg text-primary tracking-tight dark:bg-white/10 dark:text-white"
-            href="/"
-          >
-            B
-          </Link>
+            <Image
+              alt="Logo"
+              className="h-6 w-6"
+              height={24}
+              onClick={() => router.push("/")}
+              src="/images/logo-dark.png"
+              width={24}
+ />
           {isSidebarExpanded && (
-            <div className="space-y-0.5">
+            <div className="flex flex-col space-y-0.5">
               <span className="text-muted-foreground text-xs uppercase tracking-[0.2em] dark:text-white/60">
                 {t("title")}
               </span>
