@@ -1,4 +1,10 @@
+import type {
+  ContentEntryLocaleRecord,
+  ContentEntryRecord,
+  EditorialQueryCollection,
+} from "@repo/api/editorial";
 import { type ClassValue, clsx } from "clsx";
+import type { Locale } from "next-intl";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -40,3 +46,49 @@ function _formatDateReadable(value?: string | null) {
 export const isProd =
   process.env.VERCEL_ENV === "production" ||
   process.env.NODE_ENV === "production";
+
+export function computeTranslationState(
+  entry: ContentEntryRecord,
+  locale: ContentEntryLocaleRecord
+) {
+  if (locale.locale === entry.sourceLocale) {
+    return "source" as const;
+  }
+
+  const sourceLocale =
+    entry.locales.find(
+      (entryLocale) => entryLocale.locale === entry.sourceLocale
+    ) ?? null;
+
+  if (!sourceLocale) {
+    return locale.translationStatus;
+  }
+
+  if (
+    locale.sourceUpdatedAt &&
+    new Date(locale.sourceUpdatedAt).getTime() <
+      new Date(sourceLocale.updatedAt).getTime()
+  ) {
+    return "stale" as const;
+  }
+
+  return locale.translationStatus;
+}
+
+export function listManagedEditorialRelationOptions(
+  collection: EditorialQueryCollection,
+  locale: Locale
+) {
+  return runEditorialQuery(
+    {
+      collection,
+      limit: 50,
+      mode: "list",
+      sort:
+        collection === "events"
+          ? { field: "start_date", direction: "asc" }
+          : { field: "$createdAt", direction: "desc" },
+    },
+    { locale, viewerIsAuthenticated: true }
+  );
+}

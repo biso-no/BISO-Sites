@@ -144,6 +144,22 @@ export type PublishedPage = {
   document: PageDocument;
 };
 
+async function hasAuthenticatedSession(): Promise<boolean> {
+  try {
+    const { account } = await createSessionClient();
+    const user = await account.get();
+    const hasEmail = typeof user.email === "string" && user.email.length > 0;
+    const hasRealName =
+      typeof user.name === "string" &&
+      user.name.length > 0 &&
+      !user.name.startsWith("guest_");
+
+    return hasEmail || (hasRealName && !!user.emailVerification);
+  } catch {
+    return false;
+  }
+}
+
 function normalizeTranslation(row: PageTranslations): PageTranslationRecord {
   const draft = maybeMigrateDocument(
     decodeDocument(
@@ -329,6 +345,13 @@ export async function getPublishedPage({
     }
 
     if (!translation.isPublished) {
+      return null;
+    }
+
+    if (
+      page.visibility === "authenticated" &&
+      !(await hasAuthenticatedSession())
+    ) {
       return null;
     }
   }

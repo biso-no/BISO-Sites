@@ -18,6 +18,7 @@
   },
   "navigation": {
     "dashboard": "Oversikt",
+    "content": "Innhold",
     "posts": "Innlegg",
     "pages": "Sider",
     "shop": "Butikk",

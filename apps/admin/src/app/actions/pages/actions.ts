@@ -119,7 +119,16 @@ export async function listManagedPages(
 }
 
 export async function getManagedPage(pageId: string) {
-  return await getPageById(pageId);
+  const page = await getPageById(pageId);
+  if (!page) {
+    return null;
+  }
+
+  if (await isGlobalAdmin()) {
+    return page;
+  }
+
+  return (await canWriteDocument(page.permissions)) ? page : null;
 }
 
 export async function createManagedPage(input: CreateManagedPageInput) {
@@ -151,6 +160,16 @@ export async function createManagedPage(input: CreateManagedPageInput) {
 
 export async function updateManagedPage(input: UpdateManagedPageInput) {
   const existing = await getPageById(input.pageId);
+  if (!existing) {
+    throw new Error("Page not found");
+  }
+
+  if (
+    !((await isGlobalAdmin()) || (await canWriteDocument(existing.permissions)))
+  ) {
+    throw new Error("Unauthorized");
+  }
+
   const updated = await updatePage(input);
 
   if (existing?.slug && existing.slug !== updated.slug) {
@@ -162,6 +181,17 @@ export async function updateManagedPage(input: UpdateManagedPageInput) {
 }
 
 export async function deleteManagedPage(pageId: string) {
+  const existing = await getPageById(pageId);
+  if (!existing) {
+    throw new Error("Page not found");
+  }
+
+  if (
+    !((await isGlobalAdmin()) || (await canWriteDocument(existing.permissions)))
+  ) {
+    throw new Error("Unauthorized");
+  }
+
   const { db } = await createSessionClient();
   await db.deleteRow("app", "pages", pageId);
 
@@ -169,6 +199,22 @@ export async function deleteManagedPage(pageId: string) {
 }
 
 export async function upsertManagedPage(input: UpsertPageInput) {
+  if (input.pageId) {
+    const existing = await getPageById(input.pageId);
+    if (!existing) {
+      throw new Error("Page not found");
+    }
+
+    if (
+      !(
+        (await isGlobalAdmin()) ||
+        (await canWriteDocument(existing.permissions))
+      )
+    ) {
+      throw new Error("Unauthorized");
+    }
+  }
+
   const page = await upsertPage(await applyUserPageScope(input));
   revalidateForPage(page);
   return page;

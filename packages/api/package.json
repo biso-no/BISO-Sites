@@ -11,6 +11,7 @@
     "./server": "./server.ts",
     "./client": "./client.ts",
     "./page-builder": "./page-builder.ts",
+    "./editorial": "./editorial.ts",
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {

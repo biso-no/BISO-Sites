@@ -4703,6 +4703,401 @@
       "indexes": []
     },
     {
+      "$id": "content_templates",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"label:globaladmin\")",
+        "delete(\"label:globaladmin\")"
+      ],
+      "databaseId": "app",
+      "name": "Content Templates",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "key",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 80,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 120,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "family",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["page", "policy", "article"],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "created_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "current_draft_version_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "current_published_version_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "template_key_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["key"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "content_template_versions",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"users\")",
+        "update(\"label:globaladmin\")",
+        "delete(\"label:globaladmin\")"
+      ],
+      "databaseId": "app",
+      "name": "Content Template Versions",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "template_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "version",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807,
+          "default": null
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "elements": ["draft", "published"],
+          "format": "enum",
+          "default": "draft"
+        },
+        {
+          "key": "layout_document",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "field_schema",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "bindings",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "preview_seed_data",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 20000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "notes",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "published_at",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 30,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "content_entries",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"any\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "app",
+      "name": "Content Entries",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "kind",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["page", "policy", "article"],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "path",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["draft", "published", "archived"],
+          "format": "enum",
+          "default": "draft"
+        },
+        {
+          "key": "visibility",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["public", "authenticated"],
+          "format": "enum",
+          "default": "public"
+        },
+        {
+          "key": "scope",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["global", "campus", "department"],
+          "format": "enum",
+          "default": "global"
+        },
+        {
+          "key": "source_locale",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["no", "en"],
+          "format": "enum",
+          "default": "no"
+        },
+        {
+          "key": "template_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "department_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 80,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "created_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "content_entry_locales",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"any\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "databaseId": "app",
+      "name": "Content Entry Locales",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "entry_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "locale",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["no", "en"],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "field_values",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "seo",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "translation_status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["source", "manual", "ai", "stale"],
+          "format": "enum",
+          "default": "manual"
+        },
+        {
+          "key": "translated_from_locale",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "elements": ["no", "en"],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "source_updated_at",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 30,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "entry_locale_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["entry_id", "locale"],
+          "orders": []
+        }
+      ]
+    },
+    {
       "$id": "site_pages",
       "$permissions": [],
       "databaseId": "app",

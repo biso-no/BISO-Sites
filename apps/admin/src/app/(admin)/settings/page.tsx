@@ -1,4 +1,5 @@
-import { PolicyPagesManager } from "./_components/policy-pages-manager";
+import { Button } from "@repo/ui/components/ui/button";
+import Link from "next/link";
 
 export default function AdminSettingsPage() {
   return (
@@ -13,9 +14,12 @@ export default function AdminSettingsPage() {
       <div className="space-y-3">
         <h2 className="font-semibold text-xl">Content Pages</h2>
         <p className="text-muted-foreground text-sm">
-          Manage policy pages. Edit content and auto-translate between NO/EN.
+          Policy and editorial pages now live in the template-driven content
+          workspace.
         </p>
-        <PolicyPagesManager />
+        <Button asChild>
+          <Link href="/content/entries">Open Content Workspace</Link>
+        </Button>
       </div>
     </div>
   );

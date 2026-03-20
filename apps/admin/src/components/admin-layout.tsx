@@ -24,8 +24,9 @@ import {
   Store,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/user";
@@ -37,8 +38,6 @@ import { CommandMenu } from "./command-menu";
 import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -200,14 +199,31 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       roles: [ROLES.GLOBAL_ADMIN],
     },
     {
-      href: "/pages",
+      href: "/content",
       icon: FileText,
-      label: t("navigation.pages"),
+      label: t("navigation.content"),
       roles: [
         ROLES.GLOBAL_ADMIN,
         ROLES.CAMPUS_ADMIN,
         ROLES.PR,
         DEPARTMENT_ROLE,
+      ],
+      subItems: [
+        {
+          href: "/content/entries",
+          label: "Entries",
+          roles: [
+            ROLES.GLOBAL_ADMIN,
+            ROLES.CAMPUS_ADMIN,
+            ROLES.PR,
+            DEPARTMENT_ROLE,
+          ],
+        },
+        {
+          href: "/content/templates",
+          label: "Templates",
+          roles: [ROLES.GLOBAL_ADMIN],
+        },
       ],
     },
     {
@@ -430,14 +446,14 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
           className="flex cursor-pointer items-center gap-3 px-4 pt-5 pb-4"
           initial={false}
         >
-            <Image
-              alt="Logo"
-              className="h-6 w-6"
-              height={24}
-              onClick={() => router.push("/")}
-              src="/images/logo-dark.png"
-              width={24}
- />
+          <Image
+            alt="Logo"
+            className="h-6 w-6"
+            height={24}
+            onClick={() => router.push("/")}
+            src="/images/logo-dark.png"
+            width={24}
+          />
           {isSidebarExpanded && (
             <div className="flex flex-col space-y-0.5">
               <span className="text-muted-foreground text-xs uppercase tracking-[0.2em] dark:text-white/60">

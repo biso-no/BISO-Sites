@@ -18,6 +18,7 @@
   },
   "navigation": {
     "dashboard": "Dashboard",
+    "content": "Content",
     "pages": "Pages",
     "posts": "Posts",
     "shop": "Shop",

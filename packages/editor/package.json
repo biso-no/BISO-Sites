@@ -8,17 +8,21 @@
     ".": "./src/index.tsx",
     "./config": "./src/config.tsx",
     "./render": "./src/render.tsx",
+    "./editorial": "./src/editorial.tsx",
     "./editor": "./src/editor.tsx",
+    "./puck": "./src/puck.tsx",
     "./types": "./src/types.ts",
     "./editor-context": "./src/editor-context.ts",
     "./migrate": "./src/migrate.ts",
     "./catalog": "./src/catalog.ts",
+    "./puck-ui": "./src/puck-ui.tsx",
     "./stream-handler": "./src/puck-stream-handler.ts",
     "./tree-to-puck": "./src/tree-to-puck.ts",
     "./data/types": "./src/data/types.ts",
     "./data/schemas": "./src/data/schemas.ts",
     "./data/fetch": "./src/data/fetch-data.ts",
-    "./data/normalizers": "./src/data/normalizers.ts"
+    "./data/normalizers": "./src/data/normalizers.ts",
+    "./styles.css": "./src/styles.css"
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
@@ -34,6 +38,7 @@
     "lucide-react": "^0.552.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "zod": "4.1.13"
   },

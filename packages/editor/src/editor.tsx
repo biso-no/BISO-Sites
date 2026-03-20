@@ -5,18 +5,12 @@ import { Button } from "@repo/ui/components/ui/button";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
-import "@puckeditor/core/puck.css";
-import "./puck-theme.css";
+import "./styles.css";
 import {
   type Locale,
   PageStatus,
   PageVisibility,
 } from "@repo/api/types/appwrite";
-import type { DataSourceValue } from "@repo/ui/components/data-source-picker";
-import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
-import { FileUpload } from "@repo/ui/components/file-upload";
-import { LinkPicker } from "@repo/ui/components/link-picker";
-import { TablePicker } from "@repo/ui/components/table-picker";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import {
@@ -40,17 +34,11 @@ import {
   Globe,
   Languages,
   Loader2,
-  Monitor,
   Settings,
-  Smartphone,
-  Tablet,
 } from "lucide-react";
-import { TABLE_SCHEMAS } from "./data/schemas";
 import type { EditorContext } from "./editor-context";
-import { getPages } from "./get-pages";
-import { getTables } from "./get-tables";
 import { templatesPlugin } from "./plugins/templates";
-import { listImages, uploadImage } from "./upload-image";
+import { getPuckFieldOverrides, puckViewports } from "./puck-ui";
 
 export type PageEditorProps = {
   initialData: Data;
@@ -167,108 +155,7 @@ export function PageEditor({
         metadata={{ ...editorContext, locale } as any}
         onChange={(nextData) => setData(nextData as Data)}
         onPublish={handleSave}
-        overrides={{
-          fieldTypes: {
-            image: ({ value, onChange, readOnly, name }) => (
-              <div
-                aria-disabled={readOnly}
-                className={readOnly ? "opacity-60" : ""}
-              >
-                <FileUpload
-                  getImages={listImages}
-                  name={name}
-                  onChange={(fileOrUrl) => {
-                    if (readOnly) {
-                      return;
-                    }
-
-                    if (fileOrUrl instanceof File) {
-                      uploadImage(fileOrUrl)
-                        .then((url) => onChange(url))
-                        .catch(() => onChange(null));
-                      return;
-                    }
-
-                    if (typeof fileOrUrl === "string" || fileOrUrl === null) {
-                      onChange(fileOrUrl);
-                    }
-                  }}
-                  value={
-                    value instanceof File || typeof value === "string"
-                      ? value
-                      : null
-                  }
-                />
-              </div>
-            ),
-            link: ({ value, onChange, readOnly }) => (
-              <div
-                aria-disabled={readOnly}
-                className={readOnly ? "opacity-60" : ""}
-              >
-                <LinkPicker
-                  getPages={getPages}
-                  onChange={(next) => {
-                    if (readOnly) {
-                      return;
-                    }
-                    onChange(next);
-                  }}
-                  value={typeof value === "string" ? value : ""}
-                />
-              </div>
-            ),
-            "table-picker": ({ value, onChange, readOnly }) => (
-              <div
-                aria-disabled={readOnly}
-                className={readOnly ? "opacity-60" : ""}
-              >
-                <TablePicker
-                  getTables={getTables}
-                  onChange={(next) => {
-                    if (readOnly) {
-                      return;
-                    }
-                    onChange(next);
-                  }}
-                  value={(value ?? {}) as any}
-                />
-              </div>
-            ),
-            "data-source": ({ value, onChange, readOnly, field }) => {
-              const schemas =
-                (field as unknown as { schemas?: unknown }).schemas ??
-                TABLE_SCHEMAS;
-              const showLimit =
-                (field as unknown as { showLimit?: boolean }).showLimit ?? true;
-              const showSort =
-                (field as unknown as { showSort?: boolean }).showSort ?? true;
-              const maxLimit =
-                (field as unknown as { maxLimit?: number }).maxLimit ?? 100;
-
-              return (
-                <div
-                  aria-disabled={readOnly}
-                  className={readOnly ? "opacity-60" : ""}
-                >
-                  <DataSourcePicker
-                    maxLimit={maxLimit}
-                    onChange={(next: DataSourceValue) => {
-                      if (readOnly) {
-                        return;
-                      }
-                      onChange(next);
-                    }}
-                    schemas={schemas as any}
-                    showLimit={showLimit}
-                    showSort={showSort}
-                    value={(value ?? {}) as any}
-                  />
-                </div>
-              );
-            },
-          },
-        }}
+        overrides={getPuckFieldOverrides()}
         permissions={
           initialStatus === PageStatus.PUBLISHED &&
           !(editorContext?.user.isGlobalAdmin ?? false)
@@ -457,26 +344,7 @@ export function PageEditor({
             </div>
           );
         }}
-        viewports={[
-          {
-            label: "Desktop",
-            width: 1280,
-            height: "auto",
-            icon: <Monitor size={20} />,
-          },
-          {
-            label: "Tablet",
-            width: 768,
-            height: "auto",
-            icon: <Tablet size={20} />,
-          },
-          {
-            label: "Mobile",
-            width: 375,
-            height: "auto",
-            icon: <Smartphone size={20} />,
-          },
-        ]}
+        viewports={puckViewports}
       />
     </div>
   );

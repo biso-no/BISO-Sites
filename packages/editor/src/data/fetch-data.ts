@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createAdminClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { normalizeItem } from "./normalizers";
 import type {
   DataFetchResult,
@@ -111,14 +111,18 @@ function buildQuery(filter: DataFilter): string | null {
  * This is the main function used by Puck's resolveData
  */
 export async function fetchDynamicData(
-  config: DataSourceConfig
+  config: DataSourceConfig,
+  access: "session" | "admin" = "session"
 ): Promise<DataFetchResult> {
   if (!config?.table) {
     return { items: [], total: 0, hasMore: false };
   }
 
   try {
-    const { db } = await createAdminClient();
+    const { db } =
+      access === "admin"
+        ? await createAdminClient()
+        : await createSessionClient();
     const collectionId = TABLE_COLLECTION_MAP[config.table] || config.table;
     const queries = buildQueriesFromConfig(config);
 
@@ -153,7 +157,8 @@ export async function fetchDynamicData(
 export async function fetchDynamicItem(
   table: string,
   id: string,
-  locale?: string
+  locale?: string,
+  access: "session" | "admin" = "session"
 ): Promise<NormalizedItem | null> {
   if (!table) {
     return null;
@@ -163,7 +168,10 @@ export async function fetchDynamicItem(
   }
 
   try {
-    const { db } = await createAdminClient();
+    const { db } =
+      access === "admin"
+        ? await createAdminClient()
+        : await createSessionClient();
     const collectionId = TABLE_COLLECTION_MAP[table] || table;
 
     const row = await db.getRow({
@@ -183,14 +191,18 @@ export async function fetchDynamicItem(
  * Count items matching criteria
  */
 export async function countDynamicData(
-  config: Omit<DataSourceConfig, "limit" | "offset" | "sort">
+  config: Omit<DataSourceConfig, "limit" | "offset" | "sort">,
+  access: "session" | "admin" = "session"
 ): Promise<number> {
   if (!config?.table) {
     return 0;
   }
 
   try {
-    const { db } = await createAdminClient();
+    const { db } =
+      access === "admin"
+        ? await createAdminClient()
+        : await createSessionClient();
     const collectionId = TABLE_COLLECTION_MAP[config.table] || config.table;
 
     const queries: string[] = [Query.limit(1)];

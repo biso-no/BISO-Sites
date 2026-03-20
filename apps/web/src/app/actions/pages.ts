@@ -10,7 +10,7 @@ const resolvePublishedPage = cache(async (slug: string, locale: Locale) =>
   getPublishedPage({ slug, locale, preview: false })
 );
 
-function getPublicPage(
+export function getPublicPage(
   slug: string,
   locale: Locale
 ): Promise<PublishedPage | null> {

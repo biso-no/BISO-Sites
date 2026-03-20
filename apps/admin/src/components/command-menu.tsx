@@ -144,6 +144,14 @@ export function CommandMenu() {
         keywords: t("commandKeywords.applications").split(" "),
       },
       {
+        id: "content",
+        label: t("navigation.content"),
+        icon: FileText,
+        action: () => router.push("/content/entries"),
+        group: t("commandGroups.content"),
+        keywords: ["content", "editorial", "templates", "entries"],
+      },
+      {
         id: "posts",
         label: t("navigation.posts"),
         icon: FileText,
