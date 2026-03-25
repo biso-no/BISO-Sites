@@ -202,16 +202,32 @@
       "name": "@repo/ai",
       "version": "0.0.0",
       "dependencies": {
+        "@ai-sdk/openai": "^2.0.74",
+        "@azure/msal-node": "^3.7.3",
         "@json-render/react": "^0.2.0",
+        "@microsoft/microsoft-graph-client": "^3.0.7",
+        "@pinecone-database/pinecone": "^6.1.3",
         "@puckeditor/core": "^0.21.0",
+        "@repo/connectors": "workspace:*",
         "@repo/editor": "workspace:*",
         "ai": "^5.0.104",
+        "gpt-tokenizer": "^3.0.1",
+        "jszip": "^3.10.1",
+        "mammoth": "^1.10.0",
+        "pdfjs-dist": "^5.4.149",
+        "server-only": "^0.0.1",
+        "turndown": "^7.2.2",
+        "uuid": "^13.0.0",
+        "xlsx": "^0.18.5",
+        "xml2js": "^0.6.2",
         "zod": "^4.1.13",
         "zustand": "^5.0.3",
       },
       "devDependencies": {
         "@repo/typescript-config": "*",
         "@types/react": "^19.2.7",
+        "@types/turndown": "^5.0.5",
+        "@types/xml2js": "^0.4.14",
         "react-hook-form": "^7.67.0",
       },
       "peerDependencies": {
@@ -240,8 +256,10 @@
       "version": "0.0.0",
       "dependencies": {
         "@azure/identity": "^4.13.0",
+        "@azure/msal-node": "^3.7.3",
         "@microsoft/microsoft-graph-client": "^3.0.7",
         "@repo/api": "*",
+        "server-only": "^0.0.1",
         "soap": "^1.1.7",
         "zod": "^4.1.13",
       },
@@ -1246,7 +1264,7 @@
 
     "bing-translate-api": ["bing-translate-api@2.10.0", "", { "dependencies": { "got": "^11.8.6" } }, "sha512-jAxLMMftjB9KizG/IqUz+pyfB6n4Q8zu7LVgbAULeHbBvOy+Enwxm+f2uNrKTeiO4tKhNqi13Kjk29DOc+q/zw=="],
 
-    "bluebird": ["bluebird@3.7.2", "", {}, "sha512-XpNj6GDQzdfW+r2Wnn7xiSAd7TM3jzkxGXBGTtWKuSXv1xUV+azxAm8jdWZN06QTQk+2N2XB9jRDkvbmQmcRtg=="],
+    "bluebird": ["bluebird@3.4.7", "", {}, "sha512-iD3898SR7sWVRHbiQv+sHUtHnMvC1o3nW5rAcqnq3uOn07DSAppZYUkIGslDz6gXC7HfunPe7YVBgoEJASPcHA=="],
 
     "brotli": ["brotli@1.3.3", "", { "dependencies": { "base64-js": "^1.1.2" } }, "sha512-oTKjJdShmDuGW94SyyaoQvAjf30dZaHnjJ8uAF+u2/vGJkJbJPJAT1gDiOJP5v1Zb6f9KEyW/1HpuaWIXtGHPg=="],
 
@@ -2524,6 +2542,8 @@
 
     "@json-render/core/zod": ["zod@4.1.13", "", {}, "sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig=="],
 
+    "@parvineyvazov/json-translator/bluebird": ["bluebird@3.7.2", "", {}, "sha512-XpNj6GDQzdfW+r2Wnn7xiSAd7TM3jzkxGXBGTtWKuSXv1xUV+azxAm8jdWZN06QTQk+2N2XB9jRDkvbmQmcRtg=="],
+
     "@parvineyvazov/json-translator/openai": ["openai@4.104.0", "", { "dependencies": { "@types/node": "^18.11.18", "@types/node-fetch": "^2.6.4", "abort-controller": "^3.0.0", "agentkeepalive": "^4.2.1", "form-data-encoder": "1.7.2", "formdata-node": "^4.3.2", "node-fetch": "^2.6.7" }, "peerDependencies": { "ws": "^8.18.0", "zod": "^3.23.8" }, "optionalPeers": ["ws", "zod"], "bin": { "openai": "bin/cli" } }, "sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA=="],
 
     "@puckeditor/core/use-debounce": ["use-debounce@9.0.4", "", { "peerDependencies": { "react": ">=16.8.0" } }, "sha512-6X8H/mikbrt0XE8e+JXRtZ8yYVvKkdYRfmIhWZYsP8rcNs9hk3APV8Ua2mFkKRLcJKVdnX2/Vwrmg2GWKUQEaQ=="],
@@ -2653,8 +2673,6 @@
     "katex/commander": ["commander@8.3.0", "", {}, "sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww=="],
 
     "linebreak/base64-js": ["base64-js@0.0.8", "", {}, "sha512-3XSA2cR/h/73EzlXXdU6YNycmYI7+kicTxks4eJg2g39biHR84slg2+des+p7iHYhbRg/udIS4TD53WabcOUkw=="],
-
-    "mammoth/bluebird": ["bluebird@3.4.7", "", {}, "sha512-iD3898SR7sWVRHbiQv+sHUtHnMvC1o3nW5rAcqnq3uOn07DSAppZYUkIGslDz6gXC7HfunPe7YVBgoEJASPcHA=="],
 
     "markdown-it/argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 

@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 // Lazy import heavy indexing service to reduce initial bundle size
-import { documentClassifier } from "@/lib/ai/document-classifier";
+import { documentClassifier } from "./document-classifier";
 
 export type RagSearchResult = {
   text: string;
@@ -106,7 +106,7 @@ export const searchSharePoint = tool({
   }) => {
     try {
       const { createIndexingService } = await import(
-        "@/lib/ai/indexing-service"
+        "./indexing-service"
       );
       const indexingService = await createIndexingService();
 
@@ -168,7 +168,7 @@ export const getDocumentStats = tool({
   execute: async () => {
     try {
       const { createIndexingService } = await import(
-        "@/lib/ai/indexing-service"
+        "./indexing-service"
       );
       const indexingService = await createIndexingService();
       const stats = await indexingService.getDocumentStats();
@@ -197,7 +197,7 @@ export const listSharePointSites = tool({
   execute: async () => {
     try {
       const { SharePointService, getSharePointConfig } = await import(
-        "@/lib/sharepoint"
+        "@repo/connectors/sharepoint"
       );
       const sharePointService = new SharePointService(getSharePointConfig());
       const sites = await sharePointService.listSites();

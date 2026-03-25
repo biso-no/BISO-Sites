@@ -1,9 +1,9 @@
 import "server-only";
-import { isSupportedContentType } from "@repo/ai/utils/content-types";
-import { getDocumentViewerUrl } from "@repo/ai/utils/document-utils";
-import { correctMimeType } from "@repo/ai/utils/mime-utils";
-import type { VectorDocument } from "@repo/ai/utils/vector-store-types";
-import { type SharePointDocument, SharePointService } from "@/lib/sharepoint";
+import { isSupportedContentType } from "../utils/content-types";
+import { getDocumentViewerUrl } from "../utils/document-utils";
+import { correctMimeType } from "../utils/mime-utils";
+import type { VectorDocument } from "../utils/vector-store.types";
+import { type SharePointDocument, SharePointService } from "@repo/connectors/sharepoint";
 import { documentClassifier } from "./document-classifier";
 import {
   DocumentProcessor,
@@ -43,7 +43,7 @@ const CAMPUS_CANDIDATES = [
   "bodoe",
 ];
 
-type IndexingJob = {
+export type IndexingJob = {
   id: string;
   status: "pending" | "processing" | "completed" | "failed";
   siteId: string;
@@ -69,7 +69,7 @@ type IndexingJob = {
   };
 };
 
-type IndexingOptions = {
+export type IndexingOptions = {
   siteId: string;
   folderPath?: string;
   recursive?: boolean;
@@ -78,7 +78,7 @@ type IndexingOptions = {
   validateChunks?: boolean; // New: enable chunk validation
 };
 
-type ProcessedDocumentResult = {
+export type ProcessedDocumentResult = {
   documentId: string;
   chunks: VectorDocument[];
   chunksCreated: number;
@@ -190,12 +190,12 @@ function calculateQualityScore(
 export class IndexingService {
   private readonly sharePointService: SharePointService;
   private readonly documentProcessor: DocumentProcessor;
-  private readonly vectorStore: import("@repo/ai/utils/vector-store-types").IVectorStore;
+  private readonly vectorStore: import("../utils/vector-store.types").IVectorStore;
   private readonly jobs: Map<string, IndexingJob> = new Map();
 
   constructor(
     sharePointService: SharePointService,
-    vectorStore: import("@repo/ai/utils/vector-store-types").IVectorStore
+    vectorStore: import("../utils/vector-store.types").IVectorStore
   ) {
     this.sharePointService = sharePointService;
     this.documentProcessor = new DocumentProcessor();
@@ -1140,7 +1140,7 @@ export class IndexingService {
 
 // Factory function remains the same
 export async function createIndexingService(): Promise<IndexingService> {
-  const { getSharePointConfig } = await import("@/lib/sharepoint");
+  const { getSharePointConfig } = await import("@repo/connectors/sharepoint");
   const { getVectorStore } = await import("./vector-store-factory");
 
   const config = getSharePointConfig();

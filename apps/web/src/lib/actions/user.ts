@@ -6,7 +6,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
-//
+
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;
   profile: Users | null;
@@ -20,7 +20,6 @@ export async function getLoggedInUser(): Promise<{
     const { account, db } = await createSessionClient();
 
     const user = await account.get();
-    console.log("user authenticated:", user.$id);
 
     if (user.$id) {
       // Check if this is an authenticated user (not anonymous)
@@ -33,7 +32,6 @@ export async function getLoggedInUser(): Promise<{
 
       // Only return user data for authenticated users
       if (!isAuthenticated) {
-        console.log("Anonymous user detected, not returning user data");
         return null;
       }
 
@@ -41,10 +39,8 @@ export async function getLoggedInUser(): Promise<{
         // Try to get the user profile document
         const profile = await db.getRow<Users>("app", "user", user.$id);
         return { user, profile };
-      } catch (profileError) {
+      } catch {
         // If profile doesn't exist, return user but null profile
-        console.log("No profile found for user:", user.$id);
-        console.error("Profile error:", profileError);
         return { user, profile: null };
       }
     } else {
@@ -54,55 +50,6 @@ export async function getLoggedInUser(): Promise<{
     console.error("Error getting logged in user!!", error);
     return null;
   }
-}
-
-async function _getCurrentSession() {
-  const { account } = await createSessionClient();
-  const session = await account.getSession("current");
-  return session;
-}
-
-async function _getUserById(
-  _userId: string
-): Promise<Models.User<Models.Preferences> | null> {
-  try {
-    const { account } = await createSessionClient();
-    const user = await account.get();
-    return user;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-async function _signIn(email: string) {
-  try {
-    const { account } = await createSessionClient();
-    const user = await account.createMagicURLToken(
-      ID.unique(),
-      email,
-      `${BASE_URL}/auth/callback`
-    );
-    return user;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-async function _signInWithOauth() {
-  const { account } = await createSessionClient();
-
-  const origin = (await headers()).get("origin");
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Microsoft,
-    `${origin}/auth/oauth`,
-    `${origin}/auth/login`,
-    ["openid", "email", "profile"]
-  );
-
-  return redirect(redirectUrl);
 }
 
 export async function listIdentities() {
@@ -122,103 +69,31 @@ export async function removeIdentity(identityId: string) {
     await account.deleteIdentity(identityId);
     return { success: true };
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error);
     console.error("Failed to remove identity", error);
-    return { success: false, error: String((error as any)?.message || error) };
+    return { success: false, error: message };
   }
 }
-
-type ProfileDetails = {
-  department?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  zip?: string;
-  bank_account?: string;
-  swift?: string;
-};
 
 export async function updateProfile(profile: Partial<Users>) {
   try {
     const { account, db } = await createSessionClient();
     const user = await account.get();
 
-    console.log("Updating profile for user:", user.$id);
-    console.log("Profile data being sent:", JSON.stringify(profile));
-
     try {
-      const existingProfile = await db.getRow("app", "user", user.$id);
-      console.log("Profile found, updating...", existingProfile.$id);
+      await db.getRow("app", "user", user.$id);
       if (profile.name) {
         await account.updateName(profile.name);
       }
       return await db.updateRow("app", "user", user.$id, profile);
-    } catch (profileError) {
-      console.log(
-        "Profile not found, creating new profile for user:",
-        user.$id
-      );
-      console.error("Profile lookup error details:", profileError);
+    } catch {
       return await db.createRow("app", "user", user.$id, profile);
     }
   } catch (error) {
     console.error("Error in updateProfile:", error);
-    // Check if it's a specific Appwrite error we can handle
-    if (typeof error === "object" && error !== null && "code" in error) {
-      console.error(`Appwrite error code: ${error.code}`);
-    }
     return null;
   }
-}
-
-async function _createProfile(profile: Partial<Users>, userId: string) {
-  try {
-    const { account, db } = await createSessionClient();
-
-    const existingProfile = await db.getRow("app", "user", userId);
-
-    if (existingProfile) {
-      return await db.updateRow("app", "user", userId, profile);
-    }
-    return await db.createRow("app", "user", userId, profile);
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-async function _getUserPreferences(
-  _userId: string
-): Promise<Models.Preferences | null> {
-  const { account, db } = await createSessionClient();
-  const user = await account.get();
-
-  if (!user) {
-    return null;
-  }
-
-  const prefs = user.prefs;
-  return prefs;
-}
-
-async function _updateUserPreferences(
-  _userId: string,
-  prefs: Record<string, any>
-): Promise<Models.Preferences | null> {
-  const { account, db } = await createSessionClient();
-  const user = await account.get();
-
-  if (!user) {
-    return null;
-  }
-
-  // Merge existing preferences with new ones
-  const existingPrefs = user.prefs || {};
-  const mergedPrefs = { ...existingPrefs, ...prefs };
-
-  const updatedPrefs = await account.updatePrefs(mergedPrefs);
-  return updatedPrefs;
 }
 
 export async function createJWT(): Promise<string | null> {
@@ -230,15 +105,6 @@ export async function createJWT(): Promise<string | null> {
     console.error(error);
     return null;
   }
-}
-
-async function _signOut(): Promise<void> {
-  const { account } = await createSessionClient();
-
-  (await cookies()).delete("a_session_biso");
-  await account.deleteSession("current");
-
-  redirect("/auth/login");
 }
 
 export async function deleteUserData() {

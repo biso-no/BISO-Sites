@@ -20,7 +20,7 @@
         "noBarrelFile": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off",
+        "noExplicitAny": "warn",
         "noEvolvingTypes": "warn",
         "noArrayIndexKey": "off"
       },
@@ -29,7 +29,7 @@
         "noNonNullAssertion": "off"
       },
       "correctness": {
-        "noUnusedVariables": "off"
+        "noUnusedVariables": "warn"
       }
     }
   }

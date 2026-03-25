@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import {
   Pinecone,
+  type Index,
   type QueryResponse,
   type RecordMetadata,
 } from "@pinecone-database/pinecone";
@@ -9,8 +10,8 @@ import type {
   SearchOptions,
   SearchResult,
   VectorDocument,
-} from "@repo/ai/utils/vector-store-types";
-import { embed, embedMany } from "ai";
+} from "../utils/vector-store.types";
+import { type EmbeddingModel, embed, embedMany } from "ai";
 import { encode } from "gpt-tokenizer";
 import { v5 as uuidv5 } from "uuid";
 
@@ -84,11 +85,11 @@ export class PineconeVectorStore implements IVectorStore {
   private readonly client: Pinecone;
   private readonly indexName: string;
   private readonly namespace: string;
-  private readonly embeddingModel: any;
+  private readonly embeddingModel: EmbeddingModel<string>;
   private readonly modelConfig: (typeof EMBEDDING_MODELS)[EmbeddingModelName];
   private isInitialized = false;
   private readonly stats: ModelStats;
-  private index: any;
+  private index!: Index;
 
   constructor(
     indexName?: string,
@@ -140,14 +141,14 @@ export class PineconeVectorStore implements IVectorStore {
     operation: () => Promise<T>,
     context: string
   ): Promise<T> {
-    let lastError: any;
+    let lastError: unknown;
 
     for (let attempt = 1; attempt <= CONFIG.RETRY.MAX_ATTEMPTS; attempt++) {
       try {
         return await operation();
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
-        console.error(`${context} - Attempt ${attempt} failed:`, error.message);
+        console.error(`${context} - Attempt ${attempt} failed:`, error instanceof Error ? error.message : String(error));
 
         if (attempt === CONFIG.RETRY.MAX_ATTEMPTS) {
           break;
@@ -362,8 +363,8 @@ export class PineconeVectorStore implements IVectorStore {
       "Generating query embedding"
     );
 
-    const queryRequest: any = {
-      vector,
+    const queryRequest: { vector: number[]; topK: number; includeMetadata: boolean; filter?: Record<string, unknown> } = {
+      vector: vector as number[],
       topK: k,
       includeMetadata,
     };
@@ -482,10 +483,10 @@ export class PineconeVectorStore implements IVectorStore {
   }> {
     await this.initialize();
 
-    const stats = (await this.withRetry(
+    const stats = await this.withRetry(
       () => this.index.describeIndexStats(),
       "Getting collection stats"
-    )) as any;
+    );
 
     const namespaceStats = stats.namespaces?.[this.namespace];
     const count = namespaceStats?.recordCount || 0;
@@ -513,7 +514,7 @@ export class PineconeVectorStore implements IVectorStore {
     );
   }
 
-  async healthCheck(): Promise<{ healthy: boolean; details: any }> {
+  async healthCheck(): Promise<{ healthy: boolean; details: Record<string, unknown> }> {
     try {
       const [indexInfo, stats] = await Promise.all([
         this.client.describeIndex(this.indexName),

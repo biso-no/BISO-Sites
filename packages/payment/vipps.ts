@@ -1,5 +1,6 @@
 import type { Orders } from "@repo/api/types/appwrite";
 import { OrderStatus } from "@repo/api/types/appwrite";
+import { TablesDB } from "node-appwrite";
 import type {
   CheckoutSessionParams,
   VippsCheckoutResponse,
@@ -49,7 +50,7 @@ export { client, getAccessToken } from "@repo/shared/utils/vipps-client";
  */
 export async function createCheckoutSession(
   params: CheckoutSessionParams,
-  db: any
+  db: TablesDB
 ): Promise<VippsCheckoutResponse> {
   try {
     // Step 1: Create order in database first
@@ -182,7 +183,7 @@ export async function createCheckoutSession(
 export async function handleVippsCallback(
   authToken: string,
   sessionId: string,
-  db: any
+  db: TablesDB
 ): Promise<{ success: boolean; message: string }> {
   try {
     // Verify callback token
@@ -264,7 +265,7 @@ export async function handleVippsCallback(
  */
 export async function getOrderStatus(
   orderId: string,
-  db: any
+  db: TablesDB
 ): Promise<Orders | null> {
   try {
     const order = (await db.getRow(
@@ -290,7 +291,7 @@ export async function getOrderStatus(
  */
 export async function verifyOrderStatus(
   orderId: string,
-  db: any
+  db: TablesDB
 ): Promise<Orders | null> {
   try {
     const order = (await db.getRow(

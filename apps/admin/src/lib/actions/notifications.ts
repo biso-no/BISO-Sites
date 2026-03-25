@@ -1,7 +1,7 @@
 "use server";
 
 import { ID, Query } from "@repo/api";
-import { createAdminClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import type { AppNotices } from "@repo/api/types/appwrite";
 import type {
   Notification,
@@ -17,7 +17,7 @@ const NOTICES_TABLE = "notices";
  */
 export async function fetchNotifications(): Promise<Notification[]> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
 
     const response = await db.listRows<AppNotices>(DATABASE_ID, NOTICES_TABLE, [
       Query.equal("isActive", true),
@@ -59,7 +59,7 @@ export async function createNotification(data: {
   isActive?: boolean;
 }): Promise<{ success: boolean; notificationId?: string; error?: string }> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
 
     const noticeData = {
       title: data.title,
@@ -100,7 +100,7 @@ async function dismissNotification(
   notificationId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
 
     await db.updateRow(DATABASE_ID, NOTICES_TABLE, notificationId, {
       isActive: false,
@@ -127,7 +127,7 @@ async function updateNotificationPriority(
   priority: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
 
     await db.updateRow(DATABASE_ID, NOTICES_TABLE, notificationId, {
       priority,
@@ -207,7 +207,7 @@ async function getNotificationStats(): Promise<{
   byType: Record<NotificationType, number>;
 }> {
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
 
     const [allNotices, activeNotices] = await Promise.all([
       db.listRows<AppNotices>(DATABASE_ID, NOTICES_TABLE, [
