@@ -22,6 +22,11 @@
     "./data/schemas": "./src/data/schemas.ts",
     "./data/fetch": "./src/data/fetch-data.ts",
     "./data/normalizers": "./src/data/normalizers.ts",
+    "./unified-editor": "./src/unified-editor.tsx",
+    "./bindings": "./src/bindings/index.ts",
+    "./content-types/registry": "./src/content-types/registry.ts",
+    "./fields/binding-source-field": "./src/fields/binding-source-field.tsx",
+    "./fields/field-schema-editor": "./src/fields/field-schema-editor.tsx",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

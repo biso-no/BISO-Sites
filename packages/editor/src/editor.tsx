@@ -37,7 +37,11 @@ import {
   Settings,
 } from "lucide-react";
 import type { EditorContext } from "./editor-context";
+import { aiAssistantPlugin } from "./plugins/ai-assistant";
+import { savedPatternsPlugin } from "./plugins/saved-patterns";
+import { seoToolsPlugin } from "./plugins/seo-tools";
 import { templatesPlugin } from "./plugins/templates";
+import { versionHistoryPlugin } from "./plugins/version-history";
 import { getPuckFieldOverrides, puckViewports } from "./puck-ui";
 
 export type PageEditorProps = {
@@ -168,7 +172,13 @@ export function PageEditor({
               }
             : undefined
         }
-        plugins={[templatesPlugin]}
+        plugins={[
+          templatesPlugin,
+          savedPatternsPlugin,
+          aiAssistantPlugin,
+          seoToolsPlugin,
+          versionHistoryPlugin,
+        ]}
         renderHeaderActions={({ state }) => {
           const currentData = state.data as Data;
 

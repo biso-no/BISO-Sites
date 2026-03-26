@@ -33,13 +33,17 @@ import {
   normalizeSubtitle,
 } from "./utils";
 import type {
+  ArticleDetailProps,
   DataSourceValue,
+  DepartmentsGridProps,
   EditorCollectionProps,
   EditorEventsProps,
   EditorJobsListProps,
   EditorMetadata,
   EditorNewsProps,
   EditorProductsGridProps,
+  EventDetailProps,
+  EventsCalendarProps,
 } from "./types";
 import type { NewsItem } from "@repo/ui/components/sections/news";
 import type { EventItem } from "@repo/ui/components/sections/events";
@@ -818,6 +822,730 @@ export const DataDisplayComponents = {
       items: [] as CollectionItem[],
       emptyMessage: "No items to display",
       emptyDescription: "Check back later.",
+    },
+  },
+  DepartmentsGrid: {
+    label: "Departments Grid",
+    resolveFields: (data: any): any => {
+      const fields: Record<string, unknown> = {
+        title: { type: "text", label: "Title" },
+        subtitle: { type: "textarea", label: "Subtitle" },
+        variant: {
+          type: "select",
+          label: "Variant",
+          options: [
+            { label: "Card", value: "card" },
+            { label: "Compact", value: "compact" },
+          ],
+        },
+        columns: {
+          type: "select",
+          label: "Columns",
+          options: [
+            { label: "2 Columns", value: 2 },
+            { label: "3 Columns", value: 3 },
+            { label: "4 Columns", value: 4 },
+          ],
+        },
+        showFilters: {
+          type: "radio",
+          label: "Show Filters",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+        dataMode: {
+          type: "radio",
+          label: "Data Source",
+          options: [
+            { label: "Manual Entry", value: "manual" },
+            { label: "Dynamic (Database)", value: "dynamic" },
+          ],
+        },
+      };
+
+      if (data.props.dataMode === "dynamic") {
+        fields.scope = {
+          type: "radio",
+          label: "Scope",
+          options: [
+            { label: "This page", value: "page" },
+            { label: "All content", value: "all" },
+          ],
+        };
+        fields.dataSource = {
+          type: "data-source",
+          label: "Departments Source",
+          schemas: TABLE_SCHEMAS.filter((s) => s.id === "departments"),
+          showLimit: true,
+          showSort: true,
+          maxLimit: 100,
+        };
+      } else {
+        fields.items = {
+          type: "array",
+          label: "Departments",
+          getItemSummary: (item: { title?: string }) =>
+            item.title || "Department",
+          arrayFields: {
+            title: { type: "text", label: "Name" },
+            subtitle: { type: "text", label: "Type" },
+            image: { type: "image", label: "Logo" },
+            badge: { type: "text", label: "Member Count" },
+            href: { type: "text", label: "Link URL" },
+          },
+        };
+      }
+
+      return fields;
+    },
+    resolveData: async (
+      { props }: { props: DepartmentsGridProps },
+      { changed, trigger, metadata }: any
+    ) => {
+      const shouldResolve =
+        trigger === "insert" ||
+        trigger === "load" ||
+        trigger === "force" ||
+        trigger === "move" ||
+        Boolean(changed.dataMode || changed.dataSource || changed.scope);
+
+      if (!shouldResolve) {
+        return { props: {} };
+      }
+
+      if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+        return { props: {} };
+      }
+
+      try {
+        const editorMetadata = metadata as EditorMetadata | undefined;
+        const locale = editorMetadata?.locale ?? props.dataSource.locale;
+
+        const items = await getDynamicContent({
+          ...props.dataSource,
+          table: "departments",
+          locale,
+          filters: props.dataSource.filters,
+          limit: props.dataSource.limit ?? 12,
+        });
+
+        const collectionItems: CollectionItem[] = items.map((item) => ({
+          id: item.id || crypto.randomUUID(),
+          title: item.title || (item as any).Name || "",
+          subtitle: item.category || (item as any).type || "",
+          image: item.image || (item as any).logo || "",
+          badge: item.badge,
+          href: item.href,
+        }));
+
+        return { props: { items: collectionItems } };
+      } catch (e) {
+        console.error("Failed to resolve departments", e);
+        return { props: {} };
+      }
+    },
+    render: (props: DepartmentsGridProps) => {
+      const layout = props.variant === "compact" ? "compact-card" : "card-grid";
+      return (
+        <Collection
+          title={props.title}
+          subtitle={props.subtitle}
+          layout={layout}
+          columns={props.columns ?? 3}
+          items={props.items ?? []}
+          showFilters={props.showFilters}
+          emptyMessage="No departments found"
+          emptyDescription="Check back later."
+        />
+      );
+    },
+    defaultProps: {
+      title: "Departments",
+      subtitle: "Explore our student organizations and committees.",
+      variant: "card" as const,
+      columns: 3 as const,
+      showFilters: false,
+      dataMode: "dynamic",
+      scope: "all",
+      dataSource: {
+        table: "departments",
+        limit: 12,
+        sort: { field: "Name", direction: "asc" },
+        filters: [
+          { field: "active", operator: "equal", value: true },
+        ] as DataSourceValue["filters"],
+      },
+      items: [] as CollectionItem[],
+    },
+  },
+  EventsCalendar: {
+    label: "Events Calendar",
+    resolveFields: (data: any): any => {
+      const fields: Record<string, unknown> = {
+        title: { type: "text", label: "Title" },
+        view: {
+          type: "select",
+          label: "View",
+          options: [
+            { label: "Calendar", value: "calendar" },
+            { label: "List", value: "list" },
+            { label: "Timeline", value: "timeline" },
+          ],
+        },
+        showFilters: {
+          type: "radio",
+          label: "Show Filters",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+        dataMode: {
+          type: "radio",
+          label: "Data Source",
+          options: [
+            { label: "Manual Entry", value: "manual" },
+            { label: "Dynamic (Database)", value: "dynamic" },
+          ],
+        },
+      };
+
+      if (data.props.dataMode === "dynamic") {
+        fields.scope = {
+          type: "radio",
+          label: "Scope",
+          options: [
+            { label: "This page", value: "page" },
+            { label: "All content", value: "all" },
+          ],
+        };
+        fields.dataSource = {
+          type: "data-source",
+          label: "Events Source",
+          schemas: TABLE_SCHEMAS.filter((s) => s.id === "events"),
+          showLimit: true,
+          showSort: true,
+          maxLimit: 100,
+        };
+      } else {
+        fields.events = {
+          type: "array",
+          getItemSummary: (item: { title?: string }) => item.title || "Event",
+          arrayFields: {
+            title: { type: "text" },
+            image: { type: "image" },
+            start_date: { type: "text" },
+            end_date: { type: "text" },
+            location: { type: "text" },
+            category: {
+              type: "select",
+              options: [
+                { label: "Social", value: "Social" },
+                { label: "Career", value: "Career" },
+                { label: "Academic", value: "Academic" },
+              ],
+            },
+            attendees: { type: "number" },
+            content_id: { type: "text" },
+            $id: { type: "text" },
+          },
+        };
+      }
+
+      return fields;
+    },
+    resolveData: async (
+      { props }: { props: EventsCalendarProps },
+      { changed, trigger, metadata }: any
+    ) => {
+      const shouldResolve =
+        trigger === "insert" ||
+        trigger === "load" ||
+        trigger === "force" ||
+        trigger === "move" ||
+        Boolean(changed.dataMode || changed.dataSource);
+
+      if (!shouldResolve) {
+        return { props: {} };
+      }
+
+      if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+        return { props: {} };
+      }
+
+      try {
+        const editorMetadata = metadata as EditorMetadata | undefined;
+        const locale = editorMetadata?.locale ?? props.dataSource.locale;
+
+        const items = await getDynamicContent({
+          ...props.dataSource,
+          table: "events",
+          locale,
+          filters: props.dataSource.filters,
+          limit: props.dataSource.limit ?? 20,
+        });
+
+        const events = items.map((item) => ({
+          $id: item.id || "",
+          content_id: item.id || "",
+          title: item.title,
+          image: item.image,
+          start_date: item.date,
+          location: item.location,
+          category: item.category,
+        }));
+
+        return { props: { events } };
+      } catch (e) {
+        console.error("Failed to resolve events calendar", e);
+        return { props: {} };
+      }
+    },
+    render: (props: EventsCalendarProps) => (
+      <FilteredEvents
+        {...({
+          events: props.events ?? [],
+          labels: {
+            empty: "No events",
+            emptyDescription: "Check back later",
+            upcomingEvents: props.title ?? "Events Calendar",
+            dontMissOut: "",
+            amazingExperiences: "",
+            description: "",
+            registerNow: "Register Now",
+            viewAllEvents: "View All Events",
+          },
+        } as any)}
+      />
+    ),
+    defaultProps: {
+      title: "Events Calendar",
+      view: "list" as const,
+      showFilters: true,
+      dataMode: "dynamic",
+      dataSource: {
+        table: "events",
+        limit: 20,
+        sort: { field: "start_date", direction: "asc" },
+        filters: [
+          { field: "start_date", operator: "greaterThan", value: "$now" },
+          { field: "status", operator: "equal", value: "published" },
+        ] as DataSourceValue["filters"],
+      },
+      events: [] as EventItem[],
+    },
+  },
+  ArticleDetail: {
+    label: "Article Detail",
+    resolveFields: (data: any): any => {
+      const fields: Record<string, unknown> = {
+        layout: {
+          type: "select",
+          label: "Layout",
+          options: [
+            { label: "Standard", value: "standard" },
+            { label: "Wide", value: "wide" },
+          ],
+        },
+        showRelated: {
+          type: "radio",
+          label: "Show Related Articles",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+        dataMode: {
+          type: "radio",
+          label: "Data Source",
+          options: [
+            { label: "Manual Entry", value: "manual" },
+            { label: "Dynamic (Database)", value: "dynamic" },
+          ],
+        },
+      };
+
+      if (data.props.dataMode === "dynamic") {
+        fields.dataSource = {
+          type: "data-source",
+          label: "Article Source",
+          schemas: TABLE_SCHEMAS.filter((s) => s.id === "news"),
+          showLimit: false,
+          showSort: false,
+          maxLimit: 1,
+        };
+      } else {
+        fields.title = { type: "text", label: "Title" };
+        fields.author = { type: "text", label: "Author" };
+        fields.date = { type: "text", label: "Date" };
+        fields.image = { type: "image", label: "Hero Image" };
+        fields.content = { type: "textarea", label: "Content" };
+      }
+
+      if (data.props.showRelated) {
+        fields.relatedItems = {
+          type: "array",
+          label: "Related Articles",
+          getItemSummary: (item: { title?: string }) =>
+            item.title || "Article",
+          arrayFields: {
+            title: { type: "text", label: "Title" },
+            href: { type: "text", label: "Link" },
+            image: { type: "image", label: "Image" },
+          },
+        };
+      }
+
+      return fields;
+    },
+    resolveData: async (
+      { props }: { props: ArticleDetailProps },
+      { changed, trigger, metadata }: any
+    ) => {
+      const shouldResolve =
+        trigger === "insert" ||
+        trigger === "load" ||
+        trigger === "force" ||
+        trigger === "move" ||
+        Boolean(changed.dataMode || changed.dataSource);
+
+      if (!shouldResolve) {
+        return { props: {} };
+      }
+
+      if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+        return { props: {} };
+      }
+
+      try {
+        const editorMetadata = metadata as EditorMetadata | undefined;
+        const locale = editorMetadata?.locale ?? props.dataSource.locale;
+
+        const items = await getDynamicContent({
+          ...props.dataSource,
+          table: "news",
+          locale,
+          filters: props.dataSource.filters,
+          limit: 1,
+        });
+
+        const article = items[0];
+        if (!article) {
+          return { props: {} };
+        }
+
+        return {
+          props: {
+            title: article.title,
+            author: article.subtitle || "",
+            date: article.date || new Date().toISOString(),
+            image: article.image || "",
+            content: article.description || "",
+          },
+        };
+      } catch (e) {
+        console.error("Failed to resolve article detail", e);
+        return { props: {} };
+      }
+    },
+    render: (props: ArticleDetailProps) => {
+      const isWide = props.layout === "wide";
+      return (
+        <article
+          className={`mx-auto py-8 ${isWide ? "max-w-5xl" : "max-w-3xl"}`}
+        >
+          {props.image && (
+            <div className="mb-8 overflow-hidden rounded-xl">
+              <img
+                src={props.image}
+                alt={props.title || ""}
+                className="h-64 w-full object-cover md:h-96"
+              />
+            </div>
+          )}
+          <header className="mb-8">
+            <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+              {props.title || "Article Title"}
+            </h1>
+            <div className="flex items-center gap-4 text-sm text-gray-500">
+              {props.author && <span>By {props.author}</span>}
+              {props.date && (
+                <time dateTime={props.date}>
+                  {new Date(props.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </time>
+              )}
+            </div>
+          </header>
+          <div className="prose prose-lg max-w-none">
+            <p>{props.content || "Article content goes here..."}</p>
+          </div>
+          {props.showRelated &&
+            props.relatedItems &&
+            props.relatedItems.length > 0 && (
+              <section className="mt-12 border-t pt-8">
+                <h2 className="mb-6 text-2xl font-semibold">
+                  Related Articles
+                </h2>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {props.relatedItems.map((item, i) => (
+                    <a
+                      key={i}
+                      href={item.href}
+                      className="group block overflow-hidden rounded-lg border transition-shadow hover:shadow-md"
+                    >
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="h-40 w-full object-cover"
+                        />
+                      )}
+                      <div className="p-4">
+                        <h3 className="font-medium group-hover:text-blue-600">
+                          {item.title}
+                        </h3>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+        </article>
+      );
+    },
+    defaultProps: {
+      layout: "standard" as const,
+      showRelated: false,
+      dataMode: "dynamic",
+      dataSource: {
+        table: "news",
+        limit: 1,
+        filters: [
+          { field: "status", operator: "equal", value: "published" },
+        ] as DataSourceValue["filters"],
+      },
+      title: "",
+      author: "",
+      date: "",
+      image: "",
+      content: "",
+      relatedItems: [] as { title: string; href: string; image?: string }[],
+    },
+  },
+  EventDetail: {
+    label: "Event Detail",
+    resolveFields: (data: any): any => {
+      const fields: Record<string, unknown> = {
+        showRegistration: {
+          type: "radio",
+          label: "Show Registration",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+        showMap: {
+          type: "radio",
+          label: "Show Map",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+        dataMode: {
+          type: "radio",
+          label: "Data Source",
+          options: [
+            { label: "Manual Entry", value: "manual" },
+            { label: "Dynamic (Database)", value: "dynamic" },
+          ],
+        },
+      };
+
+      if (data.props.dataMode === "dynamic") {
+        fields.dataSource = {
+          type: "data-source",
+          label: "Event Source",
+          schemas: TABLE_SCHEMAS.filter((s) => s.id === "events"),
+          showLimit: false,
+          showSort: false,
+          maxLimit: 1,
+        };
+      } else {
+        fields.title = { type: "text", label: "Title" };
+        fields.date = { type: "text", label: "Start Date" };
+        fields.endDate = { type: "text", label: "End Date" };
+        fields.location = { type: "text", label: "Location" };
+        fields.image = { type: "image", label: "Image" };
+        fields.description = { type: "textarea", label: "Description" };
+        fields.ticketUrl = { type: "text", label: "Ticket / Registration URL" };
+        fields.price = { type: "text", label: "Price" };
+      }
+
+      return fields;
+    },
+    resolveData: async (
+      { props }: { props: EventDetailProps },
+      { changed, trigger, metadata }: any
+    ) => {
+      const shouldResolve =
+        trigger === "insert" ||
+        trigger === "load" ||
+        trigger === "force" ||
+        trigger === "move" ||
+        Boolean(changed.dataMode || changed.dataSource);
+
+      if (!shouldResolve) {
+        return { props: {} };
+      }
+
+      if (props.dataMode !== "dynamic" || !props.dataSource?.table) {
+        return { props: {} };
+      }
+
+      try {
+        const editorMetadata = metadata as EditorMetadata | undefined;
+        const locale = editorMetadata?.locale ?? props.dataSource.locale;
+
+        const items = await getDynamicContent({
+          ...props.dataSource,
+          table: "events",
+          locale,
+          filters: props.dataSource.filters,
+          limit: 1,
+        });
+
+        const event = items[0];
+        if (!event) {
+          return { props: {} };
+        }
+
+        const meta = (event.metadata ?? {}) as Record<string, unknown>;
+
+        return {
+          props: {
+            title: event.title,
+            date: event.date || "",
+            endDate: (meta.end_date as string) || "",
+            location: event.location || "",
+            image: event.image || "",
+            description: event.description || "",
+            price: (meta.price as string) || "",
+            ticketUrl: (meta.ticketUrl as string) || event.href || "",
+          },
+        };
+      } catch (e) {
+        console.error("Failed to resolve event detail", e);
+        return { props: {} };
+      }
+    },
+    render: (props: EventDetailProps) => {
+      const formatDate = (d?: string) => {
+        if (!d) return "";
+        return new Date(d).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      };
+
+      return (
+        <article className="mx-auto max-w-4xl py-8">
+          {props.image && (
+            <div className="mb-8 overflow-hidden rounded-xl">
+              <img
+                src={props.image}
+                alt={props.title || ""}
+                className="h-64 w-full object-cover md:h-96"
+              />
+            </div>
+          )}
+          <header className="mb-8">
+            <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+              {props.title || "Event Title"}
+            </h1>
+          </header>
+          <div className="mb-8 grid gap-4 rounded-lg bg-gray-50 p-6 sm:grid-cols-2">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Date & Time</p>
+              <p className="mt-1 text-sm">{formatDate(props.date)}</p>
+              {props.endDate && (
+                <p className="mt-1 text-sm text-gray-600">
+                  Until {formatDate(props.endDate)}
+                </p>
+              )}
+            </div>
+            {props.location && (
+              <div>
+                <p className="text-sm font-medium text-gray-500">Location</p>
+                <p className="mt-1 text-sm">{props.location}</p>
+              </div>
+            )}
+            {props.price && (
+              <div>
+                <p className="text-sm font-medium text-gray-500">Price</p>
+                <p className="mt-1 text-sm">{props.price}</p>
+              </div>
+            )}
+          </div>
+          {props.description && (
+            <div className="prose prose-lg max-w-none">
+              <p>{props.description}</p>
+            </div>
+          )}
+          {props.showRegistration && props.ticketUrl && (
+            <div className="mt-8">
+              <a
+                href={props.ticketUrl}
+                className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Register Now
+              </a>
+            </div>
+          )}
+          {props.showMap && props.location && (
+            <div className="mt-8 overflow-hidden rounded-lg">
+              <iframe
+                title="Event location"
+                width="100%"
+                height="300"
+                style={{ border: 0 }}
+                loading="lazy"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=10.3,59.8,10.9,59.98&layer=mapnik`}
+              />
+            </div>
+          )}
+        </article>
+      );
+    },
+    defaultProps: {
+      showRegistration: true,
+      showMap: false,
+      dataMode: "dynamic",
+      dataSource: {
+        table: "events",
+        limit: 1,
+        filters: [
+          { field: "status", operator: "equal", value: "published" },
+        ] as DataSourceValue["filters"],
+      },
+      title: "",
+      date: "",
+      endDate: "",
+      location: "",
+      image: "",
+      description: "",
+      ticketUrl: "",
+      price: "",
     },
   },
 } as const;

@@ -1,8 +1,8 @@
 import { listPublishedTemplateOptions } from "@/app/actions/editorial";
-import { EntryTemplatePickerClient } from "../../_components/entry-template-picker-client";
+import { ContentTypePicker } from "../../_components/content-type-picker";
 
 export default async function NewContentEntryPage() {
   const templates = await listPublishedTemplateOptions();
 
-  return <EntryTemplatePickerClient templates={templates} />;
+  return <ContentTypePicker templates={templates} />;
 }

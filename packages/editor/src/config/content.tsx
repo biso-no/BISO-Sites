@@ -21,7 +21,7 @@ import {
 import { ALIGN_OPTIONS, ICON_OPTIONS } from "../puck-tokens";
 import { TABLE_SCHEMAS } from "../data/schemas";
 import { getDynamicContent } from "../get-dynamic-content";
-import type { TimelinePropsWithSlot } from "./types";
+import type { TestimonialsProps, TimelinePropsWithSlot } from "./types";
 
 export const ContentComponents = {
   Accordion: {
@@ -253,6 +253,160 @@ export const ContentComponents = {
       ] as TocItem[],
       variant: "card",
       showIcon: true,
+    },
+  },
+  Testimonials: {
+    fields: {
+      title: { type: "text", contentEditable: true } as any,
+      variant: {
+        type: "select",
+        options: [
+          { label: "Grid", value: "grid" },
+          { label: "Carousel", value: "carousel" },
+          { label: "Single", value: "single" },
+        ],
+      },
+      columns: {
+        type: "select",
+        options: [
+          { label: "2", value: 2 },
+          { label: "3", value: 3 },
+        ],
+      },
+      items: {
+        type: "array",
+        getItemSummary: (item: { author?: string }) => item.author || "Testimonial",
+        arrayFields: {
+          quote: { type: "textarea" },
+          author: { type: "text" },
+          role: { type: "text" },
+          avatar: { type: "image" } as any,
+        },
+        defaultItemProps: {
+          quote: "This is a great organization!",
+          author: "Jane Doe",
+          role: "Member",
+          avatar: "",
+        },
+      },
+    },
+    render: ({ items, variant, columns, title }: TestimonialsProps) => {
+      const testimonials = items || [];
+      const cols = columns || 3;
+
+      const renderCard = (
+        item: { quote: string; author: string; role?: string; avatar?: string },
+        index: number
+      ) => (
+        <div
+          key={index}
+          className="relative rounded-2xl border border-gray-200 bg-white p-8 shadow-sm"
+        >
+          {/* Decorative quote mark */}
+          <svg
+            className="absolute top-6 left-6 h-8 w-8 text-gray-200"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zM0 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151C7.546 6.068 5.983 8.789 5.983 11H10v10H0z" />
+          </svg>
+          <blockquote className="relative z-10 mt-6 text-gray-700 leading-relaxed">
+            &ldquo;{item.quote}&rdquo;
+          </blockquote>
+          <div className="mt-6 flex items-center gap-3 border-t border-gray-100 pt-4">
+            {item.avatar ? (
+              <img
+                src={item.avatar}
+                alt={item.author}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-500">
+                {item.author?.charAt(0)?.toUpperCase() || "?"}
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-semibold text-gray-900">
+                {item.author}
+              </p>
+              {item.role && (
+                <p className="text-xs text-gray-500">{item.role}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="w-full py-12 px-4">
+          {title && (
+            <h2 className="text-3xl font-bold text-center text-gray-900 mb-10">
+              {title}
+            </h2>
+          )}
+          {variant === "single" ? (
+            <div className="max-w-2xl mx-auto">
+              {testimonials[0] && renderCard(testimonials[0], 0)}
+            </div>
+          ) : variant === "carousel" ? (
+            <div className="max-w-6xl mx-auto">
+              <div className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory">
+                {testimonials.map((item, i) => (
+                  <div
+                    key={i}
+                    className="min-w-[320px] max-w-[400px] flex-shrink-0 snap-center"
+                  >
+                    {renderCard(item, i)}
+                  </div>
+                ))}
+              </div>
+              {testimonials.length > 1 && (
+                <p className="text-center text-xs text-gray-400 mt-4">
+                  Scroll to see more
+                </p>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`max-w-6xl mx-auto grid gap-6 ${
+                cols === 2
+                  ? "grid-cols-1 md:grid-cols-2"
+                  : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+              }`}
+            >
+              {testimonials.map((item, i) => renderCard(item, i))}
+            </div>
+          )}
+        </div>
+      );
+    },
+    defaultProps: {
+      title: "What Our Members Say",
+      variant: "grid",
+      columns: 3,
+      items: [
+        {
+          quote:
+            "Being part of this community completely changed my university experience. I've made lifelong friends and learned so much.",
+          author: "Sarah K.",
+          role: "3rd Year Student",
+          avatar: "",
+        },
+        {
+          quote:
+            "The events and workshops are incredibly well-organized. There's always something exciting going on.",
+          author: "Marcus L.",
+          role: "Board Member",
+          avatar: "",
+        },
+        {
+          quote:
+            "I love the networking opportunities. It really helped me land my first internship.",
+          author: "Priya N.",
+          role: "Alumni",
+          avatar: "",
+        },
+      ] as TestimonialsProps["items"],
     },
   },
 } as const;

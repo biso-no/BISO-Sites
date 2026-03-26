@@ -6,9 +6,17 @@ import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
 import { FileUpload } from "@repo/ui/components/file-upload";
 import { LinkPicker } from "@repo/ui/components/link-picker";
 import { TablePicker } from "@repo/ui/components/table-picker";
-import { Monitor, Smartphone, Tablet } from "lucide-react";
+import { Laptop, Monitor, Smartphone, Tablet } from "lucide-react";
 import type { ReactNode } from "react";
 import { TABLE_SCHEMAS } from "./data/schemas";
+import {
+  bindingSourceField,
+  type BindingSourceValue,
+  type FieldSchemaEntry,
+} from "./fields/binding-source-field";
+import {
+  fieldSchemaEditorField,
+} from "./fields/field-schema-editor";
 import { getPages } from "./get-pages";
 import { getTables } from "./get-tables";
 import { listImages, uploadImage } from "./upload-image";
@@ -116,16 +124,64 @@ export function getPuckFieldOverrides(): Partial<Overrides<Config>> {
           </ReadOnlyWrapper>
         );
       },
+      "binding-source": ({ value, onChange, readOnly, field }: PuckFieldProps) => {
+        const fieldConfig = (field ?? {}) as {
+          fieldSchema?: FieldSchemaEntry[];
+          allowedSources?: ("static" | "field" | "query" | "context")[];
+          showStatic?: boolean;
+        };
+
+        const customField = bindingSourceField({
+          fieldSchema: fieldConfig.fieldSchema,
+          allowedSources: fieldConfig.allowedSources,
+          showStatic: fieldConfig.showStatic,
+        });
+
+        return customField.render({
+          field: customField,
+          name: "binding-source",
+          id: "binding-source",
+          value: (value ?? { sourceType: "static" }) as BindingSourceValue,
+          onChange: (next) => {
+            if (!readOnly) {
+              onChange(next);
+            }
+          },
+          readOnly,
+        });
+      },
+      "field-schema-editor": ({ value, onChange, readOnly }: PuckFieldProps) => {
+        const customField = fieldSchemaEditorField();
+
+        return customField.render({
+          field: customField,
+          name: "field-schema-editor",
+          id: "field-schema-editor",
+          value: (value ?? []) as import("@repo/api/editorial").TemplateFieldSchema[],
+          onChange: (next) => {
+            if (!readOnly) {
+              onChange(next);
+            }
+          },
+          readOnly,
+        });
+      },
     },
   };
 }
 
 export const puckViewports = [
   {
+    label: "Wide",
+    width: 1920,
+    height: "auto" as const,
+    icon: <Monitor size={20} />,
+  },
+  {
     label: "Desktop",
     width: 1280,
     height: "auto" as const,
-    icon: <Monitor size={20} />,
+    icon: <Laptop size={20} />,
   },
   {
     label: "Tablet",

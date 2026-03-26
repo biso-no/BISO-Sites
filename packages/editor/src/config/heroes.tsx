@@ -15,7 +15,7 @@ import {
 import { ICON_OPTIONS } from "../puck-tokens";
 import { TABLE_SCHEMAS } from "../data/schemas";
 import { getDynamicContent } from "../get-dynamic-content";
-import type { HeroPropsWithSlot } from "./types";
+import type { BannerProps, HeroPropsWithSlot } from "./types";
 
 export const HeroComponents = {
   Hero: {
@@ -347,6 +347,139 @@ export const HeroComponents = {
       breadcrumbs: [{ label: "Privacy Policy" }] as BreadcrumbItem[],
       variant: "default",
       showDivider: true,
+    },
+  },
+  Banner: {
+    fields: {
+      message: { type: "text", contentEditable: true } as any,
+      variant: {
+        type: "select",
+        options: [
+          { label: "Info", value: "info" },
+          { label: "Warning", value: "warning" },
+          { label: "Success", value: "success" },
+          { label: "Brand", value: "brand" },
+        ],
+      },
+      dismissible: {
+        type: "radio",
+        options: [
+          { label: "Yes", value: true },
+          { label: "No", value: false },
+        ],
+      },
+      link: { type: "link" } as any,
+      linkLabel: { type: "text", label: "Link Label" },
+    },
+    render: ({
+      message,
+      variant,
+      dismissible,
+      link,
+      linkLabel,
+    }: BannerProps) => {
+      const styles: Record<
+        string,
+        { bg: string; text: string; icon: string; border: string }
+      > = {
+        info: {
+          bg: "bg-blue-50",
+          text: "text-blue-800",
+          icon: "text-blue-500",
+          border: "border-blue-200",
+        },
+        warning: {
+          bg: "bg-amber-50",
+          text: "text-amber-800",
+          icon: "text-amber-500",
+          border: "border-amber-200",
+        },
+        success: {
+          bg: "bg-emerald-50",
+          text: "text-emerald-800",
+          icon: "text-emerald-500",
+          border: "border-emerald-200",
+        },
+        brand: {
+          bg: "bg-gradient-to-r from-blue-600 to-indigo-600",
+          text: "text-white",
+          icon: "text-white/80",
+          border: "border-transparent",
+        },
+      };
+
+      const s = styles[variant || "info"] || styles.info;
+
+      const iconPaths: Record<string, string> = {
+        info: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+        warning:
+          "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z",
+        success: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+        brand: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
+      };
+
+      return (
+        <div
+          className={`w-full border-b ${s.border} ${s.bg} px-4 py-3`}
+        >
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <svg
+                className={`h-5 w-5 shrink-0 ${s.icon}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d={iconPaths[variant || "info"] || iconPaths.info}
+                />
+              </svg>
+              <span className={`text-sm font-medium ${s.text}`}>
+                {message || "Banner message"}
+              </span>
+              {link && (
+                <a
+                  href={link}
+                  className={`text-sm font-semibold underline underline-offset-2 ${s.text} hover:opacity-80`}
+                >
+                  {linkLabel || "Learn more"}
+                </a>
+              )}
+            </div>
+            {dismissible && (
+              <button
+                type="button"
+                className={`shrink-0 rounded-md p-1 hover:opacity-70 ${s.text}`}
+                aria-label="Dismiss"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    },
+    defaultProps: {
+      message: "Registration for the spring semester is now open!",
+      variant: "brand",
+      dismissible: true,
+      link: "/register",
+      linkLabel: "Register now",
     },
   },
 } as const;
