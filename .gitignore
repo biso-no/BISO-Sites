@@ -36,3 +36,6 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+memory/critical_issues.md
+memory/MEMORY.md
+memory/project_overview.md
