@@ -1,6 +1,6 @@
 "use client";
 
-import { type Config, type Data, Puck } from "@puckeditor/core";
+import { type Config, type Data, Puck, resolveAllData, usePuck } from "@puckeditor/core";
 import type {
   TemplateBinding,
   TemplateFieldSchema,
@@ -31,6 +31,7 @@ import {
   Globe,
   Languages,
   Loader2,
+  RefreshCw,
   Settings,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -40,13 +41,21 @@ import { injectBindings } from "./bindings/inject-bindings";
 import { config } from "./config";
 import type { EditorContext, EditorMode } from "./editor-context";
 import { fieldSchemaEditorField } from "./fields/field-schema-editor";
+import headingAnalyzer from "@puckeditor/plugin-heading-analyzer";
 import { aiAssistantPlugin } from "./plugins/ai-assistant";
+import { dataSourcesPlugin } from "./plugins/data-sources";
 import { savedPatternsPlugin } from "./plugins/saved-patterns";
 import { seoToolsPlugin } from "./plugins/seo-tools";
 import { templatesPlugin } from "./plugins/templates";
 import { versionHistoryPlugin } from "./plugins/version-history";
 import { getPuckFieldOverrides, puckViewports } from "./puck-ui";
 import "./styles.css";
+
+// Data-display component types that support the "Refresh data" action
+const DATA_DISPLAY_TYPES = new Set([
+  "News", "Events", "EventsCalendar", "JobsList", "ProductsGrid",
+  "DepartmentsGrid", "Collection", "FilterBar", "ArticleDetail", "EventDetail",
+]);
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -153,6 +162,35 @@ function FieldSchemaPlugin({
         readOnly: false,
       })}
     </div>
+  );
+}
+
+// ─── Refresh Button (uses usePuck hook) ─────────────────────────────
+
+function RefreshDataButton() {
+  const { selectedItem, dispatch } = usePuck();
+  const showRefresh =
+    selectedItem && DATA_DISPLAY_TYPES.has(selectedItem.type);
+
+  if (!showRefresh) return null;
+
+  return (
+    <Button
+      className="h-9"
+      onClick={() => {
+        dispatch({
+          type: "setData",
+          recordHistory: false,
+          data: (prev: any) => prev,
+        });
+        toast.info("Refreshing data...");
+      }}
+      size="sm"
+      variant="outline"
+    >
+      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+      Refresh data
+    </Button>
   );
 }
 
@@ -272,7 +310,11 @@ export function UnifiedEditor({
     async (newData: Data) => {
       setSaving(true);
       try {
-        await onPublish(newData, buildMetadata());
+        // Resolve all data before publishing to ensure hydrated payload
+        const resolved = await resolveAllData(newData, config as Config, {
+          metadata: { ...editorContext, locale, mode, contentType },
+        });
+        await onPublish(resolved as Data, buildMetadata());
         setData(newData);
         toast.success(
           mode === "template" ? "Template published" : "Page published",
@@ -333,6 +375,8 @@ export function UnifiedEditor({
 
   const plugins = useMemo(() => {
     const base = [
+      headingAnalyzer,
+      dataSourcesPlugin,
       templatesPlugin,
       savedPatternsPlugin,
       aiAssistantPlugin,
@@ -410,6 +454,9 @@ export function UnifiedEditor({
               >
                 {modeLabel}
               </Badge>
+
+              {/* Refresh data button for data-display blocks */}
+              <RefreshDataButton />
 
               {/* Version info (template mode) */}
               {mode === "template" && (

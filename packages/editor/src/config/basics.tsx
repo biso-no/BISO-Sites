@@ -29,6 +29,7 @@ import type { VideoEmbedProps } from "./types";
 
 export const BasicsComponents = {
   Heading: {
+    label: "Heading",
     fields: {
       text: { type: "text", contentEditable: true } as any,
       level: {
@@ -54,6 +55,7 @@ export const BasicsComponents = {
     },
   },
   Text: {
+    label: "Text",
     fields: {
       content: { type: "richtext", contentEditable: true } as any,
       variant: {
@@ -78,6 +80,7 @@ export const BasicsComponents = {
     },
   },
   Image: {
+    label: "Image",
     fields: {
       src: { type: "image" } as any,
       alt: { type: "text" },
@@ -110,6 +113,7 @@ export const BasicsComponents = {
     },
   },
   ButtonRow: {
+    label: "Button Row",
     fields: {
       align: {
         type: "radio",
@@ -148,6 +152,7 @@ export const BasicsComponents = {
     },
   },
   Divider: {
+    label: "Divider",
     fields: {
       style: {
         type: "select",
@@ -165,6 +170,7 @@ export const BasicsComponents = {
     },
   },
   VideoEmbed: {
+    label: "Video Embed",
     fields: {
       url: { type: "text", label: "Video URL (YouTube or Vimeo)" },
       aspect: {

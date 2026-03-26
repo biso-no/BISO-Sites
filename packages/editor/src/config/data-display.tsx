@@ -31,6 +31,7 @@ import {
   getMetaString,
   mergeFilters,
   normalizeSubtitle,
+  resolveComponentPermissions,
 } from "./utils";
 import type {
   ArticleDetailProps,
@@ -47,9 +48,12 @@ import type {
 } from "./types";
 import type { NewsItem } from "@repo/ui/components/sections/news";
 import type { EventItem } from "@repo/ui/components/sections/events";
+import { DataBlockPlaceholder } from "./data-block-placeholder";
 
 export const DataDisplayComponents = {
   News: {
+    label: "News",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         dataMode: {
@@ -72,13 +76,33 @@ export const DataDisplayComponents = {
           ],
         };
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "News Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "news"),
-          showLimit: true,
-          showSort: true,
-          maxLimit: 50,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "news");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 6,
+          }),
+        } as any;
       } else {
         fields.news = {
           type: "array",
@@ -114,11 +138,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorNewsProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource || changed.scope);
 
       if (!shouldResolve) {
@@ -155,13 +181,18 @@ export const DataDisplayComponents = {
           $createdAt: item.date || new Date().toISOString(),
         }));
 
-        return { props: { news } };
+        return { props: { news }, readOnly: { news: true } };
       } catch (e) {
         console.error("Failed to resolve news", e);
         return { props: {} };
       }
     },
-    render: (props: EditorNewsProps) => <FilteredNews {...props} />,
+    render: (props: EditorNewsProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="News" itemCount={props.dataSource?.limit ?? 6} />;
+      }
+      return <FilteredNews {...props} />;
+    },
     defaultProps: {
       dataMode: "dynamic",
       scope: "page",
@@ -184,6 +215,8 @@ export const DataDisplayComponents = {
     },
   },
   Events: {
+    label: "Events",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         dataMode: {
@@ -206,13 +239,33 @@ export const DataDisplayComponents = {
           ],
         };
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Events Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "events"),
-          showLimit: true,
-          showSort: true,
-          maxLimit: 50,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "events");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 6,
+          }),
+        } as any;
       } else {
         fields.events = {
           type: "array",
@@ -258,11 +311,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorEventsProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource || changed.scope);
 
       if (!shouldResolve) {
@@ -300,13 +355,18 @@ export const DataDisplayComponents = {
           category: item.category,
         }));
 
-        return { props: { events } };
+        return { props: { events }, readOnly: { events: true } };
       } catch (e) {
         console.error("Failed to resolve events", e);
         return { props: {} };
       }
     },
-    render: (props: EditorEventsProps) => <FilteredEvents {...props} />,
+    render: (props: EditorEventsProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Events" itemCount={props.dataSource?.limit ?? 6} />;
+      }
+      return <FilteredEvents {...props} />;
+    },
     defaultProps: {
       dataMode: "dynamic",
       scope: "page",
@@ -333,6 +393,8 @@ export const DataDisplayComponents = {
     },
   },
   JobsList: {
+    label: "Jobs List",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         dataMode: {
@@ -355,13 +417,33 @@ export const DataDisplayComponents = {
           ],
         };
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Jobs Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "jobs"),
-          showLimit: true,
-          showSort: true,
-          maxLimit: 100,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "jobs");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 12,
+          }),
+        } as any;
       } else {
         fields.jobs = {
           type: "array",
@@ -403,11 +485,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorJobsListProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource || changed.scope);
 
       if (!shouldResolve) {
@@ -463,13 +547,18 @@ export const DataDisplayComponents = {
           };
         });
 
-        return { props: { jobs } };
+        return { props: { jobs }, readOnly: { jobs: true } };
       } catch (e) {
         console.error("Failed to resolve jobs", e);
         return { props: {} };
       }
     },
-    render: (props: EditorJobsListProps) => <JobsList {...props} />,
+    render: (props: EditorJobsListProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Jobs List" itemCount={props.dataSource?.limit ?? 12} />;
+      }
+      return <JobsList {...props} />;
+    },
     defaultProps: {
       dataMode: "dynamic",
       scope: "page",
@@ -490,6 +579,8 @@ export const DataDisplayComponents = {
     },
   },
   ProductsGrid: {
+    label: "Products Grid",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         title: { type: "text", contentEditable: true } as any,
@@ -529,13 +620,33 @@ export const DataDisplayComponents = {
           ],
         };
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Products Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "products"),
-          showLimit: true,
-          showSort: true,
-          maxLimit: 50,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "products");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 8,
+          }),
+        } as any;
       } else {
         fields.products = {
           type: "array",
@@ -563,11 +674,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorProductsGridProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource || changed.scope);
 
       if (!shouldResolve) {
@@ -617,13 +730,18 @@ export const DataDisplayComponents = {
           };
         });
 
-        return { props: { products } };
+        return { props: { products }, readOnly: { products: true } };
       } catch (e) {
         console.error("Failed to resolve products", e);
         return { props: {} };
       }
     },
-    render: (props: EditorProductsGridProps) => <ProductsGrid {...props} />,
+    render: (props: EditorProductsGridProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Products Grid" itemCount={props.dataSource?.limit ?? 8} />;
+      }
+      return <ProductsGrid {...props} />;
+    },
     defaultProps: {
       title: "Shop",
       subtitle: "Popular items from the webshop.",
@@ -644,6 +762,8 @@ export const DataDisplayComponents = {
     },
   },
   FilterBar: {
+    label: "Filter Bar",
+    resolvePermissions: resolveComponentPermissions,
     fields: {
       title: { type: "text" },
       showSearch: {
@@ -674,6 +794,7 @@ export const DataDisplayComponents = {
   },
   Collection: {
     label: "Collection",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         title: { type: "text", label: "Title" },
@@ -706,13 +827,31 @@ export const DataDisplayComponents = {
 
       if (data.props.dataMode === "dynamic") {
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Data Source",
-          schemas: TABLE_SCHEMAS,
-          showLimit: true,
-          showSort: true,
-          maxLimit: 100,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            return TABLE_SCHEMAS.flatMap((schema) => [
+              { id: `${schema.id}-default`, title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `${schema.id}-preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ]);
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 6,
+          }),
+        } as any;
       } else {
         fields.items = {
           type: "array",
@@ -775,11 +914,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorCollectionProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource);
 
       if (!shouldResolve) {
@@ -809,13 +950,18 @@ export const DataDisplayComponents = {
           badge: item.badge,
         }));
 
-        return { props: { items: collectionItems } };
+        return { props: { items: collectionItems }, readOnly: { items: true } };
       } catch (e) {
         console.error("Failed to resolve collection", e);
         return { props: {} };
       }
     },
-    render: (props: EditorCollectionProps) => <Collection {...props} />,
+    render: (props: EditorCollectionProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Collection" itemCount={props.dataSource?.limit ?? 6} />;
+      }
+      return <Collection {...props} />;
+    },
     defaultProps: {
       layout: "card-grid",
       dataMode: "manual",
@@ -826,6 +972,7 @@ export const DataDisplayComponents = {
   },
   DepartmentsGrid: {
     label: "Departments Grid",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         title: { type: "text", label: "Title" },
@@ -875,13 +1022,33 @@ export const DataDisplayComponents = {
           ],
         };
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Departments Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "departments"),
-          showLimit: true,
-          showSort: true,
-          maxLimit: 100,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "departments");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 12,
+          }),
+        } as any;
       } else {
         fields.items = {
           type: "array",
@@ -904,11 +1071,13 @@ export const DataDisplayComponents = {
       { props }: { props: DepartmentsGridProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource || changed.scope);
 
       if (!shouldResolve) {
@@ -940,13 +1109,16 @@ export const DataDisplayComponents = {
           href: item.href,
         }));
 
-        return { props: { items: collectionItems } };
+        return { props: { items: collectionItems }, readOnly: { items: true } };
       } catch (e) {
         console.error("Failed to resolve departments", e);
         return { props: {} };
       }
     },
-    render: (props: DepartmentsGridProps) => {
+    render: (props: DepartmentsGridProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Departments Grid" itemCount={props.dataSource?.limit ?? 12} />;
+      }
       const layout = props.variant === "compact" ? "compact-card" : "card-grid";
       return (
         <Collection
@@ -982,6 +1154,7 @@ export const DataDisplayComponents = {
   },
   EventsCalendar: {
     label: "Events Calendar",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         title: { type: "text", label: "Title" },
@@ -1022,13 +1195,33 @@ export const DataDisplayComponents = {
           ],
         };
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Events Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "events"),
-          showLimit: true,
-          showSort: true,
-          maxLimit: 100,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "events");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 20,
+          }),
+        } as any;
       } else {
         fields.events = {
           type: "array",
@@ -1060,11 +1253,13 @@ export const DataDisplayComponents = {
       { props }: { props: EventsCalendarProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource);
 
       if (!shouldResolve) {
@@ -1097,29 +1292,34 @@ export const DataDisplayComponents = {
           category: item.category,
         }));
 
-        return { props: { events } };
+        return { props: { events }, readOnly: { events: true } };
       } catch (e) {
         console.error("Failed to resolve events calendar", e);
         return { props: {} };
       }
     },
-    render: (props: EventsCalendarProps) => (
-      <FilteredEvents
-        {...({
-          events: props.events ?? [],
-          labels: {
-            empty: "No events",
-            emptyDescription: "Check back later",
-            upcomingEvents: props.title ?? "Events Calendar",
-            dontMissOut: "",
-            amazingExperiences: "",
-            description: "",
-            registerNow: "Register Now",
-            viewAllEvents: "View All Events",
-          },
-        } as any)}
-      />
-    ),
+    render: (props: EventsCalendarProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Events Calendar" itemCount={props.dataSource?.limit ?? 20} />;
+      }
+      return (
+        <FilteredEvents
+          {...({
+            events: props.events ?? [],
+            labels: {
+              empty: "No events",
+              emptyDescription: "Check back later",
+              upcomingEvents: props.title ?? "Events Calendar",
+              dontMissOut: "",
+              amazingExperiences: "",
+              description: "",
+              registerNow: "Register Now",
+              viewAllEvents: "View All Events",
+            },
+          } as any)}
+        />
+      );
+    },
     defaultProps: {
       title: "Events Calendar",
       view: "list" as const,
@@ -1139,6 +1339,7 @@ export const DataDisplayComponents = {
   },
   ArticleDetail: {
     label: "Article Detail",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         layout: {
@@ -1169,13 +1370,33 @@ export const DataDisplayComponents = {
 
       if (data.props.dataMode === "dynamic") {
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Article Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "news"),
-          showLimit: false,
-          showSort: false,
-          maxLimit: 1,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "news");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 1,
+          }),
+        } as any;
       } else {
         fields.title = { type: "text", label: "Title" };
         fields.author = { type: "text", label: "Author" };
@@ -1204,11 +1425,13 @@ export const DataDisplayComponents = {
       { props }: { props: ArticleDetailProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource);
 
       if (!shouldResolve) {
@@ -1244,13 +1467,17 @@ export const DataDisplayComponents = {
             image: article.image || "",
             content: article.description || "",
           },
+          readOnly: { title: true, author: true, date: true, image: true, content: true },
         };
       } catch (e) {
         console.error("Failed to resolve article detail", e);
         return { props: {} };
       }
     },
-    render: (props: ArticleDetailProps) => {
+    render: (props: ArticleDetailProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Article Detail" itemCount={props.dataSource?.limit ?? 1} />;
+      }
       const isWide = props.layout === "wide";
       return (
         <article
@@ -1340,6 +1567,7 @@ export const DataDisplayComponents = {
   },
   EventDetail: {
     label: "Event Detail",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any): any => {
       const fields: Record<string, unknown> = {
         showRegistration: {
@@ -1370,13 +1598,33 @@ export const DataDisplayComponents = {
 
       if (data.props.dataMode === "dynamic") {
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Event Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "events"),
-          showLimit: false,
-          showSort: false,
-          maxLimit: 1,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "events");
+            if (!schema) return [];
+            return [
+              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 1,
+          }),
+        } as any;
       } else {
         fields.title = { type: "text", label: "Title" };
         fields.date = { type: "text", label: "Start Date" };
@@ -1394,11 +1642,13 @@ export const DataDisplayComponents = {
       { props }: { props: EventDetailProps },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource);
 
       if (!shouldResolve) {
@@ -1439,13 +1689,17 @@ export const DataDisplayComponents = {
             price: (meta.price as string) || "",
             ticketUrl: (meta.ticketUrl as string) || event.href || "",
           },
+          readOnly: { title: true, date: true, endDate: true, location: true, image: true, description: true, price: true, ticketUrl: true },
         };
       } catch (e) {
         console.error("Failed to resolve event detail", e);
         return { props: {} };
       }
     },
-    render: (props: EventDetailProps) => {
+    render: (props: EventDetailProps & { puck?: any }) => {
+      if (props.puck?.isEditing) {
+        return <DataBlockPlaceholder type="Event Detail" itemCount={props.dataSource?.limit ?? 1} />;
+      }
       const formatDate = (d?: string) => {
         if (!d) return "";
         return new Date(d).toLocaleDateString("en-US", {

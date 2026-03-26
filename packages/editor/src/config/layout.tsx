@@ -11,9 +11,12 @@ import {
   SECTION_BG_OPTIONS,
 } from "../puck-tokens";
 import type { ColumnsPropsWithSlots, SectionPropsWithSlot, TabsPropsWithSlots } from "./types";
+import { resolveComponentPermissions } from "./utils";
 
 export const LayoutComponents = {
   Section: {
+    label: "Section",
+    resolvePermissions: resolveComponentPermissions,
     fields: {
       backgroundColor: {
         type: "select",
@@ -40,6 +43,8 @@ export const LayoutComponents = {
     },
   },
   Columns: {
+    label: "Columns",
+    resolvePermissions: resolveComponentPermissions,
     fields: {
       layout: {
         type: "select",
@@ -93,6 +98,7 @@ export const LayoutComponents = {
     },
   },
   Spacer: {
+    label: "Spacer",
     fields: {
       size: {
         type: "select",
@@ -112,6 +118,7 @@ export const LayoutComponents = {
     },
   },
   Tabs: {
+    label: "Tabs",
     fields: {
       tabs: {
         type: "array",

@@ -6,10 +6,18 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
-import { LayoutTemplate } from "lucide-react";
-import { useMemo, useState } from "react";
+import { LayoutTemplate, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 type InsertMode = "append" | "replace";
+
+type AppwriteTemplate = {
+  key: string;
+  name: string;
+  description: string;
+  thumbnail?: string;
+  data: { content: ComponentData[] };
+};
 
 function createId(prefix: string): string {
   const uuid =
@@ -82,13 +90,6 @@ function buildItem(
   );
 }
 
-type Template = {
-  key: string;
-  name: string;
-  description: string;
-  build: (config: Config) => ComponentData[];
-};
-
 function getDefaultProps(
   config: Config,
   type: string
@@ -98,27 +99,25 @@ function getDefaultProps(
   );
 }
 
-function TemplatesPanel() {
-  const { appState, config, dispatch, selectedItem } = usePuck();
-  const [mode, setMode] = useState<InsertMode>("append");
-
-  const templates: Template[] = useMemo(
-    () => [
-      {
-        key: "department-landing",
-        name: "Department Landing",
-        description: "Hero + highlights, then Events and News.",
-        build: (cfg) => [
-          buildItem(cfg, "Hero", {
+function getBuiltInTemplates(config: Config): AppwriteTemplate[] {
+  return [
+    {
+      key: "department-landing",
+      name: "Department Landing",
+      description: "Hero + highlights, then Events and News.",
+      data: {
+        content: [
+          buildItem(config, "Hero", {
             layout: "split",
             title: "Welcome to our department",
-            subtitle: "Highlight what you do and what's happening right now.",
+            subtitle:
+              "Highlight what you do and what's happening right now.",
             buttons: [
               { label: "Join us", href: "/join", variant: "gradient" },
               { label: "Contact", href: "/contact", variant: "outline" },
             ],
           }),
-          buildItem(cfg, "FeatureGrid", {
+          buildItem(config, "FeatureGrid", {
             title: "What we do",
             subtitle: "A few quick highlights to introduce your team.",
             columns: 3,
@@ -133,48 +132,65 @@ function TemplatesPanel() {
               },
               {
                 title: "Run events",
-                description: "Organize memorable experiences all year long.",
+                description:
+                  "Organize memorable experiences all year long.",
                 icon: "Calendar",
               },
               {
                 title: "Create opportunities",
-                description: "Projects, partners, and career development.",
+                description:
+                  "Projects, partners, and career development.",
                 icon: "Briefcase",
               },
             ],
           }),
-          buildItem(cfg, "Events", getDefaultProps(cfg, "Events")),
-          buildItem(cfg, "News", getDefaultProps(cfg, "News")),
-          buildItem(cfg, "CTA", {
+          buildItem(
+            config,
+            "Events",
+            getDefaultProps(config, "Events")
+          ),
+          buildItem(config, "News", getDefaultProps(config, "News")),
+          buildItem(config, "CTA", {
             title: "Want to get involved?",
             description:
               "Become part of the team and help shape the community.",
             variant: "brand",
             align: "center",
             buttons: [
-              { label: "Apply now", href: "/jobs", variant: "secondary" },
+              {
+                label: "Apply now",
+                href: "/jobs",
+                variant: "secondary",
+              },
             ],
           }),
         ],
       },
-      {
-        key: "events-listing",
-        name: "Events Listing",
-        description: "Page header + filters + a larger dynamic Events section.",
-        build: (cfg) => {
-          const defaults = getDefaultProps(cfg, "Events");
+    },
+    {
+      key: "events-listing",
+      name: "Events Listing",
+      description:
+        "Page header + filters + a larger dynamic Events section.",
+      data: {
+        content: (() => {
+          const defaults = getDefaultProps(config, "Events");
           const dataSource =
             (defaults.dataSource as Record<string, unknown>) ?? {};
 
           return [
-            buildItem(cfg, "PageHeader", {
+            buildItem(config, "PageHeader", {
               title: "Events",
               subtitle: "Explore upcoming events and activities.",
               variant: "centered",
               breadcrumbs: [{ label: "Events", href: "/events" }],
             }),
-            buildItem(cfg, "FilterBar", getDefaultProps(cfg, "FilterBar")),
-            buildItem(cfg, "Events", {
+            buildItem(
+              config,
+              "FilterBar",
+              getDefaultProps(config, "FilterBar")
+            ),
+            buildItem(config, "Events", {
               ...defaults,
               dataMode: "dynamic",
               scope: "page",
@@ -184,16 +200,18 @@ function TemplatesPanel() {
                 limit: 12,
               },
             }),
-            buildItem(cfg, "Spacer", { size: "md" }),
+            buildItem(config, "Spacer", { size: "md" }),
           ];
-        },
+        })(),
       },
-      {
-        key: "info-legal",
-        name: "Info / Legal",
-        description: "Header + table of contents + rich text.",
-        build: (cfg) => [
-          buildItem(cfg, "PageHeader", {
+    },
+    {
+      key: "info-legal",
+      name: "Info / Legal",
+      description: "Header + table of contents + rich text.",
+      data: {
+        content: [
+          buildItem(config, "PageHeader", {
             title: "Information",
             subtitle:
               "A structured page for policies, bylaws, or documentation.",
@@ -201,20 +219,62 @@ function TemplatesPanel() {
             breadcrumbs: [{ label: "Information" }],
           }),
           buildItem(
-            cfg,
+            config,
             "TableOfContents",
-            getDefaultProps(cfg, "TableOfContents")
+            getDefaultProps(config, "TableOfContents")
           ),
-          buildItem(cfg, "RichText", getDefaultProps(cfg, "RichText")),
-          buildItem(cfg, "Spacer", { size: "md" }),
+          buildItem(
+            config,
+            "RichText",
+            getDefaultProps(config, "RichText")
+          ),
+          buildItem(config, "Spacer", { size: "md" }),
         ],
       },
-    ],
-    []
-  );
+    },
+  ];
+}
 
-  const insertTemplate = (template: Template) => {
-    const blocks = template.build(config);
+async function fetchTemplates(config: Config): Promise<AppwriteTemplate[]> {
+  try {
+    // TODO: Replace with actual Appwrite fetch when API endpoint is available
+    // const response = await fetch("/api/templates");
+    // const templates = await response.json();
+    // return templates;
+
+    // Fallback to built-in templates
+    return getBuiltInTemplates(config);
+  } catch {
+    return getBuiltInTemplates(config);
+  }
+}
+
+function TemplatesPanel() {
+  const { appState, config, dispatch, selectedItem } = usePuck();
+  const [mode, setMode] = useState<InsertMode>("append");
+  const [templates, setTemplates] = useState<AppwriteTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setLoading(true);
+    fetchTemplates(config).then((result) => {
+      if (!cancelled) {
+        setTemplates(result);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config]);
+
+  const insertTemplate = (template: AppwriteTemplate) => {
+    const blocks = template.data.content.map((item) =>
+      cloneWithNewIds(item, config)
+    );
     const selectedId =
       (selectedItem?.props as { id?: string } | undefined)?.id ?? null;
 
@@ -281,21 +341,42 @@ function TemplatesPanel() {
         </RadioGroup>
       </div>
 
-      <div className="grid gap-3">
-        {templates.map((template) => (
-          <Card className="space-y-2 p-4" key={template.key}>
-            <div className="font-medium text-foreground">{template.name}</div>
-            <div className="text-muted-foreground text-sm">
-              {template.description}
-            </div>
-            <div className="pt-2">
-              <Button onClick={() => insertTemplate(template)} size="sm">
-                Insert
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">
+            Loading templates...
+          </span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {templates.map((template) => (
+            <Card
+              key={template.key}
+              className="cursor-pointer hover:border-primary transition-colors"
+              onClick={() => insertTemplate(template)}
+            >
+              {template.thumbnail && (
+                <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-gray-100">
+                  <img
+                    src={template.thumbnail}
+                    alt={template.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="p-3">
+                <div className="font-medium text-foreground text-sm">
+                  {template.name}
+                </div>
+                <div className="text-muted-foreground text-xs mt-1">
+                  {template.description}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="text-muted-foreground text-xs">
         Current blocks: {appState.data.content?.length ?? 0}

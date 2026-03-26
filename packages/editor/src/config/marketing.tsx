@@ -16,6 +16,7 @@ import type { CountdownProps, EditorJoinUsProps, PricingTableProps } from "./typ
 
 export const MarketingComponents = {
   CTA: {
+    label: "Call to Action",
     fields: {
       title: { type: "text", contentEditable: true } as any,
       description: { type: "textarea", contentEditable: true },
@@ -63,6 +64,7 @@ export const MarketingComponents = {
     },
   },
   About: {
+    label: "About",
     resolveFields: (data: any, { metadata }: any): any => {
       const isGlobalAdmin = Boolean(
         (metadata as { user?: { isGlobalAdmin?: boolean } })?.user
@@ -160,6 +162,7 @@ export const MarketingComponents = {
     },
   },
   JoinUs: {
+    label: "Join Us",
     resolveFields: (data: any, { metadata }: any): any => {
       const isGlobalAdmin = Boolean(
         (metadata as { user?: { isGlobalAdmin?: boolean } })?.user
@@ -279,6 +282,7 @@ export const MarketingComponents = {
     },
   },
   PricingTable: {
+    label: "Pricing Table",
     fields: {
       title: { type: "text", contentEditable: true } as any,
       subtitle: { type: "textarea", contentEditable: true },
@@ -531,6 +535,7 @@ export const MarketingComponents = {
     },
   },
   Countdown: {
+    label: "Countdown",
     fields: {
       title: { type: "text", contentEditable: true } as any,
       subtitle: { type: "textarea", contentEditable: true },

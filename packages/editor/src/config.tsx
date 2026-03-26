@@ -14,19 +14,9 @@ import { CONTENT_TYPE_OPTIONS } from "./content-types/registry";
 // Explicitly type the Config with Props to help TS inference
 export const config: Config<Props> = {
   root: {
+    // title, slug, description, visibility are managed by the Sheet dialog
+    // in editor.tsx / unified-editor.tsx — not shown in the right sidebar.
     fields: {
-      title: {
-        type: "text",
-        label: "Page Title",
-      },
-      slug: {
-        type: "text",
-        label: "URL Path",
-      },
-      description: {
-        type: "textarea",
-        label: "Page Description",
-      },
       contentType: {
         type: "select",
         label: "Content Type",
@@ -43,14 +33,6 @@ export const config: Config<Props> = {
       ogImage: {
         type: "image" as never,
         label: "Social Share Image",
-      },
-      visibility: {
-        type: "select",
-        label: "Visibility",
-        options: [
-          { label: "Public", value: "public" },
-          { label: "Authenticated Users Only", value: "authenticated" },
-        ],
       },
       scheduledPublishAt: {
         type: "text",

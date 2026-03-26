@@ -25,7 +25,6 @@
     "./unified-editor": "./src/unified-editor.tsx",
     "./bindings": "./src/bindings/index.ts",
     "./content-types/registry": "./src/content-types/registry.ts",
-    "./fields/binding-source-field": "./src/fields/binding-source-field.tsx",
     "./fields/field-schema-editor": "./src/fields/field-schema-editor.tsx",
     "./styles.css": "./src/styles.css"
   },
@@ -38,6 +37,7 @@
     "@json-render/core": "^0.2.0",
     "@json-render/react": "^0.2.0",
     "@puckeditor/core": "^0.21.0",
+    "@puckeditor/plugin-heading-analyzer": "^0.21.1",
     "@repo/api": "workspace:*",
     "@repo/ui": "workspace:*",
     "lucide-react": "^0.552.0",

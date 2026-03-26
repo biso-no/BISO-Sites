@@ -16,9 +16,12 @@ import { ICON_OPTIONS } from "../puck-tokens";
 import { TABLE_SCHEMAS } from "../data/schemas";
 import { getDynamicContent } from "../get-dynamic-content";
 import type { BannerProps, HeroPropsWithSlot } from "./types";
+import { resolveComponentPermissions } from "./utils";
 
 export const HeroComponents = {
   Hero: {
+    label: "Hero",
+    resolvePermissions: resolveComponentPermissions,
     resolveFields: (data: any, { metadata }: any) => {
       const isGlobalAdmin = Boolean(
         (metadata as { user?: { isGlobalAdmin?: boolean } })?.user
@@ -43,7 +46,7 @@ export const HeroComponents = {
             { label: "Small", value: "small" },
           ],
         },
-        title: { type: "text" },
+        title: { type: "text", contentEditable: true } as any,
         subtitle: { type: "textarea", contentEditable: true },
         badge: { type: "text" },
         backgroundImage: { type: "image" },
@@ -119,12 +122,32 @@ export const HeroComponents = {
 
         if (data.props.slidesMode === "dynamic") {
           fields.slidesSource = {
-            type: "data-source",
+            type: "external",
             label: "Slides Source",
-            schemas: TABLE_SCHEMAS.filter((s) =>
-              ["events", "news", "pages", "products"].includes(String(s.id))
-            ),
-          };
+            cache: { enabled: true },
+            fetchList: async () => {
+              // Slides can come from multiple tables
+              return TABLE_SCHEMAS.flatMap((schema) => [
+                { id: `${schema.id}-default`, title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+                ...(schema.presetFilters ?? []).map((p, i) => ({
+                  id: `${schema.id}-preset-${i}`,
+                  title: `${schema.label}: ${p.label}`,
+                  table: schema.id,
+                  filters: p.filters,
+                  sort: schema.defaultSort,
+                })),
+              ]);
+            },
+            filterFields: {
+              limit: { type: "number", label: "Limit" },
+            },
+            mapProp: (selected: any) => ({
+              table: selected?.table,
+              filters: selected?.filters ?? [],
+              sort: selected?.sort,
+              limit: selected?.limit ?? 5,
+            }),
+          } as any;
         } else {
           fields.slides = {
             type: "array",
@@ -178,10 +201,32 @@ export const HeroComponents = {
 
       if (data.props.statsMode === "dynamic") {
         fields.statsSource = {
-          type: "data-source",
+          type: "external",
           label: "Stats Source",
-          schemas: TABLE_SCHEMAS,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            // Slides can come from multiple tables
+            return TABLE_SCHEMAS.flatMap((schema) => [
+              { id: `${schema.id}-default`, title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `${schema.id}-preset-${i}`,
+                title: `${schema.label}: ${p.label}`,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ]);
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 5,
+          }),
+        } as any;
       } else {
         fields.stats = {
           type: "array",
@@ -219,16 +264,19 @@ export const HeroComponents = {
       { props }: { props: HeroPropsWithSlot },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const { slidesMode, slidesSource, statsMode, statsSource } = props;
       const resolvedProps: Partial<HeroPropsWithSlot> = {};
 
+      // Only fetch slides when data-related props changed or on initial triggers
       const shouldResolveSlides =
         slidesMode === "dynamic" &&
         Boolean(slidesSource) &&
         (trigger === "insert" ||
           trigger === "load" ||
           trigger === "force" ||
-          trigger === "move" ||
           Boolean(changed.slidesMode || changed.slidesSource));
 
       if (shouldResolveSlides) {
@@ -252,13 +300,13 @@ export const HeroComponents = {
         }
       }
 
+      // Only fetch stats when data-related props changed or on initial triggers
       const shouldResolveStats =
         statsMode === "dynamic" &&
         Boolean(statsSource) &&
         (trigger === "insert" ||
           trigger === "load" ||
           trigger === "force" ||
-          trigger === "move" ||
           Boolean(changed.statsMode || changed.statsSource));
 
       if (shouldResolveStats) {
@@ -310,9 +358,11 @@ export const HeroComponents = {
     },
   },
   PageHeader: {
+    label: "Page Header",
+    resolvePermissions: resolveComponentPermissions,
     fields: {
-      title: { type: "text" },
-      subtitle: { type: "textarea" },
+      title: { type: "text", contentEditable: true } as any,
+      subtitle: { type: "textarea", contentEditable: true },
       lastUpdated: { type: "text", label: "Last Updated Date" },
       breadcrumbs: {
         type: "array",
@@ -350,6 +400,7 @@ export const HeroComponents = {
     },
   },
   Banner: {
+    label: "Banner",
     fields: {
       message: { type: "text", contentEditable: true } as any,
       variant: {

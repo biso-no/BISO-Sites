@@ -25,6 +25,7 @@ import type { TestimonialsProps, TimelinePropsWithSlot } from "./types";
 
 export const ContentComponents = {
   Accordion: {
+    label: "Accordion",
     fields: {
       type: {
         type: "radio",
@@ -37,8 +38,8 @@ export const ContentComponents = {
         type: "array",
         getItemSummary: (item: { title?: string }) => item.title || "Item",
         arrayFields: {
-          title: { type: "text" },
-          content: { type: "textarea" },
+          title: { type: "text", contentEditable: true } as any,
+          content: { type: "textarea", contentEditable: true },
         },
       },
     },
@@ -52,6 +53,7 @@ export const ContentComponents = {
     },
   },
   Timeline: {
+    label: "Timeline",
     resolveFields: (data: any) => {
       const fields: any = {
         title: { type: "text", contentEditable: true } as any,
@@ -80,13 +82,33 @@ export const ContentComponents = {
 
       if (data.props.dataMode === "dynamic") {
         fields.dataSource = {
-          type: "data-source",
+          type: "external",
           label: "Milestones Source",
-          schemas: TABLE_SCHEMAS.filter((s) => s.id === "milestones"),
-          showSort: false,
-          showLimit: true,
-          maxLimit: 50,
-        };
+          cache: { enabled: true },
+          fetchList: async () => {
+            const schema = TABLE_SCHEMAS.find((s) => s.id === "milestones");
+            if (!schema) return [];
+            return [
+              { id: "default", title: "All Milestones", table: schema.id, filters: [], sort: schema.defaultSort },
+              ...(schema.presetFilters ?? []).map((p, i) => ({
+                id: `preset-${i}`,
+                title: p.label,
+                table: schema.id,
+                filters: p.filters,
+                sort: schema.defaultSort,
+              })),
+            ];
+          },
+          filterFields: {
+            limit: { type: "number", label: "Limit" },
+          },
+          mapProp: (selected: any) => ({
+            table: selected?.table,
+            filters: selected?.filters ?? [],
+            sort: selected?.sort,
+            limit: selected?.limit ?? 50,
+          }),
+        } as any;
       } else {
         fields.items = {
           type: "array",
@@ -116,14 +138,17 @@ export const ContentComponents = {
       { props }: { props: TimelinePropsWithSlot },
       { changed, trigger, metadata }: any
     ) => {
+      // Guard: never fetch on drag operations
+      if (trigger === "move") return { props: {} };
+
       const { dataMode, dataSource } = props;
       const resolvedProps: Partial<TimelinePropsWithSlot> = {};
 
+      // Only fetch when data-related props changed or on initial triggers
       const shouldResolve =
         trigger === "insert" ||
         trigger === "load" ||
         trigger === "force" ||
-        trigger === "move" ||
         Boolean(changed.dataMode || changed.dataSource);
 
       if (!shouldResolve) {
@@ -177,11 +202,13 @@ export const ContentComponents = {
     },
   },
   RichText: {
+    label: "Rich Text",
     fields: {
       content: {
-        type: "textarea",
-        label: "Content (Markdown)",
-      },
+        type: "richtext",
+        label: "Content",
+        contentEditable: true,
+      } as any,
       variant: {
         type: "select",
         options: [
@@ -207,8 +234,9 @@ export const ContentComponents = {
     },
   },
   TableOfContents: {
+    label: "Table of Contents",
     fields: {
-      title: { type: "text" },
+      title: { type: "text", contentEditable: true } as any,
       items: {
         type: "array",
         getItemSummary: (item: { title?: string }) => item.title || "Section",
@@ -256,6 +284,7 @@ export const ContentComponents = {
     },
   },
   Testimonials: {
+    label: "Testimonials",
     fields: {
       title: { type: "text", contentEditable: true } as any,
       variant: {

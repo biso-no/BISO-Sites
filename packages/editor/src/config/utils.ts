@@ -158,3 +158,27 @@ export function deriveJobSlug(
 
   return;
 }
+
+/**
+ * Shared resolvePermissions for component-level access control.
+ * Three tiers:
+ * - Global admins: unrestricted
+ * - Campus admins: can edit/insert/drag/duplicate, cannot delete
+ * - Regular editors: can only edit content, cannot delete/drag/duplicate
+ *
+ * Puck's resolvePermissions receives (data, { changed, lastPermissions,
+ * permissions, appState, lastData, parent }). We access metadata from
+ * appState.data.root.props where it's stored by the editor.
+ */
+export const resolveComponentPermissions: any = (
+  _data: unknown,
+  params: { appState?: { data?: { root?: { props?: Record<string, unknown> } } } }
+) => {
+  // metadata is threaded via <Puck metadata={...}> and available on appState
+  const meta = (params as any)?.metadata as EditorMetadata | undefined;
+  if (!meta?.user) return {};
+
+  if (meta.user.isGlobalAdmin) return {};
+  if (meta.user.isCampusAdmin) return { delete: false };
+  return { delete: false, drag: false, duplicate: false };
+};

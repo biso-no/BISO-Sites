@@ -1,19 +1,11 @@
 "use client";
 
 import type { Config, Overrides } from "@puckeditor/core";
-import type { DataSourceValue } from "@repo/ui/components/data-source-picker";
-import { DataSourcePicker } from "@repo/ui/components/data-source-picker";
 import { FileUpload } from "@repo/ui/components/file-upload";
 import { LinkPicker } from "@repo/ui/components/link-picker";
 import { TablePicker } from "@repo/ui/components/table-picker";
 import { Laptop, Monitor, Smartphone, Tablet } from "lucide-react";
 import type { ReactNode } from "react";
-import { TABLE_SCHEMAS } from "./data/schemas";
-import {
-  bindingSourceField,
-  type BindingSourceValue,
-  type FieldSchemaEntry,
-} from "./fields/binding-source-field";
 import {
   fieldSchemaEditorField,
 } from "./fields/field-schema-editor";
@@ -46,6 +38,12 @@ function ReadOnlyWrapper({
 export function getPuckFieldOverrides(): Partial<Overrides<Config>> {
   return {
     fieldTypes: {
+      // Wrap all custom fields in consistent styling
+      custom: ({ children, readOnly }: { children: ReactNode; readOnly?: boolean }) => (
+        <div className="puck-custom-field rounded-md border border-gray-200 bg-white p-3">
+          <ReadOnlyWrapper readOnly={readOnly}>{children}</ReadOnlyWrapper>
+        </div>
+      ),
       image: ({ value, onChange, readOnly, name }: PuckFieldProps) => (
         <ReadOnlyWrapper readOnly={readOnly}>
           <FileUpload
@@ -99,57 +97,6 @@ export function getPuckFieldOverrides(): Partial<Overrides<Config>> {
           />
         </ReadOnlyWrapper>
       ),
-      "data-source": ({ value, onChange, readOnly, field }: PuckFieldProps) => {
-        const fieldConfig = (field ?? {}) as {
-          schemas?: unknown;
-          showLimit?: boolean;
-          showSort?: boolean;
-          maxLimit?: number;
-        };
-
-        return (
-          <ReadOnlyWrapper readOnly={readOnly}>
-            <DataSourcePicker
-              maxLimit={fieldConfig.maxLimit ?? 100}
-              onChange={(next: DataSourceValue) => {
-                if (!readOnly) {
-                  onChange(next);
-                }
-              }}
-              schemas={(fieldConfig.schemas ?? TABLE_SCHEMAS) as never}
-              showLimit={fieldConfig.showLimit ?? true}
-              showSort={fieldConfig.showSort ?? true}
-              value={(value ?? {}) as DataSourceValue}
-            />
-          </ReadOnlyWrapper>
-        );
-      },
-      "binding-source": ({ value, onChange, readOnly, field }: PuckFieldProps) => {
-        const fieldConfig = (field ?? {}) as {
-          fieldSchema?: FieldSchemaEntry[];
-          allowedSources?: ("static" | "field" | "query" | "context")[];
-          showStatic?: boolean;
-        };
-
-        const customField = bindingSourceField({
-          fieldSchema: fieldConfig.fieldSchema,
-          allowedSources: fieldConfig.allowedSources,
-          showStatic: fieldConfig.showStatic,
-        });
-
-        return customField.render({
-          field: customField,
-          name: "binding-source",
-          id: "binding-source",
-          value: (value ?? { sourceType: "static" }) as BindingSourceValue,
-          onChange: (next) => {
-            if (!readOnly) {
-              onChange(next);
-            }
-          },
-          readOnly,
-        });
-      },
       "field-schema-editor": ({ value, onChange, readOnly }: PuckFieldProps) => {
         const customField = fieldSchemaEditorField();
 

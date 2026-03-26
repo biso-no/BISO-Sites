@@ -38,9 +38,32 @@ export type DataSourceValue = {
   locale?: string;
 };
 
+/**
+ * EditorMetadata is the shape of the `metadata` prop passed to <Puck>.
+ * It mirrors EditorContext (from editor-context.ts) plus locale.
+ * resolveData, resolveFields, and resolvePermissions receive this via params.metadata.
+ */
 export type EditorMetadata = {
   locale?: string;
-  page?: { campusId?: string | null; departmentId?: string | null };
+  mode?: "template" | "page" | "direct";
+  contentType?: string;
+  page?: {
+    id?: string;
+    status?: string;
+    scope?: string;
+    campusId?: string | null;
+    departmentId?: string | null;
+  };
+  user?: {
+    isGlobalAdmin: boolean;
+    isCampusAdmin: boolean;
+    campusNames: string[];
+    departmentNames: string[];
+    managedCampuses: string[];
+  };
+  constraints?: {
+    slugLocked: boolean;
+  };
 };
 
 export type SectionPropsWithSlot = SectionProps & { content?: SlotComponent };

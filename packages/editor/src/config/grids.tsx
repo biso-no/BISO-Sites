@@ -23,6 +23,7 @@ import { ALIGN_OPTIONS, ICON_OPTIONS } from "../puck-tokens";
 
 export const GridComponents = {
   FeatureGrid: {
+    label: "Feature Grid",
     fields: {
       title: { type: "text", contentEditable: true } as any,
       subtitle: { type: "textarea", contentEditable: true },
@@ -81,6 +82,7 @@ export const GridComponents = {
     },
   },
   StatsGrid: {
+    label: "Stats Grid",
     fields: {
       columns: {
         type: "select",
@@ -129,6 +131,7 @@ export const GridComponents = {
     },
   },
   TeamGrid: {
+    label: "Team Grid",
     fields: {
       columns: {
         type: "select",
@@ -185,6 +188,7 @@ export const GridComponents = {
     },
   },
   LogoGrid: {
+    label: "Logo Grid",
     fields: {
       columns: {
         type: "select",

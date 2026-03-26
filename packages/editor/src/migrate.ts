@@ -1,5 +1,6 @@
 import type { Data } from "@puckeditor/core";
-import { migrate } from "@puckeditor/core/rsc";
+import { migrate, transformProps } from "@puckeditor/core/rsc";
+import { config } from "./config";
 
 const EMPTY_DATA: Data = {
   root: { props: {} },
@@ -29,11 +30,34 @@ function coerceToData(value: unknown): Data {
 }
 
 export function migratePuckData(value: unknown): Data {
-  const data = coerceToData(value);
+  let data = coerceToData(value);
 
   try {
-    return migrate(data);
+    data = migrate(data);
   } catch {
-    return data;
+    // keep coerced data as-is if Puck's migrate fails
   }
+
+  // Transform props for components whose fields changed during the refactor.
+  // Each transform is a no-op when data already matches the new schema.
+  data = transformProps(data, {
+    // Root: title, slug, description, visibility moved to the Sheet dialog —
+    // strip them so the editor does not warn about unknown root fields.
+    root: ({
+      title: _title,
+      slug: _slug,
+      description: _desc,
+      visibility: _vis,
+      ...rest
+    }: Record<string, unknown>) => rest,
+
+    // RichText: content field type changed from textarea to richtext.
+    // The stored value format (string) is unchanged, but ensure it exists.
+    RichText: (props: Record<string, unknown>) => ({
+      ...props,
+      content: props.content ?? "",
+    }),
+  } as any, config as any);
+
+  return data;
 }
