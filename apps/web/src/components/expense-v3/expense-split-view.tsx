@@ -106,6 +106,11 @@ export function ExpenseSplitView({
     store.setIsGeneratingSummary,
   ]);
 
+  // Reset store on mount to clear stale receipts/state from previous sessions
+  useEffect(() => {
+    store.reset();
+  }, [store.reset]);
+
   // Initialize store
   useEffect(() => {
     store.setCampuses(campuses);
@@ -158,17 +163,26 @@ export function ExpenseSplitView({
           status: "processing",
         });
 
-        // 2. OCR
+        // 2. OCR — race against a 30s timeout so the receipt never hangs in "processing"
         const ocrFormData = new FormData();
         ocrFormData.append("file", file);
 
-        const ocrResult = await apiClient.fetchFormData<{
-          success: boolean;
-          data: OcrData;
-        }>("/api/expenses/ocr", {
-          method: "POST",
-          body: ocrFormData,
-        });
+        const ocrResult = await Promise.race([
+          apiClient.fetchFormData<{
+            success: boolean;
+            data: OcrData;
+          }>("/api/expenses/ocr", {
+            method: "POST",
+            body: ocrFormData,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("OCR timed out")), 30000)
+          ),
+        ]);
+
+        if (!ocrResult.success || !ocrResult.data) {
+          throw new Error("OCR processing returned no data");
+        }
 
         // 3. "Analyzing" Phase (Artificial delay for Generative UI feel if it was too fast)
         store.updateReceipt(tempId, { status: "analyzing", progress: 70 });
@@ -309,7 +323,7 @@ export function ExpenseSplitView({
           <div className="relative h-full pt-16">
             <div className="absolute top-4 left-4 z-10">
               <Button
-                className="rounded-full bg-muted px-4 py-2 text-sm backdrop-blur-md hover:bg-muted/80 dark:bg-background/10 dark:text-white dark:hover:bg-background/20"
+                className="rounded-full bg-muted px-4 py-2 text-sm text-foreground backdrop-blur-md hover:bg-muted/80 dark:bg-background/10 dark:text-white dark:hover:bg-background/20"
                 onClick={() => store.setSelectedReceiptId(null)}
               >
                 ← Back to Report
