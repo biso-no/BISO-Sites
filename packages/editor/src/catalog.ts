@@ -40,7 +40,7 @@ const iconOptions = z
 
 const buttonSchema = z.object({
   label: z.string(),
-  href: z.string().optional(),
+  href: z.string().default("#"),
   variant: z
     .enum(["default", "outline", "ghost", "link", "glass", "gradient", "white"])
     .default("default"),

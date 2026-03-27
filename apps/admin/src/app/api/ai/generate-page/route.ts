@@ -42,10 +42,12 @@ Each block must have a unique "id" in props (e.g., "Hero-1", "FeatureGrid-2").
 2. Each patch operation must be a valid JSON object on its own line
 3. When adding multiple blocks, emit one patch per block
 4. When modifying existing content, preserve blocks not being changed
-5. Always include complete, valid props for each component`;
+5. Always include complete, valid props for each component
+6. Every block value MUST include a "type" field (e.g., "type": "Hero")
+7. Every button "href" field MUST be a non-empty string — use "#" as placeholder if no real URL is known`;
 
     const result = streamText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5-mini"),
       system: systemPrompt,
       prompt,
     });

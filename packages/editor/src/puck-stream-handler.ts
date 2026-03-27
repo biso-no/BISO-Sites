@@ -32,6 +32,19 @@ type PuckBlock = {
 };
 
 /**
+ * Validate that a block value has the required `type` field.
+ * Prevents Puck from crashing when the AI streams a partial/malformed block.
+ */
+function isValidBlock(value: unknown): value is PuckBlock {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).type === "string" &&
+    (value as Record<string, unknown>).type !== ""
+  );
+}
+
+/**
  * Parse a JSONL line into a PatchOperation
  */
 export function parsePatch(line: string): PatchOperation | null {
@@ -133,8 +146,13 @@ function handleWholeContentPatch(
     case "set":
     case "replace":
       return { ...data, content: patch.value as PuckBlock[] };
-    case "add":
-      return { ...data, content: [...content, patch.value as PuckBlock] };
+    case "add": {
+      if (!isValidBlock(patch.value)) {
+        console.warn("[PuckStreamHandler] Skipping block with missing type:", patch.value);
+        return data;
+      }
+      return { ...data, content: [...content, patch.value] };
+    }
     default:
       return data;
   }
@@ -151,12 +169,22 @@ function handleBlockIndexPatch(
 ): Data {
   switch (patch.op) {
     case "set":
-    case "replace":
-      content[blockIndex] = patch.value as PuckBlock;
+    case "replace": {
+      if (!isValidBlock(patch.value)) {
+        console.warn("[PuckStreamHandler] Skipping block replace with missing type:", patch.value);
+        return data;
+      }
+      content[blockIndex] = patch.value;
       return { ...data, content };
-    case "add":
-      content.splice(blockIndex, 0, patch.value as PuckBlock);
+    }
+    case "add": {
+      if (!isValidBlock(patch.value)) {
+        console.warn("[PuckStreamHandler] Skipping block insert with missing type:", patch.value);
+        return data;
+      }
+      content.splice(blockIndex, 0, patch.value);
       return { ...data, content };
+    }
     case "remove":
       content.splice(blockIndex, 1);
       return { ...data, content };

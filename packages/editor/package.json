@@ -26,6 +26,7 @@
     "./bindings": "./src/bindings/index.ts",
     "./content-types/registry": "./src/content-types/registry.ts",
     "./fields/field-schema-editor": "./src/fields/field-schema-editor.tsx",
+    "./contexts/ai-assistant-context": "./src/contexts/ai-assistant-context.tsx",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

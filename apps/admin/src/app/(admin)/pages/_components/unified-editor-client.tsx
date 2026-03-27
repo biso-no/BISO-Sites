@@ -2,7 +2,7 @@
 
 import {
   useCopilotPuck,
-  useStreamingPuck,
+  useStreamingPuckRaw as useStreamingPuck,
 } from "@repo/ai/hooks/use-copilot-puck";
 import type {
   Locale,
@@ -11,9 +11,15 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
 import type { EditorContext } from "@repo/editor/editor-context";
+import {
+  AiAssistantContext,
+  type AiAssistCallbacks,
+  type AiAssistantContextValue,
+  type AssistAction,
+} from "@repo/editor/contexts/ai-assistant-context";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { PuckGenerationIndicator } from "@/components/assistant/puck-content-handler";
 import {
   useUnifiedEditorContexts,
@@ -145,24 +151,44 @@ export function UnifiedEditorClient({
   // Track if AI is generating content
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Handler for data changes from AI (used by both hooks)
+  /**
+   * Puck's `data` prop is initialization-only — changes after mount are ignored.
+   * The only way to programmatically update the canvas is dispatch({ type: "setData" }),
+   * which must be called from inside Puck's context tree.
+   *
+   * The AI assistant plugin registers its dispatch here on mount so that
+   * handleDataChange can push updates directly into Puck.
+   */
+  const puckApplyRef = useRef<((data: Data) => void) | null>(null);
+
+  const onDataReady = useCallback((fn: ((data: Data) => void) | null) => {
+    puckApplyRef.current = fn;
+  }, []);
+
+  // Handler for data changes from AI streaming patches
   const handleDataChange = useCallback(
     (newData: Data) => {
       setIsGenerating(true);
 
-      // Update our local state
-      setLocaleData((prev) => ({
-        ...prev,
-        [currentLocale]: {
-          ...currentLocaleInfo,
-          data: newData,
-        },
-      }));
+      // Apply directly to Puck canvas via dispatch (registered by the plugin panel)
+      puckApplyRef.current?.(newData);
 
-      // Reset generating state after a short delay
+      // Also keep localeData in sync so Save/Publish capture AI-generated content
+      setLocaleData((prev) => {
+        const existing = prev[currentLocale] ?? {
+          title: "",
+          description: "",
+          data: EMPTY_DATA,
+        };
+        return {
+          ...prev,
+          [currentLocale]: { ...existing, data: newData },
+        };
+      });
+
       setTimeout(() => setIsGenerating(false), 500);
     },
-    [currentLocale, currentLocaleInfo]
+    [currentLocale]
   );
 
   // Register Puck editor with AI copilot for streaming block generation
@@ -218,6 +244,7 @@ export function UnifiedEditorClient({
   const scope = getEditorScope(pageContext, userContext, isDepartmentUser);
 
   const editorContext: EditorContext = {
+    mode: "direct",
     page: {
       id: pageId,
       status: initialStatus,
@@ -233,8 +260,76 @@ export function UnifiedEditorClient({
     },
   };
 
+  // ------------------------------------------------------------------
+  // AI assistant context — bridges useStreamingPuck + text assist API
+  // ------------------------------------------------------------------
+
+  const [isAssisting, setIsAssisting] = useState(false);
+
+  const assist = useCallback(
+    async (
+      action: AssistAction,
+      content: string,
+      callbacks: AiAssistCallbacks
+    ) => {
+      setIsAssisting(true);
+      try {
+        const response = await fetch("/api/ai/assist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, content }),
+        });
+
+        if (!response.ok) {
+          callbacks.onError?.(
+            new Error(`Request failed: HTTP ${response.status}`)
+          );
+          return;
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          callbacks.onError?.(new Error("No response body from AI"));
+          return;
+        }
+
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const token = decoder.decode(value, { stream: true });
+          fullText += token;
+          callbacks.onToken(token);
+        }
+
+        callbacks.onComplete(fullText);
+      } catch (err) {
+        callbacks.onError?.(
+          err instanceof Error ? err : new Error(String(err))
+        );
+      } finally {
+        setIsAssisting(false);
+      }
+    },
+    []
+  );
+
+  const aiContextValue = useMemo<AiAssistantContextValue>(
+    () => ({
+      generate,
+      isStreaming,
+      abort,
+      assist,
+      isAssisting,
+      onDataReady,
+    }),
+    [generate, isStreaming, abort, assist, isAssisting, onDataReady]
+  );
+
   return (
-    <>
+    <AiAssistantContext.Provider value={aiContextValue}>
       <PageEditor
         availableLocales={availableLocales}
         description={currentLocaleInfo.description}
@@ -253,6 +348,6 @@ export function UnifiedEditorClient({
       />
 
       <PuckGenerationIndicator isGenerating={isGenerating || isStreaming} />
-    </>
+    </AiAssistantContext.Provider>
   );
 }

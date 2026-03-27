@@ -58,9 +58,12 @@ type UseStreamingPuckReturn = {
   error: Error | null;
 
   /**
-   * Send a prompt to generate/modify content
+   * Send a prompt to generate/modify content.
+   * @param selectedBlockIndex - Optional override for the selected block index.
+   *   Pass this when the caller (e.g. AI assistant plugin) knows the target block
+   *   index independently of the hook's own selectedBlockIndex option.
    */
-  generate: (prompt: string) => Promise<void>;
+  generate: (prompt: string, selectedBlockIndex?: number) => Promise<void>;
 
   /**
    * Abort current streaming
@@ -146,15 +149,16 @@ export function useStreamingPuck({
 
   // Generate function that includes context
   const generate = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, selectedBlockIndexOverride?: number) => {
       setStreamError(null);
       setAgentState("generating-content", "Generating page content...");
 
       try {
+        const effectiveIndex = selectedBlockIndexOverride ?? selectedBlockIndex;
         // Send with current context
         await send(prompt, {
           currentData: dataRef.current,
-          selectedBlockIndex,
+          selectedBlockIndex: effectiveIndex,
         });
       } catch (err) {
         const errorObj = err instanceof Error ? err : new Error(String(err));
@@ -265,7 +269,7 @@ export function useStreamingPuckRaw({
   }, [data]);
 
   const generate = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, selectedBlockIndexOverride?: number) => {
       // Abort any existing stream
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -278,6 +282,8 @@ export function useStreamingPuckRaw({
       setIsStreaming(true);
       setAgentState("generating-content", "Generating page content...");
 
+      const effectiveIndex = selectedBlockIndexOverride ?? selectedBlockIndex;
+
       try {
         const response = await fetch(apiEndpoint, {
           method: "POST",
@@ -285,7 +291,7 @@ export function useStreamingPuckRaw({
           body: JSON.stringify({
             prompt,
             currentData: dataRef.current,
-            selectedBlockIndex,
+            selectedBlockIndex: effectiveIndex,
           }),
           signal: abortController.signal,
         });
