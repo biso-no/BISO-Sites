@@ -35,8 +35,8 @@ export const config: Config<Props> = {
         label: "Social Share Image",
       },
       scheduledPublishAt: {
-        type: "text",
-        label: "Schedule Publish (YYYY-MM-DD HH:mm)",
+        type: "datetime-picker" as never,
+        label: "Schedule Publish",
       },
     },
   },

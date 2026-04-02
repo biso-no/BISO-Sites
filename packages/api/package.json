@@ -11,7 +11,6 @@
     "./server": "./server.ts",
     "./client": "./client.ts",
     "./page-builder": "./page-builder.ts",
-    "./editorial": "./editorial.ts",
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {
@@ -20,9 +19,9 @@
   "dependencies": {
     "@types/node": "^24.9.2",
     "@puckeditor/core": "^0.21.0",
-    "appwrite": "^21.3.0",
+    "appwrite": "^24.1.1",
     "next": "16.0.7",
-    "node-appwrite": "^20.2.1",
+    "node-appwrite": "^23.1.0",
     "react": "^19.2.1"
   }
 }

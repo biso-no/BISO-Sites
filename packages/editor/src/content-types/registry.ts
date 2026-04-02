@@ -1,5 +1,4 @@
 import type { ComponentData, Config } from "@puckeditor/core";
-import type { EditorialFamily } from "@repo/api/editorial";
 
 /**
  * Content type definition.
@@ -15,8 +14,8 @@ export type ContentTypeDefinition = {
   description: string;
   /** Lucide icon name for the picker UI */
   icon: string;
-  /** Editorial family: page, policy, or article */
-  family: EditorialFamily;
+  /** Content family */
+  family: "page" | "policy" | "article";
   /** Block component names shown first in the sidebar "Recommended" section */
   suggestedBlocks: string[];
   /** Block component names hidden for this type (if any) */

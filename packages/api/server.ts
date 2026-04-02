@@ -11,6 +11,29 @@ import {
   Users,
 } from "node-appwrite";
 
+/**
+ * Wrap a TablesDB instance so that listRows and getRow return plain objects
+ * instead of Appwrite SDK class instances, which Next.js cannot serialize
+ * across the RSC → Client Component boundary.
+ */
+function plainDb(db: TablesDB): TablesDB {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if ((prop === "listRows" || prop === "getRow") && typeof value === "function") {
+        return async (...args: unknown[]) => {
+          const result = await (value as (...a: unknown[]) => unknown).apply(target, args);
+          return JSON.parse(JSON.stringify(result));
+        };
+      }
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+      return value;
+    },
+  });
+}
+
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
 const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
 const NEXT_PUBLIC_APPWRITE_ENDPOINT =
@@ -39,7 +62,7 @@ export async function createSessionClient(jwt?: string) {
       return new Account(client);
     },
     get db() {
-      return new TablesDB(client);
+      return plainDb(new TablesDB(client));
     },
     get teams() {
       return new Teams(client);
@@ -68,7 +91,7 @@ export async function createAdminClient() {
       return new Account(client);
     },
     get db() {
-      return new TablesDB(client);
+      return plainDb(new TablesDB(client));
     },
     get teams() {
       return new Teams(client);

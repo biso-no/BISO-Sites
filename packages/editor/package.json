@@ -8,7 +8,6 @@
     ".": "./src/index.tsx",
     "./config": "./src/config.tsx",
     "./render": "./src/render.tsx",
-    "./editorial": "./src/editorial.tsx",
     "./editor": "./src/editor.tsx",
     "./puck": "./src/puck.tsx",
     "./types": "./src/types.ts",
@@ -22,10 +21,7 @@
     "./data/schemas": "./src/data/schemas.ts",
     "./data/fetch": "./src/data/fetch-data.ts",
     "./data/normalizers": "./src/data/normalizers.ts",
-    "./unified-editor": "./src/unified-editor.tsx",
-    "./bindings": "./src/bindings/index.ts",
     "./content-types/registry": "./src/content-types/registry.ts",
-    "./fields/field-schema-editor": "./src/fields/field-schema-editor.tsx",
     "./contexts/ai-assistant-context": "./src/contexts/ai-assistant-context.tsx",
     "./styles.css": "./src/styles.css"
   },

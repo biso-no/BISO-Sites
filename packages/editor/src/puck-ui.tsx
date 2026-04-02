@@ -1,14 +1,12 @@
 "use client";
 
 import type { Config, Overrides } from "@puckeditor/core";
+import { DateTimePicker } from "@repo/ui/components/date-time-picker";
 import { FileUpload } from "@repo/ui/components/file-upload";
 import { LinkPicker } from "@repo/ui/components/link-picker";
 import { TablePicker } from "@repo/ui/components/table-picker";
 import { Laptop, Monitor, Smartphone, Tablet } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  fieldSchemaEditorField,
-} from "./fields/field-schema-editor";
 import { getPages } from "./get-pages";
 import { getTables } from "./get-tables";
 import { listImages, uploadImage } from "./upload-image";
@@ -97,22 +95,18 @@ export function getPuckFieldOverrides(): Partial<Overrides<Config>> {
           />
         </ReadOnlyWrapper>
       ),
-      "field-schema-editor": ({ value, onChange, readOnly }: PuckFieldProps) => {
-        const customField = fieldSchemaEditorField();
-
-        return customField.render({
-          field: customField,
-          name: "field-schema-editor",
-          id: "field-schema-editor",
-          value: (value ?? []) as import("@repo/api/editorial").TemplateFieldSchema[],
-          onChange: (next) => {
-            if (!readOnly) {
-              onChange(next);
-            }
-          },
-          readOnly,
-        });
-      },
+      "datetime-picker": ({ value, onChange, readOnly }: PuckFieldProps) => (
+        <ReadOnlyWrapper readOnly={readOnly}>
+          <DateTimePicker
+            label="Publish date"
+            onChange={(next) => {
+              if (!readOnly) onChange(next);
+            }}
+            readOnly={readOnly}
+            value={typeof value === "string" ? value : null}
+          />
+        </ReadOnlyWrapper>
+      ),
     },
   };
 }

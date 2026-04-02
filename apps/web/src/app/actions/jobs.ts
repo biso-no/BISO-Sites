@@ -5,9 +5,7 @@ import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   ContentType,
-  type Jobs,
   type Locale,
-  Status,
 } from "@repo/api/types/appwrite";
 
 type ListJobsParams = {
@@ -16,18 +14,6 @@ type ListJobsParams = {
   campus?: string;
   search?: string;
   locale?: "en" | "no";
-};
-
-const mapStatus = (status?: "draft" | "published" | "closed") => {
-  if (status === "draft") {
-    return Status.DRAFT;
-  }
-  if (status === "published") {
-    return Status.PUBLISHED;
-  }
-  if (status === "closed") {
-    return Status.CLOSED;
-  }
 };
 
 export async function listJobs(
@@ -89,25 +75,12 @@ export async function getJobBySlug(
   try {
     const { db } = await createSessionClient();
 
-    // Get job by slug
-    const jobsResponse = await db.listRows<Jobs>("app", "jobs", [
-      Query.equal("slug", slug),
-      Query.limit(1),
-    ]);
-
-    if (jobsResponse.rows.length === 0) {
-      return null;
-    }
-
-    const job = jobsResponse.rows[0] ?? null;
-
-    // Get translation for the requested locale
-    const translationsResponse = await db.listRows<ContentTranslations>(
+    const response = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
       [
         Query.equal("content_type", ContentType.JOB),
-        Query.equal("content_id", job?.$id ?? ""),
+        Query.equal("job_ref.slug", slug),
         Query.equal("locale", locale),
         Query.select([
           "content_id",
@@ -123,11 +96,7 @@ export async function getJobBySlug(
       ]
     );
 
-    if (translationsResponse.rows.length === 0) {
-      return null;
-    }
-
-    return translationsResponse.rows[0] ?? null;
+    return response.rows[0] ?? null;
   } catch (error) {
     console.error("Error fetching job by slug:", error);
     return null;

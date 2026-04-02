@@ -40,28 +40,23 @@ export async function listEvents(
       Query.orderDesc("$createdAt"),
     ];
 
-    // Get events with their translations using Appwrite's nested relationships
+    if (status !== "all") {
+      queries.push(Query.equal("event_ref.status", status));
+    }
+
+    if (campus && campus !== "all") {
+      queries.push(Query.equal("event_ref.campus_id", campus));
+    }
+
+    queries.push(Query.limit(limit));
+
     const eventsResponse = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
       queries
     );
 
-    let events = eventsResponse.rows;
-
-    // Filter on nested fields after the query (not possible to filter in Appwrite)
-    if (status !== "all") {
-      events = events.filter((event) => event.event_ref?.status === status);
-    }
-
-    if (campus && campus !== "all") {
-      events = events.filter((event) => event.event_ref?.campus_id === campus);
-    }
-
-    const slicedEvents = events.slice(0, limit);
-
-    // Apply limit after filtering
-    return slicedEvents;
+    return eventsResponse.rows;
   } catch (error) {
     console.error("Error fetching events:", error);
     return [];

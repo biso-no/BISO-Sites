@@ -9,7 +9,7 @@ import {
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 export type FileUploadProps = {
   onChange: (value: File | string | null) => void;
@@ -28,6 +28,7 @@ export function FileUpload({
     Array<{ id: string; name: string; url: string }>
   >([]);
   const [loading, setLoading] = useState(false);
+  const [libraryFetched, setLibraryFetched] = useState(false);
 
   let previewUrl: string | null = null;
 
@@ -37,22 +38,26 @@ export function FileUpload({
     previewUrl = value;
   }
 
-  useEffect(() => {
-    if (getImages) {
-      setLoading(true);
-      getImages()
-        .then(setImages)
-        .catch((err) => {
-          console.error("Failed to fetch images", err);
-          setImages([]);
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [getImages]);
+  const handleLibraryTabOpen = useCallback(() => {
+    if (libraryFetched || !getImages) return;
+    setLibraryFetched(true);
+    setLoading(true);
+    getImages()
+      .then(setImages)
+      .catch((err) => {
+        console.error("Failed to fetch images", err);
+        setImages([]);
+      })
+      .finally(() => setLoading(false));
+  }, [getImages, libraryFetched]);
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs className="w-full" defaultValue="upload">
+      <Tabs
+        className="w-full"
+        defaultValue="upload"
+        onValueChange={(v) => v === "library" && handleLibraryTabOpen()}
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="library">Library</TabsTrigger>

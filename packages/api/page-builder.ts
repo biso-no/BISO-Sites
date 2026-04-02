@@ -451,7 +451,7 @@ export type UpsertPageInput = {
 };
 
 export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
 
   const pageId = input.pageId ?? ID.unique();
 

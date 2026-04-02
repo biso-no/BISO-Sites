@@ -38,6 +38,7 @@ import { CommandMenu } from "./command-menu";
 import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
+import { useTheme } from "next-themes";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -65,6 +66,8 @@ const SidebarItem = ({
   pathname: string;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (item.subItems) {
@@ -179,6 +182,8 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
   );
   const [isLoading, setIsLoading] = useState(true);
 
+  const { theme } = useTheme();
+
   const router = useRouter();
 
   // Use copilot store for assistant sidebar state
@@ -197,34 +202,6 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       icon: LayoutDashboard,
       label: t("navigation.dashboard"),
       roles: [ROLES.GLOBAL_ADMIN],
-    },
-    {
-      href: "/content",
-      icon: FileText,
-      label: t("navigation.content"),
-      roles: [
-        ROLES.GLOBAL_ADMIN,
-        ROLES.CAMPUS_ADMIN,
-        ROLES.PR,
-        DEPARTMENT_ROLE,
-      ],
-      subItems: [
-        {
-          href: "/content/entries",
-          label: "Entries",
-          roles: [
-            ROLES.GLOBAL_ADMIN,
-            ROLES.CAMPUS_ADMIN,
-            ROLES.PR,
-            DEPARTMENT_ROLE,
-          ],
-        },
-        {
-          href: "/content/templates",
-          label: "Templates",
-          roles: [ROLES.GLOBAL_ADMIN],
-        },
-      ],
     },
     {
       href: "/posts",
@@ -451,7 +428,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             className="h-6 w-6"
             height={24}
             onClick={() => router.push("/")}
-            src="/images/logo-dark.png"
+            src={theme === "dark" ? "/images/logo-dark.png" : "/images/logo-light.png"}
             width={24}
           />
           {isSidebarExpanded && (

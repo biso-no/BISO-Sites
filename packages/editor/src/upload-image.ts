@@ -21,7 +21,6 @@ export async function uploadImage(file: File) {
 export async function listImages() {
   const { storage } = await createSessionClient();
   const result = await storage.listFiles("content");
-  console.log("Images result", result);
 
   return result.files.map((file) => ({
     id: file.$id,

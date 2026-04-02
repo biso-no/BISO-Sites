@@ -23,6 +23,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (process.env.NODE_ENV === "development") {
+      return NextResponse.json({ success: true });
+    }
+
     const locale = payload?.locale?.trim() || null;
     const referrer = payload?.referrer?.trim() || null;
 

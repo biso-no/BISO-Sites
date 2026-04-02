@@ -45,7 +45,7 @@ export type DataSourceValue = {
  */
 export type EditorMetadata = {
   locale?: string;
-  mode?: "template" | "page" | "direct";
+  mode?: "direct";
   contentType?: string;
   page?: {
     id?: string;
