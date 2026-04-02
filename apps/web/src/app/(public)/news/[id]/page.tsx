@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { getLocale } from "@/app/actions/locale";
 import { getNewsItem } from "@/app/actions/news";
 import { PublicPageHeader } from "@/components/public/public-page-header";
@@ -28,9 +29,18 @@ export default async function PublicNewsDetail({
   if (!item) {
     return notFound();
   }
-  if (item.news_ref.status && item.news_ref.status !== "published") {
+  if (item.status && item.status !== "published") {
     return notFound();
   }
+
+  const translation = Array.isArray(item.translation_refs)
+    ? item.translation_refs.find(
+        (entry): entry is ContentTranslations =>
+          typeof entry === "object" && entry !== null && "title" in entry
+      )
+    : null;
+  const title = translation?.title ?? "News";
+  const description = translation?.description ?? "";
 
   return (
     <div className="space-y-6">
@@ -38,28 +48,28 @@ export default async function PublicNewsDetail({
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "News", href: "/news" },
-          { label: item.title },
+          { label: title },
         ]}
         subtitle={[
-          new Date(item.news_ref.$createdAt).toLocaleDateString(),
-          item.news_ref.campus?.name,
-          item.news_ref.department?.Name,
+          new Date(item.$createdAt).toLocaleDateString(),
+          item.campus?.name,
+          item.department?.Name,
         ]
           .filter(Boolean)
           .join(" · ")}
-        title={item.title}
+        title={title}
       />
-      {item.news_ref.image && (
+      {item.image && (
         <div className="relative h-64 w-full overflow-hidden rounded-lg">
           <Image
-            alt={item.title}
+            alt={title}
             className="object-cover"
             fill
-            src={item.news_ref.image}
+            src={item.image}
           />
         </div>
       )}
-      <HtmlContent html={item.description || ""} />
+      <HtmlContent html={description} />
     </div>
   );
 }

@@ -3,6 +3,8 @@
 import type {
   ContentTranslations,
   Departments,
+  Events,
+  Jobs,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -30,13 +32,23 @@ type BenefitKey =
   | "businessBenefits";
 
 type StudentsPageClientProps = {
-  events: ContentTranslations[];
-  jobs: ContentTranslations[];
+  events: Events[];
+  jobs: Jobs[];
   departments: Departments[];
   campusData: CampusData[];
   globalBenefits: CampusData | null;
   locale: Locale;
 };
+
+const getTranslation = (
+  translations: Events["translation_refs"] | Jobs["translation_refs"]
+) =>
+  Array.isArray(translations)
+    ? (translations.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      ) ?? null)
+    : null;
 
 const stripHtml = (value?: string | null) =>
   value
@@ -132,7 +144,7 @@ export const StudentsPageClient = ({
       return events.slice(0, 6);
     }
     return events
-      .filter((event) => event.event_ref?.campus_id === activeCampusId)
+      .filter((event) => event.campus_id === activeCampusId)
       .slice(0, 6);
   }, [events, activeCampusId]);
 
@@ -141,7 +153,7 @@ export const StudentsPageClient = ({
       return jobs.slice(0, 6);
     }
     return jobs
-      .filter((job) => job.job_ref?.campus_id === activeCampusId)
+      .filter((job) => job.campus_id === activeCampusId)
       .slice(0, 6);
   }, [jobs, activeCampusId]);
 
@@ -359,36 +371,34 @@ export const StudentsPageClient = ({
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredEvents.map((event) => (
-            <Card className="border-primary/10" key={event.$id}>
-              <CardHeader>
-                <Badge className="w-fit text-xs uppercase" variant="secondary">
-                  {formatDateReadable(
-                    new Date(event.event_ref?.start_date || "")
-                  )}
-                </Badge>
-                <CardTitle className="text-lg text-primary-100">
-                  {event.title}
-                </CardTitle>
-                <p className="line-clamp-3 text-muted-foreground text-sm">
-                  {stripHtml(event.description)}
-                </p>
-              </CardHeader>
-              <CardContent className="flex justify-between text-muted-foreground text-xs">
-                <span>
-                  {event.event_ref?.location ||
-                    event.event_ref?.campus?.name ||
-                    event.event_ref?.campus_id}
-                </span>
-                <Link
-                  className="underline-offset-2 hover:underline"
-                  href={`/events/${event.$id}`}
-                >
-                  {t("events.more")}
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
+          {filteredEvents.map((event) => {
+            const translation = getTranslation(event.translation_refs);
+
+            return (
+              <Card className="border-primary/10" key={event.$id}>
+                <CardHeader>
+                  <Badge className="w-fit text-xs uppercase" variant="secondary">
+                    {formatDateReadable(new Date(event.start_date || ""))}
+                  </Badge>
+                  <CardTitle className="text-lg text-primary-100">
+                    {translation?.title ?? "Untitled"}
+                  </CardTitle>
+                  <p className="line-clamp-3 text-muted-foreground text-sm">
+                    {stripHtml(translation?.description)}
+                  </p>
+                </CardHeader>
+                <CardContent className="flex justify-between text-muted-foreground text-xs">
+                  <span>{event.location || event.campus?.name || event.campus_id}</span>
+                  <Link
+                    className="underline-offset-2 hover:underline"
+                    href={`/events/${event.$id}`}
+                  >
+                    {t("events.more")}
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
           {!filteredEvents.length && (
             <Card className="border-primary/10">
               <CardContent className="py-10 text-center text-muted-foreground text-sm">
@@ -418,47 +428,52 @@ export const StudentsPageClient = ({
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredJobs.map((job) => (
-            <Card className="border-primary/10" key={job.$id}>
-              <CardHeader className="space-y-2">
-                <Badge className="w-fit text-xs uppercase" variant="secondary">
-                  {job.job_ref?.department?.Name || t("jobs.unknownDepartment")}
-                </Badge>
-                <CardTitle className="text-lg text-primary-100">
-                  {job.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-muted-foreground text-sm">
-                <p className="line-clamp-3">{stripHtml(job.description)}</p>
-                <div className="flex items-center justify-between text-xs">
-                  <span>
-                    {job.job_ref?.campus?.name || job.job_ref?.campus_id}
-                  </span>
-                  <span>
-                    {job.job_ref?.metadata?.application_deadline
-                      ? formatDateReadable(
-                          new Date(
-                            job.job_ref?.metadata?.application_deadline || ""
+          {filteredJobs.map((job) => {
+            const translation = getTranslation(job.translation_refs);
+
+            return (
+              <Card className="border-primary/10" key={job.$id}>
+                <CardHeader className="space-y-2">
+                  <Badge className="w-fit text-xs uppercase" variant="secondary">
+                    {job.department?.Name || t("jobs.unknownDepartment")}
+                  </Badge>
+                  <CardTitle className="text-lg text-primary-100">
+                    {translation?.title ?? "Untitled"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-muted-foreground text-sm">
+                  <p className="line-clamp-3">
+                    {stripHtml(translation?.description)}
+                  </p>
+                  <div className="flex items-center justify-between text-xs">
+                    <span>{job.campus?.name || job.campus_id}</span>
+                    <span>
+                      {(job.metadata as Record<string, any>)?.application_deadline
+                        ? formatDateReadable(
+                            new Date(
+                              (job.metadata as Record<string, any>)
+                                ?.application_deadline || ""
+                            )
                           )
-                        )
-                      : t("jobs.rolling")}
-                  </span>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    asChild
-                    className="px-0 text-primary-40"
-                    size="sm"
-                    variant="ghost"
-                  >
-                    <Link href={`/jobs/${job.job_ref?.slug}`}>
-                      {t("jobs.more")}
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                        : t("jobs.rolling")}
+                    </span>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      asChild
+                      className="px-0 text-primary-40"
+                      size="sm"
+                      variant="ghost"
+                    >
+                      <Link href={`/jobs/${job.slug || job.$id}`}>
+                        {t("jobs.more")}
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
           {!filteredJobs.length && (
             <Card className="border-primary/10">
               <CardContent className="py-10 text-center text-muted-foreground text-sm">

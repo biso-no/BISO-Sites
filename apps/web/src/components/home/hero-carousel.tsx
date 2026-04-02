@@ -1,4 +1,9 @@
 "use client";
+import type {
+  ContentTranslations,
+  Events,
+  News,
+} from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import type { CarouselApi } from "@repo/ui/components/ui/carousel";
 import {
@@ -50,41 +55,47 @@ function ImageWithFallback({
   );
 }
 
-// ---- Types for your content model ----
-type ContentRef = {
-  image?: string | null;
-};
-type ContentTranslations = {
-  title?: string | null;
-  description?: string | null;
-  content_id?: string | number | null;
-  event_ref?: ContentRef | null;
-  news_ref?: ContentRef | null;
-};
+type HeroCarouselItem = Events | News;
 
 type HeroCarouselProps = {
-  featuredContent: ContentTranslations[];
+  featuredContent: HeroCarouselItem[];
 };
 
 type HeroCarouselSlideProps = {
   index: number;
-  item: ContentTranslations;
+  item: HeroCarouselItem;
   t: ReturnType<typeof useTranslations>;
 };
 
+function getTranslation(item: HeroCarouselItem): ContentTranslations | null {
+  if (!Array.isArray(item.translation_refs)) {
+    return null;
+  }
+
+  return (
+    item.translation_refs.find(
+      (translation): translation is ContentTranslations =>
+        typeof translation === "object" &&
+        translation !== null &&
+        "title" in translation
+    ) ?? null
+  );
+}
+
 function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
-  const isEvent = !!item?.event_ref;
-  const imageUrl = isEvent ? item?.event_ref?.image : item?.news_ref?.image;
-  const contentLink = isEvent
-    ? `/events/${item?.content_id}`
-    : `/news/${item?.content_id}`;
+  const isEvent = "start_date" in item;
+  const imageUrl = item?.image;
+  const contentLink = isEvent ? `/events/${item.$id}` : `/news/${item.$id}`;
+  const translation = getTranslation(item);
+  const title = translation?.title || "";
+  const description = translation?.description || "";
 
   return (
     <CarouselItem className="relative h-screen" key={index}>
       {/* Background Image */}
       <div className="absolute inset-0">
         <ImageWithFallback
-          alt={item?.title || ""}
+          alt={title}
           className="object-cover"
           decoding="async"
           fill
@@ -120,11 +131,11 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
           </div>
 
           <h1 className="mx-auto mb-6 max-w-4xl text-white">
-            {item?.title || ""}
+            {title}
           </h1>
 
           <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
-            {(item?.description || "").replace(/<[^>]+>/g, "").slice(0, 180) ||
+            {(description || "").replace(/<[^>]+>/g, "").slice(0, 180) ||
               "..."}
           </p>
 

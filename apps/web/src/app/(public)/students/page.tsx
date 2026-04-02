@@ -16,7 +16,7 @@ export default async function StudentsPage() {
     await Promise.all([
       listEvents({ status: "published", limit: 24, locale }),
       listJobs({ status: "published", limit: 24, locale }),
-      getDepartments({ campusId: "all" }),
+      getDepartments({ campusId: "all", locale }),
       getCampusData(),
       getGlobalMembershipBenefits(),
     ]);

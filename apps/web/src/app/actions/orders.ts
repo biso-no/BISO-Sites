@@ -1,13 +1,18 @@
 "use server";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { Orders, Users } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  Orders,
+  Users,
+} from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getAvailableStock } from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import type { OrderItem } from "@/lib/types/order";
+import { parseProductMetadata } from "@/lib/types/webshop";
 import { createVippsCheckout } from "@/lib/vipps";
 
 async function _getOrders({
@@ -155,8 +160,42 @@ async function loadProduct(
   if (!product) {
     throw new Error(`Product ${productId} is not available anymore.`);
   }
-  cache.set(productId, product);
-  return product;
+
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && item.locale === locale
+      ) ?? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+
+  const metadataParsed = parseProductMetadata(product.metadata);
+
+  const normalizedProduct = {
+    ...product,
+    title: translation?.title ?? product.slug,
+    description: translation?.description ?? "",
+    short_description: translation?.short_description ?? null,
+    price: Number(product.regular_price ?? 0),
+    metadata_parsed: metadataParsed,
+    custom_fields: Array.isArray((metadataParsed as any).custom_fields)
+      ? (metadataParsed as any).custom_fields
+      : undefined,
+    variations: Array.isArray((metadataParsed as any).variations)
+      ? (metadataParsed as any).variations
+      : undefined,
+    member_discount_enabled: Boolean(
+      (metadataParsed as any).member_discount_enabled
+    ),
+    member_discount_percent: Number(
+      (metadataParsed as any).member_discount_percent || 0
+    ),
+  };
+
+  cache.set(productId, normalizedProduct);
+  return normalizedProduct;
 }
 
 async function ensureStockAvailability(

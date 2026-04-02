@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -26,10 +26,10 @@ import {
 } from "@/lib/types/event";
 
 type EventCardProps = {
-  event: ContentTranslations;
+  event: Events;
   index: number;
   isMember?: boolean;
-  onViewDetails: (event: ContentTranslations) => void;
+  onViewDetails: (event: Events) => void;
 };
 
 const categoryColors: Record<EventCategory, string> = {
@@ -136,7 +136,15 @@ export function EventCard({
   onViewDetails,
 }: EventCardProps) {
   const t = useTranslations("events");
-  const eventData = event.event_ref;
+  const eventData = event;
+  const translation = Array.isArray(event.translation_refs)
+    ? event.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
+  const description = translation?.description ?? "";
 
   // Parse metadata if available
   const metadata = parseEventMetadata(eventData?.metadata);
@@ -184,7 +192,7 @@ export function EventCard({
         {/* Image */}
         <div className="relative h-56 overflow-hidden">
           <ImageWithFallback
-            alt={event.title}
+            alt={title}
             className="object-cover transition-transform duration-500 group-hover:scale-110"
             fill
             src={imageUrl}
@@ -207,10 +215,10 @@ export function EventCard({
         {/* Content */}
         <div className="flex grow flex-col p-6">
           <h3 className="mb-3 font-semibold text-foreground text-xl">
-            {event.title}
+            {title}
           </h3>
           <p className="mb-4 line-clamp-2 grow text-muted-foreground text-sm">
-            {event.description}
+            {description}
           </p>
 
           {eventData?.is_collection && (

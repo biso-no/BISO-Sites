@@ -1,4 +1,4 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { CheckCircle2 } from "lucide-react";
@@ -6,12 +6,18 @@ import { useTranslations } from "next-intl";
 import { parseEventMetadata } from "@/lib/types/event";
 
 type EventContentProps = {
-  event: ContentTranslations;
+  event: Events;
 };
 
 export function EventContent({ event }: EventContentProps) {
   const t = useTranslations("events");
-  const eventData = event.event_ref;
+  const eventData = event;
+  const translation = Array.isArray(event.translation_refs)
+    ? event.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "description" in item
+      )
+    : null;
   const metadata = parseEventMetadata(eventData?.metadata);
   const highlights = metadata.highlights || [];
   const agenda = metadata.agenda || [];
@@ -24,7 +30,7 @@ export function EventContent({ event }: EventContentProps) {
           {t("modal.about")}
         </h2>
         <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-          {event.description}
+          {translation?.description ?? ""}
         </p>
       </Card>
 

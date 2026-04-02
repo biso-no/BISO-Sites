@@ -1,6 +1,7 @@
 import { getLocale } from "@/app/actions/locale";
 import { getProductBySlug } from "@/app/actions/webshop";
 import { getMembershipStatus } from "@/lib/actions/membership";
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { AddToCartCard } from "../product/add-to-cart-card";
 import { MemberBenefits } from "../product/member-benefits";
 import { PickupInfo } from "../product/pickup-info";
@@ -26,6 +27,12 @@ export default async function ProductDetailsPage({
 
   const { isMember } = await getMembershipStatus();
   const userId: string | null = null;
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
@@ -40,7 +47,7 @@ export default async function ProductDetailsPage({
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Main Content */}
             <div className="space-y-8 lg:col-span-2">
-              <ProductDescription description={product.description} />
+              <ProductDescription description={translation?.description ?? ""} />
               <ProductOptions />
               <PickupInfo />
             </div>
@@ -50,7 +57,7 @@ export default async function ProductDetailsPage({
               <StockStatus />
               <AddToCartCard />
               <ProductPriceCard isMember={isMember} product={product} />
-              {!isMember && product.product_ref?.category !== "Membership" && (
+              {!isMember && product.category !== "Membership" && (
                 <MemberBenefits />
               )}
             </div>

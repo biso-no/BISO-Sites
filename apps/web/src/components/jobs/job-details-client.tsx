@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -21,7 +21,7 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 
 type JobDetailsClientProps = {
-  job: ContentTranslations;
+  job: Jobs;
 };
 
 const getJobCategory = (metadata: Record<string, any>) =>
@@ -51,7 +51,15 @@ const categoryImages: Record<string, string> = {
 
 export function JobDetailsClient({ job }: JobDetailsClientProps) {
   const router = useRouter();
-  const jobData = job.job_ref;
+  const jobData = job;
+  const translation = Array.isArray(job.translation_refs)
+    ? job.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
+  const description = translation?.description ?? "";
   const metadata = jobData?.metadata as Record<string, any>;
   const category = getJobCategory(metadata);
 
@@ -130,7 +138,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 {category}
               </Badge>
               <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
-                {job.title}
+                {title}
               </h1>
               <p className="text-white/90 text-xl">{department}</p>
 
@@ -173,7 +181,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                   Position Overview
                 </h2>
                 <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-                  {job.description}
+                  {description}
                 </p>
               </Card>
             </motion.div>

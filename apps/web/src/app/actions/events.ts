@@ -4,9 +4,8 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
   type Campus,
-  type ContentTranslations,
-  ContentType,
   type Departments,
+  type Events,
   type Locale,
 } from "@repo/api/types/appwrite";
 
@@ -20,41 +19,69 @@ type ListEventsParams = {
 
 export async function listEvents(
   params: ListEventsParams = {}
-): Promise<ContentTranslations[]> {
-  const { limit = 25, status = "published", campus, locale } = params;
+): Promise<Events[]> {
+  const { limit = 25, status = "published", campus, locale, search } = params;
 
   try {
     const { db } = await createSessionClient();
 
     const queries = [
-      Query.equal("content_type", "event"),
       Query.select([
-        "content_id",
         "$id",
-        "locale",
-        "title",
-        "description",
-        "event_ref.*",
+        "$createdAt",
+        "$updatedAt",
+        "slug",
+        "status",
+        "campus_id",
+        "metadata",
+        "start_date",
+        "end_date",
+        "location",
+        "price",
+        "ticket_url",
+        "image",
+        "member_only",
+        "collection_id",
+        "is_collection",
+        "collection_pricing",
+        "department_id",
+        "campus.$id",
+        "campus.name",
+        "department.$id",
+        "department.Name",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.content_id",
+        "translation_refs.content_type",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.description",
+        "translation_refs.short_description",
+        "translation_refs.additional_fields",
       ]),
-      Query.equal("locale", locale as Locale),
       Query.orderDesc("$createdAt"),
     ];
 
+    if (locale) {
+      queries.push(Query.equal("translation_refs.locale", locale as Locale));
+    }
+
     if (status !== "all") {
-      queries.push(Query.equal("event_ref.status", status));
+      queries.push(Query.equal("status", status));
     }
 
     if (campus && campus !== "all") {
-      queries.push(Query.equal("event_ref.campus_id", campus));
+      queries.push(Query.equal("campus_id", campus));
+    }
+
+    if (search?.trim()) {
+      queries.push(Query.search("translation_refs.title", search.trim()));
     }
 
     queries.push(Query.limit(limit));
 
-    const eventsResponse = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      queries
-    );
+    const eventsResponse = await db.listRows<Events>("app", "events", queries);
 
     return eventsResponse.rows;
   } catch (error) {
@@ -66,35 +93,57 @@ export async function listEvents(
 export async function getEvent(
   id: string,
   locale: "en" | "no"
-): Promise<ContentTranslations | null> {
+): Promise<Events | null> {
   try {
     const { db } = await createSessionClient();
 
-    // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", ContentType.EVENT),
-        Query.equal("content_id", id),
-        Query.equal("locale", locale),
-        Query.select([
-          "content_id",
-          "$id",
-          "locale",
-          "title",
-          "description",
-          "event_ref.*",
-        ]),
-        Query.limit(1),
-      ]
-    );
+    const response = await db.listRows<Events>("app", "events", [
+      Query.equal("$id", id),
+      Query.equal("translation_refs.locale", locale as Locale),
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "slug",
+        "status",
+        "campus_id",
+        "metadata",
+        "start_date",
+        "end_date",
+        "location",
+        "price",
+        "ticket_url",
+        "image",
+        "member_only",
+        "collection_id",
+        "is_collection",
+        "collection_pricing",
+        "department_id",
+        "campus.$id",
+        "campus.name",
+        "department.$id",
+        "department.Name",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.content_id",
+        "translation_refs.content_type",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.description",
+        "translation_refs.short_description",
+        "translation_refs.additional_fields",
+      ]),
+      Query.limit(1),
+    ]);
 
-    if (translationsResponse.rows.length === 0) {
+    const event = response.rows[0];
+
+    if (!event) {
       return null;
     }
 
-    return translationsResponse.rows[0];
+    return event;
   } catch (error) {
     console.error("Error fetching event:", error);
     return null;
@@ -145,29 +194,49 @@ async function _listCampuses() {
 export async function getCollectionEvents(
   collectionId: string,
   locale: "en" | "no"
-): Promise<ContentTranslations[]> {
+): Promise<Events[]> {
   try {
     const { db } = await createSessionClient();
 
-    // Get all events with this collection_id
-    const response = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", ContentType.EVENT),
-        Query.equal("locale", locale),
-        Query.equal("event_ref.collection_id", collectionId),
-        Query.select([
-          "content_id",
-          "$id",
-          "locale",
-          "title",
-          "description",
-          "event_ref.*",
-        ]),
-        Query.orderAsc("event_ref.start_date"),
-      ]
-    );
+    const response = await db.listRows<Events>("app", "events", [
+      Query.equal("collection_id", collectionId),
+      Query.equal("translation_refs.locale", locale as Locale),
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "slug",
+        "status",
+        "campus_id",
+        "metadata",
+        "start_date",
+        "end_date",
+        "location",
+        "price",
+        "ticket_url",
+        "image",
+        "member_only",
+        "collection_id",
+        "is_collection",
+        "collection_pricing",
+        "department_id",
+        "campus.$id",
+        "campus.name",
+        "department.$id",
+        "department.Name",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.content_id",
+        "translation_refs.content_type",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.description",
+        "translation_refs.short_description",
+        "translation_refs.additional_fields",
+      ]),
+      Query.orderAsc("start_date"),
+    ]);
 
     return response.rows;
   } catch (error) {

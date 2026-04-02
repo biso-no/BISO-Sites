@@ -1,16 +1,16 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { WebshopProducts } from "@repo/api/types/appwrite";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { calculateSavings, getDisplayPrice } from "@/lib/types/webshop";
 import { PriceDetails } from "../price-details";
 
 type ProductPriceCardProps = {
-  product: ContentTranslations;
+  product: WebshopProducts;
   isMember: boolean;
 };
 
 export function ProductPriceCard({ product, isMember }: ProductPriceCardProps) {
-  const productRef = product.product_ref;
+  const productRef = product;
   const displayPrice = getDisplayPrice(
     productRef?.regular_price ?? 0,
     productRef?.member_price,

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { upsertManagedPage } from "@/app/actions/pages/actions";
+import { generateSeoMetadata } from "@/app/actions/pages/seo";
 import { translatePageContent } from "@/app/actions/pages/translate";
 
 type LocaleData = {
@@ -228,8 +229,52 @@ export function useUnifiedEditorHandlers({
 
     setIsSaving(true);
     try {
+      // Auto-generate SEO metadata for any locale that hasn't set it manually.
+      const updatedWithSeo = { ...updatedLocaleData };
+      for (const locale of availableLocales) {
+        const locData = updatedWithSeo[locale];
+        if (!locData) continue;
+        const rootProps = (locData.data.root?.props ?? {}) as Record<string, unknown>;
+        const hasSeo =
+          (rootProps.seoTitle as string)?.trim() ||
+          (rootProps.seoDescription as string)?.trim();
+        if (!hasSeo) {
+          const contentSummary = locData.data.content
+            ?.slice(0, 8)
+            .map((b) => {
+              const p = (b.props ?? {}) as Record<string, unknown>;
+              return `[${b.type}] ${(p.title as string) || (p.text as string) || ""}`.trim();
+            })
+            .filter(Boolean)
+            .join("; ");
+
+          const generated = await generateSeoMetadata({
+            title: locData.title,
+            description: locData.description,
+            contentSummary,
+          });
+
+          if (generated) {
+            updatedWithSeo[locale] = {
+              ...locData,
+              data: {
+                ...locData.data,
+                root: {
+                  ...locData.data.root,
+                  props: {
+                    ...rootProps,
+                    seoTitle: generated.seoTitle,
+                    seoDescription: generated.seoDescription,
+                  } as any,
+                },
+              },
+            };
+          }
+        }
+      }
+
       const translations = availableLocales.map((locale) => {
-        const locData = updatedLocaleData[locale]!;
+        const locData = updatedWithSeo[locale]!;
 
         return {
           locale,

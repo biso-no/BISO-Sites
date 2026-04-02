@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -10,7 +10,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 
 type ArticleCardProps = {
-  article: ContentTranslations;
+  article: News;
   variant: "featured" | "regular";
   index?: number;
 };
@@ -51,18 +51,23 @@ const getRelativeTime = (dateString?: string) => {
 };
 
 export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
-  const categoryColor =
-    categoryColors[article.content_type] || categoryColors.default;
+  const translation = Array.isArray(article.translation_refs)
+    ? article.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
+  const description = translation?.description ?? "";
+  const categoryColor = categoryColors.default;
   const imageUrl =
-    article.news_ref?.image ||
+    article.image ||
     "https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080";
-  const articleLink = `/news/${article.content_id}`;
-  const relativeTime = getRelativeTime(
-    article.news_ref?.$createdAt || article.$createdAt
-  );
+  const articleLink = `/news/${article.$id}`;
+  const relativeTime = getRelativeTime(article.$createdAt);
 
   // Clean description
-  const cleanDescription = article.description?.replace(/<[^>]+>/g, "") || "";
+  const cleanDescription = description.replace(/<[^>]+>/g, "") || "";
   const shortDescription =
     cleanDescription.length > 150
       ? `${cleanDescription.slice(0, 150)}...`
@@ -82,14 +87,14 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
               {/* Image */}
               <div className="relative h-96 overflow-hidden md:h-auto">
                 <ImageWithFallback
-                  alt={article.title}
+                  alt={title}
                   className="object-cover transition-transform duration-500 group-hover:scale-110"
                   fill
                   src={imageUrl}
                 />
                 <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                 <Badge className={`absolute top-4 left-4 ${categoryColor}`}>
-                  {article.content_type}
+                  News
                 </Badge>
               </div>
 
@@ -100,7 +105,7 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
                   <span className="text-sm">{relativeTime}</span>
                 </div>
                 <h3 className="mb-4 font-bold text-3xl text-foreground">
-                  {article.title}
+                  {title}
                 </h3>
                 <p className="mb-6 text-lg text-muted-foreground">
                   {shortDescription}
@@ -129,14 +134,14 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
           {/* Image */}
           <div className="relative h-56 overflow-hidden">
             <ImageWithFallback
-              alt={article.title}
+              alt={title}
               className="object-cover transition-transform duration-500 group-hover:scale-110"
               fill
               src={imageUrl}
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
             <Badge className={`absolute top-4 left-4 ${categoryColor}`}>
-              {article.content_type}
+              News
             </Badge>
           </div>
 
@@ -147,7 +152,7 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
               <span className="text-sm">{relativeTime}</span>
             </div>
             <h4 className="mb-3 line-clamp-2 font-bold text-foreground text-xl">
-              {article.title}
+              {title}
             </h4>
             <p className="mb-4 line-clamp-3 grow text-muted-foreground">
               {shortDescription}

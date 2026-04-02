@@ -1,4 +1,4 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { Events, News } from "@repo/api/types/appwrite";
 import { listEvents } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
 import { listNews } from "@/app/actions/news";
@@ -14,10 +14,7 @@ export async function HeroSection() {
   ]);
 
   // Combine and shuffle for variety
-  const featuredContent: ContentTranslations[] = [...events, ...news].slice(
-    0,
-    5
-  );
+  const featuredContent: Array<Events | News> = [...events, ...news].slice(0, 5);
 
   return <HeroCarousel featuredContent={featuredContent} />;
 }

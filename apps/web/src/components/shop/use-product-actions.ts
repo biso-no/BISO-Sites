@@ -1,4 +1,7 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -78,7 +81,7 @@ async function reserveStock(
 }
 
 type BuildCartItemParams = {
-  product: ContentTranslations;
+  product: WebshopProducts;
   productId: string;
   namedOptions: Record<string, string>;
   metadata: ReturnType<typeof parseProductMetadata>;
@@ -90,7 +93,13 @@ function buildCartItem({
   namedOptions,
   metadata,
 }: BuildCartItemParams) {
-  const productRef = product.product_ref;
+  const productRef = product;
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
   const hasOptions = Object.keys(namedOptions).length > 0;
 
   const maxPerUser =
@@ -104,23 +113,23 @@ function buildCartItem({
   const sku = typeof metadata.sku === "string" ? metadata.sku : undefined;
 
   return {
-    contentId: product.content_id,
+    contentId: product.$id,
     productId,
-    slug: productRef?.slug ?? "",
-    name: product.title,
-    image: productRef?.image,
-    category: productRef?.category ?? "",
-    regularPrice: productRef?.regular_price ?? 0,
-    memberPrice: productRef?.member_price,
-    memberOnly: productRef?.member_only ?? false,
-    stock: productRef?.stock,
+    slug: productRef.slug ?? "",
+    name: translation?.title ?? productRef.slug,
+    image: productRef.image,
+    category: productRef.category ?? "",
+    regularPrice: productRef.regular_price ?? 0,
+    memberPrice: productRef.member_price,
+    memberOnly: productRef.member_only ?? false,
+    stock: productRef.stock,
     selectedOptions: hasOptions ? namedOptions : undefined,
     metadata: { max_per_user: maxPerUser, max_per_order: maxPerOrder, sku },
   };
 }
 
 export function useProductActions(
-  product: ContentTranslations,
+  product: WebshopProducts,
   userId: string | null
 ) {
   const { addItem } = useCart();
@@ -129,7 +138,7 @@ export function useProductActions(
   const [availableStock, setAvailableStock] = useState<number | null>(null);
   const [isLoadingStock, setIsLoadingStock] = useState(false);
 
-  const productRef = product.product_ref;
+  const productRef = product;
   const metadata = parseProductMetadata(productRef?.metadata);
   const productOptions = (metadata.product_options as ProductOption[]) || [];
 

@@ -1,11 +1,11 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { News } from "@repo/api/types/appwrite";
 import { motion } from "motion/react";
 import { ArticleCard } from "./article-card";
 
 type RegularArticlesProps = {
-  articles: ContentTranslations[];
+  articles: News[];
   showHeader: boolean;
 };
 
@@ -39,7 +39,7 @@ export function RegularArticles({
           <ArticleCard
             article={article}
             index={index}
-            key={article.news_ref?.$id || article.$id}
+            key={article.$id}
             variant="regular"
           />
         ))}

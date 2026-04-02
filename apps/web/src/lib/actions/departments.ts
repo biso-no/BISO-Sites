@@ -3,13 +3,15 @@ import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   ContentType,
+  type News,
   Status,
+  type WebshopProducts,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 
 export type DepartmentTranslation = ContentTranslations & {
-  news?: ContentTranslations[];
-  products?: ContentTranslations[];
+  news?: News[];
+  products?: WebshopProducts[];
 };
 
 export async function getDepartments({
@@ -100,45 +102,67 @@ export async function getDepartmentById(
 
     const deptTranslation = result.rows[0];
 
-    // Fetch news for this department (with translations)
-    const newsResults = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", ContentType.NEWS),
-        Query.equal("news_ref.department_id", id),
-        Query.equal("locale", locale),
-        Query.equal("news_ref.status", Status.PUBLISHED),
-        Query.select([
-          "$id",
-          "content_id",
-          "locale",
-          "title",
-          "description",
-          "short_description",
-          "news_ref.*",
-        ]),
-        Query.orderDesc("$createdAt"),
-      ]
-    );
+    const newsResults = await db.listRows<News>("app", "news", [
+      Query.equal("department_id", id),
+      Query.equal("status", Status.PUBLISHED),
+      Query.equal("translation_refs.locale", locale),
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "slug",
+        "status",
+        "campus_id",
+        "department_id",
+        "sticky",
+        "url",
+        "image",
+        "metadata",
+        "author",
+        "campus.$id",
+        "campus.name",
+        "department.$id",
+        "department.Name",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.description",
+        "translation_refs.short_description",
+      ]),
+      Query.orderDesc("$createdAt"),
+    ]);
 
-    // Fetch products for this department (with translations)
-    const productsResults = await db.listRows<ContentTranslations>(
+    const productsResults = await db.listRows<WebshopProducts>(
       "app",
-      "content_translations",
+      "webshop_products",
       [
-        Query.equal("content_type", ContentType.PRODUCT),
-        Query.equal("product_ref.departmentId", id),
-        Query.equal("locale", locale),
-        Query.equal("product_ref.status", Status.PUBLISHED),
+        Query.equal("departmentId", id),
+        Query.equal("status", Status.PUBLISHED),
+        Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",
-          "content_id",
-          "locale",
-          "title",
-          "description",
-          "short_description",
-          "product_ref.*",
+          "$createdAt",
+          "$updatedAt",
+          "slug",
+          "status",
+          "campus_id",
+          "category",
+          "regular_price",
+          "member_price",
+          "member_only",
+          "image",
+          "stock",
+          "metadata",
+          "departmentId",
+          "translation_refs.$id",
+          "translation_refs.$createdAt",
+          "translation_refs.$updatedAt",
+          "translation_refs.locale",
+          "translation_refs.title",
+          "translation_refs.description",
+          "translation_refs.short_description",
         ]),
         Query.orderDesc("$createdAt"),
       ]

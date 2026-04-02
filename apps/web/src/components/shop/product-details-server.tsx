@@ -1,10 +1,12 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { ArrowLeft, MapPin, Tag, Users } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import {
   calculateSavings,
   formatPrice,
@@ -17,7 +19,7 @@ import { MemberCalloutClient } from "./member-callout-client"; // New Client Com
 import { ProductOptionsClient } from "./product-options-client"; // New Client Component
 
 type ProductDetailsServerProps = {
-  product: ContentTranslations;
+  product: WebshopProducts;
   isMember: boolean;
   // TODO: Get actual userId from auth
   userId?: string | null;
@@ -36,12 +38,15 @@ export function ProductDetailsServer({
   isMember,
   userId = null,
 }: ProductDetailsServerProps) {
-  const productRef = product.product_ref;
-
-  if (!productRef) {
-    // Should be handled by ProductDetails wrapper, but for safety
-    notFound();
-  }
+  const productRef = product;
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled Product";
+  const description = translation?.description ?? "";
 
   const metadata = parseProductMetadata(productRef.metadata);
   const productOptions = (metadata.product_options as ProductOption[]) || [];
@@ -62,7 +67,7 @@ export function ProductDetailsServer({
       {/* Hero Section (SSR) */}
       <div className="relative h-[60vh] overflow-hidden">
         <ImageWithFallback
-          alt={product.title}
+          alt={title}
           className="object-cover"
           fill
           src={imageUrl}
@@ -97,7 +102,7 @@ export function ProductDetailsServer({
               </div>
 
               <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
-                {product.title}
+                {title}
               </h1>
 
               <div className="flex items-baseline gap-3">
@@ -142,7 +147,7 @@ export function ProductDetailsServer({
                   Product Description
                 </h2>
                 <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-                  {product.description}
+                  {description}
                 </p>
               </Card>
             </div>

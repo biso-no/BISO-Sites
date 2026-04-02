@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { WebshopProducts } from "@repo/api/types/appwrite";
 import { createContext, useContext, useMemo, useState } from "react";
 import { type ProductOption, parseProductMetadata } from "@/lib/types/webshop";
 import { useProductActions } from "../use-product-actions";
@@ -13,7 +13,7 @@ type ProductPurchaseContextType = {
   errors: Record<string, boolean>;
   availableStock: number | null;
   isLoadingStock: boolean;
-  product: ContentTranslations;
+  product: WebshopProducts;
   productOptions: ProductOption[];
   isMember: boolean;
 };
@@ -29,7 +29,7 @@ export function ProductPurchaseProvider({
   isMember = false,
 }: {
   children: React.ReactNode;
-  product: ContentTranslations;
+  product: WebshopProducts;
   userId?: string | null;
   isMember?: boolean;
 }) {
@@ -47,9 +47,9 @@ export function ProductPurchaseProvider({
   >({});
 
   const productOptions = useMemo(() => {
-    const metadata = parseProductMetadata(product.product_ref?.metadata);
+    const metadata = parseProductMetadata(product.metadata);
     return (metadata.product_options as ProductOption[]) || [];
-  }, [product.product_ref?.metadata]);
+  }, [product.metadata]);
 
   const handleOptionChange = (optionIndex: number, value: string) => {
     setSelectedOptions((prev) => ({

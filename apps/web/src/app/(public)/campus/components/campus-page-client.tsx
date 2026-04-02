@@ -5,6 +5,9 @@ import type {
   CampusMetadata,
   ContentTranslations,
   DepartmentBoard,
+  Events,
+  Jobs,
+  News,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { useMemo } from "react";
@@ -21,9 +24,9 @@ import { StudentsTab } from "./students/students-tab";
 import { TeamTab } from "./team/team-tab";
 
 type CampusPageClientProps = {
-  events: ContentTranslations[];
-  jobs: ContentTranslations[];
-  news: ContentTranslations[];
+  events: Events[];
+  jobs: Jobs[];
+  news: News[];
   departments: ContentTranslations[];
   campusData: CampusData[];
   campusMetadata: Record<string, CampusMetadata>;
@@ -75,23 +78,21 @@ export function CampusPageClient({
     if (!activeCampusId) {
       return events;
     }
-    return events.filter(
-      (event) => event.event_ref?.campus_id === activeCampusId
-    );
+    return events.filter((event) => event.campus_id === activeCampusId);
   }, [events, activeCampusId]);
 
   const campusSpecificJobs = useMemo(() => {
     if (!activeCampusId) {
       return jobs;
     }
-    return jobs.filter((job) => job.job_ref?.campus_id === activeCampusId);
+    return jobs.filter((job) => job.campus_id === activeCampusId);
   }, [jobs, activeCampusId]);
 
   const campusSpecificNews = useMemo(() => {
     if (!activeCampusId) {
       return news;
     }
-    return news.filter((item) => item.news_ref?.campus_id === activeCampusId);
+    return news.filter((item) => item.campus_id === activeCampusId);
   }, [news, activeCampusId]);
 
   const campusSpecificDepartments = useMemo(() => {

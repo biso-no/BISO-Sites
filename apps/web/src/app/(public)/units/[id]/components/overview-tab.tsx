@@ -1,5 +1,6 @@
 "use client";
 
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
@@ -69,6 +70,17 @@ export function OverviewTab({ department }: OverviewTabProps) {
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {news.slice(0, 3).map((newsItem, index) => (
+              (() => {
+                const translation = Array.isArray(newsItem.translation_refs)
+                  ? newsItem.translation_refs.find(
+                      (item): item is ContentTranslations =>
+                        typeof item === "object" &&
+                        item !== null &&
+                        "title" in item
+                    )
+                  : null;
+
+                return (
               <motion.div
                 animate={{ opacity: 1, y: 0 }}
                 initial={{ opacity: 0, y: 20 }}
@@ -77,12 +89,12 @@ export function OverviewTab({ department }: OverviewTabProps) {
               >
                 <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
                   <div className="relative h-48 overflow-hidden">
-                    {newsItem.news_ref?.image && (
+                    {newsItem.image && (
                       <ImageWithFallback
-                        alt={newsItem.title || "News"}
+                        alt={translation?.title || "News"}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                         fill
-                        src={newsItem.news_ref.image}
+                        src={newsItem.image}
                       />
                     )}
                     <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">
@@ -93,7 +105,7 @@ export function OverviewTab({ department }: OverviewTabProps) {
                     <div className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
                       <Calendar className="h-4 w-4 text-brand" />
                       {new Date(
-                        newsItem.news_ref?.$createdAt || newsItem.$createdAt
+                        newsItem.$createdAt
                       ).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -101,14 +113,18 @@ export function OverviewTab({ department }: OverviewTabProps) {
                       })}
                     </div>
                     <h3 className="mb-2 font-semibold text-foreground text-lg transition-colors group-hover:text-brand">
-                      {newsItem.title || "Untitled"}
+                      {translation?.title || "Untitled"}
                     </h3>
                     <p className="line-clamp-2 text-muted-foreground text-sm">
-                      {newsItem.short_description || newsItem.description || ""}
+                      {translation?.short_description ||
+                        translation?.description ||
+                        ""}
                     </p>
                   </div>
                 </Card>
               </motion.div>
+                );
+              })()
             ))}
           </div>
         </section>

@@ -43,11 +43,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
     limit: 100,
   });
 
-  // Get unique categories and add "All" option
-  const uniqueCategories = Array.from(
-    new Set(articles.map((article) => article.content_type))
-  );
-  const categories = ["All", ...uniqueCategories];
+  const categories = ["All"];
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,6 +68,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Suspense fallback={<NewsGridSkeleton />}>
             <NewsGrid
+              articles={articles}
               searchQuery={searchQuery}
               selectedCategory={selectedCategory}
             />

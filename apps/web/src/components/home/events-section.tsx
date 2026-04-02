@@ -1,5 +1,5 @@
 "use client";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -62,14 +62,21 @@ function getAttendees(metadata: unknown): string | null {
 }
 
 type EventCardProps = {
-  event: ContentTranslations;
+  event: Events;
   index: number;
   registerLabel: string;
 };
 
 function EventCard({ event, index, registerLabel }: EventCardProps) {
   const isFeatured = index === 0;
-  const eventRef = event.event_ref;
+  const eventRef = event;
+  const translation = Array.isArray(event.translation_refs)
+    ? event.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
   const startDate = eventRef?.start_date ? new Date(eventRef.start_date) : null;
   const endDate = eventRef?.end_date ? new Date(eventRef.end_date) : null;
   const dateString = formatDateString(startDate);
@@ -95,7 +102,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
             className={`relative overflow-hidden ${isFeatured ? "h-96 md:h-auto" : "h-64"}`}
           >
             <ImageWithFallback
-              alt={event.title}
+              alt={title}
               className="object-cover transition-transform duration-500 group-hover:scale-110"
               fill
               src={imageUrl}
@@ -113,7 +120,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
           {/* Content */}
           <div className="flex flex-col justify-between p-8">
             <div>
-              <h3 className="mb-4 text-foreground">{event.title}</h3>
+              <h3 className="mb-4 text-foreground">{title}</h3>
 
               <div className="mb-6 space-y-3">
                 <div className="flex items-center gap-3 text-muted-foreground">
@@ -137,7 +144,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
               </div>
             </div>
 
-            <Link href={`/events/${event.content_id}`}>
+            <Link href={`/events/${event.$id}`}>
               <Button className="group w-full border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
                 {registerLabel}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -151,7 +158,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
 }
 
 type EventsSectionProps = {
-  events: ContentTranslations[];
+  events: Events[];
 };
 
 export function EventsSection({ events }: EventsSectionProps) {

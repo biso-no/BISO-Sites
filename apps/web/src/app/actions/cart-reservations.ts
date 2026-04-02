@@ -244,16 +244,27 @@ export async function getCartItemsWithDetails(
         const product = await db.getRow(
           "app",
           "webshop_products",
-          reservation.product_id
+          reservation.product_id,
+          [
+            Query.select([
+              "$id",
+              "slug",
+              "category",
+              "image",
+              "regular_price",
+              "member_price",
+              "member_only",
+              "stock",
+              "metadata",
+              "translation_refs.locale",
+              "translation_refs.title",
+            ]),
+          ]
         );
 
-        // Get translation for the specified locale
-        const translations = await db.listRows("app", "content_translations", [
-          Query.equal("content_id", product.$id),
-          Query.equal("locale", locale),
-        ]);
-
-        const translation = translations.rows[0];
+        const translation = Array.isArray(product.translation_refs)
+          ? product.translation_refs.find((item) => item.locale === locale)
+          : null;
 
         cartItems.push({
           reservationId: reservation.$id,

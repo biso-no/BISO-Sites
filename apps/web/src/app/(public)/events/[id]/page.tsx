@@ -1,4 +1,4 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -34,8 +34,16 @@ async function EventDetails({ id }: { id: string }) {
   }
 
   // Fetch collection events if this event belongs to or is a collection
-  let collectionEvents: ContentTranslations[] | null = null;
-  const eventData = event.event_ref;
+  let collectionEvents: Events[] | null = null;
+  const eventData = event;
+  const translation = Array.isArray(event.translation_refs)
+    ? event.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
+  const description = translation?.description ?? "";
 
   if (eventData?.is_collection && eventData.collection_id) {
     // This is a collection parent - fetch all its child events
@@ -85,9 +93,9 @@ async function EventDetails({ id }: { id: string }) {
             />
 
             <EventActions
-              description={event.description}
+              description={description}
               ticketUrl={eventData?.ticket_url}
-              title={event.title}
+              title={title}
             />
 
             <EventDetailsCard event={event} />
@@ -141,8 +149,15 @@ export async function generateMetadata({ params }: EventPageProps) {
     };
   }
 
+  const translation = Array.isArray(event.translation_refs)
+    ? event.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+
   return {
-    title: `${event.title} | BISO Events`,
-    description: event.description,
+    title: `${translation?.title ?? "Event"} | BISO Events`,
+    description: translation?.description ?? "",
   };
 }

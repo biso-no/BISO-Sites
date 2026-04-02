@@ -1,4 +1,4 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { Events } from "@repo/api/types/appwrite";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { format } from "date-fns";
@@ -11,7 +11,7 @@ import {
 } from "@/lib/types/event";
 
 type EventPriceCardProps = {
-  event: ContentTranslations;
+  event: Events;
   collectionCount?: number;
   isMember?: boolean;
 };
@@ -22,7 +22,7 @@ function PriceHelperText({
   collectionCount,
 }: {
   price: string;
-  eventData: NonNullable<ContentTranslations["event_ref"]> | undefined;
+  eventData: Events | undefined;
   collectionCount: number;
 }) {
   const t = useTranslations("events");
@@ -60,7 +60,7 @@ export function EventPriceCard({
   isMember = false,
 }: EventPriceCardProps) {
   const t = useTranslations("events");
-  const eventData = event.event_ref;
+  const eventData = event;
   const metadata = parseEventMetadata(eventData?.metadata);
 
   // Format price
@@ -113,12 +113,12 @@ export function EventPriceCard({
 }
 
 type EventDetailsCardProps = {
-  event: ContentTranslations;
+  event: Events;
 };
 
 export function EventDetailsCard({ event }: EventDetailsCardProps) {
   const t = useTranslations("events");
-  const eventData = event.event_ref;
+  const eventData = event;
   const metadata = parseEventMetadata(eventData?.metadata);
   const category = getEventCategory(metadata);
   const attendees = metadata.attendees || 0;

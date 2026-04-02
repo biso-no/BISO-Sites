@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import {
@@ -21,7 +21,7 @@ import { useState } from "react";
 import { JobCard } from "./job-card";
 
 type JobsListClientProps = {
-  jobs: ContentTranslations[];
+  jobs: Jobs[];
 };
 
 const getJobCategory = (metadata: Record<string, any>) =>
@@ -73,29 +73,35 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
 
   // Filter jobs based on search, category, and paid status
   const filteredJobs = jobs.filter((job) => {
-    const jobData = job.job_ref;
+    const translation = Array.isArray(job.translation_refs)
+      ? job.translation_refs.find(
+          (item): item is ContentTranslations =>
+            typeof item === "object" && item !== null && "title" in item
+        )
+      : null;
+    const title = translation?.title ?? "";
+    const description = translation?.description ?? "";
+    const shortDescription = translation?.short_description ?? "";
+    const jobData = job;
     const metadata = jobData?.metadata as Record<string, any>;
     const category = getJobCategory(metadata);
-    const paid = metadata.paid ?? false;
-    const department = jobData?.department?.Name || "";
+    const paid = Boolean(metadata?.paid);
+    const department = jobData.department?.Name || "";
 
     const matchesCategory =
       selectedCategory === "All" || category === selectedCategory;
     const matchesSearch =
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (job.short_description || "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shortDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
       department.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPaid = !showPaidOnly || paid;
 
     return matchesCategory && matchesSearch && matchesPaid;
   });
 
-  const handleViewDetails = (job: ContentTranslations) => {
-    // Use slug if available, otherwise fall back to content_id
-    const slug = job.job_ref?.slug || job.content_id;
+  const handleViewDetails = (job: Jobs) => {
+    const slug = job.slug || job.$id;
     router.push(`/jobs/${slug}`);
   };
 

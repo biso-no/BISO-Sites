@@ -3,7 +3,7 @@
 import { Query } from "@repo/api";
 import { getPublishedPage, type PublishedPage } from "@repo/api/page-builder";
 import { createSessionClient } from "@repo/api/server";
-import type { Locale, PageTranslations } from "@repo/api/types/appwrite";
+import type { Locale, Pages, PageTranslations } from "@repo/api/types/appwrite";
 import { cache } from "react";
 
 const resolvePublishedPage = cache(async (slug: string, locale: Locale) =>
@@ -14,6 +14,48 @@ export async function getPublicPage(
   slug: string,
   locale: Locale
 ): Promise<PublishedPage | null> {
+  const { db } = await createSessionClient();
+
+  const response = await db.listRows<Pages>({
+    databaseId: "app",
+    tableId: "pages",
+    queries: [
+      Query.equal("slug", slug),
+      Query.equal("translation_refs.locale", locale),
+      Query.limit(1),
+      Query.select([
+        "title",
+        "slug",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.page_id",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.slug",
+        "translation_refs.description",
+        "translation_refs.puck_document",
+        "translation_refs.draft_document",
+        "translation_refs.is_published",
+        "translation_refs.published_at",
+      ]),
+    ],
+  });
+
+  const page = response.rows[0];
+  if (!page || !Array.isArray(page.translation_refs)) {
+    return null;
+  }
+
+  const translation = page.translation_refs.find(
+    (item): item is PageTranslations =>
+      typeof item === "object" && item !== null && item.locale === locale
+  );
+
+  if (!translation || !translation.is_published) {
+    return null;
+  }
+
   return resolvePublishedPage(slug, locale);
 }
 
@@ -30,33 +72,41 @@ export async function getDemoPage(
 ): Promise<PageTranslations | null> {
   const { db } = await createSessionClient();
 
-  const response = await db.listRows<PageTranslations>({
+  const response = await db.listRows<Pages>({
     databaseId: "app",
-    tableId: "page_translations",
+    tableId: "pages",
     queries: [
       Query.equal("slug", slug),
-      Query.equal("locale", locale),
+      Query.equal("translation_refs.locale", locale),
       Query.limit(1),
       Query.select([
-        "$id",
-        "$createdAt",
-        "$updatedAt",
-        "page_id",
-        "locale",
         "title",
         "slug",
-        "description",
-        "puck_document",
-        "draft_document",
-        "is_published",
-        "published_at",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.page_id",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.slug",
+        "translation_refs.description",
+        "translation_refs.puck_document",
+        "translation_refs.draft_document",
+        "translation_refs.is_published",
+        "translation_refs.published_at",
       ]),
     ],
   });
 
-  if (!response.rows.length) {
+  const page = response.rows[0];
+  if (!page || !Array.isArray(page.translation_refs)) {
     return null;
   }
 
-  return response.rows[0] as PageTranslations;
+  const translation = page.translation_refs.find(
+    (item): item is PageTranslations =>
+      typeof item === "object" && item !== null && item.locale === locale
+  );
+
+  return translation ?? null;
 }

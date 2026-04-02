@@ -4,10 +4,11 @@ import {
   useCopilotPuck,
   useStreamingPuckRaw as useStreamingPuck,
 } from "@repo/ai/hooks/use-copilot-puck";
-import type {
-  Locale,
-  PageStatus,
-  PageVisibility,
+import {
+  Departments,
+  type Locale,
+  type PageStatus,
+  type PageVisibility,
 } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
 import type { EditorContext } from "@repo/editor/editor-context";
@@ -25,6 +26,7 @@ import {
   useUnifiedEditorContexts,
   useUnifiedEditorHandlers,
 } from "./use-unified-editor-handlers";
+import { listDepartmentsWithWriterAccess } from "@/app/actions/events";
 
 const PageEditor = dynamic(
   () => import("@repo/editor/editor").then((mod) => mod.PageEditor),
@@ -115,6 +117,7 @@ export function UnifiedEditorClient({
   const [selectedBlockIndex, setSelectedBlockIndex] = useState<
     number | undefined
   >(undefined);
+  const [departments, setDepartments] = useState<{ label: string; value: string }[]>([]);
 
   const currentLocaleInfo = localeData[currentLocale] ?? {
     title: "",
@@ -142,6 +145,8 @@ export function UnifiedEditorClient({
           ...(currentLocaleInfo.data.root?.props as any),
           title: currentLocaleInfo.title,
           slug: effectiveSlug,
+          // description is now a root field — keep it in sync with localeData
+          description: currentLocaleInfo.description,
         } as any,
       },
     }),
@@ -190,6 +195,24 @@ export function UnifiedEditorClient({
     },
     [currentLocale]
   );
+
+  //Load departments for department selector (if user has access to any)
+  useMemo(() => {
+    if (userContext.departmentNames.length > 0) {
+      async function loadDepartments() {
+        const depts = await listDepartmentsWithWriterAccess();
+        const label = depts.map((dept) => dept.Name);
+        const value = depts.map((dept) => dept.Id);
+        setDepartments(
+          depts.map((dept) => ({
+            label: dept.Name,
+            value: dept.Id,
+          }))
+        );
+      }
+    }
+  }, [userContext.departmentNames.length]);
+
 
   // Register Puck editor with AI copilot for streaming block generation
   useCopilotPuck({
@@ -332,10 +355,10 @@ export function UnifiedEditorClient({
     <AiAssistantContext.Provider value={aiContextValue}>
       <PageEditor
         availableLocales={availableLocales}
-        description={currentLocaleInfo.description}
         editorContext={editorContext}
         initialData={currentData}
         locale={currentLocale}
+        departments={departments}
         onBack={() => router.push("/pages")}
         onLocaleChange={handleLocaleChange}
         onPublish={handlePublish}
@@ -344,7 +367,6 @@ export function UnifiedEditorClient({
         slug={effectiveSlug}
         status={initialStatus}
         title={currentLocaleInfo.title}
-        visibility={initialVisibility}
       />
 
       <PuckGenerationIndicator isGenerating={isGenerating || isStreaming} />

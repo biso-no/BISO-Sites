@@ -241,7 +241,44 @@ export type MapEmbedProps = {
   title?: string;
 };
 
+/** Binding config stored in Grid.dataSource when dataMode === "table" */
+export type GridDataBinding = {
+  tableId: string;
+  tableLabel: string;
+  limit?: number;
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
+};
+
+/**
+ * Preset layout names for the Grid component.
+ * "cards"    — equal-width card columns (reference: campus overview sections)
+ * "masonry"  — variable-height Pinterest-style grid (reference: news listing)
+ * "featured" — one large hero cell + smaller supporting cells (reference: homepage hero grid)
+ */
+export type GridPreset = "cards" | "masonry" | "featured";
+
+export type GridProps = {
+  preset?: GridPreset;
+  columns?: 2 | 3 | 4;
+  title?: string;
+  subtitle?: string;
+  /** "manual" — items populated by hand; "table" — bound to a database table */
+  dataMode?: "manual" | "table";
+  /** Set when dataMode === "table" */
+  dataSource?: GridDataBinding | null;
+  /** Manual items (used when dataMode === "manual") */
+  items?: {
+    title?: string;
+    description?: string;
+    image?: string;
+    badge?: string;
+    href?: string;
+  }[];
+};
+
 export type Props = {
+  Grid: GridProps;
   Heading: HeadingProps;
   Text: TextProps;
   Image: PuckImageProps;

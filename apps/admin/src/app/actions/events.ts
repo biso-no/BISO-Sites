@@ -502,6 +502,21 @@ export async function listDepartments(campusId?: string) {
   }
 }
 
+export async function listDepartmentsWithWriterAccess() {
+  try {   
+    const { db } = await createSessionClient();
+    const response = await db.listRows<Departments>("app", "departments", [
+      Query.equal("active", true),
+      //Query.equal("$permissions", "write"),
+    ]);
+    return response.rows;
+  } catch (error) {
+    console.error("Error fetching departments with writer access:", error);
+    return [];
+  }
+}
+
+
 // Helper function to get campuses
 export async function listCampuses() {
   try {

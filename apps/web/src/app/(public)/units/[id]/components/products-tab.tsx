@@ -1,6 +1,9 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -11,7 +14,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 
 type ProductsTabProps = {
-  products: ContentTranslations[];
+  products: WebshopProducts[];
   isMember: boolean;
 };
 
@@ -40,7 +43,7 @@ const ProductPrice = ({
   productRef,
   isMember,
 }: {
-  productRef: ContentTranslations["product_ref"];
+  productRef: WebshopProducts;
   isMember: boolean;
 }) => {
   if (!productRef) {
@@ -86,11 +89,17 @@ const ProductCard = ({
   isMember,
   index,
 }: {
-  product: ContentTranslations;
+  product: WebshopProducts;
   isMember: boolean;
   index: number;
 }) => {
-  const productRef = product.product_ref;
+  const productRef = product;
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
 
   return (
     <motion.div
@@ -99,12 +108,12 @@ const ProductCard = ({
       key={product.$id}
       transition={{ delay: index * 0.1 }}
     >
-      <Link href={`/shop/${productRef?.slug || product.content_id}`}>
+      <Link href={`/shop/${productRef?.slug || product.$id}`}>
         <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
           <div className="relative h-64 overflow-hidden bg-muted">
             {productRef?.image && (
               <ImageWithFallback
-                alt={product.title || "Product"}
+                alt={translation?.title || "Product"}
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                 fill
                 src={productRef.image}
@@ -126,10 +135,10 @@ const ProductCard = ({
 
           <div className="p-6">
             <h3 className="mb-2 font-semibold text-foreground text-xl transition-colors group-hover:text-brand">
-              {product.title || "Untitled Product"}
+              {translation?.title || "Untitled Product"}
             </h3>
             <p className="mb-4 line-clamp-2 text-muted-foreground text-sm">
-              {product.short_description || product.description || ""}
+              {translation?.short_description || translation?.description || ""}
             </p>
 
             <Separator className="my-4" />

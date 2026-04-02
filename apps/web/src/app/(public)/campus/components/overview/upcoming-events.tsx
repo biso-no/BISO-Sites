@@ -1,4 +1,4 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -9,7 +9,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 
 type UpcomingEventsProps = {
-  events: ContentTranslations[];
+  events: Events[];
   locale: Locale;
 };
 
@@ -57,49 +57,60 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {events.slice(0, 3).map((event, index) => (
+        {events.slice(0, 3).map((event, index) => {
+          const translation = Array.isArray(event.translation_refs)
+            ? event.translation_refs.find(
+                (item): item is ContentTranslations =>
+                  typeof item === "object" && item !== null && "title" in item
+              )
+            : null;
+
+          return (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
             initial={{ opacity: 0, y: 20 }}
             key={event.$id}
             transition={{ delay: index * 0.1 }}
           >
-            <Link href={`/events/${event.content_id}`}>
+            <Link href={`/events/${event.$id}`}>
               <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
                 <div className="relative h-48 overflow-hidden">
                   <ImageWithFallback
-                    alt={event.title}
+                    alt={translation?.title ?? "Event"}
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                     fill
                     src={
-                      event.event_ref?.image ||
+                      event.image ||
                       "https://images.unsplash.com/photo-1511578314322-379afb476865?w=1080"
                     }
                   />
-                  {event.event_ref?.member_only && (
+                  {event.member_only && (
                     <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">
                       {locale === "en" ? "Members Only" : "Kun medlemmer"}
                     </Badge>
                   )}
                 </div>
                 <div className="p-6">
-                  {event.event_ref?.start_date && (
+                  {event.start_date && (
                     <div className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
                       <Calendar className="h-4 w-4 text-brand" />
-                      {formatDate(event.event_ref.start_date)}
+                      {formatDate(event.start_date)}
                     </div>
                   )}
-                  <h3 className="mb-2 text-foreground">{event.title}</h3>
-                  {event.description && (
+                  <h3 className="mb-2 text-foreground">
+                    {translation?.title ?? "Untitled"}
+                  </h3>
+                  {translation?.description && (
                     <p className="line-clamp-2 text-muted-foreground text-sm">
-                      {event.description.replace(/<[^>]+>/g, "")}
+                      {translation.description.replace(/<[^>]+>/g, "")}
                     </p>
                   )}
                 </div>
               </Card>
             </Link>
           </motion.div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

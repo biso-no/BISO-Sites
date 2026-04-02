@@ -2,6 +2,10 @@
 
 import type { Plugin } from "@puckeditor/core";
 import { usePuck } from "@puckeditor/core";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
+import { Textarea } from "@repo/ui/components/ui/textarea";
 import {
   Search,
   Share2,
@@ -11,10 +15,10 @@ import {
   Globe,
   Type,
   Image as ImageIcon,
-  Link2,
-  Heading1,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type CheckStatus = "pass" | "warn" | "fail";
 
@@ -199,20 +203,53 @@ function SeoChecklist({ checks }: { checks: SeoCheck[] }) {
   );
 }
 
+/**
+ * Write a single root prop via Puck dispatch without touching other props.
+ */
+function useRootPropSetter() {
+  const { dispatch } = usePuck();
+  return useCallback(
+    (key: string, value: unknown) => {
+      dispatch({
+        type: "setData",
+        recordHistory: true,
+        data: (prev) => ({
+          ...prev,
+          root: {
+            ...prev.root,
+            props: {
+              ...(prev.root?.props ?? {}),
+              [key]: value,
+            },
+          },
+        }),
+      });
+    },
+    [dispatch],
+  );
+}
+
 function SeoToolsPanel() {
   const { appState } = usePuck();
+  const setRootProp = useRootPropSetter();
+  const [generating, setGenerating] = useState(false);
 
   const rootProps = (appState.data.root?.props ?? {}) as Record<
     string,
     unknown
   >;
 
-  const title = ((rootProps.seoTitle ?? rootProps.title ?? "") as string).trim();
-  const description = (
-    (rootProps.seoDescription ?? rootProps.description ?? "") as string
-  ).trim();
-  const slug = ((rootProps.slug ?? rootProps.path ?? "") as string).trim();
+  // SEO fields — editable directly in this panel.
+  // The values live in root.props so the SEO checklist + previews stay in sync.
+  const seoTitle = ((rootProps.seoTitle ?? "") as string).trim();
+  const seoDescription = ((rootProps.seoDescription ?? "") as string).trim();
   const ogImage = ((rootProps.ogImage ?? "") as string).trim();
+
+  // Fallback display values for preview (prefer explicit SEO fields)
+  const displayTitle = seoTitle || ((rootProps.title ?? "") as string).trim();
+  const displayDescription =
+    seoDescription || ((rootProps.description ?? "") as string).trim();
+  const slug = ((rootProps.slug ?? rootProps.path ?? "") as string).trim();
 
   const content = appState.data.content ?? [];
 
@@ -229,7 +266,7 @@ function SeoToolsPanel() {
         }
         return false;
       }),
-    [content]
+    [content],
   );
 
   const hasImages = useMemo(
@@ -243,7 +280,7 @@ function SeoToolsPanel() {
           type === "featuregrid"
         );
       }),
-    [content]
+    [content],
   );
 
   const slugIsClean = useMemo(() => {
@@ -256,36 +293,39 @@ function SeoToolsPanel() {
       {
         label: "Page title length",
         status:
-          title.length === 0
+          displayTitle.length === 0
             ? "fail"
-            : title.length >= 50 && title.length <= 60
+            : displayTitle.length >= 50 && displayTitle.length <= 60
               ? "pass"
-              : title.length >= 30 && title.length <= 70
+              : displayTitle.length >= 30 && displayTitle.length <= 70
                 ? "warn"
                 : "fail",
         message:
-          title.length === 0
+          displayTitle.length === 0
             ? "No title set. Add a title for search engines."
-            : title.length >= 50 && title.length <= 60
-              ? `${title.length} characters. Ideal length.`
-              : `${title.length} characters. Aim for 50-60 characters.`,
+            : displayTitle.length >= 50 && displayTitle.length <= 60
+              ? `${displayTitle.length} characters. Ideal length.`
+              : `${displayTitle.length} characters. Aim for 50-60 characters.`,
       },
       {
         label: "Meta description length",
         status:
-          description.length === 0
+          displayDescription.length === 0
             ? "fail"
-            : description.length >= 150 && description.length <= 160
+            : displayDescription.length >= 150 &&
+                displayDescription.length <= 160
               ? "pass"
-              : description.length >= 120 && description.length <= 170
+              : displayDescription.length >= 120 &&
+                  displayDescription.length <= 170
                 ? "warn"
                 : "fail",
         message:
-          description.length === 0
+          displayDescription.length === 0
             ? "No description set. Add a meta description."
-            : description.length >= 150 && description.length <= 160
-              ? `${description.length} characters. Ideal length.`
-              : `${description.length} characters. Aim for 150-160 characters.`,
+            : displayDescription.length >= 150 &&
+                displayDescription.length <= 160
+              ? `${displayDescription.length} characters. Ideal length.`
+              : `${displayDescription.length} characters. Aim for 150-160 characters.`,
       },
       {
         label: "Heading (H1) present",
@@ -311,8 +351,61 @@ function SeoToolsPanel() {
             : "Slug should be lowercase with hyphens only.",
       },
     ],
-    [title, description, hasHeading, hasImages, slug, slugIsClean]
+    [displayTitle, displayDescription, hasHeading, hasImages, slug, slugIsClean],
   );
+
+  /** Call the AI assist API to generate SEO fields from page content. */
+  const handleGenerate = useCallback(async () => {
+    setGenerating(true);
+    try {
+      const pageTitle = (rootProps.title as string) || "";
+      const pageDescription = (rootProps.description as string) || "";
+      const blockSummary = content
+        .slice(0, 8)
+        .map((b) => {
+          const p = (b.props ?? {}) as Record<string, unknown>;
+          return `[${b.type}] ${(p.title as string) || (p.text as string) || ""}`.trim();
+        })
+        .filter(Boolean)
+        .join("; ");
+
+      const prompt = `Page: "${pageTitle}". Description: "${pageDescription}". Blocks: ${blockSummary || "none"}. Generate an SEO title (50-60 chars) and meta description (150-160 chars). Reply as JSON: {"title":"...","description":"..."}`;
+
+      const res = await fetch("/api/ai/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "suggest", content: prompt }),
+      });
+
+      if (!res.ok) return;
+
+      // Collect the streamed text
+      const reader = res.body?.getReader();
+      if (!reader) return;
+      const dec = new TextDecoder();
+      let raw = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        raw += dec.decode(value, { stream: true });
+      }
+
+      // Extract JSON from the response (AI may wrap it in markdown)
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return;
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        title?: string;
+        description?: string;
+      };
+      if (parsed.title) setRootProp("seoTitle", parsed.title.trim());
+      if (parsed.description)
+        setRootProp("seoDescription", parsed.description.trim());
+    } catch {
+      // Silently swallow — the user can retry or fill in manually
+    } finally {
+      setGenerating(false);
+    }
+  }, [content, rootProps, setRootProp]);
 
   return (
     <div className="space-y-6 p-4">
@@ -323,29 +416,91 @@ function SeoToolsPanel() {
         </div>
       </div>
 
-      {/* Character Counters */}
-      <div className="space-y-1.5 rounded-md border border-border p-3">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-          <Type size={12} />
-          Character Counts
+      {/* ── Editable SEO Fields ─────────────────────────────────────── */}
+      <div className="space-y-3 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+            <Type size={12} />
+            SEO Fields
+          </div>
+          <Button
+            className="h-7 gap-1.5 px-2 text-xs"
+            disabled={generating}
+            onClick={handleGenerate}
+            size="sm"
+            variant="outline"
+          >
+            {generating ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Sparkles size={12} />
+            )}
+            {generating ? "Generating…" : "Auto-generate"}
+          </Button>
         </div>
-        <CharCounter label="Title" value={title} min={50} max={60} />
-        <CharCounter
-          label="Description"
-          value={description}
-          min={150}
-          max={160}
-        />
+
+        <div className="space-y-1">
+          <Label className="text-xs" htmlFor="seo-title">
+            SEO Title
+          </Label>
+          <Input
+            id="seo-title"
+            className="h-8 text-sm"
+            placeholder="Override page title for search engines…"
+            value={seoTitle}
+            onChange={(e) => setRootProp("seoTitle", e.target.value)}
+          />
+          <CharCounter label="Title" value={seoTitle || displayTitle} min={50} max={60} />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs" htmlFor="seo-description">
+            Meta Description
+          </Label>
+          <Textarea
+            id="seo-description"
+            className="resize-none text-sm"
+            placeholder="Brief page summary for search results…"
+            rows={3}
+            value={seoDescription}
+            onChange={(e) => setRootProp("seoDescription", e.target.value)}
+          />
+          <CharCounter
+            label="Description"
+            value={seoDescription || displayDescription}
+            min={150}
+            max={160}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs" htmlFor="og-image">
+            Social Share Image (URL)
+          </Label>
+          <Input
+            id="og-image"
+            className="h-8 text-sm"
+            placeholder="https://…"
+            value={ogImage}
+            onChange={(e) => setRootProp("ogImage", e.target.value)}
+          />
+        </div>
       </div>
 
-      <GooglePreview title={title} description={description} slug={slug} />
+      {/* ── Previews ─────────────────────────────────────────────────── */}
+      <GooglePreview
+        title={displayTitle}
+        description={displayDescription}
+        slug={slug}
+      />
 
       <SocialPreview
-        title={title}
-        description={description}
+        title={displayTitle}
+        description={displayDescription}
         ogImage={ogImage}
       />
 
+      {/* ── Checklist ────────────────────────────────────────────────── */}
       <SeoChecklist checks={checks} />
 
       <div className="text-xs text-muted-foreground">

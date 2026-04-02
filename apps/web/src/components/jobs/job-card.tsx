@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -8,9 +8,9 @@ import { ArrowRight, DollarSign, Heart, Users } from "lucide-react";
 import { motion } from "motion/react";
 
 type JobCardProps = {
-  job: ContentTranslations;
+  job: Jobs;
   index: number;
-  onViewDetails: (job: ContentTranslations) => void;
+  onViewDetails: (job: Jobs) => void;
 };
 
 const getJobCategory = (metadata: Record<string, any>) =>
@@ -27,7 +27,16 @@ const categoryColors: Record<string, string> = {
 };
 
 export function JobCard({ job, index, onViewDetails }: JobCardProps) {
-  const jobData = job.job_ref;
+  const jobData = job;
+  const translation = Array.isArray(job.translation_refs)
+    ? job.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
+  const description = translation?.description ?? "";
+  const shortDescriptionFromTranslation = translation?.short_description ?? "";
   const metadata = jobData?.metadata as Record<string, any>;
   const category = getJobCategory(metadata);
 
@@ -41,10 +50,10 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
 
   // Use short_description if available, otherwise truncate description
   const shortDescription =
-    job.short_description ||
-    (job.description.length > 150
-      ? `${job.description.substring(0, 150)}...`
-      : job.description);
+    shortDescriptionFromTranslation ||
+    (description.length > 150
+      ? `${description.substring(0, 150)}...`
+      : description);
 
   return (
     <motion.div
@@ -60,7 +69,7 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
               <Badge className={`mb-3 ${categoryColors[category]}`}>
                 {category}
               </Badge>
-              <h3 className="mb-2 font-bold text-white text-xl">{job.title}</h3>
+              <h3 className="mb-2 font-bold text-white text-xl">{title}</h3>
               <p className="text-sm text-white/80">{department}</p>
             </div>
             {paid && (

@@ -3,7 +3,7 @@ import { type Config } from "@puckeditor/core";
 import { BasicsComponents } from "./config/basics";
 import { ContentComponents } from "./config/content";
 import { DataDisplayComponents } from "./config/data-display";
-import { GridComponents } from "./config/grids";
+import { GridComponent, GridComponents } from "./config/grids";
 import { HeroComponents } from "./config/heroes";
 import { InteractiveComponents } from "./config/interactive";
 import { LayoutComponents } from "./config/layout";
@@ -14,30 +14,69 @@ import { CONTENT_TYPE_OPTIONS } from "./content-types/registry";
 // Explicitly type the Config with Props to help TS inference
 export const config: Config<Props> = {
   root: {
-    // title, slug, description, visibility are managed by the Sheet dialog
-    // in editor.tsx / unified-editor.tsx — not shown in the right sidebar.
+    // Page metadata fields — promoted from the removed Settings/Cog sheet.
+    // SEO fields (seoTitle, seoDescription, ogImage) are edited via the
+    // "SEO Tools" sidebar panel, not here.
     fields: {
+      title: {
+        type: "text",
+        label: "Page Title",
+      },
+      slug: {
+        type: "text",
+        label: "URL Slug",
+      },
+      description: {
+        type: "textarea",
+        label: "Description",
+      },
+      // TODO: Investigate the Content Type selector hover state — the Puck field
+      // wrapper applies a hover background that conflicts with the select's own
+      // hover style, producing a double-highlight effect. Also audit whether this
+      // field is still load-bearing in the content-type starter template system
+      // (CONTENT_TYPES registry in content-types/registry.ts) before removing.
+      // Leave removal for a dedicated cleanup task.
       contentType: {
         type: "select",
         label: "Content Type",
         options: CONTENT_TYPE_OPTIONS,
       },
-      seoTitle: {
-        type: "text",
-        label: "SEO Title (override)",
-      },
-      seoDescription: {
-        type: "textarea",
-        label: "SEO Description",
-      },
-      ogImage: {
-        type: "image" as never,
-        label: "Social Share Image",
+      // Publish control: "Publish later" reveals the date/time picker below.
+      publishMode: {
+        type: "select",
+        label: "Publish",
+        options: [
+          { label: "Publish now", value: "now" },
+          { label: "Publish later", value: "later" },
+        ],
       },
       scheduledPublishAt: {
         type: "datetime-picker" as never,
-        label: "Schedule Publish",
+        label: "Schedule Date & Time",
       },
+      campus: {
+        type: "select",
+        label: "Campus",
+        options: [
+          { label: "Oslo", value: "1" },
+          { label: "Bergen", value: "2" },
+          { label: "Trondheim", value: "3" },
+          { label: "Stavanger", value: "4" },
+          { label: "National", value: "5" },
+        ],
+      }
+    },
+
+    // Conditionally hide scheduledPublishAt unless publishMode is "later".
+    resolveFields: async (data, { fields }) => {
+      if ((data.props as Record<string, unknown>)?.publishMode !== "later") {
+        const { scheduledPublishAt: _omit, ...rest } = fields;
+        return rest;
+      }
+      return fields;
+    },
+    defaultProps: {
+      publishMode: "now",
     },
   },
   categories: {
@@ -63,6 +102,7 @@ export const config: Config<Props> = {
     grids: {
       title: "Grids & Lists",
       components: [
+        "Grid",
         "FeatureGrid",
         "StatsGrid",
         "TeamGrid",
@@ -111,6 +151,7 @@ export const config: Config<Props> = {
     ...LayoutComponents,
     ...HeroComponents,
     ...GridComponents,
+    ...GridComponent,
     ...ContentComponents,
     ...MarketingComponents,
     ...InteractiveComponents,

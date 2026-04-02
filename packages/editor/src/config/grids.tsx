@@ -1,4 +1,11 @@
 "use client";
+import { usePuck } from "@puckeditor/core";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
+import { Database, Table, X } from "lucide-react";
+import { TABLE_SCHEMAS } from "../data/schemas";
+import type { EditorMetadata, GridDataBinding, GridPreset, GridProps } from "./types";
 import {
   FeatureGrid,
   type FeatureGridProps,
@@ -250,3 +257,347 @@ export const GridComponents = {
     },
   },
 } as const;
+
+// ─── Grid Data Picker ────────────────────────────────────────────────
+//
+// A custom field rendered when Grid.dataMode === "table".
+// Reads user permissions from Puck's metadata (EditorMetadata) to filter
+// which tables are shown, matching the same logic as the old DataSources panel.
+//
+// Visual reference for the Grid component layouts:
+//   - "cards"    → apps/web/src/app/(public)/campus/components/overview/ (event/news cards)
+//   - "masonry"  → apps/web/src/app/(public)/news/page.tsx (article grid)
+//   - "featured" → apps/web/src/components/home/hero-section.tsx (hero + feature grid)
+
+function GridDataPicker({
+  value,
+  onChange,
+}: {
+  value: GridDataBinding | null | undefined;
+  onChange: (next: GridDataBinding | null) => void;
+}) {
+  const { appState } = usePuck();
+  const metadata = (appState as any).metadata as EditorMetadata | undefined;
+  const isAdmin = metadata?.user?.isGlobalAdmin ?? false;
+  const isCampusAdmin = metadata?.user?.isCampusAdmin ?? false;
+
+  // Same RBAC filtering as the removed DataSources panel
+  const availableSchemas = isAdmin || isCampusAdmin
+    ? TABLE_SCHEMAS
+    : TABLE_SCHEMAS.filter((s) =>
+        ["news", "events", "jobs", "departments"].includes(s.id),
+      );
+
+  if (value?.tableId) {
+    // Show currently bound table with a clear button
+    const schema = TABLE_SCHEMAS.find((s) => s.id === value.tableId);
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
+            <Table className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-foreground">
+              {schema?.label ?? value.tableId}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              {schema?.description ?? "Connected table"}
+            </div>
+          </div>
+          <Button
+            className="h-7 w-7 shrink-0"
+            onClick={() => onChange(null)}
+            size="icon"
+            variant="ghost"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          The grid will render placeholder cards in the editor. Live data loads on the public site.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Select a table to bind this grid to live data.
+      </p>
+      <div className="grid gap-1.5">
+        {availableSchemas.map((schema) => (
+          <button
+            key={schema.id}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left",
+              "transition-colors hover:border-primary/40 hover:bg-primary/5",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+            onClick={() =>
+              onChange({
+                tableId: schema.id,
+                tableLabel: schema.label,
+                limit: 6,
+                sortField: schema.defaultSort?.field,
+                sortDirection: schema.defaultSort?.direction,
+              })
+            }
+            type="button"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800">
+              <Database className="h-4 w-4 text-gray-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-foreground">
+                {schema.label}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {schema.description}
+              </div>
+            </div>
+            <Badge className="shrink-0" variant="secondary">
+              {schema.fields.length} fields
+            </Badge>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Grid Preset Preview ─────────────────────────────────────────────
+
+function GridPresetPreview({
+  preset,
+  columns = 3,
+  items,
+  dataMode,
+  dataSource,
+  title,
+  subtitle,
+}: GridProps) {
+  const resolvedItems =
+    dataMode === "table" && dataSource
+      ? // Placeholder skeletons for data-bound mode
+        Array.from({ length: Math.min((dataSource.limit ?? 6), 6) }, (_, i) => ({
+          title: undefined,
+          description: undefined,
+          image: undefined,
+          badge: undefined,
+          href: undefined,
+          _placeholder: true as const,
+          _index: i,
+        }))
+      : (items ?? []).map((item) => ({ ...item, _placeholder: false as const, _index: 0 }));
+
+  const isBound = dataMode === "table" && dataSource;
+
+  return (
+    <div className="w-full space-y-4 py-6">
+      {(title || subtitle) && (
+        <div className="space-y-1 text-center">
+          {title && <div className="text-xl font-bold text-foreground">{title}</div>}
+          {subtitle && <div className="text-sm text-muted-foreground">{subtitle}</div>}
+        </div>
+      )}
+
+      {isBound && (
+        <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5">
+          <Database className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs font-medium text-primary">
+            Bound to <strong>{dataSource!.tableLabel}</strong> — showing placeholders
+          </span>
+        </div>
+      )}
+
+      {preset === "featured" ? (
+        // Featured: large hero + smaller cells
+        <div className="grid grid-cols-3 gap-3">
+          <GridCard item={resolvedItems[0]} large />
+          <div className="col-span-1 grid grid-rows-2 gap-3">
+            {resolvedItems.slice(1, 3).map((item, i) => (
+              <GridCard key={i} item={item} />
+            ))}
+          </div>
+        </div>
+      ) : preset === "masonry" ? (
+        // Masonry: alternating heights
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+        >
+          {resolvedItems.map((item, i) => (
+            <GridCard key={i} item={item} tall={i % 3 === 0} />
+          ))}
+        </div>
+      ) : (
+        // Cards (default): uniform grid
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+        >
+          {resolvedItems.map((item, i) => (
+            <GridCard key={i} item={item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GridCard({
+  item,
+  large,
+  tall,
+}: {
+  item: {
+    title?: string;
+    description?: string;
+    image?: string;
+    badge?: string;
+    _placeholder?: boolean;
+  };
+  large?: boolean;
+  tall?: boolean;
+}) {
+  const isPlaceholder = item._placeholder;
+
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border border-border bg-card",
+        large && "col-span-2",
+      )}
+    >
+      <div
+        className={cn(
+          "w-full bg-muted",
+          large ? "h-48" : tall ? "h-36" : "h-28",
+          isPlaceholder && "animate-pulse",
+        )}
+      >
+        {!isPlaceholder && item.image && (
+          <img
+            src={item.image}
+            alt={item.title ?? ""}
+            className="h-full w-full object-cover"
+          />
+        )}
+      </div>
+      <div className="space-y-1 p-3">
+        {isPlaceholder ? (
+          <>
+            <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
+            <div className="h-2.5 w-1/2 animate-pulse rounded bg-muted" />
+          </>
+        ) : (
+          <>
+            {item.badge && (
+              <Badge variant="secondary" className="mb-1 text-[10px]">
+                {item.badge}
+              </Badge>
+            )}
+            {item.title && (
+              <div className="text-sm font-semibold leading-snug text-foreground">
+                {item.title}
+              </div>
+            )}
+            {item.description && (
+              <div className="line-clamp-2 text-xs text-muted-foreground">
+                {item.description}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Grid Puck Component ─────────────────────────────────────────────
+
+export const GridComponent = {
+  Grid: {
+    label: "Grid",
+    fields: {
+      preset: {
+        type: "select",
+        label: "Layout Preset",
+        options: [
+          { label: "Cards — equal columns", value: "cards" },
+          { label: "Masonry — variable heights", value: "masonry" },
+          { label: "Featured — hero + supporting", value: "featured" },
+        ],
+      },
+      columns: {
+        type: "select",
+        label: "Columns",
+        options: [
+          { label: "2", value: 2 },
+          { label: "3", value: 3 },
+          { label: "4", value: 4 },
+        ],
+      } as any,
+      title: { type: "text", label: "Title", contentEditable: true } as any,
+      subtitle: { type: "textarea", label: "Subtitle", contentEditable: true } as any,
+      dataMode: {
+        type: "select",
+        label: "Data Mode",
+        options: [
+          { label: "Manual — populate items by hand", value: "manual" },
+          { label: "Load from table — bind to live data", value: "table" },
+        ],
+      },
+      // dataSource is conditionally shown via resolveFields
+      dataSource: {
+        type: "custom",
+        label: "Table",
+        render: ({
+          value,
+          onChange,
+        }: {
+          value: GridDataBinding | null;
+          onChange: (v: GridDataBinding | null) => void;
+        }) => <GridDataPicker value={value} onChange={onChange} />,
+      },
+      items: {
+        type: "array",
+        label: "Items",
+        getItemSummary: (item: { title?: string }) => item.title || "Item",
+        arrayFields: {
+          title: { type: "text" },
+          description: { type: "textarea" },
+          image: { type: "image" } as any,
+          badge: { type: "text" },
+          href: { type: "link" } as any,
+        },
+      },
+    },
+    // Hide dataSource when manual, hide items when bound to a table
+    resolveFields: async (
+      data: { props: GridProps },
+      { fields }: { fields: Record<string, unknown> },
+    ) => {
+      const mode = data.props?.dataMode ?? "manual";
+      const { dataSource, items, ...base } = fields as any;
+      if (mode === "table") return { ...base, dataSource };
+      return { ...base, items };
+    },
+    render: (props: GridProps) => <GridPresetPreview {...props} />,
+    defaultProps: {
+      preset: "cards" as GridPreset,
+      columns: 3,
+      dataMode: "manual",
+      dataSource: null,
+      title: "",
+      subtitle: "",
+      items: [
+        { title: "Item 1", description: "Description for item 1" },
+        { title: "Item 2", description: "Description for item 2" },
+        { title: "Item 3", description: "Description for item 3" },
+      ],
+    } satisfies GridProps,
+  },
+};

@@ -21,7 +21,7 @@ export function AddToCartCard() {
     // availableStock, // We can use this if we want to show "Only X left" here, but stock status is separate
   } = useProductPurchase();
 
-  const productRef = product.product_ref;
+  const productRef = product;
 
   const displayPrice = getDisplayPrice(
     productRef?.regular_price ?? 0,
