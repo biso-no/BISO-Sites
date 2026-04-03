@@ -78,7 +78,7 @@ export const config: Config<Props> = {
           { label: "Stavanger", value: "4" },
           { label: "National", value: "5" },
         ],
-      }
+      },
     },
 
     // Conditionally hide scheduledPublishAt unless publishMode is "later".
@@ -192,7 +192,12 @@ export const config: Config<Props> = {
     },
     detail: {
       title: "Detail Pages",
-      components: ["ArticleDetail", "EventDetail", "JobDetail", "ProductDetail"],
+      components: [
+        "ArticleDetail",
+        "EventDetail",
+        "JobDetail",
+        "ProductDetail",
+      ],
     },
     extras: {
       title: "Content Blocks",

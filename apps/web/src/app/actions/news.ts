@@ -2,10 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  type News,
-  type Locale,
-} from "@repo/api/types/appwrite";
+import { type News, type Locale } from "@repo/api/types/appwrite";
 
 type ListNewsParams = {
   limit?: number;
@@ -15,9 +12,7 @@ type ListNewsParams = {
   locale?: "en" | "no";
 };
 
-export async function listNews(
-  params: ListNewsParams = {}
-): Promise<News[]> {
+export async function listNews(params: ListNewsParams = {}): Promise<News[]> {
   const { limit = 25, status, campus, locale, search } = params;
 
   try {

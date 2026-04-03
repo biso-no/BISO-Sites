@@ -74,9 +74,7 @@ function CurrentStatus({
     <div className="flex items-center gap-2 rounded-md border border-border p-3">
       <div
         className={`h-2 w-2 shrink-0 rounded-full ${
-          hasUnsavedChanges
-            ? "bg-yellow-500 animate-pulse"
-            : "bg-green-500"
+          hasUnsavedChanges ? "bg-yellow-500 animate-pulse" : "bg-green-500"
         }`}
       />
       <div className="min-w-0 flex-1">
@@ -289,9 +287,7 @@ function VersionHistoryPanel() {
         {versions.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border p-4 text-center">
             <History size={20} className="text-muted-foreground" />
-            <div className="text-sm text-muted-foreground">
-              No versions yet
-            </div>
+            <div className="text-sm text-muted-foreground">No versions yet</div>
             <div className="text-xs text-muted-foreground">
               Snapshots are captured automatically when you add, remove, or
               reorder blocks.

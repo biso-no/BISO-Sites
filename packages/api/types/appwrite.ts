@@ -677,25 +677,90 @@ export type PageViewEvents = Models.Row & {
   user_id: string | null;
 };
 
-export type MemberBenefit = Models.Row & {
-  id: string;
-  title: string;
-  contentTranslations: ContentTranslations[];
-  description: string;
-  type: "text" | "code" | "qr" | "link";
+export enum BenefitStatus {
+  DRAFT = "draft",
+  PUBLISHED = "published",
+  ARCHIVED = "archived",
+}
+
+export enum BenefitKind {
+  OFFER = "offer",
+  PERK = "perk",
+  SERVICE = "service",
+}
+
+export enum BenefitRedemptionType {
+  NONE = "none",
+  CODE = "code",
+  LINK = "link",
+  QR = "qr",
+  ONSITE = "onsite",
+}
+
+export enum BenefitInteractionAction {
+  VIEW = "view",
+  SAVE = "save",
+  REVEAL = "reveal",
+  CLICK = "click",
+  REDEEM = "redeem",
+}
+
+export type CampusBenefit = Models.Row & {
+  campus_id: string;
+  status: BenefitStatus;
+  kind: BenefitKind;
+  redemption_type: BenefitRedemptionType;
   category: string;
-  partner?: string;
-  partnerLogo?: string;
-  value?: string; // For codes or QR data
-  terms?: string;
-  expiresAt?: string;
+  partner_id: string | null;
+  partner_name: string | null;
+  partner_logo_url: string | null;
+  title_nb: string;
+  title_en: string;
+  description_nb: string;
+  description_en: string;
+  teaser_nb: string | null;
+  teaser_en: string | null;
+  terms_nb: string | null;
+  terms_en: string | null;
+  redemption_value: string | null;
+  image_url: string | null;
+  is_featured: boolean;
+  is_member_only: boolean;
+  publish_start: string | null;
+  publish_end: string | null;
+  sort_order: number;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type BenefitPartner = Models.Row & {
+  name: string;
+  website_url: string | null;
+  logo_url: string | null;
+  description_nb: string | null;
+  description_en: string | null;
+  campus_id: string | null;
+  is_active: boolean;
 };
 
 export type BenefitReveals = Models.Row & {
   user_id: string;
   benefit_id: string;
-  revealed_at: string | null;
+  revealed_at: string;
 };
+
+export type BenefitInteraction = Models.Row & {
+  user_id: string | null;
+  benefit_id: string;
+  action: BenefitInteractionAction;
+  campus_id: string | null;
+  metadata: string | null;
+};
+
+/**
+ * @deprecated Use CampusBenefit instead. Kept for backward compatibility during migration.
+ */
+export type MemberBenefit = CampusBenefit;
 
 export type SyncedMembers = Models.Row & {
   company_id: number;

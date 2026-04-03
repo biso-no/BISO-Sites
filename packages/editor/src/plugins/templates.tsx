@@ -53,8 +53,7 @@ function getBuiltInTemplates(config: Config): AppwriteTemplate[] {
           buildItem(config, "Hero", {
             layout: "split",
             title: "Welcome to our department",
-            subtitle:
-              "Highlight what you do and what's happening right now.",
+            subtitle: "Highlight what you do and what's happening right now.",
             buttons: [
               { label: "Join us", href: "/join", variant: "gradient" },
               { label: "Contact", href: "/contact", variant: "outline" },
@@ -75,23 +74,17 @@ function getBuiltInTemplates(config: Config): AppwriteTemplate[] {
               },
               {
                 title: "Run events",
-                description:
-                  "Organize memorable experiences all year long.",
+                description: "Organize memorable experiences all year long.",
                 icon: "Calendar",
               },
               {
                 title: "Create opportunities",
-                description:
-                  "Projects, partners, and career development.",
+                description: "Projects, partners, and career development.",
                 icon: "Briefcase",
               },
             ],
           }),
-          buildItem(
-            config,
-            "Events",
-            getDefaultProps(config, "Events")
-          ),
+          buildItem(config, "Events", getDefaultProps(config, "Events")),
           buildItem(config, "News", getDefaultProps(config, "News")),
           buildItem(config, "CTA", {
             title: "Want to get involved?",
@@ -113,8 +106,7 @@ function getBuiltInTemplates(config: Config): AppwriteTemplate[] {
     {
       key: "events-listing",
       name: "Events Listing",
-      description:
-        "Page header + filters + a larger dynamic Events section.",
+      description: "Page header + filters + a larger dynamic Events section.",
       data: {
         content: (() => {
           const defaults = getDefaultProps(config, "Events");
@@ -166,11 +158,7 @@ function getBuiltInTemplates(config: Config): AppwriteTemplate[] {
             "TableOfContents",
             getDefaultProps(config, "TableOfContents")
           ),
-          buildItem(
-            config,
-            "RichText",
-            getDefaultProps(config, "RichText")
-          ),
+          buildItem(config, "RichText", getDefaultProps(config, "RichText")),
           buildItem(config, "Spacer", { size: "md" }),
         ],
       },

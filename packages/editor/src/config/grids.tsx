@@ -7,7 +7,12 @@ import { Button } from "@repo/ui/components/ui/button";
 import { cn } from "@repo/ui/lib/utils";
 import { Database, Table, X } from "lucide-react";
 import { TABLE_SCHEMAS } from "../data/schemas";
-import type { EditorMetadata, GridDataBinding, GridPreset, GridProps } from "./types";
+import type {
+  EditorMetadata,
+  GridDataBinding,
+  GridPreset,
+  GridProps,
+} from "./types";
 import {
   FeatureGrid,
   type FeatureGridProps,
@@ -89,7 +94,8 @@ export const GridComponents = {
             bullets: {
               type: "array",
               label: "Bullet points",
-              getItemSummary: (item: { text?: string }) => item.text || "Bullet",
+              getItemSummary: (item: { text?: string }) =>
+                item.text || "Bullet",
               arrayFields: { text: { type: "text" } },
             },
             href: { type: "link" } as any,
@@ -107,7 +113,9 @@ export const GridComponents = {
         return (
           <section className="w-full py-10 px-4">
             {props.title && (
-              <h2 className="mb-2 text-2xl font-bold text-gray-900">{props.title}</h2>
+              <h2 className="mb-2 text-2xl font-bold text-gray-900">
+                {props.title}
+              </h2>
             )}
             {props.subtitle && (
               <p className="mb-6 text-gray-500">{props.subtitle}</p>
@@ -125,12 +133,17 @@ export const GridComponents = {
                   )}
                   <h3 className="font-semibold text-gray-900">{item.title}</h3>
                   {item.description && (
-                    <p className="mt-1 text-sm text-gray-500">{item.description}</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {item.description}
+                    </p>
                   )}
                   {item.bullets && item.bullets.length > 0 && (
                     <ul className="mt-3 space-y-1.5">
                       {item.bullets.map((b: { text: string }, bi: number) => (
-                        <li key={bi} className="flex items-start gap-2 text-sm text-gray-600">
+                        <li
+                          key={bi}
+                          className="flex items-start gap-2 text-sm text-gray-600"
+                        >
                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
                           {b.text}
                         </li>
@@ -156,7 +169,9 @@ export const GridComponents = {
         return (
           <section className="w-full py-8 px-4">
             {props.title && (
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">{props.title}</h2>
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">
+                {props.title}
+              </h2>
             )}
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
               {items.map((item: any, i: number) => (
@@ -385,11 +400,12 @@ function GridDataPicker({
   const isCampusAdmin = metadata?.user?.isCampusAdmin ?? false;
 
   // Same RBAC filtering as the removed DataSources panel
-  const availableSchemas = isAdmin || isCampusAdmin
-    ? TABLE_SCHEMAS
-    : TABLE_SCHEMAS.filter((s) =>
-        ["news", "events", "jobs", "departments"].includes(s.id),
-      );
+  const availableSchemas =
+    isAdmin || isCampusAdmin
+      ? TABLE_SCHEMAS
+      : TABLE_SCHEMAS.filter((s) =>
+          ["news", "events", "jobs", "departments"].includes(s.id)
+        );
 
   if (value?.tableId) {
     // Show currently bound table with a clear button
@@ -418,7 +434,8 @@ function GridDataPicker({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          The grid will render placeholder cards in the editor. Live data loads on the public site.
+          The grid will render placeholder cards in the editor. Live data loads
+          on the public site.
         </p>
       </div>
     );
@@ -436,7 +453,7 @@ function GridDataPicker({
             className={cn(
               "flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left",
               "transition-colors hover:border-primary/40 hover:bg-primary/5",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             )}
             onClick={() =>
               onChange({
@@ -484,7 +501,7 @@ function GridPresetPreview({
   const resolvedItems =
     dataMode === "table" && dataSource
       ? // Placeholder skeletons for data-bound mode
-        Array.from({ length: Math.min((dataSource.limit ?? 6), 6) }, (_, i) => ({
+        Array.from({ length: Math.min(dataSource.limit ?? 6, 6) }, (_, i) => ({
           title: undefined,
           description: undefined,
           image: undefined,
@@ -493,7 +510,11 @@ function GridPresetPreview({
           _placeholder: true as const,
           _index: i,
         }))
-      : (items ?? []).map((item) => ({ ...item, _placeholder: false as const, _index: 0 }));
+      : (items ?? []).map((item) => ({
+          ...item,
+          _placeholder: false as const,
+          _index: 0,
+        }));
 
   const isBound = dataMode === "table" && dataSource;
 
@@ -501,8 +522,12 @@ function GridPresetPreview({
     <div className="w-full space-y-4 py-6">
       {(title || subtitle) && (
         <div className="space-y-1 text-center">
-          {title && <div className="text-xl font-bold text-foreground">{title}</div>}
-          {subtitle && <div className="text-sm text-muted-foreground">{subtitle}</div>}
+          {title && (
+            <div className="text-xl font-bold text-foreground">{title}</div>
+          )}
+          {subtitle && (
+            <div className="text-sm text-muted-foreground">{subtitle}</div>
+          )}
         </div>
       )}
 
@@ -510,7 +535,8 @@ function GridPresetPreview({
         <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5">
           <Database className="h-3.5 w-3.5 text-primary" />
           <span className="text-xs font-medium text-primary">
-            Bound to <strong>{dataSource!.tableLabel}</strong> — showing placeholders
+            Bound to <strong>{dataSource!.tableLabel}</strong> — showing
+            placeholders
           </span>
         </div>
       )}
@@ -571,14 +597,14 @@ function GridCard({
     <div
       className={cn(
         "overflow-hidden rounded-xl border border-border bg-card",
-        large && "col-span-2",
+        large && "col-span-2"
       )}
     >
       <div
         className={cn(
           "w-full bg-muted",
           large ? "h-48" : tall ? "h-36" : "h-28",
-          isPlaceholder && "animate-pulse",
+          isPlaceholder && "animate-pulse"
         )}
       >
         {!isPlaceholder && item.image && (
@@ -648,7 +674,11 @@ export const GridComponent = {
         ],
       } as any,
       title: { type: "text", label: "Title", contentEditable: true } as any,
-      subtitle: { type: "textarea", label: "Subtitle", contentEditable: true } as any,
+      subtitle: {
+        type: "textarea",
+        label: "Subtitle",
+        contentEditable: true,
+      } as any,
       dataMode: {
         type: "select",
         label: "Data Mode",
@@ -685,7 +715,7 @@ export const GridComponent = {
     // Hide dataSource when manual, hide items when bound to a table
     resolveFields: async (
       data: { props: GridProps },
-      { fields }: { fields: Record<string, unknown> },
+      { fields }: { fields: Record<string, unknown> }
     ) => {
       const mode = data.props?.dataMode ?? "manual";
       const { dataSource, items, ...base } = fields as any;

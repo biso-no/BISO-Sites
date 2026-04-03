@@ -91,11 +91,7 @@ export function shouldResolveDynamic(params: {
 
   if (trigger === "move") return false;
 
-  if (
-    trigger === "insert" ||
-    trigger === "load" ||
-    trigger === "force"
-  ) {
+  if (trigger === "insert" || trigger === "load" || trigger === "force") {
     return true;
   }
 

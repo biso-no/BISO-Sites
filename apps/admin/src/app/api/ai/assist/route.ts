@@ -40,18 +40,24 @@ export async function POST(req: Request) {
     };
 
     if (!action || !content?.trim()) {
-      return new Response(JSON.stringify({ error: "Missing action or content" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Missing action or content" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     const system = SYSTEM_PROMPTS[action];
     if (!system) {
-      return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: `Unknown action: ${action}` }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     const result = streamText({
@@ -71,9 +77,12 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("[assist] Error:", error);
-    return new Response(JSON.stringify({ error: "Failed to process request" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Failed to process request" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }

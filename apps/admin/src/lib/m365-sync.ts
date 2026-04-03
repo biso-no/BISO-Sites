@@ -100,10 +100,7 @@ function parseAzureGroups(azureGroups: any[]): {
   for (const group of azureGroups) {
     const name = group.displayName || "";
 
-    if (
-      name.startsWith("SG-App-Campus-") ||
-      name.startsWith("SG-App-Dept-")
-    ) {
+    if (name.startsWith("SG-App-Campus-") || name.startsWith("SG-App-Dept-")) {
       teamsToSync.push({ id: group.id, name });
     }
   }

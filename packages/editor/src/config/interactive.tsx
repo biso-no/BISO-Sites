@@ -140,7 +140,9 @@ export const InteractiveComponents = {
                     {iconMap[card.icon] || card.icon}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{card.title}</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      {card.title}
+                    </h3>
                     <p className="mt-0.5 text-sm text-gray-500">{card.value}</p>
                   </div>
                   {card.icon === "email" && card.value && (
@@ -280,7 +282,12 @@ export const InteractiveComponents = {
       showMap: false,
       fields: [
         { name: "name", label: "Full Name", type: "text", required: true },
-        { name: "email", label: "Email Address", type: "email", required: true },
+        {
+          name: "email",
+          label: "Email Address",
+          type: "email",
+          required: true,
+        },
         { name: "message", label: "Message", type: "textarea", required: true },
       ] as ContactFormProps["fields"],
       contactCards: [

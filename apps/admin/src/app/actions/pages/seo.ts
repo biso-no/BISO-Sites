@@ -22,7 +22,7 @@ export type GenerateSeoResult = {
  * Uses the same OpenAI model and pattern as /api/ai/assist.
  */
 export async function generateSeoMetadata(
-  input: GenerateSeoInput,
+  input: GenerateSeoInput
 ): Promise<GenerateSeoResult | null> {
   const { title, description, contentSummary } = input;
 

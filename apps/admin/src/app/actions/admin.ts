@@ -11,11 +11,11 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
+import { getUserAuthContext, getUserRolesForClient } from "@/lib/authorization";
 import {
-  getUserAuthContext,
-  getUserRolesForClient,
-} from "@/lib/authorization";
-import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
+  assertWriteAccess,
+  applyScopeQueries,
+} from "@/lib/utils/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import { DEPARTMENT_ROLE } from "@/lib/roles";

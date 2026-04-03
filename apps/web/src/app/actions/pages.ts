@@ -1,7 +1,13 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { getPublishedPage, PageDocument, PageRecord, PageTranslationRecord, type PublishedPage } from "@repo/api/page-builder";
+import {
+  getPublishedPage,
+  PageDocument,
+  PageRecord,
+  PageTranslationRecord,
+  type PublishedPage,
+} from "@repo/api/page-builder";
 import { createSessionClient } from "@repo/api/server";
 import type { Locale, Pages, PageTranslations } from "@repo/api/types/appwrite";
 import { cache } from "react";

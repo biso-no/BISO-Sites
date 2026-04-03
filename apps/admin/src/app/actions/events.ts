@@ -13,12 +13,13 @@ import {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import type { AdminEvent, EventMetadata } from "@/lib/types/event";
-import {
-  getUserAuthContext,
-} from "@/lib/authorization";
+import { getUserAuthContext } from "@/lib/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
-import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
+import {
+  assertWriteAccess,
+  applyScopeQueries,
+} from "@/lib/utils/authorization";
 
 // Helper to parse metadata JSON safely
 function parseMetadata(metadata: string | null): EventMetadata {
@@ -371,7 +372,11 @@ export async function createEvent(
     const { db } = await createSessionClient();
     const eventId = ID.unique();
     const metadata = serializeEventMetadata(data.metadata);
-    const translationRefs = buildEventTranslations(eventId, data.translations, permissions);
+    const translationRefs = buildEventTranslations(
+      eventId,
+      data.translations,
+      permissions
+    );
 
     const event = await db.createRow<Events>(
       "app",
@@ -455,7 +460,9 @@ export async function updateEvent(
         ? buildContentPermissions({
             status: data.status,
             departmentTeamId: ctx.departmentTeamIds[0] ?? null,
-            campusManagementTeamId: getCampusManagementTeamId(existingEvent.campus_id),
+            campusManagementTeamId: getCampusManagementTeamId(
+              existingEvent.campus_id
+            ),
           })
         : undefined
     );
@@ -573,7 +580,7 @@ export async function listDepartments(campusId?: string) {
 }
 
 export async function listDepartmentsWithWriterAccess() {
-  try {   
+  try {
     const { db } = await createSessionClient();
     const response = await db.listRows<Departments>("app", "departments", [
       Query.equal("active", true),
@@ -586,7 +593,6 @@ export async function listDepartmentsWithWriterAccess() {
     return [];
   }
 }
-
 
 // Helper function to get campuses
 export async function listCampuses() {

@@ -69,8 +69,7 @@ export async function removeIdentity(identityId: string) {
     await account.deleteIdentity(identityId);
     return { success: true };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
     console.error("Failed to remove identity", error);
     return { success: false, error: message };
   }

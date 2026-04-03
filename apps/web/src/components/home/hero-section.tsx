@@ -14,7 +14,10 @@ export async function HeroSection() {
   ]);
 
   // Combine and shuffle for variety
-  const featuredContent: Array<Events | News> = [...events, ...news].slice(0, 5);
+  const featuredContent: Array<Events | News> = [...events, ...news].slice(
+    0,
+    5
+  );
 
   return <HeroCarousel featuredContent={featuredContent} />;
 }

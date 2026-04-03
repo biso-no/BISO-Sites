@@ -148,7 +148,10 @@ function handleWholeContentPatch(
       return { ...data, content: patch.value as PuckBlock[] };
     case "add": {
       if (!isValidBlock(patch.value)) {
-        console.warn("[PuckStreamHandler] Skipping block with missing type:", patch.value);
+        console.warn(
+          "[PuckStreamHandler] Skipping block with missing type:",
+          patch.value
+        );
         return data;
       }
       return { ...data, content: [...content, patch.value] };
@@ -171,7 +174,10 @@ function handleBlockIndexPatch(
     case "set":
     case "replace": {
       if (!isValidBlock(patch.value)) {
-        console.warn("[PuckStreamHandler] Skipping block replace with missing type:", patch.value);
+        console.warn(
+          "[PuckStreamHandler] Skipping block replace with missing type:",
+          patch.value
+        );
         return data;
       }
       content[blockIndex] = patch.value;
@@ -179,7 +185,10 @@ function handleBlockIndexPatch(
     }
     case "add": {
       if (!isValidBlock(patch.value)) {
-        console.warn("[PuckStreamHandler] Skipping block insert with missing type:", patch.value);
+        console.warn(
+          "[PuckStreamHandler] Skipping block insert with missing type:",
+          patch.value
+        );
         return data;
       }
       content.splice(blockIndex, 0, patch.value);

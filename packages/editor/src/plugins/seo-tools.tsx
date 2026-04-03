@@ -81,12 +81,9 @@ function GooglePreview({
   slug: string;
 }) {
   const displayUrl = `example.com${slug ? `/${slug}` : ""}`;
-  const truncatedTitle =
-    title.length > 60 ? `${title.slice(0, 57)}...` : title;
+  const truncatedTitle = title.length > 60 ? `${title.slice(0, 57)}...` : title;
   const truncatedDesc =
-    description.length > 160
-      ? `${description.slice(0, 157)}...`
-      : description;
+    description.length > 160 ? `${description.slice(0, 157)}...` : description;
 
   return (
     <div className="space-y-2">
@@ -101,9 +98,7 @@ function GooglePreview({
           </div>
           <div className="text-lg leading-snug text-blue-700 dark:text-blue-400">
             {truncatedTitle || (
-              <span className="italic text-muted-foreground">
-                No title set
-              </span>
+              <span className="italic text-muted-foreground">No title set</span>
             )}
           </div>
           <div className="text-sm leading-relaxed text-muted-foreground">
@@ -153,15 +148,11 @@ function SocialPreview({
           </div>
           <div className="text-sm font-semibold text-foreground leading-tight">
             {title || (
-              <span className="italic text-muted-foreground">
-                No title set
-              </span>
+              <span className="italic text-muted-foreground">No title set</span>
             )}
           </div>
           <div className="line-clamp-2 text-xs text-muted-foreground">
-            {description || (
-              <span className="italic">No description set</span>
-            )}
+            {description || <span className="italic">No description set</span>}
           </div>
         </div>
       </div>
@@ -228,7 +219,7 @@ function useRootPropSetter() {
         }),
       });
     },
-    [getPuck],
+    [getPuck]
   );
 }
 
@@ -269,7 +260,7 @@ function SeoToolsPanel() {
         }
         return false;
       }),
-    [content],
+    [content]
   );
 
   const hasImages = useMemo(
@@ -283,7 +274,7 @@ function SeoToolsPanel() {
           type === "featuregrid"
         );
       }),
-    [content],
+    [content]
   );
 
   const slugIsClean = useMemo(() => {
@@ -354,7 +345,7 @@ function SeoToolsPanel() {
             : "Slug should be lowercase with hyphens only.",
       },
     ],
-    [displayTitle, displayDescription, hasHeading, hasImages, slug, slugIsClean],
+    [displayTitle, displayDescription, hasHeading, hasImages, slug, slugIsClean]
   );
 
   /** Call the AI assist API to generate SEO fields from page content. */
@@ -453,7 +444,12 @@ function SeoToolsPanel() {
             value={seoTitle}
             onChange={(e) => setRootProp("seoTitle", e.target.value)}
           />
-          <CharCounter label="Title" value={seoTitle || displayTitle} min={50} max={60} />
+          <CharCounter
+            label="Title"
+            value={seoTitle || displayTitle}
+            min={50}
+            max={60}
+          />
         </div>
 
         <div className="space-y-1">

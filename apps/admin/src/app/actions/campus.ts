@@ -80,7 +80,9 @@ async function _getCampusMetadataByName(
  */
 export async function getAllowedCampuses({
   includeNational = true,
-}: { includeNational?: boolean } = {}): Promise<Campus[]> {
+}: {
+  includeNational?: boolean;
+} = {}): Promise<Campus[]> {
   const ctx = await getUserAuthContext();
   if (!ctx) throw new Error("Unauthorized");
 

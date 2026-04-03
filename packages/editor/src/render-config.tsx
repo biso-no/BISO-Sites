@@ -26,10 +26,7 @@ import {
   NewsRender,
   ProductsGridRender,
 } from "./config/data-display/render";
-import {
-  JobDetailRender,
-  ProductDetailRender,
-} from "./config/detail.render";
+import { JobDetailRender, ProductDetailRender } from "./config/detail.render";
 import {
   AlertCardRender,
   ChecklistCardRender,
@@ -50,10 +47,7 @@ import {
   HeroRender,
   PageHeaderRender,
 } from "./config/heroes.render";
-import {
-  ContactFormRender,
-  MapEmbedRender,
-} from "./config/interactive.render";
+import { ContactFormRender, MapEmbedRender } from "./config/interactive.render";
 import {
   ColumnsRender,
   SectionRender,
@@ -74,8 +68,7 @@ import type { Props } from "./config/types";
 // cannot cross the server→client boundary when the UI component is "use client".
 // This wrapper strips the `puck` prop before delegating to the render function.
 function sp<T>(fn: (props: T) => React.ReactNode) {
-  return ({ puck: _puck, ...rest }: T & { puck?: unknown }) =>
-    fn(rest as T);
+  return ({ puck: _puck, ...rest }: T & { puck?: unknown }) => fn(rest as T);
 }
 
 export const renderConfig: Config<Props> = {

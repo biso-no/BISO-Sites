@@ -105,9 +105,7 @@ export const searchSharePoint = tool({
     filter?: Record<string, any>;
   }) => {
     try {
-      const { createIndexingService } = await import(
-        "./indexing-service"
-      );
+      const { createIndexingService } = await import("./indexing-service");
       const indexingService = await createIndexingService();
 
       // Detect query language for better response handling
@@ -167,9 +165,7 @@ export const getDocumentStats = tool({
   inputSchema: z.object({}),
   execute: async () => {
     try {
-      const { createIndexingService } = await import(
-        "./indexing-service"
-      );
+      const { createIndexingService } = await import("./indexing-service");
       const indexingService = await createIndexingService();
       const stats = await indexingService.getDocumentStats();
 

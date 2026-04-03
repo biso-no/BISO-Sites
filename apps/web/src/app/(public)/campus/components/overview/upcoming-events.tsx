@@ -66,49 +66,49 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
             : null;
 
           return (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            initial={{ opacity: 0, y: 20 }}
-            key={event.$id}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Link href={`/events/${event.$id}`}>
-              <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
-                <div className="relative h-48 overflow-hidden">
-                  <ImageWithFallback
-                    alt={translation?.title ?? "Event"}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    fill
-                    src={
-                      event.image ||
-                      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=1080"
-                    }
-                  />
-                  {event.member_only && (
-                    <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">
-                      {locale === "en" ? "Members Only" : "Kun medlemmer"}
-                    </Badge>
-                  )}
-                </div>
-                <div className="p-6">
-                  {event.start_date && (
-                    <div className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
-                      <Calendar className="h-4 w-4 text-brand" />
-                      {formatDate(event.start_date)}
-                    </div>
-                  )}
-                  <h3 className="mb-2 text-foreground">
-                    {translation?.title ?? "Untitled"}
-                  </h3>
-                  {translation?.description && (
-                    <p className="line-clamp-2 text-muted-foreground text-sm">
-                      {translation.description.replace(/<[^>]+>/g, "")}
-                    </p>
-                  )}
-                </div>
-              </Card>
-            </Link>
-          </motion.div>
+            <motion.div
+              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              key={event.$id}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Link href={`/events/${event.$id}`}>
+                <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
+                  <div className="relative h-48 overflow-hidden">
+                    <ImageWithFallback
+                      alt={translation?.title ?? "Event"}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      fill
+                      src={
+                        event.image ||
+                        "https://images.unsplash.com/photo-1511578314322-379afb476865?w=1080"
+                      }
+                    />
+                    {event.member_only && (
+                      <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">
+                        {locale === "en" ? "Members Only" : "Kun medlemmer"}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    {event.start_date && (
+                      <div className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
+                        <Calendar className="h-4 w-4 text-brand" />
+                        {formatDate(event.start_date)}
+                      </div>
+                    )}
+                    <h3 className="mb-2 text-foreground">
+                      {translation?.title ?? "Untitled"}
+                    </h3>
+                    {translation?.description && (
+                      <p className="line-clamp-2 text-muted-foreground text-sm">
+                        {translation.description.replace(/<[^>]+>/g, "")}
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              </Link>
+            </motion.div>
           );
         })}
       </div>

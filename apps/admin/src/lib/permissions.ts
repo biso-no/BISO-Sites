@@ -34,7 +34,9 @@ export function buildContentPermissions(input: {
       permissions.push(Permission.read(Role.team(input.departmentTeamId)));
     }
     if (input.campusManagementTeamId) {
-      permissions.push(Permission.read(Role.team(input.campusManagementTeamId)));
+      permissions.push(
+        Permission.read(Role.team(input.campusManagementTeamId))
+      );
     }
   }
 
@@ -43,8 +45,12 @@ export function buildContentPermissions(input: {
     permissions.push(Permission.delete(Role.team(input.departmentTeamId)));
   }
   if (input.campusManagementTeamId) {
-    permissions.push(Permission.update(Role.team(input.campusManagementTeamId)));
-    permissions.push(Permission.delete(Role.team(input.campusManagementTeamId)));
+    permissions.push(
+      Permission.update(Role.team(input.campusManagementTeamId))
+    );
+    permissions.push(
+      Permission.delete(Role.team(input.campusManagementTeamId))
+    );
   }
 
   return permissions;
@@ -66,8 +72,12 @@ export function buildPagePermissions(input: {
     permissions.push(Permission.delete(Role.team(input.departmentTeamId)));
   }
   if (input.campusManagementTeamId) {
-    permissions.push(Permission.update(Role.team(input.campusManagementTeamId)));
-    permissions.push(Permission.delete(Role.team(input.campusManagementTeamId)));
+    permissions.push(
+      Permission.update(Role.team(input.campusManagementTeamId))
+    );
+    permissions.push(
+      Permission.delete(Role.team(input.campusManagementTeamId))
+    );
   }
 
   return permissions;
@@ -115,15 +125,11 @@ export function buildPendingProductPermissions(
  * Build permissions for a published product
  */
 export function buildPublishedProductPermissions(): string[] {
-  return [
-    Permission.read(Role.any()),
-  ];
+  return [Permission.read(Role.any())];
 }
 
 export function buildEditorialTemplatePermissions(): string[] {
-  return [
-    Permission.read(Role.users()),
-  ];
+  return [Permission.read(Role.users())];
 }
 
 export function buildEditorialEntryPermissions(input: {
@@ -144,8 +150,12 @@ export function buildEditorialEntryPermissions(input: {
   }
 
   if (input.campusManagementTeamId) {
-    permissions.push(Permission.update(Role.team(input.campusManagementTeamId)));
-    permissions.push(Permission.delete(Role.team(input.campusManagementTeamId)));
+    permissions.push(
+      Permission.update(Role.team(input.campusManagementTeamId))
+    );
+    permissions.push(
+      Permission.delete(Role.team(input.campusManagementTeamId))
+    );
   }
 
   if (input.userId) {
@@ -161,10 +171,46 @@ export function buildEditorialEntryPermissions(input: {
  * Table-level read("any") already grants public read; row-level permissions
  * only need to cover write access for the matching SG-App-Dept team.
  */
-export function buildDepartmentRowPermissions(departmentTeamId: string): string[] {
+export function buildDepartmentRowPermissions(
+  departmentTeamId: string
+): string[] {
   return [
     Permission.read(Role.any()),
     Permission.update(Role.team(departmentTeamId)),
     Permission.delete(Role.team(departmentTeamId)),
   ];
+}
+
+/**
+ * Build permissions for a campus benefit row.
+ *
+ * - published  → read("any") so the web app can fetch benefits publicly
+ * - draft/archived → read restricted to campus management team only
+ * - update/delete always restricted to campus management team
+ *
+ * Global admins manage National benefits — pass their team id as
+ * campusManagementTeamId (or omit if handled via Appwrite admin API key).
+ */
+export function buildBenefitPermissions(input: {
+  status: string;
+  campusManagementTeamId?: string | null;
+}): string[] {
+  const permissions: string[] = [];
+
+  if (input.status === "published") {
+    permissions.push(Permission.read(Role.any()));
+  } else if (input.campusManagementTeamId) {
+    permissions.push(Permission.read(Role.team(input.campusManagementTeamId)));
+  }
+
+  if (input.campusManagementTeamId) {
+    permissions.push(
+      Permission.update(Role.team(input.campusManagementTeamId))
+    );
+    permissions.push(
+      Permission.delete(Role.team(input.campusManagementTeamId))
+    );
+  }
+
+  return permissions;
 }

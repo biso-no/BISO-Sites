@@ -160,15 +160,15 @@
   border: 1px solid rgba(61, 169, 224, 0.14);
   border-radius: 14px;
   box-shadow:
-    0 2px 8px rgba(0, 23, 49, 0.10),
-    0 8px 24px rgba(0, 95, 202, 0.10);
+    0 2px 8px rgba(0, 23, 49, 0.1),
+    0 8px 24px rgba(0, 95, 202, 0.1);
 }
 .dark [class*="PuckHeader"]:not([class*="inner"]):not([class*="tools"]) {
   background: rgba(21, 29, 40, 0.92);
   border-color: rgba(61, 169, 224, 0.12);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.35),
-    0 8px 24px rgba(61, 169, 224, 0.10);
+    0 8px 24px rgba(61, 169, 224, 0.1);
 }
 
 /* ── Sidebars — floating cards ── */
@@ -178,7 +178,7 @@
   border: 1px solid rgba(61, 169, 224, 0.14);
   border-radius: 14px;
   box-shadow:
-    0 4px 16px rgba(0, 23, 49, 0.10),
+    0 4px 16px rgba(0, 23, 49, 0.1),
     0 1px 4px rgba(61, 169, 224, 0.06);
   overflow: hidden;
 }
@@ -196,7 +196,7 @@
   border: 1px solid rgba(61, 169, 224, 0.14);
   border-radius: 14px;
   box-shadow:
-    0 4px 16px rgba(0, 23, 49, 0.10),
+    0 4px 16px rgba(0, 23, 49, 0.1),
     0 1px 4px rgba(61, 169, 224, 0.06);
   overflow: hidden;
 }
@@ -216,7 +216,7 @@
     border: 1px solid rgba(61, 169, 224, 0.14);
     border-radius: 14px;
     box-shadow:
-      0 4px 16px rgba(0, 23, 49, 0.10),
+      0 4px 16px rgba(0, 23, 49, 0.1),
       0 1px 4px rgba(61, 169, 224, 0.06);
     overflow: hidden;
   }
@@ -230,7 +230,9 @@
 }
 
 /* ── Canvas background — dot grid texture ── */
-[class*="PuckCanvas"]:not([class*="root"]):not([class*="inner"]):not([class*="loader"]):not([class*="controls"]) {
+[class*="PuckCanvas"]:not([class*="root"]):not([class*="inner"]):not(
+    [class*="loader"]
+  ):not([class*="controls"]) {
   background:
     radial-gradient(circle, rgba(61, 169, 224, 0.08) 1px, transparent 1px),
     linear-gradient(
@@ -239,10 +241,15 @@
       hsl(210, 35%, 98%) 40%,
       hsl(215, 35%, 97%) 100%
     );
-  background-size: 24px 24px, 100% 100%;
+  background-size:
+    24px 24px,
+    100% 100%;
   border-radius: 14px;
 }
-.dark [class*="PuckCanvas"]:not([class*="root"]):not([class*="inner"]):not([class*="loader"]):not([class*="controls"]) {
+.dark
+  [class*="PuckCanvas"]:not([class*="root"]):not([class*="inner"]):not(
+    [class*="loader"]
+  ):not([class*="controls"]) {
   background:
     radial-gradient(circle, rgba(61, 169, 224, 0.06) 1px, transparent 1px),
     linear-gradient(
@@ -251,7 +258,9 @@
       hsl(222, 28%, 14%) 40%,
       hsl(220, 30%, 12%) 100%
     );
-  background-size: 24px 24px, 100% 100%;
+  background-size:
+    24px 24px,
+    100% 100%;
 }
 
 /* ── Canvas breathing room (only when fullscreen) ── */
@@ -267,16 +276,16 @@
   border: 1px solid rgba(61, 169, 224, 0.12);
   border-radius: 1.25rem;
   box-shadow:
-    0 16px 48px rgba(0, 23, 49, 0.10),
+    0 16px 48px rgba(0, 23, 49, 0.1),
     0 4px 12px rgba(61, 169, 224, 0.06);
   overflow: hidden;
 }
 .dark [class*="PuckCanvas-root"] {
   background: hsl(222.2, 84%, 4.9%);
-  border-color: rgba(61, 169, 224, 0.10);
+  border-color: rgba(61, 169, 224, 0.1);
   box-shadow:
     0 16px 48px rgba(0, 0, 0, 0.35),
-    0 4px 12px rgba(61, 169, 224, 0.10);
+    0 4px 12px rgba(61, 169, 224, 0.1);
 }
 
 /* ── Inputs ── */
@@ -284,7 +293,9 @@
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(61, 169, 224, 0.2);
   border-radius: 0.625rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 [class*="Input-input"]:focus {
   background: rgba(255, 255, 255, 0.95);
@@ -309,7 +320,9 @@
   border: 1px solid rgba(61, 169, 224, 0.15);
   border-radius: 0.625rem;
   box-shadow: 0 2px 8px rgba(0, 23, 49, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 [class*="DrawerItem-draggable"]:hover {
   transform: translateY(-2px);
@@ -332,7 +345,9 @@
 [class*="ArrayFieldItem-summary"] {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 0.625rem;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 [class*="ArrayFieldItem-summary"]:hover {
   background: rgba(241, 250, 251, 0.95);
@@ -415,14 +430,18 @@
 /* ── Draggable component overlay (hover/selection outline) ── */
 [class*="DraggableComponent-overlay"] {
   border-radius: 0.5rem;
-  transition: outline 0.15s ease, background 0.15s ease;
+  transition:
+    outline 0.15s ease,
+    background 0.15s ease;
 }
 [class*="DraggableComponent--hover"] [class*="DraggableComponent-overlay"] {
   background: rgba(61, 169, 224, 0.1);
   outline: 2px solid rgba(61, 169, 224, 0.4);
   box-shadow: 0 4px 12px rgba(61, 169, 224, 0.15);
 }
-.dark [class*="DraggableComponent--hover"] [class*="DraggableComponent-overlay"] {
+.dark
+  [class*="DraggableComponent--hover"]
+  [class*="DraggableComponent-overlay"] {
   background: rgba(61, 169, 224, 0.08);
   outline: 2px solid rgba(61, 169, 224, 0.5);
   box-shadow: 0 4px 12px rgba(61, 169, 224, 0.2);

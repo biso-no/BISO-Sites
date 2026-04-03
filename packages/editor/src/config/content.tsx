@@ -89,7 +89,13 @@ export const ContentComponents = {
             const schema = TABLE_SCHEMAS.find((s) => s.id === "milestones");
             if (!schema) return [];
             return [
-              { id: "default", title: "All Milestones", table: schema.id, filters: [], sort: schema.defaultSort },
+              {
+                id: "default",
+                title: "All Milestones",
+                table: schema.id,
+                filters: [],
+                sort: schema.defaultSort,
+              },
               ...(schema.presetFilters ?? []).map((p, i) => ({
                 id: `preset-${i}`,
                 title: p.label,
@@ -304,7 +310,8 @@ export const ContentComponents = {
       },
       items: {
         type: "array",
-        getItemSummary: (item: { author?: string }) => item.author || "Testimonial",
+        getItemSummary: (item: { author?: string }) =>
+          item.author || "Testimonial",
         arrayFields: {
           quote: { type: "textarea" },
           author: { type: "text" },

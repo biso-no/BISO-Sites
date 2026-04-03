@@ -61,7 +61,8 @@ type AssistResult = {
 function extractBlockText(props: Record<string, unknown>): string {
   const texts: string[] = [];
   function walk(val: unknown) {
-    if (typeof val === "string" && val.trim().length > 0) texts.push(val.trim());
+    if (typeof val === "string" && val.trim().length > 0)
+      texts.push(val.trim());
     else if (Array.isArray(val)) val.forEach(walk);
     else if (val && typeof val === "object") {
       for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
@@ -70,7 +71,10 @@ function extractBlockText(props: Record<string, unknown>): string {
       }
     }
   }
-  const { id, image, backgroundImage, ...rest } = props as Record<string, unknown>;
+  const { id, image, backgroundImage, ...rest } = props as Record<
+    string,
+    unknown
+  >;
   walk(rest);
   return texts.join("\n");
 }
@@ -357,7 +361,13 @@ function AiAssistantPanel() {
 
   // Clear loading when canvas streaming ends (for generate actions)
   useEffect(() => {
-    if (!ai?.isStreaming && (activeLoading === "generate" || activeLoading === "improve-rewrite" || activeLoading === "improve-engaging" || activeLoading === "improve-simplify")) {
+    if (
+      !ai?.isStreaming &&
+      (activeLoading === "generate" ||
+        activeLoading === "improve-rewrite" ||
+        activeLoading === "improve-engaging" ||
+        activeLoading === "improve-simplify")
+    ) {
       setActiveLoading(null);
     }
   }, [ai?.isStreaming, activeLoading]);
@@ -398,7 +408,8 @@ function AiAssistantPanel() {
       const selectedIndex = appState.data.content.findIndex(
         (b) => b.props.id === currentSelectedItem.props.id
       );
-      const effectiveSelectedIndex = selectedIndex >= 0 ? selectedIndex : undefined;
+      const effectiveSelectedIndex =
+        selectedIndex >= 0 ? selectedIndex : undefined;
       if (effectiveSelectedIndex === undefined) {
         toast.warning("Improvement of nested blocks is not yet supported.");
         return;
@@ -421,7 +432,9 @@ function AiAssistantPanel() {
         "action-suggest": "",
       };
 
-      const blockText = extractBlockText(currentSelectedItem.props as Record<string, unknown>);
+      const blockText = extractBlockText(
+        currentSelectedItem.props as Record<string, unknown>
+      );
       const blockJson = JSON.stringify(currentSelectedItem.props, null, 2);
 
       const generationPrompt = [
@@ -501,7 +514,10 @@ function AiAssistantPanel() {
 
       if (key === "action-suggest") {
         content = extractPageSummary(
-          appState.data.content as { type: string; props: Record<string, unknown> }[]
+          appState.data.content as {
+            type: string;
+            props: Record<string, unknown>;
+          }[]
         );
       } else if (
         key === "action-grammar" ||
@@ -512,7 +528,9 @@ function AiAssistantPanel() {
           toast.warning("Select a block on the canvas first.");
           return;
         }
-        content = extractBlockText(currentSelectedItem.props as Record<string, unknown>);
+        content = extractBlockText(
+          currentSelectedItem.props as Record<string, unknown>
+        );
         if (!content.trim()) {
           toast.warning("Selected block has no readable text.");
           return;
@@ -545,8 +563,9 @@ function AiAssistantPanel() {
 
   const selectedBlockType = selectedItem?.type ?? null;
   const isAnyRunning = activeLoading !== null;
-  const quickActionResult =
-    assistResult?.key?.startsWith("action-") ? assistResult : null;
+  const quickActionResult = assistResult?.key?.startsWith("action-")
+    ? assistResult
+    : null;
 
   // ------------------------------------------------------------------
   // Render
@@ -613,7 +632,9 @@ function AiAssistantPanel() {
                 {selectedBlockType}
               </span>
               {effectiveSelectedIndex === undefined && (
-                <span className="ml-1 text-yellow-600">(nested — limited support)</span>
+                <span className="ml-1 text-yellow-600">
+                  (nested — limited support)
+                </span>
               )}
             </p>
             <div className="flex flex-col gap-2">

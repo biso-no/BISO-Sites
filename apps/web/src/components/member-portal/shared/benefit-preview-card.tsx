@@ -40,16 +40,7 @@ const getCategoryIcon = (category: string) => {
 };
 
 const getCategoryGradient = (category: string) => {
-  const gradients: Record<string, string> = {
-    "Food & Drink": "from-orange-500 to-red-500",
-    Entertainment: "from-purple-500 to-pink-500",
-    Career: "from-blue-500 to-cyan-500",
-    "Health & Fitness": "from-green-500 to-emerald-500",
-    Software: "from-pink-500 to-rose-500",
-    Travel: "from-indigo-500 to-violet-500",
-    Education: "from-yellow-500 to-amber-500",
-  };
-  return gradients[category] || "from-brand-gradient-from to-brand-gradient-to";
+  return "from-brand-gradient-from to-brand-gradient-to";
 };
 
 export function BenefitPreviewCard({

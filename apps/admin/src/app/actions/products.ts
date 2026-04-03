@@ -3,9 +3,7 @@
 import { openai } from "@ai-sdk/openai";
 import { getStorageFileUrl, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-} from "@/lib/authorization";
+import { getUserAuthContext } from "@/lib/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import {
@@ -29,7 +27,10 @@ import {
   normalizeProductRow,
   PRODUCT_SELECT_FIELDS,
 } from "./_utils/translatable";
-import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
+import {
+  assertWriteAccess,
+  applyScopeQueries,
+} from "@/lib/utils/authorization";
 
 type AdminDbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
 type ProductStatus = CreateProductData["status"];

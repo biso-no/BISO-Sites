@@ -201,9 +201,7 @@ export const BasicsComponents = {
           return `https://www.youtube.com/embed/${ytMatch[1]}${autoplay ? "?autoplay=1&mute=1" : ""}`;
         }
         // Vimeo
-        const vimeoMatch = raw.match(
-          /(?:vimeo\.com\/)(\d+)/
-        );
+        const vimeoMatch = raw.match(/(?:vimeo\.com\/)(\d+)/);
         if (vimeoMatch?.[1]) {
           return `https://player.vimeo.com/video/${vimeoMatch[1]}${autoplay ? "?autoplay=1&muted=1" : ""}`;
         }

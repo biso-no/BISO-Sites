@@ -1,6 +1,6 @@
 "use client";
 
-import type { MemberBenefit } from "@repo/api/types/appwrite";
+import type { CampusBenefit } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -22,14 +22,14 @@ import { BenefitCard } from "../shared/benefit-card";
 import { BenefitsShowcase } from "../shared/benefits-showcase";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 
-type OverviewTabProps = {
+type HomeTabProps = {
   membershipType: string;
   benefitsCount: number;
   daysRemaining: number;
   estimatedSavings: number;
   startDate: string;
   expiryDate: string;
-  benefits: MemberBenefit[];
+  benefits: CampusBenefit[];
   revealedBenefits: Set<string>;
   isMember: boolean;
   hasBIIdentity: boolean;
@@ -73,7 +73,7 @@ function MemberOverview({
   benefits,
   revealedBenefits,
   onTabChange,
-}: Omit<OverviewTabProps, "isMember" | "hasBIIdentity">) {
+}: Omit<HomeTabProps, "isMember" | "hasBIIdentity">) {
   const t = useTranslations("memberPortal.overview");
   const tCommon = useTranslations("memberPortal.common");
 
@@ -110,9 +110,9 @@ function MemberOverview({
 
         {/* Benefits Available */}
         <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-100 to-transparent opacity-50 dark:from-purple-900/20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
           <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
               <Gift className="h-6 w-6 text-white" />
             </div>
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -129,9 +129,9 @@ function MemberOverview({
 
         {/* Days Remaining */}
         <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-100 to-transparent opacity-50 dark:from-orange-900/20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
           <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
               <Clock className="h-6 w-6 text-white" />
             </div>
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -146,9 +146,9 @@ function MemberOverview({
 
         {/* Estimated Savings */}
         <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-100 to-transparent opacity-50 dark:from-green-900/20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
           <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-green-700 shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
               <TrendingUp className="h-6 w-6 text-white" />
             </div>
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -197,12 +197,12 @@ function MemberOverview({
             <motion.div
               animate={{ opacity: 1, y: 0 }}
               initial={{ opacity: 0, y: 20 }}
-              key={benefit.id}
+              key={benefit.$id}
               transition={{ delay: 0.1 * index }}
             >
               <BenefitCard
                 benefit={benefit}
-                isRevealed={revealedBenefits.has(benefit.id)}
+                isRevealed={revealedBenefits.has(benefit.$id)}
               />
             </motion.div>
           ))}
@@ -314,7 +314,7 @@ function MemberOverview({
   );
 }
 
-function NonMemberOverview() {
+function NonMemberOverview({ benefits }: { benefits: CampusBenefit[] }) {
   return (
     <>
       {/* Welcome section for non-members */}
@@ -339,7 +339,7 @@ function NonMemberOverview() {
       </motion.div>
 
       {/* Benefits Showcase */}
-      <BenefitsShowcase />
+      <BenefitsShowcase benefits={benefits} />
 
       {/* CTA Section */}
       <MembershipCtaSection />
@@ -347,7 +347,7 @@ function NonMemberOverview() {
   );
 }
 
-export function OverviewTab({
+export function HomeTab({
   membershipType,
   benefitsCount,
   daysRemaining,
@@ -357,11 +357,11 @@ export function OverviewTab({
   benefits,
   revealedBenefits,
   isMember,
-  _hasBIIdentity,
+  hasBIIdentity: _hasBIIdentity,
   onTabChange,
-}: OverviewTabProps) {
+}: HomeTabProps) {
   return (
-    <TabsContent className="space-y-8" value="overview">
+    <TabsContent className="space-y-8" value="home">
       {isMember ? (
         <MemberOverview
           benefits={benefits}
@@ -375,7 +375,7 @@ export function OverviewTab({
           startDate={startDate}
         />
       ) : (
-        <NonMemberOverview />
+        <NonMemberOverview benefits={benefits} />
       )}
     </TabsContent>
   );

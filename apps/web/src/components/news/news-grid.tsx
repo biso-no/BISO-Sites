@@ -15,14 +15,14 @@ export async function NewsGrid({
   selectedCategory,
   searchQuery,
 }: NewsGridProps) {
-  const filteredArticles = filterArticles(articles, selectedCategory, searchQuery);
+  const filteredArticles = filterArticles(
+    articles,
+    selectedCategory,
+    searchQuery
+  );
 
-  const featuredArticles = filteredArticles.filter(
-    (article) => article.sticky
-  );
-  const regularArticles = filteredArticles.filter(
-    (article) => !article.sticky
-  );
+  const featuredArticles = filteredArticles.filter((article) => article.sticky);
+  const regularArticles = filteredArticles.filter((article) => !article.sticky);
 
   if (filteredArticles.length === 0) {
     return <NoResults />;

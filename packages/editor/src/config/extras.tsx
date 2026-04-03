@@ -161,9 +161,7 @@ export const ExtrasComponents = {
             {title && (
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
             )}
-            {subtitle && (
-              <p className="text-gray-500 mb-6">{subtitle}</p>
-            )}
+            {subtitle && <p className="text-gray-500 mb-6">{subtitle}</p>}
             <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
               {items.map((item, i) => (
                 <div key={i} className="flex items-center gap-4 px-4 py-3">
@@ -179,10 +177,14 @@ export const ExtrasComponents = {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 truncate">{item.name}</p>
+                    <p className="font-medium text-gray-900 truncate">
+                      {item.name}
+                    </p>
                     {(item.role || item.department) && (
                       <p className="text-xs text-gray-500 truncate">
-                        {[item.role, item.department].filter(Boolean).join(" · ")}
+                        {[item.role, item.department]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     )}
                   </div>
@@ -231,7 +233,9 @@ export const ExtrasComponents = {
                     </h3>
                     {(item.role || item.department) && (
                       <p className="text-sm text-gray-500">
-                        {[item.role, item.department].filter(Boolean).join(" · ")}
+                        {[item.role, item.department]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     )}
                     <div className="mt-2 flex flex-wrap gap-3">
@@ -274,16 +278,14 @@ export const ExtrasComponents = {
           {(title || subtitle) && (
             <div className="mb-10 text-center">
               {title && (
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">{title}</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  {title}
+                </h2>
               )}
-              {subtitle && (
-                <p className="text-lg text-gray-500">{subtitle}</p>
-              )}
+              {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
             </div>
           )}
-          <div
-            className={`grid gap-6 ${colClass[columns] ?? colClass[3]}`}
-          >
+          <div className={`grid gap-6 ${colClass[columns] ?? colClass[3]}`}>
             {items.map((item, i) => (
               <div
                 key={i}
@@ -440,7 +442,9 @@ export const ExtrasComponents = {
                   <div>
                     <p className="font-medium text-gray-900">{item.name}</p>
                     {item.description && (
-                      <p className="mt-0.5 text-sm text-gray-500">{item.description}</p>
+                      <p className="mt-0.5 text-sm text-gray-500">
+                        {item.description}
+                      </p>
                     )}
                     {item.size && (
                       <p className="mt-1 text-xs text-gray-400">{item.size}</p>
@@ -468,9 +472,13 @@ export const ExtrasComponents = {
               <div key={i} className="flex items-center gap-4 px-4 py-3.5">
                 <FileText className="h-5 w-5 shrink-0 text-gray-400" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-gray-900 truncate">{item.name}</p>
+                  <p className="font-medium text-gray-900 truncate">
+                    {item.name}
+                  </p>
                   {item.description && (
-                    <p className="text-sm text-gray-500 truncate">{item.description}</p>
+                    <p className="text-sm text-gray-500 truncate">
+                      {item.description}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -546,7 +554,10 @@ export const ExtrasComponents = {
           title: { type: "text", label: "Step Title" },
           description: { type: "textarea", label: "Description" },
         },
-        defaultItemProps: { title: "Step Title", description: "What happens in this step." },
+        defaultItemProps: {
+          title: "Step Title",
+          description: "What happens in this step.",
+        },
       },
     },
     render: ({
@@ -561,9 +572,13 @@ export const ExtrasComponents = {
             {(title || subtitle) && (
               <div className="mb-10 text-center">
                 {title && (
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{title}</h2>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    {title}
+                  </h2>
                 )}
-                {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
+                {subtitle && (
+                  <p className="text-lg text-gray-500">{subtitle}</p>
+                )}
               </div>
             )}
             <div className="max-w-5xl mx-auto">
@@ -577,9 +592,13 @@ export const ExtrasComponents = {
                       <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white shadow">
                         {i + 1}
                       </div>
-                      <h3 className="mt-3 font-semibold text-gray-900">{step.title}</h3>
+                      <h3 className="mt-3 font-semibold text-gray-900">
+                        {step.title}
+                      </h3>
                       {step.description && (
-                        <p className="mt-1 text-sm text-gray-500">{step.description}</p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {step.description}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -596,9 +615,13 @@ export const ExtrasComponents = {
             {(title || subtitle) && (
               <div className="mb-10 text-center">
                 {title && (
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{title}</h2>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    {title}
+                  </h2>
                 )}
-                {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
+                {subtitle && (
+                  <p className="text-lg text-gray-500">{subtitle}</p>
+                )}
               </div>
             )}
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
@@ -610,9 +633,13 @@ export const ExtrasComponents = {
                   <span className="absolute -top-3 -left-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-md">
                     {i + 1}
                   </span>
-                  <h3 className="mt-2 font-semibold text-gray-900">{step.title}</h3>
+                  <h3 className="mt-2 font-semibold text-gray-900">
+                    {step.title}
+                  </h3>
                   {step.description && (
-                    <p className="mt-2 text-sm text-gray-500">{step.description}</p>
+                    <p className="mt-2 text-sm text-gray-500">
+                      {step.description}
+                    </p>
                   )}
                 </div>
               ))}
@@ -627,7 +654,9 @@ export const ExtrasComponents = {
           {(title || subtitle) && (
             <div className="mb-10">
               {title && (
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">{title}</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  {title}
+                </h2>
               )}
               {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
             </div>
@@ -640,13 +669,18 @@ export const ExtrasComponents = {
                     {i + 1}
                   </div>
                   {i < steps.length - 1 && (
-                    <div className="mt-1 w-px flex-1 bg-gray-200" style={{ minHeight: "2rem" }} />
+                    <div
+                      className="mt-1 w-px flex-1 bg-gray-200"
+                      style={{ minHeight: "2rem" }}
+                    />
                   )}
                 </div>
                 <div className="pb-8">
                   <h3 className="font-semibold text-gray-900">{step.title}</h3>
                   {step.description && (
-                    <p className="mt-1 text-sm text-gray-600">{step.description}</p>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {step.description}
+                    </p>
                   )}
                 </div>
               </div>
@@ -660,9 +694,18 @@ export const ExtrasComponents = {
       subtitle: "Follow these steps to get started.",
       variant: "vertical" as const,
       steps: [
-        { title: "Create an account", description: "Sign up with your student email." },
-        { title: "Complete your profile", description: "Add your details and preferences." },
-        { title: "Explore opportunities", description: "Browse events, jobs, and units." },
+        {
+          title: "Create an account",
+          description: "Sign up with your student email.",
+        },
+        {
+          title: "Complete your profile",
+          description: "Add your details and preferences.",
+        },
+        {
+          title: "Explore opportunities",
+          description: "Browse events, jobs, and units.",
+        },
       ],
     },
   },
@@ -718,11 +761,20 @@ export const ExtrasComponents = {
       align = "left",
       tags = [],
     }: TagListProps) => {
-      const sizeClass = { sm: "px-2.5 py-0.5 text-xs", md: "px-3 py-1 text-sm", lg: "px-4 py-1.5 text-base" };
-      const alignClass = { left: "justify-start", center: "justify-center", right: "justify-end" };
+      const sizeClass = {
+        sm: "px-2.5 py-0.5 text-xs",
+        md: "px-3 py-1 text-sm",
+        lg: "px-4 py-1.5 text-base",
+      };
+      const alignClass = {
+        left: "justify-start",
+        center: "justify-center",
+        right: "justify-end",
+      };
       const variantClass: Record<string, string> = {
         default: "bg-gray-100 text-gray-700 hover:bg-gray-200",
-        outline: "border border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600",
+        outline:
+          "border border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600",
         solid: "bg-blue-600 text-white hover:bg-blue-700",
         gradient: "bg-gradient-to-r from-blue-600 to-indigo-600 text-white",
       };
@@ -730,9 +782,13 @@ export const ExtrasComponents = {
       return (
         <div className="py-3 px-4">
           {title && (
-            <span className="mr-3 text-sm font-medium text-gray-600">{title}</span>
+            <span className="mr-3 text-sm font-medium text-gray-600">
+              {title}
+            </span>
           )}
-          <div className={`flex flex-wrap gap-2 ${alignClass[align] ?? "justify-start"} ${title ? "mt-2" : ""}`}>
+          <div
+            className={`flex flex-wrap gap-2 ${alignClass[align] ?? "justify-start"} ${title ? "mt-2" : ""}`}
+          >
             {tags.map((tag, i) => {
               const cls = `inline-flex items-center rounded-full font-medium transition ${sizeClass[size] ?? sizeClass.md} ${variantClass[variant] ?? variantClass.default}`;
               return tag.href ? (
@@ -799,20 +855,62 @@ export const ExtrasComponents = {
       ctaLabel,
       ctaHref,
     }: AlertCardProps) => {
-      const styles: Record<string, { wrapper: string; icon: string; title: string; text: string; btn: string }> = {
-        info:    { wrapper: "bg-blue-50 border-blue-200",   icon: "text-blue-500",   title: "text-blue-800",   text: "text-blue-700",   btn: "bg-blue-100 text-blue-700 hover:bg-blue-200" },
-        warning: { wrapper: "bg-amber-50 border-amber-200", icon: "text-amber-500",  title: "text-amber-800",  text: "text-amber-700",  btn: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
-        success: { wrapper: "bg-emerald-50 border-emerald-200", icon: "text-emerald-500", title: "text-emerald-800", text: "text-emerald-700", btn: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" },
-        error:   { wrapper: "bg-red-50 border-red-200",     icon: "text-red-500",    title: "text-red-800",    text: "text-red-700",    btn: "bg-red-100 text-red-700 hover:bg-red-200" },
-        neutral: { wrapper: "bg-gray-50 border-gray-200",   icon: "text-gray-500",   title: "text-gray-800",   text: "text-gray-600",   btn: "bg-gray-100 text-gray-700 hover:bg-gray-200" },
+      const styles: Record<
+        string,
+        {
+          wrapper: string;
+          icon: string;
+          title: string;
+          text: string;
+          btn: string;
+        }
+      > = {
+        info: {
+          wrapper: "bg-blue-50 border-blue-200",
+          icon: "text-blue-500",
+          title: "text-blue-800",
+          text: "text-blue-700",
+          btn: "bg-blue-100 text-blue-700 hover:bg-blue-200",
+        },
+        warning: {
+          wrapper: "bg-amber-50 border-amber-200",
+          icon: "text-amber-500",
+          title: "text-amber-800",
+          text: "text-amber-700",
+          btn: "bg-amber-100 text-amber-700 hover:bg-amber-200",
+        },
+        success: {
+          wrapper: "bg-emerald-50 border-emerald-200",
+          icon: "text-emerald-500",
+          title: "text-emerald-800",
+          text: "text-emerald-700",
+          btn: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200",
+        },
+        error: {
+          wrapper: "bg-red-50 border-red-200",
+          icon: "text-red-500",
+          title: "text-red-800",
+          text: "text-red-700",
+          btn: "bg-red-100 text-red-700 hover:bg-red-200",
+        },
+        neutral: {
+          wrapper: "bg-gray-50 border-gray-200",
+          icon: "text-gray-500",
+          title: "text-gray-800",
+          text: "text-gray-600",
+          btn: "bg-gray-100 text-gray-700 hover:bg-gray-200",
+        },
       };
 
       const iconPaths: Record<string, string> = {
-        info:    "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-        warning: "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z",
+        info: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+        warning:
+          "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z",
         success: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-        error:   "M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-        neutral: "M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z",
+        error:
+          "M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+        neutral:
+          "M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z",
       };
 
       const s = styles[variant] ?? styles.info;
@@ -828,16 +926,16 @@ export const ExtrasComponents = {
                 stroke="currentColor"
                 strokeWidth={1.5}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d={iconPaths[variant] ?? iconPaths.info} />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d={iconPaths[variant] ?? iconPaths.info}
+                />
               </svg>
             )}
             <div className="flex-1">
-              {title && (
-                <h4 className={`font-semibold ${s.title}`}>{title}</h4>
-              )}
-              {content && (
-                <p className={`mt-1 text-sm ${s.text}`}>{content}</p>
-              )}
+              {title && <h4 className={`font-semibold ${s.title}`}>{title}</h4>}
+              {content && <p className={`mt-1 text-sm ${s.text}`}>{content}</p>}
               {ctaLabel && ctaHref && (
                 <a
                   href={ctaHref}
@@ -924,16 +1022,37 @@ export const ExtrasComponents = {
       const CheckIcon = () => {
         if (checkStyle === "square") {
           return (
-            <svg className="h-4 w-4 text-blue-600" viewBox="0 0 16 16" fill="currentColor">
+            <svg
+              className="h-4 w-4 text-blue-600"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+            >
               <path d="M2 2h12v12H2z" className="text-blue-100" />
-              <path d="M5 8l2.5 2.5L11 5.5" stroke="currentColor" strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M5 8l2.5 2.5L11 5.5"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           );
         }
         if (checkStyle === "arrow") {
           return (
-            <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <svg
+              className="h-4 w-4 text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
+              />
             </svg>
           );
         }
@@ -987,7 +1106,10 @@ export const ExtrasComponents = {
       variant: "default" as const,
       checkStyle: "circle" as const,
       items: [
-        { text: "You are enrolled at BI Norwegian Business School", checked: true },
+        {
+          text: "You are enrolled at BI Norwegian Business School",
+          checked: true,
+        },
         { text: "You are a current semester student", checked: true },
         { text: "You have an active student email address", checked: true },
         { text: "You have not received this grant before", checked: false },

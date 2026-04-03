@@ -101,9 +101,10 @@ function parseTeamMemberships(
  * Derive additional roles from team memberships.
  * Labels are no longer used for role derivation — only SG-App team membership matters.
  */
-function deriveRoles(
-  parsed: TeamParseResult
-): { roles: string[]; managedCampuses: string[] } {
+function deriveRoles(parsed: TeamParseResult): {
+  roles: string[];
+  managedCampuses: string[];
+} {
   const roles = [...parsed.roles];
 
   const isNatOps = isNationalOperations(

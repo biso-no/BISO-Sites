@@ -86,56 +86,57 @@ export function NewsSection({ news }: NewsClientProps) {
         </motion.div>
 
         {/* Featured News */}
-        {featuredNews && (() => {
-          const translation = getTranslation(featuredNews);
+        {featuredNews &&
+          (() => {
+            const translation = getTranslation(featuredNews);
 
-          return (
-            <motion.div
-              className="mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              viewport={{ once: true }}
-              whileInView={{ opacity: 1, y: 0 }}
-            >
-              <Card className="overflow-hidden border-0 shadow-2xl transition-shadow duration-300 hover:shadow-3xl">
-                <div className="grid gap-0 md:grid-cols-2">
-                  <div className="group relative h-96 overflow-hidden md:h-auto">
-                    <ImageWithFallback
-                      alt={translation?.title ?? "News"}
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      fill
-                      src={
-                        featuredNews.image ||
-                        "https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080"
-                      }
-                    />
-                    <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
-                  </div>
-                  <div className="flex flex-col justify-center p-12">
-                    <div className="mb-4 flex items-center gap-2 text-brand">
-                      <Clock className="h-4 w-4" />
-                      <span>{getRelativeTime(featuredNews.$createdAt)}</span>
+            return (
+              <motion.div
+                className="mb-8"
+                initial={{ opacity: 0, y: 20 }}
+                viewport={{ once: true }}
+                whileInView={{ opacity: 1, y: 0 }}
+              >
+                <Card className="overflow-hidden border-0 shadow-2xl transition-shadow duration-300 hover:shadow-3xl">
+                  <div className="grid gap-0 md:grid-cols-2">
+                    <div className="group relative h-96 overflow-hidden md:h-auto">
+                      <ImageWithFallback
+                        alt={translation?.title ?? "News"}
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        fill
+                        src={
+                          featuredNews.image ||
+                          "https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080"
+                        }
+                      />
+                      <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                     </div>
-                    <h3 className="mb-4 text-foreground">
-                      {translation?.title ?? "Untitled"}
-                    </h3>
-                    <p className="mb-6 text-muted-foreground">
-                      {translation?.description
-                        ?.replace(/<[^>]+>/g, "")
-                        .slice(0, 200)}
-                      ...
-                    </p>
-                    <Link href={`/news/${featuredNews.$id}`}>
-                      <Button className="group w-fit border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
-                        {t("readMore")}
-                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </Button>
-                    </Link>
+                    <div className="flex flex-col justify-center p-12">
+                      <div className="mb-4 flex items-center gap-2 text-brand">
+                        <Clock className="h-4 w-4" />
+                        <span>{getRelativeTime(featuredNews.$createdAt)}</span>
+                      </div>
+                      <h3 className="mb-4 text-foreground">
+                        {translation?.title ?? "Untitled"}
+                      </h3>
+                      <p className="mb-6 text-muted-foreground">
+                        {translation?.description
+                          ?.replace(/<[^>]+>/g, "")
+                          .slice(0, 200)}
+                        ...
+                      </p>
+                      <Link href={`/news/${featuredNews.$id}`}>
+                        <Button className="group w-fit border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
+                          {t("readMore")}
+                          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </motion.div>
-          );
-        })()}
+                </Card>
+              </motion.div>
+            );
+          })()}
 
         {/* Other News */}
         {otherNews.length > 0 && (

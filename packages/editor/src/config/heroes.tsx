@@ -129,7 +129,13 @@ export const HeroComponents = {
             fetchList: async () => {
               // Slides can come from multiple tables
               return TABLE_SCHEMAS.flatMap((schema) => [
-                { id: `${schema.id}-default`, title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+                {
+                  id: `${schema.id}-default`,
+                  title: `All ${schema.label}`,
+                  table: schema.id,
+                  filters: [],
+                  sort: schema.defaultSort,
+                },
                 ...(schema.presetFilters ?? []).map((p, i) => ({
                   id: `${schema.id}-preset-${i}`,
                   title: `${schema.label}: ${p.label}`,
@@ -208,7 +214,13 @@ export const HeroComponents = {
           fetchList: async () => {
             // Slides can come from multiple tables
             return TABLE_SCHEMAS.flatMap((schema) => [
-              { id: `${schema.id}-default`, title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              {
+                id: `${schema.id}-default`,
+                title: `All ${schema.label}`,
+                table: schema.id,
+                filters: [],
+                sort: schema.defaultSort,
+              },
               ...(schema.presetFilters ?? []).map((p, i) => ({
                 id: `${schema.id}-preset-${i}`,
                 title: `${schema.label}: ${p.label}`,
@@ -350,7 +362,11 @@ export const HeroComponents = {
             className="relative min-h-[520px] w-full overflow-hidden"
             style={
               props.backgroundImage
-                ? { backgroundImage: `url(${props.backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+                ? {
+                    backgroundImage: `url(${props.backgroundImage})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
                 : undefined
             }
           >
@@ -412,7 +428,9 @@ export const HeroComponents = {
       height: "medium",
       title: "Hero Title",
       subtitle: "This is a generic hero component that can be customized.",
-      buttons: [{ label: "Get Started", href: "/", variant: "default" }] as HeroButton[],
+      buttons: [
+        { label: "Get Started", href: "/", variant: "default" },
+      ] as HeroButton[],
       overlay: true,
       slides: [] as HeroSlide[],
       slidesMode: "manual",
@@ -449,7 +467,8 @@ export const HeroComponents = {
         },
         breadcrumbs: {
           type: "array",
-          getItemSummary: (item: { label?: string }) => item.label || "Breadcrumb",
+          getItemSummary: (item: { label?: string }) =>
+            item.label || "Breadcrumb",
           arrayFields: {
             label: { type: "text" },
             href: { type: "text" },
@@ -500,16 +519,18 @@ export const HeroComponents = {
 
       return base;
     },
-    render: (props: PageHeaderProps & {
-      variant?: string;
-      icon?: string;
-      iconBackground?: string;
-      metaDate?: string;
-      metaCampus?: string;
-      metaDept?: string;
-      metaAuthor?: string;
-      stats?: { value: string; label: string }[];
-    }) => {
+    render: (
+      props: PageHeaderProps & {
+        variant?: string;
+        icon?: string;
+        iconBackground?: string;
+        metaDate?: string;
+        metaCampus?: string;
+        metaDept?: string;
+        metaAuthor?: string;
+        stats?: { value: string; label: string }[];
+      }
+    ) => {
       const variant = props.variant as string | undefined;
 
       if (variant === "with-icon") {
@@ -520,7 +541,8 @@ export const HeroComponents = {
           green: "bg-green-100 text-green-700",
           amber: "bg-amber-100 text-amber-700",
         };
-        const iconColor = bgColors[props.iconBackground ?? "blue"] ?? bgColors.blue;
+        const iconColor =
+          bgColors[props.iconBackground ?? "blue"] ?? bgColors.blue;
 
         return (
           <div className="border-b border-gray-100 bg-white px-4 py-12">
@@ -554,7 +576,9 @@ export const HeroComponents = {
                     {props.title || "Page Title"}
                   </h1>
                   {props.subtitle && (
-                    <p className="mt-3 text-lg text-gray-500">{props.subtitle}</p>
+                    <p className="mt-3 text-lg text-gray-500">
+                      {props.subtitle}
+                    </p>
                   )}
                 </div>
               </div>
@@ -643,7 +667,9 @@ export const HeroComponents = {
                   {stats.map((stat, i) => (
                     <div key={i}>
                       <p className="text-3xl font-bold">{stat.value}</p>
-                      <p className="mt-0.5 text-sm text-white/60">{stat.label}</p>
+                      <p className="mt-0.5 text-sm text-white/60">
+                        {stat.label}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -734,13 +760,12 @@ export const HeroComponents = {
         warning:
           "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z",
         success: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-        brand: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
+        brand:
+          "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
       };
 
       return (
-        <div
-          className={`w-full border-b ${s.border} ${s.bg} px-4 py-3`}
-        >
+        <div className={`w-full border-b ${s.border} ${s.bg} px-4 py-3`}>
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <svg

@@ -130,13 +130,10 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
             </span>
           </div>
 
-          <h1 className="mx-auto mb-6 max-w-4xl text-white">
-            {title}
-          </h1>
+          <h1 className="mx-auto mb-6 max-w-4xl text-white">{title}</h1>
 
           <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
-            {(description || "").replace(/<[^>]+>/g, "").slice(0, 180) ||
-              "..."}
+            {(description || "").replace(/<[^>]+>/g, "").slice(0, 180) || "..."}
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">

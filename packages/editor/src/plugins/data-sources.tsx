@@ -38,7 +38,7 @@ function DataSourcesPanel() {
     () =>
       ((appState.data.root?.props as Record<string, unknown>)?._dataSources ??
         {}) as DataSourcesMap,
-    [appState.data.root?.props],
+    [appState.data.root?.props]
   );
 
   // Filter available schemas based on user permissions
@@ -48,7 +48,7 @@ function DataSourcesPanel() {
     if (isCampusAdmin) return TABLE_SCHEMAS;
     // Regular editors see a subset
     return TABLE_SCHEMAS.filter((s) =>
-      ["news", "events", "jobs", "departments"].includes(s.id),
+      ["news", "events", "jobs", "departments"].includes(s.id)
     );
   }, [isAdmin, isCampusAdmin]);
 
@@ -59,9 +59,8 @@ function DataSourcesPanel() {
         type: "setData",
         recordHistory: true,
         data: (previous) => {
-          const prev =
-            ((previous.root?.props as Record<string, unknown>)?._dataSources ??
-              {}) as DataSourcesMap;
+          const prev = ((previous.root?.props as Record<string, unknown>)
+            ?._dataSources ?? {}) as DataSourcesMap;
           const next: DataSourcesMap = {
             ...prev,
             [tableId]: { enabled, label },
@@ -79,11 +78,11 @@ function DataSourcesPanel() {
         },
       });
     },
-    [getPuck],
+    [getPuck]
   );
 
   const enabledCount = Object.values(dataSources).filter(
-    (ds) => ds.enabled,
+    (ds) => ds.enabled
   ).length;
 
   return (

@@ -11,7 +11,11 @@ export type ScopeUser = NonNullable<PuckMetadata["user"]>;
 /** True when the user is a department-only editor (not global or campus admin). */
 export function isDepartmentUser(user: ScopeUser | undefined): boolean {
   if (!user) return false;
-  return !user.isGlobalAdmin && !user.isCampusAdmin && user.departmentNames.length > 0;
+  return (
+    !user.isGlobalAdmin &&
+    !user.isCampusAdmin &&
+    user.departmentNames.length > 0
+  );
 }
 
 /**

@@ -31,19 +31,23 @@ export async function getDepartments(): Promise<DimensionElement[]> {
           // middleware overwrites this with a live token before each request.
           header: { Authorization: "" },
         },
-      },
+      }
     );
     console.log("Response:", response);
 
     if (error) {
-      throw new Error(`[Finago] Failed to fetch departments: ${JSON.stringify(error)}`);
+      throw new Error(
+        `[Finago] Failed to fetch departments: ${JSON.stringify(error)}`
+      );
     }
 
     if (data) {
       results.push(...data);
     }
 
-    continuationToken = parseNextContinuationToken(response.headers.get("Link"));
+    continuationToken = parseNextContinuationToken(
+      response.headers.get("Link")
+    );
   } while (continuationToken);
 
   return results;
@@ -53,7 +57,9 @@ export async function getDepartments(): Promise<DimensionElement[]> {
  * Parses the `continuationToken` query parameter from a Link header's `next` relation.
  * Example header: `<https://...?continuationToken=abc>; rel="next"`
  */
-function parseNextContinuationToken(linkHeader: string | null): string | undefined {
+function parseNextContinuationToken(
+  linkHeader: string | null
+): string | undefined {
   if (!linkHeader) return undefined;
 
   for (const part of linkHeader.split(",")) {

@@ -2,9 +2,16 @@ import { Columns, type ColumnsProps } from "@repo/ui/components/puck/columns";
 import { Section } from "@repo/ui/components/puck/section";
 import { Spacer, type SpacerProps } from "@repo/ui/components/puck/spacer";
 import { Tabs, type TabsProps } from "@repo/ui/components/puck/tabs";
-import type { ColumnsPropsWithSlots, SectionPropsWithSlot, TabsPropsWithSlots } from "./types";
+import type {
+  ColumnsPropsWithSlots,
+  SectionPropsWithSlot,
+  TabsPropsWithSlots,
+} from "./types";
 
-export function SectionRender({ content: Content, ...props }: SectionPropsWithSlot) {
+export function SectionRender({
+  content: Content,
+  ...props
+}: SectionPropsWithSlot) {
   return <Section {...props}>{Content && <Content />}</Section>;
 }
 

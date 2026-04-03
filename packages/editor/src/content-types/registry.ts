@@ -39,7 +39,7 @@ function createId(prefix: string): string {
 function buildItem(
   config: Config,
   type: string,
-  props: Record<string, unknown> = {},
+  props: Record<string, unknown> = {}
 ): ComponentData {
   const defaults =
     (config.components?.[type]?.defaultProps as Record<string, unknown>) ?? {};
@@ -58,11 +58,19 @@ function buildItem(
 const homepage: ContentTypeDefinition = {
   key: "homepage",
   name: "Homepage",
-  description: "Main landing page with hero carousel, featured content, and highlights",
+  description:
+    "Main landing page with hero carousel, featured content, and highlights",
   icon: "Home",
   family: "page",
   suggestedBlocks: [
-    "Hero", "About", "Events", "News", "JoinUs", "LogoGrid", "FeatureGrid", "StatsGrid",
+    "Hero",
+    "About",
+    "Events",
+    "News",
+    "JoinUs",
+    "LogoGrid",
+    "FeatureGrid",
+    "StatsGrid",
   ],
   buildStarter: (cfg) => [
     buildItem(cfg, "Hero", {
@@ -91,9 +99,21 @@ const homepage: ContentTypeDefinition = {
       columns: 3,
       variant: "icon",
       items: [
-        { title: "Community", description: "Connect with fellow students", icon: "Heart" },
-        { title: "Events", description: "Unforgettable experiences", icon: "Calendar" },
-        { title: "Career", description: "Professional development", icon: "Briefcase" },
+        {
+          title: "Community",
+          description: "Connect with fellow students",
+          icon: "Heart",
+        },
+        {
+          title: "Events",
+          description: "Unforgettable experiences",
+          icon: "Calendar",
+        },
+        {
+          title: "Career",
+          description: "Professional development",
+          icon: "Briefcase",
+        },
       ],
     }),
     buildItem(cfg, "Events", { dataMode: "dynamic", scope: "all" }),
@@ -289,7 +309,13 @@ const departmentDetail: ContentTypeDefinition = {
   icon: "Users",
   family: "page",
   suggestedBlocks: [
-    "Hero", "Tabs", "FeatureGrid", "TeamGrid", "News", "ProductsGrid", "CTA",
+    "Hero",
+    "Tabs",
+    "FeatureGrid",
+    "TeamGrid",
+    "News",
+    "ProductsGrid",
+    "CTA",
   ],
   buildStarter: (cfg) => [
     buildItem(cfg, "Hero", {
@@ -361,7 +387,13 @@ const productDetail: ContentTypeDefinition = {
   description: "Single product page with images, pricing, and details",
   icon: "Package",
   family: "page",
-  suggestedBlocks: ["PageHeader", "Image", "RichText", "ButtonRow", "ProductsGrid"],
+  suggestedBlocks: [
+    "PageHeader",
+    "Image",
+    "RichText",
+    "ButtonRow",
+    "ProductsGrid",
+  ],
   buildStarter: (cfg) => [
     buildItem(cfg, "PageHeader", {
       title: "Product Name",
@@ -404,7 +436,11 @@ const membership: ContentTypeDefinition = {
           price: "149",
           currency: "kr",
           period: "semester",
-          features: ["Event discounts", "Member prices in shop", "Community access"],
+          features: [
+            "Event discounts",
+            "Member prices in shop",
+            "Community access",
+          ],
           highlighted: false,
         },
         {
@@ -412,7 +448,11 @@ const membership: ContentTypeDefinition = {
           price: "249",
           currency: "kr",
           period: "year",
-          features: ["Everything in Semester", "Priority event access", "Exclusive merch"],
+          features: [
+            "Everything in Semester",
+            "Priority event access",
+            "Exclusive merch",
+          ],
           highlighted: true,
         },
       ],
@@ -422,16 +462,34 @@ const membership: ContentTypeDefinition = {
       columns: 3,
       variant: "card",
       items: [
-        { title: "Discounts", description: "Save on events and products", icon: "Percent" },
-        { title: "Priority Access", description: "First in line for events", icon: "Zap" },
-        { title: "Community", description: "Join exclusive groups", icon: "Users" },
+        {
+          title: "Discounts",
+          description: "Save on events and products",
+          icon: "Percent",
+        },
+        {
+          title: "Priority Access",
+          description: "First in line for events",
+          icon: "Zap",
+        },
+        {
+          title: "Community",
+          description: "Join exclusive groups",
+          icon: "Users",
+        },
       ],
     }),
     buildItem(cfg, "Accordion", {
       title: "Frequently Asked Questions",
       items: [
-        { title: "How do I become a member?", content: "Sign up through our member portal." },
-        { title: "Can I cancel my membership?", content: "Memberships are non-refundable but transferable." },
+        {
+          title: "How do I become a member?",
+          content: "Sign up through our member portal.",
+        },
+        {
+          title: "Can I cancel my membership?",
+          content: "Memberships are non-refundable but transferable.",
+        },
       ],
     }),
   ],
@@ -444,7 +502,13 @@ const aboutInfo: ContentTypeDefinition = {
   description: "General information page with rich content and navigation",
   icon: "Info",
   family: "page",
-  suggestedBlocks: ["PageHeader", "RichText", "TableOfContents", "Accordion", "Image"],
+  suggestedBlocks: [
+    "PageHeader",
+    "RichText",
+    "TableOfContents",
+    "Accordion",
+    "Image",
+  ],
   buildStarter: (cfg) => [
     buildItem(cfg, "PageHeader", {
       title: "About Us",
@@ -454,7 +518,8 @@ const aboutInfo: ContentTypeDefinition = {
     }),
     buildItem(cfg, "TableOfContents"),
     buildItem(cfg, "RichText", {
-      content: "Page content goes here. Use headings to create sections that appear in the table of contents.",
+      content:
+        "Page content goes here. Use headings to create sections that appear in the table of contents.",
       variant: "default",
     }),
     buildItem(cfg, "Spacer", { size: "md" }),
@@ -549,7 +614,7 @@ export const CONTENT_TYPES: ContentTypeDefinition[] = [
 ];
 
 export const CONTENT_TYPE_MAP = new Map(
-  CONTENT_TYPES.map((ct) => [ct.key, ct]),
+  CONTENT_TYPES.map((ct) => [ct.key, ct])
 );
 
 /**
@@ -588,7 +653,7 @@ export function getRestrictedBlocks(contentTypeKey: string): string[] {
  */
 export function buildStarterTemplate(
   contentTypeKey: string,
-  config: Config,
+  config: Config
 ): ComponentData[] {
   const ct = CONTENT_TYPE_MAP.get(contentTypeKey);
   if (!ct) return [];

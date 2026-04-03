@@ -162,13 +162,14 @@ async function loadProduct(
   }
 
   const translation = Array.isArray(product.translation_refs)
-    ? product.translation_refs.find(
+    ? (product.translation_refs.find(
         (item): item is ContentTranslations =>
           typeof item === "object" && item !== null && item.locale === locale
-      ) ?? product.translation_refs.find(
+      ) ??
+      product.translation_refs.find(
         (item): item is ContentTranslations =>
           typeof item === "object" && item !== null && "title" in item
-      )
+      ))
     : null;
 
   const metadataParsed = parseProductMetadata(product.metadata);

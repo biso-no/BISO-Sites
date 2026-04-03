@@ -53,8 +53,8 @@ async function JobsList({
   }).length;
 
   const departmentCount =
-    new Set(jobs.map((job) => job.department_id).filter(Boolean))
-      .size || jobCategories.length;
+    new Set(jobs.map((job) => job.department_id).filter(Boolean)).size ||
+    jobCategories.length;
 
   return (
     <>

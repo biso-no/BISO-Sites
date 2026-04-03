@@ -25,7 +25,10 @@ import type { TextProps } from "@repo/ui/components/puck/text";
 import type { TimelineProps } from "@repo/ui/components/puck/timeline";
 import type { CollectionItem } from "@repo/ui/components/puck/collection/types";
 import type { AboutProps } from "@repo/ui/components/sections/about";
-import type { EventItem, EventsProps } from "@repo/ui/components/sections/events";
+import type {
+  EventItem,
+  EventsProps,
+} from "@repo/ui/components/sections/events";
 import type { JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
 import type {
@@ -62,7 +65,10 @@ export type ColumnsPropsWithSlots = ColumnsProps & {
   "col-2"?: SlotComponent;
 };
 
-export type TabsPropsWithSlots = Omit<TabsProps, "tab0" | "tab1" | "tab2" | "tab3" | "ref"> & {
+export type TabsPropsWithSlots = Omit<
+  TabsProps,
+  "tab0" | "tab1" | "tab2" | "tab3" | "ref"
+> & {
   tab0?: SlotComponent;
   tab1?: SlotComponent;
   tab2?: SlotComponent;

@@ -22,7 +22,10 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { isGlobalAdmin } from "@/lib/authorization";
-import { buildContentPermissions, buildPagePermissions } from "@/lib/permissions";
+import {
+  buildContentPermissions,
+  buildPagePermissions,
+} from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
 
 const DATABASE_ID = "app";
@@ -47,7 +50,9 @@ type ContentRow = {
  * e.g. dept name "Operations Unit" -> "sg-app-dept-operationsunit"
  *      dept name "OperationsUnit"  -> "sg-app-dept-operationsunit"
  */
-function getDeptTeamIdFromDeptName(deptName: string | null | undefined): string | null {
+function getDeptTeamIdFromDeptName(
+  deptName: string | null | undefined
+): string | null {
   if (!deptName) return null;
   // Collapse spaces so "Operations Unit" -> "OperationsUnit" -> "sg-app-dept-operationsunit"
   const normalized = deptName.replace(/\s+/g, "");
@@ -66,7 +71,13 @@ async function backfillContentTable(
 
   while (true) {
     const response = await db.listRows<ContentRow>(DATABASE_ID, tableId, [
-      Query.select(["$id", "campus_id", departmentIdField, "status", "translation_refs.$id"]),
+      Query.select([
+        "$id",
+        "campus_id",
+        departmentIdField,
+        "status",
+        "translation_refs.$id",
+      ]),
       Query.limit(BATCH_SIZE),
       Query.offset(offset),
     ]);
@@ -76,10 +87,14 @@ async function backfillContentTable(
     for (const row of response.rows) {
       try {
         const deptName =
-          departmentIdField === "departmentId" ? row.departmentId : row.department_id;
+          departmentIdField === "departmentId"
+            ? row.departmentId
+            : row.department_id;
 
         const departmentTeamId = getDeptTeamIdFromDeptName(deptName);
-        const campusManagementTeamId = getCampusManagementTeamId(row.campus_id ?? "");
+        const campusManagementTeamId = getCampusManagementTeamId(
+          row.campus_id ?? ""
+        );
 
         const permissions = buildContentPermissions({
           status: row.status ?? "draft",
@@ -97,7 +112,13 @@ async function backfillContentTable(
           const translationTableId =
             tableId === "pages" ? "page_translations" : "content_translations";
           try {
-            await db.updateRow(DATABASE_ID, translationTableId, ref.$id, {}, permissions);
+            await db.updateRow(
+              DATABASE_ID,
+              translationTableId,
+              ref.$id,
+              {},
+              permissions
+            );
             translationsUpdated++;
           } catch (transErr) {
             console.error(
@@ -122,7 +143,10 @@ async function backfillContentTable(
 
 export async function runPermissionsMigration(): Promise<{
   success: boolean;
-  results: Record<string, { updated: number; translationsUpdated: number; errors: number }>;
+  results: Record<
+    string,
+    { updated: number; translationsUpdated: number; errors: number }
+  >;
   error?: string;
 }> {
   if (!(await isGlobalAdmin())) {
@@ -149,7 +173,11 @@ export async function runPermissionsMigration(): Promise<{
 
   for (const table of tables) {
     console.log(`Backfilling permissions for ${table.id}...`);
-    results[table.id] = await backfillContentTable(db, table.id, table.deptField);
+    results[table.id] = await backfillContentTable(
+      db,
+      table.id,
+      table.deptField
+    );
     console.log(`${table.id}: ${JSON.stringify(results[table.id])}`);
   }
 

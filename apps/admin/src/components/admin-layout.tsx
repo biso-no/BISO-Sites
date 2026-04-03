@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  Gift,
   LayoutDashboard,
   LogOut,
   Settings,
@@ -312,6 +313,34 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
       ],
     },
     {
+      href: "/membership/benefits",
+      icon: Gift,
+      label: t("navigation.benefits"),
+      roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+      subItems: [
+        {
+          href: "/membership/benefits",
+          label: t("benefitsSubItems.allBenefits"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+        },
+        {
+          href: "/membership/benefits/new",
+          label: t("benefitsSubItems.createBenefit"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+        },
+        {
+          href: "/membership/partners",
+          label: t("benefitsSubItems.partners"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+        },
+        {
+          href: "/membership/analytics",
+          label: t("benefitsSubItems.analytics"),
+          roles: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+        },
+      ],
+    },
+    {
       href: "/units",
       icon: Building2,
       label: t("navigation.units"),
@@ -394,7 +423,11 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
             className="h-6 w-6"
             height={24}
             onClick={() => router.push("/")}
-            src={theme === "dark" ? "/images/logo-dark.png" : "/images/logo-light.png"}
+            src={
+              theme === "dark"
+                ? "/images/logo-dark.png"
+                : "/images/logo-light.png"
+            }
             width={24}
           />
           {isSidebarExpanded && (

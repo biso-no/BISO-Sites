@@ -31,7 +31,7 @@ export function NewsTab({ news }: NewsTabProps) {
 
       {news.length > 0 ? (
         <div className="space-y-6">
-          {news.map((newsItem, index) => (
+          {news.map((newsItem, index) =>
             (() => {
               const translation = Array.isArray(newsItem.translation_refs)
                 ? newsItem.translation_refs.find(
@@ -43,62 +43,63 @@ export function NewsTab({ news }: NewsTabProps) {
                 : null;
 
               return (
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              initial={{ opacity: 0, y: 20 }}
-              key={newsItem.$id}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Link href={`/news/${newsItem.$id}`}>
-                <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
-                  <div className="md:flex">
-                    <div className="relative h-64 overflow-hidden md:h-auto md:w-1/3">
-                      {newsItem.image && (
-                        <ImageWithFallback
-                          alt={translation?.title || "News"}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                          fill
-                          src={newsItem.image}
-                        />
-                      )}
-                      <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">
-                        News
-                      </Badge>
-                    </div>
-                    <div className="p-8 md:w-2/3">
-                      <div className="mb-4 flex items-center gap-2 text-muted-foreground text-sm">
-                        <Calendar className="h-4 w-4 text-brand" />
-                        {new Date(
-                          newsItem.$createdAt
-                        ).toLocaleDateString("en-US", {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  key={newsItem.$id}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Link href={`/news/${newsItem.$id}`}>
+                    <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
+                      <div className="md:flex">
+                        <div className="relative h-64 overflow-hidden md:h-auto md:w-1/3">
+                          {newsItem.image && (
+                            <ImageWithFallback
+                              alt={translation?.title || "News"}
+                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              fill
+                              src={newsItem.image}
+                            />
+                          )}
+                          <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">
+                            News
+                          </Badge>
+                        </div>
+                        <div className="p-8 md:w-2/3">
+                          <div className="mb-4 flex items-center gap-2 text-muted-foreground text-sm">
+                            <Calendar className="h-4 w-4 text-brand" />
+                            {new Date(newsItem.$createdAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "long",
+                                day: "numeric",
+                                year: "numeric",
+                              }
+                            )}
+                          </div>
+                          <h3 className="mb-4 font-bold text-2xl text-foreground transition-colors group-hover:text-brand">
+                            {translation?.title || "Untitled"}
+                          </h3>
+                          <p className="mb-6 line-clamp-3 text-muted-foreground">
+                            {translation?.description ||
+                              translation?.short_description ||
+                              ""}
+                          </p>
+                          <Button
+                            className="border-brand-border text-brand hover:bg-brand-muted"
+                            variant="outline"
+                          >
+                            Read More
+                            <ExternalLink className="ml-2 h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <h3 className="mb-4 font-bold text-2xl text-foreground transition-colors group-hover:text-brand">
-                        {translation?.title || "Untitled"}
-                      </h3>
-                      <p className="mb-6 line-clamp-3 text-muted-foreground">
-                        {translation?.description ||
-                          translation?.short_description ||
-                          ""}
-                      </p>
-                      <Button
-                        className="border-brand-border text-brand hover:bg-brand-muted"
-                        variant="outline"
-                      >
-                        Read More
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            </motion.div>
+                    </Card>
+                  </Link>
+                </motion.div>
               );
             })()
-          ))}
+          )}
         </div>
       ) : (
         <Card className="border-0 p-12 text-center shadow-lg">

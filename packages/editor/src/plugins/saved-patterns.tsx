@@ -94,7 +94,11 @@ function PatternCard({
         </div>
       </div>
       <div className="flex items-center gap-2 pt-1">
-        <Button size="sm" className="h-7 text-xs" onClick={() => onInsert(pattern)}>
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => onInsert(pattern)}
+        >
           <Download size={12} className="mr-1" />
           Insert
         </Button>
@@ -156,7 +160,10 @@ function SavePatternForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2 rounded-md border border-border p-3">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-2 rounded-md border border-border p-3"
+    >
       <Label className="text-xs">Pattern name</Label>
       <Input
         placeholder="e.g. Hero with CTA"

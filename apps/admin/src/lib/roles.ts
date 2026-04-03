@@ -56,6 +56,11 @@ export const NAV_ACCESS = {
   settings: [ROLES.GLOBAL_ADMIN],
   settingsProfile: [ROLES.GLOBAL_ADMIN],
   settingsSecurity: [ROLES.GLOBAL_ADMIN],
+  // Membership & Benefits
+  membership: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  benefits: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  benefitsPartners: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  benefitsAnalytics: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
 } as const;
 
 export type NavKey = keyof typeof NAV_ACCESS;

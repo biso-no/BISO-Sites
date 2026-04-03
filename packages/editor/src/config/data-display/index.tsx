@@ -79,12 +79,14 @@ export const DataDisplayComponents = {
             user?.departmentNames?.[0] ?? "your department"
           ) as any;
         }
-        fields.dataSource = buildExternalDataSourceField("news", "News Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "news",
+          "News Source"
+        ) as any;
       } else {
         fields.news = {
           type: "array",
-          getItemSummary: (item: { title?: string }) =>
-            item.title || "Article",
+          getItemSummary: (item: { title?: string }) => item.title || "Article",
           arrayFields: {
             title: { type: "text" },
             description: { type: "textarea" },
@@ -115,7 +117,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorNewsProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource", "scope"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -158,7 +166,12 @@ export const DataDisplayComponents = {
     },
     render: (props: EditorNewsProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="News" itemCount={props.dataSource?.limit ?? 6} />;
+        return (
+          <DataBlockPlaceholder
+            type="News"
+            itemCount={props.dataSource?.limit ?? 6}
+          />
+        );
       }
       return <FilteredNews {...props} />;
     },
@@ -169,7 +182,9 @@ export const DataDisplayComponents = {
         table: "news",
         limit: 6,
         sort: { field: "$createdAt", direction: "desc" },
-        filters: [{ field: "status", operator: "equal", value: "published" }] as DataSourceValue["filters"],
+        filters: [
+          { field: "status", operator: "equal", value: "published" },
+        ] as DataSourceValue["filters"],
       },
       news: [] as NewsItem[],
       labels: {
@@ -199,7 +214,10 @@ export const DataDisplayComponents = {
             user?.departmentNames?.[0] ?? "your department"
           ) as any;
         }
-        fields.dataSource = buildExternalDataSourceField("events", "Events Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "events",
+          "Events Source"
+        ) as any;
       } else {
         fields.events = {
           type: "array",
@@ -245,7 +263,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorEventsProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource", "scope"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -289,7 +313,12 @@ export const DataDisplayComponents = {
     },
     render: (props: EditorEventsProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Events" itemCount={props.dataSource?.limit ?? 6} />;
+        return (
+          <DataBlockPlaceholder
+            type="Events"
+            itemCount={props.dataSource?.limit ?? 6}
+          />
+        );
       }
       return <FilteredEvents {...props} />;
     },
@@ -334,7 +363,10 @@ export const DataDisplayComponents = {
             user?.departmentNames?.[0] ?? "your department"
           ) as any;
         }
-        fields.dataSource = buildExternalDataSourceField("jobs", "Jobs Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "jobs",
+          "Jobs Source"
+        ) as any;
       } else {
         fields.jobs = {
           type: "array",
@@ -376,7 +408,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorJobsListProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource", "scope"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -438,7 +476,12 @@ export const DataDisplayComponents = {
     },
     render: (props: EditorJobsListProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Jobs List" itemCount={props.dataSource?.limit ?? 12} />;
+        return (
+          <DataBlockPlaceholder
+            type="Jobs List"
+            itemCount={props.dataSource?.limit ?? 12}
+          />
+        );
       }
       return <JobsList {...props} />;
     },
@@ -449,7 +492,9 @@ export const DataDisplayComponents = {
         table: "jobs",
         limit: 12,
         sort: { field: "$createdAt", direction: "desc" },
-        filters: [{ field: "status", operator: "equal", value: "published" }] as DataSourceValue["filters"],
+        filters: [
+          { field: "status", operator: "equal", value: "published" },
+        ] as DataSourceValue["filters"],
       },
       jobs: [] as JobItem[],
       labels: {
@@ -496,12 +541,14 @@ export const DataDisplayComponents = {
             user?.departmentNames?.[0] ?? "your department"
           ) as any;
         }
-        fields.dataSource = buildExternalDataSourceField("products", "Products Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "products",
+          "Products Source"
+        ) as any;
       } else {
         fields.products = {
           type: "array",
-          getItemSummary: (item: { title?: string }) =>
-            item.title || "Product",
+          getItemSummary: (item: { title?: string }) => item.title || "Product",
           arrayFields: {
             id: { type: "text" },
             title: { type: "text" },
@@ -524,7 +571,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorProductsGridProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource", "scope"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -580,7 +633,12 @@ export const DataDisplayComponents = {
     },
     render: (props: EditorProductsGridProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Products Grid" itemCount={props.dataSource?.limit ?? 8} />;
+        return (
+          <DataBlockPlaceholder
+            type="Products Grid"
+            itemCount={props.dataSource?.limit ?? 8}
+          />
+        );
       }
       return <ProductsGrid {...props} />;
     },
@@ -668,7 +726,13 @@ export const DataDisplayComponents = {
           // Collection allows any schema — build a combined list from all schemas
           fetchList: async () =>
             TABLE_SCHEMAS.flatMap((schema) => [
-              { id: `${schema.id}-default`, title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
+              {
+                id: `${schema.id}-default`,
+                title: `All ${schema.label}`,
+                table: schema.id,
+                filters: [],
+                sort: schema.defaultSort,
+              },
               ...(schema.presetFilters ?? []).map((p, i) => ({
                 id: `${schema.id}-preset-${i}`,
                 title: p.label,
@@ -749,7 +813,13 @@ export const DataDisplayComponents = {
       { props }: { props: EditorCollectionProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -784,7 +854,12 @@ export const DataDisplayComponents = {
     },
     render: (props: EditorCollectionProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Collection" itemCount={props.dataSource?.limit ?? 6} />;
+        return (
+          <DataBlockPlaceholder
+            type="Collection"
+            itemCount={props.dataSource?.limit ?? 6}
+          />
+        );
       }
       return <Collection {...props} />;
     },
@@ -841,7 +916,10 @@ export const DataDisplayComponents = {
             user?.departmentNames?.[0] ?? "your department"
           ) as any;
         }
-        fields.dataSource = buildExternalDataSourceField("departments", "Departments Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "departments",
+          "Departments Source"
+        ) as any;
       } else {
         fields.items = {
           type: "array",
@@ -864,7 +942,13 @@ export const DataDisplayComponents = {
       { props }: { props: DepartmentsGridProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource", "scope"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -877,7 +961,13 @@ export const DataDisplayComponents = {
         const user = editorMetadata?.user as ScopeUser | undefined;
         const locale = editorMetadata?.locale ?? props.dataSource.locale;
         const scopeFilters = isDepartmentUser(user)
-          ? [{ field: "Name", operator: "equal", value: user!.departmentNames[0]! }]
+          ? [
+              {
+                field: "Name",
+                operator: "equal",
+                value: user!.departmentNames[0]!,
+              },
+            ]
           : [];
 
         const items = await getDynamicContent({
@@ -905,7 +995,12 @@ export const DataDisplayComponents = {
     },
     render: (props: DepartmentsGridProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Departments Grid" itemCount={props.dataSource?.limit ?? 12} />;
+        return (
+          <DataBlockPlaceholder
+            type="Departments Grid"
+            itemCount={props.dataSource?.limit ?? 12}
+          />
+        );
       }
       const layout = props.variant === "compact" ? "compact-card" : "card-grid";
       return (
@@ -976,7 +1071,10 @@ export const DataDisplayComponents = {
             user?.departmentNames?.[0] ?? "your department"
           ) as any;
         }
-        fields.dataSource = buildExternalDataSourceField("events", "Events Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "events",
+          "Events Source"
+        ) as any;
       } else {
         fields.events = {
           type: "array",
@@ -1008,7 +1106,13 @@ export const DataDisplayComponents = {
       { props }: { props: EventsCalendarProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -1052,7 +1156,12 @@ export const DataDisplayComponents = {
     },
     render: (props: EventsCalendarProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Events Calendar" itemCount={props.dataSource?.limit ?? 20} />;
+        return (
+          <DataBlockPlaceholder
+            type="Events Calendar"
+            itemCount={props.dataSource?.limit ?? 20}
+          />
+        );
       }
       return (
         <FilteredEvents
@@ -1114,7 +1223,10 @@ export const DataDisplayComponents = {
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.dataSource = buildExternalDataSourceField("news", "Article Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "news",
+          "Article Source"
+        ) as any;
       } else {
         fields.title = { type: "text", label: "Title" };
         fields.author = { type: "text", label: "Author" };
@@ -1127,8 +1239,7 @@ export const DataDisplayComponents = {
         fields.relatedItems = {
           type: "array",
           label: "Related Articles",
-          getItemSummary: (item: { title?: string }) =>
-            item.title || "Article",
+          getItemSummary: (item: { title?: string }) => item.title || "Article",
           arrayFields: {
             title: { type: "text", label: "Title" },
             href: { type: "text", label: "Link" },
@@ -1143,7 +1254,13 @@ export const DataDisplayComponents = {
       { props }: { props: ArticleDetailProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -1176,7 +1293,13 @@ export const DataDisplayComponents = {
             image: article.image || "",
             content: article.description || "",
           },
-          readOnly: { title: true, author: true, date: true, image: true, content: true },
+          readOnly: {
+            title: true,
+            author: true,
+            date: true,
+            image: true,
+            content: true,
+          },
         };
       } catch (e) {
         console.error("Failed to resolve article detail", e);
@@ -1185,7 +1308,12 @@ export const DataDisplayComponents = {
     },
     render: (props: ArticleDetailProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Article Detail" itemCount={props.dataSource?.limit ?? 1} />;
+        return (
+          <DataBlockPlaceholder
+            type="Article Detail"
+            itemCount={props.dataSource?.limit ?? 1}
+          />
+        );
       }
       const isWide = props.layout === "wide";
       return (
@@ -1299,7 +1427,10 @@ export const DataDisplayComponents = {
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.dataSource = buildExternalDataSourceField("events", "Event Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "events",
+          "Event Source"
+        ) as any;
       } else {
         fields.title = { type: "text", label: "Title" };
         fields.date = { type: "text", label: "Start Date" };
@@ -1317,7 +1448,13 @@ export const DataDisplayComponents = {
       { props }: { props: EventDetailProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -1355,7 +1492,16 @@ export const DataDisplayComponents = {
             price: (meta.price as string) || "",
             ticketUrl: (meta.ticketUrl as string) || event.href || "",
           },
-          readOnly: { title: true, date: true, endDate: true, location: true, image: true, description: true, price: true, ticketUrl: true },
+          readOnly: {
+            title: true,
+            date: true,
+            endDate: true,
+            location: true,
+            image: true,
+            description: true,
+            price: true,
+            ticketUrl: true,
+          },
         };
       } catch (e) {
         console.error("Failed to resolve event detail", e);
@@ -1364,7 +1510,12 @@ export const DataDisplayComponents = {
     },
     render: (props: EventDetailProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Event Detail" itemCount={props.dataSource?.limit ?? 1} />;
+        return (
+          <DataBlockPlaceholder
+            type="Event Detail"
+            itemCount={props.dataSource?.limit ?? 1}
+          />
+        );
       }
       const formatDate = (d?: string) => {
         if (!d) return "";

@@ -1,5 +1,9 @@
 "use client";
-import { CTA, type CTAButton, type CTAProps } from "@repo/ui/components/puck/cta";
+import {
+  CTA,
+  type CTAButton,
+  type CTAProps,
+} from "@repo/ui/components/puck/cta";
 import {
   About,
   type AboutProps,
@@ -12,7 +16,11 @@ import {
   type JoinUsDuration,
 } from "@repo/ui/components/sections/join-us";
 import { ALIGN_OPTIONS, GRADIENT_OPTIONS, ICON_OPTIONS } from "../puck-tokens";
-import type { CountdownProps, EditorJoinUsProps, PricingTableProps } from "./types";
+import type {
+  CountdownProps,
+  EditorJoinUsProps,
+  PricingTableProps,
+} from "./types";
 
 export const MarketingComponents = {
   CTA: {
@@ -96,28 +104,70 @@ export const MarketingComponents = {
 
       return base;
     },
-    render: (props: CTAProps & { variant?: string; tint?: string; icon?: string; showForCampus?: string; campusBadge?: string }) => {
+    render: (
+      props: CTAProps & {
+        variant?: string;
+        tint?: string;
+        icon?: string;
+        showForCampus?: string;
+        campusBadge?: string;
+      }
+    ) => {
       const variant = props.variant as string | undefined;
 
       if (variant === "info-card") {
-        const tintStyles: Record<string, { wrapper: string; title: string; desc: string; btn: string }> = {
-          blue:   { wrapper: "bg-blue-50 border-blue-200",   title: "text-blue-900",   desc: "text-blue-700",   btn: "bg-blue-600 text-white hover:bg-blue-700" },
-          indigo: { wrapper: "bg-indigo-50 border-indigo-200", title: "text-indigo-900", desc: "text-indigo-700", btn: "bg-indigo-600 text-white hover:bg-indigo-700" },
-          amber:  { wrapper: "bg-amber-50 border-amber-200",  title: "text-amber-900",  desc: "text-amber-700",  btn: "bg-amber-600 text-white hover:bg-amber-700" },
-          green:  { wrapper: "bg-emerald-50 border-emerald-200", title: "text-emerald-900", desc: "text-emerald-700", btn: "bg-emerald-600 text-white hover:bg-emerald-700" },
-          red:    { wrapper: "bg-red-50 border-red-200",      title: "text-red-900",    desc: "text-red-700",    btn: "bg-red-600 text-white hover:bg-red-700" },
+        const tintStyles: Record<
+          string,
+          { wrapper: string; title: string; desc: string; btn: string }
+        > = {
+          blue: {
+            wrapper: "bg-blue-50 border-blue-200",
+            title: "text-blue-900",
+            desc: "text-blue-700",
+            btn: "bg-blue-600 text-white hover:bg-blue-700",
+          },
+          indigo: {
+            wrapper: "bg-indigo-50 border-indigo-200",
+            title: "text-indigo-900",
+            desc: "text-indigo-700",
+            btn: "bg-indigo-600 text-white hover:bg-indigo-700",
+          },
+          amber: {
+            wrapper: "bg-amber-50 border-amber-200",
+            title: "text-amber-900",
+            desc: "text-amber-700",
+            btn: "bg-amber-600 text-white hover:bg-amber-700",
+          },
+          green: {
+            wrapper: "bg-emerald-50 border-emerald-200",
+            title: "text-emerald-900",
+            desc: "text-emerald-700",
+            btn: "bg-emerald-600 text-white hover:bg-emerald-700",
+          },
+          red: {
+            wrapper: "bg-red-50 border-red-200",
+            title: "text-red-900",
+            desc: "text-red-700",
+            btn: "bg-red-600 text-white hover:bg-red-700",
+          },
         };
         const s = tintStyles[props.tint ?? "blue"] ?? tintStyles.blue;
         return (
           <div className={`w-full rounded-2xl border p-8 ${s.wrapper}`}>
-            <h3 className={`text-xl font-bold ${s.title}`}>{props.title || "Title"}</h3>
+            <h3 className={`text-xl font-bold ${s.title}`}>
+              {props.title || "Title"}
+            </h3>
             {props.description && (
               <p className={`mt-2 text-sm ${s.desc}`}>{props.description}</p>
             )}
             {(props.buttons ?? []).length > 0 && (
               <div className="mt-5 flex flex-wrap gap-3">
                 {(props.buttons ?? []).map((btn, i) => (
-                  <a key={i} href={btn.href} className={`inline-flex rounded-lg px-4 py-2 text-sm font-semibold transition ${s.btn}`}>
+                  <a
+                    key={i}
+                    href={btn.href}
+                    className={`inline-flex rounded-lg px-4 py-2 text-sm font-semibold transition ${s.btn}`}
+                  >
                     {btn.label}
                   </a>
                 ))}
@@ -146,7 +196,9 @@ export const MarketingComponents = {
       title: "Ready to join?",
       description: "Get started today.",
       variant: "brand",
-      buttons: [{ label: "Join Now", href: "/join", variant: "white" }] as CTAButton[],
+      buttons: [
+        { label: "Join Now", href: "/join", variant: "white" },
+      ] as CTAButton[],
     },
   },
   About: {
@@ -349,8 +401,13 @@ export const MarketingComponents = {
       heroBadge: "Why Join?",
       heroSubtitle: "Being a member pays off.",
       memberFeaturesHeader: "All memberships include:",
-      memberFeatures: [{ feature: "Event Access" }, { feature: "Discounts" }] as { feature: string }[],
-      benefits: [{ text: "Social Events", iconName: "Sparkles" }] as JoinUsBenefit[],
+      memberFeatures: [
+        { feature: "Event Access" },
+        { feature: "Discounts" },
+      ] as { feature: string }[],
+      benefits: [
+        { text: "Social Events", iconName: "Sparkles" },
+      ] as JoinUsBenefit[],
       durations: [
         {
           name: "1 Year",
@@ -426,9 +483,7 @@ export const MarketingComponents = {
                   {title}
                 </h2>
               )}
-              {subtitle && (
-                <p className="text-lg text-gray-500">{subtitle}</p>
-              )}
+              {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
             </div>
           )}
           {variant === "table" ? (
@@ -573,10 +628,7 @@ export const MarketingComponents = {
           currency: "NOK",
           period: "/month",
           highlighted: false,
-          features: [
-            { value: "Event access" },
-            { value: "Newsletter" },
-          ],
+          features: [{ value: "Event access" }, { value: "Newsletter" }],
           ctaLabel: "Get Started",
           ctaHref: "#",
         },

@@ -20,9 +20,15 @@ function plainDb(db: TablesDB): TablesDB {
   return new Proxy(db, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
-      if ((prop === "listRows" || prop === "getRow") && typeof value === "function") {
+      if (
+        (prop === "listRows" || prop === "getRow") &&
+        typeof value === "function"
+      ) {
         return async (...args: unknown[]) => {
-          const result = await (value as (...a: unknown[]) => unknown).apply(target, args);
+          const result = await (value as (...a: unknown[]) => unknown).apply(
+            target,
+            args
+          );
           return JSON.parse(JSON.stringify(result));
         };
       }

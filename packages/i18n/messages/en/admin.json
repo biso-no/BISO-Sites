@@ -29,6 +29,7 @@
     "units": "Units",
     "users": "Users",
     "membership": "Membership",
+    "benefits": "Benefits",
     "varsling": "Varsling",
     "settings": "Settings"
   },
@@ -49,6 +50,12 @@
   },
   "alumniSubItems": {
     "mentorApprovals": "Mentor Approvals"
+  },
+  "benefitsSubItems": {
+    "allBenefits": "All benefits",
+    "createBenefit": "Create benefit",
+    "partners": "Partners",
+    "analytics": "Analytics"
   },
   "settingsSubItems": {
     "navigation": "Navigation",

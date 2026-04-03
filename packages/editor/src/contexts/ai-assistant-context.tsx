@@ -65,8 +65,9 @@ export type AiAssistantContextValue = {
   onDataReady: (handler: ((data: Data) => void) | null) => void;
 };
 
-export const AiAssistantContext =
-  createContext<AiAssistantContextValue | null>(null);
+export const AiAssistantContext = createContext<AiAssistantContextValue | null>(
+  null
+);
 
 /**
  * Consume the AI assistant context inside the Puck plugin panel.

@@ -2,9 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-} from "@/lib/authorization";
+import { getUserAuthContext } from "@/lib/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import {
@@ -24,7 +22,10 @@ import type {
   JobApplicationFormData,
 } from "@/lib/types/job-application";
 import { JOB_SELECT_FIELDS, normalizeJobRow } from "./_utils/translatable";
-import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
+import {
+  assertWriteAccess,
+  applyScopeQueries,
+} from "@/lib/utils/authorization";
 
 export type ListJobsParams = {
   limit?: number;
@@ -218,7 +219,11 @@ export async function createJob(
     const { db } = await createSessionClient();
     const statusValue = mapJobStatus(data.status);
 
-    const translationRefs = buildJobTranslations("unique()", data.translations, permissions);
+    const translationRefs = buildJobTranslations(
+      "unique()",
+      data.translations,
+      permissions
+    );
 
     const job = (await db.createRow(
       "app",

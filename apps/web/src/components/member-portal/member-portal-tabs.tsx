@@ -1,25 +1,27 @@
 "use client";
 
 import type {
-  MemberBenefit,
+  CampusBenefit,
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
 import { TabNavigation } from "./shared/tab-navigation";
 import { BenefitsTab } from "./tabs/benefits-tab";
+import { HomeTab } from "./tabs/home-tab";
 import { MembershipTab } from "./tabs/membership-tab";
-import { OverviewTab } from "./tabs/overview-tab";
 import { ProfileTab } from "./tabs/profile-tab";
-import { SettingsTab } from "./tabs/settings-tab";
+import { CampusTab } from "./tabs/campus-tab";
+import { OpportunitiesTab } from "./tabs/opportunities-tab";
 
-type MemberPortalTabsProps = {
+interface MemberPortalTabsProps {
   membershipType: string;
   benefitsCount: number;
   daysRemaining: number;
   estimatedSavings: number;
   startDate: string;
   expiryDate: string;
-  benefits: MemberBenefit[];
+  benefits: CampusBenefit[];
+  featuredBenefits?: CampusBenefit[];
   revealedBenefits: Set<string>;
   isMember: boolean;
   hasBIIdentity: boolean;
@@ -29,7 +31,7 @@ type MemberPortalTabsProps = {
   userName: string;
   studentId: string;
   bankAccount?: string;
-};
+}
 
 export function MemberPortalTabs({
   membershipType,
@@ -39,6 +41,7 @@ export function MemberPortalTabs({
   startDate,
   expiryDate,
   benefits,
+  featuredBenefits = [],
   revealedBenefits,
   isMember,
   hasBIIdentity,
@@ -58,12 +61,12 @@ export function MemberPortalTabs({
   return (
     <TabNavigation
       benefitsCount={benefitsCount}
-      defaultTab="overview"
+      defaultTab="home"
       hasBIIdentity={hasBIIdentity}
       isGuest={!profile}
       isMember={isMember}
     >
-      <OverviewTab
+      <HomeTab
         benefits={benefits}
         benefitsCount={benefitsCount}
         daysRemaining={daysRemaining}
@@ -77,11 +80,17 @@ export function MemberPortalTabs({
         startDate={startDate}
       />
 
-      <ProfileTab
-        biEmail={biEmail}
-        publicProfile={publicProfile}
-        user={profile}
+      <BenefitsTab
+        benefits={benefits}
+        featuredBenefits={featuredBenefits}
+        hasBIIdentity={hasBIIdentity}
+        isMember={isMember}
+        revealedBenefits={revealedBenefits}
       />
+
+      <CampusTab />
+
+      <OpportunitiesTab />
 
       <MembershipTab
         autoRenew={false}
@@ -94,14 +103,11 @@ export function MemberPortalTabs({
         userName={userName}
       />
 
-      <BenefitsTab
-        benefits={benefits}
-        hasBIIdentity={hasBIIdentity}
-        isMember={isMember}
-        revealedBenefits={revealedBenefits}
+      <ProfileTab
+        biEmail={biEmail}
+        publicProfile={publicProfile}
+        user={profile}
       />
-
-      <SettingsTab bankAccount={bankAccount} />
     </TabNavigation>
   );
 }

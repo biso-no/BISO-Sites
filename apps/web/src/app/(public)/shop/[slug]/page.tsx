@@ -93,6 +93,7 @@ export async function generateMetadata({
 
   return {
     title: `${translation?.title ?? "Product"} | BISO Shop`,
-    description: translation?.short_description || translation?.description || "",
+    description:
+      translation?.short_description || translation?.description || "",
   };
 }

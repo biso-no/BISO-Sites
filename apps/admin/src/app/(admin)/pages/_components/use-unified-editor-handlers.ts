@@ -42,8 +42,18 @@ type UseUnifiedEditorHandlersProps = {
 // ── Detection helpers ──────────────────────────────────────────────────────
 
 const TEXT_FIELD_KEYS = new Set([
-  "title", "text", "description", "subtitle", "content",
-  "heading", "label", "buttonText", "paragraph", "badge", "bio", "role",
+  "title",
+  "text",
+  "description",
+  "subtitle",
+  "content",
+  "heading",
+  "label",
+  "buttonText",
+  "paragraph",
+  "badge",
+  "bio",
+  "role",
 ]);
 
 function hasTextContent(props: Record<string, unknown>): boolean {
@@ -127,7 +137,9 @@ export function useUnifiedEditorHandlers({
 
   // Translation modal state
   const [showTranslationModal, setShowTranslationModal] = useState(false);
-  const [untranslatedLocales, setUntranslatedLocales] = useState<UntranslatedLocaleInfo[]>([]);
+  const [untranslatedLocales, setUntranslatedLocales] = useState<
+    UntranslatedLocaleInfo[]
+  >([]);
   const [translationProgress, setTranslationProgress] = useState<
     Record<string, "pending" | "translating" | "done" | "error">
   >({});
@@ -157,10 +169,13 @@ export function useUnifiedEditorHandlers({
     }
   ): Promise<{ id: string }> {
     const titleFromRoot =
-      (data.root?.props as Record<string, unknown>)?.title as string | undefined ||
-      metadata.title;
+      ((data.root?.props as Record<string, unknown>)?.title as
+        | string
+        | undefined) || metadata.title;
     const slugFromRoot =
-      (data.root?.props as Record<string, unknown>)?.slug as string | undefined ||
+      ((data.root?.props as Record<string, unknown>)?.slug as
+        | string
+        | undefined) ||
       effectiveSlug ||
       sanitizeSlug(titleFromRoot);
     const resolvedSlug = enforcedDepartmentSlug ?? slugFromRoot;
@@ -230,7 +245,7 @@ export function useUnifiedEditorHandlers({
         ...localeDataRef.current,
         [currentLocale]: {
           title:
-            (data.root?.props as Record<string, unknown>)?.title as string ||
+            ((data.root?.props as Record<string, unknown>)?.title as string) ||
             metadata.title,
           description: metadata.description ?? "",
           data,
@@ -242,7 +257,10 @@ export function useUnifiedEditorHandlers({
       for (const locale of availableLocales) {
         const locData = tentative[locale];
         if (!locData) continue;
-        const rootProps = (locData.data.root?.props ?? {}) as Record<string, unknown>;
+        const rootProps = (locData.data.root?.props ?? {}) as Record<
+          string,
+          unknown
+        >;
         const hasSeo =
           (rootProps.seoTitle as string)?.trim() ||
           (rootProps.seoDescription as string)?.trim();
@@ -316,7 +334,9 @@ export function useUnifiedEditorHandlers({
 
     setIsTranslating(true);
     try {
-      const titleFromRoot = (data.root?.props as Record<string, unknown>)?.title as string || metadata.title;
+      const titleFromRoot =
+        ((data.root?.props as Record<string, unknown>)?.title as string) ||
+        metadata.title;
 
       const result = await translatePageContent({
         sourceLocale: currentLocale,
@@ -399,7 +419,7 @@ export function useUnifiedEditorHandlers({
       ...localeDataRef.current,
       [currentLocale]: {
         title:
-          (data.root?.props as Record<string, unknown>)?.title as string ||
+          ((data.root?.props as Record<string, unknown>)?.title as string) ||
           metadata.title,
         description: metadata.description ?? "",
         data,
@@ -428,7 +448,9 @@ export function useUnifiedEditorHandlers({
       pendingPublishRef.current = { data, metadata, tentativeLocaleData };
       setUntranslatedLocales(untranslated);
       setTranslationProgress(
-        Object.fromEntries(untranslated.map((u) => [u.locale, "pending" as const]))
+        Object.fromEntries(
+          untranslated.map((u) => [u.locale, "pending" as const])
+        )
       );
       setShowTranslationModal(true);
       return;
@@ -447,7 +469,9 @@ export function useUnifiedEditorHandlers({
     const { data, metadata, tentativeLocaleData } = pending;
 
     // Start from the tentative snapshot so current-locale edits are captured
-    let latestLocaleData: Record<string, LocaleData | null> = { ...tentativeLocaleData };
+    let latestLocaleData: Record<string, LocaleData | null> = {
+      ...tentativeLocaleData,
+    };
 
     try {
       for (const info of untranslatedLocales) {
@@ -492,9 +516,15 @@ export function useUnifiedEditorHandlers({
             },
           };
 
-          setTranslationProgress((prev) => ({ ...prev, [info.locale]: "done" }));
+          setTranslationProgress((prev) => ({
+            ...prev,
+            [info.locale]: "done",
+          }));
         } catch {
-          setTranslationProgress((prev) => ({ ...prev, [info.locale]: "error" }));
+          setTranslationProgress((prev) => ({
+            ...prev,
+            [info.locale]: "error",
+          }));
         }
       }
 
@@ -511,7 +541,11 @@ export function useUnifiedEditorHandlers({
     if (!pending) return;
     setShowTranslationModal(false);
     pendingPublishRef.current = null;
-    await executePublish(pending.data, pending.metadata, pending.tentativeLocaleData);
+    await executePublish(
+      pending.data,
+      pending.metadata,
+      pending.tentativeLocaleData
+    );
   };
 
   const handleCancelPublish = () => {

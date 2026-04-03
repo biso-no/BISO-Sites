@@ -470,7 +470,6 @@ export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
     const publishedDocument = translation.publish
       ? translation.draftDocument
       : null;
-      
 
     const translationData: Record<string, unknown> = {
       locale: translation.locale,
@@ -499,7 +498,7 @@ export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
   /* Published document structure:
   {"root":{"props":{"publishMode":"now","title":"Velkommen","slug":"velkommen","description":"","campus":"5","departmentId":"1003","contentType":"department-listing","id":"root"},"type":"root"},"content":[{"type":"Hero","props":{"layout":"split","height":"medium","title":"Velkommen til vår avdeling","subtitle":"Fremhev hva vi gjør og hva som skjer akkurat nå.","buttons":[{"label":"Bli med oss","href":"/join","variant":"gradient"},{"label":"Kontakt","href":"/contact","variant":"outline"}],"overlay":true,"slides":[],"slidesMode":"manual","stats":[],"statsMode":"manual","highlights":[],"id":"Hero-b03dff31-18c0-4855-92cd-7fcbf5e3eaa5"}},{"type":"FeatureGrid","props":{"columns":3,"variant":"icon","align":"center","items":[{"title":"Bygg fellesskap","description":"Skap arenaer der studenter kan møtes og blomstre.","icon":"Users"},{"title":"Hold arrangementer","description":"Organiser minneverdige opplevelser hele året.","icon":"Calendar"},{"title":"Skap muligheter","description":"Prosjekter, partnere og karriereutvikling.","icon":"Briefcase"}],"title":"Dette gjør vi","subtitle":"Et par raske høydepunkter som introduserer teamet.","id":"FeatureGrid-43f845ac-41a9-439c-852d-362d95abf58f"}},{"type":"Events","props":{"dataMode":"dynamic","scope":"page","dataSource":{"table":"events","limit":6,"sort":{"field":"start_date","direction":"asc"},"filters":[{"field":"start_date","operator":"greaterThan","value":"$now"},{"field":"status","operator":"equal","value":"published"}]},"events":[],"labels":{"empty":"Ingen arrangementer","emptyDescription":"Kom tilbake senere","upcomingEvents":"Kommende arrangementer","dontMissOut":"Ikke gå glipp av","amazingExperiences":"fantastiske opplevelser","description":"Bli med oss på arrangementene våre.","registerNow":"Meld deg på nå","viewAllEvents":"Se alle arrangementer"},"id":"Events-3cce7259-bf9d-40db-82da-538e98d87fc7"},"readOnly":{"events":true}},{"type":"News","props":{"dataMode":"dynamic","scope":"page","dataSource":{"table":"news","limit":6,"sort":{"field":"$createdAt","direction":"desc"},"filters":[{"field":"status","operator":"equal","value":"published"}]},"news":[],"labels":{"empty":"Ingen nyheter ennå","emptyDescription":"Kom tilbake senere.","cta":"Oppdater","stayUpdated":"Hold deg","titleDefault":"oppdatert","readMore":"Les mer","viewAllNews":"Se alle nyheter"},"id":"News-afd90797-48f8-4ae8-a1f1-4e65c5a09b8d"},"readOnly":{"news":true}},{"type":"CTA","props":{"title":"Vil du engasjere deg?","description":"Bli en del av teamet og bidra til å forme fellesskapet.","variant":"brand","buttons":[{"label":"Søk nå","href":"/jobs","variant":"secondary"}],"align":"center","id":"CTA-1a613bc1-1313-473c-ad46-f6ae962ba12f"}}],"zones":{}}
   */
- //Extract departmentId from translations (they should all be the same)
+  //Extract departmentId from translations (they should all be the same)
   const departmentId =
     (
       input.translations[0]?.draftDocument?.root as

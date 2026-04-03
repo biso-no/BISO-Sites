@@ -91,7 +91,10 @@ export const DetailComponents = {
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.dataSource = buildExternalDataSourceField("jobs", "Job Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "jobs",
+          "Job Source"
+        ) as any;
       } else {
         fields.title = { type: "text", label: "Job Title" };
         fields.department = { type: "text", label: "Department" };
@@ -111,14 +114,16 @@ export const DetailComponents = {
         fields.responsibilities = {
           type: "array",
           label: "Responsibilities",
-          getItemSummary: (item: { value?: string }) => item.value || "Responsibility",
+          getItemSummary: (item: { value?: string }) =>
+            item.value || "Responsibility",
           arrayFields: { value: { type: "text", label: "Item" } },
           defaultItemProps: { value: "Responsibility" },
         };
         fields.requirements = {
           type: "array",
           label: "Requirements",
-          getItemSummary: (item: { value?: string }) => item.value || "Requirement",
+          getItemSummary: (item: { value?: string }) =>
+            item.value || "Requirement",
           arrayFields: { value: { type: "text", label: "Item" } },
           defaultItemProps: { value: "Requirement" },
         };
@@ -133,7 +138,13 @@ export const DetailComponents = {
       { props }: { props: JobDetailProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -160,10 +171,15 @@ export const DetailComponents = {
         return {
           props: {
             title: job.title,
-            department: typeof meta.department === "string" ? meta.department : job.subtitle,
-            location: typeof meta.location === "string" ? meta.location : job.location,
+            department:
+              typeof meta.department === "string"
+                ? meta.department
+                : job.subtitle,
+            location:
+              typeof meta.location === "string" ? meta.location : job.location,
             type: typeof meta.type === "string" ? meta.type : job.category,
-            deadline: typeof meta.deadline === "string" ? meta.deadline : job.date,
+            deadline:
+              typeof meta.deadline === "string" ? meta.deadline : job.date,
             paid: typeof meta.paid === "boolean" ? meta.paid : undefined,
             salary: typeof meta.salary === "string" ? meta.salary : undefined,
             description: job.description,
@@ -192,22 +208,42 @@ export const DetailComponents = {
       }
 
       const metaItems = [
-        props.department && { icon: <Users className="h-4 w-4" />, label: "Department", value: props.department },
-        props.location && { icon: <MapPin className="h-4 w-4" />, label: "Location", value: props.location },
-        props.type && { icon: <Briefcase className="h-4 w-4" />, label: "Type", value: props.type },
-        props.deadline && { icon: <Calendar className="h-4 w-4" />, label: "Deadline", value: props.deadline },
+        props.department && {
+          icon: <Users className="h-4 w-4" />,
+          label: "Department",
+          value: props.department,
+        },
+        props.location && {
+          icon: <MapPin className="h-4 w-4" />,
+          label: "Location",
+          value: props.location,
+        },
+        props.type && {
+          icon: <Briefcase className="h-4 w-4" />,
+          label: "Type",
+          value: props.type,
+        },
+        props.deadline && {
+          icon: <Calendar className="h-4 w-4" />,
+          label: "Deadline",
+          value: props.deadline,
+        },
         props.paid !== undefined && {
           icon: <DollarSign className="h-4 w-4" />,
           label: "Compensation",
           value: props.paid ? (props.salary ?? "Paid") : "Volunteer",
         },
-      ].filter(Boolean) as { icon: React.ReactNode; label: string; value: string }[];
+      ].filter(Boolean) as {
+        icon: React.ReactNode;
+        label: string;
+        value: string;
+      }[];
 
       return (
         <article className="mx-auto max-w-4xl px-4 py-12">
           {/* Hero stripe */}
           <div className="mb-8 rounded-2xl bg-gradient-to-br from-[#001731] to-[#003366] px-8 py-10 text-white">
-            {(props.type || (props.paid !== undefined)) && (
+            {(props.type || props.paid !== undefined) && (
               <div className="mb-3 flex flex-wrap gap-2">
                 {props.type && (
                   <span className="rounded-full bg-white/10 px-3 py-0.5 text-xs font-medium text-white/90">
@@ -267,7 +303,10 @@ export const DetailComponents = {
                   </h2>
                   <ul className="space-y-2">
                     {props.responsibilities.map((r, i) => (
-                      <li key={i} className="flex items-start gap-2 text-gray-600">
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 text-gray-600"
+                      >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                         {r.value}
                       </li>
@@ -283,7 +322,10 @@ export const DetailComponents = {
                   </h2>
                   <ul className="space-y-2">
                     {props.requirements.map((r, i) => (
-                      <li key={i} className="flex items-start gap-2 text-gray-600">
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 text-gray-600"
+                      >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                         {r.value}
                       </li>
@@ -306,7 +348,9 @@ export const DetailComponents = {
                         <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
                           {item.label}
                         </dt>
-                        <dd className="mt-0.5 text-sm text-gray-700">{item.value}</dd>
+                        <dd className="mt-0.5 text-sm text-gray-700">
+                          {item.value}
+                        </dd>
                       </div>
                     </div>
                   ))}
@@ -382,12 +426,18 @@ export const DetailComponents = {
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.dataSource = buildExternalDataSourceField("products", "Product Source") as any;
+        fields.dataSource = buildExternalDataSourceField(
+          "products",
+          "Product Source"
+        ) as any;
       } else {
         fields.title = { type: "text", label: "Product Name" };
         fields.description = { type: "textarea", label: "Description" };
         fields.price = { type: "text", label: "Price (e.g. 299 NOK)" };
-        fields.originalPrice = { type: "text", label: "Original Price (for sale)" };
+        fields.originalPrice = {
+          type: "text",
+          label: "Original Price (for sale)",
+        };
         fields.badge = { type: "text", label: "Badge (e.g. New, Sale)" };
         fields.sku = { type: "text", label: "SKU / Item Code" };
         fields.stock = { type: "number", label: "Stock Level" };
@@ -424,7 +474,10 @@ export const DetailComponents = {
               arrayFields: { value: { type: "text", label: "Value" } },
             },
           },
-          defaultItemProps: { name: "Size", values: [{ value: "S" }, { value: "M" }, { value: "L" }] },
+          defaultItemProps: {
+            name: "Size",
+            values: [{ value: "S" }, { value: "M" }, { value: "L" }],
+          },
         };
       }
 
@@ -434,7 +487,13 @@ export const DetailComponents = {
       { props }: { props: ProductDetailProps },
       { changed, trigger, metadata }: any
     ) => {
-      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
+      if (
+        !shouldResolveDynamic({
+          trigger,
+          changed,
+          watchKeys: ["dataMode", "dataSource"],
+        })
+      ) {
         return { props: {} };
       }
 
@@ -475,7 +534,9 @@ export const DetailComponents = {
                 : typeof meta.stock === "string"
                   ? Number(meta.stock)
                   : undefined,
-            images: product.image ? [{ url: product.image, alt: product.title }] : [],
+            images: product.image
+              ? [{ url: product.image, alt: product.title }]
+              : [],
             ctaHref: product.href,
           },
           readOnly: {
@@ -592,7 +653,10 @@ export const DetailComponents = {
               {props.features && props.features.length > 0 && (
                 <ul className="mt-4 space-y-1.5">
                   {props.features.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-gray-600"
+                    >
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                       {f.value}
                     </li>
@@ -649,7 +713,9 @@ export const DetailComponents = {
               {/* Pickup info */}
               {props.pickupInfo && (
                 <div className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                  <p className="font-medium text-gray-700 mb-1">Pickup information</p>
+                  <p className="font-medium text-gray-700 mb-1">
+                    Pickup information
+                  </p>
                   <p>{props.pickupInfo}</p>
                 </div>
               )}

@@ -34,11 +34,7 @@ export function UnitsHeroSection({
         </>
       }
       action={
-        <Button
-          className="group gap-2"
-          onClick={handleSync}
-          size="lg"
-        >
+        <Button className="group gap-2" onClick={handleSync} size="lg">
           <RefreshCcw className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
           Sync Units
         </Button>

@@ -65,7 +65,13 @@ export async function runBackfillDepartmentPermissions(): Promise<{
   error?: string;
 }> {
   if (!(await isGlobalAdmin())) {
-    return { success: false, processed: 0, updated: 0, errors: 0, error: "Unauthorized" };
+    return {
+      success: false,
+      processed: 0,
+      updated: 0,
+      errors: 0,
+      error: "Unauthorized",
+    };
   }
 
   const { db, teams } = await createAdminClient();

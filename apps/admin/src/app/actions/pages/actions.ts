@@ -72,7 +72,10 @@ async function applyUserPageScope(
       pageId: enforcedPageId,
       slug: enforcedSlug,
       departmentId: departmentName ?? input.departmentId ?? null,
-      permissions: buildPagePermissions({ departmentTeamId, campusManagementTeamId }),
+      permissions: buildPagePermissions({
+        departmentTeamId,
+        campusManagementTeamId,
+      }),
     };
   }
 
@@ -96,7 +99,10 @@ async function applyUserPageScope(
     const departmentTeamId = ctx.departmentTeamIds[0] ?? null;
     return {
       ...input,
-      permissions: buildPagePermissions({ departmentTeamId, campusManagementTeamId }),
+      permissions: buildPagePermissions({
+        departmentTeamId,
+        campusManagementTeamId,
+      }),
     };
   }
 

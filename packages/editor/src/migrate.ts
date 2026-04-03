@@ -40,24 +40,28 @@ export function migratePuckData(value: unknown): Data {
 
   // Transform props for components whose fields changed during the refactor.
   // Each transform is a no-op when data already matches the new schema.
-  data = transformProps(data, {
-    // Root: title, slug, description, visibility moved to the Sheet dialog —
-    // strip them so the editor does not warn about unknown root fields.
-    root: ({
-      title: _title,
-      slug: _slug,
-      description: _desc,
-      visibility: _vis,
-      ...rest
-    }: Record<string, unknown>) => rest,
+  data = transformProps(
+    data,
+    {
+      // Root: title, slug, description, visibility moved to the Sheet dialog —
+      // strip them so the editor does not warn about unknown root fields.
+      root: ({
+        title: _title,
+        slug: _slug,
+        description: _desc,
+        visibility: _vis,
+        ...rest
+      }: Record<string, unknown>) => rest,
 
-    // RichText: content field type changed from textarea to richtext.
-    // The stored value format (string) is unchanged, but ensure it exists.
-    RichText: (props: Record<string, unknown>) => ({
-      ...props,
-      content: props.content ?? "",
-    }),
-  } as any, config as any);
+      // RichText: content field type changed from textarea to richtext.
+      // The stored value format (string) is unchanged, but ensure it exists.
+      RichText: (props: Record<string, unknown>) => ({
+        ...props,
+        content: props.content ?? "",
+      }),
+    } as any,
+    config as any
+  );
 
   return data;
 }

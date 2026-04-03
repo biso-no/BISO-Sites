@@ -1,11 +1,16 @@
 "use client";
 
-import { type Config, type Data, createUsePuck, fieldsPlugin, Puck, resolveAllData, useGetPuck } from "@puckeditor/core";
-import headingAnalyzer from "@puckeditor/plugin-heading-analyzer";
 import {
-  type Locale,
-  PageStatus,
-} from "@repo/api/types/appwrite";
+  type Config,
+  type Data,
+  createUsePuck,
+  fieldsPlugin,
+  Puck,
+  resolveAllData,
+  useGetPuck,
+} from "@puckeditor/core";
+import headingAnalyzer from "@puckeditor/plugin-heading-analyzer";
+import { type Locale, PageStatus } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -59,8 +64,16 @@ const PUCK_PLUGINS = [
 
 // Data-display component types that support the "Refresh data" action
 const DATA_DISPLAY_TYPES = new Set([
-  "News", "Events", "EventsCalendar", "JobsList", "ProductsGrid",
-  "DepartmentsGrid", "Collection", "FilterBar", "ArticleDetail", "EventDetail",
+  "News",
+  "Events",
+  "EventsCalendar",
+  "JobsList",
+  "ProductsGrid",
+  "DepartmentsGrid",
+  "Collection",
+  "FilterBar",
+  "ArticleDetail",
+  "EventDetail",
 ]);
 
 export type PageEditorProps = {
@@ -107,68 +120,85 @@ export function PageEditor({
   onBack,
   onTranslate,
   onDataChange,
-  departments
+  departments,
 }: PageEditorProps) {
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
 
   const metadata = useMemo(
     () => ({ ...editorContext, locale }),
-    [editorContext, locale],
+    [editorContext, locale]
   );
 
   /** Read current title/slug/description from root.props (set via Puck fields). */
-  const rootMeta = useCallback((d: Data) => {
-    const p = (d.root?.props ?? {}) as Record<string, unknown>;
-    return {
-      title: (p.title as string) || initialTitle,
-      slug: (p.slug as string) || initialSlug,
-      description: p.description as string | undefined,
-    };
-  }, [initialTitle, initialSlug]);
+  const rootMeta = useCallback(
+    (d: Data) => {
+      const p = (d.root?.props ?? {}) as Record<string, unknown>;
+      return {
+        title: (p.title as string) || initialTitle,
+        slug: (p.slug as string) || initialSlug,
+        description: p.description as string | undefined,
+      };
+    },
+    [initialTitle, initialSlug]
+  );
 
   // Stable save handler — parent (useUnifiedEditorHandlers) owns toast notifications.
-  const handleSave = useCallback(async (newData: Data) => {
-    setSaving(true);
-    try {
-      await onSave(newData, rootMeta(newData));
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSaving(false);
-    }
-  }, [onSave, rootMeta]);
+  const handleSave = useCallback(
+    async (newData: Data) => {
+      setSaving(true);
+      try {
+        await onSave(newData, rootMeta(newData));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [onSave, rootMeta]
+  );
 
   // Stable publish handler — resolves dynamic block data before handing off.
   // Parent owns toast notifications; errors from onPublish are caught there.
-  const handlePublish = useCallback(async (newData: Data) => {
-    setSaving(true);
-    try {
-      const resolved = await resolveAllData(newData, config as Config, { metadata });
-      await onPublish(resolved as Data, rootMeta(resolved as Data));
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSaving(false);
-    }
-  }, [onPublish, rootMeta, metadata]);
+  const handlePublish = useCallback(
+    async (newData: Data) => {
+      setSaving(true);
+      try {
+        const resolved = await resolveAllData(newData, config as Config, {
+          metadata,
+        });
+        await onPublish(resolved as Data, rootMeta(resolved as Data));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [onPublish, rootMeta, metadata]
+  );
 
-  const handleTranslate = useCallback(async (newData: Data, targetLocale: Locale) => {
-    if (!onTranslate) return;
-    setTranslating(true);
-    try {
-      await onTranslate(newData, rootMeta(newData), targetLocale);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setTranslating(false);
-    }
-  }, [onTranslate, rootMeta]);
+  const handleTranslate = useCallback(
+    async (newData: Data, targetLocale: Locale) => {
+      if (!onTranslate) return;
+      setTranslating(true);
+      try {
+        await onTranslate(newData, rootMeta(newData), targetLocale);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setTranslating(false);
+      }
+    },
+    [onTranslate, rootMeta]
+  );
 
   // Stable onChange — only forwards data to the structural-sync hook in the parent.
-  const handleChange = useCallback((nextData: Data) => {
-    onDataChange?.(nextData);
-  }, [onDataChange]);
+  const handleChange = useCallback(
+    (nextData: Data) => {
+      onDataChange?.(nextData);
+    },
+    [onDataChange]
+  );
 
   const permissions = useMemo(() => {
     if (
@@ -201,7 +231,11 @@ export function PageEditor({
     // users see a locked badge instead.
     const departmentIdField =
       !user || user.isGlobalAdmin || user.isCampusAdmin
-        ? ({ type: "select", label: "Department", options: departments } as const)
+        ? ({
+            type: "select",
+            label: "Department",
+            options: departments,
+          } as const)
         : buildLockedDepartmentField(user.departmentNames[0] ?? "");
 
     // Root resolveFields: extend the existing scheduling-gate behaviour to
@@ -252,41 +286,47 @@ export function PageEditor({
   // locale title/slug injected by UnifiedEditorClient). These are static per
   // Puck mount — when the locale changes, key={locale} remounts Puck with
   // fresh initialData so the header bar always shows the correct values.
-  const initRootProps = (initialData.root?.props ?? {}) as Record<string, unknown>;
+  const initRootProps = (initialData.root?.props ?? {}) as Record<
+    string,
+    unknown
+  >;
   const headerTitle = (initRootProps.title as string) || initialTitle;
   const headerSlug = (initRootProps.slug as string) || initialSlug;
 
-  const overrides = useMemo(() => ({
-    ...puckFieldOverrides,
-    headerActions: () => (
-      <EditorHeaderActions
-        availableLocales={availableLocales}
-        initialStatus={initialStatus}
-        locale={locale}
-        onBack={onBack}
-        onLocaleChange={onLocaleChange}
-        onPublish={handlePublish}
-        onSave={handleSave}
-        onTranslate={onTranslate ? handleTranslate : undefined}
-        saving={saving}
-        slug={headerSlug}
-        translating={translating}
-      />
-    ),
-  }), [
-    availableLocales,
-    handlePublish,
-    handleSave,
-    handleTranslate,
-    headerSlug,
-    initialStatus,
-    locale,
-    onBack,
-    onLocaleChange,
-    onTranslate,
-    saving,
-    translating,
-  ]);
+  const overrides = useMemo(
+    () => ({
+      ...puckFieldOverrides,
+      headerActions: () => (
+        <EditorHeaderActions
+          availableLocales={availableLocales}
+          initialStatus={initialStatus}
+          locale={locale}
+          onBack={onBack}
+          onLocaleChange={onLocaleChange}
+          onPublish={handlePublish}
+          onSave={handleSave}
+          onTranslate={onTranslate ? handleTranslate : undefined}
+          saving={saving}
+          slug={headerSlug}
+          translating={translating}
+        />
+      ),
+    }),
+    [
+      availableLocales,
+      handlePublish,
+      handleSave,
+      handleTranslate,
+      headerSlug,
+      initialStatus,
+      locale,
+      onBack,
+      onLocaleChange,
+      onTranslate,
+      saving,
+      translating,
+    ]
+  );
 
   return (
     // key={locale} remounts Puck with fresh initialData on every locale switch,
@@ -340,7 +380,6 @@ function EditorHeaderActions({
   slug: string;
   translating: boolean;
 }) {
-  
   // Granular selector — re-renders only when selectedItem changes, not on every
   // Puck state update. Use useGetPuck for the refresh handler (call-time access).
   const currentData = usePuck((s) => s.appState.data as Data);
@@ -385,7 +424,10 @@ function EditorHeaderActions({
                   <Globe className="h-3.5 w-3.5" />
                   {localeLabel(l)}
                   {l === locale && (
-                    <Badge className="ml-auto h-4 text-[10px]" variant="secondary">
+                    <Badge
+                      className="ml-auto h-4 text-[10px]"
+                      variant="secondary"
+                    >
                       current
                     </Badge>
                   )}
@@ -433,8 +475,13 @@ function EditorHeaderActions({
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
                 onClick={() => {
                   const puck = getPuck();
-                  const resolveDataById = (puck as unknown as { resolveDataById?: (id: string) => void }).resolveDataById;
-                  if (resolveDataById && selectedItem) resolveDataById(selectedItem.props.id as string);
+                  const resolveDataById = (
+                    puck as unknown as {
+                      resolveDataById?: (id: string) => void;
+                    }
+                  ).resolveDataById;
+                  if (resolveDataById && selectedItem)
+                    resolveDataById(selectedItem.props.id as string);
                   toast.info("Refreshing data...");
                 }}
               >

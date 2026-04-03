@@ -1,7 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import {
   getBenefitReveals,
-  getMemberBenefits,
+  getFeaturedBenefits,
+  getMemberPortalBenefits,
   getPublicProfile,
   getUserProfile,
 } from "@/app/actions/member-portal";
@@ -31,16 +32,23 @@ export async function MemberPortalContent({
     ? await Promise.all([getUserProfile(), getPublicProfile(user.user.$id)])
     : [null, null];
 
-  // Only fetch member-specific data if they're an active member AND have a user
+  // Resolve the user's campus id from their profile for campus-scoped benefits
+  const campusId: string | null =
+    profile?.campus_id || user?.profile?.campus_id || null;
+
+  // Fetch benefits for the member portal (all users see published benefits;
+  // non-members see teasers, members see the redemption value after reveal)
+  const [benefits, featuredBenefits, revealedBenefits, estimatedSavings] =
+    await Promise.all([
+      getMemberPortalBenefits(campusId),
+      getFeaturedBenefits(campusId),
+      user
+        ? getBenefitReveals(user.user.$id)
+        : Promise.resolve(new Set<string>()),
+      user?.user?.$id ? calculateEstimatedSavings(user.user.$id) : 0,
+    ]);
+
   const isMember = membership.active;
-  const [benefits, revealedBenefits, estimatedSavings] =
-    user && isMember
-      ? await Promise.all([
-          getMemberBenefits(user.user.$id),
-          getBenefitReveals(user.user.$id),
-          calculateEstimatedSavings(user.user.$id),
-        ])
-      : [[], new Set<string>(), 0];
 
   // Calculate membership info
   const membershipType = membership.membership?.name || "Year";
@@ -94,6 +102,7 @@ export async function MemberPortalContent({
           daysRemaining={daysRemaining}
           estimatedSavings={estimatedSavings}
           expiryDate={expiryDate}
+          featuredBenefits={featuredBenefits}
           hasBIIdentity={hasBIIdentity}
           isMember={isMember}
           membershipType={membershipType}

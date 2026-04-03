@@ -10,7 +10,11 @@ import {
   PADDING_OPTIONS,
   SECTION_BG_OPTIONS,
 } from "../puck-tokens";
-import type { ColumnsPropsWithSlots, SectionPropsWithSlot, TabsPropsWithSlots } from "./types";
+import type {
+  ColumnsPropsWithSlots,
+  SectionPropsWithSlot,
+  TabsPropsWithSlots,
+} from "./types";
 import { resolveComponentPermissions } from "./utils";
 
 export const LayoutComponents = {

@@ -152,9 +152,7 @@ export const StudentsPageClient = ({
     if (!activeCampusId) {
       return jobs.slice(0, 6);
     }
-    return jobs
-      .filter((job) => job.campus_id === activeCampusId)
-      .slice(0, 6);
+    return jobs.filter((job) => job.campus_id === activeCampusId).slice(0, 6);
   }, [jobs, activeCampusId]);
 
   const featuredDepartments = useMemo(() => {
@@ -377,7 +375,10 @@ export const StudentsPageClient = ({
             return (
               <Card className="border-primary/10" key={event.$id}>
                 <CardHeader>
-                  <Badge className="w-fit text-xs uppercase" variant="secondary">
+                  <Badge
+                    className="w-fit text-xs uppercase"
+                    variant="secondary"
+                  >
                     {formatDateReadable(new Date(event.start_date || ""))}
                   </Badge>
                   <CardTitle className="text-lg text-primary-100">
@@ -388,7 +389,9 @@ export const StudentsPageClient = ({
                   </p>
                 </CardHeader>
                 <CardContent className="flex justify-between text-muted-foreground text-xs">
-                  <span>{event.location || event.campus?.name || event.campus_id}</span>
+                  <span>
+                    {event.location || event.campus?.name || event.campus_id}
+                  </span>
                   <Link
                     className="underline-offset-2 hover:underline"
                     href={`/events/${event.$id}`}
@@ -434,7 +437,10 @@ export const StudentsPageClient = ({
             return (
               <Card className="border-primary/10" key={job.$id}>
                 <CardHeader className="space-y-2">
-                  <Badge className="w-fit text-xs uppercase" variant="secondary">
+                  <Badge
+                    className="w-fit text-xs uppercase"
+                    variant="secondary"
+                  >
                     {job.department?.Name || t("jobs.unknownDepartment")}
                   </Badge>
                   <CardTitle className="text-lg text-primary-100">
@@ -448,7 +454,8 @@ export const StudentsPageClient = ({
                   <div className="flex items-center justify-between text-xs">
                     <span>{job.campus?.name || job.campus_id}</span>
                     <span>
-                      {(job.metadata as Record<string, any>)?.application_deadline
+                      {(job.metadata as Record<string, any>)
+                        ?.application_deadline
                         ? formatDateReadable(
                             new Date(
                               (job.metadata as Record<string, any>)

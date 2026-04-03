@@ -46,15 +46,18 @@ export async function getAccessToken(): Promise<string> {
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `[Finago Auth] Token request failed: ${response.status} ${response.statusText} — ${text}`,
+      `[Finago Auth] Token request failed: ${response.status} ${response.statusText} — ${text}`
     );
   }
 
-  const data = (await response.json()) as { access_token?: string; expires_in?: number };
+  const data = (await response.json()) as {
+    access_token?: string;
+    expires_in?: number;
+  };
 
   if (!data.access_token) {
     throw new Error(
-      `[Finago Auth] Token response did not contain access_token: ${JSON.stringify(data)}`,
+      `[Finago Auth] Token response did not contain access_token: ${JSON.stringify(data)}`
     );
   }
 
@@ -74,7 +77,7 @@ function getCredentials() {
 
   if (!(clientId && clientSecret && loginOrganization)) {
     throw new Error(
-      "[Finago Auth] Missing credentials. Required env vars: TFSO_REST_CLIENT_ID, TFSO_REST_CLIENT_SECRET, TFSO_REST_ORG_ID",
+      "[Finago Auth] Missing credentials. Required env vars: TFSO_REST_CLIENT_ID, TFSO_REST_CLIENT_SECRET, TFSO_REST_ORG_ID"
     );
   }
 

@@ -148,7 +148,10 @@ export class PineconeVectorStore implements IVectorStore {
         return await operation();
       } catch (error: unknown) {
         lastError = error;
-        console.error(`${context} - Attempt ${attempt} failed:`, error instanceof Error ? error.message : String(error));
+        console.error(
+          `${context} - Attempt ${attempt} failed:`,
+          error instanceof Error ? error.message : String(error)
+        );
 
         if (attempt === CONFIG.RETRY.MAX_ATTEMPTS) {
           break;
@@ -363,7 +366,12 @@ export class PineconeVectorStore implements IVectorStore {
       "Generating query embedding"
     );
 
-    const queryRequest: { vector: number[]; topK: number; includeMetadata: boolean; filter?: Record<string, unknown> } = {
+    const queryRequest: {
+      vector: number[];
+      topK: number;
+      includeMetadata: boolean;
+      filter?: Record<string, unknown>;
+    } = {
       vector: vector as number[],
       topK: k,
       includeMetadata,
@@ -514,7 +522,10 @@ export class PineconeVectorStore implements IVectorStore {
     );
   }
 
-  async healthCheck(): Promise<{ healthy: boolean; details: Record<string, unknown> }> {
+  async healthCheck(): Promise<{
+    healthy: boolean;
+    details: Record<string, unknown>;
+  }> {
     try {
       const [indexInfo, stats] = await Promise.all([
         this.client.describeIndex(this.indexName),

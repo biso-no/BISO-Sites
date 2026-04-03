@@ -111,7 +111,9 @@ export function UnifiedEditorClient({
   const [selectedBlockIndex, setSelectedBlockIndex] = useState<
     number | undefined
   >(undefined);
-  const [departments, setDepartments] = useState<{ label: string; value: string }[]>([]);
+  const [departments, setDepartments] = useState<
+    { label: string; value: string }[]
+  >([]);
 
   const currentLocaleInfo = localeData[currentLocale] ?? {
     title: "",
@@ -193,11 +195,12 @@ export function UnifiedEditorClient({
   useEffect(() => {
     if (userContext.departmentNames.length > 0) {
       listDepartmentsWithWriterAccess().then((depts) =>
-        setDepartments(depts.map((dept) => ({ label: dept.Name, value: dept.Id })))
+        setDepartments(
+          depts.map((dept) => ({ label: dept.Name, value: dept.Id }))
+        )
       );
     }
   }, [userContext.departmentNames.length]);
-
 
   // Register Puck editor with AI copilot for streaming block generation
   useCopilotPuck({
@@ -232,20 +235,27 @@ export function UnifiedEditorClient({
   // without subscribing to every keystroke in React state.
   const latestPuckDataRef = useRef<Data>(currentData);
 
-  const handleLocaleChange = useCallback((newLocale: Locale) => {
-    // Persist the current locale's in-flight edits before Puck remounts
-    const snapshot = latestPuckDataRef.current;
-    const rootProps = (snapshot.root?.props ?? {}) as Record<string, unknown>;
-    setLocaleData((prev) => ({
-      ...prev,
-      [currentLocale]: {
-        title: (rootProps.title as string) || prev[currentLocale]?.title || "",
-        description: (rootProps.description as string) || prev[currentLocale]?.description || "",
-        data: snapshot,
-      },
-    }));
-    setCurrentLocale(newLocale);
-  }, [currentLocale, setLocaleData]);
+  const handleLocaleChange = useCallback(
+    (newLocale: Locale) => {
+      // Persist the current locale's in-flight edits before Puck remounts
+      const snapshot = latestPuckDataRef.current;
+      const rootProps = (snapshot.root?.props ?? {}) as Record<string, unknown>;
+      setLocaleData((prev) => ({
+        ...prev,
+        [currentLocale]: {
+          title:
+            (rootProps.title as string) || prev[currentLocale]?.title || "",
+          description:
+            (rootProps.description as string) ||
+            prev[currentLocale]?.description ||
+            "",
+          data: snapshot,
+        },
+      }));
+      setCurrentLocale(newLocale);
+    },
+    [currentLocale, setLocaleData]
+  );
 
   const { handleDataChange: handleStructuralSync } = useLocaleStructuralSync({
     currentLocale,
@@ -256,10 +266,13 @@ export function UnifiedEditorClient({
     config: baseEditorConfig as any,
   });
 
-  const handlePuckChange = useCallback((nextData: Data) => {
-    latestPuckDataRef.current = nextData;
-    handleStructuralSync(nextData);
-  }, [handleStructuralSync]);
+  const handlePuckChange = useCallback(
+    (nextData: Data) => {
+      latestPuckDataRef.current = nextData;
+      handleStructuralSync(nextData);
+    },
+    [handleStructuralSync]
+  );
 
   const {
     isSaving,

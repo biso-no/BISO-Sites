@@ -12,41 +12,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { BenefitPreviewCard } from "./benefit-preview-card";
 
-// Sample benefit categories to showcase to non-members
-const PREVIEW_BENEFITS = [
-  {
-    category: "Food & Drink",
-    partnerName: "Popular Restaurant Partner",
-    discountText: "20% off",
-  },
-  {
-    category: "Entertainment",
-    partnerName: "Cinema & Events",
-    discountText: "15% off",
-  },
-  {
-    category: "Career",
-    partnerName: "Professional Development",
-    discountText: "Member Exclusive",
-  },
-  {
-    category: "Health & Fitness",
-    partnerName: "Gym & Wellness",
-    discountText: "25% off",
-  },
-  {
-    category: "Software",
-    partnerName: "Tech & Tools",
-    discountText: "50% off",
-  },
-  {
-    category: "Travel",
-    partnerName: "Student Discounts",
-    discountText: "Up to 30% off",
-  },
-];
+import { CampusBenefit } from "@repo/api/types/appwrite";
 
-export function BenefitsShowcase() {
+export function BenefitsShowcase({ benefits }: { benefits: CampusBenefit[] }) {
   const t = useTranslations("memberPortal");
   const router = useRouter();
 
@@ -80,17 +48,17 @@ export function BenefitsShowcase() {
           }}
         >
           <CarouselContent className="-ml-4">
-            {PREVIEW_BENEFITS.map((benefit, index) => (
+            {benefits.slice(0, 10).map((benefit, index) => (
               <CarouselItem
                 className="basis-full pl-4 sm:basis-1/2 lg:basis-1/3"
-                key={index}
+                key={benefit.$id || index}
               >
                 <BenefitPreviewCard
                   category={benefit.category}
-                  discountText={benefit.discountText}
+                  discountText={benefit.teaser_en || "Unlock to see"}
                   index={index}
                   onJoinClick={handleJoinClick}
-                  partnerName={benefit.partnerName}
+                  partnerName={benefit.partner_name || "Partner"}
                 />
               </CarouselItem>
             ))}

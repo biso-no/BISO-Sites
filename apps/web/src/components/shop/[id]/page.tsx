@@ -47,7 +47,9 @@ export default async function ProductDetailsPage({
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Main Content */}
             <div className="space-y-8 lg:col-span-2">
-              <ProductDescription description={translation?.description ?? ""} />
+              <ProductDescription
+                description={translation?.description ?? ""}
+              />
               <ProductOptions />
               <PickupInfo />
             </div>

@@ -29,6 +29,7 @@
     "units": "Enheter",
     "users": "Brukere",
     "membership": "Medlemskap",
+    "benefits": "Fordeler",
     "varsling": "Varsling",
     "settings": "Innstillinger"
   },
@@ -49,6 +50,12 @@
   },
   "alumniSubItems": {
     "mentorApprovals": "Mentorgodkjenninger"
+  },
+  "benefitsSubItems": {
+    "allBenefits": "Alle fordeler",
+    "createBenefit": "Opprett fordel",
+    "partners": "Partnere",
+    "analytics": "Analyse"
   },
   "settingsSubItems": {
     "navigation": "Navigasjon",

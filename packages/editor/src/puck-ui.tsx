@@ -43,7 +43,13 @@ function ReadOnlyWrapper({
 export const puckFieldOverrides: Partial<Overrides<Config>> = {
   fieldTypes: {
     // Wrap all custom fields in consistent styling
-    custom: ({ children, readOnly }: { children: ReactNode; readOnly?: boolean }) => (
+    custom: ({
+      children,
+      readOnly,
+    }: {
+      children: ReactNode;
+      readOnly?: boolean;
+    }) => (
       <div className="puck-custom-field rounded-md border border-border bg-card p-3">
         <ReadOnlyWrapper readOnly={readOnly}>{children}</ReadOnlyWrapper>
       </div>
@@ -56,7 +62,9 @@ export const puckFieldOverrides: Partial<Overrides<Config>> = {
       onChange,
       readOnly,
     }: {
-      field: { options?: Array<{ label: string; value: string | number | boolean }> };
+      field: {
+        options?: Array<{ label: string; value: string | number | boolean }>;
+      };
       value: string | number | boolean;
       onChange: (value: string | number | boolean) => void;
       readOnly?: boolean;

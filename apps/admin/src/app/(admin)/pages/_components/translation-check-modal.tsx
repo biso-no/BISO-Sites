@@ -20,7 +20,10 @@ export type UntranslatedLocaleInfo = {
   filledBlockCount: number;
 };
 
-type TranslationProgress = Record<string, "pending" | "translating" | "done" | "error">;
+type TranslationProgress = Record<
+  string,
+  "pending" | "translating" | "done" | "error"
+>;
 
 type TranslationCheckModalProps = {
   open: boolean;
@@ -51,7 +54,10 @@ export function TranslationCheckModal({
   translationProgress,
 }: TranslationCheckModalProps) {
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && !isTranslating && onCancel()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !o && !isTranslating && onCancel()}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -70,7 +76,9 @@ export function TranslationCheckModal({
             return (
               <div key={info.locale} className="rounded-md border p-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">{localeLabel(info.locale)}</span>
+                  <span className="font-medium">
+                    {localeLabel(info.locale)}
+                  </span>
                   <Badge variant="secondary">
                     {info.filledBlockCount}/{info.blockCount} blocks filled
                   </Badge>
@@ -78,8 +86,7 @@ export function TranslationCheckModal({
 
                 {info.missingFields.length > 0 && (
                   <p className="mt-1 text-muted-foreground">
-                    Missing:{" "}
-                    {info.missingFields.slice(0, 4).join(", ")}
+                    Missing: {info.missingFields.slice(0, 4).join(", ")}
                     {info.missingFields.length > 4 &&
                       ` +${info.missingFields.length - 4} more`}
                   </p>
@@ -111,11 +118,7 @@ export function TranslationCheckModal({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            disabled={isTranslating}
-          >
+          <Button variant="outline" onClick={onCancel} disabled={isTranslating}>
             Cancel
           </Button>
           <Button

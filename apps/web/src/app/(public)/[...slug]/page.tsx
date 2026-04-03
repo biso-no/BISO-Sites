@@ -16,7 +16,6 @@ export default async function Page({ params }: PageProps) {
   const locale = await getLocale();
 
   const pageData = await getPublicPage(path, locale as Locale);
-  
 
   console.log("Page data:", pageData);
 

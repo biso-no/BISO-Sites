@@ -34,7 +34,8 @@ export async function runProvisionExistingTeams(): Promise<{
   while (true) {
     const page = await teams.list();
     const sgAppTeams = page.teams.filter(
-      (t) => t.name.startsWith("SG-App-Campus-") || t.name.startsWith("SG-App-Dept-")
+      (t) =>
+        t.name.startsWith("SG-App-Campus-") || t.name.startsWith("SG-App-Dept-")
     );
 
     for (const team of sgAppTeams) {

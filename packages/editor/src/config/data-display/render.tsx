@@ -1,9 +1,18 @@
 import { Collection } from "@repo/ui/components/puck/collection/collection";
-import { FilterBar, type FilterBarProps } from "@repo/ui/components/puck/filter-bar";
+import {
+  FilterBar,
+  type FilterBarProps,
+} from "@repo/ui/components/puck/filter-bar";
 import { FilteredEvents } from "@repo/ui/components/puck/filtered-events";
 import { FilteredNews } from "@repo/ui/components/puck/filtered-news";
-import { JobsList, type JobsListProps } from "@repo/ui/components/puck/jobs-list";
-import { ProductsGrid, type ProductsGridProps } from "@repo/ui/components/puck/products-grid";
+import {
+  JobsList,
+  type JobsListProps,
+} from "@repo/ui/components/puck/jobs-list";
+import {
+  ProductsGrid,
+  type ProductsGridProps,
+} from "@repo/ui/components/puck/products-grid";
 import type {
   ArticleDetailProps,
   DepartmentsGridProps,
@@ -82,7 +91,11 @@ export function ArticleDetailRender(props: ArticleDetailProps) {
     <article className={`mx-auto py-8 ${isWide ? "max-w-5xl" : "max-w-3xl"}`}>
       {props.image && (
         <div className="mb-8 overflow-hidden rounded-xl">
-          <img src={props.image} alt={props.title || ""} className="h-64 w-full object-cover md:h-96" />
+          <img
+            src={props.image}
+            alt={props.title || ""}
+            className="h-64 w-full object-cover md:h-96"
+          />
         </div>
       )}
       <header className="mb-8">
@@ -105,23 +118,35 @@ export function ArticleDetailRender(props: ArticleDetailProps) {
       <div className="prose prose-lg max-w-none">
         <p>{props.content || "Article content goes here..."}</p>
       </div>
-      {props.showRelated && props.relatedItems && props.relatedItems.length > 0 && (
-        <section className="mt-12 border-t pt-8">
-          <h2 className="mb-6 text-2xl font-semibold">Related Articles</h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {props.relatedItems.map((item, i) => (
-              <a key={i} href={item.href} className="group block overflow-hidden rounded-lg border transition-shadow hover:shadow-md">
-                {item.image && (
-                  <img src={item.image} alt={item.title} className="h-40 w-full object-cover" />
-                )}
-                <div className="p-4">
-                  <h3 className="font-medium group-hover:text-blue-600">{item.title}</h3>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
+      {props.showRelated &&
+        props.relatedItems &&
+        props.relatedItems.length > 0 && (
+          <section className="mt-12 border-t pt-8">
+            <h2 className="mb-6 text-2xl font-semibold">Related Articles</h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {props.relatedItems.map((item, i) => (
+                <a
+                  key={i}
+                  href={item.href}
+                  className="group block overflow-hidden rounded-lg border transition-shadow hover:shadow-md"
+                >
+                  {item.image && (
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="h-40 w-full object-cover"
+                    />
+                  )}
+                  <div className="p-4">
+                    <h3 className="font-medium group-hover:text-blue-600">
+                      {item.title}
+                    </h3>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
     </article>
   );
 }
@@ -143,7 +168,11 @@ export function EventDetailRender(props: EventDetailProps) {
     <article className="mx-auto max-w-4xl py-8">
       {props.image && (
         <div className="mb-8 overflow-hidden rounded-xl">
-          <img src={props.image} alt={props.title || ""} className="h-64 w-full object-cover md:h-96" />
+          <img
+            src={props.image}
+            alt={props.title || ""}
+            className="h-64 w-full object-cover md:h-96"
+          />
         </div>
       )}
       <header className="mb-8">
@@ -156,7 +185,9 @@ export function EventDetailRender(props: EventDetailProps) {
           <p className="text-sm font-medium text-gray-500">Date &amp; Time</p>
           <p className="mt-1 text-sm">{formatDate(props.date)}</p>
           {props.endDate && (
-            <p className="mt-1 text-sm text-gray-600">Until {formatDate(props.endDate)}</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Until {formatDate(props.endDate)}
+            </p>
           )}
         </div>
         {props.location && (
