@@ -57,7 +57,7 @@ export const BasicsComponents = {
   Text: {
     label: "Text",
     fields: {
-      content: { type: "richtext", contentEditable: true } as any,
+      content: { type: "richtext", contentEditable: true },
       variant: {
         type: "select",
         options: TEXT_VARIANT_OPTIONS,

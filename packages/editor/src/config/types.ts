@@ -1,4 +1,4 @@
-import type { SlotComponent } from "@puckeditor/core";
+import type { PuckMetadata, SlotComponent } from "@puckeditor/core";
 import type { AccordionBlockProps } from "@repo/ui/components/puck/accordion";
 import type { ButtonRowProps } from "@repo/ui/components/puck/button-row";
 import type { CollectionProps } from "@repo/ui/components/puck/collection/types";
@@ -28,6 +28,15 @@ import type { AboutProps } from "@repo/ui/components/sections/about";
 import type { EventItem, EventsProps } from "@repo/ui/components/sections/events";
 import type { JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
+import type {
+  AlertCardProps,
+  ChecklistCardProps,
+  ContactCardsProps,
+  DownloadListProps,
+  NumberedStepsProps,
+  TagListProps,
+} from "./extras";
+import type { JobDetailProps, ProductDetailProps } from "./detail";
 
 export type DataSourceValue = {
   table?: string;
@@ -39,32 +48,11 @@ export type DataSourceValue = {
 };
 
 /**
- * EditorMetadata is the shape of the `metadata` prop passed to <Puck>.
- * It mirrors EditorContext (from editor-context.ts) plus locale.
- * resolveData, resolveFields, and resolvePermissions receive this via params.metadata.
+ * EditorMetadata is an alias for PuckMetadata (augmented in puck-augments.d.ts).
+ * Kept for backwards compatibility in config files — prefer importing
+ * `PuckMetadata` from `@puckeditor/core` directly in new code.
  */
-export type EditorMetadata = {
-  locale?: string;
-  mode?: "direct";
-  contentType?: string;
-  page?: {
-    id?: string;
-    status?: string;
-    scope?: string;
-    campusId?: string | null;
-    departmentId?: string | null;
-  };
-  user?: {
-    isGlobalAdmin: boolean;
-    isCampusAdmin: boolean;
-    campusNames: string[];
-    departmentNames: string[];
-    managedCampuses: string[];
-  };
-  constraints?: {
-    slugLocked: boolean;
-  };
-};
+export type EditorMetadata = PuckMetadata;
 
 export type SectionPropsWithSlot = SectionProps & { content?: SlotComponent };
 
@@ -135,7 +123,8 @@ export type PricingTableProps = {
     price: string;
     currency?: string;
     period?: string;
-    features?: string[];
+    /** Array items are objects with a `value` string — matches the Puck array field shape */
+    features?: { value: string }[];
     highlighted?: boolean;
     ctaLabel?: string;
     ctaHref?: string;
@@ -318,4 +307,14 @@ export type Props = {
   EventDetail: EventDetailProps;
   ContactForm: ContactFormProps;
   MapEmbed: MapEmbedProps;
+  // New detail blocks
+  JobDetail: JobDetailProps;
+  ProductDetail: ProductDetailProps;
+  // New content blocks
+  ContactCards: ContactCardsProps;
+  DownloadList: DownloadListProps;
+  NumberedSteps: NumberedStepsProps;
+  TagList: TagListProps;
+  AlertCard: AlertCardProps;
+  ChecklistCard: ChecklistCardProps;
 };

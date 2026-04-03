@@ -38,7 +38,7 @@ export function getPuckFieldOverrides(): Partial<Overrides<Config>> {
     fieldTypes: {
       // Wrap all custom fields in consistent styling
       custom: ({ children, readOnly }: { children: ReactNode; readOnly?: boolean }) => (
-        <div className="puck-custom-field rounded-md border border-gray-200 bg-white p-3">
+        <div className="puck-custom-field rounded-md border border-border bg-card p-3">
           <ReadOnlyWrapper readOnly={readOnly}>{children}</ReadOnlyWrapper>
         </div>
       ),

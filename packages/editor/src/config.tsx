@@ -3,6 +3,8 @@ import { type Config } from "@puckeditor/core";
 import { BasicsComponents } from "./config/basics";
 import { ContentComponents } from "./config/content";
 import { DataDisplayComponents } from "./config/data-display";
+import { DetailComponents } from "./config/detail";
+import { ExtrasComponents } from "./config/extras";
 import { GridComponent, GridComponents } from "./config/grids";
 import { HeroComponents } from "./config/heroes";
 import { InteractiveComponents } from "./config/interactive";
@@ -50,10 +52,13 @@ export const config: Config<Props> = {
           { label: "Publish later", value: "later" },
         ],
       },
+      // "datetime-picker" is rendered via overrides.fieldTypes in puck-ui.tsx.
+      // Puck's type system doesn't support adding new field type names, so we
+      // use a cast here. This is safe — the runtime renderer handles this key.
       scheduledPublishAt: {
-        type: "datetime-picker" as never,
+        type: "datetime-picker",
         label: "Schedule Date & Time",
-      },
+      } as never,
       campus: {
         type: "select",
         label: "Campus",
@@ -143,7 +148,18 @@ export const config: Config<Props> = {
     },
     detail: {
       title: "Detail Pages",
-      components: ["ArticleDetail", "EventDetail"],
+      components: ["ArticleDetail", "EventDetail", "JobDetail", "ProductDetail"],
+    },
+    extras: {
+      title: "Content Blocks",
+      components: [
+        "ContactCards",
+        "DownloadList",
+        "NumberedSteps",
+        "TagList",
+        "AlertCard",
+        "ChecklistCard",
+      ],
     },
   },
   components: {
@@ -151,11 +167,16 @@ export const config: Config<Props> = {
     ...LayoutComponents,
     ...HeroComponents,
     ...GridComponents,
-    ...GridComponent,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(GridComponent as any),
     ...ContentComponents,
     ...MarketingComponents,
     ...InteractiveComponents,
     ...DataDisplayComponents,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(DetailComponents as any),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(ExtrasComponents as any),
   },
 };
 

@@ -25,8 +25,8 @@ type DataSourcesMap = Record<string, DataSourceConfig>;
 
 function DataSourcesPanel() {
   const { appState, dispatch } = usePuck();
+  const metadata = (appState as { metadata?: EditorMetadata }).metadata;
 
-  const metadata = (appState as any).metadata as EditorMetadata | undefined;
   const isAdmin = metadata?.user?.isGlobalAdmin ?? false;
   const isCampusAdmin = metadata?.user?.isCampusAdmin ?? false;
 

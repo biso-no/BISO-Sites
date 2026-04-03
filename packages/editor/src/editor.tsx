@@ -1,13 +1,18 @@
 "use client";
 
-import { type Config, type Data, Puck, resolveAllData, usePuck } from "@puckeditor/core";
+import { type Config, type Data, fieldsPlugin, Puck, resolveAllData, usePuck } from "@puckeditor/core";
 import headingAnalyzer from "@puckeditor/plugin-heading-analyzer";
 import {
-  Departments,
   type Locale,
   PageStatus,
 } from "@repo/api/types/appwrite";
+import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@repo/ui/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -15,7 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Separator } from "@repo/ui/components/ui/separator";
 import {
+  ChevronDown,
   ExternalLink,
   Globe,
   Languages,
@@ -26,7 +33,14 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
 import type { EditorContext } from "./editor-context";
+import {
+  buildLockedCampusField,
+  buildLockedDepartmentField,
+  CAMPUS_OPTIONS,
+  isDepartmentUser,
+} from "./config/helpers/permission-scope";
 import { aiAssistantPlugin } from "./plugins/ai-assistant";
+import { dataSourcesPlugin } from "./plugins/data-sources";
 import { savedPatternsPlugin } from "./plugins/saved-patterns";
 import { seoToolsPlugin } from "./plugins/seo-tools";
 import { templatesPlugin } from "./plugins/templates";
@@ -66,6 +80,8 @@ export type PageEditorProps = {
     metadata: { title: string; slug: string; description?: string },
     targetLocale: Locale
   ) => Promise<void>;
+  /** Called on every Puck onChange — used by parent for cross-locale structural sync. */
+  onDataChange?: (data: Data) => void;
 };
 
 export function PageEditor({
@@ -81,6 +97,7 @@ export function PageEditor({
   onLocaleChange,
   onBack,
   onTranslate,
+  onDataChange,
   departments
 }: PageEditorProps) {
   const [data, setData] = useState<Data>(initialData);
@@ -88,7 +105,7 @@ export function PageEditor({
   const [translating, setTranslating] = useState(false);
 
   const metadata = useMemo(
-    () => ({ ...editorContext, locale }) as any,
+    () => ({ ...editorContext, locale }),
     [editorContext, locale],
   );
 
@@ -173,21 +190,66 @@ export function PageEditor({
   }, [initialStatus, editorContext]);
 
   const dynamicConfig = useMemo(() => {
+    const user = editorContext?.user;
+    const isDeptUser = isDepartmentUser(user);
+
+    // Campus field: global admins see all options; everyone else gets a
+    // role-locked badge showing which campus they belong to.
+    const campusField =
+      !user || user.isGlobalAdmin
+        ? config.root?.fields?.campus
+        : buildLockedCampusField(user.campusNames[0] ?? "");
+
+    // Department field: global/campus admins get the full select; department
+    // users see a locked badge instead.
+    const departmentIdField =
+      !user || user.isGlobalAdmin || user.isCampusAdmin
+        ? ({ type: "select", label: "Department", options: departments } as const)
+        : buildLockedDepartmentField(user.departmentNames[0] ?? "");
+
+    // Root resolveFields: extend the existing scheduling-gate behaviour to
+    // also inject the pre-set campus value for restricted users so the page
+    // document always stores the correct campus_id on save.
+    const resolveRootFields = async (data: any, params: any) => {
+      const baseFields = await (config.root?.resolveFields
+        ? config.root.resolveFields(data, params)
+        : params.fields);
+
+      return {
+        ...baseFields,
+        campus: campusField,
+        departmentId: departmentIdField,
+      };
+    };
+
     return {
       ...config,
       root: {
         ...config.root,
         fields: {
           ...config.root?.fields,
-          departmentId: {
-            type: "select",
-            label: "Department",
-            options: departments,
-          },
+          campus: campusField,
+          departmentId: departmentIdField,
+        },
+        resolveFields: resolveRootFields,
+        // For restricted users, pre-populate the campus value so it is saved
+        // correctly even though the field renders as a non-editable badge.
+        defaultProps: {
+          ...config.root?.defaultProps,
+          ...(isDeptUser && user?.campusNames[0]
+            ? {
+                campus:
+                  CAMPUS_OPTIONS.find(
+                    (o) =>
+                      o.label.toLowerCase() ===
+                      (user.campusNames[0] ?? "").toLowerCase()
+                  )?.value ?? config.root?.defaultProps?.campus,
+              }
+            : {}),
         },
       },
     } as Config;
-  }, [departments]);
+  }, [departments, editorContext?.user]);
 
   // Derive display title and slug from root.props so the Puck header bar
   // updates reactively as the user types in the right-panel fields.
@@ -196,48 +258,59 @@ export function PageEditor({
   const headerSlug = (liveRootProps.slug as string) || initialSlug;
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden rounded-2xl">
-      <Puck
-        config={dynamicConfig}
-        data={data}
-        headerPath={`/${locale}/${headerSlug}`}
-        headerTitle={headerTitle}
-        metadata={metadata}
-        onChange={(nextData) => setData(nextData as Data)}
-        onPublish={handleSave}
-        overrides={getPuckFieldOverrides()}
-        permissions={permissions}
-        plugins={[
-          headingAnalyzer,
-          templatesPlugin,
-          savedPatternsPlugin,
-          aiAssistantPlugin,
-          seoToolsPlugin,
-          versionHistoryPlugin,
-        ]}
-        renderHeaderActions={({ state }) => {
-          const currentData = state.data as Data;
+    <Puck
+      _experimentalFullScreenCanvas
+      config={dynamicConfig}
+      data={data}
+      headerPath={`/${locale}/${headerSlug}`}
+      headerTitle={headerTitle}
+      height="100%"
+      metadata={metadata}
+      onChange={(nextData) => {
+        const typed = nextData as Data;
+        setData(typed);
+        onDataChange?.(typed);
+      }}
+      onPublish={handlePublish}
+      overrides={getPuckFieldOverrides()}
+      permissions={permissions}
+      plugins={[
+        // Workflow order: create → insert → generate → analyse → configure → track
+        fieldsPlugin({
+          desktopSideBar: "left"
+        }),
+        templatesPlugin,
+        savedPatternsPlugin,
+        aiAssistantPlugin,
+        seoToolsPlugin,
+        dataSourcesPlugin,
+        versionHistoryPlugin,
+        headingAnalyzer,
+      ]}
+      renderHeaderActions={({ state }) => {
+        const currentData = state.data as Data;
 
-          return (
-            <EditorHeaderActions
-              availableLocales={availableLocales}
-              currentData={currentData}
-              initialStatus={initialStatus}
-              locale={locale}
-              onBack={onBack}
-              onLocaleChange={onLocaleChange}
-              onPublish={handlePublish}
-              onSave={handleSave}
-              onTranslate={onTranslate ? handleTranslate : undefined}
-              saving={saving}
-              slug={headerSlug}
-              translating={translating}
-            />
-          );
-        }}
-        viewports={puckViewports}
-      />
-    </div>
+        return (
+          <EditorHeaderActions
+            availableLocales={availableLocales}
+            currentData={currentData}
+            initialStatus={initialStatus}
+            locale={locale}
+            onBack={onBack}
+            onLocaleChange={onLocaleChange}
+            onPublish={handlePublish}
+            onSave={handleSave}
+            onTranslate={onTranslate ? handleTranslate : undefined}
+            saving={saving}
+            slug={headerSlug}
+            translating={translating}
+          />
+        );
+      }}
+      viewports={puckViewports}
+    >
+      <Puck.Layout />
+    </Puck>
   );
 }
 
@@ -272,107 +345,136 @@ function EditorHeaderActions({
   translating: boolean;
 }) {
   
-  const { selectedItem, dispatch } = usePuck();
+  // usePuck is used with destructuring (selector form requires createUsePuck)
+  const puck = usePuck();
+  const { selectedItem } = puck;
+  // resolveDataById is the Puck 0.21 API for targeted data refresh; access
+  // via type assertion since the typings may lag the runtime API.
+  const resolveDataById = (puck as unknown as { resolveDataById?: (id: string) => void })
+    .resolveDataById;
   const showRefresh =
     selectedItem && DATA_DISPLAY_TYPES.has(selectedItem.type);
 
+  const localeLabel = (l: Locale) => (l === "no" ? "Norwegian" : "English");
+
   return (
     <div className="flex items-center gap-2">
-      {/* Refresh data button for data-display blocks */}
-      {showRefresh && (
-        <Button
-          className="h-9"
-          onClick={() => {
-            // Force resolveData by dispatching a no-op setData with force trigger
-            dispatch({
-              type: "setData",
-              recordHistory: false,
-              data: (prev) => prev,
-            });
-            toast.info("Refreshing data...");
-          }}
-          size="sm"
-          variant="outline"
-        >
-          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-          Refresh data
-        </Button>
-      )}
-
-      {/* Locale Switcher */}
-      <Select
-        onValueChange={(v) => onLocaleChange(v as Locale)}
-        value={locale}
-      >
-        <SelectTrigger className="h-9 w-[140px] border-white/20 bg-white/10 text-white">
-          <Globe className="mr-2 h-4 w-4" />
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {availableLocales.map((l) => (
-            <SelectItem key={l} value={l}>
-              {l === "no" ? "Norwegian" : "English"}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {/* AI Translate Button */}
-      {onTranslate && availableLocales.length > 1 && (
-        <Select
-          disabled={translating}
-          onValueChange={(targetLocale) => {
-            if (targetLocale !== locale) {
-              onTranslate(currentData, targetLocale as Locale);
-            }
-          }}
-          value=""
-        >
-          <SelectTrigger className="h-9 w-[160px] border-white/20 bg-white/10 text-white">
-            {translating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                <span>Translating...</span>
-              </>
-            ) : (
-              <>
-                <Languages className="mr-2 h-4 w-4" />
-                <span>AI Translate</span>
-              </>
-            )}
-          </SelectTrigger>
-          <SelectContent>
-            {availableLocales
-              .filter((l) => l !== locale)
-              .map((l) => (
-                <SelectItem key={l} value={l}>
-                  Translate to {l === "no" ? "Norwegian" : "English"}
-                </SelectItem>
+      {/* ── Secondary actions (locale, translate, refresh, back, view) in a popover ── */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            className="h-9 border-white/20 bg-white/10 text-white hover:bg-white/20"
+            size="sm"
+            variant="outline"
+          >
+            More
+            <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64 p-2" sideOffset={8}>
+          {/* Locale switcher */}
+          {availableLocales.length > 1 && (
+            <div className="space-y-1 p-1">
+              <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Locale
+              </p>
+              {availableLocales.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                    l === locale
+                      ? "bg-primary/10 font-medium text-primary"
+                      : "hover:bg-muted text-foreground"
+                  }`}
+                  onClick={() => onLocaleChange(l)}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  {localeLabel(l)}
+                  {l === locale && (
+                    <Badge className="ml-auto h-4 text-[10px]" variant="secondary">
+                      current
+                    </Badge>
+                  )}
+                </button>
               ))}
-          </SelectContent>
-        </Select>
-      )}
+            </div>
+          )}
 
-      <div className="mx-2 h-6 w-px bg-white/20" />
+          {/* AI Translate */}
+          {onTranslate && availableLocales.length > 1 && (
+            <>
+              <Separator className="my-1" />
+              <div className="space-y-1 p-1">
+                <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  AI Translate
+                </p>
+                {availableLocales
+                  .filter((l) => l !== locale)
+                  .map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground disabled:opacity-50"
+                      disabled={translating}
+                      onClick={() => onTranslate(currentData, l)}
+                    >
+                      {translating ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Languages className="h-3.5 w-3.5" />
+                      )}
+                      Translate to {localeLabel(l)}
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
 
-      <Button className="mr-2" onClick={onBack} variant="outline">
-        Back
-      </Button>
+          {/* Refresh + View + Back */}
+          <Separator className="my-1" />
+          <div className="space-y-1 p-1">
+            {showRefresh && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
+                onClick={() => {
+                  if (resolveDataById) resolveDataById(selectedItem.props.id);
+                  toast.info("Refreshing data...");
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Refresh block data
+              </button>
+            )}
+            {initialStatus === PageStatus.PUBLISHED && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
+                onClick={() => window.open(`/${slug}`, "_blank")}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View live page
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
+              onClick={onBack}
+            >
+              ← Back to pages
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
 
-      {initialStatus === PageStatus.PUBLISHED && (
-        <Button
-          className="mr-2"
-          onClick={() => window.open(`/${slug}`, "_blank")}
-          variant="outline"
-        >
-          <ExternalLink className="mr-2 h-4 w-4" />
-          View
-        </Button>
-      )}
+      <div className="h-6 w-px bg-white/20" />
 
+      {/* ── Primary actions ── */}
       <Button
         disabled={saving}
         onClick={() => onSave(currentData)}
+        size="sm"
         variant="secondary"
       >
         Save Draft
@@ -382,6 +484,7 @@ function EditorHeaderActions({
         className="bg-[#001731] text-white hover:bg-[#001731]/90"
         disabled={saving}
         onClick={() => onPublish(currentData)}
+        size="sm"
       >
         {saving ? (
           <>
@@ -393,5 +496,5 @@ function EditorHeaderActions({
         )}
       </Button>
     </div>
-  );  
+  );
 }

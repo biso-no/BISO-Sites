@@ -31,58 +31,159 @@ import { ALIGN_OPTIONS, ICON_OPTIONS } from "../puck-tokens";
 export const GridComponents = {
   FeatureGrid: {
     label: "Feature Grid",
-    fields: {
-      title: { type: "text", contentEditable: true } as any,
-      subtitle: { type: "textarea", contentEditable: true },
-      columns: {
-        type: "select",
-        options: [
-          { label: "2", value: 2 },
-          { label: "3", value: 3 },
-          { label: "4", value: 4 },
-        ],
-      },
-      variant: {
-        type: "select",
-        options: [
-          { label: "Card", value: "card" },
-          { label: "Icon", value: "icon" },
-          { label: "Simple", value: "simple" },
-          { label: "Checklist", value: "checklist" },
-          { label: "Project", value: "project" },
-          { label: "Process", value: "process" },
-        ],
-      },
-      align: {
-        type: "radio",
-        options: ALIGN_OPTIONS,
-      },
-      items: {
+    resolveFields: (data: any): any => {
+      const variant = data.props.variant ?? "card";
+      const base: Record<string, unknown> = {
+        title: { type: "text", contentEditable: true } as any,
+        subtitle: { type: "textarea", contentEditable: true },
+        variant: {
+          type: "select",
+          options: [
+            { label: "Card", value: "card" },
+            { label: "Icon", value: "icon" },
+            { label: "Simple", value: "simple" },
+            { label: "Checklist", value: "checklist" },
+            { label: "Project", value: "project" },
+            { label: "Process", value: "process" },
+            { label: "Benefit scroll (horizontal)", value: "benefit-scroll" },
+            { label: "Link tiles (compact)", value: "link-tiles" },
+          ],
+        },
+        align: { type: "radio", options: ALIGN_OPTIONS },
+      };
+
+      if (variant !== "benefit-scroll" && variant !== "link-tiles") {
+        base.columns = {
+          type: "select",
+          options: [
+            { label: "2", value: 2 },
+            { label: "3", value: 3 },
+            { label: "4", value: 4 },
+          ],
+        };
+      }
+
+      base.items = {
         type: "array",
         getItemSummary: (item: { title?: string }) => item.title || "Feature",
         arrayFields: {
           title: { type: "text" },
           description: { type: "textarea" },
           badge: { type: "text" },
-          icon: {
-            type: "select",
-            options: ICON_OPTIONS,
-          },
+          icon: { type: "select", options: ICON_OPTIONS },
           href: { type: "link" } as any,
         },
-      },
+      };
+
+      if (variant === "benefit-scroll") {
+        // Benefit scroll items can have bullet lists
+        base.items = {
+          type: "array",
+          getItemSummary: (item: { title?: string }) => item.title || "Benefit",
+          arrayFields: {
+            title: { type: "text" },
+            description: { type: "textarea" },
+            icon: { type: "select", options: ICON_OPTIONS },
+            bullets: {
+              type: "array",
+              label: "Bullet points",
+              getItemSummary: (item: { text?: string }) => item.text || "Bullet",
+              arrayFields: { text: { type: "text" } },
+            },
+            href: { type: "link" } as any,
+          },
+        };
+      }
+
+      return base;
     },
-    render: (props: FeatureGridProps) => <FeatureGrid {...props} />,
+    render: (props: FeatureGridProps & { variant?: string; items?: any[] }) => {
+      const variant = props.variant as string | undefined;
+      const items: any[] = (props as any).items ?? [];
+
+      if (variant === "benefit-scroll") {
+        return (
+          <section className="w-full py-10 px-4">
+            {props.title && (
+              <h2 className="mb-2 text-2xl font-bold text-gray-900">{props.title}</h2>
+            )}
+            {props.subtitle && (
+              <p className="mb-6 text-gray-500">{props.subtitle}</p>
+            )}
+            <div className="flex gap-5 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
+              {items.map((item: any, i: number) => (
+                <div
+                  key={i}
+                  className="min-w-[280px] max-w-[320px] shrink-0 snap-start rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+                >
+                  {item.icon && (
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-lg font-bold">
+                      {item.icon.charAt(0)}
+                    </div>
+                  )}
+                  <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                  {item.description && (
+                    <p className="mt-1 text-sm text-gray-500">{item.description}</p>
+                  )}
+                  {item.bullets && item.bullets.length > 0 && (
+                    <ul className="mt-3 space-y-1.5">
+                      {item.bullets.map((b: { text: string }, bi: number) => (
+                        <li key={bi} className="flex items-start gap-2 text-sm text-gray-600">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
+                          {b.text}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {item.href && (
+                    <a
+                      href={item.href}
+                      className="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      Learn more →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      }
+
+      if (variant === "link-tiles") {
+        return (
+          <section className="w-full py-8 px-4">
+            {props.title && (
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">{props.title}</h2>
+            )}
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+              {items.map((item: any, i: number) => (
+                <a
+                  key={i}
+                  href={item.href || "#"}
+                  className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 shadow-sm"
+                >
+                  {item.icon && (
+                    <span className="text-gray-400 group-hover:text-blue-500 transition text-base">
+                      {item.icon.charAt(0)}
+                    </span>
+                  )}
+                  <span className="truncate">{item.title}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        );
+      }
+
+      return <FeatureGrid {...props} />;
+    },
     defaultProps: {
       columns: 3,
       variant: "card",
       align: "center",
       items: [
-        {
-          title: "Feature 1",
-          description: "Description 1",
-          icon: "Sparkles",
-        },
+        { title: "Feature 1", description: "Description 1", icon: "Sparkles" },
         { title: "Feature 2", description: "Description 2", icon: "Zap" },
         { title: "Feature 3", description: "Description 3", icon: "Crown" },
       ] as FeatureItem[],
@@ -277,7 +378,7 @@ function GridDataPicker({
   onChange: (next: GridDataBinding | null) => void;
 }) {
   const { appState } = usePuck();
-  const metadata = (appState as any).metadata as EditorMetadata | undefined;
+  const metadata = (appState as { metadata?: EditorMetadata }).metadata;
   const isAdmin = metadata?.user?.isGlobalAdmin ?? false;
   const isCampusAdmin = metadata?.user?.isCampusAdmin ?? false;
 
@@ -518,6 +619,10 @@ function GridCard({
 
 // ─── Grid Puck Component ─────────────────────────────────────────────
 
+// The Grid component's `fields` object has many field type literals that TypeScript widens
+// to `string` in the static declaration. The `as any` cast on the export suppresses the
+// resulting Config<Props> mismatch — all field types are runtime-correct. Track in:
+// TODO: migrate GridComponent.Grid.fields to use `as const` on each type property.
 export const GridComponent = {
   Grid: {
     label: "Grid",
@@ -563,14 +668,14 @@ export const GridComponent = {
         }) => <GridDataPicker value={value} onChange={onChange} />,
       },
       items: {
-        type: "array",
+        type: "array" as const,
         label: "Items",
         getItemSummary: (item: { title?: string }) => item.title || "Item",
         arrayFields: {
-          title: { type: "text" },
-          description: { type: "textarea" },
+          title: { type: "text" as const },
+          description: { type: "textarea" as const },
           image: { type: "image" } as any,
-          badge: { type: "text" },
+          badge: { type: "text" as const },
           href: { type: "link" } as any,
         },
       },

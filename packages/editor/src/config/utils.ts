@@ -1,5 +1,6 @@
+import type { PuckMetadata } from "@puckeditor/core";
 import { getDynamicContent } from "../get-dynamic-content";
-import type { DataSourceValue, EditorMetadata } from "./types";
+import type { DataSourceValue } from "./types";
 
 export const resolvedDepartmentIdCache = new Map<string, string>();
 
@@ -71,7 +72,7 @@ export function mergeFilters(
 export async function buildPageScopeFilters(
   table: "events" | "news" | "jobs" | "products",
   scope: "page" | "all" | undefined,
-  metadata: EditorMetadata | undefined
+  metadata: PuckMetadata | undefined
 ): Promise<DataSourceValue["filters"]> {
   if (scope !== "page") {
     return [];
@@ -166,19 +167,17 @@ export function deriveJobSlug(
  * - Campus admins: can edit/insert/drag/duplicate, cannot delete
  * - Regular editors: can only edit content, cannot delete/drag/duplicate
  *
- * Puck's resolvePermissions receives (data, { changed, lastPermissions,
- * permissions, appState, lastData, parent }). We access metadata from
- * appState.data.root.props where it's stored by the editor.
+ * Puck 0.21 threads metadata via `params.metadata` (typed via PuckMetadata
+ * declaration merging in puck-augments.d.ts).
  */
-export const resolveComponentPermissions: any = (
+export function resolveComponentPermissions(
   _data: unknown,
-  params: { appState?: { data?: { root?: { props?: Record<string, unknown> } } } }
-) => {
-  // metadata is threaded via <Puck metadata={...}> and available on appState
-  const meta = (params as any)?.metadata as EditorMetadata | undefined;
+  params: { metadata?: PuckMetadata }
+): Record<string, boolean> {
+  const meta = params.metadata;
   if (!meta?.user) return {};
 
   if (meta.user.isGlobalAdmin) return {};
   if (meta.user.isCampusAdmin) return { delete: false };
   return { delete: false, drag: false, duplicate: false };
-};
+}

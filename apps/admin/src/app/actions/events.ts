@@ -509,6 +509,7 @@ export async function listDepartmentsWithWriterAccess() {
       Query.equal("active", true),
       //Query.equal("$permissions", "write"),
     ]);
+    console.log(response.rows);
     return response.rows;
   } catch (error) {
     console.error("Error fetching departments with writer access:", error);

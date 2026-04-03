@@ -21,8 +21,20 @@ import {
   type ProductsGridItem,
   type ProductsGridProps,
 } from "@repo/ui/components/puck/products-grid";
-import { TABLE_SCHEMAS } from "../data/schemas";
-import { getDynamicContent } from "../get-dynamic-content";
+import { TABLE_SCHEMAS } from "../../data/schemas";
+import { getDynamicContent } from "../../get-dynamic-content";
+import {
+  DATA_MODE_FIELD,
+  buildExternalDataSourceField,
+  shouldResolveDynamic,
+} from "../helpers/dynamic-data";
+import {
+  buildLockedScopeField,
+  getEffectiveScope,
+  getScopeFieldForUser,
+  isDepartmentUser,
+  type ScopeUser,
+} from "../helpers/permission-scope";
 import {
   buildPageScopeFilters,
   deriveJobSlug,
@@ -32,7 +44,7 @@ import {
   mergeFilters,
   normalizeSubtitle,
   resolveComponentPermissions,
-} from "./utils";
+} from "../utils";
 import type {
   ArticleDetailProps,
   DataSourceValue,
@@ -45,64 +57,29 @@ import type {
   EditorProductsGridProps,
   EventDetailProps,
   EventsCalendarProps,
-} from "./types";
+} from "../types";
 import type { NewsItem } from "@repo/ui/components/sections/news";
 import type { EventItem } from "@repo/ui/components/sections/events";
-import { DataBlockPlaceholder } from "./data-block-placeholder";
+import { DataBlockPlaceholder } from "../data-block-placeholder";
 
 export const DataDisplayComponents = {
   News: {
     label: "News",
     resolvePermissions: resolveComponentPermissions,
-    resolveFields: (data: any): any => {
-      const fields: Record<string, unknown> = {
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
-      };
+    resolveFields: (data: any, { metadata }: any): any => {
+      const user = (metadata as any)?.user as ScopeUser | undefined;
+      const fields: Record<string, unknown> = { dataMode: DATA_MODE_FIELD };
 
       if (data.props.dataMode === "dynamic") {
-        fields.scope = {
-          type: "radio",
-          label: "Scope",
-          options: [
-            { label: "This page", value: "page" },
-            { label: "All content", value: "all" },
-          ],
-        };
-        fields.dataSource = {
-          type: "external",
-          label: "News Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "news");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 6,
-          }),
-        } as any;
+        const scopeField = getScopeFieldForUser(user);
+        if (scopeField) {
+          fields.scope = scopeField;
+        } else {
+          fields._scopeInfo = buildLockedScopeField(
+            user?.departmentNames?.[0] ?? "your department"
+          ) as any;
+        }
+        fields.dataSource = buildExternalDataSourceField("news", "News Source") as any;
       } else {
         fields.news = {
           type: "array",
@@ -138,16 +115,7 @@ export const DataDisplayComponents = {
       { props }: { props: EditorNewsProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource || changed.scope);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
         return { props: {} };
       }
 
@@ -157,10 +125,11 @@ export const DataDisplayComponents = {
 
       try {
         const editorMetadata = metadata as EditorMetadata | undefined;
+        const user = editorMetadata?.user as ScopeUser | undefined;
         const locale = editorMetadata?.locale ?? props.dataSource.locale;
         const scopeFilters = await buildPageScopeFilters(
           "news",
-          props.scope,
+          getEffectiveScope(props.scope, user),
           editorMetadata
         );
 
@@ -217,55 +186,20 @@ export const DataDisplayComponents = {
   Events: {
     label: "Events",
     resolvePermissions: resolveComponentPermissions,
-    resolveFields: (data: any): any => {
-      const fields: Record<string, unknown> = {
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
-      };
+    resolveFields: (data: any, { metadata }: any): any => {
+      const user = (metadata as any)?.user as ScopeUser | undefined;
+      const fields: Record<string, unknown> = { dataMode: DATA_MODE_FIELD };
 
       if (data.props.dataMode === "dynamic") {
-        fields.scope = {
-          type: "radio",
-          label: "Scope",
-          options: [
-            { label: "This page", value: "page" },
-            { label: "All content", value: "all" },
-          ],
-        };
-        fields.dataSource = {
-          type: "external",
-          label: "Events Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "events");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 6,
-          }),
-        } as any;
+        const scopeField = getScopeFieldForUser(user);
+        if (scopeField) {
+          fields.scope = scopeField;
+        } else {
+          fields._scopeInfo = buildLockedScopeField(
+            user?.departmentNames?.[0] ?? "your department"
+          ) as any;
+        }
+        fields.dataSource = buildExternalDataSourceField("events", "Events Source") as any;
       } else {
         fields.events = {
           type: "array",
@@ -311,16 +245,7 @@ export const DataDisplayComponents = {
       { props }: { props: EditorEventsProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource || changed.scope);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
         return { props: {} };
       }
 
@@ -330,10 +255,11 @@ export const DataDisplayComponents = {
 
       try {
         const editorMetadata = metadata as EditorMetadata | undefined;
+        const user = editorMetadata?.user as ScopeUser | undefined;
         const locale = editorMetadata?.locale ?? props.dataSource.locale;
         const scopeFilters = await buildPageScopeFilters(
           "events",
-          props.scope,
+          getEffectiveScope(props.scope, user),
           editorMetadata
         );
 
@@ -395,55 +321,20 @@ export const DataDisplayComponents = {
   JobsList: {
     label: "Jobs List",
     resolvePermissions: resolveComponentPermissions,
-    resolveFields: (data: any): any => {
-      const fields: Record<string, unknown> = {
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
-      };
+    resolveFields: (data: any, { metadata }: any): any => {
+      const user = (metadata as any)?.user as ScopeUser | undefined;
+      const fields: Record<string, unknown> = { dataMode: DATA_MODE_FIELD };
 
       if (data.props.dataMode === "dynamic") {
-        fields.scope = {
-          type: "radio",
-          label: "Scope",
-          options: [
-            { label: "This page", value: "page" },
-            { label: "All content", value: "all" },
-          ],
-        };
-        fields.dataSource = {
-          type: "external",
-          label: "Jobs Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "jobs");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 12,
-          }),
-        } as any;
+        const scopeField = getScopeFieldForUser(user);
+        if (scopeField) {
+          fields.scope = scopeField;
+        } else {
+          fields._scopeInfo = buildLockedScopeField(
+            user?.departmentNames?.[0] ?? "your department"
+          ) as any;
+        }
+        fields.dataSource = buildExternalDataSourceField("jobs", "Jobs Source") as any;
       } else {
         fields.jobs = {
           type: "array",
@@ -485,16 +376,7 @@ export const DataDisplayComponents = {
       { props }: { props: EditorJobsListProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource || changed.scope);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
         return { props: {} };
       }
 
@@ -504,10 +386,11 @@ export const DataDisplayComponents = {
 
       try {
         const editorMetadata = metadata as EditorMetadata | undefined;
+        const user = editorMetadata?.user as ScopeUser | undefined;
         const locale = editorMetadata?.locale ?? props.dataSource.locale;
         const scopeFilters = await buildPageScopeFilters(
           "jobs",
-          props.scope,
+          getEffectiveScope(props.scope, user),
           editorMetadata
         );
 
@@ -581,7 +464,8 @@ export const DataDisplayComponents = {
   ProductsGrid: {
     label: "Products Grid",
     resolvePermissions: resolveComponentPermissions,
-    resolveFields: (data: any): any => {
+    resolveFields: (data: any, { metadata }: any): any => {
+      const user = (metadata as any)?.user as ScopeUser | undefined;
       const fields: Record<string, unknown> = {
         title: { type: "text", contentEditable: true } as any,
         subtitle: { type: "textarea", contentEditable: true },
@@ -600,53 +484,19 @@ export const DataDisplayComponents = {
             { label: "4", value: 4 },
           ],
         },
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
+        dataMode: DATA_MODE_FIELD,
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.scope = {
-          type: "radio",
-          label: "Scope",
-          options: [
-            { label: "This page", value: "page" },
-            { label: "All content", value: "all" },
-          ],
-        };
-        fields.dataSource = {
-          type: "external",
-          label: "Products Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "products");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 8,
-          }),
-        } as any;
+        const scopeField = getScopeFieldForUser(user);
+        if (scopeField) {
+          fields.scope = scopeField;
+        } else {
+          fields._scopeInfo = buildLockedScopeField(
+            user?.departmentNames?.[0] ?? "your department"
+          ) as any;
+        }
+        fields.dataSource = buildExternalDataSourceField("products", "Products Source") as any;
       } else {
         fields.products = {
           type: "array",
@@ -674,16 +524,7 @@ export const DataDisplayComponents = {
       { props }: { props: EditorProductsGridProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource || changed.scope);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
         return { props: {} };
       }
 
@@ -693,10 +534,11 @@ export const DataDisplayComponents = {
 
       try {
         const editorMetadata = metadata as EditorMetadata | undefined;
+        const user = editorMetadata?.user as ScopeUser | undefined;
         const locale = editorMetadata?.locale ?? props.dataSource.locale;
         const scopeFilters = await buildPageScopeFilters(
           "products",
-          props.scope,
+          getEffectiveScope(props.scope, user),
           editorMetadata
         );
 
@@ -815,14 +657,7 @@ export const DataDisplayComponents = {
             { label: "6 Columns", value: 6 },
           ],
         },
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
+        dataMode: DATA_MODE_FIELD,
       };
 
       if (data.props.dataMode === "dynamic") {
@@ -830,8 +665,9 @@ export const DataDisplayComponents = {
           type: "external",
           label: "Data Source",
           cache: { enabled: true },
-          fetchList: async () => {
-            return TABLE_SCHEMAS.flatMap((schema) => [
+          // Collection allows any schema — build a combined list from all schemas
+          fetchList: async () =>
+            TABLE_SCHEMAS.flatMap((schema) => [
               { id: `${schema.id}-default`, title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
               ...(schema.presetFilters ?? []).map((p, i) => ({
                 id: `${schema.id}-preset-${i}`,
@@ -840,8 +676,7 @@ export const DataDisplayComponents = {
                 filters: p.filters,
                 sort: schema.defaultSort,
               })),
-            ]);
-          },
+            ]),
           filterFields: {
             limit: { type: "number", label: "Limit" },
           },
@@ -914,16 +749,7 @@ export const DataDisplayComponents = {
       { props }: { props: EditorCollectionProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
         return { props: {} };
       }
 
@@ -973,7 +799,8 @@ export const DataDisplayComponents = {
   DepartmentsGrid: {
     label: "Departments Grid",
     resolvePermissions: resolveComponentPermissions,
-    resolveFields: (data: any): any => {
+    resolveFields: (data: any, { metadata }: any): any => {
+      const user = (metadata as any)?.user as ScopeUser | undefined;
       const fields: Record<string, unknown> = {
         title: { type: "text", label: "Title" },
         subtitle: { type: "textarea", label: "Subtitle" },
@@ -1002,53 +829,19 @@ export const DataDisplayComponents = {
             { label: "No", value: false },
           ],
         },
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
+        dataMode: DATA_MODE_FIELD,
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.scope = {
-          type: "radio",
-          label: "Scope",
-          options: [
-            { label: "This page", value: "page" },
-            { label: "All content", value: "all" },
-          ],
-        };
-        fields.dataSource = {
-          type: "external",
-          label: "Departments Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "departments");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 12,
-          }),
-        } as any;
+        const scopeField = getScopeFieldForUser(user);
+        if (scopeField) {
+          fields.scope = scopeField;
+        } else {
+          fields._scopeInfo = buildLockedScopeField(
+            user?.departmentNames?.[0] ?? "your department"
+          ) as any;
+        }
+        fields.dataSource = buildExternalDataSourceField("departments", "Departments Source") as any;
       } else {
         fields.items = {
           type: "array",
@@ -1071,16 +864,7 @@ export const DataDisplayComponents = {
       { props }: { props: DepartmentsGridProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource || changed.scope);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource", "scope"] })) {
         return { props: {} };
       }
 
@@ -1090,13 +874,17 @@ export const DataDisplayComponents = {
 
       try {
         const editorMetadata = metadata as EditorMetadata | undefined;
+        const user = editorMetadata?.user as ScopeUser | undefined;
         const locale = editorMetadata?.locale ?? props.dataSource.locale;
+        const scopeFilters = isDepartmentUser(user)
+          ? [{ field: "Name", operator: "equal", value: user!.departmentNames[0]! }]
+          : [];
 
         const items = await getDynamicContent({
           ...props.dataSource,
           table: "departments",
           locale,
-          filters: props.dataSource.filters,
+          filters: mergeFilters(props.dataSource.filters, scopeFilters),
           limit: props.dataSource.limit ?? 12,
         });
 
@@ -1155,7 +943,8 @@ export const DataDisplayComponents = {
   EventsCalendar: {
     label: "Events Calendar",
     resolvePermissions: resolveComponentPermissions,
-    resolveFields: (data: any): any => {
+    resolveFields: (data: any, { metadata }: any): any => {
+      const user = (metadata as any)?.user as ScopeUser | undefined;
       const fields: Record<string, unknown> = {
         title: { type: "text", label: "Title" },
         view: {
@@ -1175,53 +964,19 @@ export const DataDisplayComponents = {
             { label: "No", value: false },
           ],
         },
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
+        dataMode: DATA_MODE_FIELD,
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.scope = {
-          type: "radio",
-          label: "Scope",
-          options: [
-            { label: "This page", value: "page" },
-            { label: "All content", value: "all" },
-          ],
-        };
-        fields.dataSource = {
-          type: "external",
-          label: "Events Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "events");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 20,
-          }),
-        } as any;
+        const scopeField = getScopeFieldForUser(user);
+        if (scopeField) {
+          fields.scope = scopeField;
+        } else {
+          fields._scopeInfo = buildLockedScopeField(
+            user?.departmentNames?.[0] ?? "your department"
+          ) as any;
+        }
+        fields.dataSource = buildExternalDataSourceField("events", "Events Source") as any;
       } else {
         fields.events = {
           type: "array",
@@ -1253,16 +1008,7 @@ export const DataDisplayComponents = {
       { props }: { props: EventsCalendarProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
         return { props: {} };
       }
 
@@ -1272,13 +1018,19 @@ export const DataDisplayComponents = {
 
       try {
         const editorMetadata = metadata as EditorMetadata | undefined;
+        const user = editorMetadata?.user as ScopeUser | undefined;
         const locale = editorMetadata?.locale ?? props.dataSource.locale;
+        const scopeFilters = await buildPageScopeFilters(
+          "events",
+          getEffectiveScope((props as any).scope, user),
+          editorMetadata
+        );
 
         const items = await getDynamicContent({
           ...props.dataSource,
           table: "events",
           locale,
-          filters: props.dataSource.filters,
+          filters: mergeFilters(props.dataSource.filters, scopeFilters),
           limit: props.dataSource.limit ?? 20,
         });
 
@@ -1358,45 +1110,11 @@ export const DataDisplayComponents = {
             { label: "No", value: false },
           ],
         },
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
+        dataMode: DATA_MODE_FIELD,
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.dataSource = {
-          type: "external",
-          label: "Article Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "news");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 1,
-          }),
-        } as any;
+        fields.dataSource = buildExternalDataSourceField("news", "Article Source") as any;
       } else {
         fields.title = { type: "text", label: "Title" };
         fields.author = { type: "text", label: "Author" };
@@ -1425,16 +1143,7 @@ export const DataDisplayComponents = {
       { props }: { props: ArticleDetailProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
         return { props: {} };
       }
 
@@ -1586,45 +1295,11 @@ export const DataDisplayComponents = {
             { label: "No", value: false },
           ],
         },
-        dataMode: {
-          type: "radio",
-          label: "Data Source",
-          options: [
-            { label: "Manual Entry", value: "manual" },
-            { label: "Dynamic (Database)", value: "dynamic" },
-          ],
-        },
+        dataMode: DATA_MODE_FIELD,
       };
 
       if (data.props.dataMode === "dynamic") {
-        fields.dataSource = {
-          type: "external",
-          label: "Event Source",
-          cache: { enabled: true },
-          fetchList: async () => {
-            const schema = TABLE_SCHEMAS.find((s) => s.id === "events");
-            if (!schema) return [];
-            return [
-              { id: "default", title: `All ${schema.label}`, table: schema.id, filters: [], sort: schema.defaultSort },
-              ...(schema.presetFilters ?? []).map((p, i) => ({
-                id: `preset-${i}`,
-                title: p.label,
-                table: schema.id,
-                filters: p.filters,
-                sort: schema.defaultSort,
-              })),
-            ];
-          },
-          filterFields: {
-            limit: { type: "number", label: "Limit" },
-          },
-          mapProp: (selected: any) => ({
-            table: selected?.table,
-            filters: selected?.filters ?? [],
-            sort: selected?.sort,
-            limit: selected?.limit ?? 1,
-          }),
-        } as any;
+        fields.dataSource = buildExternalDataSourceField("events", "Event Source") as any;
       } else {
         fields.title = { type: "text", label: "Title" };
         fields.date = { type: "text", label: "Start Date" };
@@ -1642,16 +1317,7 @@ export const DataDisplayComponents = {
       { props }: { props: EventDetailProps },
       { changed, trigger, metadata }: any
     ) => {
-      // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
-
-      const shouldResolve =
-        trigger === "insert" ||
-        trigger === "load" ||
-        trigger === "force" ||
-        Boolean(changed.dataMode || changed.dataSource);
-
-      if (!shouldResolve) {
+      if (!shouldResolveDynamic({ trigger, changed, watchKeys: ["dataMode", "dataSource"] })) {
         return { props: {} };
       }
 

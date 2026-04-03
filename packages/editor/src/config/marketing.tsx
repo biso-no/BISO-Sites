@@ -11,51 +11,137 @@ import {
   type JoinUsBenefit,
   type JoinUsDuration,
 } from "@repo/ui/components/sections/join-us";
-import { ALIGN_OPTIONS, GRADIENT_OPTIONS } from "../puck-tokens";
+import { ALIGN_OPTIONS, GRADIENT_OPTIONS, ICON_OPTIONS } from "../puck-tokens";
 import type { CountdownProps, EditorJoinUsProps, PricingTableProps } from "./types";
 
 export const MarketingComponents = {
   CTA: {
     label: "Call to Action",
-    fields: {
-      title: { type: "text", contentEditable: true } as any,
-      description: { type: "textarea", contentEditable: true },
-      variant: {
-        type: "select",
-        options: [
-          { label: "Default", value: "default" },
-          { label: "Card", value: "card" },
-          { label: "Brand", value: "brand" },
-          { label: "Dark", value: "dark" },
-        ],
-      },
-      align: {
-        type: "radio",
-        options: ALIGN_OPTIONS,
-      },
-      buttons: {
-        type: "array",
-        arrayFields: {
-          label: { type: "text" },
-          href: { type: "link" } as any,
-          variant: {
-            type: "select",
-            options: [
-              { label: "Default", value: "default" },
-              { label: "Outline", value: "outline" },
-              { label: "Ghost", value: "ghost" },
-              { label: "White", value: "white" },
-            ],
+    resolveFields: (data: any): any => {
+      const base: Record<string, unknown> = {
+        title: { type: "text", contentEditable: true } as any,
+        description: { type: "textarea", contentEditable: true },
+        variant: {
+          type: "select",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Card", value: "card" },
+            { label: "Brand", value: "brand" },
+            { label: "Dark", value: "dark" },
+            { label: "Info card (tinted)", value: "info-card" },
+            { label: "Campus-conditional", value: "campus-conditional" },
+          ],
+        },
+        align: {
+          type: "radio",
+          options: ALIGN_OPTIONS,
+        },
+        buttons: {
+          type: "array",
+          arrayFields: {
+            label: { type: "text" },
+            href: { type: "link" } as any,
+            variant: {
+              type: "select",
+              options: [
+                { label: "Default", value: "default" },
+                { label: "Outline", value: "outline" },
+                { label: "Ghost", value: "ghost" },
+                { label: "White", value: "white" },
+              ],
+            },
+          },
+          defaultItemProps: {
+            label: "Button",
+            href: "#",
+            variant: "default",
           },
         },
-        defaultItemProps: {
-          label: "Button",
-          href: "#",
-          variant: "default",
-        },
-      },
+      };
+
+      if (data.props.variant === "info-card") {
+        base.tint = {
+          type: "select",
+          label: "Tint Color",
+          options: [
+            { label: "Blue", value: "blue" },
+            { label: "Indigo", value: "indigo" },
+            { label: "Amber", value: "amber" },
+            { label: "Green", value: "green" },
+            { label: "Red", value: "red" },
+          ],
+        };
+        base.icon = {
+          type: "select",
+          label: "Icon",
+          options: ICON_OPTIONS,
+        };
+      }
+
+      if (data.props.variant === "campus-conditional") {
+        base.showForCampus = {
+          type: "select",
+          label: "Only show for campus",
+          options: [
+            { label: "All campuses", value: "all" },
+            { label: "Oslo", value: "1" },
+            { label: "Bergen", value: "2" },
+            { label: "Trondheim", value: "3" },
+            { label: "Stavanger", value: "4" },
+            { label: "National", value: "5" },
+          ],
+        };
+        base.campusBadge = { type: "text", label: "Campus Badge Label" };
+      }
+
+      return base;
     },
-    render: (props: CTAProps) => <CTA {...props} />,
+    render: (props: CTAProps & { variant?: string; tint?: string; icon?: string; showForCampus?: string; campusBadge?: string }) => {
+      const variant = props.variant as string | undefined;
+
+      if (variant === "info-card") {
+        const tintStyles: Record<string, { wrapper: string; title: string; desc: string; btn: string }> = {
+          blue:   { wrapper: "bg-blue-50 border-blue-200",   title: "text-blue-900",   desc: "text-blue-700",   btn: "bg-blue-600 text-white hover:bg-blue-700" },
+          indigo: { wrapper: "bg-indigo-50 border-indigo-200", title: "text-indigo-900", desc: "text-indigo-700", btn: "bg-indigo-600 text-white hover:bg-indigo-700" },
+          amber:  { wrapper: "bg-amber-50 border-amber-200",  title: "text-amber-900",  desc: "text-amber-700",  btn: "bg-amber-600 text-white hover:bg-amber-700" },
+          green:  { wrapper: "bg-emerald-50 border-emerald-200", title: "text-emerald-900", desc: "text-emerald-700", btn: "bg-emerald-600 text-white hover:bg-emerald-700" },
+          red:    { wrapper: "bg-red-50 border-red-200",      title: "text-red-900",    desc: "text-red-700",    btn: "bg-red-600 text-white hover:bg-red-700" },
+        };
+        const s = tintStyles[props.tint ?? "blue"] ?? tintStyles.blue;
+        return (
+          <div className={`w-full rounded-2xl border p-8 ${s.wrapper}`}>
+            <h3 className={`text-xl font-bold ${s.title}`}>{props.title || "Title"}</h3>
+            {props.description && (
+              <p className={`mt-2 text-sm ${s.desc}`}>{props.description}</p>
+            )}
+            {(props.buttons ?? []).length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-3">
+                {(props.buttons ?? []).map((btn, i) => (
+                  <a key={i} href={btn.href} className={`inline-flex rounded-lg px-4 py-2 text-sm font-semibold transition ${s.btn}`}>
+                    {btn.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      if (variant === "campus-conditional") {
+        return (
+          <div className="relative w-full">
+            {props.campusBadge && (
+              <div className="absolute -top-3 left-6 rounded-full bg-blue-600 px-3 py-0.5 text-xs font-semibold text-white">
+                {props.campusBadge}
+              </div>
+            )}
+            <CTA {...(props as CTAProps)} />
+          </div>
+        );
+      }
+
+      return <CTA {...(props as CTAProps)} />;
+    },
     defaultProps: {
       title: "Ready to join?",
       description: "Get started today.",
@@ -323,7 +409,7 @@ export const MarketingComponents = {
           currency: "NOK",
           period: "/month",
           highlighted: false,
-          features: [] as any,
+          features: [] as { value: string }[],
           ctaLabel: "Get Started",
           ctaHref: "#",
         },
@@ -379,11 +465,7 @@ export const MarketingComponents = {
                         </span>
                       </td>
                       <td className="py-4 px-6 text-gray-600">
-                        {((plan.features as any) || [])
-                          .map((f: any) =>
-                            typeof f === "string" ? f : f?.value || ""
-                          )
-                          .join(", ")}
+                        {(plan.features || []).map((f) => f.value).join(", ")}
                       </td>
                       <td className="py-4 px-6 text-right">
                         <a
@@ -441,31 +523,27 @@ export const MarketingComponents = {
                     </span>
                   </div>
                   <ul className="flex-1 space-y-3 mb-8">
-                    {((plan.features as any) || []).map(
-                      (feature: any, fi: number) => (
-                        <li
-                          key={fi}
-                          className="flex items-center gap-2 text-sm text-gray-600"
+                    {(plan.features || []).map((feature, fi) => (
+                      <li
+                        key={fi}
+                        className="flex items-center gap-2 text-sm text-gray-600"
+                      >
+                        <svg
+                          className="h-4 w-4 shrink-0 text-blue-500"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
                         >
-                          <svg
-                            className="h-4 w-4 shrink-0 text-blue-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          {typeof feature === "string"
-                            ? feature
-                            : feature?.value || ""}
-                        </li>
-                      )
-                    )}
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        {feature.value}
+                      </li>
+                    ))}
                   </ul>
                   <a
                     href={plan.ctaHref || "#"}
@@ -498,7 +576,7 @@ export const MarketingComponents = {
           features: [
             { value: "Event access" },
             { value: "Newsletter" },
-          ] as any,
+          ],
           ctaLabel: "Get Started",
           ctaHref: "#",
         },
@@ -513,7 +591,7 @@ export const MarketingComponents = {
             { value: "Priority seating" },
             { value: "Exclusive workshops" },
             { value: "Merch discount" },
-          ] as any,
+          ],
           ctaLabel: "Join Pro",
           ctaHref: "#",
         },
@@ -527,7 +605,7 @@ export const MarketingComponents = {
             { value: "Everything in Pro" },
             { value: "1-on-1 mentoring" },
             { value: "VIP events" },
-          ] as any,
+          ],
           ctaLabel: "Go Premium",
           ctaHref: "#",
         },

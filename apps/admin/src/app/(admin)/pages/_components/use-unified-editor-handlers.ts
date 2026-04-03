@@ -10,11 +10,13 @@ import type {
 import { PageStatus as PS } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { sanitizeSlug } from "@/lib/utils";
 import { upsertManagedPage } from "@/app/actions/pages/actions";
 import { generateSeoMetadata } from "@/app/actions/pages/seo";
 import { translatePageContent } from "@/app/actions/pages/translate";
+import type { UntranslatedLocaleInfo } from "./translation-check-modal";
 
 type LocaleData = {
   title: string;
@@ -36,15 +38,75 @@ type UseUnifiedEditorHandlersProps = {
   setSlug: (slug: string) => void;
 };
 
-function sanitizeSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+// ── Detection helpers ──────────────────────────────────────────────────────
+
+const TEXT_FIELD_KEYS = new Set([
+  "title", "text", "description", "subtitle", "content",
+  "heading", "label", "buttonText", "paragraph", "badge", "bio", "role",
+]);
+
+function hasTextContent(props: Record<string, unknown>): boolean {
+  for (const key of TEXT_FIELD_KEYS) {
+    const val = props[key];
+    if (typeof val === "string" && val.trim().length > 0) return true;
+  }
+  return false;
 }
+
+function detectUntranslatedLocales(
+  localeData: Record<string, LocaleData | null>,
+  currentLocale: Locale,
+  availableLocales: Locale[]
+): UntranslatedLocaleInfo[] {
+  const sourceData = localeData[currentLocale];
+  if (!sourceData) return [];
+
+  const results: UntranslatedLocaleInfo[] = [];
+
+  for (const locale of availableLocales) {
+    if (locale === currentLocale) continue;
+    const locData = localeData[locale];
+
+    if (!locData?.title.trim()) {
+      results.push({
+        locale,
+        missingFields: ["title", "all content"],
+        blockCount: sourceData.data.content.length,
+        filledBlockCount: 0,
+      });
+      continue;
+    }
+
+    const missingFields: string[] = [];
+    if (!locData.title.trim()) missingFields.push("title");
+    if (!locData.description.trim() && sourceData.description.trim()) {
+      missingFields.push("description");
+    }
+
+    let filledBlockCount = 0;
+    for (let i = 0; i < locData.data.content.length; i++) {
+      const block = locData.data.content[i];
+      if (hasTextContent((block.props ?? {}) as Record<string, unknown>)) {
+        filledBlockCount++;
+      } else {
+        missingFields.push(`${block.type} (block ${i + 1})`);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      results.push({
+        locale,
+        missingFields,
+        blockCount: locData.data.content.length,
+        filledBlockCount,
+      });
+    }
+  }
+
+  return results;
+}
+
+// ── Main hook ──────────────────────────────────────────────────────────────
 
 export function useUnifiedEditorHandlers({
   currentLocale,
@@ -61,6 +123,180 @@ export function useUnifiedEditorHandlers({
   const [isSaving, setIsSaving] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
 
+  // Translation modal state
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [untranslatedLocales, setUntranslatedLocales] = useState<UntranslatedLocaleInfo[]>([]);
+  const [translationProgress, setTranslationProgress] = useState<
+    Record<string, "pending" | "translating" | "done" | "error">
+  >({});
+
+  // Always-current reference to localeData — needed after async state updates
+  const localeDataRef = useRef(localeData);
+  localeDataRef.current = localeData;
+
+  // Pending publish args stored when the modal intercepts the publish action
+  const pendingPublishRef = useRef<{
+    data: Data;
+    metadata: { title: string; slug: string; description?: string };
+    tentativeLocaleData: Record<string, LocaleData | null>;
+  } | null>(null);
+
+  /**
+   * Core persistence logic shared by save (draft) and publish.
+   */
+  async function persistPage(
+    data: Data,
+    metadata: { title: string; slug: string; description?: string },
+    opts: {
+      publish: boolean;
+      extraLocaleData?: Record<string, LocaleData | null>;
+      /** Explicit locale data snapshot to use instead of the ref (post-translation) */
+      snapshotLocaleData?: Record<string, LocaleData | null>;
+    }
+  ): Promise<{ id: string }> {
+    const titleFromRoot =
+      (data.root?.props as Record<string, unknown>)?.title as string | undefined ||
+      metadata.title;
+    const slugFromRoot =
+      (data.root?.props as Record<string, unknown>)?.slug as string | undefined ||
+      effectiveSlug ||
+      sanitizeSlug(titleFromRoot);
+    const resolvedSlug = enforcedDepartmentSlug ?? slugFromRoot;
+
+    const baseLocaleData = opts.snapshotLocaleData ?? localeDataRef.current;
+
+    const updatedLocaleData: Record<string, LocaleData | null> = {
+      ...baseLocaleData,
+      ...opts.extraLocaleData,
+      [currentLocale]: {
+        title: titleFromRoot,
+        description: metadata.description ?? "",
+        data,
+      },
+    };
+
+    const translations = availableLocales
+      .map((locale) => {
+        const locData = updatedLocaleData[locale];
+        if (!locData?.title.trim()) return null;
+        return {
+          locale,
+          title: locData.title,
+          slug: null,
+          description: locData.description || null,
+          draftDocument: locData.data,
+          publish: opts.publish,
+        };
+      })
+      .filter((t) => t !== null);
+
+    if (translations.length === 0) {
+      throw new Error("At least one locale must have content");
+    }
+
+    const result = await upsertManagedPage({
+      pageId,
+      slug: resolvedSlug,
+      title: titleFromRoot,
+      status: opts.publish ? PS.PUBLISHED : PS.DRAFT,
+      visibility: initialVisibility,
+      translations,
+    });
+
+    setLocaleData(updatedLocaleData as Record<Locale, LocaleData | null>);
+    setSlug(resolvedSlug);
+
+    return result;
+  }
+
+  /**
+   * Shared publish execution — runs after any translation step or directly.
+   */
+  async function executePublish(
+    data: Data,
+    metadata: { title: string; slug: string; description?: string },
+    snapshotLocaleData?: Record<string, LocaleData | null>
+  ) {
+    setIsSaving(true);
+    try {
+      const tentative = snapshotLocaleData ?? {
+        ...localeDataRef.current,
+        [currentLocale]: {
+          title:
+            (data.root?.props as Record<string, unknown>)?.title as string ||
+            metadata.title,
+          description: metadata.description ?? "",
+          data,
+        },
+      };
+
+      // Auto-generate SEO metadata for locales missing it
+      const seoEnriched: Record<string, LocaleData | null> = {};
+      for (const locale of availableLocales) {
+        const locData = tentative[locale];
+        if (!locData) continue;
+        const rootProps = (locData.data.root?.props ?? {}) as Record<string, unknown>;
+        const hasSeo =
+          (rootProps.seoTitle as string)?.trim() ||
+          (rootProps.seoDescription as string)?.trim();
+
+        if (!hasSeo) {
+          const contentSummary = locData.data.content
+            ?.slice(0, 8)
+            .map((b) => {
+              const p = (b.props ?? {}) as Record<string, unknown>;
+              return `[${b.type}] ${(p.title as string) || (p.text as string) || ""}`.trim();
+            })
+            .filter(Boolean)
+            .join("; ");
+
+          const generated = await generateSeoMetadata({
+            title: locData.title,
+            description: locData.description,
+            contentSummary,
+          });
+
+          if (generated) {
+            seoEnriched[locale] = {
+              ...locData,
+              data: {
+                ...locData.data,
+                root: {
+                  ...locData.data.root,
+                  props: {
+                    ...(rootProps as object),
+                    seoTitle: generated.seoTitle,
+                    seoDescription: generated.seoDescription,
+                  } as Record<string, unknown>,
+                },
+              },
+            };
+          }
+        }
+      }
+
+      const result = await persistPage(data, metadata, {
+        publish: true,
+        extraLocaleData: seoEnriched,
+        snapshotLocaleData: tentative,
+      });
+
+      if (pageId) {
+        toast.success("Page published successfully");
+      } else {
+        router.push(`/pages/${result.id}`);
+        toast.success("Page created and published");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to publish page"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const handleTranslate = async (
     data: Data,
     metadata: { title: string; slug: string; description?: string },
@@ -73,7 +309,7 @@ export function useUnifiedEditorHandlers({
 
     setIsTranslating(true);
     try {
-      const titleFromRoot = (data.root?.props as any)?.title || metadata.title;
+      const titleFromRoot = (data.root?.props as Record<string, unknown>)?.title as string || metadata.title;
 
       const result = await translatePageContent({
         sourceLocale: currentLocale,
@@ -102,7 +338,7 @@ export function useUnifiedEditorHandlers({
             root: {
               ...data.root,
               props: {
-                ...(data.root?.props as any),
+                ...(data.root?.props as object),
                 title: result.title,
               },
             },
@@ -127,57 +363,7 @@ export function useUnifiedEditorHandlers({
   ) => {
     setIsSaving(true);
     try {
-      const titleFromRoot = (data.root?.props as any)?.title || metadata.title;
-      const slugFromRoot =
-        (data.root?.props as any)?.slug ||
-        effectiveSlug ||
-        sanitizeSlug(titleFromRoot);
-      const resolvedSlug = enforcedDepartmentSlug ?? slugFromRoot;
-
-      const updatedLocaleData = {
-        ...localeData,
-        [currentLocale]: {
-          title: titleFromRoot,
-          description: metadata.description ?? "",
-          data,
-        },
-      };
-
-      const translations = availableLocales
-        .map((locale) => {
-          const locData = updatedLocaleData[locale];
-
-          if (locData?.title.trim()) {
-            return {
-              locale,
-              title: locData.title,
-              slug: null,
-              description: locData.description || null,
-              draftDocument: locData.data,
-              publish: false,
-            };
-          }
-          return null;
-        })
-        .filter((t) => t !== null);
-
-      if (translations.length === 0) {
-        toast.error("At least one locale must have content");
-        return;
-      }
-
-      const result = await upsertManagedPage({
-        pageId,
-        slug: resolvedSlug,
-        title: titleFromRoot,
-        status: PS.DRAFT,
-        visibility: initialVisibility,
-        translations,
-      });
-
-      setLocaleData(updatedLocaleData);
-      setSlug(resolvedSlug);
-
+      const result = await persistPage(data, metadata, { publish: false });
       if (pageId) {
         toast.success("Draft saved successfully");
       } else {
@@ -186,7 +372,9 @@ export function useUnifiedEditorHandlers({
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save draft");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save draft"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -196,30 +384,21 @@ export function useUnifiedEditorHandlers({
     data: Data,
     metadata: { title: string; slug: string; description?: string }
   ) => {
-    const titleFromRoot = (data.root?.props as any)?.title || metadata.title;
-    const slugFromRoot =
-      (data.root?.props as any)?.slug ||
-      effectiveSlug ||
-      sanitizeSlug(titleFromRoot);
-    const resolvedSlug = enforcedDepartmentSlug ?? slugFromRoot;
-
-    const updatedLocaleData = {
-      ...localeData,
+    const tentativeLocaleData: Record<string, LocaleData | null> = {
+      ...localeDataRef.current,
       [currentLocale]: {
-        title: titleFromRoot,
+        title:
+          (data.root?.props as Record<string, unknown>)?.title as string ||
+          metadata.title,
         description: metadata.description ?? "",
         data,
       },
     };
 
+    // Validate all locales have at least a title and some content
     const hasAllLocales = availableLocales.every((locale) => {
-      const locData = updatedLocaleData[locale];
-      return (
-        locData &&
-        locData.title.trim() !== "" &&
-        locData.data.content &&
-        locData.data.content.length > 0
-      );
+      const locData = tentativeLocaleData[locale];
+      return locData && locData.title.trim() && locData.data.content?.length;
     });
 
     if (!hasAllLocales) {
@@ -227,89 +406,106 @@ export function useUnifiedEditorHandlers({
       return;
     }
 
-    setIsSaving(true);
-    try {
-      // Auto-generate SEO metadata for any locale that hasn't set it manually.
-      const updatedWithSeo = { ...updatedLocaleData };
-      for (const locale of availableLocales) {
-        const locData = updatedWithSeo[locale];
-        if (!locData) continue;
-        const rootProps = (locData.data.root?.props ?? {}) as Record<string, unknown>;
-        const hasSeo =
-          (rootProps.seoTitle as string)?.trim() ||
-          (rootProps.seoDescription as string)?.trim();
-        if (!hasSeo) {
-          const contentSummary = locData.data.content
-            ?.slice(0, 8)
-            .map((b) => {
-              const p = (b.props ?? {}) as Record<string, unknown>;
-              return `[${b.type}] ${(p.title as string) || (p.text as string) || ""}`.trim();
-            })
-            .filter(Boolean)
-            .join("; ");
+    // Check for untranslated / empty locales — show modal if any found
+    const untranslated = detectUntranslatedLocales(
+      tentativeLocaleData,
+      currentLocale,
+      availableLocales
+    );
 
-          const generated = await generateSeoMetadata({
-            title: locData.title,
-            description: locData.description,
-            contentSummary,
+    if (untranslated.length > 0) {
+      pendingPublishRef.current = { data, metadata, tentativeLocaleData };
+      setUntranslatedLocales(untranslated);
+      setTranslationProgress(
+        Object.fromEntries(untranslated.map((u) => [u.locale, "pending" as const]))
+      );
+      setShowTranslationModal(true);
+      return;
+    }
+
+    await executePublish(data, metadata, tentativeLocaleData);
+  };
+
+  // ── Modal callbacks ──────────────────────────────────────────────────────
+
+  const handleTranslateAndPublish = async () => {
+    const pending = pendingPublishRef.current;
+    if (!pending) return;
+
+    setIsTranslating(true);
+    const { data, metadata, tentativeLocaleData } = pending;
+
+    // Start from the tentative snapshot so current-locale edits are captured
+    let latestLocaleData: Record<string, LocaleData | null> = { ...tentativeLocaleData };
+
+    try {
+      for (const info of untranslatedLocales) {
+        setTranslationProgress((prev) => ({
+          ...prev,
+          [info.locale]: "translating",
+        }));
+
+        try {
+          const sourceData = latestLocaleData[currentLocale];
+          if (!sourceData) continue;
+
+          const result = await translatePageContent({
+            sourceLocale: currentLocale,
+            targetLocale: info.locale,
+            title: sourceData.title,
+            description: sourceData.description,
+            content: sourceData.data.content as Array<{
+              type: string;
+              props: Record<string, unknown>;
+            }>,
           });
 
-          if (generated) {
-            updatedWithSeo[locale] = {
-              ...locData,
+          latestLocaleData = {
+            ...latestLocaleData,
+            [info.locale]: {
+              title: result.title,
+              description: result.description,
               data: {
-                ...locData.data,
+                ...sourceData.data,
+                content: result.content as Data["content"],
                 root: {
-                  ...locData.data.root,
+                  ...sourceData.data.root,
                   props: {
-                    ...rootProps,
-                    seoTitle: generated.seoTitle,
-                    seoDescription: generated.seoDescription,
-                  } as any,
+                    ...(sourceData.data.root?.props as object),
+                    title: result.title,
+                  },
                 },
               },
-            };
-          }
+            },
+          };
+
+          setTranslationProgress((prev) => ({ ...prev, [info.locale]: "done" }));
+        } catch {
+          setTranslationProgress((prev) => ({ ...prev, [info.locale]: "error" }));
         }
       }
 
-      const translations = availableLocales.map((locale) => {
-        const locData = updatedWithSeo[locale]!;
-
-        return {
-          locale,
-          title: locData.title,
-          slug: null,
-          description: locData.description || null,
-          draftDocument: locData.data,
-          publish: true,
-        };
-      });
-
-      const result = await upsertManagedPage({
-        pageId,
-        slug: resolvedSlug,
-        title: titleFromRoot,
-        status: PS.PUBLISHED,
-        visibility: initialVisibility,
-        translations,
-      });
-
-      setLocaleData(updatedLocaleData);
-      setSlug(resolvedSlug);
-
-      if (pageId) {
-        toast.success("Page published successfully");
-      } else {
-        router.push(`/pages/${result.id}`);
-        toast.success("Page created and published");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to publish page");
+      setShowTranslationModal(false);
+      await executePublish(data, metadata, latestLocaleData);
     } finally {
-      setIsSaving(false);
+      setIsTranslating(false);
+      pendingPublishRef.current = null;
     }
+  };
+
+  const handleSkipAndPublish = async () => {
+    const pending = pendingPublishRef.current;
+    if (!pending) return;
+    setShowTranslationModal(false);
+    pendingPublishRef.current = null;
+    await executePublish(pending.data, pending.metadata, pending.tentativeLocaleData);
+  };
+
+  const handleCancelPublish = () => {
+    setShowTranslationModal(false);
+    pendingPublishRef.current = null;
+    setUntranslatedLocales([]);
+    setTranslationProgress({});
   };
 
   return {
@@ -318,8 +514,16 @@ export function useUnifiedEditorHandlers({
     handleTranslate,
     handleSave,
     handlePublish,
+    showTranslationModal,
+    untranslatedLocales,
+    translationProgress,
+    handleTranslateAndPublish,
+    handleSkipAndPublish,
+    handleCancelPublish,
   };
 }
+
+// ── Context registration hook ──────────────────────────────────────────────
 
 type UseUnifiedEditorContextsProps = {
   pageId?: string;
@@ -342,7 +546,6 @@ export function useUnifiedEditorContexts({
   availableLocales,
   localeData,
 }: UseUnifiedEditorContextsProps) {
-  // Register entity context with AI copilot (so AI knows what page we're editing)
   useEntityContext(
     pageId
       ? {
@@ -370,7 +573,6 @@ export function useUnifiedEditorContexts({
       : null
   );
 
-  // Register page context
   usePageContext({
     section: "pages",
     viewType: pageId ? "editor" : "create",

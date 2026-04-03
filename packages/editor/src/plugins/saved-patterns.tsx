@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentData, Config, Plugin } from "@puckeditor/core";
+import type { ComponentData, Plugin } from "@puckeditor/core";
 import { usePuck } from "@puckeditor/core";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -13,10 +13,10 @@ import {
   Download,
   Users,
   FolderOpen,
-  Loader2,
 } from "lucide-react";
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { cloneWithNewIds, createId } from "../utils/clone-block";
 
 const STORAGE_KEY = "biso-editor-patterns";
 
@@ -26,59 +26,6 @@ type SavedPattern = {
   blocks: ComponentData[];
   createdAt: string;
 };
-
-function createId(prefix: string): string {
-  const uuid =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
-  return `${prefix}-${uuid}`;
-}
-
-function isComponentData(value: unknown): value is ComponentData {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    "type" in (value as Record<string, unknown>) &&
-    "props" in (value as Record<string, unknown>) &&
-    typeof (value as { type?: unknown }).type === "string" &&
-    Boolean((value as { props?: unknown }).props) &&
-    typeof (value as { props?: unknown }).props === "object"
-  );
-}
-
-function cloneWithNewIds(item: ComponentData, config: Config): ComponentData {
-  const defaultProps =
-    (config.components?.[item.type]?.defaultProps as Record<string, unknown>) ??
-    {};
-
-  const nextProps = {
-    ...defaultProps,
-    ...(item.props as Record<string, unknown>),
-    id: createId(item.type),
-  };
-
-  const remap = (value: unknown): unknown => {
-    if (Array.isArray(value)) {
-      return value.map(remap);
-    }
-    if (isComponentData(value)) {
-      return cloneWithNewIds(value, config);
-    }
-    if (value && typeof value === "object") {
-      const record = value as Record<string, unknown>;
-      const entries = Object.entries(record).map(([key, val]) => [
-        key,
-        remap(val),
-      ]);
-      return Object.fromEntries(entries);
-    }
-    return value;
-  };
-
-  const mappedProps = remap(nextProps) as ComponentData["props"];
-  return { ...item, props: mappedProps };
-}
 
 function loadPatterns(): SavedPattern[] {
   if (typeof window === "undefined") return [];

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "Bash(xargs ls:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit -p apps/admin/tsconfig.json)",
+      "Bash(./node_modules/.bin/tsc --noEmit -p packages/editor/tsconfig.json)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

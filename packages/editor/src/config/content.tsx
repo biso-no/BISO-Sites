@@ -208,7 +208,7 @@ export const ContentComponents = {
         type: "richtext",
         label: "Content",
         contentEditable: true,
-      } as any,
+      },
       variant: {
         type: "select",
         options: [

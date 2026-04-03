@@ -20,13 +20,17 @@ import {
 } from "@repo/editor/contexts/ai-assistant-context";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { sanitizeSlug } from "@/lib/utils";
 import { PuckGenerationIndicator } from "@/components/assistant/puck-content-handler";
 import {
   useUnifiedEditorContexts,
   useUnifiedEditorHandlers,
 } from "./use-unified-editor-handlers";
+import { useLocaleStructuralSync } from "./use-locale-structural-sync";
+import { TranslationCheckModal } from "./translation-check-modal";
 import { listDepartmentsWithWriterAccess } from "@/app/actions/events";
+import { config as baseEditorConfig } from "@repo/editor/config";
 
 const PageEditor = dynamic(
   () => import("@repo/editor/editor").then((mod) => mod.PageEditor),
@@ -64,16 +68,6 @@ const EMPTY_DATA: Data = {
   root: { props: {} },
   content: [],
 };
-
-function sanitizeSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function getEditorScope(
   pageContext: UnifiedEditorClientProps["pageContext"],
@@ -196,20 +190,11 @@ export function UnifiedEditorClient({
     [currentLocale]
   );
 
-  //Load departments for department selector (if user has access to any)
-  useMemo(() => {
+  useEffect(() => {
     if (userContext.departmentNames.length > 0) {
-      async function loadDepartments() {
-        const depts = await listDepartmentsWithWriterAccess();
-        const label = depts.map((dept) => dept.Name);
-        const value = depts.map((dept) => dept.Id);
-        setDepartments(
-          depts.map((dept) => ({
-            label: dept.Name,
-            value: dept.Id,
-          }))
-        );
-      }
+      listDepartmentsWithWriterAccess().then((depts) =>
+        setDepartments(depts.map((dept) => ({ label: dept.Name, value: dept.Id })))
+      );
     }
   }, [userContext.departmentNames.length]);
 
@@ -246,12 +231,28 @@ export function UnifiedEditorClient({
   const handleLocaleChange = useCallback((newLocale: Locale) => {
     setCurrentLocale(newLocale);
   }, []);
+
+  const { handleDataChange: handleStructuralSync } = useLocaleStructuralSync({
+    currentLocale,
+    localeData,
+    setLocaleData,
+    availableLocales,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    config: baseEditorConfig as any,
+  });
+
   const {
     isSaving,
     isTranslating,
     handleTranslate,
     handleSave,
     handlePublish,
+    showTranslationModal,
+    untranslatedLocales,
+    translationProgress,
+    handleTranslateAndPublish,
+    handleSkipAndPublish,
+    handleCancelPublish,
   } = useUnifiedEditorHandlers({
     currentLocale,
     localeData,
@@ -361,6 +362,7 @@ export function UnifiedEditorClient({
         departments={departments}
         onBack={() => router.push("/pages")}
         onLocaleChange={handleLocaleChange}
+        onDataChange={handleStructuralSync}
         onPublish={handlePublish}
         onSave={handleSave}
         onTranslate={handleTranslate}
@@ -370,6 +372,16 @@ export function UnifiedEditorClient({
       />
 
       <PuckGenerationIndicator isGenerating={isGenerating || isStreaming} />
+
+      <TranslationCheckModal
+        open={showTranslationModal}
+        untranslatedLocales={untranslatedLocales}
+        onTranslateAndPublish={handleTranslateAndPublish}
+        onSkipAndPublish={handleSkipAndPublish}
+        onCancel={handleCancelPublish}
+        isTranslating={isTranslating}
+        translationProgress={translationProgress}
+      />
     </AiAssistantContext.Provider>
   );
 }
