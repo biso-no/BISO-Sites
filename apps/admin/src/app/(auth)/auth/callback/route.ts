@@ -2,6 +2,7 @@ import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
+import { syncM365Permissions } from "@/lib/m365-sync";
 import { isProd } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
@@ -16,6 +17,12 @@ export async function GET(request: NextRequest) {
 
   const { account } = await createAdminClient();
   const session = await account.createSession(userId, secret);
+
+  // Attempt to sync M365 teams from a cached provider token.
+  // Will silently no-op if no valid Microsoft token is available.
+  await syncM365Permissions(userId).catch((err) =>
+    console.warn("Magic link M365 sync skipped:", err)
+  );
 
   const fetchedCookies = await cookies();
 

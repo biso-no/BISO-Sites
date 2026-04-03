@@ -1,7 +1,9 @@
 "use client";
 
 import type { Plugin } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck, useGetPuck } from "@puckeditor/core";
+
+const usePuck = createUsePuck();
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
@@ -207,9 +209,10 @@ function SeoChecklist({ checks }: { checks: SeoCheck[] }) {
  * Write a single root prop via Puck dispatch without touching other props.
  */
 function useRootPropSetter() {
-  const { dispatch } = usePuck();
+  const getPuck = useGetPuck();
   return useCallback(
     (key: string, value: unknown) => {
+      const { dispatch } = getPuck();
       dispatch({
         type: "setData",
         recordHistory: true,
@@ -225,12 +228,12 @@ function useRootPropSetter() {
         }),
       });
     },
-    [dispatch],
+    [getPuck],
   );
 }
 
 function SeoToolsPanel() {
-  const { appState } = usePuck();
+  const appState = usePuck((s) => s.appState);
   const setRootProp = useRootPropSetter();
   const [generating, setGenerating] = useState(false);
 

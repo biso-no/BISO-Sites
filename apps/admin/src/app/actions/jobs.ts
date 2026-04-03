@@ -3,6 +3,10 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
+  getUserAuthContext,
+} from "@/lib/authorization";
+import { buildContentPermissions } from "@/lib/permissions";
+import {
   type Campus,
   type ContentTranslations,
   ContentType,
@@ -19,6 +23,7 @@ import type {
   JobApplicationFormData,
 } from "@/lib/types/job-application";
 import { JOB_SELECT_FIELDS, normalizeJobRow } from "./_utils/translatable";
+import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
 
 export type ListJobsParams = {
   limit?: number;
@@ -114,6 +119,7 @@ export async function listJobs(
 
   try {
     const { db } = await createSessionClient();
+    const ctx = await getUserAuthContext();
 
     const queries = [
       Query.select([...JOB_SELECT_FIELDS]),
@@ -127,6 +133,8 @@ export async function listJobs(
 
     if (campus && campus !== "all") {
       queries.push(Query.equal("campus_id", campus));
+    } else if (ctx) {
+      queries.push(...applyScopeQueries(ctx));
     }
 
     if (search?.trim()) {
@@ -190,26 +198,42 @@ export async function createJob(
   data: CreateJobData,
   skipRevalidation = false
 ): Promise<Jobs | null> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  assertWriteAccess(ctx, data.campus_id, data.department_id);
+
+  const permissions = buildContentPermissions({
+    status: data.status,
+    departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+    campusTeamId: ctx.campusTeamIds[0] ?? null,
+  });
+
   try {
     const { db } = await createSessionClient();
     const statusValue = mapJobStatus(data.status);
 
-    // Build translation_refs array from provided translations only
     const translationRefs = buildJobTranslations("unique()", data.translations);
 
-    const job = (await db.createRow("app", "jobs", "unique()", {
-      slug: data.slug,
-      status: statusValue,
-      campus_id: data.campus_id,
-      campus: data.campus_id as Campus["$id"],
-      department_id: data.department_id ?? null,
-      department: data.department_id
-        ? (data.department_id as Departments["$id"])
-        : null,
-      metadata: data.metadata ?? null,
-      translations: [] as ContentTranslations[],
-      translation_refs: translationRefs,
-    })) as Jobs;
+    const job = (await db.createRow(
+      "app",
+      "jobs",
+      "unique()",
+      {
+        slug: data.slug,
+        status: statusValue,
+        campus_id: data.campus_id,
+        campus: data.campus_id as Campus["$id"],
+        department_id: data.department_id ?? null,
+        department: data.department_id
+          ? (data.department_id as Departments["$id"])
+          : null,
+        metadata: data.metadata ?? null,
+        translations: [] as ContentTranslations[],
+        translation_refs: translationRefs,
+      },
+      permissions
+    )) as Jobs;
 
     if (!skipRevalidation) {
       revalidatePath("/jobs");
@@ -226,8 +250,25 @@ export async function updateJob(
   id: string,
   data: Partial<CreateJobData>
 ): Promise<Jobs | null> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
   try {
     const { db } = await createSessionClient();
+
+    const existing = await db.listRows<Jobs>("app", "jobs", [
+      Query.equal("$id", id),
+      Query.select(["campus_id", "department_id", "status"]),
+      Query.limit(1),
+    ]);
+    const existingJob = existing.rows[0];
+    if (!existingJob) throw new Error("Job not found");
+
+    assertWriteAccess(
+      ctx,
+      existingJob.campus_id,
+      existingJob.department_id ?? undefined
+    );
 
     const updateData = collectJobUpdateData(data);
 
@@ -238,7 +279,22 @@ export async function updateJob(
       }
     }
 
-    const job = (await db.updateRow("app", "jobs", id, updateData)) as Jobs;
+    const newPermissions =
+      data.status && data.status !== existingJob.status
+        ? buildContentPermissions({
+            status: data.status,
+            departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+            campusTeamId: ctx.campusTeamIds[0] ?? null,
+          })
+        : undefined;
+
+    const job = (await db.updateRow(
+      "app",
+      "jobs",
+      id,
+      updateData,
+      newPermissions
+    )) as Jobs;
 
     revalidatePath("/jobs");
 
@@ -250,24 +306,38 @@ export async function updateJob(
 }
 
 async function _deleteJob(id: string): Promise<boolean> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) return false;
+
   try {
     const { db } = await createSessionClient();
 
-    // Delete translations first
+    const existing = await db.listRows<Jobs>("app", "jobs", [
+      Query.equal("$id", id),
+      Query.select(["campus_id", "department_id"]),
+      Query.limit(1),
+    ]);
+    const existingJob = existing.rows[0];
+    if (!existingJob) return false;
+
+    assertWriteAccess(
+      ctx,
+      existingJob.campus_id,
+      existingJob.department_id ?? undefined
+    );
+
     const translationsResponse = await db.listRows(
       "app",
       "content_translations",
       [Query.equal("content_type", "job"), Query.equal("content_id", id)]
     );
 
-    const deleteTranslationPromises = translationsResponse.rows.map(
-      (translation) =>
+    await Promise.all(
+      translationsResponse.rows.map((translation) =>
         db.deleteRow("app", "content_translations", translation.$id)
+      )
     );
 
-    await Promise.all(deleteTranslationPromises);
-
-    // Delete main job record
     await db.deleteRow("app", "jobs", id);
 
     revalidatePath("/jobs");

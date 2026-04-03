@@ -120,8 +120,8 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
       <CardContent className="relative z-10 p-5">
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2 text-muted-foreground text-sm transition-colors duration-300 group-hover:text-foreground">
-            <div className="rounded-md bg-blue-500/10 p-1.5 transition-colors duration-300 group-hover:bg-blue-500/20">
-              <MapPin className="text-blue-600" size={14} />
+            <div className="rounded-md bg-primary/10 p-1.5 transition-colors duration-300 group-hover:bg-primary/20">
+              <MapPin className="text-primary" size={14} />
             </div>
             <span className="font-medium">
               {department.campusName || "No campus assigned"}
@@ -142,8 +142,8 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
             </div>
 
             <div className="flex items-center gap-2 text-sm">
-              <div className="rounded-md bg-purple-500/10 p-1.5 transition-colors duration-300 group-hover:bg-purple-500/20">
-                <Users2 className="text-purple-600" size={14} />
+              <div className="rounded-md bg-secondary p-1.5 transition-colors duration-300 group-hover:bg-secondary/80">
+                <Users2 className="text-secondary-foreground" size={14} />
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground">
@@ -156,8 +156,8 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
 
           {department.socialsCount && department.socialsCount > 0 && (
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <div className="rounded-md bg-amber-500/10 p-1.5 transition-colors duration-300 group-hover:bg-amber-500/20">
-                <MessageSquare className="text-amber-600" size={14} />
+              <div className="rounded-md bg-muted p-1.5 transition-colors duration-300 group-hover:bg-muted/60">
+                <MessageSquare className="text-muted-foreground" size={14} />
               </div>
               <span className="font-medium">
                 {department.socialsCount} social links

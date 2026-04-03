@@ -1,9 +1,10 @@
-import { listCampuses, listDepartments } from "@/app/actions/events";
+import { getAllowedCampuses } from "@/app/actions/campus";
+import { listDepartments } from "@/app/actions/events";
 import JobEditor from "../shared/job-editor";
 
 export default async function NewJobPage() {
   const [campuses, departments] = await Promise.all([
-    listCampuses(),
+    getAllowedCampuses(),
     listDepartments(),
   ]);
   return (

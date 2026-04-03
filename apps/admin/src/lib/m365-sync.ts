@@ -1,5 +1,9 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import {
+  grantDeptTeamAccess,
+  grantTeamContentAccess,
+} from "./team-provisioning";
 
 type AzureGroup = { id: string; name: string };
 
@@ -19,6 +23,20 @@ async function syncTeamMembership(
       console.log(`Creating new Team: ${azureGroup.name}`);
       await teams.create(azureGroup.id, azureGroup.name);
       await teams.createMembership(azureGroup.id, roles, undefined, userId);
+
+      // Provision table-level create/update/delete permissions for SG-App teams
+      if (
+        azureGroup.name.startsWith("SG-App-Campus-") ||
+        azureGroup.name.startsWith("SG-App-Dept-")
+      ) {
+        await grantTeamContentAccess(azureGroup.id);
+      }
+
+      // Provision row-level write permissions on matching department rows
+      if (azureGroup.name.startsWith("SG-App-Dept-")) {
+        const rawDeptName = azureGroup.name.replace("SG-App-Dept-", "");
+        await grantDeptTeamAccess(azureGroup.id, rawDeptName);
+      }
     } else if (err.code === 409) {
       await updateExistingMembership(teams, azureGroup.id, roles, userId);
     } else {
@@ -47,34 +65,20 @@ async function updateExistingMembership(
 }
 
 /**
- * Parse Azure groups into roles and teams to sync
+ * Parse Azure groups into teams to sync.
+ * Only SG-App-Campus-* and SG-App-Dept-* groups are processed.
+ * SG-App-Role-* groups are no longer supported — access is derived entirely
+ * from campus + department team combinations.
  */
 function parseAzureGroups(azureGroups: any[]): {
-  roles: string[];
   teamsToSync: AzureGroup[];
-  isGlobalAdmin: boolean;
 } {
-  const roles: string[] = ["member"];
   const teamsToSync: AzureGroup[] = [];
-  let isGlobalAdmin = false;
 
   for (const group of azureGroups) {
     const name = group.displayName || "";
 
-    if (!name.startsWith("SG-App-")) {
-      continue;
-    }
-
-    if (name.startsWith("SG-App-Role-")) {
-      const roleName = name
-        .replace("SG-App-Role-", "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-      roles.push(roleName);
-      if (roleName === "globaladmin") {
-        isGlobalAdmin = true;
-      }
-    } else if (
+    if (
       name.startsWith("SG-App-Campus-") ||
       name.startsWith("SG-App-Dept-")
     ) {
@@ -82,7 +86,7 @@ function parseAzureGroups(azureGroups: any[]): {
     }
   }
 
-  return { roles, teamsToSync, isGlobalAdmin };
+  return { teamsToSync };
 }
 
 export async function syncM365Permissions(userId: string) {
@@ -116,21 +120,15 @@ export async function syncM365Permissions(userId: string) {
     }
 
     const azureGroups = (graphData.value as any[]) || [];
-    const { roles, teamsToSync, isGlobalAdmin } = parseAzureGroups(azureGroups);
-
-    if (isGlobalAdmin) {
-      await users.updateLabels(userId, ["admin", "globaladmin"]);
-    }
+    const { teamsToSync } = parseAzureGroups(azureGroups);
 
     await Promise.all(
       teamsToSync.map((azureGroup) =>
-        syncTeamMembership(teams, azureGroup, roles, userId)
+        syncTeamMembership(teams, azureGroup, ["member"], userId)
       )
     );
 
-    console.log(
-      `Synced User ${userId}: ${teamsToSync.length} Teams, Roles: [${roles}]`
-    );
+    console.log(`Synced User ${userId}: ${teamsToSync.length} Teams`);
   } catch (error) {
     console.error("M365 Sync Failed:", error);
   }

@@ -1,7 +1,9 @@
 "use client";
 
 import type { Plugin } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck, useGetPuck } from "@puckeditor/core";
+
+const usePuck = createUsePuck();
 import {
   History,
   Clock,
@@ -182,7 +184,8 @@ function contentFingerprint(content: unknown[]): string {
 }
 
 function VersionHistoryPanel() {
-  const { appState, dispatch } = usePuck();
+  const appState = usePuck((s) => s.appState);
+  const getPuck = useGetPuck();
 
   const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -229,6 +232,7 @@ function VersionHistoryPanel() {
       const timeout = setTimeout(() => {
         lastFingerprintRef.current = currentFingerprint;
         versionCounterRef.current += 1;
+        const { appState: currentAppState } = getPuck();
         const entry: VersionEntry = {
           id: crypto.randomUUID?.() ?? `v-${Date.now()}`,
           number: versionCounterRef.current,
@@ -236,7 +240,7 @@ function VersionHistoryPanel() {
           author: "You",
           status: "draft",
           blockCount: content.length,
-          snapshot: structuredClone(appState.data),
+          snapshot: structuredClone(currentAppState.data),
         };
         setVersions((prev) => [entry, ...prev]);
         setHasUnsavedChanges(false);
@@ -244,18 +248,19 @@ function VersionHistoryPanel() {
 
       return () => clearTimeout(timeout);
     }
-  }, [currentFingerprint]);
+  }, [currentFingerprint, getPuck]);
 
   const handleRestore = useCallback(
     (version: VersionEntry) => {
       if (!version.snapshot) return;
+      const { dispatch } = getPuck();
       dispatch({
         type: "setData",
         recordHistory: true,
         data: version.snapshot as any,
       });
     },
-    [dispatch]
+    [getPuck]
   );
 
   return (

@@ -4,6 +4,7 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Campus, CampusMetadata } from "@repo/api/types/appwrite";
 import type { CampusData } from "@/lib/types/campus-data";
+import { getUserAuthContext } from "@/lib/authorization";
 
 async function _getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
   try {
@@ -67,6 +68,38 @@ async function _getCampusMetadataByName(
     console.error("Failed to fetch campus metadata by name:", error);
     return null;
   }
+}
+
+/**
+ * Returns only the campuses the current user is allowed to post content for.
+ * - Global admins see all campuses (subject to the same includeNational flag)
+ * - Campus admins see only their managed campus(es)
+ * - Department users see only the campus(es) they belong to
+ *
+ * Use this for campus dropdowns in event, job, and page create/edit forms.
+ */
+export async function getAllowedCampuses({
+  includeNational = true,
+}: { includeNational?: boolean } = {}): Promise<Campus[]> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  const { db } = await createSessionClient();
+  const queries: string[] = [];
+
+  if (!ctx.roles.includes("globaladmin")) {
+    if (ctx.managedCampusIds.length > 0) {
+      queries.push(Query.equal("$id", ctx.managedCampusIds));
+    } else if (ctx.resolvedCampusIds.length > 0) {
+      queries.push(Query.equal("$id", ctx.resolvedCampusIds));
+    }
+  }
+
+  if (!includeNational) {
+    queries.push(Query.notEqual("name", "National"));
+  }
+
+  return (await db.listRows<Campus>("app", "campus", queries)).rows;
 }
 
 export async function getCampuses({

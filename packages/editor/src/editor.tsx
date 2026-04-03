@@ -1,6 +1,6 @@
 "use client";
 
-import { type Config, type Data, fieldsPlugin, Puck, resolveAllData, usePuck } from "@puckeditor/core";
+import { type Config, type Data, createUsePuck, fieldsPlugin, Puck, resolveAllData, useGetPuck } from "@puckeditor/core";
 import headingAnalyzer from "@puckeditor/plugin-heading-analyzer";
 import {
   type Locale,
@@ -13,13 +13,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@repo/ui/components/ui/select";
 import { Separator } from "@repo/ui/components/ui/separator";
 import {
   ChevronDown,
@@ -29,7 +22,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
 import type { EditorContext } from "./editor-context";
@@ -45,8 +38,24 @@ import { savedPatternsPlugin } from "./plugins/saved-patterns";
 import { seoToolsPlugin } from "./plugins/seo-tools";
 import { templatesPlugin } from "./plugins/templates";
 import { versionHistoryPlugin } from "./plugins/version-history";
-import { getPuckFieldOverrides, puckViewports } from "./puck-ui";
+import { puckFieldOverrides, puckViewports } from "./puck-ui";
 import "./styles.css";
+
+// Module-level hook factory — enables granular selectors to minimise re-renders.
+const usePuck = createUsePuck();
+
+// Stable plugin array — defined once so Puck never sees a new reference on
+// parent re-renders, which would cause plugin panels (and their inputs) to remount.
+const PUCK_PLUGINS = [
+  fieldsPlugin({ desktopSideBar: "left" }),
+  templatesPlugin,
+  savedPatternsPlugin,
+  aiAssistantPlugin,
+  seoToolsPlugin,
+  dataSourcesPlugin,
+  versionHistoryPlugin,
+  headingAnalyzer,
+];
 
 // Data-display component types that support the "Refresh data" action
 const DATA_DISPLAY_TYPES = new Set([
@@ -100,7 +109,6 @@ export function PageEditor({
   onDataChange,
   departments
 }: PageEditorProps) {
-  const [data, setData] = useState<Data>(initialData);
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
 
@@ -109,69 +117,58 @@ export function PageEditor({
     [editorContext, locale],
   );
 
-  // Sync canvas when initialData changes (e.g. locale switch)
-  useEffect(() => {
-    setData(initialData);
-  }, [initialData]);
-
   /** Read current title/slug/description from root.props (set via Puck fields). */
-  function rootMeta(d: Data) {
+  const rootMeta = useCallback((d: Data) => {
     const p = (d.root?.props ?? {}) as Record<string, unknown>;
     return {
       title: (p.title as string) || initialTitle,
       slug: (p.slug as string) || initialSlug,
       description: p.description as string | undefined,
     };
-  }
+  }, [initialTitle, initialSlug]);
 
-  const handleSave = async (newData: Data) => {
+  // Stable save handler — parent (useUnifiedEditorHandlers) owns toast notifications.
+  const handleSave = useCallback(async (newData: Data) => {
     setSaving(true);
     try {
       await onSave(newData, rootMeta(newData));
-      setData(newData);
-      toast.success("Draft saved successfully");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save draft");
     } finally {
       setSaving(false);
     }
-  };
+  }, [onSave, rootMeta]);
 
-  const handlePublish = async (newData: Data) => {
+  // Stable publish handler — resolves dynamic block data before handing off.
+  // Parent owns toast notifications; errors from onPublish are caught there.
+  const handlePublish = useCallback(async (newData: Data) => {
     setSaving(true);
     try {
-      // Resolve all data before publishing to ensure hydrated payload
       const resolved = await resolveAllData(newData, config as Config, { metadata });
       await onPublish(resolved as Data, rootMeta(resolved as Data));
-      setData(newData);
-      toast.success("Page published successfully");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to publish page");
     } finally {
       setSaving(false);
     }
-  };
+  }, [onPublish, rootMeta, metadata]);
 
-  const handleTranslate = async (newData: Data, targetLocale: Locale) => {
-    if (!onTranslate) {
-      toast.error("Translation is not available");
-      return;
-    }
+  const handleTranslate = useCallback(async (newData: Data, targetLocale: Locale) => {
+    if (!onTranslate) return;
     setTranslating(true);
     try {
       await onTranslate(newData, rootMeta(newData), targetLocale);
-      toast.success(
-        `Page translated to ${targetLocale === "no" ? "Norwegian" : "English"}`
-      );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to translate page");
     } finally {
       setTranslating(false);
     }
-  };
+  }, [onTranslate, rootMeta]);
+
+  // Stable onChange — only forwards data to the structural-sync hook in the parent.
+  const handleChange = useCallback((nextData: Data) => {
+    onDataChange?.(nextData);
+  }, [onDataChange]);
 
   const permissions = useMemo(() => {
     if (
@@ -232,11 +229,11 @@ export function PageEditor({
           departmentId: departmentIdField,
         },
         resolveFields: resolveRootFields,
-        // For restricted users, pre-populate the campus value so it is saved
-        // correctly even though the field renders as a non-editable badge.
+        // For non-global-admin users, pre-populate the campus value so it is
+        // saved correctly even though the field renders as a non-editable badge.
         defaultProps: {
           ...config.root?.defaultProps,
-          ...(isDeptUser && user?.campusNames[0]
+          ...(user && !user.isGlobalAdmin && user.campusNames[0]
             ? {
                 campus:
                   CAMPUS_OPTIONS.find(
@@ -251,62 +248,67 @@ export function PageEditor({
     } as Config;
   }, [departments, editorContext?.user]);
 
-  // Derive display title and slug from root.props so the Puck header bar
-  // updates reactively as the user types in the right-panel fields.
-  const liveRootProps = (data.root?.props ?? {}) as Record<string, unknown>;
-  const headerTitle = (liveRootProps.title as string) || initialTitle;
-  const headerSlug = (liveRootProps.slug as string) || initialSlug;
+  // Derive display title/slug from initialData (which already has the merged
+  // locale title/slug injected by UnifiedEditorClient). These are static per
+  // Puck mount — when the locale changes, key={locale} remounts Puck with
+  // fresh initialData so the header bar always shows the correct values.
+  const initRootProps = (initialData.root?.props ?? {}) as Record<string, unknown>;
+  const headerTitle = (initRootProps.title as string) || initialTitle;
+  const headerSlug = (initRootProps.slug as string) || initialSlug;
+
+  // Stable renderHeaderActions — recreated only when saving state or stable
+  // handlers change, never on every Puck onChange keystroke.
+  const renderHeaderActions = useCallback(({ state }: { state: { data: unknown } }) => {
+    const currentData = state.data as Data;
+    return (
+      <EditorHeaderActions
+        availableLocales={availableLocales}
+        currentData={currentData}
+        initialStatus={initialStatus}
+        locale={locale}
+        onBack={onBack}
+        onLocaleChange={onLocaleChange}
+        onPublish={handlePublish}
+        onSave={handleSave}
+        onTranslate={onTranslate ? handleTranslate : undefined}
+        saving={saving}
+        slug={headerSlug}
+        translating={translating}
+      />
+    );
+  }, [
+    availableLocales,
+    handlePublish,
+    handleSave,
+    handleTranslate,
+    headerSlug,
+    initialStatus,
+    locale,
+    onBack,
+    onLocaleChange,
+    onTranslate,
+    saving,
+    translating,
+  ]);
 
   return (
+    // key={locale} remounts Puck with fresh initialData on every locale switch,
+    // giving each locale its own undo/redo history and correct initial canvas.
     <Puck
+      key={locale}
       _experimentalFullScreenCanvas
       config={dynamicConfig}
-      data={data}
+      data={initialData}
       headerPath={`/${locale}/${headerSlug}`}
       headerTitle={headerTitle}
       height="100%"
       metadata={metadata}
-      onChange={(nextData) => {
-        const typed = nextData as Data;
-        setData(typed);
-        onDataChange?.(typed);
-      }}
+      onChange={(nextData) => handleChange(nextData as Data)}
       onPublish={handlePublish}
-      overrides={getPuckFieldOverrides()}
+      overrides={puckFieldOverrides}
       permissions={permissions}
-      plugins={[
-        // Workflow order: create → insert → generate → analyse → configure → track
-        fieldsPlugin({
-          desktopSideBar: "left"
-        }),
-        templatesPlugin,
-        savedPatternsPlugin,
-        aiAssistantPlugin,
-        seoToolsPlugin,
-        dataSourcesPlugin,
-        versionHistoryPlugin,
-        headingAnalyzer,
-      ]}
-      renderHeaderActions={({ state }) => {
-        const currentData = state.data as Data;
-
-        return (
-          <EditorHeaderActions
-            availableLocales={availableLocales}
-            currentData={currentData}
-            initialStatus={initialStatus}
-            locale={locale}
-            onBack={onBack}
-            onLocaleChange={onLocaleChange}
-            onPublish={handlePublish}
-            onSave={handleSave}
-            onTranslate={onTranslate ? handleTranslate : undefined}
-            saving={saving}
-            slug={headerSlug}
-            translating={translating}
-          />
-        );
-      }}
+      plugins={PUCK_PLUGINS}
+      renderHeaderActions={renderHeaderActions}
       viewports={puckViewports}
     >
       <Puck.Layout />
@@ -345,15 +347,11 @@ function EditorHeaderActions({
   translating: boolean;
 }) {
   
-  // usePuck is used with destructuring (selector form requires createUsePuck)
-  const puck = usePuck();
-  const { selectedItem } = puck;
-  // resolveDataById is the Puck 0.21 API for targeted data refresh; access
-  // via type assertion since the typings may lag the runtime API.
-  const resolveDataById = (puck as unknown as { resolveDataById?: (id: string) => void })
-    .resolveDataById;
-  const showRefresh =
-    selectedItem && DATA_DISPLAY_TYPES.has(selectedItem.type);
+  // Granular selector — re-renders only when selectedItem changes, not on every
+  // Puck state update. Use useGetPuck for the refresh handler (call-time access).
+  const selectedItem = usePuck((s) => s.selectedItem);
+  const getPuck = useGetPuck();
+  const showRefresh = selectedItem && DATA_DISPLAY_TYPES.has(selectedItem.type);
 
   const localeLabel = (l: Locale) => (l === "no" ? "Norwegian" : "English");
 
@@ -439,7 +437,9 @@ function EditorHeaderActions({
                 type="button"
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
                 onClick={() => {
-                  if (resolveDataById) resolveDataById(selectedItem.props.id);
+                  const puck = getPuck();
+                  const resolveDataById = (puck as unknown as { resolveDataById?: (id: string) => void }).resolveDataById;
+                  if (resolveDataById && selectedItem) resolveDataById(selectedItem.props.id as string);
                   toast.info("Refreshing data...");
                 }}
               >

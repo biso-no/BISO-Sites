@@ -16,7 +16,7 @@
   "dependencies": {
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
-    "node-appwrite": "^14.1.0",
+    "node-appwrite": "^23.1.0",
     "@vippsmobilepay/sdk": "^2.4.2",
     "zod": "^3.22.4"
   }

@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
-import { ROLES } from "@/lib/roles";
+import { DEPARTMENT_ROLE, ROLES } from "@/lib/roles";
 
 type RoleSwitcherProps = {
   roles: string[];
@@ -21,16 +21,14 @@ export function RoleSwitcher({
   setSelectedRole,
 }: RoleSwitcherProps) {
   if (!roles.includes(ROLES.GLOBAL_ADMIN)) {
-    return null; // Only show to Admins
+    return null; // Only show to Global Admins
   }
 
   const availableRoles = [
     ROLES.GLOBAL_ADMIN,
-    ROLES.PR,
-    ROLES.FINANCE,
-    ROLES.CONTROLLER,
-    ROLES.HR,
-  ]; // Define all possible roles
+    ROLES.CAMPUS_ADMIN,
+    DEPARTMENT_ROLE,
+  ];
 
   // During SSR and initial hydration, use a consistent value to avoid mismatch
   const selectValue = selectedRole;

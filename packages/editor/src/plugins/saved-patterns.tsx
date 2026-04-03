@@ -1,7 +1,9 @@
 "use client";
 
 import type { ComponentData, Plugin } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck, useGetPuck } from "@puckeditor/core";
+
+const usePuck = createUsePuck();
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
@@ -183,7 +185,8 @@ function SavePatternForm({
 }
 
 function SavedPatternsPanel() {
-  const { appState, config, dispatch, selectedItem } = usePuck();
+  const selectedItem = usePuck((s) => s.selectedItem);
+  const getPuck = useGetPuck();
   const [patterns, setPatterns] = useState<SavedPattern[]>([]);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [category, setCategory] = useState<Category>("my");
@@ -197,13 +200,14 @@ function SavedPatternsPanel() {
 
   const handleSavePattern = useCallback(
     (name: string) => {
-      if (!selectedItem) {
+      const { appState, selectedItem: currentSelectedItem } = getPuck();
+      if (!currentSelectedItem) {
         toast.warning("No block selected.");
         return;
       }
 
       const block = appState.data.content?.find(
-        (item) => item.props?.id === (selectedItem.props as any)?.id
+        (item) => item.props?.id === (currentSelectedItem.props as any)?.id
       );
 
       if (!block) {
@@ -224,17 +228,18 @@ function SavedPatternsPanel() {
       setShowSaveForm(false);
       toast.success(`Pattern "${name}" saved.`);
     },
-    [selectedItem, appState.data.content, patterns]
+    [getPuck, patterns]
   );
 
   const handleInsertPattern = useCallback(
     (pattern: SavedPattern) => {
+      const { config, dispatch, selectedItem: currentSelectedItem } = getPuck();
       const clonedBlocks = pattern.blocks.map((block) =>
         cloneWithNewIds(block, config)
       );
 
       const selectedId =
-        (selectedItem?.props as { id?: string } | undefined)?.id ?? null;
+        (currentSelectedItem?.props as { id?: string } | undefined)?.id ?? null;
 
       dispatch({
         type: "setData",
@@ -261,7 +266,7 @@ function SavedPatternsPanel() {
 
       toast.success(`Inserted pattern "${pattern.name}".`);
     },
-    [config, dispatch, selectedItem]
+    [getPuck]
   );
 
   const handleDeletePattern = useCallback(

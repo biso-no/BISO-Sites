@@ -1,9 +1,18 @@
 /**
- * 24SevenOffice Connector
+ * 24SevenOffice / Finago Connector
  *
  * SOAP API integration for 24SevenOffice CRM.
  * Used to sync membership purchases with customer records.
+ *
+ * REST API integration (Finago REST API) lives in ./rest.
  */
+
+// Finago REST API
+export {
+  DEPARTMENT_DIMENSION_TYPE,
+  getDepartments,
+  type DimensionElement,
+} from "./rest";
 
 // Authentication (lower-level, usually not needed directly)
 export { getValidSession, hasSession } from "./auth";

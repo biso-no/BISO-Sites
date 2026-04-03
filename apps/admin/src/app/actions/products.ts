@@ -4,6 +4,10 @@ import { openai } from "@ai-sdk/openai";
 import { getStorageFileUrl, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
+  getUserAuthContext,
+} from "@/lib/authorization";
+import { buildContentPermissions } from "@/lib/permissions";
+import {
   type ContentTranslations,
   ContentType,
   Locale,
@@ -24,6 +28,7 @@ import {
   normalizeProductRow,
   PRODUCT_SELECT_FIELDS,
 } from "./_utils/translatable";
+import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
 
 type AdminDbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
 type ProductStatus = CreateProductData["status"];
@@ -129,6 +134,7 @@ export async function listProducts(
 ): Promise<ProductWithTranslations[]> {
   try {
     const { db } = await createSessionClient();
+    const ctx = await getUserAuthContext();
 
     const queries = [
       Query.select([...PRODUCT_SELECT_FIELDS]),
@@ -141,6 +147,8 @@ export async function listProducts(
 
     if (params.campus_id) {
       queries.push(Query.equal("campus_id", params.campus_id));
+    } else if (ctx) {
+      queries.push(...applyScopeQueries(ctx));
     }
 
     if (params.category) {
@@ -253,34 +261,35 @@ export async function createProduct(
   data: CreateProductData,
   skipRevalidation = false
 ): Promise<WebshopProducts | null> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  assertWriteAccess(ctx, data.campus_id, data.departmentId ?? undefined);
+
+  // Campus admins and global admins can directly publish/draft;
+  // department-level users default to pending_approval
+  let statusValue: Status;
+  if (data.status) {
+    statusValue = mapProductStatus(data.status);
+  } else {
+    const isElevated =
+      ctx.roles.includes("globaladmin") || ctx.managedCampuses.length > 0;
+    statusValue = isElevated ? Status.DRAFT : ("pending_approval" as Status);
+  }
+
+  const departmentId =
+    data.departmentId ??
+    (ctx.departmentTeamIds.length > 0 ? ctx.departmentTeamIds[0] : null);
+
+  const permissions = buildContentPermissions({
+    status: statusValue,
+    departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+    campusTeamId: ctx.campusTeamIds[0] ?? null,
+  });
+
   try {
     const { db } = await createSessionClient();
 
-    // Import authorization utilities dynamically to avoid circular imports
-    const { getUserAuthContext, isGlobalAdmin, isController } = await import(
-      "@/lib/authorization"
-    );
-    const ctx = await getUserAuthContext();
-
-    // Determine default status based on user role
-    // Controllers and admins can create with any status
-    // Department members default to pending_approval
-    let statusValue: Status;
-    if (data.status) {
-      statusValue = mapProductStatus(data.status);
-    } else {
-      const userIsAdmin = await isGlobalAdmin();
-      const userIsController = await isController();
-
-      if (userIsAdmin || userIsController) {
-        statusValue = Status.DRAFT;
-      } else {
-        // Department members - products go to pending approval
-        statusValue = "pending_approval" as Status;
-      }
-    }
-
-    // Build translation_refs array with both required translations
     const translationRefs: ContentTranslations[] = [
       {
         content_type: ContentType.PRODUCT,
@@ -298,13 +307,6 @@ export async function createProduct(
       } as ContentTranslations,
     ];
 
-    // Get departmentId from context if not provided
-    const departmentId =
-      data.departmentId ??
-      (ctx?.departmentTeamIds && ctx.departmentTeamIds.length > 0
-        ? ctx.departmentTeamIds[0]
-        : null);
-
     const product = await db.createRow<WebshopProducts>(
       "app",
       "webshop_products",
@@ -313,21 +315,19 @@ export async function createProduct(
         slug: data.slug,
         status: statusValue,
         campus_id: data.campus_id,
-        // Top-level database fields (required by schema)
         category: data.category,
         regular_price: data.regular_price,
         member_price: data.member_price ?? null,
         member_only: data.member_only ?? false,
         stock: data.stock ?? null,
         image: data.image ?? null,
-        // Additional metadata
         metadata: serializeMetadata(data.metadata),
-        // Relationship fields
         campus: data.campus_id,
         departmentId,
         department: null,
         translation_refs: translationRefs,
-      } as any
+      } as any,
+      permissions
     );
 
     if (!skipRevalidation) {
@@ -348,8 +348,29 @@ export async function updateProduct(
   data: UpdateProductData,
   skipRevalidation = false
 ): Promise<WebshopProducts | null> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
   try {
     const { db } = await createSessionClient();
+
+    const existing = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      [
+        Query.equal("$id", id),
+        Query.select(["campus_id", "departmentId", "status"]),
+        Query.limit(1),
+      ]
+    );
+    const existingProduct = existing.rows[0];
+    if (!existingProduct) throw new Error("Product not found");
+
+    assertWriteAccess(
+      ctx,
+      existingProduct.campus_id,
+      existingProduct.departmentId ?? undefined
+    );
 
     const updateData = collectBaseProductUpdates(data);
     const translationRefs = await buildTranslationRefsForUpdate(
@@ -362,11 +383,21 @@ export async function updateProduct(
       updateData.translation_refs = translationRefs;
     }
 
+    const newPermissions =
+      data.status && data.status !== existingProduct.status
+        ? buildContentPermissions({
+            status: data.status,
+            departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+            campusTeamId: ctx.campusTeamIds[0] ?? null,
+          })
+        : undefined;
+
     const product = await db.updateRow<WebshopProducts>(
       "app",
       "webshop_products",
       id,
-      updateData
+      updateData,
+      newPermissions
     );
 
     if (!skipRevalidation) {
@@ -385,10 +416,30 @@ export async function deleteProduct(
   id: string,
   skipRevalidation = false
 ): Promise<boolean> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) return false;
+
   try {
     const { db } = await createSessionClient();
 
-    // Delete the product (translations will be deleted automatically due to cascade)
+    const existing = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      [
+        Query.equal("$id", id),
+        Query.select(["campus_id", "departmentId"]),
+        Query.limit(1),
+      ]
+    );
+    const existingProduct = existing.rows[0];
+    if (!existingProduct) return false;
+
+    assertWriteAccess(
+      ctx,
+      existingProduct.campus_id,
+      existingProduct.departmentId ?? undefined
+    );
+
     await db.deleteRow("app", "webshop_products", id);
 
     if (!skipRevalidation) {

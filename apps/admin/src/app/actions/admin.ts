@@ -11,7 +11,12 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-import { getUserRolesForClient } from "@/lib/authorization";
+import {
+  getUserAuthContext,
+  getUserRolesForClient,
+} from "@/lib/authorization";
+import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
+import { buildContentPermissions } from "@/lib/permissions";
 import { DEPARTMENT_ROLE } from "@/lib/roles";
 
 /**
@@ -38,8 +43,14 @@ export async function getUsers() {
 
 export async function getPosts() {
   const { db } = await createSessionClient();
-  const response = await db.listRows<News>("app", "news", [Query.limit(100)]);
+  const ctx = await getUserAuthContext();
 
+  const queries: string[] = [Query.limit(100)];
+  if (ctx) {
+    queries.push(...applyScopeQueries(ctx));
+  }
+
+  const response = await db.listRows<News>("app", "news", queries);
   return response.rows;
 }
 
@@ -51,8 +62,18 @@ export async function getPost(postId: string) {
 }
 
 export async function updatePost(postId: string, post: News) {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
   const { db } = await createSessionClient();
   const response = await db.getRow<News>("app", "news", postId);
+
+  const existingDeptId =
+    typeof response.department === "string"
+      ? response.department
+      : response.department?.$id;
+  assertWriteAccess(ctx, response.campus_id, existingDeptId ?? undefined);
+
   revalidatePath("/posts");
 
   // First we map over the tanslation_refs array, and create an array of all objects with existing and updated values
@@ -107,9 +128,9 @@ export async function updatePost(postId: string, post: News) {
 }
 
 export async function createPost(post: News) {
-  const { db } = await createSessionClient();
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
 
-  // Safely get relationship IDs
   const departmentId =
     typeof post.department === "string"
       ? post.department
@@ -117,9 +138,19 @@ export async function createPost(post: News) {
   const campusId =
     typeof post.campus === "string" ? post.campus : post.campus?.$id;
 
+  assertWriteAccess(ctx, post.campus_id, departmentId ?? undefined);
+
+  const permissions = buildContentPermissions({
+    status: post.status ?? "draft",
+    departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+    campusTeamId: ctx.campusTeamIds[0] ?? null,
+  });
+
+  const { db } = await createSessionClient();
+
   const result = await db.createRow<News>(
-    "app", // databaseId
-    "news", // collectionId
+    "app",
+    "news",
     "unique()",
     {
       url: post.url,
@@ -127,13 +158,14 @@ export async function createPost(post: News) {
       image: post.image,
       campus_id: post.campus_id,
       department_id: departmentId,
-      campus: campusId, // Set relationship using ID
-      department: departmentId, // Set relationship using ID
+      campus: campusId,
+      department: departmentId,
       slug: post.slug,
       sticky: post.sticky,
       metadata: post.metadata,
-      translation_refs: [], // Initialize empty translation refs
-    } // data (optional)
+      translation_refs: [],
+    },
+    permissions
   );
   revalidatePath("/posts");
   return result;
@@ -153,12 +185,26 @@ export async function deletePost(postId: string) {
 
 export async function getExpenses(fieldsToSelect?: string[]) {
   const { db } = await createSessionClient();
-  const queries = [Query.limit(100)];
+  const ctx = await getUserAuthContext();
+
+  const queries: string[] = [Query.limit(100)];
   if (fieldsToSelect) {
     queries.push(Query.select(fieldsToSelect));
   }
-  const response = await db.listRows<Expenses>("app", "expense", queries);
 
+  // Global admins see all expenses; campus admins see their campus;
+  // department users see their department only.
+  // The expense table uses string field "campus" (not campus_id), so we map
+  // the scope queries from campus_id -> campus field name.
+  if (ctx && !ctx.roles.includes("globaladmin")) {
+    if (ctx.managedCampuses.length > 0) {
+      queries.push(Query.equal("campus", ctx.managedCampuses));
+    } else if (ctx.departmentNames.length > 0) {
+      queries.push(Query.equal("department", ctx.departmentNames));
+    }
+  }
+
+  const response = await db.listRows<Expenses>("app", "expense", queries);
   return response.rows;
 }
 

@@ -13,6 +13,11 @@ import {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import type { AdminEvent, EventMetadata } from "@/lib/types/event";
+import {
+  getUserAuthContext,
+} from "@/lib/authorization";
+import { buildContentPermissions } from "@/lib/permissions";
+import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
 
 // Helper to parse metadata JSON safely
 function parseMetadata(metadata: string | null): EventMetadata {
@@ -272,6 +277,7 @@ export async function listEvents(
 
   try {
     const { db } = await createSessionClient();
+    const ctx = await getUserAuthContext();
 
     const queries = [Query.limit(limit), Query.orderDesc("$createdAt")];
 
@@ -281,6 +287,8 @@ export async function listEvents(
 
     if (campus && campus !== "all") {
       queries.push(Query.equal("campus_id", campus));
+    } else if (ctx) {
+      queries.push(...applyScopeQueries(ctx));
     }
 
     if (search) {
@@ -343,33 +351,49 @@ export async function createEvent(
   data: CreateEventData,
   skipRevalidation = false
 ) {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  assertWriteAccess(ctx, data.campus_id, data.department_id);
+
+  const permissions = buildContentPermissions({
+    status: data.status,
+    departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+    campusTeamId: ctx.campusTeamIds[0] ?? null,
+  });
+
   try {
     const { db } = await createSessionClient();
     const eventId = ID.unique();
     const metadata = serializeEventMetadata(data.metadata);
     const translationRefs = buildEventTranslations(eventId, data.translations);
 
-    const event = await db.createRow<Events>("app", "events", eventId, {
-      slug: data.slug ?? null,
-      status: mapEventStatus(data.status),
-      campus_id: data.campus_id,
-      start_date: data.start_date ?? null,
-      end_date: data.end_date ?? null,
-      location: data.location ?? null,
-      price: data.price ?? null,
-      ticket_url: data.ticket_url ?? null,
-      image: data.image ?? null,
-      member_only: data.member_only ?? false,
-      collection_id: data.collection_id ?? null,
-      is_collection: data.is_collection ?? false,
-      collection_pricing: data.collection_pricing ?? null,
-      department_id: data.department_id ?? null,
-      metadata,
-      campus: data.campus_id,
-      department: data.department_id ?? null,
-      // Nested relationship creation - Appwrite creates translations atomically
-      translation_refs: translationRefs,
-    });
+    const event = await db.createRow<Events>(
+      "app",
+      "events",
+      eventId,
+      {
+        slug: data.slug ?? null,
+        status: mapEventStatus(data.status),
+        campus_id: data.campus_id,
+        start_date: data.start_date ?? null,
+        end_date: data.end_date ?? null,
+        location: data.location ?? null,
+        price: data.price ?? null,
+        ticket_url: data.ticket_url ?? null,
+        image: data.image ?? null,
+        member_only: data.member_only ?? false,
+        collection_id: data.collection_id ?? null,
+        is_collection: data.is_collection ?? false,
+        collection_pricing: data.collection_pricing ?? null,
+        department_id: data.department_id ?? null,
+        metadata,
+        campus: data.campus_id,
+        department: data.department_id ?? null,
+        translation_refs: translationRefs,
+      },
+      permissions
+    );
 
     if (!skipRevalidation) {
       revalidatePath("/events");
@@ -386,8 +410,25 @@ export async function updateEvent(
   eventId: string,
   data: UpdateEventData
 ): Promise<Events | null> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
   try {
     const { db } = await createSessionClient();
+
+    const existing = await db.listRows<Events>("app", "events", [
+      Query.equal("$id", eventId),
+      Query.select(["campus_id", "department_id", "status"]),
+      Query.limit(1),
+    ]);
+    const existingEvent = existing.rows[0];
+    if (!existingEvent) throw new Error("Event not found");
+
+    assertWriteAccess(
+      ctx,
+      existingEvent.campus_id,
+      existingEvent.department_id ?? undefined
+    );
 
     const updateData = collectEventUpdateData(data);
     const translationRefs = await buildEventTranslationRefsForUpdate(
@@ -404,7 +445,14 @@ export async function updateEvent(
       "app",
       "events",
       eventId,
-      updateData
+      updateData,
+      data.status && data.status !== existingEvent.status
+        ? buildContentPermissions({
+            status: data.status,
+            departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+            campusTeamId: ctx.campusTeamIds[0] ?? null,
+          })
+        : undefined
     );
 
     revalidatePath("/events");
@@ -417,8 +465,25 @@ export async function updateEvent(
 }
 
 async function _deleteEvent(id: string): Promise<boolean> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) return false;
+
   try {
     const { db } = await createSessionClient();
+
+    const existing = await db.listRows<Events>("app", "events", [
+      Query.equal("$id", id),
+      Query.select(["campus_id", "department_id"]),
+      Query.limit(1),
+    ]);
+    const existingEvent = existing.rows[0];
+    if (!existingEvent) return false;
+
+    assertWriteAccess(
+      ctx,
+      existingEvent.campus_id,
+      existingEvent.department_id ?? undefined
+    );
 
     await db.deleteRow("app", "events", id);
     revalidatePath("/events");

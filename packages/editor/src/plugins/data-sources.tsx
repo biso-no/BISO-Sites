@@ -1,7 +1,9 @@
 "use client";
 
 import type { Plugin } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck, useGetPuck } from "@puckeditor/core";
+
+const usePuck = createUsePuck();
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -24,7 +26,8 @@ type DataSourceConfig = {
 type DataSourcesMap = Record<string, DataSourceConfig>;
 
 function DataSourcesPanel() {
-  const { appState, dispatch } = usePuck();
+  const appState = usePuck((s) => s.appState);
+  const getPuck = useGetPuck();
   const metadata = (appState as { metadata?: EditorMetadata }).metadata;
 
   const isAdmin = metadata?.user?.isGlobalAdmin ?? false;
@@ -51,6 +54,7 @@ function DataSourcesPanel() {
 
   const toggleSource = useCallback(
     (tableId: string, label: string, enabled: boolean) => {
+      const { dispatch } = getPuck();
       dispatch({
         type: "setData",
         recordHistory: true,
@@ -75,7 +79,7 @@ function DataSourcesPanel() {
         },
       });
     },
-    [dispatch],
+    [getPuck],
   );
 
   const enabledCount = Object.values(dataSources).filter(

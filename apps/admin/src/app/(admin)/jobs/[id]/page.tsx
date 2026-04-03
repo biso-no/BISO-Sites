@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { listCampuses, listDepartments } from "@/app/actions/events";
+import { getAllowedCampuses } from "@/app/actions/campus";
+import { listDepartments } from "@/app/actions/events";
 import { getJob } from "@/app/actions/jobs";
 import JobEditor from "../shared/job-editor";
 
@@ -12,7 +13,7 @@ export default async function EditJobPage({
   const { id } = await params;
   const [job, campuses, departments] = await Promise.all([
     getJob(id),
-    listCampuses(),
+    getAllowedCampuses(),
     listDepartments(),
   ]);
   const t = await getTranslations("adminJobs");

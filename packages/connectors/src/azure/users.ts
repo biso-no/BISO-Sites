@@ -416,5 +416,5 @@ export function getRequiredSecurityGroups(
   campusName: string,
   departmentCode: string
 ): string[] {
-  return [`SG-App-Campus-${campusName}`, `SG-App-Department-${departmentCode}`];
+  return [`SG-App-Campus-${campusName}`, `SG-App-Dept-${departmentCode}`];
 }

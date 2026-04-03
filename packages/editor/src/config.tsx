@@ -13,6 +13,16 @@ import { MarketingComponents } from "./config/marketing";
 import type { Props } from "./config/types";
 import { CONTENT_TYPE_OPTIONS } from "./content-types/registry";
 
+function sanitizeSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // Explicitly type the Config with Props to help TS inference
 export const config: Config<Props> = {
   root: {
@@ -80,6 +90,41 @@ export const config: Config<Props> = {
       }
       return fields;
     },
+
+    // Auto-populate slug from title, and lock the slug field for scoped users.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolveData: async ({ props }, { changed, lastData, metadata }: any) => {
+      const p = props as Record<string, unknown>;
+      const isSlugLocked =
+        (metadata as { constraints?: { slugLocked?: boolean } })?.constraints
+          ?.slugLocked ?? false;
+
+      if (isSlugLocked) {
+        // Slug is enforced server-side (department users); mark it read-only in the UI
+        return { props, readOnly: { slug: true } };
+      }
+
+      if (!changed.title) return { props };
+
+      const newTitle = (p.title as string) ?? "";
+      const currentSlug = (p.slug as string) ?? "";
+
+      // Auto-fill when slug is empty
+      if (!currentSlug.trim()) {
+        return { props: { ...p, slug: sanitizeSlug(newTitle) } };
+      }
+
+      // Also keep slug in sync while it still matches the previously auto-generated
+      // value, meaning the user has not manually customised it yet.
+      const prevProps = (lastData?.props ?? {}) as Record<string, unknown>;
+      const prevTitle = (prevProps.title as string) ?? "";
+      if (currentSlug === sanitizeSlug(prevTitle)) {
+        return { props: { ...p, slug: sanitizeSlug(newTitle) } };
+      }
+
+      return { props };
+    },
+
     defaultProps: {
       publishMode: "now",
     },

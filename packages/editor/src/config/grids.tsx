@@ -1,5 +1,7 @@
 "use client";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck } from "@puckeditor/core";
+
+const usePuck = createUsePuck();
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { cn } from "@repo/ui/lib/utils";
@@ -377,7 +379,7 @@ function GridDataPicker({
   value: GridDataBinding | null | undefined;
   onChange: (next: GridDataBinding | null) => void;
 }) {
-  const { appState } = usePuck();
+  const appState = usePuck((s) => s.appState);
   const metadata = (appState as { metadata?: EditorMetadata }).metadata;
   const isAdmin = metadata?.user?.isGlobalAdmin ?? false;
   const isCampusAdmin = metadata?.user?.isCampusAdmin ?? false;

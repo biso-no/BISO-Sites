@@ -19,7 +19,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 // Internal server actions
-import { getCampuses, getCampusWithDepartments } from "@/app/actions/campus";
+import {
+  getAllowedCampuses,
+  getCampusWithDepartments,
+} from "@/app/actions/campus";
 import { createEvent, updateEvent } from "@/app/actions/events";
 
 // Internal hooks & types
@@ -95,7 +98,7 @@ export default function EventEditor({ event }: EventEditorProps) {
   useEffect(() => {
     async function fetchCampuses() {
       try {
-        const campusData = await getCampuses();
+        const campusData = await getAllowedCampuses();
         setCampuses(campusData);
       } catch (error) {
         console.error("Error fetching campuses:", error);

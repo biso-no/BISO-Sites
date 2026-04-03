@@ -35,7 +35,7 @@ import { AlertCircleIcon, BellIcon, CheckCircleIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import type { DashboardMetrics } from "@/lib/actions/admin-dashboard";
-import { ROLES } from "@/lib/roles";
+import { DEPARTMENT_ROLE, ROLES } from "@/lib/roles";
 
 const formatNumber = (value: number) => {
   if (value === undefined || value === null) {
@@ -149,18 +149,13 @@ export default function AdminDashboard({
       accent: "bg-primary-40 text-white",
     },
     {
-      value: ROLES.PR,
-      label: t("dashboard.roleOptions.pr"),
+      value: ROLES.CAMPUS_ADMIN,
+      label: t("dashboard.roleOptions.campusAdmin"),
       accent: "bg-secondary-100/80 text-primary-100",
     },
     {
-      value: ROLES.FINANCE,
-      label: t("dashboard.roleOptions.finance"),
-      accent: "bg-gold-default/80 text-primary-100",
-    },
-    {
-      value: ROLES.HR,
-      label: t("dashboard.roleOptions.hr"),
+      value: DEPARTMENT_ROLE,
+      label: t("dashboard.roleOptions.department"),
       accent: "bg-primary-10/70 text-primary-100",
     },
   ];
@@ -326,12 +321,10 @@ export default function AdminDashboard({
     switch (currentRole) {
       case ROLES.GLOBAL_ADMIN:
         return renderAdminContent(tab);
-      case ROLES.PR:
-        return renderPRContent(tab);
-      case ROLES.FINANCE:
+      case ROLES.CAMPUS_ADMIN:
         return renderFinanceContent(tab);
-      case ROLES.HR:
-        return renderHRContent(tab);
+      case DEPARTMENT_ROLE:
+        return renderPRContent(tab);
       default:
         return <div>{t("dashboard.missingRoleContent")}</div>;
     }

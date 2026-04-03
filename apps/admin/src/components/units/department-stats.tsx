@@ -89,8 +89,8 @@ export function DepartmentStats({
 
         <MetricCard
           icon={Users}
-          iconBgColor="bg-blue-500/10"
-          iconColor="text-blue-600"
+          iconBgColor="bg-primary/10"
+          iconColor="text-primary"
           title="Total Members"
           value={totalUsers}
         />

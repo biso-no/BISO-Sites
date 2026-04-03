@@ -1,7 +1,9 @@
 "use client";
 
 import type { ComponentData, Config, Plugin } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck, useGetPuck } from "@puckeditor/core";
+
+const usePuck = createUsePuck();
 import { cloneWithNewIds } from "../utils/clone-block";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -191,7 +193,9 @@ async function fetchTemplates(config: Config): Promise<AppwriteTemplate[]> {
 }
 
 function TemplatesPanel() {
-  const { appState, config, dispatch, selectedItem } = usePuck();
+  const config = usePuck((s) => s.config);
+  const contentLength = usePuck((s) => s.appState.data.content?.length ?? 0);
+  const getPuck = useGetPuck();
   const [mode, setMode] = useState<InsertMode>("append");
   const [templates, setTemplates] = useState<AppwriteTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,8 +217,9 @@ function TemplatesPanel() {
   }, [config]);
 
   const insertTemplate = (template: AppwriteTemplate) => {
+    const { config: currentConfig, dispatch, selectedItem } = getPuck();
     const blocks = template.data.content.map((item) =>
-      cloneWithNewIds(item, config)
+      cloneWithNewIds(item, currentConfig)
     );
     const selectedId =
       (selectedItem?.props as { id?: string } | undefined)?.id ?? null;
@@ -320,7 +325,7 @@ function TemplatesPanel() {
       )}
 
       <div className="text-muted-foreground text-xs">
-        Current blocks: {appState.data.content?.length ?? 0}
+        Current blocks: {contentLength}
       </div>
     </div>
   );

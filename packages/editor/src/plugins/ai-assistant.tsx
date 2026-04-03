@@ -1,7 +1,9 @@
 "use client";
 
 import type { Plugin } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck, useGetPuck } from "@puckeditor/core";
+
+const usePuck = createUsePuck();
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Textarea } from "@repo/ui/components/ui/textarea";
@@ -316,7 +318,10 @@ function CopyGenerator({
 // ---------------------------------------------------------------------------
 
 function AiAssistantPanel() {
-  const { selectedItem, appState, dispatch } = usePuck();
+  // Granular selectors — re-render only when the specific slice changes.
+  const selectedItem = usePuck((s) => s.selectedItem);
+  const content = usePuck((s) => s.appState.data.content);
+  const getPuck = useGetPuck();
   const ai = useAiAssistant();
 
   const [prompt, setPrompt] = useState("");
@@ -329,19 +334,18 @@ function AiAssistantPanel() {
   useEffect(() => {
     if (!ai) return;
     ai.onDataReady((newData) => {
+      const { dispatch } = getPuck();
       dispatch({ type: "setData", data: newData });
     });
     return () => {
       ai.onDataReady(null);
     };
-  }, [ai, dispatch]);
+  }, [ai, getPuck]);
 
-  // Derive selected block index from Puck state
+  // Derive selected block index for the "nested block" warning in the JSX.
   const selectedIndex =
     selectedItem != null
-      ? appState.data.content.findIndex(
-          (b) => b.props.id === selectedItem.props.id
-        )
+      ? content.findIndex((b) => b.props.id === selectedItem.props.id)
       : -1;
   const effectiveSelectedIndex = selectedIndex >= 0 ? selectedIndex : undefined;
 
@@ -384,10 +388,17 @@ function AiAssistantPanel() {
         toast.error("AI assistant not connected.");
         return;
       }
-      if (!selectedItem) {
+
+      // Read selected item and content at call time to avoid stale closure issues.
+      const { selectedItem: currentSelectedItem, appState } = getPuck();
+      if (!currentSelectedItem) {
         toast.warning("Select a block on the canvas first.");
         return;
       }
+      const selectedIndex = appState.data.content.findIndex(
+        (b) => b.props.id === currentSelectedItem.props.id
+      );
+      const effectiveSelectedIndex = selectedIndex >= 0 ? selectedIndex : undefined;
       if (effectiveSelectedIndex === undefined) {
         toast.warning("Improvement of nested blocks is not yet supported.");
         return;
@@ -410,12 +421,12 @@ function AiAssistantPanel() {
         "action-suggest": "",
       };
 
-      const blockText = extractBlockText(selectedItem.props as Record<string, unknown>);
-      const blockJson = JSON.stringify(selectedItem.props, null, 2);
+      const blockText = extractBlockText(currentSelectedItem.props as Record<string, unknown>);
+      const blockJson = JSON.stringify(currentSelectedItem.props, null, 2);
 
       const generationPrompt = [
         instruction[key],
-        `\nBlock type: ${selectedItem.type}`,
+        `\nBlock type: ${currentSelectedItem.type}`,
         `Block index: ${effectiveSelectedIndex}`,
         `Current text content:\n${blockText}`,
         `Full block props:\n${blockJson}`,
@@ -427,7 +438,7 @@ function AiAssistantPanel() {
       await ai.generate(generationPrompt, effectiveSelectedIndex);
       // activeLoading cleared by useEffect
     },
-    [ai, selectedItem, effectiveSelectedIndex, startLoading]
+    [ai, getPuck, startLoading]
   );
 
   // ------------------------------------------------------------------
@@ -484,6 +495,8 @@ function AiAssistantPanel() {
         return;
       }
 
+      // Read current Puck state at call time to avoid stale closure issues.
+      const { appState, selectedItem: currentSelectedItem } = getPuck();
       let content = "";
 
       if (key === "action-suggest") {
@@ -495,11 +508,11 @@ function AiAssistantPanel() {
         key === "action-translate-en" ||
         key === "action-translate-no"
       ) {
-        if (!selectedItem) {
+        if (!currentSelectedItem) {
           toast.warning("Select a block on the canvas first.");
           return;
         }
-        content = extractBlockText(selectedItem.props as Record<string, unknown>);
+        content = extractBlockText(currentSelectedItem.props as Record<string, unknown>);
         if (!content.trim()) {
           toast.warning("Selected block has no readable text.");
           return;
@@ -527,7 +540,7 @@ function AiAssistantPanel() {
         },
       });
     },
-    [ai, appState.data.content, selectedItem, startLoading]
+    [ai, getPuck, startLoading]
   );
 
   const selectedBlockType = selectedItem?.type ?? null;

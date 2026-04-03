@@ -7,11 +7,7 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import {
-  getUserAuthContext,
-  isController,
-  isGlobalAdmin,
-} from "@/lib/authorization";
+import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
 
 // Product status constants
 const STATUS_PENDING = "pending_approval";
@@ -36,19 +32,24 @@ export async function listPendingProducts(): Promise<PendingProduct[]> {
     throw new Error("Unauthorized");
   }
 
-  // Check if user has approval permissions
+  // Only global admins and campus admins can approve products
   const isAdmin = await isGlobalAdmin();
-  const hasControllerRole = await isController();
+  const isCampusAdmin = ctx.managedCampuses.length > 0;
 
-  if (!(isAdmin || hasControllerRole)) {
-    return []; // Only controllers and admins can see pending products
+  if (!(isAdmin || isCampusAdmin)) {
+    return [];
   }
 
-  const queries = [
+  const queries: string[] = [
     Query.equal("status", STATUS_PENDING),
     Query.orderDesc("$createdAt"),
     Query.limit(100),
   ];
+
+  // Scope campus admins to their own campuses at query level
+  if (!isAdmin && ctx.campusNames.length > 0) {
+    queries.push(Query.equal("campus_id", ctx.campusNames));
+  }
 
   const response = await db.listRows<WebshopProducts>({
     databaseId: "app",
@@ -56,20 +57,7 @@ export async function listPendingProducts(): Promise<PendingProduct[]> {
     queries,
   });
 
-  // If not global admin, filter by user's campus teams
-  let products = response.rows;
-  if (!isAdmin) {
-    // Filter products by user's campus names
-    // campusNames are derived from SG-App-Campus-* groups (e.g., ["Oslo", "Bergen"])
-    products = products.filter((product) => {
-      // If product has no campus_id, it's visible to all controllers
-      if (!product.campus_id) {
-        return true;
-      }
-      // Check if user belongs to the product's campus
-      return ctx.campusNames.includes(product.campus_id);
-    });
-  }
+  const products = response.rows;
 
   // Enrich with translations
   const enrichedProducts = await Promise.all(
@@ -109,9 +97,9 @@ export async function approveProduct(productId: string): Promise<void> {
   }
 
   const isAdmin = await isGlobalAdmin();
-  const hasControllerRole = await isController();
+  const isCampusAdmin = ctx.managedCampuses.length > 0;
 
-  if (!(isAdmin || hasControllerRole)) {
+  if (!(isAdmin || isCampusAdmin)) {
     throw new Error("You do not have permission to approve products");
   }
 
@@ -157,9 +145,9 @@ export async function rejectProduct(
   }
 
   const isAdmin = await isGlobalAdmin();
-  const hasControllerRole = await isController();
+  const isCampusAdmin = ctx.managedCampuses.length > 0;
 
-  if (!(isAdmin || hasControllerRole)) {
+  if (!(isAdmin || isCampusAdmin)) {
     throw new Error("You do not have permission to reject products");
   }
 

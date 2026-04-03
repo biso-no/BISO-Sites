@@ -384,10 +384,10 @@ function ActiveFilters({
       )}
 
       {campusId && (
-        <div className="group flex items-center gap-2 rounded-full border border-blue-500/20 bg-linear-to-r from-blue-500/10 to-blue-600/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
+        <div className="group flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
           <span className="font-medium">
             Campus:{" "}
-            <span className="text-blue-600">
+            <span className="text-primary">
               {campuses.find((c) => c.id === campusId)?.name}
             </span>
           </span>
@@ -402,9 +402,9 @@ function ActiveFilters({
       )}
 
       {filters.type && (
-        <div className="group flex items-center gap-2 rounded-full border border-purple-500/20 bg-linear-to-r from-purple-500/10 to-purple-600/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
+        <div className="group flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
           <span className="font-medium">
-            Type: <span className="text-purple-600">{filters.type}</span>
+            Type: <span className="text-foreground">{filters.type}</span>
           </span>
           <button
             className="text-muted-foreground transition-colors duration-300 hover:scale-110 hover:text-destructive"
@@ -417,10 +417,10 @@ function ActiveFilters({
       )}
 
       {filters.active !== undefined && filters.active !== true && (
-        <div className="group flex items-center gap-2 rounded-full border border-amber-500/20 bg-linear-to-r from-amber-500/10 to-amber-600/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
+        <div className="group flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
           <span className="font-medium">
             Status:{" "}
-            <span className="text-amber-600">
+            <span className="text-destructive">
               {filters.active ? "Active" : "Inactive"}
             </span>
           </span>

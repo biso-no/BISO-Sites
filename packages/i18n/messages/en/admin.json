@@ -103,7 +103,9 @@
       "admin": "Admin",
       "pr": "PR & Communication",
       "finance": "Finance",
-      "hr": "HR"
+      "hr": "HR",
+      "campusAdmin": "Campus administrator",
+      "department": "Department administrator"
     },
     "hero": {
       "badge": "BISO Admin",
