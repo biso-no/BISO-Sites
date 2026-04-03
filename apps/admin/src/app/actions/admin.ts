@@ -12,13 +12,13 @@ import type {
 import { revalidatePath } from "next/cache";
 
 import { getUserAuthContext, getUserRolesForClient } from "@/lib/authorization";
-import {
-  assertWriteAccess,
-  applyScopeQueries,
-} from "@/lib/utils/authorization";
-import { buildContentPermissions } from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
+import { buildContentPermissions } from "@/lib/permissions";
 import { DEPARTMENT_ROLE } from "@/lib/roles";
+import {
+  applyScopeQueries,
+  assertWriteAccess,
+} from "@/lib/utils/authorization";
 
 /**
  * Get user roles for client-side navigation.
@@ -64,7 +64,9 @@ export async function getPost(postId: string) {
 
 export async function updatePost(postId: string, post: News) {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createSessionClient();
   const response = await db.getRow<News>("app", "news", postId);
@@ -130,7 +132,9 @@ export async function updatePost(postId: string, post: News) {
 
 export async function createPost(post: News) {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const departmentId =
     typeof post.department === "string"

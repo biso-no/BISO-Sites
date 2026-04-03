@@ -2,9 +2,6 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { getUserAuthContext } from "@/lib/authorization";
-import { buildContentPermissions } from "@/lib/permissions";
-import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import {
   type Campus,
   type ContentTranslations,
@@ -15,17 +12,20 @@ import {
   Status,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
+import { getUserAuthContext } from "@/lib/authorization";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
+import { buildContentPermissions } from "@/lib/permissions";
 import type { ContentTranslation } from "@/lib/types/content-translation";
 import type { AdminJob } from "@/lib/types/job";
 import type {
   JobApplication,
   JobApplicationFormData,
 } from "@/lib/types/job-application";
-import { JOB_SELECT_FIELDS, normalizeJobRow } from "./_utils/translatable";
 import {
-  assertWriteAccess,
   applyScopeQueries,
+  assertWriteAccess,
 } from "@/lib/utils/authorization";
+import { JOB_SELECT_FIELDS, normalizeJobRow } from "./_utils/translatable";
 
 export type ListJobsParams = {
   limit?: number;
@@ -203,7 +203,9 @@ export async function createJob(
   skipRevalidation = false
 ): Promise<Jobs | null> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   assertWriteAccess(ctx, data.campus_id, data.department_id);
 
@@ -261,7 +263,9 @@ export async function updateJob(
   data: Partial<CreateJobData>
 ): Promise<Jobs | null> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   try {
     const { db } = await createSessionClient();
@@ -272,7 +276,9 @@ export async function updateJob(
       Query.limit(1),
     ]);
     const existingJob = existing.rows[0];
-    if (!existingJob) throw new Error("Job not found");
+    if (!existingJob) {
+      throw new Error("Job not found");
+    }
 
     assertWriteAccess(
       ctx,
@@ -317,7 +323,9 @@ export async function updateJob(
 
 async function _deleteJob(id: string): Promise<boolean> {
   const ctx = await getUserAuthContext();
-  if (!ctx) return false;
+  if (!ctx) {
+    return false;
+  }
 
   try {
     const { db } = await createSessionClient();
@@ -328,7 +336,9 @@ async function _deleteJob(id: string): Promise<boolean> {
       Query.limit(1),
     ]);
     const existingJob = existing.rows[0];
-    if (!existingJob) return false;
+    if (!existingJob) {
+      return false;
+    }
 
     assertWriteAccess(
       ctx,

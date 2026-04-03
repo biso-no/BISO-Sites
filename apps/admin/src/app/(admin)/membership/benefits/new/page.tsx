@@ -1,6 +1,6 @@
-import { checkNavAccess, getUserAuthContext } from "@/lib/authorization";
 import { unauthorized } from "next/navigation";
 import { listPartnersForCampus } from "@/app/actions/benefits";
+import { checkNavAccess, getUserAuthContext } from "@/lib/authorization";
 import { BenefitEditorClient } from "../_components/benefit-editor-client";
 
 export const metadata = {

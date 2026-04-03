@@ -146,7 +146,9 @@ export const puckFieldOverrides: Partial<Overrides<Config>> = {
         <DateTimePicker
           label="Publish date"
           onChange={(next) => {
-            if (!readOnly) onChange(next);
+            if (!readOnly) {
+              onChange(next);
+            }
           }}
           readOnly={readOnly}
           value={typeof value === "string" ? value : null}

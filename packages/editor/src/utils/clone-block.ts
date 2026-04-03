@@ -37,8 +37,12 @@ export function cloneWithNewIds(
   };
 
   const remap = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(remap);
-    if (isComponentData(value)) return cloneWithNewIds(value, config);
+    if (Array.isArray(value)) {
+      return value.map(remap);
+    }
+    if (isComponentData(value)) {
+      return cloneWithNewIds(value, config);
+    }
     if (value && typeof value === "object") {
       const record = value as Record<string, unknown>;
       return Object.fromEntries(

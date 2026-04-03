@@ -4,27 +4,28 @@ import type { Plugin } from "@puckeditor/core";
 import { createUsePuck, useGetPuck } from "@puckeditor/core";
 
 const usePuck = createUsePuck();
+
 import {
-  History,
-  Clock,
-  RotateCcw,
-  Circle,
   CheckCircle2,
+  Circle,
+  Clock,
   FileEdit,
   GitCompare,
+  History,
+  RotateCcw,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type VersionStatus = "draft" | "published";
 
 interface VersionEntry {
+  author: string;
+  blockCount: number;
   id: string;
   number: number;
-  timestamp: Date;
-  author: string;
-  status: VersionStatus;
-  blockCount: number;
   snapshot: unknown;
+  status: VersionStatus;
+  timestamp: Date;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -34,10 +35,18 @@ function formatTimeAgo(date: Date): string {
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
 
-  if (seconds < 10) return "Just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
+  if (seconds < 10) {
+    return "Just now";
+  }
+  if (seconds < 60) {
+    return `${seconds}s ago`;
+  }
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
   return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -49,14 +58,14 @@ function formatTimeAgo(date: Date): string {
 function StatusBadge({ status }: { status: VersionStatus }) {
   if (status === "published") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-[10px] text-green-700 dark:bg-green-900/30 dark:text-green-400">
         <CheckCircle2 size={10} />
         Published
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-[10px] text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
       <FileEdit size={10} />
       Draft
     </span>
@@ -74,14 +83,14 @@ function CurrentStatus({
     <div className="flex items-center gap-2 rounded-md border border-border p-3">
       <div
         className={`h-2 w-2 shrink-0 rounded-full ${
-          hasUnsavedChanges ? "bg-yellow-500 animate-pulse" : "bg-green-500"
+          hasUnsavedChanges ? "animate-pulse bg-yellow-500" : "bg-green-500"
         }`}
       />
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-foreground">
+        <div className="font-medium text-foreground text-sm">
           {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-muted-foreground text-xs">
           {lastSaved
             ? `Last saved ${formatTimeAgo(lastSaved)}`
             : "No saves this session"}
@@ -112,9 +121,9 @@ function VersionItem({
           }`}
         >
           {isCurrent ? (
-            <Circle size={8} className="fill-white text-white" />
+            <Circle className="fill-white text-white" size={8} />
           ) : (
-            <Circle size={8} className="text-muted-foreground" />
+            <Circle className="text-muted-foreground" size={8} />
           )}
         </div>
         <div className="w-px flex-1 bg-border" />
@@ -123,24 +132,24 @@ function VersionItem({
       {/* Content */}
       <div className="min-w-0 flex-1 space-y-1.5 pb-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">
+          <span className="font-semibold text-foreground text-sm">
             v{version.number}
           </span>
           <StatusBadge status={version.status} />
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-muted-foreground text-xs">
           <span>{version.author}</span>
           <span className="mx-1.5">·</span>
           <span>{formatTimeAgo(version.timestamp)}</span>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {version.blockCount} block{version.blockCount !== 1 ? "s" : ""}
+        <div className="text-muted-foreground text-xs">
+          {version.blockCount} block{version.blockCount === 1 ? "" : "s"}
         </div>
         {!isCurrent && (
           <button
-            type="button"
+            className="mt-1 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 font-medium text-foreground text-xs transition-colors hover:bg-muted"
             onClick={() => onRestore(version)}
-            className="mt-1 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            type="button"
           >
             <RotateCcw size={12} />
             Restore
@@ -154,16 +163,16 @@ function VersionItem({
 function DiffPlaceholder() {
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+      <div className="flex items-center gap-2 font-semibold text-foreground text-sm">
         <GitCompare size={14} />
         Version Diff
       </div>
-      <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border p-4 text-center">
-        <GitCompare size={20} className="text-muted-foreground" />
-        <div className="text-sm text-muted-foreground">
+      <div className="flex flex-col items-center gap-2 rounded-md border border-border border-dashed p-4 text-center">
+        <GitCompare className="text-muted-foreground" size={20} />
+        <div className="text-muted-foreground text-sm">
           Compare with previous version
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-muted-foreground text-xs">
           Select a version to see what changed. Full diff support coming soon.
         </div>
       </div>
@@ -197,7 +206,9 @@ function VersionHistoryPanel() {
   );
 
   const lastSaved = useMemo(() => {
-    if (versions.length === 0) return null;
+    if (versions.length === 0) {
+      return null;
+    }
     return versions[0]!.timestamp;
   }, [versions]);
 
@@ -250,7 +261,9 @@ function VersionHistoryPanel() {
 
   const handleRestore = useCallback(
     (version: VersionEntry) => {
-      if (!version.snapshot) return;
+      if (!version.snapshot) {
+        return;
+      }
       const { dispatch } = getPuck();
       dispatch({
         type: "setData",
@@ -264,10 +277,10 @@ function VersionHistoryPanel() {
   return (
     <div className="space-y-6 p-4">
       <div>
-        <div className="text-lg font-semibold text-foreground">
+        <div className="font-semibold text-foreground text-lg">
           Version History
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           Track changes during your editing session.
         </div>
       </div>
@@ -279,16 +292,16 @@ function VersionHistoryPanel() {
 
       {/* Version Timeline */}
       <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <div className="flex items-center gap-2 font-semibold text-foreground text-sm">
           <Clock size={14} />
           Session Timeline
         </div>
 
         {versions.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border p-4 text-center">
-            <History size={20} className="text-muted-foreground" />
-            <div className="text-sm text-muted-foreground">No versions yet</div>
-            <div className="text-xs text-muted-foreground">
+          <div className="flex flex-col items-center gap-2 rounded-md border border-border border-dashed p-4 text-center">
+            <History className="text-muted-foreground" size={20} />
+            <div className="text-muted-foreground text-sm">No versions yet</div>
+            <div className="text-muted-foreground text-xs">
               Snapshots are captured automatically when you add, remove, or
               reorder blocks.
             </div>
@@ -297,10 +310,10 @@ function VersionHistoryPanel() {
           <div className="max-h-80 overflow-y-auto pr-1">
             {versions.map((version, index) => (
               <VersionItem
-                key={version.id}
-                version={version}
                 isCurrent={index === 0}
+                key={version.id}
                 onRestore={handleRestore}
+                version={version}
               />
             ))}
           </div>
@@ -309,8 +322,8 @@ function VersionHistoryPanel() {
 
       <DiffPlaceholder />
 
-      <div className="text-xs text-muted-foreground">
-        {versions.length} snapshot{versions.length !== 1 ? "s" : ""} this
+      <div className="text-muted-foreground text-xs">
+        {versions.length} snapshot{versions.length === 1 ? "" : "s"} this
         session
       </div>
     </div>

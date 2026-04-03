@@ -7,30 +7,30 @@ import type {
 } from "@repo/api/types/appwrite";
 import { TabNavigation } from "./shared/tab-navigation";
 import { BenefitsTab } from "./tabs/benefits-tab";
+import { CampusTab } from "./tabs/campus-tab";
 import { HomeTab } from "./tabs/home-tab";
 import { MembershipTab } from "./tabs/membership-tab";
-import { ProfileTab } from "./tabs/profile-tab";
-import { CampusTab } from "./tabs/campus-tab";
 import { OpportunitiesTab } from "./tabs/opportunities-tab";
+import { ProfileTab } from "./tabs/profile-tab";
 
 interface MemberPortalTabsProps {
-  membershipType: string;
+  bankAccount?: string;
+  benefits: CampusBenefit[];
   benefitsCount: number;
+  biEmail: string;
   daysRemaining: number;
   estimatedSavings: number;
-  startDate: string;
   expiryDate: string;
-  benefits: CampusBenefit[];
   featuredBenefits?: CampusBenefit[];
-  revealedBenefits: Set<string>;
-  isMember: boolean;
   hasBIIdentity: boolean;
+  isMember: boolean;
+  membershipType: string;
   profile: Users | null;
   publicProfile: PublicProfiles | null;
-  biEmail: string;
-  userName: string;
+  revealedBenefits: Set<string>;
+  startDate: string;
   studentId: string;
-  bankAccount?: string;
+  userName: string;
 }
 
 export function MemberPortalTabs({

@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { type Locale, type WebshopProducts } from "@repo/api/types/appwrite";
+import type { Locale, WebshopProducts } from "@repo/api/types/appwrite";
 
 export async function getProduct(
   id: string,

@@ -1,10 +1,10 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { expandDeptName } from "./campus-constants";
 import {
   grantDeptTeamAccess,
   grantTeamContentAccess,
 } from "./team-provisioning";
-import { expandDeptName } from "./campus-constants";
 
 type AzureGroup = { id: string; name: string };
 

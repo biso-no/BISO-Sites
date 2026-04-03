@@ -232,7 +232,7 @@ function MobileFilters({
             <SlidersHorizontal size={16} />
             Filters
             {activeFilterCount > 0 && (
-              <span className="-top-1 -right-1 absolute flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
                 {activeFilterCount}
               </span>
             )}
@@ -494,10 +494,10 @@ export function DepartmentFilters({
             placeholder="Search departments..."
             value={searchInputValue}
           />
-          <Search className="-translate-y-1/2 absolute top-1/2 left-3.5 h-4 w-4 text-muted-foreground transition-colors duration-300 group-focus-within:text-primary" />
+          <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors duration-300 group-focus-within:text-primary" />
           {searchInputValue && (
             <button
-              className="-translate-y-1/2 absolute top-1/2 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-destructive/20 hover:text-destructive"
+              className="absolute top-1/2 right-3 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-muted/80 backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-destructive/20 hover:text-destructive"
               disabled={isPending}
               onClick={clearSearch}
               type="button"

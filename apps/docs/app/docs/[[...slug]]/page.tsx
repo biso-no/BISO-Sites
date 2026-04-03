@@ -18,8 +18,8 @@ type Param = {
 
 interface MDX extends PageData {
   body: ElementType;
-  toc: TOCItemType[];
   full: boolean;
+  toc: TOCItemType[];
 }
 
 export default async function Page(props: { params: Promise<Param> }) {

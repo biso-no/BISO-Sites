@@ -15,7 +15,9 @@ export function dateTimeField({
       <DateTimePicker
         label={label}
         onChange={(next) => {
-          if (readOnly) return;
+          if (readOnly) {
+            return;
+          }
           onChange(next);
         }}
         readOnly={readOnly}

@@ -1,6 +1,6 @@
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { getLocale } from "@/app/actions/locale";
 import { getNewsItem } from "@/app/actions/news";
 import { PublicPageHeader } from "@/components/public/public-page-header";

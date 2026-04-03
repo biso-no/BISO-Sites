@@ -158,7 +158,7 @@ export function JoinUs() {
               whileInView={{ opacity: 1, y: 0 }}
             >
               {duration.popular && (
-                <div className="-top-4 -translate-x-1/2 absolute left-1/2 z-10">
+                <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
                   <div className="rounded-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to px-6 py-2 font-medium text-sm text-white shadow-lg">
                     Most Popular
                   </div>

@@ -1,15 +1,15 @@
 import type { Models } from "@repo/api";
 
 export interface FundingProgram extends Models.Row {
+  application_url?: string;
+  contact_email?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  document_url?: string;
+  hero_image_url?: string;
+  metadata?: string;
   slug: string;
   status?: string;
-  hero_image_url?: string;
-  application_url?: string;
-  document_url?: string;
-  contact_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
-  metadata?: string;
 }
 
 export interface ParsedFundingProgram extends FundingProgram {

@@ -12,13 +12,13 @@ import {
   type Status,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import type { AdminEvent, EventMetadata } from "@/lib/types/event";
 import { getUserAuthContext } from "@/lib/authorization";
-import { buildContentPermissions } from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
+import { buildContentPermissions } from "@/lib/permissions";
+import type { AdminEvent, EventMetadata } from "@/lib/types/event";
 import {
-  assertWriteAccess,
   applyScopeQueries,
+  assertWriteAccess,
 } from "@/lib/utils/authorization";
 
 // Helper to parse metadata JSON safely
@@ -356,7 +356,9 @@ export async function createEvent(
   skipRevalidation = false
 ) {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   assertWriteAccess(ctx, data.campus_id, data.department_id);
 
@@ -421,7 +423,9 @@ export async function updateEvent(
   data: UpdateEventData
 ): Promise<Events | null> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   try {
     const { db } = await createSessionClient();
@@ -432,7 +436,9 @@ export async function updateEvent(
       Query.limit(1),
     ]);
     const existingEvent = existing.rows[0];
-    if (!existingEvent) throw new Error("Event not found");
+    if (!existingEvent) {
+      throw new Error("Event not found");
+    }
 
     assertWriteAccess(
       ctx,
@@ -478,7 +484,9 @@ export async function updateEvent(
 
 async function _deleteEvent(id: string): Promise<boolean> {
   const ctx = await getUserAuthContext();
-  if (!ctx) return false;
+  if (!ctx) {
+    return false;
+  }
 
   try {
     const { db } = await createSessionClient();
@@ -489,7 +497,9 @@ async function _deleteEvent(id: string): Promise<boolean> {
       Query.limit(1),
     ]);
     const existingEvent = existing.rows[0];
-    if (!existingEvent) return false;
+    if (!existingEvent) {
+      return false;
+    }
 
     assertWriteAccess(
       ctx,

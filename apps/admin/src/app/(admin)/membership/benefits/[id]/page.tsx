@@ -1,9 +1,9 @@
-import { checkNavAccess, getUserAuthContext } from "@/lib/authorization";
-import { redirect, notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   getManagedBenefit,
   listPartnersForCampus,
 } from "@/app/actions/benefits";
+import { checkNavAccess, getUserAuthContext } from "@/lib/authorization";
 import { BenefitEditorClient } from "../_components/benefit-editor-client";
 
 export const metadata = {
@@ -16,7 +16,9 @@ export default async function EditBenefitPage({
   params: Promise<{ id: string }>;
 }) {
   const hasAccess = await checkNavAccess("benefits");
-  if (!hasAccess) redirect("/unauthorized");
+  if (!hasAccess) {
+    redirect("/unauthorized");
+  }
 
   const { id } = await params;
   const ctx = await getUserAuthContext();

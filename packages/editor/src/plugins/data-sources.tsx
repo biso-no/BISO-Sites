@@ -4,15 +4,14 @@ import type { Plugin } from "@puckeditor/core";
 import { createUsePuck, useGetPuck } from "@puckeditor/core";
 
 const usePuck = createUsePuck();
+
 import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { Label } from "@repo/ui/components/ui/label";
 import { Switch } from "@repo/ui/components/ui/switch";
 import { Database, Table } from "lucide-react";
 import { useCallback, useMemo } from "react";
-import { TABLE_SCHEMAS } from "../data/schemas";
 import type { EditorMetadata } from "../config/types";
+import { TABLE_SCHEMAS } from "../data/schemas";
 
 /**
  * Root-level data source configuration stored in root.props._dataSources.
@@ -43,9 +42,13 @@ function DataSourcesPanel() {
 
   // Filter available schemas based on user permissions
   const availableSchemas = useMemo(() => {
-    if (isAdmin) return TABLE_SCHEMAS;
+    if (isAdmin) {
+      return TABLE_SCHEMAS;
+    }
     // Campus admins can see most tables
-    if (isCampusAdmin) return TABLE_SCHEMAS;
+    if (isCampusAdmin) {
+      return TABLE_SCHEMAS;
+    }
     // Regular editors see a subset
     return TABLE_SCHEMAS.filter((s) =>
       ["news", "events", "jobs", "departments"].includes(s.id)
@@ -89,14 +92,14 @@ function DataSourcesPanel() {
     <div className="space-y-4 p-4">
       <div>
         <div className="flex items-center gap-2">
-          <div className="text-lg font-semibold text-foreground">
+          <div className="font-semibold text-foreground text-lg">
             Data Sources
           </div>
           {enabledCount > 0 && (
             <Badge variant="secondary">{enabledCount} active</Badge>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Connect this page to live data from your collections. Data-display
           blocks on this page will pull from enabled sources.
         </p>
@@ -113,10 +116,10 @@ function DataSourcesPanel() {
                 <Table className="h-4 w-4 text-gray-500" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-foreground">
+                <div className="font-medium text-foreground text-sm">
                   {schema.label}
                 </div>
-                <div className="truncate text-xs text-muted-foreground">
+                <div className="truncate text-muted-foreground text-xs">
                   {schema.description}
                 </div>
               </div>
@@ -132,7 +135,7 @@ function DataSourcesPanel() {
       </div>
 
       {enabledCount === 0 && (
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-muted-foreground text-xs">
           No data sources enabled. Toggle a source above to connect live data.
         </p>
       )}

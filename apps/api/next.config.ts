@@ -5,7 +5,7 @@ const baseConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
   output: "standalone",
-  outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   productionBrowserSourceMaps: false,
   serverExternalPackages: ["tesseract.js"],
   experimental: {

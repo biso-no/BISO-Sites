@@ -1,7 +1,7 @@
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { getLocale } from "@/app/actions/locale";
 import { getProductBySlug } from "@/app/actions/webshop";
 import { getMembershipStatus } from "@/lib/actions/membership";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { AddToCartCard } from "../product/add-to-cart-card";
 import { MemberBenefits } from "../product/member-benefits";
 import { PickupInfo } from "../product/pickup-info";

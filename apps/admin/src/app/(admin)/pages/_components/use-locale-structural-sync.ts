@@ -1,7 +1,7 @@
 "use client";
 
-import type { Config, Data } from "@repo/editor";
 import type { Locale } from "@repo/api/types/appwrite";
+import type { Config, Data } from "@repo/editor";
 import { useCallback, useEffect, useRef } from "react";
 
 type ComponentData = Data["content"][number];
@@ -28,7 +28,9 @@ function isStructuralChange(
   prev: BlockStructure[],
   next: BlockStructure[]
 ): boolean {
-  if (prev.length !== next.length) return true;
+  if (prev.length !== next.length) {
+    return true;
+  }
   return prev.some(
     (block, i) => block.id !== next[i]?.id || block.type !== next[i]?.type
   );
@@ -41,7 +43,9 @@ function isStructuralChange(
 function getTextFieldKeys(
   componentConfig: Config["components"][string] | undefined
 ): string[] {
-  if (!componentConfig?.fields) return [];
+  if (!componentConfig?.fields) {
+    return [];
+  }
   return Object.entries(componentConfig.fields)
     .filter(([, field]: [string, unknown]) => {
       const f = field as { type?: string };
@@ -145,9 +149,13 @@ export function useLocaleStructuralSync({
         setLocaleData((prev) => {
           const updated = { ...prev };
           for (const locale of availableLocales) {
-            if (locale === currentLocale) continue;
+            if (locale === currentLocale) {
+              continue;
+            }
             const locData = updated[locale];
-            if (!locData) continue;
+            if (!locData) {
+              continue;
+            }
 
             const syncedContent = syncContent(
               nextData.content,

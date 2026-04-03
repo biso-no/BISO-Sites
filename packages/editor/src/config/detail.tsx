@@ -19,16 +19,15 @@ import {
   Tag,
   Users,
 } from "lucide-react";
-import { TABLE_SCHEMAS } from "../data/schemas";
 import { getDynamicContent } from "../get-dynamic-content";
+import { DataBlockPlaceholder } from "./data-block-placeholder";
 import {
   buildExternalDataSourceField,
+  DATA_MODE_FIELD,
   shouldResolveDynamic,
 } from "./helpers/dynamic-data";
-import { resolveComponentPermissions } from "./utils";
 import type { DataSourceValue } from "./types";
-import { DATA_MODE_FIELD } from "./helpers/dynamic-data";
-import { DataBlockPlaceholder } from "./data-block-placeholder";
+import { resolveComponentPermissions } from "./utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -164,7 +163,9 @@ export const DetailComponents = {
         });
 
         const job = items[0];
-        if (!job) return { props: {} };
+        if (!job) {
+          return { props: {} };
+        }
 
         const meta = (job.metadata ?? {}) as Record<string, unknown>;
 
@@ -204,7 +205,7 @@ export const DetailComponents = {
     },
     render: (props: JobDetailProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Job Detail" itemCount={1} />;
+        return <DataBlockPlaceholder itemCount={1} type="Job Detail" />;
       }
 
       const metaItems = [
@@ -246,13 +247,13 @@ export const DetailComponents = {
             {(props.type || props.paid !== undefined) && (
               <div className="mb-3 flex flex-wrap gap-2">
                 {props.type && (
-                  <span className="rounded-full bg-white/10 px-3 py-0.5 text-xs font-medium text-white/90">
+                  <span className="rounded-full bg-white/10 px-3 py-0.5 font-medium text-white/90 text-xs">
                     {props.type}
                   </span>
                 )}
                 {props.paid !== undefined && (
                   <span
-                    className={`rounded-full px-3 py-0.5 text-xs font-medium ${
+                    className={`rounded-full px-3 py-0.5 font-medium text-xs ${
                       props.paid
                         ? "bg-emerald-500/20 text-emerald-200"
                         : "bg-gray-500/20 text-gray-200"
@@ -263,7 +264,7 @@ export const DetailComponents = {
                 )}
               </div>
             )}
-            <h1 className="text-3xl font-bold md:text-4xl">
+            <h1 className="font-bold text-3xl md:text-4xl">
               {props.title || "Job Title"}
             </h1>
             {props.department && (
@@ -272,8 +273,8 @@ export const DetailComponents = {
             {props.showApplyButton && props.applyUrl && (
               <div className="mt-6">
                 <a
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-[#001731] text-sm transition hover:bg-white/90"
                   href={props.applyUrl}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-[#001731] transition hover:bg-white/90"
                 >
                   <ExternalLink className="h-4 w-4" />
                   {props.applyLabel || "Apply now"}
@@ -284,13 +285,13 @@ export const DetailComponents = {
 
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Main content */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="space-y-8 lg:col-span-2">
               {props.description && (
                 <section>
-                  <h2 className="mb-3 text-xl font-semibold text-gray-900">
+                  <h2 className="mb-3 font-semibold text-gray-900 text-xl">
                     About the role
                   </h2>
-                  <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                  <p className="whitespace-pre-wrap text-gray-600 leading-relaxed">
                     {props.description}
                   </p>
                 </section>
@@ -298,14 +299,14 @@ export const DetailComponents = {
 
               {props.responsibilities && props.responsibilities.length > 0 && (
                 <section>
-                  <h2 className="mb-3 text-xl font-semibold text-gray-900">
+                  <h2 className="mb-3 font-semibold text-gray-900 text-xl">
                     Responsibilities
                   </h2>
                   <ul className="space-y-2">
                     {props.responsibilities.map((r, i) => (
                       <li
-                        key={i}
                         className="flex items-start gap-2 text-gray-600"
+                        key={i}
                       >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                         {r.value}
@@ -317,14 +318,14 @@ export const DetailComponents = {
 
               {props.requirements && props.requirements.length > 0 && (
                 <section>
-                  <h2 className="mb-3 text-xl font-semibold text-gray-900">
+                  <h2 className="mb-3 font-semibold text-gray-900 text-xl">
                     Requirements
                   </h2>
                   <ul className="space-y-2">
                     {props.requirements.map((r, i) => (
                       <li
-                        key={i}
                         className="flex items-start gap-2 text-gray-600"
+                        key={i}
                       >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                         {r.value}
@@ -342,13 +343,13 @@ export const DetailComponents = {
                 <h3 className="mb-4 font-semibold text-gray-900">Details</h3>
                 <dl className="space-y-3">
                   {metaItems.map((item, i) => (
-                    <div key={i} className="flex items-start gap-3">
+                    <div className="flex items-start gap-3" key={i}>
                       <span className="mt-0.5 text-gray-400">{item.icon}</span>
                       <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                        <dt className="font-medium text-gray-400 text-xs uppercase tracking-wide">
                           {item.label}
                         </dt>
-                        <dd className="mt-0.5 text-sm text-gray-700">
+                        <dd className="mt-0.5 text-gray-700 text-sm">
                           {item.value}
                         </dd>
                       </div>
@@ -359,11 +360,11 @@ export const DetailComponents = {
 
               {/* Apply / contact */}
               {(props.showApplyButton || props.contactEmail) && (
-                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
+                <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                   {props.showApplyButton && props.applyUrl && (
                     <a
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#001731] px-5 py-3 font-semibold text-sm text-white transition hover:bg-[#001731]/90"
                       href={props.applyUrl}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#001731] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#001731]/90"
                     >
                       <ExternalLink className="h-4 w-4" />
                       {props.applyLabel || "Apply now"}
@@ -371,8 +372,8 @@ export const DetailComponents = {
                   )}
                   {props.contactEmail && (
                     <a
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 py-3 font-medium text-gray-700 text-sm transition hover:bg-gray-50"
                       href={`mailto:${props.contactEmail}`}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                     >
                       Questions? Contact us
                     </a>
@@ -513,7 +514,9 @@ export const DetailComponents = {
         });
 
         const product = items[0];
-        if (!product) return { props: {} };
+        if (!product) {
+          return { props: {} };
+        }
 
         const meta = (product.metadata ?? {}) as Record<string, unknown>;
 
@@ -556,7 +559,7 @@ export const DetailComponents = {
     },
     render: (props: ProductDetailProps & { puck?: any }) => {
       if (props.puck?.isEditing) {
-        return <DataBlockPlaceholder type="Product Detail" itemCount={1} />;
+        return <DataBlockPlaceholder itemCount={1} type="Product Detail" />;
       }
 
       const images = props.images ?? [];
@@ -572,13 +575,13 @@ export const DetailComponents = {
               {mainImage ? (
                 <div className="overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
                   <img
-                    src={mainImage.url}
                     alt={mainImage.alt ?? props.title ?? "Product"}
                     className="h-96 w-full object-cover"
+                    src={mainImage.url}
                   />
                 </div>
               ) : (
-                <div className="flex h-80 items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50">
+                <div className="flex h-80 items-center justify-center rounded-2xl border border-gray-200 border-dashed bg-gray-50">
                   <Package className="h-16 w-16 text-gray-300" />
                 </div>
               )}
@@ -586,10 +589,10 @@ export const DetailComponents = {
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {images.map((img, i) => (
                     <img
-                      key={i}
-                      src={img.url}
                       alt={img.alt ?? `Image ${i + 1}`}
                       className="h-16 w-16 shrink-0 rounded-lg border border-gray-200 object-cover"
+                      key={i}
+                      src={img.url}
                     />
                   ))}
                 </div>
@@ -601,30 +604,30 @@ export const DetailComponents = {
               {/* Badges */}
               <div className="mb-3 flex flex-wrap gap-2">
                 {props.badge && (
-                  <span className="rounded-full bg-blue-100 px-3 py-0.5 text-xs font-semibold text-blue-700">
+                  <span className="rounded-full bg-blue-100 px-3 py-0.5 font-semibold text-blue-700 text-xs">
                     {props.badge}
                   </span>
                 )}
                 {isOnSale && (
-                  <span className="rounded-full bg-red-100 px-3 py-0.5 text-xs font-semibold text-red-700">
+                  <span className="rounded-full bg-red-100 px-3 py-0.5 font-semibold text-red-700 text-xs">
                     Sale
                   </span>
                 )}
                 {isOutOfStock && (
-                  <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-semibold text-gray-600">
+                  <span className="rounded-full bg-gray-100 px-3 py-0.5 font-semibold text-gray-600 text-xs">
                     Out of stock
                   </span>
                 )}
               </div>
 
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="font-bold text-3xl text-gray-900">
                 {props.title || "Product Name"}
               </h1>
 
               {/* Price */}
               <div className="mt-3 flex items-baseline gap-3">
                 {props.price && (
-                  <span className="text-2xl font-bold text-gray-900">
+                  <span className="font-bold text-2xl text-gray-900">
                     {props.price}
                   </span>
                 )}
@@ -637,7 +640,7 @@ export const DetailComponents = {
 
               {/* SKU */}
               {props.sku && (
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
+                <p className="mt-1 flex items-center gap-1.5 text-gray-400 text-xs">
                   <Tag className="h-3.5 w-3.5" />
                   SKU: {props.sku}
                 </p>
@@ -654,8 +657,8 @@ export const DetailComponents = {
                 <ul className="mt-4 space-y-1.5">
                   {props.features.map((f, i) => (
                     <li
+                      className="flex items-start gap-2 text-gray-600 text-sm"
                       key={i}
-                      className="flex items-start gap-2 text-sm text-gray-600"
                     >
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                       {f.value}
@@ -669,15 +672,15 @@ export const DetailComponents = {
                 <div className="mt-6 space-y-4">
                   {props.options.map((opt, oi) => (
                     <div key={oi}>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      <label className="mb-1.5 block font-medium text-gray-700 text-sm">
                         {opt.name}
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {(opt.values ?? []).map((v, vi) => (
                           <button
+                            className="rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:border-blue-400 hover:text-blue-600"
                             key={vi}
                             type="button"
-                            className="rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:border-blue-400 hover:text-blue-600"
                           >
                             {v.value}
                           </button>
@@ -692,9 +695,9 @@ export const DetailComponents = {
               <div className="mt-6 flex flex-col gap-3">
                 {props.showAddToCart && (
                   <button
-                    type="button"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#001731] px-6 py-3.5 font-semibold text-sm text-white transition hover:bg-[#001731]/90 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={isOutOfStock}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#001731] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#001731]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="button"
                   >
                     <ShoppingCart className="h-4 w-4" />
                     {isOutOfStock ? "Out of stock" : "Add to cart"}
@@ -702,8 +705,8 @@ export const DetailComponents = {
                 )}
                 {props.ctaHref && props.ctaLabel && (
                   <a
+                    className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 font-medium text-gray-700 text-sm transition hover:bg-gray-50"
                     href={props.ctaHref}
-                    className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                   >
                     {props.ctaLabel}
                   </a>
@@ -712,8 +715,8 @@ export const DetailComponents = {
 
               {/* Pickup info */}
               {props.pickupInfo && (
-                <div className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                  <p className="font-medium text-gray-700 mb-1">
+                <div className="mt-6 rounded-lg bg-gray-50 p-4 text-gray-600 text-sm">
+                  <p className="mb-1 font-medium text-gray-700">
                     Pickup information
                   </p>
                   <p>{props.pickupInfo}</p>

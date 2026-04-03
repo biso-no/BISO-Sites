@@ -287,7 +287,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
             {isSubmitting ? (
               <>
                 <svg
-                  className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
+                  className="mr-2 -ml-1 h-4 w-4 animate-spin text-white"
                   fill="none"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"

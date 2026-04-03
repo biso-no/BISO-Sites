@@ -104,7 +104,7 @@ export function TopicGrid() {
               whileInView={{ opacity: 1, y: 0 }}
             >
               <Link className="block h-full" href={topic.href}>
-                <Card className="hover:-translate-y-1 group h-full cursor-pointer border border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/20 hover:shadow-lg">
+                <Card className="group h-full cursor-pointer border border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg">
                   <div className="flex items-start gap-4">
                     <div
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${topic.gradient} shadow-md transition-transform duration-300 group-hover:scale-110`}

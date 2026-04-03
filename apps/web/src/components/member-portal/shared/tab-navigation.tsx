@@ -2,7 +2,7 @@
 
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
-import { Gift, Settings, Shield, Sparkles, User, Zap } from "lucide-react";
+import { Gift, Shield, Sparkles, User, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";

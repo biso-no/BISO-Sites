@@ -139,7 +139,7 @@ export function AboutHero({
       {!compact && (
         <motion.button
           animate={{ y: [0, 10, 0] }}
-          className="-translate-x-1/2 absolute bottom-8 left-1/2 cursor-pointer"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer"
           onClick={scrollToContent}
           transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
         >

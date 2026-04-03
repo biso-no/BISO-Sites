@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext } from "react";
 import type { Data } from "@puckeditor/core";
+import { createContext, useContext } from "react";
 
 /**
  * Text-based assist actions that return streaming text (shown in the panel).

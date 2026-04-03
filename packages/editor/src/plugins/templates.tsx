@@ -4,13 +4,13 @@ import type { ComponentData, Config, Plugin } from "@puckeditor/core";
 import { createUsePuck, useGetPuck } from "@puckeditor/core";
 
 const usePuck = createUsePuck();
-import { cloneWithNewIds } from "../utils/clone-block";
-import { Button } from "@repo/ui/components/ui/button";
+
 import { Card } from "@repo/ui/components/ui/card";
 import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
 import { LayoutTemplate, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { cloneWithNewIds } from "../utils/clone-block";
 
 type InsertMode = "append" | "replace";
 
@@ -278,7 +278,7 @@ function TemplatesPanel() {
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">
+          <span className="ml-2 text-muted-foreground text-sm">
             Loading templates...
           </span>
         </div>
@@ -286,16 +286,16 @@ function TemplatesPanel() {
         <div className="grid grid-cols-2 gap-3">
           {templates.map((template) => (
             <Card
+              className="cursor-pointer transition-colors hover:border-primary"
               key={template.key}
-              className="cursor-pointer hover:border-primary transition-colors"
               onClick={() => insertTemplate(template)}
             >
               {template.thumbnail && (
                 <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-gray-100">
                   <img
-                    src={template.thumbnail}
                     alt={template.name}
                     className="h-full w-full object-cover"
+                    src={template.thumbnail}
                   />
                 </div>
               )}
@@ -303,7 +303,7 @@ function TemplatesPanel() {
                 <div className="font-medium text-foreground text-sm">
                   {template.name}
                 </div>
-                <div className="text-muted-foreground text-xs mt-1">
+                <div className="mt-1 text-muted-foreground text-xs">
                   {template.description}
                 </div>
               </div>

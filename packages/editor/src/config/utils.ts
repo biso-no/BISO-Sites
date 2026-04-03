@@ -175,9 +175,15 @@ export function resolveComponentPermissions(
   params: { metadata?: PuckMetadata }
 ): Record<string, boolean> {
   const meta = params.metadata;
-  if (!meta?.user) return {};
+  if (!meta?.user) {
+    return {};
+  }
 
-  if (meta.user.isGlobalAdmin) return {};
-  if (meta.user.isCampusAdmin) return { delete: false };
+  if (meta.user.isGlobalAdmin) {
+    return {};
+  }
+  if (meta.user.isCampusAdmin) {
+    return { delete: false };
+  }
   return { delete: false, drag: false, duplicate: false };
 }

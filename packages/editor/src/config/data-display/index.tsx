@@ -11,21 +11,19 @@ import {
 } from "@repo/ui/components/puck/filter-bar";
 import { FilteredEvents } from "@repo/ui/components/puck/filtered-events";
 import { FilteredNews } from "@repo/ui/components/puck/filtered-news";
-import {
-  JobsList,
-  type JobItem,
-  type JobsListProps,
-} from "@repo/ui/components/puck/jobs-list";
+import { type JobItem, JobsList } from "@repo/ui/components/puck/jobs-list";
 import {
   ProductsGrid,
   type ProductsGridItem,
-  type ProductsGridProps,
 } from "@repo/ui/components/puck/products-grid";
+import type { EventItem } from "@repo/ui/components/sections/events";
+import type { NewsItem } from "@repo/ui/components/sections/news";
 import { TABLE_SCHEMAS } from "../../data/schemas";
 import { getDynamicContent } from "../../get-dynamic-content";
+import { DataBlockPlaceholder } from "../data-block-placeholder";
 import {
-  DATA_MODE_FIELD,
   buildExternalDataSourceField,
+  DATA_MODE_FIELD,
   shouldResolveDynamic,
 } from "../helpers/dynamic-data";
 import {
@@ -35,16 +33,6 @@ import {
   isDepartmentUser,
   type ScopeUser,
 } from "../helpers/permission-scope";
-import {
-  buildPageScopeFilters,
-  deriveJobSlug,
-  formatNokPrice,
-  getMetaBoolean,
-  getMetaString,
-  mergeFilters,
-  normalizeSubtitle,
-  resolveComponentPermissions,
-} from "../utils";
 import type {
   ArticleDetailProps,
   DataSourceValue,
@@ -58,9 +46,16 @@ import type {
   EventDetailProps,
   EventsCalendarProps,
 } from "../types";
-import type { NewsItem } from "@repo/ui/components/sections/news";
-import type { EventItem } from "@repo/ui/components/sections/events";
-import { DataBlockPlaceholder } from "../data-block-placeholder";
+import {
+  buildPageScopeFilters,
+  deriveJobSlug,
+  formatNokPrice,
+  getMetaBoolean,
+  getMetaString,
+  mergeFilters,
+  normalizeSubtitle,
+  resolveComponentPermissions,
+} from "../utils";
 
 export const DataDisplayComponents = {
   News: {
@@ -168,8 +163,8 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="News"
             itemCount={props.dataSource?.limit ?? 6}
+            type="News"
           />
         );
       }
@@ -315,8 +310,8 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Events"
             itemCount={props.dataSource?.limit ?? 6}
+            type="Events"
           />
         );
       }
@@ -478,8 +473,8 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Jobs List"
             itemCount={props.dataSource?.limit ?? 12}
+            type="Jobs List"
           />
         );
       }
@@ -635,8 +630,8 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Products Grid"
             itemCount={props.dataSource?.limit ?? 8}
+            type="Products Grid"
           />
         );
       }
@@ -856,8 +851,8 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Collection"
             itemCount={props.dataSource?.limit ?? 6}
+            type="Collection"
           />
         );
       }
@@ -997,22 +992,22 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Departments Grid"
             itemCount={props.dataSource?.limit ?? 12}
+            type="Departments Grid"
           />
         );
       }
       const layout = props.variant === "compact" ? "compact-card" : "card-grid";
       return (
         <Collection
-          title={props.title}
-          subtitle={props.subtitle}
-          layout={layout}
           columns={props.columns ?? 3}
-          items={props.items ?? []}
-          showFilters={props.showFilters}
-          emptyMessage="No departments found"
           emptyDescription="Check back later."
+          emptyMessage="No departments found"
+          items={props.items ?? []}
+          layout={layout}
+          showFilters={props.showFilters}
+          subtitle={props.subtitle}
+          title={props.title}
         />
       );
     },
@@ -1158,8 +1153,8 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Events Calendar"
             itemCount={props.dataSource?.limit ?? 20}
+            type="Events Calendar"
           />
         );
       }
@@ -1310,8 +1305,8 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Article Detail"
             itemCount={props.dataSource?.limit ?? 1}
+            type="Article Detail"
           />
         );
       }
@@ -1323,17 +1318,17 @@ export const DataDisplayComponents = {
           {props.image && (
             <div className="mb-8 overflow-hidden rounded-xl">
               <img
-                src={props.image}
                 alt={props.title || ""}
                 className="h-64 w-full object-cover md:h-96"
+                src={props.image}
               />
             </div>
           )}
           <header className="mb-8">
-            <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+            <h1 className="mb-4 font-bold text-3xl tracking-tight md:text-4xl">
               {props.title || "Article Title"}
             </h1>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center gap-4 text-gray-500 text-sm">
               {props.author && <span>By {props.author}</span>}
               {props.date && (
                 <time dateTime={props.date}>
@@ -1353,21 +1348,21 @@ export const DataDisplayComponents = {
             props.relatedItems &&
             props.relatedItems.length > 0 && (
               <section className="mt-12 border-t pt-8">
-                <h2 className="mb-6 text-2xl font-semibold">
+                <h2 className="mb-6 font-semibold text-2xl">
                   Related Articles
                 </h2>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {props.relatedItems.map((item, i) => (
                     <a
-                      key={i}
-                      href={item.href}
                       className="group block overflow-hidden rounded-lg border transition-shadow hover:shadow-md"
+                      href={item.href}
+                      key={i}
                     >
                       {item.image && (
                         <img
-                          src={item.image}
                           alt={item.title}
                           className="h-40 w-full object-cover"
+                          src={item.image}
                         />
                       )}
                       <div className="p-4">
@@ -1512,13 +1507,15 @@ export const DataDisplayComponents = {
       if (props.puck?.isEditing) {
         return (
           <DataBlockPlaceholder
-            type="Event Detail"
             itemCount={props.dataSource?.limit ?? 1}
+            type="Event Detail"
           />
         );
       }
       const formatDate = (d?: string) => {
-        if (!d) return "";
+        if (!d) {
+          return "";
+        }
         return new Date(d).toLocaleDateString("en-US", {
           weekday: "long",
           year: "numeric",
@@ -1534,36 +1531,36 @@ export const DataDisplayComponents = {
           {props.image && (
             <div className="mb-8 overflow-hidden rounded-xl">
               <img
-                src={props.image}
                 alt={props.title || ""}
                 className="h-64 w-full object-cover md:h-96"
+                src={props.image}
               />
             </div>
           )}
           <header className="mb-8">
-            <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+            <h1 className="mb-4 font-bold text-3xl tracking-tight md:text-4xl">
               {props.title || "Event Title"}
             </h1>
           </header>
           <div className="mb-8 grid gap-4 rounded-lg bg-gray-50 p-6 sm:grid-cols-2">
             <div>
-              <p className="text-sm font-medium text-gray-500">Date & Time</p>
+              <p className="font-medium text-gray-500 text-sm">Date & Time</p>
               <p className="mt-1 text-sm">{formatDate(props.date)}</p>
               {props.endDate && (
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-gray-600 text-sm">
                   Until {formatDate(props.endDate)}
                 </p>
               )}
             </div>
             {props.location && (
               <div>
-                <p className="text-sm font-medium text-gray-500">Location</p>
+                <p className="font-medium text-gray-500 text-sm">Location</p>
                 <p className="mt-1 text-sm">{props.location}</p>
               </div>
             )}
             {props.price && (
               <div>
-                <p className="text-sm font-medium text-gray-500">Price</p>
+                <p className="font-medium text-gray-500 text-sm">Price</p>
                 <p className="mt-1 text-sm">{props.price}</p>
               </div>
             )}
@@ -1576,8 +1573,8 @@ export const DataDisplayComponents = {
           {props.showRegistration && props.ticketUrl && (
             <div className="mt-8">
               <a
+                className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 font-medium text-sm text-white transition-colors hover:bg-blue-700"
                 href={props.ticketUrl}
-                className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
               >
                 Register Now
               </a>
@@ -1586,12 +1583,14 @@ export const DataDisplayComponents = {
           {props.showMap && props.location && (
             <div className="mt-8 overflow-hidden rounded-lg">
               <iframe
+                height="300"
+                loading="lazy"
+                src={
+                  "https://www.openstreetmap.org/export/embed.html?bbox=10.3,59.8,10.9,59.98&layer=mapnik"
+                }
+                style={{ border: 0 }}
                 title="Event location"
                 width="100%"
-                height="300"
-                style={{ border: 0 }}
-                loading="lazy"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=10.3,59.8,10.9,59.98&layer=mapnik`}
               />
             </div>
           )}

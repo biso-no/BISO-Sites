@@ -160,7 +160,7 @@ export default function AboutPage() {
                   viewport={{ once: true }}
                   whileInView={{ opacity: 1, y: 0 }}
                 >
-                  <Card className="hover:-translate-y-1 group p-6 transition-all duration-300 hover:shadow-lg">
+                  <Card className="group p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                     <div
                       className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br ${stat.gradient} shadow-md`}
                     >

@@ -1,6 +1,5 @@
 "use client";
 
-import type { BenefitAnalyticsSummary } from "@/app/actions/benefit-analytics";
 import {
   Card,
   CardContent,
@@ -15,6 +14,7 @@ import {
   ShoppingBag,
   Unlock,
 } from "lucide-react";
+import type { BenefitAnalyticsSummary } from "@/app/actions/benefit-analytics";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 
 type Props = { summary: BenefitAnalyticsSummary };
@@ -56,7 +56,7 @@ export function AnalyticsDashboardClient({ summary }: Props) {
       {/* KPI cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STAT_CARDS.map(({ key, label, icon: Icon, color, bg }) => (
-          <Card key={key} className="glass-panel">
+          <Card className="glass-panel" key={key}>
             <CardHeader className="pb-2">
               <CardDescription>{label}</CardDescription>
               <CardTitle className="flex items-center gap-2 text-3xl">
@@ -94,7 +94,7 @@ export function AnalyticsDashboardClient({ summary }: Props) {
                   const maxCount = summary.topBenefits[0]?.count ?? 1;
                   const pct = Math.round((item.count / maxCount) * 100);
                   return (
-                    <div key={item.benefit_id} className="space-y-1">
+                    <div className="space-y-1" key={item.benefit_id}>
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2">
                           <span className="font-bold text-muted-foreground text-xs">
@@ -144,7 +144,7 @@ export function AnalyticsDashboardClient({ summary }: Props) {
                     );
                     const pct = Math.round((item.count / maxCount) * 100);
                     return (
-                      <div key={item.campus_id} className="space-y-1">
+                      <div className="space-y-1" key={item.campus_id}>
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium">
                             {CAMPUS_ID_TO_NAME[item.campus_id] ??

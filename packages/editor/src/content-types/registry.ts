@@ -656,6 +656,8 @@ export function buildStarterTemplate(
   config: Config
 ): ComponentData[] {
   const ct = CONTENT_TYPE_MAP.get(contentTypeKey);
-  if (!ct) return [];
+  if (!ct) {
+    return [];
+  }
   return ct.buildStarter(config);
 }

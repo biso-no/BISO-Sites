@@ -1,4 +1,5 @@
 import { openai } from "@ai-sdk/openai";
+import { tools } from "@repo/ai/server/tools";
 import {
   convertToModelMessages,
   stepCountIs,
@@ -7,7 +8,6 @@ import {
   type UIMessage,
 } from "ai";
 import { z } from "zod";
-import { tools } from "@repo/ai/server/tools";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;

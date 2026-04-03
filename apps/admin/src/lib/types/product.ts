@@ -30,11 +30,11 @@ export type ProductWithTranslations = WebshopProducts & {
 
 // Fields stored in metadata JSON (not top-level database fields)
 export interface ProductMetadata extends Record<string, unknown> {
-  sku?: string;
-  images?: string[];
-  max_per_user?: number;
-  max_per_order?: number;
   custom_fields?: ProductCustomField[];
+  images?: string[];
+  max_per_order?: number;
+  max_per_user?: number;
+  sku?: string;
   variations?: ProductVariation[];
 }
 

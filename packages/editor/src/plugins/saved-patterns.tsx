@@ -4,19 +4,20 @@ import type { ComponentData, Plugin } from "@puckeditor/core";
 import { createUsePuck, useGetPuck } from "@puckeditor/core";
 
 const usePuck = createUsePuck();
+
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import {
-  Puzzle,
-  Plus,
-  Trash2,
   Download,
-  Users,
   FolderOpen,
+  Plus,
+  Puzzle,
+  Trash2,
+  Users,
 } from "lucide-react";
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { cloneWithNewIds, createId } from "../utils/clone-block";
 
@@ -30,10 +31,14 @@ type SavedPattern = {
 };
 
 function loadPatterns(): SavedPattern[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -42,14 +47,20 @@ function loadPatterns(): SavedPattern[] {
 }
 
 function savePatterns(patterns: SavedPattern[]): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(patterns));
 }
 
 function describeBlocks(blocks: ComponentData[]): string {
-  if (blocks.length === 0) return "Empty pattern";
+  if (blocks.length === 0) {
+    return "Empty pattern";
+  }
   const types = blocks.map((b) => b.type);
-  if (types.length <= 3) return types.join(" + ");
+  if (types.length <= 3) {
+    return types.join(" + ");
+  }
   return `${types.slice(0, 3).join(" + ")} +${types.length - 3} more`;
 }
 
@@ -88,50 +99,50 @@ function PatternCard({
           <div className="truncate text-muted-foreground text-xs">
             {describeBlocks(pattern.blocks)}
           </div>
-          <div className="mt-1 text-muted-foreground text-[11px]">
+          <div className="mt-1 text-[11px] text-muted-foreground">
             {formatDate(pattern.createdAt)}
           </div>
         </div>
       </div>
       <div className="flex items-center gap-2 pt-1">
         <Button
-          size="sm"
           className="h-7 text-xs"
           onClick={() => onInsert(pattern)}
+          size="sm"
         >
-          <Download size={12} className="mr-1" />
+          <Download className="mr-1" size={12} />
           Insert
         </Button>
         {confirmDelete ? (
           <div className="flex items-center gap-1">
             <Button
-              variant="destructive"
-              size="sm"
               className="h-7 text-xs"
               onClick={() => {
                 onDelete(pattern.id);
                 setConfirmDelete(false);
               }}
+              size="sm"
+              variant="destructive"
             >
               Confirm
             </Button>
             <Button
-              variant="ghost"
-              size="sm"
               className="h-7 text-xs"
               onClick={() => setConfirmDelete(false)}
+              size="sm"
+              variant="ghost"
             >
               Cancel
             </Button>
           </div>
         ) : (
           <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-destructive hover:text-destructive"
+            className="h-7 text-destructive text-xs hover:text-destructive"
             onClick={() => setConfirmDelete(true)}
+            size="sm"
+            variant="ghost"
           >
-            <Trash2 size={12} className="mr-1" />
+            <Trash2 className="mr-1" size={12} />
             Delete
           </Button>
         )}
@@ -161,28 +172,28 @@ function SavePatternForm({
 
   return (
     <form
-      onSubmit={handleSubmit}
       className="space-y-2 rounded-md border border-border p-3"
+      onSubmit={handleSubmit}
     >
       <Label className="text-xs">Pattern name</Label>
       <Input
+        autoFocus
+        className="h-8 text-sm"
+        onChange={(e) => setName(e.target.value)}
         placeholder="e.g. Hero with CTA"
         value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="h-8 text-sm"
-        autoFocus
       />
       <div className="flex gap-2">
-        <Button type="submit" size="sm" className="h-7 text-xs">
-          <Plus size={12} className="mr-1" />
+        <Button className="h-7 text-xs" size="sm" type="submit">
+          <Plus className="mr-1" size={12} />
           Save
         </Button>
         <Button
-          type="button"
-          variant="ghost"
-          size="sm"
           className="h-7 text-xs"
           onClick={onCancel}
+          size="sm"
+          type="button"
+          variant="ghost"
         >
           Cancel
         </Button>
@@ -291,7 +302,7 @@ function SavedPatternsPanel() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 font-semibold text-foreground text-lg">
-          <Puzzle size={18} className="text-primary" />
+          <Puzzle className="text-primary" size={18} />
           Saved Patterns
         </div>
         <p className="text-muted-foreground text-sm">
@@ -306,7 +317,7 @@ function SavedPatternsPanel() {
         </h3>
         {selectedBlockType ? (
           <>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Selected:{" "}
               <span className="font-medium text-foreground">
                 {selectedBlockType}
@@ -314,23 +325,23 @@ function SavedPatternsPanel() {
             </p>
             {showSaveForm ? (
               <SavePatternForm
-                onSave={handleSavePattern}
                 onCancel={() => setShowSaveForm(false)}
+                onSave={handleSavePattern}
               />
             ) : (
               <Button
-                variant="outline"
-                size="sm"
                 onClick={() => setShowSaveForm(true)}
+                size="sm"
+                variant="outline"
               >
-                <Plus size={14} className="mr-2" />
+                <Plus className="mr-2" size={14} />
                 Save as pattern
               </Button>
             )}
           </>
         ) : (
           <Card className="p-3">
-            <p className="text-xs text-muted-foreground text-center">
+            <p className="text-center text-muted-foreground text-xs">
               Select a block on the canvas to save it as a pattern.
             </p>
           </Card>
@@ -341,25 +352,25 @@ function SavedPatternsPanel() {
       <section className="space-y-3">
         <div className="flex gap-1 rounded-md border border-border p-1">
           <button
-            type="button"
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 font-medium text-xs transition-colors ${
               category === "my"
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setCategory("my")}
+            type="button"
           >
             <FolderOpen size={13} />
             My Patterns
           </button>
           <button
-            type="button"
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 font-medium text-xs transition-colors ${
               category === "shared"
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setCategory("shared")}
+            type="button"
           >
             <Users size={13} />
             Shared Patterns
@@ -372,15 +383,15 @@ function SavedPatternsPanel() {
               {patterns.map((pattern) => (
                 <PatternCard
                   key={pattern.id}
-                  pattern={pattern}
-                  onInsert={handleInsertPattern}
                   onDelete={handleDeletePattern}
+                  onInsert={handleInsertPattern}
+                  pattern={pattern}
                 />
               ))}
             </div>
           ) : (
             <Card className="p-4">
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="text-center text-muted-foreground text-xs">
                 No saved patterns yet. Select a block and save it as a pattern
                 to get started.
               </p>
@@ -388,7 +399,7 @@ function SavedPatternsPanel() {
           )
         ) : (
           <Card className="p-4">
-            <p className="text-center text-xs text-muted-foreground">
+            <p className="text-center text-muted-foreground text-xs">
               Shared team patterns are coming soon. Patterns saved here will be
               available to all team members.
             </p>
@@ -398,7 +409,7 @@ function SavedPatternsPanel() {
 
       {/* Footer info */}
       <div className="text-muted-foreground text-xs">
-        {patterns.length} saved pattern{patterns.length !== 1 ? "s" : ""}
+        {patterns.length} saved pattern{patterns.length === 1 ? "" : "s"}
       </div>
     </div>
   );

@@ -92,8 +92,8 @@ export function LockedContentOverlay({
           <Card className="relative overflow-hidden border-2 border-brand/30 p-8 shadow-2xl dark:border-brand/40 dark:bg-inverted/95 dark:backdrop-blur-xl">
             {/* Background decoration */}
             <div className="pointer-events-none absolute inset-0">
-              <div className="-left-20 -top-20 absolute h-64 w-64 rounded-full bg-brand opacity-5 blur-3xl" />
-              <div className="-bottom-20 -right-20 absolute h-64 w-64 rounded-full bg-cyan-300 opacity-5 blur-3xl" />
+              <div className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-brand opacity-5 blur-3xl" />
+              <div className="absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-cyan-300 opacity-5 blur-3xl" />
             </div>
 
             <div className="relative z-10">
@@ -144,7 +144,7 @@ export function LockedContentOverlay({
                         onClick={() => setSelectedPlan(option.type)}
                       >
                         {option.popular && (
-                          <Badge className="-top-2.5 -translate-x-1/2 absolute left-1/2 border-0 bg-brand px-2 py-0.5 text-white text-xs">
+                          <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 border-0 bg-brand px-2 py-0.5 text-white text-xs">
                             <Zap className="mr-1 h-3 w-3" />
                             Best
                           </Badge>

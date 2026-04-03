@@ -36,9 +36,9 @@ export type EventCategory = (typeof eventCategories)[number];
 export type CollectionPricing = "bundle" | "individual";
 
 export interface AdminEvent extends Events {
+  metadata_parsed: EventMetadata;
   translation_refs: ContentTranslations[];
   translations: TranslationMap;
-  metadata_parsed: EventMetadata;
 }
 
 function _parseEventMetadata(

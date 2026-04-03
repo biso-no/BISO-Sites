@@ -4,8 +4,8 @@ import type { Departments } from "@repo/api/types/appwrite";
 
 // Extended Department type with computed fields for display
 export interface Department extends Omit<Departments, "Name"> {
-  name: string;
   campusName?: string;
+  name: string;
   userCount?: number;
 }
 

@@ -66,7 +66,7 @@ export function AiSummary({
             <div>
               <h3 className="font-semibold">AI Summary</h3>
               <p className="text-muted-foreground text-sm">
-                {receiptCount} receipt{receiptCount !== 1 ? "s" : ""} •{" "}
+                {receiptCount} receipt{receiptCount === 1 ? "" : "s"} •{" "}
                 {totalAmount.toLocaleString("nb-NO")} NOK
               </p>
             </div>

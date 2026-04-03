@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { type News, type Locale } from "@repo/api/types/appwrite";
+import type { Locale, News } from "@repo/api/types/appwrite";
 
 type ListNewsParams = {
   limit?: number;

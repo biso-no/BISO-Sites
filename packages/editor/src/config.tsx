@@ -1,4 +1,4 @@
-import { type Config } from "@puckeditor/core";
+import type { Config } from "@puckeditor/core";
 import { BasicsComponents } from "./config/basics";
 import { ContentComponents } from "./config/content";
 import { DataDisplayComponents } from "./config/data-display";
@@ -103,7 +103,9 @@ export const config: Config<Props> = {
         return { props, readOnly: { slug: true } };
       }
 
-      if (!changed.title) return { props };
+      if (!changed.title) {
+        return { props };
+      }
 
       const newTitle = (p.title as string) ?? "";
       const currentSlug = (p.slug as string) ?? "";

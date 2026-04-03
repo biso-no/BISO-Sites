@@ -1,12 +1,12 @@
 import "server-only";
-import { isSupportedContentType } from "../utils/content-types";
-import { getDocumentViewerUrl } from "../utils/document-utils";
-import { correctMimeType } from "../utils/mime-utils";
-import type { VectorDocument } from "../utils/vector-store.types";
 import {
   type SharePointDocument,
   SharePointService,
 } from "@repo/connectors/sharepoint";
+import { isSupportedContentType } from "../utils/content-types";
+import { getDocumentViewerUrl } from "../utils/document-utils";
+import { correctMimeType } from "../utils/mime-utils";
+import type { VectorDocument } from "../utils/vector-store.types";
 import { documentClassifier } from "./document-classifier";
 import {
   DocumentProcessor,

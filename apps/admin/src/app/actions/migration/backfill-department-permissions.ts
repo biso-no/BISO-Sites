@@ -97,7 +97,9 @@ export async function runBackfillDepartmentPermissions(): Promise<{
       );
 
       for (const dept of result.rows) {
-        if (!dept.Name.includes(deptName)) continue;
+        if (!dept.Name.includes(deptName)) {
+          continue;
+        }
 
         const existing = (dept.$permissions as string[]) || [];
         const kept = existing.filter((p) => !p.startsWith("read("));

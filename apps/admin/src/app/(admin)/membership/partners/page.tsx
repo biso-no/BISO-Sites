@@ -1,6 +1,6 @@
-import { checkNavAccess } from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { listManagedPartners } from "@/app/actions/benefit-partners";
+import { checkNavAccess } from "@/lib/authorization";
 import { PartnersClient } from "./_components/partners-client";
 
 export const metadata = {
@@ -10,7 +10,9 @@ export const metadata = {
 
 export default async function PartnersPage() {
   const hasAccess = await checkNavAccess("benefitsPartners");
-  if (!hasAccess) redirect("/unauthorized");
+  if (!hasAccess) {
+    redirect("/unauthorized");
+  }
 
   const { partners, total } = await listManagedPartners();
 

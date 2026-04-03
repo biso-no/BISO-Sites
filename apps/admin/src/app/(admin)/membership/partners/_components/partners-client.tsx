@@ -61,7 +61,9 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
   const [form, setForm] = useState<PartnerFormState>(emptyForm);
 
   const handleSubmit = () => {
-    if (!form.name) return;
+    if (!form.name) {
+      return;
+    }
     startTransition(async () => {
       if (editingId) {
         await updatePartner(editingId, {
@@ -120,13 +122,13 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
               {editingId ? "Edit Partner" : "New Partner"}
             </CardTitle>
             <Button
-              size="icon"
-              variant="ghost"
               onClick={() => {
                 setShowForm(false);
                 setEditingId(null);
                 setForm(emptyForm);
               }}
+              size="icon"
+              variant="ghost"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -137,44 +139,44 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
                 <Label htmlFor="partner-name">Partner Name *</Label>
                 <Input
                   id="partner-name"
-                  value={form.name}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, name: e.target.value }))
                   }
                   placeholder="e.g. Kaffebrenneriet"
+                  value={form.name}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="partner-website">Website URL</Label>
                 <Input
                   id="partner-website"
-                  value={form.website_url}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, website_url: e.target.value }))
                   }
                   placeholder="https://..."
+                  value={form.website_url}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="partner-logo">Logo URL</Label>
                 <Input
                   id="partner-logo"
-                  value={form.logo_url}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, logo_url: e.target.value }))
                   }
                   placeholder="https://..."
+                  value={form.logo_url}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="partner-campus">Campus (scope)</Label>
                 <select
+                  className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
                   id="partner-campus"
-                  value={form.campus_id}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, campus_id: e.target.value }))
                   }
-                  className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+                  value={form.campus_id}
                 >
                   <option value="5">National (all campuses)</option>
                   <option value="1">Oslo</option>
@@ -187,38 +189,38 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
                 <Label htmlFor="partner-desc-nb">Description (Norwegian)</Label>
                 <Input
                   id="partner-desc-nb"
-                  value={form.description_nb}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, description_nb: e.target.value }))
                   }
+                  value={form.description_nb}
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="partner-desc-en">Description (English)</Label>
                 <Input
                   id="partner-desc-en"
-                  value={form.description_en}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, description_en: e.target.value }))
                   }
+                  value={form.description_en}
                 />
               </div>
             </div>
             <div className="flex gap-2">
               <Button
+                disabled={isPending || !form.name}
                 id="save-partner-btn"
                 onClick={handleSubmit}
-                disabled={isPending || !form.name}
               >
                 {editingId ? "Update Partner" : "Create Partner"}
               </Button>
               <Button
-                variant="outline"
                 onClick={() => {
                   setShowForm(false);
                   setEditingId(null);
                   setForm(emptyForm);
                 }}
+                variant="outline"
               >
                 Cancel
               </Button>
@@ -227,10 +229,10 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
         </Card>
       ) : (
         <Button
+          className="gap-2"
           id="add-partner-btn"
           onClick={() => setShowForm(true)}
           variant="outline"
-          className="gap-2"
         >
           <Plus className="h-4 w-4" />
           Add partner
@@ -261,8 +263,8 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
               {initial.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
                     className="py-10 text-center text-muted-foreground"
+                    colSpan={5}
                   >
                     No partners yet. Add your first partner above.
                   </TableCell>
@@ -274,7 +276,7 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
                       {partner.name}
                     </TableCell>
                     <TableCell>
-                      <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1 text-muted-foreground text-sm">
                         {partner.campus_id === "5" || !partner.campus_id ? (
                           <Globe className="h-3.5 w-3.5" />
                         ) : null}
@@ -287,10 +289,10 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
                     <TableCell>
                       {partner.website_url ? (
                         <a
-                          href={partner.website_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="text-primary text-sm hover:underline"
+                          href={partner.website_url}
+                          rel="noopener noreferrer"
+                          target="_blank"
                         >
                           Visit →
                         </a>
@@ -300,12 +302,12 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant="outline"
                         className={
                           partner.is_active
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
                             : "text-muted-foreground"
                         }
+                        variant="outline"
                       >
                         {partner.is_active ? "Active" : "Inactive"}
                       </Badge>
@@ -313,21 +315,21 @@ export function PartnersClient({ partners: initial }: PartnersClientProps) {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button
-                          size="icon"
-                          variant="ghost"
                           className="h-7 w-7"
                           id={`edit-partner-${partner.$id}`}
                           onClick={() => handleEdit(partner)}
+                          size="icon"
+                          variant="ghost"
                         >
                           <Edit className="h-3.5 w-3.5" />
                         </Button>
                         <Button
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          disabled={isPending}
+                          id={`delete-partner-${partner.$id}`}
+                          onClick={() => handleDelete(partner.$id)}
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          id={`delete-partner-${partner.$id}`}
-                          disabled={isPending}
-                          onClick={() => handleDelete(partner.$id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

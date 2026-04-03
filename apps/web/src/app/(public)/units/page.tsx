@@ -40,7 +40,7 @@ async function DepartmentsContent() {
       <DepartmentsHero stats={stats} />
 
       {/* Filters with overlap */}
-      <div className="-mt-8 relative z-10 mx-auto mb-12 max-w-7xl px-4">
+      <div className="relative z-10 mx-auto -mt-8 mb-12 max-w-7xl px-4">
         <DepartmentsListClient
           availableTypes={availableTypes}
           departments={departments}
@@ -72,7 +72,7 @@ function UnitsPageSkeleton() {
       <div className="relative isolate h-[50vh] animate-pulse overflow-hidden bg-muted/50" />
 
       {/* Filters Skeleton with overlap */}
-      <div className="-mt-8 relative z-10 mx-auto mb-12 max-w-7xl px-4">
+      <div className="relative z-10 mx-auto -mt-8 mb-12 max-w-7xl px-4">
         <div className="relative z-10 rounded-lg border-0 bg-card p-6 shadow-xl">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="h-12 animate-pulse rounded-md bg-muted" />

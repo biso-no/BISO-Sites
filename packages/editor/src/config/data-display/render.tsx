@@ -53,14 +53,14 @@ export function DepartmentsGridRender(props: DepartmentsGridProps) {
   const layout = props.variant === "compact" ? "compact-card" : "card-grid";
   return (
     <Collection
-      title={props.title}
-      subtitle={props.subtitle}
-      layout={layout}
       columns={props.columns ?? 3}
-      items={props.items ?? []}
-      showFilters={props.showFilters}
-      emptyMessage="No departments found"
       emptyDescription="Check back later."
+      emptyMessage="No departments found"
+      items={props.items ?? []}
+      layout={layout}
+      showFilters={props.showFilters}
+      subtitle={props.subtitle}
+      title={props.title}
     />
   );
 }
@@ -92,17 +92,17 @@ export function ArticleDetailRender(props: ArticleDetailProps) {
       {props.image && (
         <div className="mb-8 overflow-hidden rounded-xl">
           <img
-            src={props.image}
             alt={props.title || ""}
             className="h-64 w-full object-cover md:h-96"
+            src={props.image}
           />
         </div>
       )}
       <header className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+        <h1 className="mb-4 font-bold text-3xl tracking-tight md:text-4xl">
           {props.title || "Article Title"}
         </h1>
-        <div className="flex items-center gap-4 text-sm text-gray-500">
+        <div className="flex items-center gap-4 text-gray-500 text-sm">
           {props.author && <span>By {props.author}</span>}
           {props.date && (
             <time dateTime={props.date}>
@@ -122,19 +122,19 @@ export function ArticleDetailRender(props: ArticleDetailProps) {
         props.relatedItems &&
         props.relatedItems.length > 0 && (
           <section className="mt-12 border-t pt-8">
-            <h2 className="mb-6 text-2xl font-semibold">Related Articles</h2>
+            <h2 className="mb-6 font-semibold text-2xl">Related Articles</h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {props.relatedItems.map((item, i) => (
                 <a
-                  key={i}
-                  href={item.href}
                   className="group block overflow-hidden rounded-lg border transition-shadow hover:shadow-md"
+                  href={item.href}
+                  key={i}
                 >
                   {item.image && (
                     <img
-                      src={item.image}
                       alt={item.title}
                       className="h-40 w-full object-cover"
+                      src={item.image}
                     />
                   )}
                   <div className="p-4">
@@ -153,7 +153,9 @@ export function ArticleDetailRender(props: ArticleDetailProps) {
 
 export function EventDetailRender(props: EventDetailProps) {
   const formatDate = (d?: string) => {
-    if (!d) return "";
+    if (!d) {
+      return "";
+    }
     return new Date(d).toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -169,36 +171,36 @@ export function EventDetailRender(props: EventDetailProps) {
       {props.image && (
         <div className="mb-8 overflow-hidden rounded-xl">
           <img
-            src={props.image}
             alt={props.title || ""}
             className="h-64 w-full object-cover md:h-96"
+            src={props.image}
           />
         </div>
       )}
       <header className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+        <h1 className="mb-4 font-bold text-3xl tracking-tight md:text-4xl">
           {props.title || "Event Title"}
         </h1>
       </header>
       <div className="mb-8 grid gap-4 rounded-lg bg-gray-50 p-6 sm:grid-cols-2">
         <div>
-          <p className="text-sm font-medium text-gray-500">Date &amp; Time</p>
+          <p className="font-medium text-gray-500 text-sm">Date &amp; Time</p>
           <p className="mt-1 text-sm">{formatDate(props.date)}</p>
           {props.endDate && (
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-gray-600 text-sm">
               Until {formatDate(props.endDate)}
             </p>
           )}
         </div>
         {props.location && (
           <div>
-            <p className="text-sm font-medium text-gray-500">Location</p>
+            <p className="font-medium text-gray-500 text-sm">Location</p>
             <p className="mt-1 text-sm">{props.location}</p>
           </div>
         )}
         {props.price && (
           <div>
-            <p className="text-sm font-medium text-gray-500">Price</p>
+            <p className="font-medium text-gray-500 text-sm">Price</p>
             <p className="mt-1 text-sm">{props.price}</p>
           </div>
         )}
@@ -211,8 +213,8 @@ export function EventDetailRender(props: EventDetailProps) {
       {props.showRegistration && props.ticketUrl && (
         <div className="mt-8">
           <a
+            className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 font-medium text-sm text-white transition-colors hover:bg-blue-700"
             href={props.ticketUrl}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
           >
             Register Now
           </a>
@@ -221,12 +223,12 @@ export function EventDetailRender(props: EventDetailProps) {
       {props.showMap && props.location && (
         <div className="mt-8 overflow-hidden rounded-lg">
           <iframe
-            title="Event location"
-            width="100%"
             height="300"
-            style={{ border: 0 }}
             loading="lazy"
             src="https://www.openstreetmap.org/export/embed.html?bbox=10.3,59.8,10.9,59.98&layer=mapnik"
+            style={{ border: 0 }}
+            title="Event location"
+            width="100%"
           />
         </div>
       )}

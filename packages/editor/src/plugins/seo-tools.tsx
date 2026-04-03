@@ -4,21 +4,22 @@ import type { Plugin } from "@puckeditor/core";
 import { createUsePuck, useGetPuck } from "@puckeditor/core";
 
 const usePuck = createUsePuck();
+
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import {
+  AlertTriangle,
+  CheckCircle2,
+  Globe,
+  Image as ImageIcon,
+  Loader2,
   Search,
   Share2,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Globe,
-  Type,
-  Image as ImageIcon,
   Sparkles,
-  Loader2,
+  Type,
+  XCircle,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -26,8 +27,8 @@ type CheckStatus = "pass" | "warn" | "fail";
 
 interface SeoCheck {
   label: string;
-  status: CheckStatus;
   message: string;
+  status: CheckStatus;
 }
 
 function CharCounter({
@@ -63,12 +64,12 @@ function CharCounter({
 
 function StatusIndicator({ status }: { status: CheckStatus }) {
   if (status === "pass") {
-    return <CheckCircle2 size={16} className="shrink-0 text-green-600" />;
+    return <CheckCircle2 className="shrink-0 text-green-600" size={16} />;
   }
   if (status === "warn") {
-    return <AlertTriangle size={16} className="shrink-0 text-yellow-600" />;
+    return <AlertTriangle className="shrink-0 text-yellow-600" size={16} />;
   }
-  return <XCircle size={16} className="shrink-0 text-red-600" />;
+  return <XCircle className="shrink-0 text-red-600" size={16} />;
 }
 
 function GooglePreview({
@@ -87,21 +88,21 @@ function GooglePreview({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+      <div className="flex items-center gap-2 font-semibold text-foreground text-sm">
         <Search size={14} />
         Google Search Preview
       </div>
       <div className="rounded-lg border border-border bg-white p-4 dark:bg-zinc-900">
         <div className="space-y-1">
-          <div className="text-xs text-green-700 dark:text-green-500">
+          <div className="text-green-700 text-xs dark:text-green-500">
             {displayUrl}
           </div>
-          <div className="text-lg leading-snug text-blue-700 dark:text-blue-400">
+          <div className="text-blue-700 text-lg leading-snug dark:text-blue-400">
             {truncatedTitle || (
-              <span className="italic text-muted-foreground">No title set</span>
+              <span className="text-muted-foreground italic">No title set</span>
             )}
           </div>
-          <div className="text-sm leading-relaxed text-muted-foreground">
+          <div className="text-muted-foreground text-sm leading-relaxed">
             {truncatedDesc || (
               <span className="italic">No description set</span>
             )}
@@ -123,7 +124,7 @@ function SocialPreview({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+      <div className="flex items-center gap-2 font-semibold text-foreground text-sm">
         <Share2 size={14} />
         Social Media Preview
       </div>
@@ -131,9 +132,9 @@ function SocialPreview({
         <div className="flex h-40 items-center justify-center bg-muted">
           {ogImage ? (
             <img
-              src={ogImage}
               alt="Social preview"
               className="h-full w-full object-cover"
+              src={ogImage}
             />
           ) : (
             <div className="flex flex-col items-center gap-1 text-muted-foreground">
@@ -143,15 +144,15 @@ function SocialPreview({
           )}
         </div>
         <div className="space-y-1 bg-white p-3 dark:bg-zinc-900">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="text-muted-foreground text-xs uppercase tracking-wide">
             example.com
           </div>
-          <div className="text-sm font-semibold text-foreground leading-tight">
+          <div className="font-semibold text-foreground text-sm leading-tight">
             {title || (
-              <span className="italic text-muted-foreground">No title set</span>
+              <span className="text-muted-foreground italic">No title set</span>
             )}
           </div>
-          <div className="line-clamp-2 text-xs text-muted-foreground">
+          <div className="line-clamp-2 text-muted-foreground text-xs">
             {description || <span className="italic">No description set</span>}
           </div>
         </div>
@@ -166,26 +167,26 @@ function SeoChecklist({ checks }: { checks: SeoCheck[] }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <div className="flex items-center gap-2 font-semibold text-foreground text-sm">
           <CheckCircle2 size={14} />
           SEO Checklist
         </div>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {passCount}/{checks.length} passed
         </span>
       </div>
       <div className="space-y-1">
         {checks.map((check) => (
           <div
-            key={check.label}
             className="flex items-start gap-2 rounded-md border border-border p-2"
+            key={check.label}
           >
             <StatusIndicator status={check.status} />
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-foreground">
+              <div className="font-medium text-foreground text-sm">
                 {check.label}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 {check.message}
               </div>
             </div>
@@ -278,7 +279,9 @@ function SeoToolsPanel() {
   );
 
   const slugIsClean = useMemo(() => {
-    if (!slug) return false;
+    if (!slug) {
+      return false;
+    }
     return /^[a-z0-9]+(?:[-/][a-z0-9]+)*$/.test(slug);
   }, [slug]);
 
@@ -337,12 +340,12 @@ function SeoToolsPanel() {
       },
       {
         label: "URL slug",
-        status: !slug ? "fail" : slugIsClean ? "pass" : "warn",
-        message: !slug
-          ? "No URL slug set."
-          : slugIsClean
+        status: slug ? (slugIsClean ? "pass" : "warn") : "fail",
+        message: slug
+          ? slugIsClean
             ? "Clean, SEO-friendly URL."
-            : "Slug should be lowercase with hyphens only.",
+            : "Slug should be lowercase with hyphens only."
+          : "No URL slug set.",
       },
     ],
     [displayTitle, displayDescription, hasHeading, hasImages, slug, slugIsClean]
@@ -371,29 +374,40 @@ function SeoToolsPanel() {
         body: JSON.stringify({ action: "suggest", content: prompt }),
       });
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        return;
+      }
 
       // Collect the streamed text
       const reader = res.body?.getReader();
-      if (!reader) return;
+      if (!reader) {
+        return;
+      }
       const dec = new TextDecoder();
       let raw = "";
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          break;
+        }
         raw += dec.decode(value, { stream: true });
       }
 
       // Extract JSON from the response (AI may wrap it in markdown)
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return;
+      if (!jsonMatch) {
+        return;
+      }
       const parsed = JSON.parse(jsonMatch[0]) as {
         title?: string;
         description?: string;
       };
-      if (parsed.title) setRootProp("seoTitle", parsed.title.trim());
-      if (parsed.description)
+      if (parsed.title) {
+        setRootProp("seoTitle", parsed.title.trim());
+      }
+      if (parsed.description) {
         setRootProp("seoDescription", parsed.description.trim());
+      }
     } catch {
       // Silently swallow — the user can retry or fill in manually
     } finally {
@@ -404,8 +418,8 @@ function SeoToolsPanel() {
   return (
     <div className="space-y-6 p-4">
       <div>
-        <div className="text-lg font-semibold text-foreground">SEO Tools</div>
-        <div className="text-sm text-muted-foreground">
+        <div className="font-semibold text-foreground text-lg">SEO Tools</div>
+        <div className="text-muted-foreground text-sm">
           Optimize your page for search engines and social sharing.
         </div>
       </div>
@@ -413,7 +427,7 @@ function SeoToolsPanel() {
       {/* ── Editable SEO Fields ─────────────────────────────────────── */}
       <div className="space-y-3 rounded-md border border-border p-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+          <div className="flex items-center gap-1.5 font-medium text-foreground text-xs">
             <Type size={12} />
             SEO Fields
           </div>
@@ -425,7 +439,7 @@ function SeoToolsPanel() {
             variant="outline"
           >
             {generating ? (
-              <Loader2 size={12} className="animate-spin" />
+              <Loader2 className="animate-spin" size={12} />
             ) : (
               <Sparkles size={12} />
             )}
@@ -438,17 +452,17 @@ function SeoToolsPanel() {
             SEO Title
           </Label>
           <Input
-            id="seo-title"
             className="h-8 text-sm"
+            id="seo-title"
+            onChange={(e) => setRootProp("seoTitle", e.target.value)}
             placeholder="Override page title for search engines…"
             value={seoTitle}
-            onChange={(e) => setRootProp("seoTitle", e.target.value)}
           />
           <CharCounter
             label="Title"
-            value={seoTitle || displayTitle}
-            min={50}
             max={60}
+            min={50}
+            value={seoTitle || displayTitle}
           />
         </div>
 
@@ -457,18 +471,18 @@ function SeoToolsPanel() {
             Meta Description
           </Label>
           <Textarea
-            id="seo-description"
             className="resize-none text-sm"
+            id="seo-description"
+            onChange={(e) => setRootProp("seoDescription", e.target.value)}
             placeholder="Brief page summary for search results…"
             rows={3}
             value={seoDescription}
-            onChange={(e) => setRootProp("seoDescription", e.target.value)}
           />
           <CharCounter
             label="Description"
-            value={seoDescription || displayDescription}
-            min={150}
             max={160}
+            min={150}
+            value={seoDescription || displayDescription}
           />
         </div>
 
@@ -477,33 +491,33 @@ function SeoToolsPanel() {
             Social Share Image (URL)
           </Label>
           <Input
-            id="og-image"
             className="h-8 text-sm"
+            id="og-image"
+            onChange={(e) => setRootProp("ogImage", e.target.value)}
             placeholder="https://…"
             value={ogImage}
-            onChange={(e) => setRootProp("ogImage", e.target.value)}
           />
         </div>
       </div>
 
       {/* ── Previews ─────────────────────────────────────────────────── */}
       <GooglePreview
-        title={displayTitle}
         description={displayDescription}
         slug={slug}
+        title={displayTitle}
       />
 
       <SocialPreview
-        title={displayTitle}
         description={displayDescription}
         ogImage={ogImage}
+        title={displayTitle}
       />
 
       {/* ── Checklist ────────────────────────────────────────────────── */}
       <SeoChecklist checks={checks} />
 
-      <div className="text-xs text-muted-foreground">
-        {content.length} block{content.length !== 1 ? "s" : ""} on page
+      <div className="text-muted-foreground text-xs">
+        {content.length} block{content.length === 1 ? "" : "s"} on page
       </div>
     </div>
   );

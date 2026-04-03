@@ -198,8 +198,8 @@ function TotalBanner({
       initial={{ opacity: 0, y: 20 }}
     >
       {/* Decorative elements */}
-      <div className="-right-8 -top-8 absolute h-32 w-32 rounded-full bg-background/10" />
-      <div className="-bottom-4 -left-4 absolute h-20 w-20 rounded-full bg-background/5" />
+      <div className="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-background/10" />
+      <div className="absolute -bottom-4 -left-4 h-20 w-20 rounded-full bg-background/5" />
 
       <div className="relative">
         <p className="mb-1 text-primary-foreground/80 text-sm">
@@ -215,7 +215,7 @@ function TotalBanner({
           <span className="font-normal text-2xl">NOK</span>
         </motion.p>
         <p className="mt-2 text-primary-foreground/70 text-sm">
-          {receiptCount} receipt{receiptCount !== 1 ? "s" : ""} attached
+          {receiptCount} receipt{receiptCount === 1 ? "" : "s"} attached
         </p>
       </div>
     </motion.div>

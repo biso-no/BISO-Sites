@@ -1,4 +1,4 @@
-import { type Config, type Data } from "@puckeditor/core";
+import type { Config, Data } from "@puckeditor/core";
 import { Render } from "@puckeditor/core/rsc";
 import { renderConfig } from "./render-config";
 

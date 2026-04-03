@@ -279,7 +279,7 @@ function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefit[] }) {
             >
               <BenefitPreviewCard
                 category={benefit.category}
-                discountText={benefit.teaser_en || "Unlock to see"}
+                discountText={benefit.teaser_en || benefit.title_en}
                 index={index}
                 partnerName={benefit.partner_name || "Partner"}
               />

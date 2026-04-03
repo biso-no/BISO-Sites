@@ -1,6 +1,5 @@
 import type { Orders } from "@repo/api/types/appwrite";
 import { OrderStatus } from "@repo/api/types/appwrite";
-import { TablesDB } from "node-appwrite";
 import type {
   CheckoutSessionParams,
   VippsCheckoutResponse,
@@ -17,7 +16,7 @@ import {
   buildPrefillCustomer,
   determineStatusFromPaymentState,
 } from "@repo/shared/utils/vipps-pure";
-import { ID } from "node-appwrite";
+import { ID, type TablesDB } from "node-appwrite";
 
 const merchantSerialNumber = process.env.VIPPS_MERCHANT_SERIAL_NUMBER!;
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;

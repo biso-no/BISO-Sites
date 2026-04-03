@@ -225,7 +225,7 @@ export function BusinessPageClient({ activeCampus }: BusinessPageClientProps) {
                 >
                   <Card
                     className={cn(
-                      "hover:-translate-y-1 h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:shadow-xl",
+                      "h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl",
                       colors.gradient,
                       colors.border
                     )}
@@ -283,7 +283,7 @@ export function BusinessPageClient({ activeCampus }: BusinessPageClientProps) {
                 viewport={{ once: true }}
                 whileInView={{ opacity: 1, y: 0 }}
               >
-                <Card className="group hover:-translate-y-1 h-full overflow-hidden border-0 bg-card p-6 shadow-lg transition-all hover:shadow-xl">
+                <Card className="group h-full overflow-hidden border-0 bg-card p-6 shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md">
                     <Calendar className="h-6 w-6 text-white" />
                   </div>
@@ -467,7 +467,7 @@ export function BusinessPageClient({ activeCampus }: BusinessPageClientProps) {
                 viewport={{ once: true }}
                 whileInView={{ opacity: 1, y: 0 }}
               >
-                <Card className="group hover:-translate-y-1 h-full border-0 bg-card p-6 shadow-lg transition-all hover:shadow-xl">
+                <Card className="group h-full border-0 bg-card p-6 shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md">
                     <MapPin className="h-6 w-6 text-white" />
                   </div>

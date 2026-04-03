@@ -27,7 +27,7 @@ export default async function JobApplicationsPage({
           <h1 className="font-bold text-2xl">Job Applications</h1>
           <p className="text-muted-foreground">
             {applications.length} application
-            {applications.length !== 1 ? "s" : ""} total
+            {applications.length === 1 ? "" : "s"} total
           </p>
         </div>
         <Button asChild>
@@ -81,7 +81,7 @@ export default async function JobApplicationsPage({
                 )}
 
                 {/* GDPR Information */}
-                <div className="-mx-6 -mb-6 mt-4 border-t bg-muted/30 px-6 py-4 pt-4">
+                <div className="-mx-6 mt-4 -mb-6 border-t bg-muted/30 px-6 py-4 pt-4">
                   <div className="flex items-center justify-between text-muted-foreground text-xs">
                     <span>
                       Data retention until:{" "}

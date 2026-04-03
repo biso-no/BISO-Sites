@@ -79,8 +79,8 @@ export function MembershipCtaSection() {
     <section className="relative overflow-hidden py-16">
       {/* Background decorations */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="-left-20 absolute top-20 h-72 w-72 rounded-full bg-brand opacity-10 blur-3xl" />
-        <div className="-right-20 absolute bottom-20 h-96 w-96 rounded-full bg-cyan-300 opacity-10 blur-3xl" />
+        <div className="absolute top-20 -left-20 h-72 w-72 rounded-full bg-brand opacity-10 blur-3xl" />
+        <div className="absolute -right-20 bottom-20 h-96 w-96 rounded-full bg-cyan-300 opacity-10 blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -115,7 +115,7 @@ export function MembershipCtaSection() {
               transition={{ delay: index * 0.1 }}
             >
               {option.popular && (
-                <div className="-top-4 -translate-x-1/2 absolute left-1/2 z-10">
+                <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
                   <Badge className="border-0 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to px-4 py-1.5 text-white shadow-lg">
                     <Zap className="mr-1.5 h-3.5 w-3.5" />
                     {t("cta.popular")}

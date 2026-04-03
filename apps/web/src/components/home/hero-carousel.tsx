@@ -272,7 +272,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
 
           <motion.button
             animate={{ y: [0, 10, 0] }}
-            className="-translate-x-1/2 absolute bottom-8 left-1/2 cursor-pointer"
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer"
             onClick={scrollToContent}
             transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
           >
@@ -316,7 +316,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
 
       {/* Dots navigation */}
       {featuredContent.length > 1 && (
-        <div className="-translate-x-1/2 absolute bottom-24 left-1/2 z-20 flex gap-2">
+        <div className="absolute bottom-24 left-1/2 z-20 flex -translate-x-1/2 gap-2">
           {featuredContent.map((_, index) => (
             <Button
               aria-label={`Go to slide ${index + 1}`}
@@ -335,7 +335,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
       {/* Scroll indicator */}
       <motion.button
         animate={{ y: [0, 10, 0] }}
-        className="-translate-x-1/2 absolute bottom-8 left-1/2 z-20 cursor-pointer"
+        className="absolute bottom-8 left-1/2 z-20 -translate-x-1/2 cursor-pointer"
         onClick={scrollToContent}
         transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
       >

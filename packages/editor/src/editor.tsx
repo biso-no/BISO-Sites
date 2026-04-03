@@ -2,8 +2,8 @@
 
 import {
   type Config,
-  type Data,
   createUsePuck,
+  type Data,
   fieldsPlugin,
   Puck,
   resolveAllData,
@@ -30,13 +30,13 @@ import {
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { config } from "./config";
-import type { EditorContext } from "./editor-context";
 import {
   buildLockedCampusField,
   buildLockedDepartmentField,
   CAMPUS_OPTIONS,
   isDepartmentUser,
 } from "./config/helpers/permission-scope";
+import type { EditorContext } from "./editor-context";
 import { aiAssistantPlugin } from "./plugins/ai-assistant";
 import { dataSourcesPlugin } from "./plugins/data-sources";
 import { savedPatternsPlugin } from "./plugins/saved-patterns";
@@ -179,7 +179,9 @@ export function PageEditor({
 
   const handleTranslate = useCallback(
     async (newData: Data, targetLocale: Locale) => {
-      if (!onTranslate) return;
+      if (!onTranslate) {
+        return;
+      }
       setTranslating(true);
       try {
         await onTranslate(newData, rootMeta(newData), targetLocale);
@@ -332,13 +334,13 @@ export function PageEditor({
     // key={locale} remounts Puck with fresh initialData on every locale switch,
     // giving each locale its own undo/redo history and correct initial canvas.
     <Puck
-      key={locale}
       _experimentalFullScreenCanvas
       config={dynamicConfig}
       data={initialData}
       headerPath={`/${locale}/${headerSlug}`}
       headerTitle={headerTitle}
       height="100%"
+      key={locale}
       metadata={metadata}
       onChange={(nextData) => handleChange(nextData as Data)}
       onPublish={handlePublish}
@@ -407,19 +409,19 @@ function EditorHeaderActions({
           {/* Locale switcher */}
           {availableLocales.length > 1 && (
             <div className="space-y-1 p-1">
-              <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="px-2 font-medium text-[11px] text-muted-foreground uppercase tracking-wide">
                 Locale
               </p>
               {availableLocales.map((l) => (
                 <button
-                  key={l}
-                  type="button"
                   className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                     l === locale
                       ? "bg-primary/10 font-medium text-primary"
-                      : "hover:bg-muted text-foreground"
+                      : "text-foreground hover:bg-muted"
                   }`}
+                  key={l}
                   onClick={() => onLocaleChange(l)}
+                  type="button"
                 >
                   <Globe className="h-3.5 w-3.5" />
                   {localeLabel(l)}
@@ -441,18 +443,18 @@ function EditorHeaderActions({
             <>
               <Separator className="my-1" />
               <div className="space-y-1 p-1">
-                <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <p className="px-2 font-medium text-[11px] text-muted-foreground uppercase tracking-wide">
                   AI Translate
                 </p>
                 {availableLocales
                   .filter((l) => l !== locale)
                   .map((l) => (
                     <button
-                      key={l}
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground disabled:opacity-50"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-foreground text-sm hover:bg-muted disabled:opacity-50"
                       disabled={translating}
+                      key={l}
                       onClick={() => onTranslate(currentData, l)}
+                      type="button"
                     >
                       {translating ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -471,8 +473,7 @@ function EditorHeaderActions({
           <div className="space-y-1 p-1">
             {showRefresh && (
               <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-foreground text-sm hover:bg-muted"
                 onClick={() => {
                   const puck = getPuck();
                   const resolveDataById = (
@@ -480,10 +481,12 @@ function EditorHeaderActions({
                       resolveDataById?: (id: string) => void;
                     }
                   ).resolveDataById;
-                  if (resolveDataById && selectedItem)
+                  if (resolveDataById && selectedItem) {
                     resolveDataById(selectedItem.props.id as string);
+                  }
                   toast.info("Refreshing data...");
                 }}
+                type="button"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 Refresh block data
@@ -491,18 +494,18 @@ function EditorHeaderActions({
             )}
             {initialStatus === PageStatus.PUBLISHED && (
               <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-foreground text-sm hover:bg-muted"
                 onClick={() => window.open(`/${slug}`, "_blank")}
+                type="button"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 View live page
               </button>
             )}
             <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-foreground"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-foreground text-sm hover:bg-muted"
               onClick={onBack}
+              type="button"
             >
               ← Back to pages
             </button>

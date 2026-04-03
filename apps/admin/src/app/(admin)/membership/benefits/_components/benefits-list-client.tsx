@@ -29,13 +29,11 @@ import {
   Globe,
   Search,
   Star,
-  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   archiveBenefit,
-  deleteBenefit,
   duplicateBenefit,
   publishBenefit,
 } from "@/app/actions/benefits";
@@ -117,15 +115,15 @@ export function BenefitsListClient({
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {(["all", "published", "draft", "archived"] as const).map((status) => (
           <button
-            key={status}
-            type="button"
-            id={`filter-${status}`}
-            onClick={() => setStatusFilter(status)}
             className={`rounded-xl border p-4 text-left transition-all ${
               statusFilter === status
                 ? "border-primary bg-primary/5 shadow-inner"
                 : "border-border bg-card hover:border-primary/30"
             }`}
+            id={`filter-${status}`}
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            type="button"
           >
             <p className="font-bold text-2xl">
               {counts[status as keyof typeof counts]}
@@ -137,13 +135,13 @@ export function BenefitsListClient({
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           className="pl-10"
           id="benefit-search"
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search benefits..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
@@ -174,8 +172,8 @@ export function BenefitsListClient({
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
                     className="py-12 text-center text-muted-foreground"
+                    colSpan={6}
                   >
                     No benefits found. Create your first benefit to get started.
                   </TableCell>
@@ -187,8 +185,8 @@ export function BenefitsListClient({
                   const isActive = activeActionId === benefit.$id;
                   return (
                     <TableRow
-                      key={benefit.$id}
                       className={isActive ? "opacity-50" : ""}
+                      key={benefit.$id}
                     >
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -217,16 +215,16 @@ export function BenefitsListClient({
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant="outline"
                           className={KIND_STYLES[benefit.kind]}
+                          variant="outline"
                         >
                           {benefit.kind}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant="outline"
                           className={statusStyle.className}
+                          variant="outline"
                         >
                           {statusStyle.label}
                         </Badge>
@@ -234,63 +232,63 @@ export function BenefitsListClient({
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button
-                            size="icon"
-                            variant="ghost"
                             className="h-7 w-7"
-                            title="Edit"
                             id={`edit-benefit-${benefit.$id}`}
                             onClick={() =>
                               router.push(`/membership/benefits/${benefit.$id}`)
                             }
+                            size="icon"
+                            title="Edit"
+                            variant="ghost"
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
                           {benefit.status !== BenefitStatus.PUBLISHED && (
                             <Button
-                              size="icon"
-                              variant="ghost"
                               className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
-                              title="Publish"
-                              id={`publish-benefit-${benefit.$id}`}
                               disabled={isActive || isPending}
+                              id={`publish-benefit-${benefit.$id}`}
                               onClick={() =>
                                 handleAction(benefit.$id, () =>
                                   publishBenefit(benefit.$id)
                                 )
                               }
+                              size="icon"
+                              title="Publish"
+                              variant="ghost"
                             >
                               <CheckCircle className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {benefit.status !== BenefitStatus.ARCHIVED && (
                             <Button
-                              size="icon"
-                              variant="ghost"
                               className="h-7 w-7 text-muted-foreground"
-                              title="Archive"
-                              id={`archive-benefit-${benefit.$id}`}
                               disabled={isActive || isPending}
+                              id={`archive-benefit-${benefit.$id}`}
                               onClick={() =>
                                 handleAction(benefit.$id, () =>
                                   archiveBenefit(benefit.$id)
                                 )
                               }
+                              size="icon"
+                              title="Archive"
+                              variant="ghost"
                             >
                               <Archive className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           <Button
-                            size="icon"
-                            variant="ghost"
                             className="h-7 w-7"
-                            title="Duplicate"
-                            id={`duplicate-benefit-${benefit.$id}`}
                             disabled={isActive || isPending}
+                            id={`duplicate-benefit-${benefit.$id}`}
                             onClick={() =>
                               handleAction(benefit.$id, () =>
                                 duplicateBenefit(benefit.$id)
                               )
                             }
+                            size="icon"
+                            title="Duplicate"
+                            variant="ghost"
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </Button>

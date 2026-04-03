@@ -4,7 +4,6 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { BenefitInteraction } from "@repo/api/types/appwrite";
 import { BenefitInteractionAction } from "@repo/api/types/appwrite";
-import { applyScopeQueries } from "@/lib/utils/authorization";
 import { getUserAuthContext } from "@/lib/authorization";
 
 export type BenefitAnalyticsSummary = {
@@ -28,7 +27,9 @@ export async function getBenefitInteractions(
   filters: BenefitAnalyticsFilters = {}
 ): Promise<BenefitInteraction[]> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const queries: string[] = [];

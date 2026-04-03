@@ -23,7 +23,7 @@ export function ExpenseWizard({
   children,
 }: ExpenseWizardProps) {
   return (
-    <div className="-mt-8 relative z-10 mx-auto max-w-4xl px-4">
+    <div className="relative z-10 mx-auto -mt-8 max-w-4xl px-4">
       <Card className="border-0 p-6 shadow-xl">
         <div className="mb-2 flex items-center justify-between">
           {steps.map((step, index) => (

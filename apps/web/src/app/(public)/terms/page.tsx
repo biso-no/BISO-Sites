@@ -52,12 +52,12 @@ export default async function TermsPage() {
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to py-20">
         {/* Animated background elements */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="-left-20 absolute top-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-          <div className="-right-20 absolute bottom-10 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
+          <div className="absolute top-10 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
         </div>
 
         {/* Wave decoration at bottom */}
-        <div className="-bottom-1 absolute right-0 left-0">
+        <div className="absolute right-0 -bottom-1 left-0">
           <svg
             aria-hidden="true"
             className="w-full text-background"
@@ -94,7 +94,7 @@ export default async function TermsPage() {
       </section>
 
       {/* Content Grid */}
-      <section className="-mt-8 relative z-10 mx-auto max-w-5xl px-4 pb-20">
+      <section className="relative z-10 mx-auto -mt-8 max-w-5xl px-4 pb-20">
         <div className="grid gap-6 md:grid-cols-2">
           {sections.map((sectionKey, _index) => {
             const Icon = sectionIcons[sectionKey];

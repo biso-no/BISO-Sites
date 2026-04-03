@@ -295,12 +295,12 @@ export function PostTable({ posts }: { posts: News[] }) {
                     {getPostTitle(post, locale)}
                   </TableCell>
                   <TableCell>
-                    {typeof post.department !== "string"
-                      ? post.department?.Name
-                      : ""}
+                    {typeof post.department === "string"
+                      ? ""
+                      : post.department?.Name}
                   </TableCell>
                   <TableCell>
-                    {typeof post.campus !== "string" ? post.campus?.name : ""}
+                    {typeof post.campus === "string" ? "" : post.campus?.name}
                   </TableCell>
                   <TableCell>
                     <span
@@ -350,13 +350,13 @@ export function PostTable({ posts }: { posts: News[] }) {
                   />
                   <p>
                     <strong>{t("table.department")}:</strong>{" "}
-                    {typeof post.department !== "string"
-                      ? post.department?.Name
-                      : ""}
+                    {typeof post.department === "string"
+                      ? ""
+                      : post.department?.Name}
                   </p>
                   <p>
                     <strong>{t("table.campus")}:</strong>{" "}
-                    {typeof post.campus !== "string" ? post.campus?.name : ""}
+                    {typeof post.campus === "string" ? "" : post.campus?.name}
                   </p>
                   <p>
                     <strong>{t("table.status")}:</strong>

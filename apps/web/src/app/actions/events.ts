@@ -2,11 +2,11 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  type Campus,
-  type Departments,
-  type Events,
-  type Locale,
+import type {
+  Campus,
+  Departments,
+  Events,
+  Locale,
 } from "@repo/api/types/appwrite";
 
 type ListEventsParams = {

@@ -154,7 +154,7 @@ export const MarketingComponents = {
         const s = tintStyles[props.tint ?? "blue"] ?? tintStyles.blue;
         return (
           <div className={`w-full rounded-2xl border p-8 ${s.wrapper}`}>
-            <h3 className={`text-xl font-bold ${s.title}`}>
+            <h3 className={`font-bold text-xl ${s.title}`}>
               {props.title || "Title"}
             </h3>
             {props.description && (
@@ -164,9 +164,9 @@ export const MarketingComponents = {
               <div className="mt-5 flex flex-wrap gap-3">
                 {(props.buttons ?? []).map((btn, i) => (
                   <a
-                    key={i}
+                    className={`inline-flex rounded-lg px-4 py-2 font-semibold text-sm transition ${s.btn}`}
                     href={btn.href}
-                    className={`inline-flex rounded-lg px-4 py-2 text-sm font-semibold transition ${s.btn}`}
+                    key={i}
                   >
                     {btn.label}
                   </a>
@@ -181,7 +181,7 @@ export const MarketingComponents = {
         return (
           <div className="relative w-full">
             {props.campusBadge && (
-              <div className="absolute -top-3 left-6 rounded-full bg-blue-600 px-3 py-0.5 text-xs font-semibold text-white">
+              <div className="absolute -top-3 left-6 rounded-full bg-blue-600 px-3 py-0.5 font-semibold text-white text-xs">
                 {props.campusBadge}
               </div>
             )}
@@ -475,61 +475,61 @@ export const MarketingComponents = {
     render: ({ plans, variant, title, subtitle }: PricingTableProps) => {
       const items = plans || [];
       return (
-        <div className="w-full py-12 px-4">
+        <div className="w-full px-4 py-12">
           {(title || subtitle) && (
-            <div className="text-center mb-10">
+            <div className="mb-10 text-center">
               {title && (
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                <h2 className="mb-2 font-bold text-3xl text-gray-900">
                   {title}
                 </h2>
               )}
-              {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
+              {subtitle && <p className="text-gray-500 text-lg">{subtitle}</p>}
             </div>
           )}
           {variant === "table" ? (
-            <div className="max-w-4xl mx-auto overflow-x-auto">
+            <div className="mx-auto max-w-4xl overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-4 px-6 text-left font-semibold text-gray-700">
+                  <tr className="border-gray-200 border-b">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
                       Plan
                     </th>
-                    <th className="py-4 px-6 text-left font-semibold text-gray-700">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
                       Price
                     </th>
-                    <th className="py-4 px-6 text-left font-semibold text-gray-700">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
                       Features
                     </th>
-                    <th className="py-4 px-6 text-right font-semibold text-gray-700" />
+                    <th className="px-6 py-4 text-right font-semibold text-gray-700" />
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((plan, i) => (
                     <tr
+                      className={`border-gray-100 border-b ${plan.highlighted ? "bg-blue-50" : ""}`}
                       key={i}
-                      className={`border-b border-gray-100 ${plan.highlighted ? "bg-blue-50" : ""}`}
                     >
-                      <td className="py-4 px-6 font-medium text-gray-900">
+                      <td className="px-6 py-4 font-medium text-gray-900">
                         {plan.name}
                       </td>
-                      <td className="py-4 px-6 text-gray-700">
+                      <td className="px-6 py-4 text-gray-700">
                         {plan.currency || ""}
                         {plan.price}
                         <span className="text-gray-400 text-xs">
                           {plan.period}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-gray-600">
+                      <td className="px-6 py-4 text-gray-600">
                         {(plan.features || []).map((f) => f.value).join(", ")}
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td className="px-6 py-4 text-right">
                         <a
-                          href={plan.ctaHref || "#"}
-                          className={`inline-block px-4 py-2 rounded-md text-sm font-medium ${
+                          className={`inline-block rounded-md px-4 py-2 font-medium text-sm ${
                             plan.highlighted
                               ? "bg-blue-600 text-white"
                               : "bg-gray-100 text-gray-700"
                           }`}
+                          href={plan.ctaHref || "#"}
                         >
                           {plan.ctaLabel || "Choose"}
                         </a>
@@ -541,59 +541,59 @@ export const MarketingComponents = {
             </div>
           ) : (
             <div
-              className={`max-w-6xl mx-auto grid gap-6 ${
+              className={`mx-auto grid max-w-6xl gap-6 ${
                 items.length === 1
-                  ? "grid-cols-1 max-w-md"
+                  ? "max-w-md grid-cols-1"
                   : items.length === 2
-                    ? "grid-cols-1 md:grid-cols-2 max-w-3xl"
+                    ? "max-w-3xl grid-cols-1 md:grid-cols-2"
                     : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
               }`}
             >
               {items.map((plan, i) => (
                 <div
-                  key={i}
                   className={`relative flex flex-col rounded-2xl border p-8 ${
                     plan.highlighted
-                      ? "border-blue-500 ring-2 ring-blue-500 shadow-xl scale-[1.02]"
+                      ? "scale-[1.02] border-blue-500 shadow-xl ring-2 ring-blue-500"
                       : "border-gray-200 shadow-sm"
                   }`}
+                  key={i}
                 >
                   {plan.highlighted && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-4 py-1 text-xs font-semibold text-white">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-4 py-1 font-semibold text-white text-xs">
                       Most Popular
                     </span>
                   )}
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h3 className="mb-2 font-semibold text-gray-900 text-lg">
                     {plan.name}
                   </h3>
                   <div className="mb-6">
-                    <span className="text-sm text-gray-500">
+                    <span className="text-gray-500 text-sm">
                       {plan.currency || ""}
                     </span>
-                    <span className="text-4xl font-bold text-gray-900">
+                    <span className="font-bold text-4xl text-gray-900">
                       {plan.price}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-gray-500 text-sm">
                       {plan.period || ""}
                     </span>
                   </div>
-                  <ul className="flex-1 space-y-3 mb-8">
+                  <ul className="mb-8 flex-1 space-y-3">
                     {(plan.features || []).map((feature, fi) => (
                       <li
+                        className="flex items-center gap-2 text-gray-600 text-sm"
                         key={fi}
-                        className="flex items-center gap-2 text-sm text-gray-600"
                       >
                         <svg
                           className="h-4 w-4 shrink-0 text-blue-500"
                           fill="none"
-                          viewBox="0 0 24 24"
                           stroke="currentColor"
                           strokeWidth={2}
+                          viewBox="0 0 24 24"
                         >
                           <path
+                            d="M5 13l4 4L19 7"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
                           />
                         </svg>
                         {feature.value}
@@ -601,12 +601,12 @@ export const MarketingComponents = {
                     ))}
                   </ul>
                   <a
-                    href={plan.ctaHref || "#"}
-                    className={`block w-full rounded-lg py-3 text-center text-sm font-semibold transition ${
+                    className={`block w-full rounded-lg py-3 text-center font-semibold text-sm transition ${
                       plan.highlighted
                         ? "bg-blue-600 text-white hover:bg-blue-700"
                         : "bg-gray-900 text-white hover:bg-gray-800"
                     }`}
+                    href={plan.ctaHref || "#"}
                   >
                     {plan.ctaLabel || "Get Started"}
                   </a>
@@ -734,32 +734,32 @@ export const MarketingComponents = {
       return (
         <div className={wrapperClass}>
           <div
-            className={`max-w-3xl mx-auto text-center ${variant === "card" ? "rounded-2xl border border-gray-200 shadow-lg p-10" : ""}`}
+            className={`mx-auto max-w-3xl text-center ${variant === "card" ? "rounded-2xl border border-gray-200 p-10 shadow-lg" : ""}`}
           >
             {title && (
               <h2
-                className={`text-3xl font-bold mb-2 ${variant === "default" ? "text-white" : "text-gray-900"}`}
+                className={`mb-2 font-bold text-3xl ${variant === "default" ? "text-white" : "text-gray-900"}`}
               >
                 {title}
               </h2>
             )}
             {subtitle && (
               <p
-                className={`text-lg mb-8 ${variant === "default" ? "text-white/70" : "text-gray-500"}`}
+                className={`mb-8 text-lg ${variant === "default" ? "text-white/70" : "text-gray-500"}`}
               >
                 {subtitle}
               </p>
             )}
             {isComplete ? (
               <p
-                className={`text-xl font-semibold ${variant === "default" ? "text-white" : "text-gray-900"}`}
+                className={`font-semibold text-xl ${variant === "default" ? "text-white" : "text-gray-900"}`}
               >
                 {completedMessage || "The event has started!"}
               </p>
             ) : (
               <div className="flex items-center justify-center gap-4">
                 {units.map((unit, i) => (
-                  <div key={i} className="flex items-center gap-4">
+                  <div className="flex items-center gap-4" key={i}>
                     <div className={`${boxClass} text-center`}>
                       <div className={numberClass}>
                         {String(unit.value).padStart(2, "0")}
@@ -768,7 +768,7 @@ export const MarketingComponents = {
                     </div>
                     {i < units.length - 1 && (
                       <span
-                        className={`text-3xl font-bold ${variant === "default" ? "text-white/40" : "text-gray-300"}`}
+                        className={`font-bold text-3xl ${variant === "default" ? "text-white/40" : "text-gray-300"}`}
                       >
                         :
                       </span>

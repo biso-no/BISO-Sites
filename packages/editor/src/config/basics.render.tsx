@@ -38,7 +38,9 @@ export function VideoEmbedRender({
   autoplay,
 }: VideoEmbedProps) {
   const getEmbedUrl = (raw: string | undefined): string | null => {
-    if (!raw) return null;
+    if (!raw) {
+      return null;
+    }
     const ytMatch = raw.match(
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/
     );
@@ -61,36 +63,36 @@ export function VideoEmbedRender({
         : "aspect-video";
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-4">
+    <div className="mx-auto w-full max-w-4xl px-4 py-4">
       <div
-        className={`relative w-full ${aspectClass} rounded-xl overflow-hidden bg-gray-100 shadow-md`}
+        className={`relative w-full ${aspectClass} overflow-hidden rounded-xl bg-gray-100 shadow-md`}
       >
         {embedUrl ? (
           <iframe
-            src={embedUrl}
-            title={caption || "Video"}
-            className="absolute inset-0 w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            className="absolute inset-0 h-full w-full"
+            src={embedUrl}
+            title={caption || "Video"}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
             <svg
-              className="h-16 w-16 mb-2"
+              className="mb-2 h-16 w-16"
               fill="none"
-              viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={1.5}
+              viewBox="0 0 24 24"
             >
               <path
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
               <path
+                d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z"
               />
             </svg>
             <span className="text-sm">Paste a YouTube or Vimeo URL</span>
@@ -98,7 +100,7 @@ export function VideoEmbedRender({
         )}
       </div>
       {caption && (
-        <p className="mt-3 text-center text-sm text-gray-500">{caption}</p>
+        <p className="mt-3 text-center text-gray-500 text-sm">{caption}</p>
       )}
     </div>
   );

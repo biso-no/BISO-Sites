@@ -1,17 +1,14 @@
 import type { Models } from "@repo/api";
 
 export interface JobApplication extends Models.Row {
-  job_id: string;
-  applicant_name: string;
   applicant_email: string;
+  applicant_name: string;
   applicant_phone?: string;
-  cover_letter?: string;
-  status: "submitted" | "reviewed" | "interview" | "accepted" | "rejected";
-  gdpr_consent: boolean;
   consent_date: string;
+  cover_letter?: string;
   data_processing_purpose: string;
   data_retention_until: string;
-  resume_file_id?: string;
+  gdpr_consent: boolean;
   // Relationship references (populated at runtime)
   job?: {
     $id: string;
@@ -20,6 +17,9 @@ export interface JobApplication extends Models.Row {
     department_id: string;
     locale: string;
   };
+  job_id: string;
+  resume_file_id?: string;
+  status: "submitted" | "reviewed" | "interview" | "accepted" | "rejected";
 }
 
 export type JobApplicationFormData = {

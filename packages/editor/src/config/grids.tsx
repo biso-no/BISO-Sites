@@ -2,17 +2,7 @@
 import { createUsePuck } from "@puckeditor/core";
 
 const usePuck = createUsePuck();
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { cn } from "@repo/ui/lib/utils";
-import { Database, Table, X } from "lucide-react";
-import { TABLE_SCHEMAS } from "../data/schemas";
-import type {
-  EditorMetadata,
-  GridDataBinding,
-  GridPreset,
-  GridProps,
-} from "./types";
+
 import {
   FeatureGrid,
   type FeatureGridProps,
@@ -24,8 +14,8 @@ import {
   type LogoItem,
 } from "@repo/ui/components/puck/logo-grid";
 import {
-  StatsGrid,
   type StatItem,
+  StatsGrid,
   type StatsGridProps,
 } from "@repo/ui/components/puck/stats-grid";
 import {
@@ -33,7 +23,18 @@ import {
   type TeamGridProps,
   type TeamMember,
 } from "@repo/ui/components/puck/team-grid";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
+import { Database, Table, X } from "lucide-react";
+import { TABLE_SCHEMAS } from "../data/schemas";
 import { ALIGN_OPTIONS, ICON_OPTIONS } from "../puck-tokens";
+import type {
+  EditorMetadata,
+  GridDataBinding,
+  GridPreset,
+  GridProps,
+} from "./types";
 
 export const GridComponents = {
   FeatureGrid: {
@@ -111,29 +112,29 @@ export const GridComponents = {
 
       if (variant === "benefit-scroll") {
         return (
-          <section className="w-full py-10 px-4">
+          <section className="w-full px-4 py-10">
             {props.title && (
-              <h2 className="mb-2 text-2xl font-bold text-gray-900">
+              <h2 className="mb-2 font-bold text-2xl text-gray-900">
                 {props.title}
               </h2>
             )}
             {props.subtitle && (
               <p className="mb-6 text-gray-500">{props.subtitle}</p>
             )}
-            <div className="flex gap-5 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
+            <div className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-4">
               {items.map((item: any, i: number) => (
                 <div
-                  key={i}
                   className="min-w-[280px] max-w-[320px] shrink-0 snap-start rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+                  key={i}
                 >
                   {item.icon && (
-                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-lg font-bold">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-600 text-lg">
                       {item.icon.charAt(0)}
                     </div>
                   )}
                   <h3 className="font-semibold text-gray-900">{item.title}</h3>
                   {item.description && (
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-gray-500 text-sm">
                       {item.description}
                     </p>
                   )}
@@ -141,8 +142,8 @@ export const GridComponents = {
                     <ul className="mt-3 space-y-1.5">
                       {item.bullets.map((b: { text: string }, bi: number) => (
                         <li
+                          className="flex items-start gap-2 text-gray-600 text-sm"
                           key={bi}
-                          className="flex items-start gap-2 text-sm text-gray-600"
                         >
                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
                           {b.text}
@@ -152,8 +153,8 @@ export const GridComponents = {
                   )}
                   {item.href && (
                     <a
+                      className="mt-4 inline-block font-medium text-blue-600 text-sm hover:text-blue-800"
                       href={item.href}
-                      className="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-800"
                     >
                       Learn more →
                     </a>
@@ -167,21 +168,21 @@ export const GridComponents = {
 
       if (variant === "link-tiles") {
         return (
-          <section className="w-full py-8 px-4">
+          <section className="w-full px-4 py-8">
             {props.title && (
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              <h2 className="mb-4 font-semibold text-gray-900 text-lg">
                 {props.title}
               </h2>
             )}
-            <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {items.map((item: any, i: number) => (
                 <a
-                  key={i}
+                  className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 font-medium text-gray-700 text-sm shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                   href={item.href || "#"}
-                  className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 shadow-sm"
+                  key={i}
                 >
                   {item.icon && (
-                    <span className="text-gray-400 group-hover:text-blue-500 transition text-base">
+                    <span className="text-base text-gray-400 transition group-hover:text-blue-500">
                       {item.icon.charAt(0)}
                     </span>
                   )}
@@ -417,10 +418,10 @@ function GridDataPicker({
             <Table className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-foreground">
+            <div className="font-medium text-foreground text-sm">
               {schema?.label ?? value.tableId}
             </div>
-            <div className="truncate text-xs text-muted-foreground">
+            <div className="truncate text-muted-foreground text-xs">
               {schema?.description ?? "Connected table"}
             </div>
           </div>
@@ -433,7 +434,7 @@ function GridDataPicker({
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           The grid will render placeholder cards in the editor. Live data loads
           on the public site.
         </p>
@@ -443,18 +444,18 @@ function GridDataPicker({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-muted-foreground text-xs">
         Select a table to bind this grid to live data.
       </p>
       <div className="grid gap-1.5">
         {availableSchemas.map((schema) => (
           <button
-            key={schema.id}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left",
               "transition-colors hover:border-primary/40 hover:bg-primary/5",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             )}
+            key={schema.id}
             onClick={() =>
               onChange({
                 tableId: schema.id,
@@ -470,10 +471,10 @@ function GridDataPicker({
               <Database className="h-4 w-4 text-gray-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-foreground">
+              <div className="font-medium text-foreground text-sm">
                 {schema.label}
               </div>
-              <div className="truncate text-xs text-muted-foreground">
+              <div className="truncate text-muted-foreground text-xs">
                 {schema.description}
               </div>
             </div>
@@ -523,18 +524,18 @@ function GridPresetPreview({
       {(title || subtitle) && (
         <div className="space-y-1 text-center">
           {title && (
-            <div className="text-xl font-bold text-foreground">{title}</div>
+            <div className="font-bold text-foreground text-xl">{title}</div>
           )}
           {subtitle && (
-            <div className="text-sm text-muted-foreground">{subtitle}</div>
+            <div className="text-muted-foreground text-sm">{subtitle}</div>
           )}
         </div>
       )}
 
       {isBound && (
-        <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5">
+        <div className="flex items-center justify-center gap-2 rounded-md border border-primary/40 border-dashed bg-primary/5 px-3 py-1.5">
           <Database className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-medium text-primary">
+          <span className="font-medium text-primary text-xs">
             Bound to <strong>{dataSource!.tableLabel}</strong> — showing
             placeholders
           </span>
@@ -547,7 +548,7 @@ function GridPresetPreview({
           <GridCard item={resolvedItems[0]} large />
           <div className="col-span-1 grid grid-rows-2 gap-3">
             {resolvedItems.slice(1, 3).map((item, i) => (
-              <GridCard key={i} item={item} />
+              <GridCard item={item} key={i} />
             ))}
           </div>
         </div>
@@ -558,7 +559,7 @@ function GridPresetPreview({
           style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
         >
           {resolvedItems.map((item, i) => (
-            <GridCard key={i} item={item} tall={i % 3 === 0} />
+            <GridCard item={item} key={i} tall={i % 3 === 0} />
           ))}
         </div>
       ) : (
@@ -568,7 +569,7 @@ function GridPresetPreview({
           style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
         >
           {resolvedItems.map((item, i) => (
-            <GridCard key={i} item={item} />
+            <GridCard item={item} key={i} />
           ))}
         </div>
       )}
@@ -609,9 +610,9 @@ function GridCard({
       >
         {!isPlaceholder && item.image && (
           <img
-            src={item.image}
             alt={item.title ?? ""}
             className="h-full w-full object-cover"
+            src={item.image}
           />
         )}
       </div>
@@ -624,17 +625,17 @@ function GridCard({
         ) : (
           <>
             {item.badge && (
-              <Badge variant="secondary" className="mb-1 text-[10px]">
+              <Badge className="mb-1 text-[10px]" variant="secondary">
                 {item.badge}
               </Badge>
             )}
             {item.title && (
-              <div className="text-sm font-semibold leading-snug text-foreground">
+              <div className="font-semibold text-foreground text-sm leading-snug">
                 {item.title}
               </div>
             )}
             {item.description && (
-              <div className="line-clamp-2 text-xs text-muted-foreground">
+              <div className="line-clamp-2 text-muted-foreground text-xs">
                 {item.description}
               </div>
             )}
@@ -697,7 +698,7 @@ export const GridComponent = {
         }: {
           value: GridDataBinding | null;
           onChange: (v: GridDataBinding | null) => void;
-        }) => <GridDataPicker value={value} onChange={onChange} />,
+        }) => <GridDataPicker onChange={onChange} value={value} />,
       },
       items: {
         type: "array" as const,
@@ -719,7 +720,9 @@ export const GridComponent = {
     ) => {
       const mode = data.props?.dataMode ?? "manual";
       const { dataSource, items, ...base } = fields as any;
-      if (mode === "table") return { ...base, dataSource };
+      if (mode === "table") {
+        return { ...base, dataSource };
+      }
       return { ...base, items };
     },
     render: (props: GridProps) => <GridPresetPreview {...props} />,

@@ -1,7 +1,7 @@
 import "server-only";
-import { correctMimeType } from "../utils/mime-utils";
 import { encode } from "gpt-tokenizer";
 import TurndownService from "turndown";
+import { correctMimeType } from "../utils/mime-utils";
 import { extractTextFromPdf } from "./pdf-text-extractor";
 
 export type ProcessedDocument = {

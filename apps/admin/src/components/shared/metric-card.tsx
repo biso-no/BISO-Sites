@@ -58,7 +58,7 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "hover:-translate-y-1 relative transform overflow-hidden transition-all duration-300 hover:shadow-xl",
+        "relative transform overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
         "border-border/50 bg-card/60 backdrop-blur-sm",
         "before:absolute before:inset-0 before:bg-linear-to-br before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity hover:before:opacity-100",
         className

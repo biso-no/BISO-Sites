@@ -91,7 +91,7 @@ export default async function UnitsPage({ searchParams }: PageProps) {
         {/* Results count */}
         <div className="text-muted-foreground text-sm">
           Showing {departments.length} department
-          {departments.length !== 1 ? "s" : ""}
+          {departments.length === 1 ? "" : "s"}
           {hasMore && " (scroll for more)"}
         </div>
 

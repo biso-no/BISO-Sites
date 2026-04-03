@@ -182,7 +182,7 @@ export function BusinessHotspotClient() {
                 />
                 <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
               </div>
-              <div className="-bottom-4 -right-4 absolute rounded-xl border border-border bg-card p-4 shadow-lg">
+              <div className="absolute -right-4 -bottom-4 rounded-xl border border-border bg-card p-4 shadow-lg">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
                     <Building2 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
@@ -234,7 +234,7 @@ export function BusinessHotspotClient() {
                 >
                   <Card
                     className={cn(
-                      "hover:-translate-y-1 h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:shadow-xl",
+                      "h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl",
                       colors.gradient,
                       colors.border
                     )}

@@ -1,17 +1,11 @@
 "use server";
 
 import { Query } from "@repo/api";
-import {
-  getPublishedPage,
-  PageDocument,
-  PageRecord,
-  PageTranslationRecord,
-  type PublishedPage,
-} from "@repo/api/page-builder";
+import { getPublishedPage, type PublishedPage } from "@repo/api/page-builder";
 import { createSessionClient } from "@repo/api/server";
 import type { Locale, Pages, PageTranslations } from "@repo/api/types/appwrite";
-import { cache } from "react";
 import type { Data } from "@repo/editor";
+import { cache } from "react";
 
 const resolvePublishedPage = cache(async (slug: string, locale: Locale) =>
   getPublishedPage({ slug, locale, preview: false })
@@ -53,7 +47,7 @@ export async function getPublicPage(
   });
 
   const page = response.rows[0];
-  if (!page || !Array.isArray(page.translation_refs)) {
+  if (!(page && Array.isArray(page.translation_refs))) {
     return null;
   }
 
@@ -62,7 +56,7 @@ export async function getPublicPage(
       typeof item === "object" && item !== null && item.locale === locale
   );
 
-  if (!translation || !translation.is_published) {
+  if (!(translation && translation.is_published)) {
     return null;
   }
 
@@ -110,7 +104,7 @@ export async function getDemoPage(
   });
 
   const page = response.rows[0];
-  if (!page || !Array.isArray(page.translation_refs)) {
+  if (!(page && Array.isArray(page.translation_refs))) {
     return null;
   }
 

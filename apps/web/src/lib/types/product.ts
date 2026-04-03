@@ -28,46 +28,46 @@ export type Product = WebshopProducts;
 
 // Helper interface for working with product data including translations
 export interface ProductWithTranslations extends Partial<WebshopProducts> {
-  translations?: ContentTranslations[];
-  // Convenience properties for the current locale
-  title?: string;
-  description?: string;
-  metadata_parsed?: ProductMetadata;
-  price?: number;
-  sku?: string;
-  stock_quantity?: number;
   category?: string;
+  custom_fields?: ProductCustomField[];
+  description?: string;
+  dimensions?: string;
   image?: string;
   images?: string[];
-  weight?: number;
-  dimensions?: string;
   is_digital?: boolean;
-  shipping_required?: boolean;
+  max_per_order?: number;
+  max_per_user?: number;
   member_discount_enabled?: boolean;
   member_discount_percent?: number;
-  max_per_user?: number;
-  max_per_order?: number;
-  custom_fields?: ProductCustomField[];
+  metadata_parsed?: ProductMetadata;
+  price?: number;
+  shipping_required?: boolean;
+  sku?: string;
+  stock_quantity?: number;
+  // Convenience properties for the current locale
+  title?: string;
+  translations?: ContentTranslations[];
   variations?: ProductVariation[];
+  weight?: number;
 }
 
 interface ProductMetadata extends Record<string, unknown> {
-  price?: number;
-  sku?: string;
-  stock_quantity?: number;
   category?: string;
+  custom_fields?: ProductCustomField[];
+  dimensions?: string;
   image?: string;
   images?: string[];
-  weight?: number;
-  dimensions?: string;
   is_digital?: boolean;
-  shipping_required?: boolean;
+  max_per_order?: number;
+  max_per_user?: number;
   member_discount_enabled?: boolean;
   member_discount_percent?: number;
-  max_per_user?: number;
-  max_per_order?: number;
-  custom_fields?: ProductCustomField[];
+  price?: number;
+  shipping_required?: boolean;
+  sku?: string;
+  stock_quantity?: number;
   variations?: ProductVariation[];
+  weight?: number;
 }
 
 export type ProductTranslation = {

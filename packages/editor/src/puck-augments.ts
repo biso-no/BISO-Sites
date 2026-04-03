@@ -19,9 +19,12 @@ declare module "@puckeditor/core" {
    * Mirrors EditorContext (editor-context.ts) + locale.
    */
   export interface PuckMetadata {
+    constraints?: {
+      slugLocked: boolean;
+    };
+    contentType?: string;
     locale?: string;
     mode?: "direct";
-    contentType?: string;
     page?: {
       id?: string;
       status?: string;
@@ -35,9 +38,6 @@ declare module "@puckeditor/core" {
       campusNames: string[];
       departmentNames: string[];
       managedCampuses: string[];
-    };
-    constraints?: {
-      slugLocked: boolean;
     };
   }
 

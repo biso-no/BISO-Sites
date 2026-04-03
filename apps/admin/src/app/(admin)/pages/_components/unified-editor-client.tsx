@@ -4,33 +4,32 @@ import {
   useCopilotPuck,
   useStreamingPuckRaw as useStreamingPuck,
 } from "@repo/ai/hooks/use-copilot-puck";
-import {
-  Departments,
-  type Locale,
-  type PageStatus,
-  type PageVisibility,
+import type {
+  Locale,
+  PageStatus,
+  PageVisibility,
 } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
-import type { EditorContext } from "@repo/editor/editor-context";
+import { config as baseEditorConfig } from "@repo/editor/config";
 import {
   AiAssistantContext,
-  type AiAssistCallbacks,
   type AiAssistantContextValue,
+  type AiAssistCallbacks,
   type AssistAction,
 } from "@repo/editor/contexts/ai-assistant-context";
+import type { EditorContext } from "@repo/editor/editor-context";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sanitizeSlug } from "@/lib/utils";
+import { listDepartmentsWithWriterAccess } from "@/app/actions/events";
 import { PuckGenerationIndicator } from "@/components/assistant/puck-content-handler";
+import { sanitizeSlug } from "@/lib/utils";
+import { TranslationCheckModal } from "./translation-check-modal";
+import { useLocaleStructuralSync } from "./use-locale-structural-sync";
 import {
   useUnifiedEditorContexts,
   useUnifiedEditorHandlers,
 } from "./use-unified-editor-handlers";
-import { useLocaleStructuralSync } from "./use-locale-structural-sync";
-import { TranslationCheckModal } from "./translation-check-modal";
-import { listDepartmentsWithWriterAccess } from "@/app/actions/events";
-import { config as baseEditorConfig } from "@repo/editor/config";
 
 const PageEditor = dynamic(
   () => import("@repo/editor/editor").then((mod) => mod.PageEditor),
@@ -356,7 +355,9 @@ export function UnifiedEditorClient({
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            break;
+          }
           const token = decoder.decode(value, { stream: true });
           fullText += token;
           callbacks.onToken(token);
@@ -390,13 +391,13 @@ export function UnifiedEditorClient({
     <AiAssistantContext.Provider value={aiContextValue}>
       <PageEditor
         availableLocales={availableLocales}
+        departments={departments}
         editorContext={editorContext}
         initialData={currentData}
         locale={currentLocale}
-        departments={departments}
         onBack={() => router.push("/pages")}
-        onLocaleChange={handleLocaleChange}
         onDataChange={handlePuckChange}
+        onLocaleChange={handleLocaleChange}
         onPublish={handlePublish}
         onSave={handleSave}
         onTranslate={handleTranslate}
@@ -408,13 +409,13 @@ export function UnifiedEditorClient({
       <PuckGenerationIndicator isGenerating={isGenerating || isStreaming} />
 
       <TranslationCheckModal
-        open={showTranslationModal}
-        untranslatedLocales={untranslatedLocales}
-        onTranslateAndPublish={handleTranslateAndPublish}
-        onSkipAndPublish={handleSkipAndPublish}
-        onCancel={handleCancelPublish}
         isTranslating={isTranslating}
+        onCancel={handleCancelPublish}
+        onSkipAndPublish={handleSkipAndPublish}
+        onTranslateAndPublish={handleTranslateAndPublish}
+        open={showTranslationModal}
         translationProgress={translationProgress}
+        untranslatedLocales={untranslatedLocales}
       />
     </AiAssistantContext.Provider>
   );

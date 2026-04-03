@@ -1,7 +1,10 @@
 import type { PuckMetadata, SlotComponent } from "@puckeditor/core";
 import type { AccordionBlockProps } from "@repo/ui/components/puck/accordion";
 import type { ButtonRowProps } from "@repo/ui/components/puck/button-row";
-import type { CollectionProps } from "@repo/ui/components/puck/collection/types";
+import type {
+  CollectionItem,
+  CollectionProps,
+} from "@repo/ui/components/puck/collection/types";
 import type { ColumnsProps } from "@repo/ui/components/puck/columns";
 import type { CTAProps } from "@repo/ui/components/puck/cta";
 import type { DividerProps } from "@repo/ui/components/puck/divider";
@@ -23,7 +26,6 @@ import type { TabsProps } from "@repo/ui/components/puck/tabs";
 import type { TeamGridProps } from "@repo/ui/components/puck/team-grid";
 import type { TextProps } from "@repo/ui/components/puck/text";
 import type { TimelineProps } from "@repo/ui/components/puck/timeline";
-import type { CollectionItem } from "@repo/ui/components/puck/collection/types";
 import type { AboutProps } from "@repo/ui/components/sections/about";
 import type {
   EventItem,
@@ -31,6 +33,7 @@ import type {
 } from "@repo/ui/components/sections/events";
 import type { JoinUsProps } from "@repo/ui/components/sections/join-us";
 import type { NewsProps } from "@repo/ui/components/sections/news";
+import type { JobDetailProps, ProductDetailProps } from "./detail";
 import type {
   AlertCardProps,
   ChecklistCardProps,
@@ -39,7 +42,6 @@ import type {
   NumberedStepsProps,
   TagListProps,
 } from "./extras";
-import type { JobDetailProps, ProductDetailProps } from "./detail";
 
 export type DataSourceValue = {
   table?: string;

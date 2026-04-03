@@ -1,19 +1,19 @@
 import { openai } from "@ai-sdk/openai";
 import {
-  Pinecone,
   type Index,
+  Pinecone,
   type QueryResponse,
   type RecordMetadata,
 } from "@pinecone-database/pinecone";
+import { type EmbeddingModel, embed, embedMany } from "ai";
+import { encode } from "gpt-tokenizer";
+import { v5 as uuidv5 } from "uuid";
 import type {
   IVectorStore,
   SearchOptions,
   SearchResult,
   VectorDocument,
 } from "../utils/vector-store.types";
-import { type EmbeddingModel, embed, embedMany } from "ai";
-import { encode } from "gpt-tokenizer";
-import { v5 as uuidv5 } from "uuid";
 
 // Embedding model configurations
 const EMBEDDING_MODELS = {

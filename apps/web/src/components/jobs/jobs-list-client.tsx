@@ -113,7 +113,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
           <div className="flex flex-col gap-4">
             {/* Search */}
             <div className="relative w-full">
-              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -123,7 +123,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
               />
               {searchQuery && (
                 <button
-                  className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground hover:text-muted-foreground"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   onClick={() => setSearchQuery("")}
                   type="button"
                 >

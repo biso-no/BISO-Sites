@@ -1,13 +1,11 @@
 "use server";
 
-import { ID, Query } from "@repo/api";
+import { ID, Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { BenefitPartner } from "@repo/api/types/appwrite";
-import { getCampusManagementTeamId } from "@/lib/campus-constants";
-import { buildBenefitPermissions } from "@/lib/permissions";
-import { assertWriteAccess } from "@/lib/utils/authorization";
 import { getUserAuthContext } from "@/lib/authorization";
-import { Permission, Role } from "@repo/api";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
+import { assertWriteAccess } from "@/lib/utils/authorization";
 
 export type CreatePartnerInput = {
   name: string;
@@ -25,7 +23,9 @@ export async function listManagedPartners(
   campusId?: string | null
 ): Promise<{ partners: BenefitPartner[]; total: number }> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const queries: string[] = [];
@@ -53,7 +53,9 @@ export async function listManagedPartners(
 
 export async function getPartner(id: string): Promise<BenefitPartner> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const partner = await db.getRow<BenefitPartner>(
@@ -73,7 +75,9 @@ export async function createPartner(
   input: CreatePartnerInput
 ): Promise<BenefitPartner> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   if (input.campus_id) {
     assertWriteAccess(ctx, input.campus_id);
@@ -112,7 +116,9 @@ export async function updatePartner(
   input: UpdatePartnerInput
 ): Promise<BenefitPartner> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const existing = await db.getRow<BenefitPartner>(
@@ -132,7 +138,9 @@ export async function updatePartner(
 
 export async function deletePartner(id: string): Promise<void> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const existing = await db.getRow<BenefitPartner>(

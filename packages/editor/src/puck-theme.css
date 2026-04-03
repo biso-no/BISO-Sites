@@ -144,9 +144,10 @@
 @media (min-width: 638px) {
   [class*="PuckLayout-inner"] {
     /* Visible workspace gap color — shows between floating panels */
-    background: hsl(215, 28%, 17%);
     gap: 8px;
     padding: 8px;
+    /* Visible workspace gap color — shows between floating panels */
+    background: hsl(215, 28%, 17%);
   }
 }
 .dark [class*="PuckLayout-inner"] {
@@ -156,12 +157,12 @@
 /* ── Header — floating pill bar ── */
 [class*="PuckHeader"]:not([class*="inner"]):not([class*="tools"]) {
   background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(24px) saturate(200%);
   border: 1px solid rgba(61, 169, 224, 0.14);
   border-radius: 14px;
   box-shadow:
     0 2px 8px rgba(0, 23, 49, 0.1),
     0 8px 24px rgba(0, 95, 202, 0.1);
+  backdrop-filter: blur(24px) saturate(200%);
 }
 .dark [class*="PuckHeader"]:not([class*="inner"]):not([class*="tools"]) {
   background: rgba(21, 29, 40, 0.92);
@@ -173,14 +174,14 @@
 
 /* ── Sidebars — floating cards ── */
 [class*="Sidebar--left"] {
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(24px) saturate(200%);
   border: 1px solid rgba(61, 169, 224, 0.14);
   border-radius: 14px;
   box-shadow:
     0 4px 16px rgba(0, 23, 49, 0.1),
     0 1px 4px rgba(61, 169, 224, 0.06);
-  overflow: hidden;
+  backdrop-filter: blur(24px) saturate(200%);
 }
 .dark [class*="Sidebar--left"] {
   background: rgba(21, 29, 40, 0.92);
@@ -191,14 +192,14 @@
 }
 
 [class*="Sidebar--right"] {
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(24px) saturate(200%);
   border: 1px solid rgba(61, 169, 224, 0.14);
   border-radius: 14px;
   box-shadow:
     0 4px 16px rgba(0, 23, 49, 0.1),
     0 1px 4px rgba(61, 169, 224, 0.06);
-  overflow: hidden;
+  backdrop-filter: blur(24px) saturate(200%);
 }
 .dark [class*="Sidebar--right"] {
   background: rgba(21, 29, 40, 0.95);
@@ -211,14 +212,14 @@
 /* ── Plugin nav rail — floating pill ── */
 @media (min-width: 638px) {
   [class*="Plugins_"] {
+    overflow: hidden;
     background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(24px) saturate(200%);
     border: 1px solid rgba(61, 169, 224, 0.14);
     border-radius: 14px;
     box-shadow:
       0 4px 16px rgba(0, 23, 49, 0.1),
       0 1px 4px rgba(61, 169, 224, 0.06);
-    overflow: hidden;
+    backdrop-filter: blur(24px) saturate(200%);
   }
   .dark [class*="Plugins_"] {
     background: rgba(21, 29, 40, 0.92);
@@ -272,13 +273,13 @@
 
 /* ── Canvas root (page frame) ── */
 [class*="PuckCanvas-root"] {
+  overflow: hidden;
   background: white;
   border: 1px solid rgba(61, 169, 224, 0.12);
   border-radius: 1.25rem;
   box-shadow:
     0 16px 48px rgba(0, 23, 49, 0.1),
     0 4px 12px rgba(61, 169, 224, 0.06);
-  overflow: hidden;
 }
 .dark [class*="PuckCanvas-root"] {
   background: hsl(222.2, 84%, 4.9%);
@@ -298,15 +299,15 @@
     box-shadow 0.2s ease;
 }
 [class*="Input-input"]:focus {
+  outline: none;
   background: rgba(255, 255, 255, 0.95);
   border-color: rgba(61, 169, 224, 0.4);
   box-shadow: 0 0 0 3px rgba(61, 169, 224, 0.1);
-  outline: none;
 }
 .dark [class*="Input-input"] {
+  color: hsl(210, 40%, 98%);
   background: rgba(21, 29, 40, 0.6);
   border-color: rgba(61, 169, 224, 0.2);
-  color: hsl(210, 40%, 98%);
 }
 .dark [class*="Input-input"]:focus {
   background: rgba(21, 29, 40, 0.9);
@@ -325,10 +326,10 @@
     box-shadow 0.2s ease;
 }
 [class*="DrawerItem-draggable"]:hover {
-  transform: translateY(-2px);
   box-shadow:
     0 4px 12px rgba(0, 23, 49, 0.08),
     0 2px 6px rgba(61, 169, 224, 0.06);
+  transform: translateY(-2px);
 }
 .dark [class*="DrawerItem-draggable"] {
   background: rgba(21, 29, 40, 0.9);
@@ -381,11 +382,11 @@
 
 /* ── Sidebar section title ── */
 [class*="SidebarSection-title"] {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(61, 169, 224, 0.15);
-  border-top: 1px solid rgba(61, 169, 224, 0.15);
   font-weight: 600;
+  background: rgba(255, 255, 255, 0.6);
+  border-top: 1px solid rgba(61, 169, 224, 0.15);
+  border-bottom: 1px solid rgba(61, 169, 224, 0.15);
+  backdrop-filter: blur(10px);
 }
 .dark [class*="SidebarSection-title"] {
   background: rgba(21, 29, 40, 0.75);
@@ -418,9 +419,9 @@
 /* ── Action bar (block toolbar) ── */
 [class*="ActionBar_"] {
   background: rgba(0, 23, 49, 0.95);
-  backdrop-filter: blur(10px);
   border-radius: 0.625rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
 }
 .dark [class*="ActionBar_"] {
   background: rgba(21, 29, 40, 0.95);
@@ -435,15 +436,15 @@
     background 0.15s ease;
 }
 [class*="DraggableComponent--hover"] [class*="DraggableComponent-overlay"] {
-  background: rgba(61, 169, 224, 0.1);
   outline: 2px solid rgba(61, 169, 224, 0.4);
+  background: rgba(61, 169, 224, 0.1);
   box-shadow: 0 4px 12px rgba(61, 169, 224, 0.15);
 }
 .dark
   [class*="DraggableComponent--hover"]
   [class*="DraggableComponent-overlay"] {
-  background: rgba(61, 169, 224, 0.08);
   outline: 2px solid rgba(61, 169, 224, 0.5);
+  background: rgba(61, 169, 224, 0.08);
   box-shadow: 0 4px 12px rgba(61, 169, 224, 0.2);
 }
 

@@ -85,12 +85,12 @@ function parseTeamMemberships(
   };
 
   for (const team of teams) {
-    if (CAMPUS_NAME_TO_ID[team.name] !== undefined) {
-      result.campusTeamIds.push(team.$id);
-      result.campusNames.push(team.name);
-    } else {
+    if (CAMPUS_NAME_TO_ID[team.name] === undefined) {
       result.departmentTeamIds.push(team.$id);
       result.departmentNames.push(team.name);
+    } else {
+      result.campusTeamIds.push(team.$id);
+      result.campusNames.push(team.name);
     }
   }
 

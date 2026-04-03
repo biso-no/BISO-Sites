@@ -157,31 +157,31 @@ export const ExtrasComponents = {
 
       if (variant === "compact") {
         return (
-          <section className="w-full py-10 px-4">
+          <section className="w-full px-4 py-10">
             {title && (
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+              <h2 className="mb-2 font-bold text-2xl text-gray-900">{title}</h2>
             )}
-            {subtitle && <p className="text-gray-500 mb-6">{subtitle}</p>}
+            {subtitle && <p className="mb-6 text-gray-500">{subtitle}</p>}
             <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
               {items.map((item, i) => (
-                <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <div className="flex items-center gap-4 px-4 py-3" key={i}>
                   {item.avatar ? (
                     <img
-                      src={item.avatar}
                       alt={item.name}
                       className="h-9 w-9 rounded-full object-cover"
+                      src={item.avatar}
                     />
                   ) : (
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-600 text-xs">
                       {item.name.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 truncate">
+                    <p className="truncate font-medium text-gray-900">
                       {item.name}
                     </p>
                     {(item.role || item.department) && (
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="truncate text-gray-500 text-xs">
                         {[item.role, item.department]
                           .filter(Boolean)
                           .join(" · ")}
@@ -190,8 +190,8 @@ export const ExtrasComponents = {
                   </div>
                   {item.email && (
                     <a
+                      className="flex items-center gap-1 text-blue-600 text-sm transition-colors hover:text-blue-800"
                       href={`mailto:${item.email}`}
-                      className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
                     >
                       <Mail className="h-4 w-4" />
                     </a>
@@ -205,34 +205,34 @@ export const ExtrasComponents = {
 
       if (variant === "horizontal") {
         return (
-          <section className="w-full py-10 px-4">
+          <section className="w-full px-4 py-10">
             {title && (
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+              <h2 className="mb-2 font-bold text-2xl text-gray-900">{title}</h2>
             )}
-            {subtitle && <p className="text-gray-500 mb-8">{subtitle}</p>}
+            {subtitle && <p className="mb-8 text-gray-500">{subtitle}</p>}
             <div className="space-y-4">
               {items.map((item, i) => (
                 <div
-                  key={i}
                   className="flex items-center gap-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                  key={i}
                 >
                   {item.avatar ? (
                     <img
-                      src={item.avatar}
                       alt={item.name}
                       className="h-16 w-16 rounded-full object-cover"
+                      src={item.avatar}
                     />
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xl font-bold text-white">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white text-xl">
                       {item.name.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="font-semibold text-gray-900 text-lg">
                       {item.name}
                     </h3>
                     {(item.role || item.department) && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-gray-500 text-sm">
                         {[item.role, item.department]
                           .filter(Boolean)
                           .join(" · ")}
@@ -241,8 +241,8 @@ export const ExtrasComponents = {
                     <div className="mt-2 flex flex-wrap gap-3">
                       {item.email && (
                         <a
+                          className="flex items-center gap-1.5 text-blue-600 text-sm hover:text-blue-800"
                           href={`mailto:${item.email}`}
-                          className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800"
                         >
                           <Mail className="h-3.5 w-3.5" />
                           {item.email}
@@ -250,15 +250,15 @@ export const ExtrasComponents = {
                       )}
                       {item.phone && (
                         <a
+                          className="flex items-center gap-1.5 text-gray-600 text-sm hover:text-gray-900"
                           href={`tel:${item.phone}`}
-                          className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"
                         >
                           <Phone className="h-3.5 w-3.5" />
                           {item.phone}
                         </a>
                       )}
                       {item.location && (
-                        <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                        <span className="flex items-center gap-1.5 text-gray-500 text-sm">
                           <MapPin className="h-3.5 w-3.5" />
                           {item.location}
                         </span>
@@ -274,48 +274,48 @@ export const ExtrasComponents = {
 
       // Default: cards
       return (
-        <section className="w-full py-12 px-4">
+        <section className="w-full px-4 py-12">
           {(title || subtitle) && (
             <div className="mb-10 text-center">
               {title && (
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                <h2 className="mb-2 font-bold text-3xl text-gray-900">
                   {title}
                 </h2>
               )}
-              {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
+              {subtitle && <p className="text-gray-500 text-lg">{subtitle}</p>}
             </div>
           )}
           <div className={`grid gap-6 ${colClass[columns] ?? colClass[3]}`}>
             {items.map((item, i) => (
               <div
-                key={i}
                 className="flex flex-col items-center rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-sm transition hover:shadow-md"
+                key={i}
               >
                 {item.avatar ? (
                   <img
-                    src={item.avatar}
                     alt={item.name}
                     className="mb-4 h-20 w-20 rounded-full object-cover ring-2 ring-gray-100"
+                    src={item.avatar}
                   />
                 ) : (
-                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-2xl font-bold text-white">
+                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-2xl text-white">
                     {item.name.charAt(0).toUpperCase()}
                   </div>
                 )}
                 <h3 className="font-semibold text-gray-900">{item.name}</h3>
                 {item.role && (
-                  <p className="mt-0.5 text-sm text-gray-500">{item.role}</p>
+                  <p className="mt-0.5 text-gray-500 text-sm">{item.role}</p>
                 )}
                 {item.department && (
-                  <p className="mt-0.5 text-xs font-medium text-blue-600">
+                  <p className="mt-0.5 font-medium text-blue-600 text-xs">
                     {item.department}
                   </p>
                 )}
-                <div className="mt-4 flex flex-col gap-2 w-full">
+                <div className="mt-4 flex w-full flex-col gap-2">
                   {item.email && (
                     <a
+                      className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 font-medium text-gray-700 text-sm transition hover:bg-gray-50"
                       href={`mailto:${item.email}`}
-                      className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                     >
                       <Mail className="h-4 w-4 text-gray-400" />
                       Send email
@@ -323,15 +323,15 @@ export const ExtrasComponents = {
                   )}
                   {item.phone && (
                     <a
+                      className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 font-medium text-gray-700 text-sm transition hover:bg-gray-50"
                       href={`tel:${item.phone}`}
-                      className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                     >
                       <Phone className="h-4 w-4 text-gray-400" />
                       {item.phone}
                     </a>
                   )}
                   {item.location && (
-                    <span className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                    <span className="flex items-center justify-center gap-1.5 text-gray-400 text-xs">
                       <MapPin className="h-3.5 w-3.5" />
                       {item.location}
                     </span>
@@ -416,24 +416,24 @@ export const ExtrasComponents = {
 
       if (variant === "grid") {
         return (
-          <section className="w-full py-10 px-4">
+          <section className="w-full px-4 py-10">
             {title && (
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+              <h2 className="mb-2 font-bold text-2xl text-gray-900">{title}</h2>
             )}
-            {subtitle && <p className="text-gray-500 mb-6">{subtitle}</p>}
+            {subtitle && <p className="mb-6 text-gray-500">{subtitle}</p>}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((item, i) => (
                 <a
-                  key={i}
-                  href={item.url || "#"}
+                  className="group flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 transition hover:border-blue-200 hover:shadow-md"
                   download
-                  className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 transition hover:shadow-md hover:border-blue-200 group"
+                  href={item.url || "#"}
+                  key={i}
                 >
                   <div className="flex items-start justify-between">
-                    <FileText className="h-8 w-8 text-gray-400 group-hover:text-blue-500 transition" />
+                    <FileText className="h-8 w-8 text-gray-400 transition group-hover:text-blue-500" />
                     {item.type && (
                       <span
-                        className={`rounded border px-2 py-0.5 text-xs font-semibold uppercase ${typeColor(item.type)}`}
+                        className={`rounded border px-2 py-0.5 font-semibold text-xs uppercase ${typeColor(item.type)}`}
                       >
                         {item.type}
                       </span>
@@ -442,15 +442,15 @@ export const ExtrasComponents = {
                   <div>
                     <p className="font-medium text-gray-900">{item.name}</p>
                     {item.description && (
-                      <p className="mt-0.5 text-sm text-gray-500">
+                      <p className="mt-0.5 text-gray-500 text-sm">
                         {item.description}
                       </p>
                     )}
                     {item.size && (
-                      <p className="mt-1 text-xs text-gray-400">{item.size}</p>
+                      <p className="mt-1 text-gray-400 text-xs">{item.size}</p>
                     )}
                   </div>
-                  <div className="mt-auto flex items-center gap-1.5 text-sm font-medium text-blue-600">
+                  <div className="mt-auto flex items-center gap-1.5 font-medium text-blue-600 text-sm">
                     <Download className="h-4 w-4" />
                     Download
                   </div>
@@ -462,40 +462,40 @@ export const ExtrasComponents = {
       }
 
       return (
-        <section className="w-full py-10 px-4">
+        <section className="w-full px-4 py-10">
           {title && (
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+            <h2 className="mb-2 font-bold text-2xl text-gray-900">{title}</h2>
           )}
-          {subtitle && <p className="text-gray-500 mb-6">{subtitle}</p>}
-          <div className="rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white">
+          {subtitle && <p className="mb-6 text-gray-500">{subtitle}</p>}
+          <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
             {items.map((item, i) => (
-              <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+              <div className="flex items-center gap-4 px-4 py-3.5" key={i}>
                 <FileText className="h-5 w-5 shrink-0 text-gray-400" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-gray-900 truncate">
+                  <p className="truncate font-medium text-gray-900">
                     {item.name}
                   </p>
                   {item.description && (
-                    <p className="text-sm text-gray-500 truncate">
+                    <p className="truncate text-gray-500 text-sm">
                       {item.description}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
                   {item.size && (
-                    <span className="text-xs text-gray-400">{item.size}</span>
+                    <span className="text-gray-400 text-xs">{item.size}</span>
                   )}
                   {item.type && (
                     <span
-                      className={`rounded border px-2 py-0.5 text-xs font-semibold uppercase ${typeColor(item.type)}`}
+                      className={`rounded border px-2 py-0.5 font-semibold text-xs uppercase ${typeColor(item.type)}`}
                     >
                       {item.type}
                     </span>
                   )}
                   <a
-                    href={item.url || "#"}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-700 text-sm transition hover:border-blue-300 hover:bg-gray-50 hover:text-blue-600"
                     download
-                    className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600"
+                    href={item.url || "#"}
                   >
                     <Download className="h-3.5 w-3.5" />
                     Download
@@ -568,35 +568,35 @@ export const ExtrasComponents = {
     }: NumberedStepsProps) => {
       if (variant === "horizontal") {
         return (
-          <section className="w-full py-12 px-4">
+          <section className="w-full px-4 py-12">
             {(title || subtitle) && (
               <div className="mb-10 text-center">
                 {title && (
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h2 className="mb-2 font-bold text-3xl text-gray-900">
                     {title}
                   </h2>
                 )}
                 {subtitle && (
-                  <p className="text-lg text-gray-500">{subtitle}</p>
+                  <p className="text-gray-500 text-lg">{subtitle}</p>
                 )}
               </div>
             )}
-            <div className="max-w-5xl mx-auto">
+            <div className="mx-auto max-w-5xl">
               <div className="flex items-start gap-0">
                 {steps.map((step, i) => (
-                  <div key={i} className="flex-1 relative">
+                  <div className="relative flex-1" key={i}>
                     {i < steps.length - 1 && (
-                      <div className="absolute top-5 left-1/2 right-0 h-px bg-gray-200" />
+                      <div className="absolute top-5 right-0 left-1/2 h-px bg-gray-200" />
                     )}
-                    <div className="flex flex-col items-center text-center px-4">
-                      <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white shadow">
+                    <div className="flex flex-col items-center px-4 text-center">
+                      <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 font-bold text-sm text-white shadow">
                         {i + 1}
                       </div>
                       <h3 className="mt-3 font-semibold text-gray-900">
                         {step.title}
                       </h3>
                       {step.description && (
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-gray-500 text-sm">
                           {step.description}
                         </p>
                       )}
@@ -611,33 +611,33 @@ export const ExtrasComponents = {
 
       if (variant === "cards") {
         return (
-          <section className="w-full py-12 px-4">
+          <section className="w-full px-4 py-12">
             {(title || subtitle) && (
               <div className="mb-10 text-center">
                 {title && (
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h2 className="mb-2 font-bold text-3xl text-gray-900">
                     {title}
                   </h2>
                 )}
                 {subtitle && (
-                  <p className="text-lg text-gray-500">{subtitle}</p>
+                  <p className="text-gray-500 text-lg">{subtitle}</p>
                 )}
               </div>
             )}
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
+            <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {steps.map((step, i) => (
                 <div
-                  key={i}
                   className="relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+                  key={i}
                 >
-                  <span className="absolute -top-3 -left-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-md">
+                  <span className="absolute -top-3 -left-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold text-white text-xs shadow-md">
                     {i + 1}
                   </span>
                   <h3 className="mt-2 font-semibold text-gray-900">
                     {step.title}
                   </h3>
                   {step.description && (
-                    <p className="mt-2 text-sm text-gray-500">
+                    <p className="mt-2 text-gray-500 text-sm">
                       {step.description}
                     </p>
                   )}
@@ -650,22 +650,22 @@ export const ExtrasComponents = {
 
       // Vertical (default)
       return (
-        <section className="w-full py-12 px-4">
+        <section className="w-full px-4 py-12">
           {(title || subtitle) && (
             <div className="mb-10">
               {title && (
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                <h2 className="mb-2 font-bold text-3xl text-gray-900">
                   {title}
                 </h2>
               )}
-              {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
+              {subtitle && <p className="text-gray-500 text-lg">{subtitle}</p>}
             </div>
           )}
           <div className="max-w-2xl space-y-0">
             {steps.map((step, i) => (
-              <div key={i} className="flex gap-5">
+              <div className="flex gap-5" key={i}>
                 <div className="flex flex-col items-center">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 font-bold text-sm text-white">
                     {i + 1}
                   </div>
                   {i < steps.length - 1 && (
@@ -678,7 +678,7 @@ export const ExtrasComponents = {
                 <div className="pb-8">
                   <h3 className="font-semibold text-gray-900">{step.title}</h3>
                   {step.description && (
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 text-gray-600 text-sm">
                       {step.description}
                     </p>
                   )}
@@ -780,9 +780,9 @@ export const ExtrasComponents = {
       };
 
       return (
-        <div className="py-3 px-4">
+        <div className="px-4 py-3">
           {title && (
-            <span className="mr-3 text-sm font-medium text-gray-600">
+            <span className="mr-3 font-medium text-gray-600 text-sm">
               {title}
             </span>
           )}
@@ -792,11 +792,11 @@ export const ExtrasComponents = {
             {tags.map((tag, i) => {
               const cls = `inline-flex items-center rounded-full font-medium transition ${sizeClass[size] ?? sizeClass.md} ${variantClass[variant] ?? variantClass.default}`;
               return tag.href ? (
-                <a key={i} href={tag.href} className={cls}>
+                <a className={cls} href={tag.href} key={i}>
                   {tag.label}
                 </a>
               ) : (
-                <span key={i} className={cls}>
+                <span className={cls} key={i}>
                   {tag.label}
                 </span>
               );
@@ -922,14 +922,14 @@ export const ExtrasComponents = {
               <svg
                 className={`mt-0.5 h-5 w-5 shrink-0 ${s.icon}`}
                 fill="none"
-                viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={1.5}
+                viewBox="0 0 24 24"
               >
                 <path
+                  d={iconPaths[variant] ?? iconPaths.info}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d={iconPaths[variant] ?? iconPaths.info}
                 />
               </svg>
             )}
@@ -938,8 +938,8 @@ export const ExtrasComponents = {
               {content && <p className={`mt-1 text-sm ${s.text}`}>{content}</p>}
               {ctaLabel && ctaHref && (
                 <a
+                  className={`mt-3 inline-block rounded-md px-3 py-1.5 font-medium text-sm transition ${s.btn}`}
                   href={ctaHref}
-                  className={`mt-3 inline-block rounded-md px-3 py-1.5 text-sm font-medium transition ${s.btn}`}
                 >
                   {ctaLabel}
                 </a>
@@ -1024,17 +1024,17 @@ export const ExtrasComponents = {
           return (
             <svg
               className="h-4 w-4 text-blue-600"
-              viewBox="0 0 16 16"
               fill="currentColor"
+              viewBox="0 0 16 16"
             >
-              <path d="M2 2h12v12H2z" className="text-blue-100" />
+              <path className="text-blue-100" d="M2 2h12v12H2z" />
               <path
                 d="M5 8l2.5 2.5L11 5.5"
-                stroke="currentColor"
-                strokeWidth={1.5}
                 fill="none"
+                stroke="currentColor"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                strokeWidth={1.5}
               />
             </svg>
           );
@@ -1044,14 +1044,14 @@ export const ExtrasComponents = {
             <svg
               className="h-4 w-4 text-blue-600"
               fill="none"
-              viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2}
+              viewBox="0 0 24 24"
             >
               <path
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M13 7l5 5m0 0l-5 5m5-5H6"
               />
             </svg>
           );
@@ -1062,27 +1062,27 @@ export const ExtrasComponents = {
       return (
         <div className={`w-full ${wrapperClass}`}>
           {title && (
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <h3 className="font-semibold text-gray-900 text-lg">{title}</h3>
           )}
           {description && (
-            <p className="mt-1.5 text-sm text-gray-500">{description}</p>
+            <p className="mt-1.5 text-gray-500 text-sm">{description}</p>
           )}
           <ul className="mt-4 space-y-2.5">
             {items.map((item, i) => (
-              <li key={i} className="flex items-start gap-3">
+              <li className="flex items-start gap-3" key={i}>
                 <span
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                    item.checked !== false ? "bg-blue-100" : "bg-gray-100"
+                    item.checked === false ? "bg-gray-100" : "bg-blue-100"
                   }`}
                 >
-                  {item.checked !== false ? (
-                    <CheckIcon />
-                  ) : (
+                  {item.checked === false ? (
                     <span className="h-2 w-2 rounded-full bg-gray-300" />
+                  ) : (
+                    <CheckIcon />
                   )}
                 </span>
                 <span
-                  className={`text-sm ${item.checked !== false ? "text-gray-700" : "text-gray-500"}`}
+                  className={`text-sm ${item.checked === false ? "text-gray-500" : "text-gray-700"}`}
                 >
                   {item.text}
                 </span>
@@ -1091,8 +1091,8 @@ export const ExtrasComponents = {
           </ul>
           {ctaLabel && ctaHref && (
             <a
+              className="mt-5 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-sm text-white transition hover:bg-blue-700"
               href={ctaHref}
-              className="mt-5 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
             >
               {ctaLabel}
             </a>

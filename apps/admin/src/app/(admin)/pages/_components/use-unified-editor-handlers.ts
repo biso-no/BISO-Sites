@@ -12,10 +12,10 @@ import type { Data } from "@repo/editor";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { sanitizeSlug } from "@/lib/utils";
 import { upsertManagedPage } from "@/app/actions/pages/actions";
 import { generateSeoMetadata } from "@/app/actions/pages/seo";
 import { translatePageContent } from "@/app/actions/pages/translate";
+import { sanitizeSlug } from "@/lib/utils";
 import type { UntranslatedLocaleInfo } from "./translation-check-modal";
 
 type LocaleData = {
@@ -59,7 +59,9 @@ const TEXT_FIELD_KEYS = new Set([
 function hasTextContent(props: Record<string, unknown>): boolean {
   for (const key of TEXT_FIELD_KEYS) {
     const val = props[key];
-    if (typeof val === "string" && val.trim().length > 0) return true;
+    if (typeof val === "string" && val.trim().length > 0) {
+      return true;
+    }
   }
   return false;
 }
@@ -70,12 +72,16 @@ function detectUntranslatedLocales(
   availableLocales: Locale[]
 ): UntranslatedLocaleInfo[] {
   const sourceData = localeData[currentLocale];
-  if (!sourceData) return [];
+  if (!sourceData) {
+    return [];
+  }
 
   const results: UntranslatedLocaleInfo[] = [];
 
   for (const locale of availableLocales) {
-    if (locale === currentLocale) continue;
+    if (locale === currentLocale) {
+      continue;
+    }
     const locData = localeData[locale];
 
     if (!locData?.title.trim()) {
@@ -89,7 +95,9 @@ function detectUntranslatedLocales(
     }
 
     const missingFields: string[] = [];
-    if (!locData.title.trim()) missingFields.push("title");
+    if (!locData.title.trim()) {
+      missingFields.push("title");
+    }
     if (!locData.description.trim() && sourceData.description.trim()) {
       missingFields.push("description");
     }
@@ -197,8 +205,12 @@ export function useUnifiedEditorHandlers({
         const locData = updatedLocaleData[locale];
         // Always include the locale being saved; skip other locales that haven't
         // been filled out yet (e.g. the second locale on a brand-new page).
-        if (locale !== currentLocale && !locData?.title.trim()) return null;
-        if (!locData) return null;
+        if (locale !== currentLocale && !locData?.title.trim()) {
+          return null;
+        }
+        if (!locData) {
+          return null;
+        }
         return {
           locale,
           // Fall back to slug for untitled drafts so a title-less new page can
@@ -256,7 +268,9 @@ export function useUnifiedEditorHandlers({
       const seoEnriched: Record<string, LocaleData | null> = {};
       for (const locale of availableLocales) {
         const locData = tentative[locale];
-        if (!locData) continue;
+        if (!locData) {
+          continue;
+        }
         const rootProps = (locData.data.root?.props ?? {}) as Record<
           string,
           unknown
@@ -463,7 +477,9 @@ export function useUnifiedEditorHandlers({
 
   const handleTranslateAndPublish = async () => {
     const pending = pendingPublishRef.current;
-    if (!pending) return;
+    if (!pending) {
+      return;
+    }
 
     setIsTranslating(true);
     const { data, metadata, tentativeLocaleData } = pending;
@@ -482,7 +498,9 @@ export function useUnifiedEditorHandlers({
 
         try {
           const sourceData = latestLocaleData[currentLocale];
-          if (!sourceData) continue;
+          if (!sourceData) {
+            continue;
+          }
 
           const result = await translatePageContent({
             sourceLocale: currentLocale,
@@ -538,7 +556,9 @@ export function useUnifiedEditorHandlers({
 
   const handleSkipAndPublish = async () => {
     const pending = pendingPublishRef.current;
-    if (!pending) return;
+    if (!pending) {
+      return;
+    }
     setShowTranslationModal(false);
     pendingPublishRef.current = null;
     await executePublish(

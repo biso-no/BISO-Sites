@@ -176,11 +176,11 @@ export function ExpenseSplitView({
             body: ocrFormData,
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("OCR timed out")), 30000)
+            setTimeout(() => reject(new Error("OCR timed out")), 30_000)
           ),
         ]);
 
-        if (!ocrResult.success || !ocrResult.data) {
+        if (!(ocrResult.success && ocrResult.data)) {
           throw new Error("OCR processing returned no data");
         }
 
@@ -323,7 +323,7 @@ export function ExpenseSplitView({
           <div className="relative h-full pt-16">
             <div className="absolute top-4 left-4 z-10">
               <Button
-                className="rounded-full bg-muted px-4 py-2 text-sm text-foreground backdrop-blur-md hover:bg-muted/80 dark:bg-background/10 dark:text-white dark:hover:bg-background/20"
+                className="rounded-full bg-muted px-4 py-2 text-foreground text-sm backdrop-blur-md hover:bg-muted/80 dark:bg-background/10 dark:text-white dark:hover:bg-background/20"
                 onClick={() => store.setSelectedReceiptId(null)}
               >
                 ← Back to Report

@@ -1,7 +1,7 @@
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { getLocale } from "@/app/actions/locale";
 import { getProductBySlug } from "@/app/actions/webshop";
 import { ProductDetailsServer } from "@/components/shop/product-details-server"; // New Server Component

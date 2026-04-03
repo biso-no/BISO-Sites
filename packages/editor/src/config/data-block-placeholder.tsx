@@ -12,14 +12,14 @@ export function DataBlockPlaceholder({
   itemCount?: number;
 }) {
   return (
-    <div className="w-full rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8">
+    <div className="w-full rounded-xl border-2 border-gray-200 border-dashed bg-gray-50/50 p-8">
       <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-xs font-bold text-gray-500">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 font-bold text-gray-500 text-xs">
           {type.charAt(0)}
         </div>
         <div>
-          <div className="text-sm font-semibold text-gray-600">{type}</div>
-          <div className="text-xs text-gray-400">
+          <div className="font-semibold text-gray-600 text-sm">{type}</div>
+          <div className="text-gray-400 text-xs">
             {itemCount} {itemCount === 1 ? "item" : "items"} from database
           </div>
         </div>
@@ -32,8 +32,8 @@ export function DataBlockPlaceholder({
       >
         {Array.from({ length: Math.min(itemCount, 6) }, (_, i) => (
           <div
-            key={i}
             className="space-y-2 rounded-lg border border-gray-200 bg-white p-4"
+            key={i}
           >
             <div className="h-20 w-full animate-pulse rounded-md bg-gray-100" />
             <div className="h-3 w-3/4 animate-pulse rounded bg-gray-100" />

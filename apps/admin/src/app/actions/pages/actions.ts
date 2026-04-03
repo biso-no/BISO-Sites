@@ -16,8 +16,8 @@ import {
   getUserAuthContext,
   isGlobalAdmin,
 } from "@/lib/authorization";
-import { buildPagePermissions } from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
+import { buildPagePermissions } from "@/lib/permissions";
 import type { CreateManagedPageInput, UpdateManagedPageInput } from "./types";
 import { ADMIN_LIST_PATH, cloneDocument, revalidateForPage } from "./utils";
 

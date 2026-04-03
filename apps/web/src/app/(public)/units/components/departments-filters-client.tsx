@@ -72,7 +72,7 @@ export function DepartmentsFiltersClient({
       <div className="grid gap-4 md:grid-cols-3">
         {/* Search */}
         <div className="relative">
-          <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 transform text-muted-foreground" />
+          <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground" />
           <Input
             className="pl-10"
             onChange={(e) => setSearchQuery(e.target.value)}

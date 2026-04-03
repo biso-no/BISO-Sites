@@ -1,5 +1,6 @@
 "use client";
 
+import type { CampusBenefit } from "@repo/api/types/appwrite";
 import {
   Carousel,
   CarouselContent,
@@ -8,19 +9,11 @@ import {
   CarouselPrevious,
 } from "@repo/ui/components/ui/carousel";
 import { motion } from "motion/react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { BenefitPreviewCard } from "./benefit-preview-card";
 
-import { CampusBenefit } from "@repo/api/types/appwrite";
-
 export function BenefitsShowcase({ benefits }: { benefits: CampusBenefit[] }) {
   const t = useTranslations("memberPortal");
-  const router = useRouter();
-
-  const handleJoinClick = () => {
-    router.push("/membership");
-  };
 
   return (
     <section className="py-12">
@@ -55,9 +48,8 @@ export function BenefitsShowcase({ benefits }: { benefits: CampusBenefit[] }) {
               >
                 <BenefitPreviewCard
                   category={benefit.category}
-                  discountText={benefit.teaser_en || "Unlock to see"}
+                  discountText={benefit.teaser_en || benefit.title_en}
                   index={index}
-                  onJoinClick={handleJoinClick}
                   partnerName={benefit.partner_name || "Partner"}
                 />
               </CarouselItem>

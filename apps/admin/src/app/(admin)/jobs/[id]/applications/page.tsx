@@ -19,7 +19,7 @@ export default async function AdminJobApplications({
           <p className="text-muted-foreground">
             {t("applications.summary", {
               count: apps.length,
-              plural: apps.length !== 1 ? "s" : "",
+              plural: apps.length === 1 ? "" : "s",
             })}
           </p>
         </div>

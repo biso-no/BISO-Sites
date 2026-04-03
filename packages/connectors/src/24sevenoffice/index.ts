@@ -7,13 +7,6 @@
  * REST API integration (Finago REST API) lives in ./rest.
  */
 
-// Finago REST API
-export {
-  DEPARTMENT_DIMENSION_TYPE,
-  getDepartments,
-  type DimensionElement,
-} from "./rest";
-
 // Authentication (lower-level, usually not needed directly)
 export { getValidSession, hasSession } from "./auth";
 // Category management
@@ -35,14 +28,12 @@ export {
   searchCustomerByStudentId,
 } from "./company";
 export type { InvoiceOrder, InvoiceRow } from "./invoice";
-
 // Invoice management
 export {
   CAMPUS_DEPARTMENT_IDS,
   CAMPUS_NAMES,
   createMembershipInvoice,
 } from "./invoice";
-
 // Membership product sync (admin)
 export {
   isActiveByDate,
@@ -53,6 +44,12 @@ export {
 } from "./membership-sync";
 // Products management
 export { getMembershipProducts, getProducts } from "./products";
+// Finago REST API
+export {
+  DEPARTMENT_DIMENSION_TYPE,
+  type DimensionElement,
+  getDepartments,
+} from "./rest";
 // Customer sync function
 export { hasMembershipProduct, syncMembershipTo24SO } from "./sync";
 // Types

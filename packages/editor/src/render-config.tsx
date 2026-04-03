@@ -56,8 +56,8 @@ import {
 } from "./config/layout.render";
 import {
   AboutRender,
-  CTARender,
   CountdownRender,
+  CTARender,
   JoinUsRender,
   PricingTableRender,
 } from "./config/marketing.render";

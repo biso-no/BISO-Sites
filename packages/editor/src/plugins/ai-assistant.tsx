@@ -4,31 +4,30 @@ import type { Plugin } from "@puckeditor/core";
 import { createUsePuck, useGetPuck } from "@puckeditor/core";
 
 const usePuck = createUsePuck();
+
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { Textarea } from "@repo/ui/components/ui/textarea";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
+import { Textarea } from "@repo/ui/components/ui/textarea";
 import {
-  Sparkles,
-  Wand2,
-  PenLine,
-  Type,
-  FileText,
-  MousePointerClick,
-  SpellCheck,
+  Check,
+  Copy,
   Languages,
   Lightbulb,
   Loader2,
-  Copy,
-  Check,
+  PenLine,
+  Sparkles,
+  SpellCheck,
+  Type,
+  Wand2,
   X,
 } from "lucide-react";
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  useAiAssistant,
   type AssistAction,
+  useAiAssistant,
 } from "../contexts/ai-assistant-context";
 
 // ---------------------------------------------------------------------------
@@ -61,12 +60,15 @@ type AssistResult = {
 function extractBlockText(props: Record<string, unknown>): string {
   const texts: string[] = [];
   function walk(val: unknown) {
-    if (typeof val === "string" && val.trim().length > 0)
+    if (typeof val === "string" && val.trim().length > 0) {
       texts.push(val.trim());
-    else if (Array.isArray(val)) val.forEach(walk);
-    else if (val && typeof val === "object") {
+    } else if (Array.isArray(val)) {
+      val.forEach(walk);
+    } else if (val && typeof val === "object") {
       for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
-        if (k === "id" || k === "href" || k === "image") continue;
+        if (k === "id" || k === "href" || k === "image") {
+          continue;
+        }
         walk(v);
       }
     }
@@ -82,7 +84,9 @@ function extractBlockText(props: Record<string, unknown>): string {
 function extractPageSummary(
   content: { type: string; props: Record<string, unknown> }[]
 ): string {
-  if (content.length === 0) return "Empty page — no blocks yet.";
+  if (content.length === 0) {
+    return "Empty page — no blocks yet.";
+  }
   const lines = content.map((block, i) => {
     const p = block.props as Record<string, unknown>;
     const title =
@@ -124,29 +128,29 @@ function StreamingTextResult({
   return (
     <div className="mt-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
       <div className="flex items-start justify-between gap-2">
-        <p className="whitespace-pre-wrap leading-relaxed text-foreground flex-1">
+        <p className="flex-1 whitespace-pre-wrap text-foreground leading-relaxed">
           {result.text}
           {result.isStreaming && (
             <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
           )}
         </p>
         <button
-          type="button"
-          onClick={onDismiss}
           className="shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={onDismiss}
+          type="button"
         >
           <X size={14} />
         </button>
       </div>
       {!result.isStreaming && result.text.length > 0 && (
         <Button
-          variant="ghost"
-          size="sm"
           className="mt-2 h-7 gap-1 text-xs"
           onClick={handleCopy}
+          size="sm"
+          variant="ghost"
         >
           {copied ? (
-            <Check size={12} className="text-green-500" />
+            <Check className="text-green-500" size={12} />
           ) : (
             <Copy size={12} />
           )}
@@ -185,16 +189,16 @@ function ActionButton({
 
   return (
     <Button
-      variant={variant}
-      size="sm"
       className={`justify-start ${className}`}
       disabled={isDisabled}
       onClick={() => onClick(loadingKey)}
+      size="sm"
+      variant={variant}
     >
       {isLoading ? (
-        <Loader2 size={14} className="mr-2 animate-spin" />
+        <Loader2 className="mr-2 animate-spin" size={14} />
       ) : (
-        <Icon size={14} className="mr-2" />
+        <Icon className="mr-2" size={14} />
       )}
       {label}
     </Button>
@@ -228,16 +232,16 @@ function CopyGenerator({
   const isDisabled = activeLoading !== null;
   const showResult = result?.key === loadingKey;
 
-  if (!expanded && !showResult) {
+  if (!(expanded || showResult)) {
     return (
       <Button
-        variant="outline"
-        size="sm"
         className="justify-start"
         disabled={isDisabled}
         onClick={() => setExpanded(true)}
+        size="sm"
+        variant="outline"
       >
-        <PenLine size={14} className="mr-2" />
+        <PenLine className="mr-2" size={14} />
         {label}
       </Button>
     );
@@ -245,14 +249,12 @@ function CopyGenerator({
 
   return (
     <div className="space-y-2 rounded-md border border-border p-2">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-muted-foreground text-xs">{label}</Label>
       {expanded && (
         <>
           <Input
-            placeholder={placeholder}
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
             className="h-8 text-sm"
+            onChange={(e) => setContext(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && context.trim()) {
                 onGenerate(loadingKey, context);
@@ -260,10 +262,11 @@ function CopyGenerator({
                 setContext("");
               }
             }}
+            placeholder={placeholder}
+            value={context}
           />
           <div className="flex gap-2">
             <Button
-              size="sm"
               className="h-7 text-xs"
               disabled={isDisabled || !context.trim()}
               onClick={() => {
@@ -271,22 +274,23 @@ function CopyGenerator({
                 setExpanded(false);
                 setContext("");
               }}
+              size="sm"
             >
               {isLoading ? (
-                <Loader2 size={12} className="mr-1 animate-spin" />
+                <Loader2 className="mr-1 animate-spin" size={12} />
               ) : (
-                <Sparkles size={12} className="mr-1" />
+                <Sparkles className="mr-1" size={12} />
               )}
               Generate
             </Button>
             <Button
-              variant="ghost"
-              size="sm"
               className="h-7 text-xs"
               onClick={() => {
                 setExpanded(false);
                 setContext("");
               }}
+              size="sm"
+              variant="ghost"
             >
               Cancel
             </Button>
@@ -295,20 +299,20 @@ function CopyGenerator({
       )}
       {showResult && result && (
         <StreamingTextResult
-          result={result}
           onDismiss={() => {
             onDismissResult();
             setExpanded(false);
           }}
+          result={result}
         />
       )}
       {showResult && !expanded && (
         <Button
-          variant="ghost"
-          size="sm"
           className="h-7 w-full text-xs"
           disabled={isDisabled}
           onClick={() => setExpanded(true)}
+          size="sm"
+          variant="ghost"
         >
           Regenerate
         </Button>
@@ -336,7 +340,9 @@ function AiAssistantPanel() {
   // are applied directly to the canvas via dispatch({ type: "setData" }).
   // Puck's `data` prop is initialization-only — this is the only correct update path.
   useEffect(() => {
-    if (!ai) return;
+    if (!ai) {
+      return;
+    }
     ai.onDataReady((newData) => {
       const { dispatch } = getPuck();
       dispatch({ type: "setData", data: newData });
@@ -348,9 +354,9 @@ function AiAssistantPanel() {
 
   // Derive selected block index for the "nested block" warning in the JSX.
   const selectedIndex =
-    selectedItem != null
-      ? content.findIndex((b) => b.props.id === selectedItem.props.id)
-      : -1;
+    selectedItem == null
+      ? -1
+      : content.findIndex((b) => b.props.id === selectedItem.props.id);
   const effectiveSelectedIndex = selectedIndex >= 0 ? selectedIndex : undefined;
 
   // Clear result if a different action starts
@@ -473,7 +479,9 @@ function AiAssistantPanel() {
         toast.error("AI assistant not connected.");
         return;
       }
-      if (!context.trim()) return;
+      if (!context.trim()) {
+        return;
+      }
       startLoading(key);
       setAssistResult({ key, text: "", isStreaming: true });
 
@@ -573,7 +581,7 @@ function AiAssistantPanel() {
 
   if (!ai) {
     return (
-      <div className="p-4 text-center text-sm text-muted-foreground">
+      <div className="p-4 text-center text-muted-foreground text-sm">
         AI assistant is not available in this context.
       </div>
     );
@@ -584,7 +592,7 @@ function AiAssistantPanel() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 font-semibold text-foreground text-lg">
-          <Sparkles size={18} className="text-primary" />
+          <Sparkles className="text-primary" size={18} />
           AI Assistant
         </div>
         <p className="text-muted-foreground text-sm">
@@ -596,26 +604,26 @@ function AiAssistantPanel() {
       <section className="space-y-3">
         <h3 className="font-medium text-foreground text-sm">Generate Page</h3>
         <Textarea
-          placeholder="Describe the page you want to create, e.g. 'A landing page for our spring career fair with event details, schedule, and sign-up CTA'"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          rows={3}
           className="text-sm"
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Describe the page you want to create, e.g. 'A landing page for our spring career fair with event details, schedule, and sign-up CTA'"
+          rows={3}
+          value={prompt}
         />
         <Button
-          size="sm"
           disabled={isAnyRunning || !prompt.trim()}
           onClick={handleGenerate}
+          size="sm"
         >
           {activeLoading === "generate" ? (
-            <Loader2 size={14} className="mr-2 animate-spin" />
+            <Loader2 className="mr-2 animate-spin" size={14} />
           ) : (
-            <Wand2 size={14} className="mr-2" />
+            <Wand2 className="mr-2" size={14} />
           )}
           Generate full page
         </Button>
         {activeLoading === "generate" && (
-          <p className="animate-pulse text-xs text-muted-foreground">
+          <p className="animate-pulse text-muted-foreground text-xs">
             Generating page…
           </p>
         )}
@@ -626,7 +634,7 @@ function AiAssistantPanel() {
         <h3 className="font-medium text-foreground text-sm">Improve Block</h3>
         {selectedBlockType ? (
           <>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Selected:{" "}
               <span className="font-medium text-foreground">
                 {selectedBlockType}
@@ -639,38 +647,38 @@ function AiAssistantPanel() {
             </p>
             <div className="flex flex-col gap-2">
               <ActionButton
+                activeLoading={activeLoading}
                 icon={PenLine}
                 label="Rewrite copy"
                 loadingKey="improve-rewrite"
-                activeLoading={activeLoading}
                 onClick={handleImproveBlock}
               />
               <ActionButton
+                activeLoading={activeLoading}
                 icon={Sparkles}
                 label="Make more engaging"
                 loadingKey="improve-engaging"
-                activeLoading={activeLoading}
                 onClick={handleImproveBlock}
               />
               <ActionButton
+                activeLoading={activeLoading}
                 icon={Type}
                 label="Simplify text"
                 loadingKey="improve-simplify"
-                activeLoading={activeLoading}
                 onClick={handleImproveBlock}
               />
             </div>
             {(activeLoading === "improve-rewrite" ||
               activeLoading === "improve-engaging" ||
               activeLoading === "improve-simplify") && (
-              <p className="animate-pulse text-xs text-muted-foreground">
+              <p className="animate-pulse text-muted-foreground text-xs">
                 Rewriting block on canvas…
               </p>
             )}
           </>
         ) : (
           <Card className="p-3">
-            <p className="text-xs text-muted-foreground text-center">
+            <p className="text-center text-muted-foreground text-xs">
               Select a block on the canvas to see improvement options.
             </p>
           </Card>
@@ -682,33 +690,33 @@ function AiAssistantPanel() {
         <h3 className="font-medium text-foreground text-sm">Generate Copy</h3>
         <div className="flex flex-col gap-2">
           <CopyGenerator
-            label="Write a headline"
-            placeholder="Topic or context for the headline…"
-            loadingKey="copy-headline"
             activeLoading={activeLoading}
-            onGenerate={handleCopyGenerate}
-            result={assistResult?.key === "copy-headline" ? assistResult : null}
+            label="Write a headline"
+            loadingKey="copy-headline"
             onDismissResult={() => setAssistResult(null)}
+            onGenerate={handleCopyGenerate}
+            placeholder="Topic or context for the headline…"
+            result={assistResult?.key === "copy-headline" ? assistResult : null}
           />
           <CopyGenerator
-            label="Write a description"
-            placeholder="What should the description be about…"
-            loadingKey="copy-description"
             activeLoading={activeLoading}
+            label="Write a description"
+            loadingKey="copy-description"
+            onDismissResult={() => setAssistResult(null)}
             onGenerate={handleCopyGenerate}
+            placeholder="What should the description be about…"
             result={
               assistResult?.key === "copy-description" ? assistResult : null
             }
-            onDismissResult={() => setAssistResult(null)}
           />
           <CopyGenerator
-            label="Write CTA text"
-            placeholder="What action should the user take…"
-            loadingKey="copy-cta"
             activeLoading={activeLoading}
-            onGenerate={handleCopyGenerate}
-            result={assistResult?.key === "copy-cta" ? assistResult : null}
+            label="Write CTA text"
+            loadingKey="copy-cta"
             onDismissResult={() => setAssistResult(null)}
+            onGenerate={handleCopyGenerate}
+            placeholder="What action should the user take…"
+            result={assistResult?.key === "copy-cta" ? assistResult : null}
           />
         </div>
       </section>
@@ -718,38 +726,38 @@ function AiAssistantPanel() {
         <h3 className="font-medium text-foreground text-sm">Quick Actions</h3>
         <div className="flex flex-col gap-2">
           <ActionButton
+            activeLoading={activeLoading}
             icon={SpellCheck}
             label="Check grammar & spelling"
             loadingKey="action-grammar"
-            activeLoading={activeLoading}
             onClick={handleQuickAction}
           />
           <ActionButton
+            activeLoading={activeLoading}
             icon={Languages}
             label="Translate to English"
             loadingKey="action-translate-en"
-            activeLoading={activeLoading}
             onClick={handleQuickAction}
           />
           <ActionButton
+            activeLoading={activeLoading}
             icon={Languages}
             label="Translate to Norwegian"
             loadingKey="action-translate-no"
-            activeLoading={activeLoading}
             onClick={handleQuickAction}
           />
           <ActionButton
+            activeLoading={activeLoading}
             icon={Lightbulb}
             label="Suggest improvements"
             loadingKey="action-suggest"
-            activeLoading={activeLoading}
             onClick={handleQuickAction}
           />
         </div>
         {quickActionResult && (
           <StreamingTextResult
-            result={quickActionResult}
             onDismiss={() => setAssistResult(null)}
+            result={quickActionResult}
           />
         )}
         {(activeLoading === "action-grammar" ||
@@ -757,11 +765,11 @@ function AiAssistantPanel() {
           activeLoading === "action-translate-no" ||
           activeLoading === "action-suggest") &&
           !quickActionResult?.text && (
-            <p className="animate-pulse text-xs text-muted-foreground">
+            <p className="animate-pulse text-muted-foreground text-xs">
               Working…
             </p>
           )}
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           Grammar, translate, and suggest operate on the selected block.
           Suggestions analyse the full page.
         </p>

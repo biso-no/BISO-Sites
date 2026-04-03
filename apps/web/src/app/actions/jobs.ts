@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { type Jobs, type Locale } from "@repo/api/types/appwrite";
+import type { Jobs, Locale } from "@repo/api/types/appwrite";
 
 type ListJobsParams = {
   limit?: number;

@@ -1,8 +1,7 @@
+import { createAdminClient } from "@repo/api/server";
+import type { Departments } from "@repo/api/types/appwrite";
 import { getDepartments } from "@repo/connectors/24sevenoffice";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
-import { NextRequest, NextResponse } from "next/server";
-import { getAuthStatus } from "@/lib/auth-utils";
-import { Departments } from "@repo/api/types/appwrite";
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {

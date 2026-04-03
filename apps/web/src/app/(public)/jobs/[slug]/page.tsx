@@ -1,7 +1,7 @@
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobDetailsClient } from "@/components/jobs/job-details-client";

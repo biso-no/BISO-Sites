@@ -1,6 +1,6 @@
-import { checkNavAccess } from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { getBenefitAnalyticsSummary } from "@/app/actions/benefit-analytics";
+import { checkNavAccess } from "@/lib/authorization";
 import { AnalyticsDashboardClient } from "./_components/analytics-dashboard-client";
 
 export const metadata = {
@@ -9,7 +9,9 @@ export const metadata = {
 
 export default async function BenefitAnalyticsPage() {
   const hasAccess = await checkNavAccess("benefitsAnalytics");
-  if (!hasAccess) redirect("/unauthorized");
+  if (!hasAccess) {
+    redirect("/unauthorized");
+  }
 
   const summary = await getBenefitAnalyticsSummary();
 

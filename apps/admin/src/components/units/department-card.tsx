@@ -59,7 +59,7 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
   const logoUrl = department.logo || placeholderLogo;
 
   return (
-    <Card className="group hover:-translate-y-2 relative overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-500 hover:border-primary/30 hover:shadow-2xl">
+    <Card className="group relative overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm transition-all duration-500 hover:-translate-y-2 hover:border-primary/30 hover:shadow-2xl">
       {/* Gradient overlay on hover */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-br from-primary/0 via-accent/0 to-primary/0 transition-all duration-500 group-hover:from-primary/10 group-hover:via-accent/5 group-hover:to-primary/10" />
 

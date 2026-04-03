@@ -3,8 +3,8 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Campus, CampusMetadata } from "@repo/api/types/appwrite";
-import type { CampusData } from "@/lib/types/campus-data";
 import { getUserAuthContext } from "@/lib/authorization";
+import type { CampusData } from "@/lib/types/campus-data";
 
 async function _getCampusMetadata(): Promise<Record<string, CampusMetadata>> {
   try {
@@ -84,7 +84,9 @@ export async function getAllowedCampuses({
   includeNational?: boolean;
 } = {}): Promise<Campus[]> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createSessionClient();
   const queries: string[] = [];

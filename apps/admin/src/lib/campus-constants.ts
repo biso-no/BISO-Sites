@@ -49,6 +49,8 @@ export function expandDeptName(raw: string): string {
  */
 export function getCampusManagementTeamId(campusId: string): string | null {
   const campusName = CAMPUS_ID_TO_NAME[campusId];
-  if (!campusName || campusName === "National") return null;
+  if (!campusName || campusName === "National") {
+    return null;
+  }
   return `sg-app-dept-ledelsen${campusName.toLowerCase()}`;
 }

@@ -5,13 +5,13 @@ import { createAdminClient } from "@repo/api/server";
 import type { BenefitPartner, CampusBenefit } from "@repo/api/types/appwrite";
 import { BenefitStatus } from "@repo/api/types/appwrite";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
+import { getUserAuthContext } from "@/lib/authorization";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import { buildBenefitPermissions } from "@/lib/permissions";
 import {
-  assertWriteAccess,
   applyScopeQueries,
+  assertWriteAccess,
 } from "@/lib/utils/authorization";
-import { getUserAuthContext } from "@/lib/authorization";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -35,7 +35,6 @@ export type CreateBenefitInput = {
   redemption_value?: string | null;
   image_url?: string | null;
   is_featured?: boolean;
-  is_member_only?: boolean;
   publish_start?: string | null;
   publish_end?: string | null;
   sort_order?: number;
@@ -61,7 +60,9 @@ export async function listManagedBenefits(
   filters: BenefitFilters = {}
 ): Promise<{ benefits: BenefitListItem[]; total: number }> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const queries: string[] = [];
@@ -106,7 +107,9 @@ export async function listManagedBenefits(
 
 export async function getManagedBenefit(id: string): Promise<CampusBenefit> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const benefit = await db.getRow<CampusBenefit>("app", "campus_benefits", id);
@@ -123,7 +126,9 @@ export async function createBenefit(
   input: CreateBenefitInput
 ): Promise<CampusBenefit> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   assertWriteAccess(ctx, input.campus_id);
 
@@ -141,7 +146,7 @@ export async function createBenefit(
     {
       ...input,
       is_featured: input.is_featured ?? false,
-      is_member_only: input.is_member_only ?? true,
+      is_member_only: false,
       sort_order: input.sort_order ?? 0,
       created_by: ctx.userId,
       updated_by: ctx.userId,
@@ -157,7 +162,9 @@ export async function updateBenefit(
   input: UpdateBenefitInput
 ): Promise<CampusBenefit> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const existing = await db.getRow<CampusBenefit>("app", "campus_benefits", id);
@@ -197,7 +204,9 @@ export async function duplicateBenefit(
   targetCampusId?: string
 ): Promise<CampusBenefit> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const source = await db.getRow<CampusBenefit>("app", "campus_benefits", id);
@@ -226,7 +235,6 @@ export async function duplicateBenefit(
     redemption_value: source.redemption_value,
     image_url: source.image_url,
     is_featured: false,
-    is_member_only: source.is_member_only,
     publish_start: source.publish_start,
     publish_end: source.publish_end,
     sort_order: source.sort_order,
@@ -237,7 +245,9 @@ export async function duplicateBenefit(
 
 export async function deleteBenefit(id: string): Promise<void> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   const existing = await db.getRow<CampusBenefit>("app", "campus_benefits", id);

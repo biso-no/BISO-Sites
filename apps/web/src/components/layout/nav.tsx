@@ -99,8 +99,8 @@ export function Navigation({
           {/* Keep logo box constrained so nav has enough room on desktop */}
           <motion.div
             className="shrink-0"
-            whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            whileHover={{ scale: 1.02 }}
           >
             <Link
               className="relative block h-11 w-[clamp(148px,15vw,240px)]"

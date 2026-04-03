@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Query } from "@repo/api";
-import { UserAuthContext } from "../authorization";
+import type { UserAuthContext } from "../authorization";
 
 /**
  * Check if user is a global admin based on context (team membership only)

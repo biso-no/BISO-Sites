@@ -13,7 +13,7 @@ export default async function AdminPostPage({
   const departmentsPromise = getDepartments();
   const campusesPromise = getCampuses();
   const postPromise =
-    postId !== "new" ? getPost(postId) : Promise.resolve(null);
+    postId === "new" ? Promise.resolve(null) : getPost(postId);
 
   const [departments, campuses, post] = await Promise.all([
     departmentsPromise,

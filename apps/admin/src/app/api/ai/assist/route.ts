@@ -7,8 +7,8 @@
  */
 
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
 import type { AssistAction } from "@repo/editor/contexts/ai-assistant-context";
+import { streamText } from "ai";
 
 const SYSTEM_PROMPTS: Record<AssistAction, string> = {
   headline:
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       content: string;
     };
 
-    if (!action || !content?.trim()) {
+    if (!(action && content?.trim())) {
       return new Response(
         JSON.stringify({ error: "Missing action or content" }),
         {

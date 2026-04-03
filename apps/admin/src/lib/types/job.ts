@@ -2,19 +2,19 @@ import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import type { TranslationMap } from "@/lib/utils/content-translations";
 
 export interface JobMetadata extends Record<string, unknown> {
-  type?: string;
   application_deadline?: string;
-  start_date?: string;
-  contact_name?: string;
-  contact_email?: string;
   apply_url?: string;
+  contact_email?: string;
+  contact_name?: string;
   image?: string;
   short_description?: string;
+  start_date?: string;
+  type?: string;
   [key: string]: unknown;
 }
 
 export interface AdminJob extends Jobs {
+  metadata_parsed: JobMetadata;
   translation_refs: ContentTranslations[];
   translations: TranslationMap<ContentTranslations>;
-  metadata_parsed: JobMetadata;
 }

@@ -43,7 +43,9 @@ export function buildExternalDataSourceField(tableId: string, label: string) {
     cache: { enabled: true },
     fetchList: async () => {
       const schema = TABLE_SCHEMAS.find((s) => s.id === tableId);
-      if (!schema) return [];
+      if (!schema) {
+        return [];
+      }
       return [
         {
           id: "default",
@@ -89,7 +91,9 @@ export function shouldResolveDynamic(params: {
 }): boolean {
   const { trigger, changed, watchKeys } = params;
 
-  if (trigger === "move") return false;
+  if (trigger === "move") {
+    return false;
+  }
 
   if (trigger === "insert" || trigger === "load" || trigger === "force") {
     return true;

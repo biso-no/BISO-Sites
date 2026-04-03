@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { checkNavAccess } from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { listManagedBenefits } from "@/app/actions/benefits";
+import { checkNavAccess } from "@/lib/authorization";
 import { BenefitsListClient } from "./_components/benefits-list-client";
 
 export const metadata = {
@@ -11,7 +11,9 @@ export const metadata = {
 
 export default async function BenefitsPage() {
   const hasAccess = await checkNavAccess("benefits");
-  if (!hasAccess) redirect("/unauthorized");
+  if (!hasAccess) {
+    redirect("/unauthorized");
+  }
 
   const { benefits, total } = await listManagedBenefits({ limit: 50 });
 

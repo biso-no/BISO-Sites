@@ -10,10 +10,11 @@ export type ScopeUser = NonNullable<PuckMetadata["user"]>;
 
 /** True when the user is a department-only editor (not global or campus admin). */
 export function isDepartmentUser(user: ScopeUser | undefined): boolean {
-  if (!user) return false;
+  if (!user) {
+    return false;
+  }
   return (
-    !user.isGlobalAdmin &&
-    !user.isCampusAdmin &&
+    !(user.isGlobalAdmin || user.isCampusAdmin) &&
     user.departmentNames.length > 0
   );
 }
@@ -66,7 +67,7 @@ function LockedScopeIndicator({ deptName }: { deptName: string }) {
         <span className="block truncate font-medium text-blue-700">
           {deptName}
         </span>
-        <span className="block text-xs text-blue-400">
+        <span className="block text-blue-400 text-xs">
           Filtered to your department
         </span>
       </div>
@@ -85,7 +86,9 @@ export function getEffectiveScope(
   propScope: "page" | "all" | undefined,
   user: ScopeUser | undefined
 ): "page" | "all" | undefined {
-  if (isDepartmentUser(user)) return "page";
+  if (isDepartmentUser(user)) {
+    return "page";
+  }
   return propScope;
 }
 
@@ -127,7 +130,7 @@ function LockedCampusIndicator({ campusName }: { campusName: string }) {
       <span className="font-medium text-gray-700">
         {campusName || "Your campus"}
       </span>
-      <span className="ml-auto text-xs text-gray-400">Role-locked</span>
+      <span className="ml-auto text-gray-400 text-xs">Role-locked</span>
     </div>
   );
 }
@@ -152,7 +155,7 @@ function LockedDeptIndicator({ deptName }: { deptName: string }) {
     >
       <Lock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
       <span className="font-medium text-gray-700">{deptName}</span>
-      <span className="ml-auto text-xs text-gray-400">Role-locked</span>
+      <span className="ml-auto text-gray-400 text-xs">Role-locked</span>
     </div>
   );
 }
@@ -169,10 +172,14 @@ export async function getMandatoryScopeFilters(
   user: ScopeUser | undefined,
   metadata: PuckMetadata | undefined
 ): Promise<DataSourceValue["filters"]> {
-  if (!user || !isDepartmentUser(user)) return [];
+  if (!(user && isDepartmentUser(user))) {
+    return [];
+  }
 
   const deptName = user.departmentNames[0];
-  if (!deptName) return [];
+  if (!deptName) {
+    return [];
+  }
 
   const syntheticMeta: PuckMetadata = {
     ...metadata,

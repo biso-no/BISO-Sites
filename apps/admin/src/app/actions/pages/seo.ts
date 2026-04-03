@@ -49,10 +49,14 @@ Reply ONLY with valid JSON in this exact shape — no markdown, no explanation:
 
     // Strip potential markdown code fences
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    if (!jsonMatch) {
+      return null;
+    }
 
     const parsed = JSON.parse(jsonMatch[0]) as Partial<GenerateSeoResult>;
-    if (!parsed.seoTitle || !parsed.seoDescription) return null;
+    if (!(parsed.seoTitle && parsed.seoDescription)) {
+      return null;
+    }
 
     return {
       seoTitle: parsed.seoTitle.trim().slice(0, 70),

@@ -1,7 +1,7 @@
 "use client";
 import { registerOverlayPortal } from "@puckeditor/core";
 import { Columns, type ColumnsProps } from "@repo/ui/components/puck/columns";
-import { Section, type SectionProps } from "@repo/ui/components/puck/section";
+import { Section } from "@repo/ui/components/puck/section";
 import { Spacer, type SpacerProps } from "@repo/ui/components/puck/spacer";
 import { Tabs, type TabsProps } from "@repo/ui/components/puck/tabs";
 import { useEffect, useRef } from "react";

@@ -22,11 +22,8 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { isGlobalAdmin } from "@/lib/authorization";
-import {
-  buildContentPermissions,
-  buildPagePermissions,
-} from "@/lib/permissions";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
+import { buildContentPermissions } from "@/lib/permissions";
 
 const DATABASE_ID = "app";
 const BATCH_SIZE = 100;
@@ -53,7 +50,9 @@ type ContentRow = {
 function getDeptTeamIdFromDeptName(
   deptName: string | null | undefined
 ): string | null {
-  if (!deptName) return null;
+  if (!deptName) {
+    return null;
+  }
   // Collapse spaces so "Operations Unit" -> "OperationsUnit" -> "sg-app-dept-operationsunit"
   const normalized = deptName.replace(/\s+/g, "");
   return `sg-app-dept-${normalized.toLowerCase()}`;
@@ -82,7 +81,9 @@ async function backfillContentTable(
       Query.offset(offset),
     ]);
 
-    if (response.rows.length === 0) break;
+    if (response.rows.length === 0) {
+      break;
+    }
 
     for (const row of response.rows) {
       try {
@@ -108,7 +109,9 @@ async function backfillContentTable(
         // Backfill translation rows with same permissions
         const refs = row.translation_refs ?? [];
         for (const ref of refs) {
-          if (typeof ref === "string") continue;
+          if (typeof ref === "string") {
+            continue;
+          }
           const translationTableId =
             tableId === "pages" ? "page_translations" : "content_translations";
           try {
@@ -135,7 +138,9 @@ async function backfillContentTable(
     }
 
     offset += BATCH_SIZE;
-    if (response.rows.length < BATCH_SIZE) break;
+    if (response.rows.length < BATCH_SIZE) {
+      break;
+    }
   }
 
   return { updated, translationsUpdated, errors };

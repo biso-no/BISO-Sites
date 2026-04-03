@@ -106,7 +106,7 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
                   <Paperclip className="h-4 w-4 text-brand" />
                   <span>
                     {attachmentCount} attachment
-                    {attachmentCount !== 1 ? "s" : ""}
+                    {attachmentCount === 1 ? "" : "s"}
                   </span>
                 </div>
               )}

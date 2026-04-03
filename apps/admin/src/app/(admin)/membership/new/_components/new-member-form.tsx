@@ -351,7 +351,7 @@ export function NewMemberForm({ memberships }: NewMemberFormProps) {
                   value={studentId}
                 />
                 {isSearching && (
-                  <Loader2 className="-translate-y-1/2 absolute top-1/2 right-3 h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
                 )}
               </div>
             </div>

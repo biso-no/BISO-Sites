@@ -3,9 +3,6 @@
 import { openai } from "@ai-sdk/openai";
 import { getStorageFileUrl, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { getUserAuthContext } from "@/lib/authorization";
-import { buildContentPermissions } from "@/lib/permissions";
-import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import {
   type ContentTranslations,
   ContentType,
@@ -16,6 +13,9 @@ import {
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getUserAuthContext } from "@/lib/authorization";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
+import { buildContentPermissions } from "@/lib/permissions";
 import type {
   CreateProductData,
   ListProductsParams,
@@ -24,13 +24,13 @@ import type {
   UpdateProductData,
 } from "@/lib/types/product";
 import {
+  applyScopeQueries,
+  assertWriteAccess,
+} from "@/lib/utils/authorization";
+import {
   normalizeProductRow,
   PRODUCT_SELECT_FIELDS,
 } from "./_utils/translatable";
-import {
-  assertWriteAccess,
-  applyScopeQueries,
-} from "@/lib/utils/authorization";
 
 type AdminDbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
 type ProductStatus = CreateProductData["status"];
@@ -264,7 +264,9 @@ export async function createProduct(
   skipRevalidation = false
 ): Promise<WebshopProducts | null> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   assertWriteAccess(ctx, data.campus_id, data.departmentId ?? undefined);
 
@@ -355,7 +357,9 @@ export async function updateProduct(
   skipRevalidation = false
 ): Promise<WebshopProducts | null> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   try {
     const { db } = await createSessionClient();
@@ -370,7 +374,9 @@ export async function updateProduct(
       ]
     );
     const existingProduct = existing.rows[0];
-    if (!existingProduct) throw new Error("Product not found");
+    if (!existingProduct) {
+      throw new Error("Product not found");
+    }
 
     assertWriteAccess(
       ctx,
@@ -423,7 +429,9 @@ export async function deleteProduct(
   skipRevalidation = false
 ): Promise<boolean> {
   const ctx = await getUserAuthContext();
-  if (!ctx) return false;
+  if (!ctx) {
+    return false;
+  }
 
   try {
     const { db } = await createSessionClient();
@@ -438,7 +446,9 @@ export async function deleteProduct(
       ]
     );
     const existingProduct = existing.rows[0];
-    if (!existingProduct) return false;
+    if (!existingProduct) {
+      return false;
+    }
 
     assertWriteAccess(
       ctx,

@@ -2,7 +2,7 @@
 
 import { Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { Departments } from "@repo/api/types/appwrite";
+import type { Departments } from "@repo/api/types/appwrite";
 import { expandDeptName } from "./campus-constants";
 
 const DATABASE_ID = "app";
@@ -89,7 +89,9 @@ export async function grantDeptTeamAccess(
     }
 
     for (const dept of result.rows) {
-      if (!dept.Name.includes(deptName)) continue;
+      if (!dept.Name.includes(deptName)) {
+        continue;
+      }
 
       const existing = (dept.$permissions as string[]) || [];
       const kept = existing.filter((p) => !p.startsWith("read("));

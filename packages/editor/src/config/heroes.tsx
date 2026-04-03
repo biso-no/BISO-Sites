@@ -3,18 +3,17 @@ import {
   Hero,
   type HeroButton,
   type HeroHighlight,
-  type HeroProps,
   type HeroSlide,
   type HeroStat,
 } from "@repo/ui/components/puck/hero";
 import {
-  PageHeader,
   type BreadcrumbItem,
+  PageHeader,
   type PageHeaderProps,
 } from "@repo/ui/components/puck/page-header";
-import { ICON_OPTIONS } from "../puck-tokens";
 import { TABLE_SCHEMAS } from "../data/schemas";
 import { getDynamicContent } from "../get-dynamic-content";
+import { ICON_OPTIONS } from "../puck-tokens";
 import type { BannerProps, HeroPropsWithSlot } from "./types";
 import { resolveComponentPermissions } from "./utils";
 
@@ -278,7 +277,9 @@ export const HeroComponents = {
       { changed, trigger, metadata }: any
     ) => {
       // Guard: never fetch on drag operations
-      if (trigger === "move") return { props: {} };
+      if (trigger === "move") {
+        return { props: {} };
+      }
 
       const { slidesMode, slidesSource, statsMode, statsSource } = props;
       const resolvedProps: Partial<HeroPropsWithSlot> = {};
@@ -376,11 +377,11 @@ export const HeroComponents = {
               {/* Left: text content */}
               <div className="flex-1 text-white">
                 {props.badge && (
-                  <span className="mb-4 inline-block rounded-full bg-white/10 px-4 py-1 text-sm font-medium text-white/90">
+                  <span className="mb-4 inline-block rounded-full bg-white/10 px-4 py-1 font-medium text-sm text-white/90">
                     {props.badge}
                   </span>
                 )}
-                <h1 className="text-4xl font-bold leading-tight md:text-5xl">
+                <h1 className="font-bold text-4xl leading-tight md:text-5xl">
                   {props.title || "Hero Title"}
                 </h1>
                 {props.subtitle && (
@@ -390,13 +391,13 @@ export const HeroComponents = {
                   <div className="mt-8 flex flex-wrap gap-3">
                     {props.buttons?.map((btn, i) => (
                       <a
-                        key={i}
-                        href={btn.href}
-                        className={`inline-flex items-center rounded-xl px-6 py-3 text-sm font-semibold transition ${
+                        className={`inline-flex items-center rounded-xl px-6 py-3 font-semibold text-sm transition ${
                           btn.variant === "outline"
                             ? "border border-white/40 text-white hover:bg-white/10"
                             : "bg-white text-[#001731] hover:bg-white/90"
                         }`}
+                        href={btn.href}
+                        key={i}
                       >
                         {btn.label}
                       </a>
@@ -545,15 +546,15 @@ export const HeroComponents = {
           bgColors[props.iconBackground ?? "blue"] ?? bgColors.blue;
 
         return (
-          <div className="border-b border-gray-100 bg-white px-4 py-12">
+          <div className="border-gray-100 border-b bg-white px-4 py-12">
             <div className="mx-auto max-w-4xl">
               {props.breadcrumbs && props.breadcrumbs.length > 0 && (
-                <nav className="mb-4 flex items-center gap-1.5 text-sm text-gray-400">
+                <nav className="mb-4 flex items-center gap-1.5 text-gray-400 text-sm">
                   {props.breadcrumbs.map((crumb, i) => (
-                    <span key={i} className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5" key={i}>
                       {i > 0 && <span>/</span>}
                       {crumb.href ? (
-                        <a href={crumb.href} className="hover:text-gray-600">
+                        <a className="hover:text-gray-600" href={crumb.href}>
                           {crumb.label}
                         </a>
                       ) : (
@@ -572,11 +573,11 @@ export const HeroComponents = {
                   </div>
                 )}
                 <div>
-                  <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+                  <h1 className="font-bold text-4xl text-gray-900 tracking-tight">
                     {props.title || "Page Title"}
                   </h1>
                   {props.subtitle && (
-                    <p className="mt-3 text-lg text-gray-500">
+                    <p className="mt-3 text-gray-500 text-lg">
                       {props.subtitle}
                     </p>
                   )}
@@ -596,15 +597,15 @@ export const HeroComponents = {
         ].filter(Boolean) as string[];
 
         return (
-          <div className="border-b border-gray-100 bg-white px-4 py-12">
+          <div className="border-gray-100 border-b bg-white px-4 py-12">
             <div className="mx-auto max-w-4xl">
               {props.breadcrumbs && props.breadcrumbs.length > 0 && (
-                <nav className="mb-4 flex items-center gap-1.5 text-sm text-gray-400">
+                <nav className="mb-4 flex items-center gap-1.5 text-gray-400 text-sm">
                   {props.breadcrumbs.map((crumb, i) => (
-                    <span key={i} className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5" key={i}>
                       {i > 0 && <span>/</span>}
                       {crumb.href ? (
-                        <a href={crumb.href} className="hover:text-gray-600">
+                        <a className="hover:text-gray-600" href={crumb.href}>
                           {crumb.label}
                         </a>
                       ) : (
@@ -614,16 +615,16 @@ export const HeroComponents = {
                   ))}
                 </nav>
               )}
-              <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+              <h1 className="font-bold text-4xl text-gray-900 tracking-tight">
                 {props.title || "Page Title"}
               </h1>
               {props.subtitle && (
-                <p className="mt-3 text-lg text-gray-500">{props.subtitle}</p>
+                <p className="mt-3 text-gray-500 text-lg">{props.subtitle}</p>
               )}
               {metaItems.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-gray-400">
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-gray-400 text-sm">
                   {metaItems.map((item, i) => (
-                    <span key={i} className="flex items-center gap-2">
+                    <span className="flex items-center gap-2" key={i}>
                       {i > 0 && <span className="text-gray-300">·</span>}
                       {item}
                     </span>
@@ -643,10 +644,10 @@ export const HeroComponents = {
               {props.breadcrumbs && props.breadcrumbs.length > 0 && (
                 <nav className="mb-4 flex items-center gap-1.5 text-sm text-white/50">
                   {props.breadcrumbs.map((crumb, i) => (
-                    <span key={i} className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5" key={i}>
                       {i > 0 && <span>/</span>}
                       {crumb.href ? (
-                        <a href={crumb.href} className="hover:text-white/80">
+                        <a className="hover:text-white/80" href={crumb.href}>
                           {crumb.label}
                         </a>
                       ) : (
@@ -656,7 +657,7 @@ export const HeroComponents = {
                   ))}
                 </nav>
               )}
-              <h1 className="text-4xl font-bold md:text-5xl">
+              <h1 className="font-bold text-4xl md:text-5xl">
                 {props.title || "Page Title"}
               </h1>
               {props.subtitle && (
@@ -666,7 +667,7 @@ export const HeroComponents = {
                 <div className="mt-10 flex flex-wrap gap-8">
                   {stats.map((stat, i) => (
                     <div key={i}>
-                      <p className="text-3xl font-bold">{stat.value}</p>
+                      <p className="font-bold text-3xl">{stat.value}</p>
                       <p className="mt-0.5 text-sm text-white/60">
                         {stat.label}
                       </p>
@@ -771,23 +772,23 @@ export const HeroComponents = {
               <svg
                 className={`h-5 w-5 shrink-0 ${s.icon}`}
                 fill="none"
-                viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={1.5}
+                viewBox="0 0 24 24"
               >
                 <path
+                  d={iconPaths[variant || "info"] || iconPaths.info}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d={iconPaths[variant || "info"] || iconPaths.info}
                 />
               </svg>
-              <span className={`text-sm font-medium ${s.text}`}>
+              <span className={`font-medium text-sm ${s.text}`}>
                 {message || "Banner message"}
               </span>
               {link && (
                 <a
+                  className={`font-semibold text-sm underline underline-offset-2 ${s.text} hover:opacity-80`}
                   href={link}
-                  className={`text-sm font-semibold underline underline-offset-2 ${s.text} hover:opacity-80`}
                 >
                   {linkLabel || "Learn more"}
                 </a>
@@ -795,21 +796,21 @@ export const HeroComponents = {
             </div>
             {dismissible && (
               <button
-                type="button"
-                className={`shrink-0 rounded-md p-1 hover:opacity-70 ${s.text}`}
                 aria-label="Dismiss"
+                className={`shrink-0 rounded-md p-1 hover:opacity-70 ${s.text}`}
+                type="button"
               >
                 <svg
                   className="h-4 w-4"
                   fill="none"
-                  viewBox="0 0 24 24"
                   stroke="currentColor"
                   strokeWidth={2}
+                  viewBox="0 0 24 24"
                 >
                   <path
+                    d="M6 18L18 6M6 6l12 12"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
               </button>

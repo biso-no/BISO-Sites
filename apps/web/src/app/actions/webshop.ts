@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import { type Locale, type WebshopProducts } from "@repo/api/types/appwrite";
+import type { Locale, WebshopProducts } from "@repo/api/types/appwrite";
 
 type ListProductsParams = {
   limit?: number;

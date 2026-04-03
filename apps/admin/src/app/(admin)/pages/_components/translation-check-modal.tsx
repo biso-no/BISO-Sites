@@ -1,5 +1,8 @@
 "use client";
 
+import type { Locale } from "@repo/api/types/appwrite";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,10 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@repo/ui/components/ui/dialog";
-import { Button } from "@repo/ui/components/ui/button";
-import { Badge } from "@repo/ui/components/ui/badge";
 import { Globe, Languages, Loader2, SkipForward } from "lucide-react";
-import type { Locale } from "@repo/api/types/appwrite";
 
 export type UntranslatedLocaleInfo = {
   locale: Locale;
@@ -55,8 +55,8 @@ export function TranslationCheckModal({
 }: TranslationCheckModalProps) {
   return (
     <Dialog
+      onOpenChange={(o) => !(o || isTranslating) && onCancel()}
       open={open}
-      onOpenChange={(o) => !o && !isTranslating && onCancel()}
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -74,7 +74,7 @@ export function TranslationCheckModal({
           {untranslatedLocales.map((info) => {
             const progress = translationProgress[info.locale];
             return (
-              <div key={info.locale} className="rounded-md border p-3 text-sm">
+              <div className="rounded-md border p-3 text-sm" key={info.locale}>
                 <div className="flex items-center justify-between">
                   <span className="font-medium">
                     {localeLabel(info.locale)}
@@ -95,18 +95,18 @@ export function TranslationCheckModal({
                 {isTranslating && progress && (
                   <div className="mt-2">
                     {progress === "translating" && (
-                      <span className="flex items-center gap-1 text-xs text-primary">
+                      <span className="flex items-center gap-1 text-primary text-xs">
                         <Loader2 className="h-3 w-3 animate-spin" />
                         Translating…
                       </span>
                     )}
                     {progress === "done" && (
-                      <span className="text-xs text-green-600">
+                      <span className="text-green-600 text-xs">
                         Translation complete
                       </span>
                     )}
                     {progress === "error" && (
-                      <span className="text-xs text-destructive">
+                      <span className="text-destructive text-xs">
                         Translation failed — will publish original content
                       </span>
                     )}
@@ -118,18 +118,18 @@ export function TranslationCheckModal({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={onCancel} disabled={isTranslating}>
+          <Button disabled={isTranslating} onClick={onCancel} variant="outline">
             Cancel
           </Button>
           <Button
-            variant="secondary"
-            onClick={onSkipAndPublish}
             disabled={isTranslating}
+            onClick={onSkipAndPublish}
+            variant="secondary"
           >
             <SkipForward className="mr-2 h-4 w-4" />
             Publish Without Translating
           </Button>
-          <Button onClick={onTranslateAndPublish} disabled={isTranslating}>
+          <Button disabled={isTranslating} onClick={onTranslateAndPublish}>
             {isTranslating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

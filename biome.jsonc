@@ -5,7 +5,6 @@
   "files": {
     "maxSize": 5242880,
     "includes": [
-      "**",
       "!!**/pdf.worker.min.js",
       "!!apps/admin/src/app/(admin)/admin/expenses/expense-table.tsx",
       "!!packages/ui/*",

@@ -9,9 +9,9 @@
  * to bring existing teams up to date. Idempotent — skips perms already present.
  */
 
+import { createAdminClient } from "@repo/api/server";
 import { isGlobalAdmin } from "@/lib/authorization";
 import { grantTeamContentAccess } from "@/lib/team-provisioning";
-import { createAdminClient } from "@repo/api/server";
 
 export async function runProvisionExistingTeams(): Promise<{
   success: boolean;
@@ -50,7 +50,9 @@ export async function runProvisionExistingTeams(): Promise<{
     }
 
     offset += BATCH;
-    if (page.teams.length < BATCH) break;
+    if (page.teams.length < BATCH) {
+      break;
+    }
   }
 
   return { success: true, provisioned, errors };

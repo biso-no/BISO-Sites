@@ -29,6 +29,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
 import { type ReactNode, useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/user";
 import { DEPARTMENT_ROLE, ROLES } from "@/lib/roles";
@@ -39,7 +40,6 @@ import { CommandMenu } from "./command-menu";
 import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
-import { useTheme } from "next-themes";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -399,7 +399,7 @@ export function AdminLayout({ children, roles, firstName }: AdminLayoutProps) {
     <div className="fixed inset-0 flex overflow-hidden bg-linear-to-br from-primary-10/25 via-slate-50 to-secondary-10/40 dark:from-background dark:via-card dark:to-background">
       {/* Background Effects */}
       <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-40 dark:opacity-20" />
-      <div className="-left-20 pointer-events-none absolute top-[-18%] h-72 w-72 rounded-full bg-secondary-20/60 blur-[140px] dark:bg-primary/30" />
+      <div className="pointer-events-none absolute top-[-18%] -left-20 h-72 w-72 rounded-full bg-secondary-20/60 blur-[140px] dark:bg-primary/30" />
       <div className="pointer-events-none absolute right-[-10%] bottom-[-25%] h-80 w-80 rounded-full bg-gold-muted/45 blur-[160px] dark:bg-secondary-100/20" />
 
       {/* Sidebar */}

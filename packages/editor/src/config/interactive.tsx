@@ -117,11 +117,11 @@ export const InteractiveComponents = {
       if (props.variant === "campus-grid") {
         const cards = props.contactCards ?? [];
         return (
-          <section className="mx-auto max-w-5xl py-12 px-4">
+          <section className="mx-auto max-w-5xl px-4 py-12">
             {(props.title || props.subtitle) && (
               <div className="mb-10 text-center">
                 {props.title && (
-                  <h2 className="mb-2 text-3xl font-bold tracking-tight text-gray-900">
+                  <h2 className="mb-2 font-bold text-3xl text-gray-900 tracking-tight">
                     {props.title}
                   </h2>
                 )}
@@ -133,8 +133,8 @@ export const InteractiveComponents = {
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {cards.map((card, i) => (
                 <div
-                  key={i}
                   className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+                  key={i}
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xl">
                     {iconMap[card.icon] || card.icon}
@@ -143,12 +143,12 @@ export const InteractiveComponents = {
                     <h3 className="font-semibold text-gray-900">
                       {card.title}
                     </h3>
-                    <p className="mt-0.5 text-sm text-gray-500">{card.value}</p>
+                    <p className="mt-0.5 text-gray-500 text-sm">{card.value}</p>
                   </div>
                   {card.icon === "email" && card.value && (
                     <a
+                      className="mt-auto inline-flex items-center rounded-lg border border-gray-200 px-4 py-2 font-medium text-gray-700 text-sm transition hover:bg-gray-50 hover:text-blue-600"
                       href={`mailto:${card.value}`}
-                      className="mt-auto inline-flex items-center rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-blue-600"
                     >
                       Send email
                     </a>
@@ -162,11 +162,11 @@ export const InteractiveComponents = {
 
       // Default form variant
       return (
-        <section className="mx-auto max-w-5xl py-12 px-4">
+        <section className="mx-auto max-w-5xl px-4 py-12">
           {(props.title || props.subtitle) && (
             <div className="mb-10 text-center">
               {props.title && (
-                <h2 className="mb-2 text-3xl font-bold tracking-tight text-gray-900">
+                <h2 className="mb-2 font-bold text-3xl text-gray-900 tracking-tight">
                   {props.title}
                 </h2>
               )}
@@ -178,8 +178,8 @@ export const InteractiveComponents = {
           <div className="grid gap-10 lg:grid-cols-5">
             <form
               action={props.formAction || "#"}
-              method="POST"
               className="space-y-6 lg:col-span-3"
+              method="POST"
             >
               {(props.fields ?? []).map((field, i) => {
                 const inputClass =
@@ -187,8 +187,8 @@ export const InteractiveComponents = {
                 return (
                   <div key={i}>
                     <label
+                      className="mb-1 block font-medium text-gray-700 text-sm"
                       htmlFor={field.name}
-                      className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       {field.label}
                       {field.required && (
@@ -197,18 +197,18 @@ export const InteractiveComponents = {
                     </label>
                     {field.type === "textarea" ? (
                       <textarea
+                        className={inputClass}
                         id={field.name}
                         name={field.name}
                         required={field.required}
                         rows={4}
-                        className={inputClass}
                       />
                     ) : field.type === "select" ? (
                       <select
+                        className={inputClass}
                         id={field.name}
                         name={field.name}
                         required={field.required}
-                        className={inputClass}
                       >
                         <option value="">Select…</option>
                         {((field as any).options ?? "")
@@ -223,19 +223,19 @@ export const InteractiveComponents = {
                       </select>
                     ) : (
                       <input
+                        className={inputClass}
                         id={field.name}
                         name={field.name}
-                        type={field.type || "text"}
                         required={field.required}
-                        className={inputClass}
+                        type={field.type || "text"}
                       />
                     )}
                   </div>
                 );
               })}
               <button
+                className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 font-medium text-sm text-white transition-colors hover:bg-blue-700"
                 type="submit"
-                className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
               >
                 Send Message
               </button>
@@ -244,16 +244,16 @@ export const InteractiveComponents = {
               <div className="space-y-4 lg:col-span-2">
                 {(props.contactCards ?? []).map((card, i) => (
                   <div
-                    key={i}
                     className="rounded-lg border bg-gray-50 p-5 transition-shadow hover:shadow-sm"
+                    key={i}
                   >
                     <div className="mb-2 text-2xl">
                       {iconMap[card.icon] || card.icon}
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-900">
+                    <h3 className="font-semibold text-gray-900 text-sm">
                       {card.title}
                     </h3>
-                    <p className="mt-1 text-sm text-gray-600">{card.value}</p>
+                    <p className="mt-1 text-gray-600 text-sm">{card.value}</p>
                   </div>
                 ))}
               </div>
@@ -262,12 +262,12 @@ export const InteractiveComponents = {
           {props.showMap && (
             <div className="mt-10 overflow-hidden rounded-xl">
               <iframe
-                title="Contact location"
-                width="100%"
                 height="300"
-                style={{ border: 0 }}
                 loading="lazy"
                 src="https://www.openstreetmap.org/export/embed.html?bbox=10.3,59.8,10.9,59.98&layer=mapnik"
+                style={{ border: 0 }}
+                title="Contact location"
+                width="100%"
               />
             </div>
           )}
@@ -330,25 +330,25 @@ export const InteractiveComponents = {
       const height = props.height ?? "400px";
 
       // Build OpenStreetMap embed bounding box from center + zoom
-      const delta = 180 / Math.pow(2, zoom);
+      const delta = 180 / 2 ** zoom;
       const bbox = `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
       const markerSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
 
       return (
         <section className="mx-auto max-w-5xl py-8">
           {props.title && (
-            <h2 className="mb-4 text-2xl font-bold tracking-tight">
+            <h2 className="mb-4 font-bold text-2xl tracking-tight">
               {props.title}
             </h2>
           )}
           <div className="overflow-hidden rounded-xl border" style={{ height }}>
             <iframe
-              title={props.title || "Map"}
-              width="100%"
               height="100%"
-              style={{ border: 0 }}
               loading="lazy"
               src={markerSrc}
+              style={{ border: 0 }}
+              title={props.title || "Map"}
+              width="100%"
             />
           </div>
         </section>

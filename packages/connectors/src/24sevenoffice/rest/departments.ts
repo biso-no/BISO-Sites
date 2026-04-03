@@ -60,7 +60,9 @@ export async function getDepartments(): Promise<DimensionElement[]> {
 function parseNextContinuationToken(
   linkHeader: string | null
 ): string | undefined {
-  if (!linkHeader) return undefined;
+  if (!linkHeader) {
+    return undefined;
+  }
 
   for (const part of linkHeader.split(",")) {
     const urlMatch = part.match(/<([^>]+)>/);

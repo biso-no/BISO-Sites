@@ -58,7 +58,7 @@ export function MemberPortalHeader({
             scale: [1, 1.2, 1],
             opacity: [0.3, 0.5, 0.3],
           }}
-          className="-left-20 -top-20 absolute h-96 w-96 rounded-full bg-white/10 blur-3xl"
+          className="absolute -top-20 -left-20 h-96 w-96 rounded-full bg-white/10 blur-3xl"
           transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY }}
         />
         <motion.div
@@ -66,7 +66,7 @@ export function MemberPortalHeader({
             scale: [1.2, 1, 1.2],
             opacity: [0.2, 0.4, 0.2],
           }}
-          className="-bottom-20 -right-20 absolute h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl"
+          className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl"
           transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }}
         />
         <motion.div
@@ -116,7 +116,7 @@ export function MemberPortalHeader({
                   </AvatarFallback>
                 </Avatar>
                 {isMember && (
-                  <div className="-bottom-1 -right-1 absolute flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-accent to-yellow-400 shadow-lg">
+                  <div className="absolute -right-1 -bottom-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-accent to-yellow-400 shadow-lg">
                     <Crown className="h-4 w-4 text-brand-gradient-to" />
                   </div>
                 )}
@@ -222,7 +222,7 @@ export function MemberPortalHeader({
       </div>
 
       {/* Wave decoration at bottom */}
-      <div className="-bottom-1 absolute right-0 left-0">
+      <div className="absolute right-0 -bottom-1 left-0">
         <svg
           aria-hidden="true"
           className="w-full text-background dark:text-background"
