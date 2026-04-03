@@ -228,9 +228,24 @@ export function UnifiedEditorClient({
     localeData,
   });
 
+  // Keep a ref to the latest Puck data so we can snapshot it on locale switch
+  // without subscribing to every keystroke in React state.
+  const latestPuckDataRef = useRef<Data>(currentData);
+
   const handleLocaleChange = useCallback((newLocale: Locale) => {
+    // Persist the current locale's in-flight edits before Puck remounts
+    const snapshot = latestPuckDataRef.current;
+    const rootProps = (snapshot.root?.props ?? {}) as Record<string, unknown>;
+    setLocaleData((prev) => ({
+      ...prev,
+      [currentLocale]: {
+        title: (rootProps.title as string) || prev[currentLocale]?.title || "",
+        description: (rootProps.description as string) || prev[currentLocale]?.description || "",
+        data: snapshot,
+      },
+    }));
     setCurrentLocale(newLocale);
-  }, []);
+  }, [currentLocale, setLocaleData]);
 
   const { handleDataChange: handleStructuralSync } = useLocaleStructuralSync({
     currentLocale,
@@ -240,6 +255,11 @@ export function UnifiedEditorClient({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: baseEditorConfig as any,
   });
+
+  const handlePuckChange = useCallback((nextData: Data) => {
+    latestPuckDataRef.current = nextData;
+    handleStructuralSync(nextData);
+  }, [handleStructuralSync]);
 
   const {
     isSaving,
@@ -257,6 +277,7 @@ export function UnifiedEditorClient({
     currentLocale,
     localeData,
     setLocaleData,
+    setCurrentLocale,
     availableLocales,
     effectiveSlug,
     enforcedDepartmentSlug,
@@ -362,7 +383,7 @@ export function UnifiedEditorClient({
         departments={departments}
         onBack={() => router.push("/pages")}
         onLocaleChange={handleLocaleChange}
-        onDataChange={handleStructuralSync}
+        onDataChange={handlePuckChange}
         onPublish={handlePublish}
         onSave={handleSave}
         onTranslate={handleTranslate}

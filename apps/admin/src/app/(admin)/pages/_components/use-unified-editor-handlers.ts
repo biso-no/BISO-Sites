@@ -30,6 +30,7 @@ type UseUnifiedEditorHandlersProps = {
   setLocaleData: React.Dispatch<
     React.SetStateAction<Record<Locale, LocaleData | null>>
   >;
+  setCurrentLocale: (locale: Locale) => void;
   availableLocales: Locale[];
   effectiveSlug: string;
   enforcedDepartmentSlug: string | null;
@@ -112,6 +113,7 @@ export function useUnifiedEditorHandlers({
   currentLocale,
   localeData,
   setLocaleData,
+  setCurrentLocale,
   availableLocales,
   effectiveSlug,
   enforcedDepartmentSlug,
@@ -178,10 +180,15 @@ export function useUnifiedEditorHandlers({
     const translations = availableLocales
       .map((locale) => {
         const locData = updatedLocaleData[locale];
-        if (!locData?.title.trim()) return null;
+        // Always include the locale being saved; skip other locales that haven't
+        // been filled out yet (e.g. the second locale on a brand-new page).
+        if (locale !== currentLocale && !locData?.title.trim()) return null;
+        if (!locData) return null;
         return {
           locale,
-          title: locData.title,
+          // Fall back to slug for untitled drafts so a title-less new page can
+          // still be saved. Publish already guards against empty titles earlier.
+          title: locData.title.trim() || resolvedSlug || "Untitled",
           slug: null,
           description: locData.description || null,
           draftDocument: locData.data,
@@ -340,6 +347,8 @@ export function useUnifiedEditorHandlers({
               props: {
                 ...(data.root?.props as object),
                 title: result.title,
+                description: result.description,
+                // slug intentionally not overwritten — stays the same across locales
               },
             },
           },
@@ -349,6 +358,8 @@ export function useUnifiedEditorHandlers({
       toast.success(
         `Content translated to ${targetLocale === "en" ? "English" : "Norwegian"}`
       );
+
+      setCurrentLocale(targetLocale);
     } catch (error) {
       console.error(error);
       toast.error("Failed to translate content");
@@ -473,6 +484,8 @@ export function useUnifiedEditorHandlers({
                   props: {
                     ...(sourceData.data.root?.props as object),
                     title: result.title,
+                    description: result.description,
+                    // slug intentionally not overwritten — stays the same across locales
                   },
                 },
               },

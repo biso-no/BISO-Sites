@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { getPublishedPage, type PublishedPage } from "@repo/api/page-builder";
+import { getPublishedPage, PageDocument, PageRecord, PageTranslationRecord, type PublishedPage } from "@repo/api/page-builder";
 import { createSessionClient } from "@repo/api/server";
 import type { Locale, Pages, PageTranslations } from "@repo/api/types/appwrite";
 import { cache } from "react";
@@ -13,8 +13,11 @@ const resolvePublishedPage = cache(async (slug: string, locale: Locale) =>
 export async function getPublicPage(
   slug: string,
   locale: Locale
-): Promise<PublishedPage | null> {
+): Promise<Pages | null> {
   const { db } = await createSessionClient();
+
+  console.log("Locale:", locale);
+  console.log("Slug:", slug);
 
   const response = await db.listRows<Pages>({
     databaseId: "app",
@@ -56,7 +59,9 @@ export async function getPublicPage(
     return null;
   }
 
-  return resolvePublishedPage(slug, locale);
+  const pageData = translation.puck_document as unknown as Pages;
+
+  return pageData;
 }
 
 export async function getPublicPagePreview(

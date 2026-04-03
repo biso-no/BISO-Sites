@@ -1,4 +1,3 @@
-"use client";
 import { type Config } from "@puckeditor/core";
 import { BasicsComponents } from "./config/basics";
 import { ContentComponents } from "./config/content";

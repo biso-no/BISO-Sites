@@ -256,14 +256,11 @@ export function PageEditor({
   const headerTitle = (initRootProps.title as string) || initialTitle;
   const headerSlug = (initRootProps.slug as string) || initialSlug;
 
-  // Stable renderHeaderActions — recreated only when saving state or stable
-  // handlers change, never on every Puck onChange keystroke.
-  const renderHeaderActions = useCallback(({ state }: { state: { data: unknown } }) => {
-    const currentData = state.data as Data;
-    return (
+  const overrides = useMemo(() => ({
+    ...puckFieldOverrides,
+    headerActions: () => (
       <EditorHeaderActions
         availableLocales={availableLocales}
-        currentData={currentData}
         initialStatus={initialStatus}
         locale={locale}
         onBack={onBack}
@@ -275,8 +272,8 @@ export function PageEditor({
         slug={headerSlug}
         translating={translating}
       />
-    );
-  }, [
+    ),
+  }), [
     availableLocales,
     handlePublish,
     handleSave,
@@ -305,10 +302,9 @@ export function PageEditor({
       metadata={metadata}
       onChange={(nextData) => handleChange(nextData as Data)}
       onPublish={handlePublish}
-      overrides={puckFieldOverrides}
+      overrides={overrides}
       permissions={permissions}
       plugins={PUCK_PLUGINS}
-      renderHeaderActions={renderHeaderActions}
       viewports={puckViewports}
     >
       <Puck.Layout />
@@ -321,7 +317,6 @@ export function PageEditor({
 
 function EditorHeaderActions({
   availableLocales,
-  currentData,
   initialStatus,
   locale,
   onBack,
@@ -334,7 +329,6 @@ function EditorHeaderActions({
   translating,
 }: {
   availableLocales: Locale[];
-  currentData: Data;
   initialStatus: PageStatus;
   locale: Locale;
   onBack: () => void;
@@ -349,6 +343,7 @@ function EditorHeaderActions({
   
   // Granular selector — re-renders only when selectedItem changes, not on every
   // Puck state update. Use useGetPuck for the refresh handler (call-time access).
+  const currentData = usePuck((s) => s.appState.data as Data);
   const selectedItem = usePuck((s) => s.selectedItem);
   const getPuck = useGetPuck();
   const showRefresh = selectedItem && DATA_DISPLAY_TYPES.has(selectedItem.type);
