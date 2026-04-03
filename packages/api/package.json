@@ -20,7 +20,7 @@
     "@types/node": "^24.9.2",
     "@puckeditor/core": "^0.21.0",
     "appwrite": "^24.1.1",
-    "next": "16.0.7",
+    "next": "16.2.2",
     "node-appwrite": "^23.1.0",
     "react": "^19.2.1"
   }

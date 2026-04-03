@@ -2,26 +2,28 @@
  * Permission builder utilities for setting $permissions on Appwrite documents.
  * These are pure, synchronous functions - NOT server actions.
  *
- * Authorization is team-based only (SG-App-Campus-* and SG-App-Dept-* teams).
- * Admin override is handled by table-level update/delete("team:admin") — no
- * Role.label() entries are needed on individual rows.
+ * Authorization is team-based only (SG-App-Dept-* teams).
+ * Campus teams (SG-App-Campus-*) are NEVER included in permissions — they
+ * exist only for authorization context, not for Appwrite ACLs.
+ *
+ * Campus management teams (Ledelsen{City}) are always included when a
+ * campusManagementTeamId is provided, replacing the former team:admin override.
  */
 
 import { Permission, Role } from "@repo/api";
 import type { PageVisibility } from "@repo/api/types/appwrite";
 
 /**
- * Build status-aware permissions for any content document (events, jobs, news, webshop_products).
+ * Build status-aware permissions for any content row (events, jobs, news, webshop_products).
  *
- * - published → read("any") so the public web app can read without auth
- * - draft/other → read restricted to the owning team(s)
- * - Write (update/delete) always restricted to the owning team(s)
- *   Admin override is handled by table-level team:admin permissions.
+ * - published  -> read("any") so the public web app can read without auth
+ * - draft/other -> read restricted to the owning dept team and campus mgmt team
+ * - update/delete always restricted to dept team and campus mgmt team (when provided)
  */
 export function buildContentPermissions(input: {
   status: string;
   departmentTeamId?: string | null;
-  campusTeamId?: string | null;
+  campusManagementTeamId?: string | null;
 }): string[] {
   const permissions: string[] = [];
 
@@ -31,8 +33,8 @@ export function buildContentPermissions(input: {
     if (input.departmentTeamId) {
       permissions.push(Permission.read(Role.team(input.departmentTeamId)));
     }
-    if (input.campusTeamId) {
-      permissions.push(Permission.read(Role.team(input.campusTeamId)));
+    if (input.campusManagementTeamId) {
+      permissions.push(Permission.read(Role.team(input.campusManagementTeamId)));
     }
   }
 
@@ -40,51 +42,72 @@ export function buildContentPermissions(input: {
     permissions.push(Permission.update(Role.team(input.departmentTeamId)));
     permissions.push(Permission.delete(Role.team(input.departmentTeamId)));
   }
-  if (input.campusTeamId) {
-    permissions.push(Permission.update(Role.team(input.campusTeamId)));
-    permissions.push(Permission.delete(Role.team(input.campusTeamId)));
+  if (input.campusManagementTeamId) {
+    permissions.push(Permission.update(Role.team(input.campusManagementTeamId)));
+    permissions.push(Permission.delete(Role.team(input.campusManagementTeamId)));
   }
 
   return permissions;
 }
 
 /**
- * Build permissions for a department-owned page
+ * Build permissions for a page row.
+ * Pages are always publicly readable; write access is scoped to the owning
+ * dept team and campus management team.
  */
-export function buildDepartmentPagePermissions(
-  departmentTeamId: string
-): string[] {
-  return [
-    Permission.read(Role.any()),
-    Permission.update(Role.team(departmentTeamId)),
-    Permission.delete(Role.team(departmentTeamId)),
-  ];
+export function buildPagePermissions(input: {
+  departmentTeamId?: string | null;
+  campusManagementTeamId?: string | null;
+}): string[] {
+  const permissions: string[] = [Permission.read(Role.any())];
+
+  if (input.departmentTeamId) {
+    permissions.push(Permission.update(Role.team(input.departmentTeamId)));
+    permissions.push(Permission.delete(Role.team(input.departmentTeamId)));
+  }
+  if (input.campusManagementTeamId) {
+    permissions.push(Permission.update(Role.team(input.campusManagementTeamId)));
+    permissions.push(Permission.delete(Role.team(input.campusManagementTeamId)));
+  }
+
+  return permissions;
 }
 
 /**
- * Build permissions for a campus-owned page
+ * @deprecated Use buildPagePermissions({ departmentTeamId }) instead.
+ * Kept for any callers not yet migrated.
  */
-export function buildCampusPagePermissions(campusTeamId: string): string[] {
-  return [
-    Permission.read(Role.any()),
-    Permission.update(Role.team(campusTeamId)),
-    Permission.delete(Role.team(campusTeamId)),
-  ];
+export function buildDepartmentPagePermissions(
+  departmentTeamId: string,
+  campusManagementTeamId?: string | null
+): string[] {
+  return buildPagePermissions({ departmentTeamId, campusManagementTeamId });
+}
+
+/**
+ * @deprecated Use buildPagePermissions({ departmentTeamId, campusManagementTeamId }) instead.
+ * Campus teams no longer receive Appwrite permissions.
+ */
+export function buildCampusPagePermissions(
+  _campusTeamId: string,
+  campusManagementTeamId?: string | null
+): string[] {
+  return buildPagePermissions({ campusManagementTeamId });
 }
 
 /**
  * Build permissions for a product pending approval.
- * Campus team gets read (for approval workflow) and department gets read+update.
+ * Dept team gets read + update; campus mgmt team gets read for the approval workflow.
  */
 export function buildPendingProductPermissions(
   departmentTeamId: string,
-  campusTeamId: string
+  campusManagementTeamId: string
 ): string[] {
   return [
     Permission.read(Role.team(departmentTeamId)),
-    Permission.read(Role.team(campusTeamId)),
+    Permission.read(Role.team(campusManagementTeamId)),
     Permission.update(Role.team(departmentTeamId)),
-    Permission.update(Role.team(campusTeamId)),
+    Permission.update(Role.team(campusManagementTeamId)),
   ];
 }
 
@@ -106,7 +129,7 @@ export function buildEditorialTemplatePermissions(): string[] {
 export function buildEditorialEntryPermissions(input: {
   visibility: PageVisibility;
   userId?: string | null;
-  campusTeamId?: string | null;
+  campusManagementTeamId?: string | null;
   departmentTeamId?: string | null;
 }): string[] {
   const permissions: string[] = [
@@ -120,9 +143,9 @@ export function buildEditorialEntryPermissions(input: {
     permissions.push(Permission.delete(Role.team(input.departmentTeamId)));
   }
 
-  if (input.campusTeamId) {
-    permissions.push(Permission.update(Role.team(input.campusTeamId)));
-    permissions.push(Permission.delete(Role.team(input.campusTeamId)));
+  if (input.campusManagementTeamId) {
+    permissions.push(Permission.update(Role.team(input.campusManagementTeamId)));
+    permissions.push(Permission.delete(Role.team(input.campusManagementTeamId)));
   }
 
   if (input.userId) {
@@ -137,7 +160,6 @@ export function buildEditorialEntryPermissions(input: {
  * Build permissions for a department row in the departments table.
  * Table-level read("any") already grants public read; row-level permissions
  * only need to cover write access for the matching SG-App-Dept team.
- * Admin override comes from table-level update/delete("team:admin").
  */
 export function buildDepartmentRowPermissions(departmentTeamId: string): string[] {
   return [

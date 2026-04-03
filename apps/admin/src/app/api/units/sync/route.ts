@@ -9,28 +9,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 
     
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
 
 
 
     const departments = await getDepartments();
 
-
-
-    const sync = await db.upsertRows<Departments>("app", "departments", departments.map((department) => {
+    const rows = departments.map((department) => {
       const deptNum = Number(department.value);
-      return {
+      const row = {
+        $id: department.value,
+        Id: department.value,
+        Name: department.name,
+        active: true,
+        campus_id: deptNum >= 1 && deptNum <= 299 ? "1" : deptNum >= 300 && deptNum <= 599 ? "2" : deptNum >= 600 && deptNum <= 799 ? "3" : deptNum >= 800 && deptNum <= 999 ? "4" : "5",
+      };
+      console.log("Syncing department:", row);
+      return db.upsertRow<Departments>("app", "departments", row.$id, row);
+    });
 
-      $id: department.value,
-      department_id: department.value,
-      Id: department.value,
-      Name: department.name,
-      active: true,
-      campus_id: deptNum >= 1 && deptNum <= 299 ? "1" : deptNum >= 300 && deptNum <= 599 ? "2" : deptNum >= 600 && deptNum <= 799 ? "3" : deptNum >= 800 && deptNum <= 999 ? "4" : "5",
-    };
-    }));
-
-    return NextResponse.json({ success: true, sync });
+    return NextResponse.json({ success: true, sync: rows });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

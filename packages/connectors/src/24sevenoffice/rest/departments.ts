@@ -33,6 +33,7 @@ export async function getDepartments(): Promise<DimensionElement[]> {
         },
       },
     );
+    console.log("Response:", response);
 
     if (error) {
       throw new Error(`[Finago] Failed to fetch departments: ${JSON.stringify(error)}`);

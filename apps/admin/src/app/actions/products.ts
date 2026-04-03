@@ -7,6 +7,7 @@ import {
   getUserAuthContext,
 } from "@/lib/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import {
   type ContentTranslations,
   ContentType,
@@ -281,10 +282,12 @@ export async function createProduct(
     data.departmentId ??
     (ctx.departmentTeamIds.length > 0 ? ctx.departmentTeamIds[0] : null);
 
+  const campusManagementTeamId = getCampusManagementTeamId(data.campus_id);
+
   const permissions = buildContentPermissions({
     status: statusValue,
     departmentTeamId: ctx.departmentTeamIds[0] ?? null,
-    campusTeamId: ctx.campusTeamIds[0] ?? null,
+    campusManagementTeamId,
   });
 
   try {
@@ -297,6 +300,7 @@ export async function createProduct(
         locale: Locale.EN,
         title: data.translations.en.title,
         description: data.translations.en.description,
+        $permissions: permissions,
       } as ContentTranslations,
       {
         content_type: ContentType.PRODUCT,
@@ -304,6 +308,7 @@ export async function createProduct(
         locale: Locale.NO,
         title: data.translations.no.title,
         description: data.translations.no.description,
+        $permissions: permissions,
       } as ContentTranslations,
     ];
 

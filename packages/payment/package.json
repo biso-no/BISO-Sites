@@ -18,7 +18,7 @@
     "@repo/shared": "workspace:*",
     "@types/node": "^24.9.2",
     "@vippsmobilepay/sdk": "^2.4.2",
-    "next": "16.0.7",
+    "next": "16.2.2",
     "node-appwrite": "^23.1.0"
   }
 }

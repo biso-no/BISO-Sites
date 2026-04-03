@@ -11,10 +11,10 @@
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.7",
+    "@biomejs/biome": "2.4.10",
     "lefthook": "^2.1.4",
-    "turbo": "^2.6.1",
-    "ultracite": "6.3.4"
+    "turbo": "^2.9.3",
+    "ultracite": "7.4.3"
   },
   "engines": {
     "node": ">=18"

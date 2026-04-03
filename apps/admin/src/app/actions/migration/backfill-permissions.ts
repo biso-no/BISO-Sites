@@ -1,14 +1,20 @@
 "use server";
 
 /**
- * One-time migration: backfill $permissions on existing content documents.
+ * One-time migration: backfill $permissions on existing content and translation rows.
  *
- * Run this ONCE after enabling rowSecurity on content tables.
+ * Run after:
+ *   1. Deleting all old Appwrite teams and re-syncing via M365 login
+ *   2. Enabling rowSecurity on content_translations / page_translations
  *
  * How it works:
- * - Fetches all rows from each content table in batches
- * - Looks up the Appwrite team IDs for their campus and department
- * - Calls updateRow with the appropriate $permissions based on status
+ *   - Fetches all rows from each content table in batches
+ *   - Derives the dept team ID from the row's department_id using the new
+ *     deterministic ID format (lowercased SG-App-Dept-{name})
+ *   - Derives the campus management team ID from the row's campus_id
+ *   - Updates row $permissions using the new model (no campus team, always mgmt team)
+ *   - Also backfills $permissions on related translation rows (content_translations
+ *     and page_translations) which previously had no row-level permissions
  *
  * Safe to run multiple times (idempotent — Appwrite overwrites permissions).
  */
@@ -16,8 +22,8 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { isGlobalAdmin } from "@/lib/authorization";
-import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
-import { buildContentPermissions } from "@/lib/permissions";
+import { buildContentPermissions, buildPagePermissions } from "@/lib/permissions";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
 
 const DATABASE_ID = "app";
 const BATCH_SIZE = 100;
@@ -28,46 +34,39 @@ type ContentRow = {
   department_id?: string | null;
   departmentId?: string | null;
   status?: string | null;
+  translation_refs?: Array<{ $id: string } | string> | null;
 };
 
-function getTeamIdForCampusId(
-  campusId: string | null | undefined,
-  teamsList: Array<{ $id: string; name: string }>
-): string | null {
-  if (!campusId) return null;
-  const campusName = CAMPUS_ID_TO_NAME[campusId];
-  if (!campusName) return null;
-  const team = teamsList.find((t) => t.name === `SG-App-Campus-${campusName}`);
-  return team?.$id ?? null;
+/**
+ * Derive the dept team $id from a department_id string stored on a content row.
+ * department_id values are stored as the expanded dept name (e.g. "Operations Unit")
+ * or the raw camelCase suffix (e.g. "OperationsUnit") depending on when the row
+ * was created. We normalize both to the deterministic team ID.
+ *
+ * Team IDs are: lowercased "SG-App-Dept-{camelCaseName}"
+ * e.g. dept name "Operations Unit" -> "sg-app-dept-operationsunit"
+ *      dept name "OperationsUnit"  -> "sg-app-dept-operationsunit"
+ */
+function getDeptTeamIdFromDeptName(deptName: string | null | undefined): string | null {
+  if (!deptName) return null;
+  // Collapse spaces so "Operations Unit" -> "OperationsUnit" -> "sg-app-dept-operationsunit"
+  const normalized = deptName.replace(/\s+/g, "");
+  return `sg-app-dept-${normalized.toLowerCase()}`;
 }
 
-function getTeamIdForDepartment(
-  departmentName: string | null | undefined,
-  teamsList: Array<{ $id: string; name: string }>
-): string | null {
-  if (!departmentName) return null;
-  const team = teamsList.find(
-    (t) => t.name === `SG-App-Dept-${departmentName}`
-  );
-  return team?.$id ?? null;
-}
-
-async function backfillTable(
+async function backfillContentTable(
   db: Awaited<ReturnType<typeof createAdminClient>>["db"],
-  teams: Awaited<ReturnType<typeof createAdminClient>>["teams"],
   tableId: string,
-  departmentIdField: "department_id" | "departmentId" = "department_id"
-): Promise<{ updated: number; errors: number }> {
+  departmentIdField: "department_id" | "departmentId"
+): Promise<{ updated: number; translationsUpdated: number; errors: number }> {
   let updated = 0;
+  let translationsUpdated = 0;
   let errors = 0;
   let offset = 0;
 
-  const allTeams = await teams.list();
-  const teamsList = allTeams.teams;
-
   while (true) {
     const response = await db.listRows<ContentRow>(DATABASE_ID, tableId, [
-      Query.select(["$id", "campus_id", departmentIdField, "status"]),
+      Query.select(["$id", "campus_id", departmentIdField, "status", "translation_refs.$id"]),
       Query.limit(BATCH_SIZE),
       Query.offset(offset),
     ]);
@@ -76,22 +75,38 @@ async function backfillTable(
 
     for (const row of response.rows) {
       try {
-        const deptFieldValue =
-          departmentIdField === "departmentId"
-            ? row.departmentId
-            : row.department_id;
+        const deptName =
+          departmentIdField === "departmentId" ? row.departmentId : row.department_id;
 
-        const campusTeamId = getTeamIdForCampusId(row.campus_id, teamsList);
-        const departmentTeamId = getTeamIdForDepartment(deptFieldValue, teamsList);
+        const departmentTeamId = getDeptTeamIdFromDeptName(deptName);
+        const campusManagementTeamId = getCampusManagementTeamId(row.campus_id ?? "");
 
         const permissions = buildContentPermissions({
           status: row.status ?? "draft",
-          campusTeamId,
           departmentTeamId,
+          campusManagementTeamId,
         });
 
         await db.updateRow(DATABASE_ID, tableId, row.$id, {}, permissions);
         updated++;
+
+        // Backfill translation rows with same permissions
+        const refs = row.translation_refs ?? [];
+        for (const ref of refs) {
+          if (typeof ref === "string") continue;
+          const translationTableId =
+            tableId === "pages" ? "page_translations" : "content_translations";
+          try {
+            await db.updateRow(DATABASE_ID, translationTableId, ref.$id, {}, permissions);
+            translationsUpdated++;
+          } catch (transErr) {
+            console.error(
+              `Error updating translation ${translationTableId}/${ref.$id}:`,
+              transErr
+            );
+            errors++;
+          }
+        }
       } catch (err) {
         console.error(`Error updating ${tableId}/${row.$id}:`, err);
         errors++;
@@ -102,21 +117,24 @@ async function backfillTable(
     if (response.rows.length < BATCH_SIZE) break;
   }
 
-  return { updated, errors };
+  return { updated, translationsUpdated, errors };
 }
 
 export async function runPermissionsMigration(): Promise<{
   success: boolean;
-  results: Record<string, { updated: number; errors: number }>;
+  results: Record<string, { updated: number; translationsUpdated: number; errors: number }>;
   error?: string;
 }> {
   if (!(await isGlobalAdmin())) {
     return { success: false, results: {}, error: "Unauthorized" };
   }
 
-  const { db, teams } = await createAdminClient();
+  const { db } = await createAdminClient();
 
-  const results: Record<string, { updated: number; errors: number }> = {};
+  const results: Record<
+    string,
+    { updated: number; translationsUpdated: number; errors: number }
+  > = {};
 
   const tables: Array<{
     id: string;
@@ -131,7 +149,7 @@ export async function runPermissionsMigration(): Promise<{
 
   for (const table of tables) {
     console.log(`Backfilling permissions for ${table.id}...`);
-    results[table.id] = await backfillTable(db, teams, table.id, table.deptField);
+    results[table.id] = await backfillContentTable(db, table.id, table.deptField);
     console.log(`${table.id}: ${JSON.stringify(results[table.id])}`);
   }
 

@@ -36,3 +36,19 @@ export const CAMPUS_ID_TO_NAME: Record<string, string> = Object.fromEntries(
 export function expandDeptName(raw: string): string {
   return raw.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
+
+/**
+ * Derive the campus management (Ledelsen{City}) team $id for a given campus_id.
+ *
+ * Team IDs are deterministic: lowercased Azure displayName.
+ * e.g. campus_id "1" (Oslo) -> "sg-app-dept-ledelsenoslo"
+ *      campus_id "5" (National) -> null (no city management team)
+ *
+ * Pure synchronous function — lives here rather than team-provisioning.ts
+ * because that file has "use server" and can only export async functions.
+ */
+export function getCampusManagementTeamId(campusId: string): string | null {
+  const campusName = CAMPUS_ID_TO_NAME[campusId];
+  if (!campusName || campusName === "National") return null;
+  return `sg-app-dept-ledelsen${campusName.toLowerCase()}`;
+}

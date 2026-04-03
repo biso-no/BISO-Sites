@@ -4,8 +4,32 @@ import {
   grantDeptTeamAccess,
   grantTeamContentAccess,
 } from "./team-provisioning";
+import { expandDeptName } from "./campus-constants";
 
 type AzureGroup = { id: string; name: string };
+
+/**
+ * Derive a deterministic Appwrite team $id from the Azure displayName.
+ * Using the lowercased displayName ensures the ID is stable and predictable
+ * without needing to store or look up the Azure GUID.
+ * e.g. "SG-App-Campus-Oslo" -> "sg-app-campus-oslo"
+ */
+function sanitizeTeamId(azureDisplayName: string): string {
+  return azureDisplayName.toLowerCase();
+}
+
+/**
+ * Derive a clean human-readable team name from the Azure displayName.
+ * Strips the SG-App-Campus- / SG-App-Dept- prefix and expands camelCase.
+ * e.g. "SG-App-Dept-OperationsUnit" -> "Operations Unit"
+ *      "SG-App-Campus-Oslo"         -> "Oslo"
+ */
+function sanitizeTeamName(azureDisplayName: string): string {
+  const raw = azureDisplayName
+    .replace("SG-App-Campus-", "")
+    .replace("SG-App-Dept-", "");
+  return expandDeptName(raw);
+}
 
 /**
  * Sync a single team membership, creating the team if needed
@@ -16,31 +40,29 @@ async function syncTeamMembership(
   roles: string[],
   userId: string
 ): Promise<void> {
+  const teamId = sanitizeTeamId(azureGroup.name);
+  const teamName = sanitizeTeamName(azureGroup.name);
+
   try {
-    await teams.createMembership(azureGroup.id, roles, undefined, userId);
+    await teams.createMembership(teamId, roles, undefined, userId);
   } catch (err: any) {
     if (err.code === 404) {
-      console.log(`Creating new Team: ${azureGroup.name}`);
-      await teams.create(azureGroup.id, azureGroup.name);
-      await teams.createMembership(azureGroup.id, roles, undefined, userId);
+      console.log(`Creating new Team: ${teamName} (${teamId})`);
+      await teams.create(teamId, teamName);
+      await teams.createMembership(teamId, roles, undefined, userId);
 
-      // Provision table-level create/update/delete permissions for SG-App teams
-      if (
-        azureGroup.name.startsWith("SG-App-Campus-") ||
-        azureGroup.name.startsWith("SG-App-Dept-")
-      ) {
-        await grantTeamContentAccess(azureGroup.id);
-      }
-
-      // Provision row-level write permissions on matching department rows
+      // Only dept teams get table-level create permissions; campus teams get nothing
       if (azureGroup.name.startsWith("SG-App-Dept-")) {
+        await grantTeamContentAccess(teamId);
+
+        // Provision row-level write permissions on matching department rows
         const rawDeptName = azureGroup.name.replace("SG-App-Dept-", "");
-        await grantDeptTeamAccess(azureGroup.id, rawDeptName);
+        await grantDeptTeamAccess(teamId, rawDeptName);
       }
     } else if (err.code === 409) {
-      await updateExistingMembership(teams, azureGroup.id, roles, userId);
+      await updateExistingMembership(teams, teamId, roles, userId);
     } else {
-      console.error(`Failed to sync team ${azureGroup.name}:`, err.message);
+      console.error(`Failed to sync team ${teamName}:`, err.message);
     }
   }
 }

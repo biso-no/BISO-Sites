@@ -669,16 +669,12 @@
             "$permissions": [
                 "read(\"users\")",
                 "read(\"guests\")",
-                "read(\"any\")",
-                "create(\"team:admin\")",
-                "read(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "read(\"any\")"
             ],
             "databaseId": "app",
             "name": "Departments",
             "enabled": true,
-            "rowSecurity": false,
+            "rowSecurity": true,
             "columns": [
                 {
                     "key": "Id",
@@ -3564,14 +3560,12 @@
             "$id": "content_translations",
             "$permissions": [
                 "read(\"any\")",
-                "create(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "Content Translations",
             "enabled": true,
-            "rowSecurity": false,
+            "rowSecurity": true,
             "columns": [
                 {
                     "key": "content_id",
@@ -3759,10 +3753,7 @@
             "$id": "jobs",
             "$permissions": [
                 "read(\"any\")",
-                "create(\"users\")",
-                "create(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "Jobs",
@@ -3890,10 +3881,7 @@
             "$id": "events",
             "$permissions": [
                 "read(\"any\")",
-                "create(\"users\")",
-                "create(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "Events",
@@ -4097,10 +4085,7 @@
             "$id": "news",
             "$permissions": [
                 "read(\"any\")",
-                "create(\"users\")",
-                "create(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "News",
@@ -4250,10 +4235,7 @@
             "$id": "webshop_products",
             "$permissions": [
                 "read(\"any\")",
-                "create(\"users\")",
-                "create(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "Webshop Products",
@@ -4698,10 +4680,7 @@
             "$id": "pages",
             "$permissions": [
                 "read(\"any\")",
-                "create(\"users\")",
-                "create(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "Pages",
@@ -4828,14 +4807,12 @@
             "$id": "page_translations",
             "$permissions": [
                 "read(\"any\")",
-                "create(\"team:admin\")",
-                "update(\"team:admin\")",
-                "delete(\"team:admin\")"
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "Page translations",
             "enabled": true,
-            "rowSecurity": false,
+            "rowSecurity": true,
             "columns": [
                 {
                     "key": "page_id",

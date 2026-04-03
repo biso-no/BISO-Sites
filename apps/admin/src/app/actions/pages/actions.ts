@@ -16,10 +16,8 @@ import {
   getUserAuthContext,
   isGlobalAdmin,
 } from "@/lib/authorization";
-import {
-  buildCampusPagePermissions,
-  buildDepartmentPagePermissions,
-} from "@/lib/permissions";
+import { buildPagePermissions } from "@/lib/permissions";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import type { CreateManagedPageInput, UpdateManagedPageInput } from "./types";
 import { ADMIN_LIST_PATH, cloneDocument, revalidateForPage } from "./utils";
 
@@ -65,24 +63,40 @@ async function applyUserPageScope(
       }
     }
 
+    const campusManagementTeamId = input.campusId
+      ? getCampusManagementTeamId(input.campusId)
+      : null;
+
     return {
       ...input,
       pageId: enforcedPageId,
       slug: enforcedSlug,
       departmentId: departmentName ?? input.departmentId ?? null,
-      permissions: departmentTeamId
-        ? buildDepartmentPagePermissions(departmentTeamId)
-        : input.permissions,
+      permissions: buildPagePermissions({ departmentTeamId, campusManagementTeamId }),
     };
   }
 
   if (isCampus) {
-    const campusTeamId = ctx.campusTeamIds[0] ?? null;
+    const departmentTeamId = ctx.departmentTeamIds[0] ?? null;
+    const campusManagementTeamId = input.campusId
+      ? getCampusManagementTeamId(input.campusId)
+      : null;
     return {
       ...input,
       permissions:
         input.permissions ??
-        (campusTeamId ? buildCampusPagePermissions(campusTeamId) : undefined),
+        buildPagePermissions({ departmentTeamId, campusManagementTeamId }),
+    };
+  }
+
+  if (isGlobal && !input.permissions) {
+    const campusManagementTeamId = input.campusId
+      ? getCampusManagementTeamId(input.campusId)
+      : null;
+    const departmentTeamId = ctx.departmentTeamIds[0] ?? null;
+    return {
+      ...input,
+      permissions: buildPagePermissions({ departmentTeamId, campusManagementTeamId }),
     };
   }
 

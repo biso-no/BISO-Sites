@@ -17,6 +17,7 @@ import {
   getUserAuthContext,
 } from "@/lib/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
 
 // Helper to parse metadata JSON safely
@@ -207,7 +208,8 @@ const collectEventUpdateData = (data: UpdateEventData) => {
 
 const buildEventTranslations = (
   contentId: string,
-  translations: EventTranslationsInput
+  translations: EventTranslationsInput,
+  permissions: string[]
 ) =>
   [
     { locale: Locale.EN, data: translations.en },
@@ -220,6 +222,7 @@ const buildEventTranslations = (
         locale,
         title: data.title,
         description: data.description,
+        $permissions: permissions,
       }) as ContentTranslations
   );
 
@@ -356,17 +359,19 @@ export async function createEvent(
 
   assertWriteAccess(ctx, data.campus_id, data.department_id);
 
+  const campusManagementTeamId = getCampusManagementTeamId(data.campus_id);
+
   const permissions = buildContentPermissions({
     status: data.status,
     departmentTeamId: ctx.departmentTeamIds[0] ?? null,
-    campusTeamId: ctx.campusTeamIds[0] ?? null,
+    campusManagementTeamId,
   });
 
   try {
     const { db } = await createSessionClient();
     const eventId = ID.unique();
     const metadata = serializeEventMetadata(data.metadata);
-    const translationRefs = buildEventTranslations(eventId, data.translations);
+    const translationRefs = buildEventTranslations(eventId, data.translations, permissions);
 
     const event = await db.createRow<Events>(
       "app",
@@ -450,7 +455,7 @@ export async function updateEvent(
         ? buildContentPermissions({
             status: data.status,
             departmentTeamId: ctx.departmentTeamIds[0] ?? null,
-            campusTeamId: ctx.campusTeamIds[0] ?? null,
+            campusManagementTeamId: getCampusManagementTeamId(existingEvent.campus_id),
           })
         : undefined
     );

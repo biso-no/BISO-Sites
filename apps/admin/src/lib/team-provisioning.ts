@@ -6,12 +6,15 @@ import { Departments } from "@repo/api/types/appwrite";
 import { expandDeptName } from "./campus-constants";
 
 const DATABASE_ID = "app";
+
 /**
- * Tables that SG-App teams need create/update/delete access on.
+ * All content and translation tables that SG-App-Dept-* teams need create
+ * access on. Campus teams (SG-App-Campus-*) are never granted table-level
+ * permissions — they exist only for authorization context.
  *
- * Includes the main content tables AND their child translation tables so
- * multilingual saves work without permission errors. Translation tables
- * use rowSecurity: false, so table-level team permissions are sufficient.
+ * Both content tables (rowSecurity: true) and translation tables
+ * (rowSecurity: true) get create-only here; update/delete is controlled
+ * entirely at the row level via $permissions set at insert time.
  */
 const CONTENT_TABLES = [
   "events",
@@ -24,41 +27,27 @@ const CONTENT_TABLES = [
 ] as const;
 
 /**
- * Grant a team create + update + delete permission on all content tables.
+ * Grant a dept team create-only permission on all content and translation tables.
  *
- * - create: table-level only (rows don't exist yet at create time)
- * - update/delete: added at table level so the team can act on rows;
- *   row-level permissions (set by buildContentPermissions) further restrict
- *   WHICH rows each team can touch when rowSecurity is enabled.
- *
- * Uses TablesDB.getTable() / updateTable() to patch $permissions without
- * disturbing other existing entries.
+ * Only called for SG-App-Dept-* teams (never Campus teams).
+ * Row-level update/delete is assigned at insert time via buildContentPermissions.
  */
 export async function grantTeamContentAccess(teamId: string): Promise<void> {
   const { db } = await createAdminClient();
 
-  const newPerms = [
-    `create("team:${teamId}")`,
-    `update("team:${teamId}")`,
-    `delete("team:${teamId}")`,
-  ];
+  const createPerm = `create("team:${teamId}")`;
 
   for (const tableId of CONTENT_TABLES) {
     try {
       const table = await db.getTable({ databaseId: DATABASE_ID, tableId });
-      const missing = newPerms.filter(
-        (p) => !table.$permissions.includes(p)
-      );
 
-      if (missing.length > 0) {
+      if (!table.$permissions.includes(createPerm)) {
         await db.updateTable({
           databaseId: DATABASE_ID,
           tableId,
-          permissions: [...table.$permissions, ...missing],
+          permissions: [...table.$permissions, createPerm],
         });
-        console.log(
-          `Granted [${missing.join(", ")}] on ${tableId} to team ${teamId}`
-        );
+        console.log(`Granted create on ${tableId} to team ${teamId}`);
       }
     } catch (err) {
       console.error(

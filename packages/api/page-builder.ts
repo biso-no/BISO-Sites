@@ -489,6 +489,10 @@ export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
       translationData.$id = existingId;
     }
 
+    if (input.permissions) {
+      translationData.$permissions = input.permissions;
+    }
+
     return translationData;
   });
 

@@ -17,6 +17,7 @@ import {
 } from "@/lib/authorization";
 import { assertWriteAccess, applyScopeQueries } from "@/lib/utils/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import { DEPARTMENT_ROLE } from "@/lib/roles";
 
 /**
@@ -140,10 +141,12 @@ export async function createPost(post: News) {
 
   assertWriteAccess(ctx, post.campus_id, departmentId ?? undefined);
 
+  const campusManagementTeamId = getCampusManagementTeamId(post.campus_id);
+
   const permissions = buildContentPermissions({
     status: post.status ?? "draft",
     departmentTeamId: ctx.departmentTeamIds[0] ?? null,
-    campusTeamId: ctx.campusTeamIds[0] ?? null,
+    campusManagementTeamId,
   });
 
   const { db } = await createSessionClient();

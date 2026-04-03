@@ -67,8 +67,6 @@ const SidebarItem = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const { theme } = useTheme();
-
   useEffect(() => {
     if (item.subItems) {
       setIsOpen(

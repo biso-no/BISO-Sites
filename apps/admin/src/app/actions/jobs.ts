@@ -6,6 +6,7 @@ import {
   getUserAuthContext,
 } from "@/lib/authorization";
 import { buildContentPermissions } from "@/lib/permissions";
+import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import {
   type Campus,
   type ContentTranslations,
@@ -96,7 +97,8 @@ const collectJobUpdateData = (data: Partial<CreateJobData>) => {
 
 const buildJobTranslations = (
   contentId: string,
-  translations: CreateJobData["translations"]
+  translations: CreateJobData["translations"],
+  permissions: string[]
 ) =>
   [
     { locale: Locale.EN, data: translations.en },
@@ -110,6 +112,7 @@ const buildJobTranslations = (
       title: data?.title ?? "",
       description: data?.description ?? "",
       short_description: data?.short_description || null,
+      $permissions: permissions,
     })) as ContentTranslations[];
 
 export async function listJobs(
@@ -203,17 +206,19 @@ export async function createJob(
 
   assertWriteAccess(ctx, data.campus_id, data.department_id);
 
+  const campusManagementTeamId = getCampusManagementTeamId(data.campus_id);
+
   const permissions = buildContentPermissions({
     status: data.status,
     departmentTeamId: ctx.departmentTeamIds[0] ?? null,
-    campusTeamId: ctx.campusTeamIds[0] ?? null,
+    campusManagementTeamId,
   });
 
   try {
     const { db } = await createSessionClient();
     const statusValue = mapJobStatus(data.status);
 
-    const translationRefs = buildJobTranslations("unique()", data.translations);
+    const translationRefs = buildJobTranslations("unique()", data.translations, permissions);
 
     const job = (await db.createRow(
       "app",

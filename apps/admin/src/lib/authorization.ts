@@ -22,7 +22,8 @@ export type UserAuthContext = {
 
 /**
  * Determine if a user is a global admin based on their team memberships.
- * National campus + OperationsUnit department = Global Admin
+ * National campus + Operations Unit department = Global Admin
+ * Department name is now expanded from camelCase: "OperationsUnit" -> "Operations Unit"
  */
 function isNationalOperations(
   campusNames: string[],
@@ -30,13 +31,14 @@ function isNationalOperations(
 ): boolean {
   return (
     campusNames.includes("National") &&
-    departmentNames.includes("OperationsUnit")
+    departmentNames.includes("Operations Unit")
   );
 }
 
 /**
  * Determine which campuses a user manages based on their memberships.
- * Being in Ledelsen{City} + Campus-{City} = Campus admin for that city
+ * Being in "Ledelsen {City}" dept + Campus "{City}" = Campus admin for that city.
+ * Department name is now expanded from camelCase: "LedelsenOslo" -> "Ledelsen Oslo"
  */
 function getManagedCampuses(
   campusNames: string[],
@@ -47,7 +49,7 @@ function getManagedCampuses(
 
   for (const city of cityNames) {
     const hasCampus = campusNames.includes(city);
-    const hasManagement = departmentNames.includes(`Ledelsen${city}`);
+    const hasManagement = departmentNames.includes(`Ledelsen ${city}`);
 
     if (hasCampus && hasManagement) {
       managedCampuses.push(city);
@@ -66,7 +68,10 @@ type TeamParseResult = {
 };
 
 /**
- * Parse team memberships into categorized arrays
+ * Parse team memberships into categorized arrays.
+ * Teams now use clean names (e.g. "Oslo", "Operations Unit") rather than the
+ * SG-App-* prefixed Azure displayNames. Campus teams are identified by matching
+ * the team name against the known campus list (CAMPUS_NAME_TO_ID keys).
  */
 function parseTeamMemberships(
   teams: Array<{ $id: string; name: string }>
@@ -80,14 +85,12 @@ function parseTeamMemberships(
   };
 
   for (const team of teams) {
-    const name = team.name;
-
-    if (name.startsWith("SG-App-Campus-")) {
+    if (CAMPUS_NAME_TO_ID[team.name] !== undefined) {
       result.campusTeamIds.push(team.$id);
-      result.campusNames.push(name.replace("SG-App-Campus-", ""));
-    } else if (name.startsWith("SG-App-Dept-")) {
+      result.campusNames.push(team.name);
+    } else {
       result.departmentTeamIds.push(team.$id);
-      result.departmentNames.push(name.replace("SG-App-Dept-", ""));
+      result.departmentNames.push(team.name);
     }
   }
 
