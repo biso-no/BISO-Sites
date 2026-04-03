@@ -1,9 +1,7 @@
-import { type Config } from "@puckeditor/core";
+import { type Config, type Data } from "@puckeditor/core";
 import { Render } from "@puckeditor/core/rsc";
-import { config } from "./config";
-import { migratePuckData } from "./migrate";
+import { renderConfig } from "./render-config";
 
-export function PageRender({ data }: { data: unknown }) {
-  const migratedData = migratePuckData(data);
-  return <Render config={config as unknown as Config} data={migratedData} />;
+export function PageRender({ data }: { data: Data }) {
+  return <Render config={renderConfig as Config} data={data} />;
 }
