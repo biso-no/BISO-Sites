@@ -566,10 +566,10 @@ function OrderDetailCard({
               {t("orders.detail.viewFull")}
             </NextLink>
           </Button>
-          {order.vipps_payment_link && (
+          {order.payment_link && (
             <Button asChild size="sm" variant="outline">
               <a
-                href={order.vipps_payment_link}
+                href={order.payment_link}
                 rel="noreferrer"
                 target="_blank"
               >

@@ -1,6 +1,6 @@
 "use client";
 
-import { initiateVippsCheckout } from "@repo/payment/actions";
+import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";

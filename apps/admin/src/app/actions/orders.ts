@@ -450,8 +450,9 @@ export async function createCartCheckoutSession(
     }
 
     await db.updateRow("app", "orders", order.$id, {
-      vipps_session_id: vippsCheckout.data.token,
-      vipps_payment_link: vippsCheckout.data.checkoutFrontendUrl,
+      payment_provider: "vipps",
+      payment_session_id: vippsCheckout.data.token,
+      payment_link: vippsCheckout.data.checkoutFrontendUrl,
     });
 
     return {
@@ -482,7 +483,7 @@ async function _getCheckoutStatus(
     const { db } = await createSessionClient();
     const order = await db.getRow<Orders>("app", "orders", orderId);
 
-    if (!order.vipps_session_id) {
+    if (!order.payment_session_id) {
       return { success: false, error: "No Vipps session found" };
     }
 

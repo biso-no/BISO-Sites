@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "lint": "biome lint ."
+    "lint": "biome lint .",
+    "get-product": "ts-node scripts/get-products.ts"
   },
   "exports": {
     ".": "./index.ts",
@@ -14,7 +15,9 @@
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*"
+    "@repo/connectors": "*",
+    "@repo/typescript-config": "*",
+    "ts-node": "^10.9.2"
   },
   "dependencies": {
     "@types/node": "^24.9.2",

@@ -237,10 +237,11 @@ export type Orders = Models.Row & {
   items_json: string | null;
   membership_applied: boolean | null;
   member_discount_percent: number | null;
-  vipps_session_id: string | null;
-  vipps_order_id: string | null;
-  vipps_payment_link: string | null;
-  vipps_receipt_url: string | null;
+  payment_provider: string | null;
+  payment_session_id: string | null;
+  payment_intent_id: string | null;
+  payment_link: string | null;
+  payment_receipt_url: string | null;
   campus_id: string | null;
 };
 

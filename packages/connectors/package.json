@@ -11,7 +11,8 @@
     "./azure": "./src/azure/index.ts",
     "./azure/users": "./src/azure/users.ts",
     "./24sevenoffice": "./src/24sevenoffice/index.ts",
-    "./sharepoint": "./src/sharepoint/index.ts"
+    "./sharepoint": "./src/sharepoint/index.ts",
+    "./woocommerce": "./src/woocommerce/index.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "*",
@@ -26,6 +27,7 @@
     "openapi-fetch": "^0.17.0",
     "server-only": "^0.0.1",
     "soap": "^1.1.7",
+    "woocommerce-rest-ts-api": "^7.1.2",
     "zod": "^4.1.13"
   }
 }

@@ -6,19 +6,16 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules"
   },
   "exports": {
-    "./vipps": "./vipps.ts",
-    "./actions": "./actions.ts"
+    "./vipps": "./src/vipps/index.ts",
+    "./stripe": "./src/stripe/index.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"
   },
   "dependencies": {
-    "@repo/api": "workspace:*",
-    "@repo/connectors": "workspace:*",
     "@repo/shared": "workspace:*",
     "@types/node": "^24.9.2",
     "@vippsmobilepay/sdk": "^2.4.2",
-    "next": "16.2.2",
-    "node-appwrite": "^23.1.0"
+    "stripe": "^22.0.0"
   }
 }

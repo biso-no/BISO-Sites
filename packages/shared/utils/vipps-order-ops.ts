@@ -34,8 +34,8 @@ export async function createOrder(
 
   try {
     const order = (await databases.createRow(
-      process.env.APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      'app',
+      'orders',
       orderId,
       {
         status: OrderStatus.PENDING,
@@ -54,10 +54,11 @@ export async function createOrder(
         membership_applied: params.membershipApplied || null,
         member_discount_percent: params.memberDiscountPercent || null,
         campus_id: params.campusId || null,
-        vipps_session_id: null,
-        vipps_order_id: null,
-        vipps_payment_link: null,
-        vipps_receipt_url: null,
+        payment_provider: null,
+        payment_session_id: null,
+        payment_intent_id: null,
+        payment_link: null,
+        payment_receipt_url: null,
       }
     )) as Orders;
 
@@ -69,12 +70,13 @@ export async function createOrder(
 }
 
 /**
- * Updates an order with Vipps session information
+ * Updates an order with payment session information (provider-agnostic)
  */
-export async function updateOrderWithSession(
+export async function updateOrderWithPayment(
   orderId: string,
   sessionId: string,
   checkoutUrl: string,
+  provider: string,
   databases: DbClient
 ): Promise<void> {
   try {
@@ -83,13 +85,38 @@ export async function updateOrderWithSession(
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
       orderId,
       {
-        vipps_session_id: sessionId,
-        vipps_payment_link: checkoutUrl,
+        payment_session_id: sessionId,
+        payment_link: checkoutUrl,
+        payment_provider: provider,
       }
     );
   } catch (error) {
-    console.error("Error updating order with session:", error);
-    throw new Error("Failed to update order with Vipps session");
+    console.error("Error updating order with payment session:", error);
+    throw new Error("Failed to update order with payment session");
+  }
+}
+
+/**
+ * Finds an order by its payment session ID
+ */
+export async function getOrderByPaymentSessionId(
+  sessionId: string,
+  databases: DbClient
+): Promise<{ order: any; orderId: string } | null> {
+  try {
+    const result = await databases.listRows(
+      process.env.APPWRITE_DATABASE_ID!,
+      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      [`equal("payment_session_id", "${sessionId}")`]
+    );
+    if (!result.rows || result.rows.length === 0) {
+      return null;
+    }
+    const order = result.rows[0];
+    return { order, orderId: order.$id };
+  } catch (error) {
+    console.error("Error finding order by payment session ID:", error);
+    return null;
   }
 }
 

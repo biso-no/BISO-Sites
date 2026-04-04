@@ -51,7 +51,7 @@ export function determineStatusFromPaymentState(
       break;
     case "AUTHORIZED":
       newStatus = OrderStatus.AUTHORIZED;
-      updateData.vipps_order_id =
+      updateData.payment_intent_id =
         sessionData.payment?.aggregate?.authorizedAmount?.value?.toString() ||
         null;
       break;
@@ -70,7 +70,7 @@ export function determineStatusFromPaymentState(
 
   if (sessionData.payment?.aggregate?.capturedAmount?.value > 0) {
     newStatus = OrderStatus.PAID;
-    updateData.vipps_receipt_url =
+    updateData.payment_receipt_url =
       sessionData.payment?.aggregate?.receipt?.url || null;
   }
 

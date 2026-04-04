@@ -13,7 +13,6 @@ import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
-import { createVippsCheckout } from "@/lib/vipps";
 
 async function _getOrders({
   limit = 100,
@@ -91,35 +90,39 @@ async function getMemberDiscountIfAny(product: any) {
   }
 }
 
-type CheckoutLineItemInput = {
+interface CheckoutLineItemInput {
   productId: string;
   slug: string;
   quantity: number;
+  title?: string;
   variationId?: string;
   customFields?: Record<string, string>;
   customFieldLabels?: Record<string, string>;
-};
+}
 
-type CartCheckoutData = {
+type PaymentProvider = "vipps" | "stripe";
+
+interface CartCheckoutData {
   items: CheckoutLineItemInput[];
   name: string;
   email: string;
   phone?: string;
-};
+  provider: PaymentProvider;
+}
 
-type CheckoutResult = {
+interface CheckoutResult {
   success: boolean;
   paymentUrl?: string;
   orderId?: string;
   error?: string;
-};
+}
 
-type CheckoutStatusResult = {
+interface CheckoutStatusResult {
   success: boolean;
   order?: Orders;
   vippsStatus?: any;
   error?: string;
-};
+}
 
 function sanitizeCartItems(items: CheckoutLineItemInput[] | undefined) {
   if (!items || items.length === 0) {
@@ -369,11 +372,12 @@ async function buildOrderItems(items: CheckoutLineItemInput[], locale: Locale) {
       customFieldResponses,
       input.customFieldLabels
     );
+    const title = input.title?.trim() || product.title || product.slug;
 
     orderItems.push({
       product_id: product.$id,
       product_slug: product.slug,
-      title: product.title || product.slug,
+      title,
       unit_price: pricing.discountedUnit,
       quantity: input.quantity,
       variation_id: variation?.id,
@@ -426,6 +430,76 @@ function normalizeCustomFields(inputs?: Record<string, string>) {
   );
 }
 
+function createCheckoutReference() {
+  return `checkout-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+async function createProviderCheckoutSession({
+  provider,
+  payload,
+}: {
+  provider: PaymentProvider;
+  payload: {
+    userId: string;
+    items: Array<{
+      productId: string;
+      name: string;
+      price: number;
+      quantity: number;
+      title?: string;
+      unit_price?: number;
+      category?: string;
+    }>;
+    subtotal: number;
+    discountTotal?: number;
+    total: number;
+    reference: string;
+    currency: "NOK";
+    membershipApplied?: boolean;
+    memberDiscountPercent?: number;
+    campusId?: string;
+    customerInfo: {
+      firstName?: string;
+      lastName?: string;
+      email: string;
+      phone?: string;
+    };
+  };
+}): Promise<{ checkoutUrl: string; orderId: string }> {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  if (!apiBaseUrl) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
+  }
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/payment/${provider}/checkout`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    }
+  );
+
+  const result = await response.json().catch(() => null);
+  console.log("Checkout session response", { status: response.status, result });
+
+  if (!response.ok || !result?.checkoutUrl || !result?.orderId) {
+    throw new Error(
+      result?.message ||
+        `Failed to create ${provider === "vipps" ? "Vipps" : "Stripe"} checkout session`
+    );
+  }
+
+  return {
+    checkoutUrl: result.checkoutUrl as string,
+    orderId: result.orderId as string,
+  };
+}
+
 export async function createCartCheckoutSession(
   data: CartCheckoutData
 ): Promise<CheckoutResult> {
@@ -442,55 +516,42 @@ export async function createCartCheckoutSession(
     } = await buildOrderItems(sanitizedItems, locale);
 
     const discountTotal = Math.max(0, originalTotal - subtotal);
-    const { db } = await createSessionClient();
-    const order = await db.createRow("app", "orders", "unique()", {
-      status: "pending",
-      currency: "NOK",
-      subtotal,
-      discount_total: discountTotal,
-      total: subtotal,
-      buyer_name: data.name || "Guest",
-      buyer_email: data.email || "",
-      buyer_phone: data.phone || "",
-      membership_applied: membershipApplied,
-      member_discount_percent: membershipApplied ? maxDiscountPercent : 0,
-      items_json: JSON.stringify(orderItems),
-      campus_id: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
-    });
-
-    const paymentDescription = orderItems
-      .slice(0, 2)
-      .map((item) => `${item.title} x ${item.quantity}`)
-      .join(", ");
-
-    const vippsCheckout = await createVippsCheckout({
-      amount: Math.round(subtotal * 100),
-      reference: order.$id,
-      paymentDescription,
-      email: data.email,
-      firstName: data.name.split(" ")[0] || data.name,
-      lastName: data.name.split(" ").slice(1).join(" ") || "",
-      phoneNumber: data.phone || "",
-      orderId: order.$id,
-    });
-
-    if (!vippsCheckout.ok) {
-      console.error("Vipps checkout failed:", vippsCheckout);
-      return {
-        success: false,
-        error: "Failed to create Vipps checkout session",
-      };
-    }
-
-    await db.updateRow("app", "orders", order.$id, {
-      vipps_session_id: vippsCheckout.data.token,
-      vipps_payment_link: vippsCheckout.data.checkoutFrontendUrl,
+    const [firstName, ...lastNameParts] = data.name.trim().split(/\s+/);
+    const { checkoutUrl, orderId } = await createProviderCheckoutSession({
+      provider: data.provider,
+      payload: {
+        userId: "guest",
+        items: orderItems.map((item) => ({
+          productId: item.product_id,
+          name: item.title || item.product_slug || item.product_id,
+          title: item.title,
+          price: item.unit_price,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+        })),
+        subtotal,
+        discountTotal: discountTotal || undefined,
+        total: subtotal,
+        reference: createCheckoutReference(),
+        currency: "NOK",
+        membershipApplied,
+        memberDiscountPercent: membershipApplied
+          ? maxDiscountPercent
+          : undefined,
+        campusId: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
+        customerInfo: {
+          firstName: firstName || data.name.trim() || "Guest",
+          lastName: lastNameParts.join(" "),
+          email: data.email,
+          phone: data.phone || undefined,
+        },
+      },
     });
 
     return {
       success: true,
-      paymentUrl: vippsCheckout.data.checkoutFrontendUrl,
-      orderId: order.$id,
+      paymentUrl: checkoutUrl,
+      orderId,
     };
   } catch (error) {
     console.error("Checkout session error", error);
@@ -501,6 +562,32 @@ export async function createCartCheckoutSession(
   }
 }
 
+export async function getOrder(id: string) {
+  return _getOrder(id);
+}
+
+export async function verifyOrder(orderId: string) {
+  const { db } = await createSessionClient();
+  const order = await db.getRow<Orders>("app", "orders", orderId);
+  if (!order?.payment_session_id) {
+    return order;
+  }
+  const { getVippsSession } = await import("@repo/payment/vipps");
+  const { updateOrderStatus } = await import(
+    "@repo/shared/utils/vipps-order-ops"
+  );
+  try {
+    const { paymentState, sessionData } = await getVippsSession(
+      order.payment_session_id
+    );
+    await updateOrderStatus(orderId, paymentState, sessionData, db);
+    return db.getRow<Orders>("app", "orders", orderId);
+  } catch (error) {
+    console.error("[verifyOrder] Failed to verify Vipps status:", error);
+    return order;
+  }
+}
+
 async function _getCheckoutStatus(
   orderId: string
 ): Promise<CheckoutStatusResult> {
@@ -508,7 +595,7 @@ async function _getCheckoutStatus(
     const { db } = await createSessionClient();
     const order = await db.getRow<Orders>("app", "orders", orderId);
 
-    if (!order.vipps_session_id) {
+    if (!order.payment_session_id) {
       return { success: false, error: "No Vipps session found" };
     }
 

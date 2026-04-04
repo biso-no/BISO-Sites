@@ -1,5 +1,4 @@
 import type { Orders } from "@repo/api/types/appwrite";
-import { getOrder, verifyOrder } from "@repo/payment/actions";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
@@ -17,16 +16,17 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { getOrder, verifyOrder } from "@/app/actions/orders";
 import { OrderActionsClient } from "@/components/shop/order-details-client"; // New, smaller Client Component
 
-type OrderPageProps = {
+interface OrderPageProps {
   params: {
     orderId: string;
   };
   searchParams: {
     success?: string;
   };
-};
+}
 
 // --- Status Configuration (moved to server component) ---
 const statusConfig = {
@@ -273,7 +273,7 @@ async function OrderDetails({
         {showSuccessBanner && (
           <SuccessBanner
             config={config}
-            receiptUrl={order.vipps_receipt_url ?? undefined}
+            receiptUrl={order.payment_receipt_url ?? undefined}
           />
         )}
 
@@ -306,9 +306,9 @@ async function OrderDetails({
                 <div>
                   <strong>Order Date:</strong> {orderDate}
                 </div>
-                {order.vipps_order_id && (
+                {order.payment_intent_id && (
                   <div className="mt-2">
-                    <strong>Vipps Order ID:</strong> {order.vipps_order_id}
+                    <strong>Payment ID:</strong> {order.payment_intent_id}
                   </div>
                 )}
               </div>
@@ -323,9 +323,21 @@ async function OrderDetails({
                 {items.map((item, index) => {
                   const typedItem = item as {
                     name: string;
+                    title?: string;
                     quantity: number;
                     price: number;
+                    unit_price?: number;
+                    variation_name?: string;
+                    custom_fields?: {
+                      id: string;
+                      label: string;
+                      value: string;
+                    }[];
                   };
+                  const itemName =
+                    typedItem.title || typedItem.name || "Product";
+                  const itemPrice =
+                    typedItem.unit_price ?? typedItem.price ?? 0;
                   return (
                     <div
                       className="flex gap-4 rounded-lg bg-section p-4"
@@ -333,19 +345,33 @@ async function OrderDetails({
                     >
                       <div className="flex-1">
                         <h3 className="font-semibold text-foreground">
-                          {typedItem.name}
+                          {itemName}
                         </h3>
                         <div className="mt-1 text-muted-foreground text-sm">
                           Quantity: {typedItem.quantity}
                         </div>
+                        {typedItem.variation_name && (
+                          <div className="mt-1 text-muted-foreground text-sm">
+                            Variant: {typedItem.variation_name}
+                          </div>
+                        )}
+                        {typedItem.custom_fields?.length ? (
+                          <div className="mt-2 space-y-1 text-muted-foreground text-sm">
+                            {typedItem.custom_fields.map((field) => (
+                              <div key={field.id}>
+                                <strong>{field.label}:</strong> {field.value}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="text-right">
                         <div className="font-semibold text-foreground">
-                          {(typedItem.price * typedItem.quantity).toFixed(2)}{" "}
+                          {(itemPrice * typedItem.quantity).toFixed(2)}{" "}
                           {order.currency}
                         </div>
                         <div className="text-muted-foreground text-sm">
-                          {typedItem.price.toFixed(2)} {order.currency} each
+                          {itemPrice.toFixed(2)} {order.currency} each
                         </div>
                       </div>
                     </div>

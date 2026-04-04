@@ -11,6 +11,10 @@ export const client: ReturnType<typeof Client> = Client({
   subscriptionKey,
   useTestMode: testMode,
   retryRequests: false,
+  pluginName: "biso-payment",
+  pluginVersion: "1.0.0",
+  systemName: "biso",
+  systemVersion: "1.0.0",
 });
 
 export async function getAccessToken(): Promise<string> {
@@ -18,5 +22,5 @@ export async function getAccessToken(): Promise<string> {
   if (token.ok) {
     return token.data.access_token;
   }
-  throw new Error("Failed to get access token");
+  throw new Error("Failed to get Vipps access token");
 }

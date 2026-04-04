@@ -1,7 +1,7 @@
 "use client";
 
 import { Currency } from "@repo/api/types/appwrite";
-import { initiateVippsCheckout } from "@repo/payment/actions";
+import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -25,6 +25,7 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
   const regularSubtotal = getRegularSubtotal();
   const totalSavings = getTotalSavings(isMember);
   const discountTotal = isMember ? totalSavings : 0;
+
 
   const hasUnlockableDiscounts =
     !isMember && items.some((item) => item.memberPrice);
@@ -142,7 +143,7 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
           <Button
             className="mb-3 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90 disabled:opacity-70"
             disabled={isPending}
-            onClick={handleCheckout}
+            onClick={() => router.push("/shop/checkout")}
           >
             <CreditCard className="mr-2 h-4 w-4" />
             {isPending ? "Processing..." : "Proceed to Checkout"}

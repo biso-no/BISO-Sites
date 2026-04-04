@@ -1,0 +1,1 @@
+export { fetchProducts, fetchProductById } from "./fetch-products";

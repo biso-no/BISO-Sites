@@ -36,8 +36,9 @@ interface Order extends Models.Row {
   subtotal: number;
   total: number;
   userId?: string;
-  vipps_order_id?: string;
-  vipps_payment_link?: string;
-  vipps_receipt_url?: string;
-  vipps_session_id?: string;
+  payment_provider?: string;
+  payment_session_id?: string;
+  payment_intent_id?: string;
+  payment_link?: string;
+  payment_receipt_url?: string;
 }

@@ -1052,13 +1052,11 @@
     {
       "$id": "orders",
       "$permissions": [
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:finance\")",
-        "read(\"team:finance\")",
-        "update(\"team:finance\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")",
+        "create(\"any\")"
       ],
       "databaseId": "app",
       "name": "Orders",
@@ -1175,38 +1173,56 @@
           "default": null
         },
         {
-          "key": "vipps_session_id",
+          "key": "payment_provider",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 128,
+          "size": 50,
           "default": null,
           "encrypt": false
         },
         {
-          "key": "vipps_order_id",
+          "key": "payment_session_id",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 128,
+          "size": 100,
           "default": null,
           "encrypt": false
         },
         {
-          "key": "vipps_payment_link",
+          "key": "payment_intent_id",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 512,
+          "size": 100,
           "default": null,
           "encrypt": false
         },
         {
-          "key": "vipps_receipt_url",
+          "key": "receipt_link",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 512,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "payment_link",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "payment_receipt_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
           "default": null,
           "encrypt": false
         },
