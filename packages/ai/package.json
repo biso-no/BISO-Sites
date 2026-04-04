@@ -56,7 +56,6 @@
     "@pinecone-database/pinecone": "^6.1.3",
     "@puckeditor/core": "^0.21.0",
     "@repo/connectors": "workspace:*",
-    "@repo/editor": "workspace:*",
     "ai": "^5.0.104",
     "gpt-tokenizer": "^3.0.1",
     "jszip": "^3.10.1",
