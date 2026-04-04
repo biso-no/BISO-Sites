@@ -32,13 +32,13 @@ interface Order extends Models.Row {
   items_json?: string;
   member_discount_percent?: number;
   membership_applied?: boolean;
+  payment_intent_id?: string;
+  payment_link?: string;
+  payment_provider?: string;
+  payment_receipt_url?: string;
+  payment_session_id?: string;
   status: OrderStatus;
   subtotal: number;
   total: number;
   userId?: string;
-  payment_provider?: string;
-  payment_session_id?: string;
-  payment_intent_id?: string;
-  payment_link?: string;
-  payment_receipt_url?: string;
 }

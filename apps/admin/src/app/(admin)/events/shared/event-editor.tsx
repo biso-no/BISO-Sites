@@ -25,7 +25,7 @@ import { getCampusWithDepartments } from "@/app/actions/campus";
 import { createEvent, updateEvent } from "@/app/actions/events";
 import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
 import { FormSection } from "@/components/forms/FormSection";
-import { type SaveStatus, SaveBar } from "@/components/forms/SaveBar";
+import { SaveBar, type SaveStatus } from "@/components/forms/SaveBar";
 import { EventPreviewPane } from "@/components/preview/EventPreviewPane";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -77,16 +77,20 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
   const { isDirty, isSubmitting } = form.formState;
 
   // Autosave
-  const { lastSaved, enabled: autosaveEnabled, setEnabled: setAutosave, clearDraft } =
-    useAutosave<FormValues>({
-      storageKey,
-      values: form.watch(),
-      isDirty,
-      onRestoreDraft: (draft) => {
-        // Surface the banner instead of silently restoring
-        setPendingDraft({ values: draft, savedAt: new Date() });
-      },
-    });
+  const {
+    lastSaved,
+    enabled: autosaveEnabled,
+    setEnabled: setAutosave,
+    clearDraft,
+  } = useAutosave<FormValues>({
+    storageKey,
+    values: form.watch(),
+    isDirty,
+    onRestoreDraft: (draft) => {
+      // Surface the banner instead of silently restoring
+      setPendingDraft({ values: draft, savedAt: new Date() });
+    },
+  });
 
   // Dirty state warning
   useDirtyWarning({ isDirty, isSubmitting });
@@ -108,7 +112,7 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
           locale: event.translation_refs?.[0]?.locale,
           metadata: { status: event.status },
         }
-      : null,
+      : null
   );
 
   usePageContext({
@@ -129,8 +133,8 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
       if (result.success && result.campus?.departments) {
         setDepartments(
           result.campus.departments.filter(
-            (dept: { active?: boolean }) => dept.active,
-          ),
+            (dept: { active?: boolean }) => dept.active
+          )
         );
       } else {
         setDepartments([]);
@@ -188,9 +192,11 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
   const handleCancel = () => {
     if (isDirty) {
       const ok = window.confirm(
-        "You have unsaved changes. Leave without saving?",
+        "You have unsaved changes. Leave without saving?"
       );
-      if (!ok) return;
+      if (!ok) {
+        return;
+      }
     }
     router.back();
   };
@@ -200,7 +206,7 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Breadcrumb header */}
-      <div className="border-b border-border/40 bg-background/80 px-6 py-3 backdrop-blur-sm">
+      <div className="border-border/40 border-b bg-background/80 px-6 py-3 backdrop-blur-sm">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -224,15 +230,15 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
       {pendingDraft && (
         <div className="px-6 pt-4">
           <DraftRestoreBanner
-            savedAt={pendingDraft.savedAt}
-            onRestore={() => {
-              form.reset(pendingDraft.values);
-              setPendingDraft(null);
-            }}
             onDiscard={() => {
               clearDraft();
               setPendingDraft(null);
             }}
+            onRestore={() => {
+              form.reset(pendingDraft.values);
+              setPendingDraft(null);
+            }}
+            savedAt={pendingDraft.savedAt}
           />
         </div>
       )}
@@ -246,21 +252,21 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
         >
           <Form {...form}>
             <form
-              className="space-y-6 px-6 py-6 lg:grid lg:gap-6 lg:space-y-0 lg:grid-cols-[1fr_360px]"
+              className="space-y-6 px-6 py-6 lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 lg:space-y-0"
               onSubmit={handleSave}
             >
               {/* LEFT COLUMN */}
               <div className="space-y-5">
                 <FormSection
-                  title={t("editor.eventContentTitle") || "Event Content"}
                   subtitle="Title and description in all languages"
+                  title={t("editor.eventContentTitle") || "Event Content"}
                 >
                   <EventTranslations />
                 </FormSection>
 
                 <FormSection
-                  title={t("editor.scheduleTitle") || "Schedule & Location"}
                   subtitle="Dates, times, and venue"
+                  title={t("editor.scheduleTitle") || "Schedule & Location"}
                 >
                   <EventSchedule
                     campuses={campuses}
@@ -270,10 +276,10 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
                 </FormSection>
 
                 <FormSection
-                  title={t("editor.optionsTitle") || "Options"}
-                  subtitle="Pricing, ticket links, member access, collections"
                   collapsible
                   defaultOpen={isEditing}
+                  subtitle="Pricing, ticket links, member access, collections"
+                  title={t("editor.optionsTitle") || "Options"}
                 >
                   <EventOptions event={event} />
                 </FormSection>
@@ -292,15 +298,15 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
 
       {/* Sticky save bar */}
       <SaveBar
-        status={saveStatus}
-        lastSaved={lastSaved}
+        autosaveEnabled={autosaveEnabled}
         isDirty={isDirty}
         isSubmitting={isSubmitting}
-        onSave={handleSave}
-        onCancel={handleCancel}
-        autosaveEnabled={autosaveEnabled}
+        lastSaved={lastSaved}
         onAutosaveToggle={setAutosave}
+        onCancel={handleCancel}
+        onSave={handleSave}
         saveLabel={isEditing ? t("editor.saveEvent") : t("editor.saveEvent")}
+        status={saveStatus}
       />
     </div>
   );

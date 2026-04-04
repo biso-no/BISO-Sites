@@ -1,58 +1,69 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Link } from "react-router";
-import { 
-  ChevronLeft, Plus, Search, Filter, Copy, 
-  RefreshCw, Building2, Key, Activity, 
-  CheckCircle2, AlertCircle, Clock, ShieldCheck, 
-  TerminalSquare, Webhook
+import {
+  Activity,
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  ChevronLeft,
+  Clock,
+  Copy,
+  Filter,
+  Key,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  TerminalSquare,
+  Webhook,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+import { Link } from "react-router";
 
 const PARTNERS = [
-  { 
-    id: 'p1', 
-    name: 'Espresso House', 
-    status: 'Active', 
-    apiStatus: 'Healthy', 
-    benefitsLive: 1, 
-    totalClaims: '12.4k', 
-    lastSync: '10 mins ago',
-    apiKeyPrefix: 'sk_live_eHouse...'
+  {
+    id: "p1",
+    name: "Espresso House",
+    status: "Active",
+    apiStatus: "Healthy",
+    benefitsLive: 1,
+    totalClaims: "12.4k",
+    lastSync: "10 mins ago",
+    apiKeyPrefix: "sk_live_eHouse...",
   },
-  { 
-    id: 'p2', 
-    name: 'SATS', 
-    status: 'Active', 
-    apiStatus: 'Healthy', 
-    benefitsLive: 2, 
-    totalClaims: '5.1k', 
-    lastSync: '1 hour ago',
-    apiKeyPrefix: 'sk_live_sats...'
+  {
+    id: "p2",
+    name: "SATS",
+    status: "Active",
+    apiStatus: "Healthy",
+    benefitsLive: 2,
+    totalClaims: "5.1k",
+    lastSync: "1 hour ago",
+    apiKeyPrefix: "sk_live_sats...",
   },
-  { 
-    id: 'p3', 
-    name: 'Akademika', 
-    status: 'Active', 
-    apiStatus: 'Degraded', 
-    benefitsLive: 3, 
-    totalClaims: '8.2k', 
-    lastSync: '2 days ago',
-    apiKeyPrefix: 'sk_live_akad...'
+  {
+    id: "p3",
+    name: "Akademika",
+    status: "Active",
+    apiStatus: "Degraded",
+    benefitsLive: 3,
+    totalClaims: "8.2k",
+    lastSync: "2 days ago",
+    apiKeyPrefix: "sk_live_akad...",
   },
-  { 
-    id: 'p4', 
-    name: 'Foodora', 
-    status: 'Onboarding', 
-    apiStatus: 'Pending', 
-    benefitsLive: 0, 
-    totalClaims: '0', 
-    lastSync: 'Never',
-    apiKeyPrefix: 'Not generated'
-  }
+  {
+    id: "p4",
+    name: "Foodora",
+    status: "Onboarding",
+    apiStatus: "Pending",
+    benefitsLive: 0,
+    totalClaims: "0",
+    lastSync: "Never",
+    apiKeyPrefix: "Not generated",
+  },
 ];
 
 export function PartnerManagement() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopy = (id: string) => {
@@ -61,83 +72,95 @@ export function PartnerManagement() {
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
+    <motion.div
       animate={{ opacity: 1, y: 0 }}
+      className="mx-auto max-w-6xl space-y-8 pb-12"
+      initial={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.5 }}
-      className="max-w-6xl mx-auto space-y-8 pb-12"
     >
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-4 border-b border-white/10 pb-6 sticky top-0 bg-[#000a16]/90 backdrop-blur-xl z-20 -mt-4">
+      <header className="sticky top-0 z-20 -mt-4 flex flex-col justify-between gap-6 border-white/10 border-b bg-[#000a16]/90 pt-4 pb-6 backdrop-blur-xl md:flex-row md:items-end">
         <div className="flex items-center gap-4">
-          <Link 
+          <Link
+            className="rounded-lg p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
             to="/benefits"
-            className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
           >
             <ChevronLeft size={20} />
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl md:text-4xl font-light tracking-tight text-white">
+              <h1 className="font-light text-3xl text-white tracking-tight md:text-4xl">
                 Partner Integrations
               </h1>
-              <span className="px-3 py-1 rounded-full bg-[#3DA9E0]/10 text-[#3DA9E0] border border-[#3DA9E0]/30 text-xs font-bold font-mono">
+              <span className="rounded-full border border-[#3DA9E0]/30 bg-[#3DA9E0]/10 px-3 py-1 font-bold font-mono text-[#3DA9E0] text-xs">
                 API Beta
               </span>
             </div>
-            <p className="text-white/50 mt-1 text-sm">Manage API keys, webhooks, and access for external benefit providers.</p>
+            <p className="mt-1 text-sm text-white/50">
+              Manage API keys, webhooks, and access for external benefit
+              providers.
+            </p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#3DA9E0] text-[#001731] font-semibold shadow-[0_0_20px_rgba(61,169,224,0.3)] hover:shadow-[0_0_30px_rgba(61,169,224,0.5)] transition-all">
+        <button className="flex items-center gap-2 rounded-xl bg-[#3DA9E0] px-6 py-3 font-semibold text-[#001731] shadow-[0_0_20px_rgba(61,169,224,0.3)] transition-all hover:shadow-[0_0_30px_rgba(61,169,224,0.5)]">
           <Plus size={18} />
           <span>Invite Partner</span>
         </button>
       </header>
 
       {/* System Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-3xl p-6 flex flex-col justify-center backdrop-blur-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#3DA9E0]/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
-          <div className="flex items-center gap-3 mb-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3DA9E0]/5 blur-[40px]" />
+          <div className="mb-2 flex items-center gap-3">
             <Building2 className="text-[#3DA9E0]" size={20} />
-            <h3 className="text-white/60 font-medium text-sm uppercase tracking-wider">Active Partners</h3>
+            <h3 className="font-medium text-sm text-white/60 uppercase tracking-wider">
+              Active Partners
+            </h3>
           </div>
-          <p className="text-4xl font-light text-white">12</p>
+          <p className="font-light text-4xl text-white">12</p>
         </div>
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-3xl p-6 flex flex-col justify-center backdrop-blur-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
-          <div className="flex items-center gap-3 mb-2">
+        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/5 blur-[40px]" />
+          <div className="mb-2 flex items-center gap-3">
             <Activity className="text-emerald-400" size={20} />
-            <h3 className="text-white/60 font-medium text-sm uppercase tracking-wider">API Health</h3>
+            <h3 className="font-medium text-sm text-white/60 uppercase tracking-wider">
+              API Health
+            </h3>
           </div>
-          <p className="text-4xl font-light text-white">99.9%</p>
+          <p className="font-light text-4xl text-white">99.9%</p>
         </div>
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-3xl p-6 flex flex-col justify-center backdrop-blur-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-400/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
-          <div className="flex items-center gap-3 mb-2">
+        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-400/5 blur-[40px]" />
+          <div className="mb-2 flex items-center gap-3">
             <TerminalSquare className="text-purple-400" size={20} />
-            <h3 className="text-white/60 font-medium text-sm uppercase tracking-wider">Total Requests (24h)</h3>
+            <h3 className="font-medium text-sm text-white/60 uppercase tracking-wider">
+              Total Requests (24h)
+            </h3>
           </div>
-          <p className="text-4xl font-light text-white">42.8k</p>
+          <p className="font-light text-4xl text-white">42.8k</p>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center pt-4">
+      <div className="flex flex-col items-center justify-between gap-4 pt-4 md:flex-row">
         <div className="relative w-full md:w-96">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search partners or API keys..."
-            value={search}
+          <Search
+            className="absolute top-1/2 left-4 -translate-y-1/2 text-white/40"
+            size={18}
+          />
+          <input
+            className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pr-4 pl-12 text-sm text-white outline-none backdrop-blur-sm transition-colors placeholder:text-white/40 focus:border-[#3DA9E0]"
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-[#3DA9E0] transition-colors backdrop-blur-sm text-sm"
+            placeholder="Search partners or API keys..."
+            type="text"
+            value={search}
           />
         </div>
-        <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 text-white/80 text-sm hover:bg-white/5 transition-all">
+        <div className="hide-scrollbar flex w-full gap-3 overflow-x-auto pb-2 md:w-auto md:pb-0">
+          <button className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm text-white/80 transition-all hover:bg-white/5">
             <Filter size={14} /> Filter Status
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm hover:bg-white/10 transition-all">
+          <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 transition-all hover:bg-white/10">
             <RefreshCw size={14} /> Sync Logs
           </button>
         </div>
@@ -146,32 +169,40 @@ export function PartnerManagement() {
       {/* Partners List */}
       <div className="space-y-4">
         <AnimatePresence>
-          {PARTNERS.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map((partner, i) => (
+          {PARTNERS.filter((p) =>
+            p.name.toLowerCase().includes(search.toLowerCase())
+          ).map((partner, i) => (
             <motion.div
-              layout
-              key={partner.id}
-              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
+              className="group flex flex-col justify-between gap-6 rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm transition-colors hover:bg-white/[0.04] xl:flex-row xl:items-center"
+              initial={{ opacity: 0, y: 10 }}
+              key={partner.id}
+              layout
               transition={{ delay: i * 0.05 }}
-              className="bg-white/[0.02] border border-white/[0.05] rounded-3xl p-6 backdrop-blur-sm hover:bg-white/[0.04] transition-colors group flex flex-col xl:flex-row xl:items-center justify-between gap-6"
             >
               {/* Info Section */}
               <div className="flex items-center gap-5 xl:w-1/3">
-                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-inner">
-                  <Building2 size={24} className="text-white/50" />
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-inner">
+                  <Building2 className="text-white/50" size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-medium text-white mb-1 flex items-center gap-2">
+                  <h3 className="mb-1 flex items-center gap-2 font-medium text-white text-xl">
                     {partner.name}
-                    {partner.status === 'Active' && <ShieldCheck size={16} className="text-[#3DA9E0]" />}
+                    {partner.status === "Active" && (
+                      <ShieldCheck className="text-[#3DA9E0]" size={16} />
+                    )}
                   </h3>
                   <div className="flex items-center gap-3 text-xs">
-                    <span className={`px-2 py-0.5 rounded border font-medium tracking-wide uppercase ${
-                      partner.status === 'Active' ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20' : 'bg-amber-400/10 text-amber-400 border-amber-400/20'
-                    }`}>
+                    <span
+                      className={`rounded border px-2 py-0.5 font-medium uppercase tracking-wide ${
+                        partner.status === "Active"
+                          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-400"
+                          : "border-amber-400/20 bg-amber-400/10 text-amber-400"
+                      }`}
+                    >
                       {partner.status}
                     </span>
-                    <span className="text-white/40 flex items-center gap-1">
+                    <span className="flex items-center gap-1 text-white/40">
                       <Clock size={12} /> Last sync: {partner.lastSync}
                     </span>
                   </div>
@@ -179,55 +210,88 @@ export function PartnerManagement() {
               </div>
 
               {/* Stats Section */}
-              <div className="grid grid-cols-2 gap-4 xl:w-1/4 border-y xl:border-y-0 xl:border-x border-white/5 py-4 xl:py-0 xl:px-6">
+              <div className="grid grid-cols-2 gap-4 border-white/5 border-y py-4 xl:w-1/4 xl:border-x xl:border-y-0 xl:px-6 xl:py-0">
                 <div>
-                  <p className="text-white/40 text-[10px] uppercase tracking-widest mb-1">Live Benefits</p>
-                  <p className="text-white font-mono text-lg">{partner.benefitsLive}</p>
+                  <p className="mb-1 text-[10px] text-white/40 uppercase tracking-widest">
+                    Live Benefits
+                  </p>
+                  <p className="font-mono text-lg text-white">
+                    {partner.benefitsLive}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-white/40 text-[10px] uppercase tracking-widest mb-1">Total Claims</p>
-                  <p className="text-white font-mono text-lg">{partner.totalClaims}</p>
+                  <p className="mb-1 text-[10px] text-white/40 uppercase tracking-widest">
+                    Total Claims
+                  </p>
+                  <p className="font-mono text-lg text-white">
+                    {partner.totalClaims}
+                  </p>
                 </div>
               </div>
 
               {/* API Section */}
               <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-white/40 text-[10px] uppercase tracking-widest">API Configuration</p>
-                  <span className={`flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold ${
-                    partner.apiStatus === 'Healthy' ? 'text-emerald-400' :
-                    partner.apiStatus === 'Degraded' ? 'text-amber-400' :
-                    'text-white/40'
-                  }`}>
-                    {partner.apiStatus === 'Healthy' && <CheckCircle2 size={12} />}
-                    {partner.apiStatus === 'Degraded' && <AlertCircle size={12} />}
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-[10px] text-white/40 uppercase tracking-widest">
+                    API Configuration
+                  </p>
+                  <span
+                    className={`flex items-center gap-1 font-bold text-[10px] uppercase tracking-wider ${
+                      partner.apiStatus === "Healthy"
+                        ? "text-emerald-400"
+                        : partner.apiStatus === "Degraded"
+                          ? "text-amber-400"
+                          : "text-white/40"
+                    }`}
+                  >
+                    {partner.apiStatus === "Healthy" && (
+                      <CheckCircle2 size={12} />
+                    )}
+                    {partner.apiStatus === "Degraded" && (
+                      <AlertCircle size={12} />
+                    )}
                     {partner.apiStatus}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-[#000a16] border border-white/10 rounded-xl p-2.5 flex items-center gap-3">
-                    <Key size={14} className="text-white/30 shrink-0" />
-                    <code className="text-white/70 text-xs truncate flex-1">{partner.apiKeyPrefix}</code>
-                    <button 
+                  <div className="flex flex-1 items-center gap-3 rounded-xl border border-white/10 bg-[#000a16] p-2.5">
+                    <Key className="shrink-0 text-white/30" size={14} />
+                    <code className="flex-1 truncate text-white/70 text-xs">
+                      {partner.apiKeyPrefix}
+                    </code>
+                    <button
+                      className="p-1 text-white/40 transition-colors hover:text-white"
                       onClick={() => handleCopy(partner.id)}
-                      className="text-white/40 hover:text-white transition-colors p-1"
                     >
-                      {copiedId === partner.id ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      {copiedId === partner.id ? (
+                        <CheckCircle2 className="text-emerald-400" size={14} />
+                      ) : (
+                        <Copy size={14} />
+                      )}
                     </button>
                   </div>
-                  <button className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-colors" title="Configure Webhooks">
+                  <button
+                    className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                    title="Configure Webhooks"
+                  >
                     <Webhook size={18} />
                   </button>
                 </div>
-                
-                {partner.status === 'Active' ? (
+
+                {partner.status === "Active" ? (
                   <div className="flex gap-2">
-                    <button className="text-[11px] font-medium text-white/40 hover:text-white transition-colors px-2 py-1 rounded bg-white/5">Roll API Key</button>
-                    <button className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-colors px-2 py-1 rounded bg-red-500/10">Revoke Access</button>
+                    <button className="rounded bg-white/5 px-2 py-1 font-medium text-[11px] text-white/40 transition-colors hover:text-white">
+                      Roll API Key
+                    </button>
+                    <button className="rounded bg-red-500/10 px-2 py-1 font-medium text-[11px] text-red-400 transition-colors hover:text-red-300">
+                      Revoke Access
+                    </button>
                   </div>
                 ) : (
-                  <button className="text-[11px] font-medium text-[#3DA9E0] hover:text-white transition-colors px-2 py-1 rounded bg-[#3DA9E0]/10">Generate Credentials</button>
+                  <button className="rounded bg-[#3DA9E0]/10 px-2 py-1 font-medium text-[#3DA9E0] text-[11px] transition-colors hover:text-white">
+                    Generate Credentials
+                  </button>
                 )}
               </div>
             </motion.div>

@@ -198,7 +198,9 @@ export type PostFormInput = {
 
 export async function createPostFromForm(data: PostFormInput): Promise<News> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   assertWriteAccess(ctx, data.campus_id, data.department_id);
 
@@ -247,7 +249,7 @@ export async function createPostFromForm(data: PostFormInput): Promise<News> {
       author: data.author ?? null,
       translation_refs: translationRefs,
     },
-    permissions,
+    permissions
   );
 
   revalidatePath("/posts");
@@ -256,10 +258,12 @@ export async function createPostFromForm(data: PostFormInput): Promise<News> {
 
 export async function updatePostFromForm(
   postId: string,
-  data: PostFormInput,
+  data: PostFormInput
 ): Promise<void> {
   const ctx = await getUserAuthContext();
-  if (!ctx) throw new Error("Unauthorized");
+  if (!ctx) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createSessionClient();
 
@@ -281,7 +285,7 @@ export async function updatePostFromForm(
 
   const existingRefs = Array.isArray(existing.translation_refs)
     ? (existing.translation_refs as ContentTranslations[]).filter(
-        (r): r is ContentTranslations => typeof r !== "string",
+        (r): r is ContentTranslations => typeof r !== "string"
       )
     : [];
 
@@ -299,8 +303,16 @@ export async function updatePostFromForm(
   };
 
   const translationRefs = [
-    buildRef(Locale.EN, data.translations.en.title, data.translations.en.description),
-    buildRef(Locale.NO, data.translations.no.title, data.translations.no.description),
+    buildRef(
+      Locale.EN,
+      data.translations.en.title,
+      data.translations.en.description
+    ),
+    buildRef(
+      Locale.NO,
+      data.translations.no.title,
+      data.translations.no.description
+    ),
   ];
 
   await db.updateRow<News>("app", "news", postId, {

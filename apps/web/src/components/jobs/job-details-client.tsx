@@ -2,6 +2,7 @@
 
 import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -17,7 +18,6 @@ import {
   Send,
   Users,
 } from "lucide-react";
-import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 
@@ -181,7 +181,10 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 <h2 className="mb-4 font-bold text-2xl text-foreground">
                   Position Overview
                 </h2>
-                <PlateContentRenderer value={description} className="text-muted-foreground" />
+                <PlateContentRenderer
+                  className="text-muted-foreground"
+                  value={description}
+                />
               </Card>
             </motion.div>
 

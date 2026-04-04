@@ -29,7 +29,7 @@ function getMeta(metaData: WcMetaItem[], key: string): string | null {
 
 function extractCampusAndDepartment(metaData: WcMetaItem[]) {
   const campus = getMeta(metaData, "campus");
-  if (!campus || !CAMPUS_DEPT_FIELD[campus]) {
+  if (!(campus && CAMPUS_DEPT_FIELD[campus])) {
     return { campus_id: null, departmentId: null };
   }
   const deptField = CAMPUS_DEPT_FIELD[campus];
@@ -38,11 +38,16 @@ function extractCampusAndDepartment(metaData: WcMetaItem[]) {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function truncate(str: string, max: number): string {
-  if (str.length <= max) return str;
+  if (str.length <= max) {
+    return str;
+  }
   return `${str.slice(0, max - 3)}...`;
 }
 
@@ -105,7 +110,9 @@ async function migrateProducts(dryRun = false) {
 
         const category = product.categories?.[0]?.slug ?? "uncategorized";
         const image: string | null = product.images?.[0]?.src ?? null;
-        const price = parseFloat(product.regular_price || product.price || "0");
+        const price = Number.parseFloat(
+          product.regular_price || product.price || "0"
+        );
 
         const metadata = truncate(
           JSON.stringify({

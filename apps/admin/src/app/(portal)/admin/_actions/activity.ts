@@ -1,17 +1,16 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
 import type { AuditLogs } from "@repo/api/types/appwrite";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
 
@@ -25,8 +24,7 @@ export async function listActivityLog(opts?: {
 
   // Only campus admins and global admins can view the activity log
   if (
-    !ctx.roles.includes("globaladmin") &&
-    !ctx.roles.includes("campusadmin")
+    !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
   ) {
     return [];
   }

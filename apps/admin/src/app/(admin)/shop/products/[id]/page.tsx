@@ -19,5 +19,5 @@ export default async function ProductEditPage({ params }: Props) {
     notFound();
   }
 
-  return <EditProduct product={product} campuses={campuses} />;
+  return <EditProduct campuses={campuses} product={product} />;
 }

@@ -3,7 +3,7 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { format } from "date-fns";
 import { enUS, nb } from "date-fns/locale";
-import { Calendar, Clock, MapPin, Tag, Ticket, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Ticket, Users } from "lucide-react";
 import Image from "next/image";
 import { useMemo } from "react";
 import type { Locale } from "@/components/forms/LocaleTabGroup";
@@ -35,7 +35,9 @@ function fmtDate(d: string, locale: Locale) {
 }
 
 function fmtPrice(n: number) {
-  if (n === 0) return "Free";
+  if (n === 0) {
+    return "Free";
+  }
   return new Intl.NumberFormat("nb-NO", {
     style: "currency",
     currency: "NOK",
@@ -52,11 +54,16 @@ export function EventPreviewPane({
 }) {
   const t = data.translations[locale];
   const imageUrl = data.metadata?.images?.[0] ?? data.image ?? "";
-  const title = t.title || (locale === "en" ? "Event Title" : "Arrangementstittel");
+  const title =
+    t.title || (locale === "en" ? "Event Title" : "Arrangementstittel");
 
   const plainDescription = useMemo(() => {
-    if (!t.description) return "";
-    if (typeof window === "undefined") return t.description;
+    if (!t.description) {
+      return "";
+    }
+    if (typeof window === "undefined") {
+      return t.description;
+    }
     const div = document.createElement("div");
     div.innerHTML = t.description;
     return div.textContent ?? "";
@@ -76,7 +83,13 @@ export function EventPreviewPane({
       {/* Hero */}
       <div className="relative h-56 overflow-hidden bg-slate-200">
         {imageUrl ? (
-          <Image src={imageUrl} alt={title} fill className="object-cover" sizes="800px" />
+          <Image
+            alt={title}
+            className="object-cover"
+            fill
+            sizes="800px"
+            src={imageUrl}
+          />
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-slate-300 to-slate-400" />
         )}
@@ -84,7 +97,7 @@ export function EventPreviewPane({
 
         <div className="absolute inset-0 flex flex-col justify-end p-6">
           {data.status !== "published" && (
-            <Badge variant="secondary" className="mb-2 w-fit uppercase text-xs">
+            <Badge className="mb-2 w-fit text-xs uppercase" variant="secondary">
               {data.status}
             </Badge>
           )}
@@ -94,8 +107,10 @@ export function EventPreviewPane({
               {locale === "en" ? "Members Only" : "Kun medlemmer"}
             </Badge>
           )}
-          <h1 className="font-bold text-2xl text-white leading-tight">{title}</h1>
-          <div className="mt-2 flex flex-wrap gap-3 text-white/80 text-sm">
+          <h1 className="font-bold text-2xl text-white leading-tight">
+            {title}
+          </h1>
+          <div className="mt-2 flex flex-wrap gap-3 text-sm text-white/80">
             {startFmt && (
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
@@ -130,8 +145,10 @@ export function EventPreviewPane({
                 dangerouslySetInnerHTML={{ __html: t.description }}
               />
             ) : (
-              <p className="italic text-muted-foreground text-sm">
-                {locale === "en" ? "No description yet…" : "Ingen beskrivelse ennå…"}
+              <p className="text-muted-foreground text-sm italic">
+                {locale === "en"
+                  ? "No description yet…"
+                  : "Ingen beskrivelse ennå…"}
               </p>
             )}
           </div>
@@ -139,13 +156,15 @@ export function EventPreviewPane({
           {/* Sidebar */}
           <div className="space-y-4">
             {/* Price card */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="space-y-3 rounded-xl border border-border bg-card p-4">
               {data.price !== undefined && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground text-sm">
                     {locale === "en" ? "Price" : "Pris"}
                   </span>
-                  <span className="font-semibold text-lg">{fmtPrice(data.price)}</span>
+                  <span className="font-semibold text-lg">
+                    {fmtPrice(data.price)}
+                  </span>
                 </div>
               )}
               {data.ticket_url && (
@@ -156,15 +175,17 @@ export function EventPreviewPane({
                   </span>
                 </div>
               )}
-              {!data.price && !data.ticket_url && (
+              {!(data.price || data.ticket_url) && (
                 <p className="text-muted-foreground text-xs italic">
-                  {locale === "en" ? "No ticket info yet" : "Ingen billettinfo ennå"}
+                  {locale === "en"
+                    ? "No ticket info yet"
+                    : "Ingen billettinfo ennå"}
                 </p>
               )}
             </div>
 
             {/* Details */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="space-y-3 rounded-xl border border-border bg-card p-4">
               <p className="font-medium text-sm">
                 {locale === "en" ? "Event details" : "Detaljer"}
               </p>
@@ -177,12 +198,17 @@ export function EventPreviewPane({
               {startFmt && (
                 <div className="flex items-start gap-2 text-sm">
                   <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span>{startFmt}{timeRange ? `, ${timeRange}` : ""}</span>
+                  <span>
+                    {startFmt}
+                    {timeRange ? `, ${timeRange}` : ""}
+                  </span>
                 </div>
               )}
-              {!data.location && !startFmt && (
+              {!(data.location || startFmt) && (
                 <p className="text-muted-foreground text-xs italic">
-                  {locale === "en" ? "Details will appear here" : "Detaljer vises her"}
+                  {locale === "en"
+                    ? "Details will appear here"
+                    : "Detaljer vises her"}
                 </p>
               )}
             </div>
@@ -197,7 +223,7 @@ export function EventPreviewPane({
 
 function PreviewWatermark() {
   return (
-    <div className="pointer-events-none fixed right-3 top-14 z-50 rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 text-xs font-medium ring-1 ring-amber-200">
+    <div className="pointer-events-none fixed top-14 right-3 z-50 rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-700 text-xs ring-1 ring-amber-200">
       Preview
     </div>
   );

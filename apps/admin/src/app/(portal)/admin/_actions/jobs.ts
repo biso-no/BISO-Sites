@@ -1,35 +1,38 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
-import { createSessionClient, createAdminClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
-import { applyScopeQueries, assertWriteAccess } from "@/lib/utils/authorization";
+import { createSessionClient } from "@repo/api/server";
 import type {
-  Jobs,
-  ContentTranslations,
   Campus,
+  ContentTranslations,
   Departments,
   JobStatus,
+  Jobs,
 } from "@repo/api/types/appwrite";
-import { z } from "zod";
-import { jobSchema, type JobFormValues } from "./schemas";
-import { JOBS_PAGE_SIZE } from "./schemas";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import {
+  applyScopeQueries,
+  assertWriteAccess,
+} from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
+import { JOBS_PAGE_SIZE, type JobFormValues, jobSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
 
-
-
-export async function listJobs(opts?: { campusId?: string; status?: string; search?: string; page?: number }) {
+export async function listJobs(opts?: {
+  campusId?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+}) {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
   const page = Math.max(1, opts?.page ?? 1);
@@ -54,7 +57,7 @@ export async function listJobs(opts?: { campusId?: string; status?: string; sear
 
   const jobIds = jobsResponse.rows.map((j) => j.$id);
 
-  let translations: ContentTranslations[] = [];
+  const translations: ContentTranslations[] = [];
   if (jobIds.length > 0) {
     const chunkSize = 25;
     for (let i = 0; i < jobIds.length; i += chunkSize) {
@@ -92,7 +95,9 @@ export async function getJob(id: string) {
   ]);
 
   const job = jobsResponse.rows[0];
-  if (!job) return null;
+  if (!job) {
+    return null;
+  }
 
   const translationsResponse = await db.listRows<ContentTranslations>(
     "app",
@@ -144,7 +149,10 @@ export async function createJob(values: JobFormValues) {
     });
   }
 
-  void logAuditEvent(ctx, "job_created", { resourceId: job.$id, resourceType: "job" });
+  void logAuditEvent(ctx, "job_created", {
+    resourceId: job.$id,
+    resourceType: "job",
+  });
   revalidatePath("/admin/jobs");
   return { data: job.$id };
 }
@@ -163,7 +171,9 @@ export async function updateJob(id: string, values: JobFormValues) {
     Query.limit(1),
   ]);
   const job = existing.rows[0];
-  if (!job) return { error: "Job not found" };
+  if (!job) {
+    return { error: "Job not found" };
+  }
 
   assertWriteAccess(ctx, job.campus_id, job.department_id);
 
@@ -219,7 +229,11 @@ export async function updateJob(id: string, values: JobFormValues) {
     }
   }
 
-  void logAuditEvent(ctx, "job_updated", { resourceId: id, resourceType: "job", payload: { status: validated.data.status } });
+  void logAuditEvent(ctx, "job_updated", {
+    resourceId: id,
+    resourceType: "job",
+    payload: { status: validated.data.status },
+  });
   revalidatePath("/admin/jobs");
   revalidatePath(`/admin/jobs/${id}`);
   return { data: id };
@@ -234,15 +248,16 @@ export async function deleteJob(id: string) {
     Query.limit(1),
   ]);
   const job = existing.rows[0];
-  if (!job) return { error: "Job not found" };
+  if (!job) {
+    return { error: "Job not found" };
+  }
 
   assertWriteAccess(ctx, job.campus_id, job.department_id);
 
-  const translations = await db.listRows(
-    "app",
-    "content_translations",
-    [Query.equal("content_type", "job"), Query.equal("content_id", id)]
-  );
+  const translations = await db.listRows("app", "content_translations", [
+    Query.equal("content_type", "job"),
+    Query.equal("content_id", id),
+  ]);
   await Promise.all(
     translations.rows.map((t) =>
       db.deleteRow("app", "content_translations", t.$id)
@@ -250,7 +265,10 @@ export async function deleteJob(id: string) {
   );
   await db.deleteRow("app", "jobs", id);
 
-  void logAuditEvent(ctx, "job_deleted", { resourceId: id, resourceType: "job" });
+  void logAuditEvent(ctx, "job_deleted", {
+    resourceId: id,
+    resourceType: "job",
+  });
   revalidatePath("/admin/jobs");
   return { data: true };
 }

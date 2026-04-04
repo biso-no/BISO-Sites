@@ -1,6 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
@@ -53,13 +53,13 @@ export function PortalButton({
 }: ButtonProps) {
   return (
     <button
-      type="button"
-      className={`inline-flex items-center font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${SIZES[size]} ${className}`}
-      style={VARIANTS[variant]}
+      className={`inline-flex items-center font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 ${SIZES[size]} ${className}`}
       disabled={disabled || loading}
+      style={VARIANTS[variant]}
+      type="button"
       {...props}
     >
-      {loading && <Loader2 size={14} className="animate-spin" />}
+      {loading && <Loader2 className="animate-spin" size={14} />}
       {children}
     </button>
   );
@@ -82,8 +82,8 @@ export function PortalLinkButton({
 }: LinkButtonProps) {
   return (
     <Link
-      href={href}
       className={`inline-flex items-center font-medium transition-all ${SIZES[size]} ${className}`}
+      href={href}
       style={VARIANTS[variant]}
     >
       {children}

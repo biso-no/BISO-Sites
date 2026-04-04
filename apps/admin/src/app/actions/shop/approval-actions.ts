@@ -7,8 +7,8 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
 import { logAuditEvent } from "@/app/(portal)/admin/_actions/audit-log";
+import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
 
 // Product status constants
 const STATUS_PENDING = "pending_approval";
@@ -116,7 +116,11 @@ export async function approveProduct(productId: string): Promise<void> {
     },
   });
 
-  void logAuditEvent(ctx, "product_approved", { resourceId: productId, resourceType: "webshop_products", payload: { status: STATUS_PUBLISHED } });
+  void logAuditEvent(ctx, "product_approved", {
+    resourceId: productId,
+    resourceType: "webshop_products",
+    payload: { status: STATUS_PUBLISHED },
+  });
 
   revalidatePath("/shop/approval-queue");
   revalidatePath("/shop/products");
@@ -174,7 +178,11 @@ export async function rejectProduct(
     },
   });
 
-  void logAuditEvent(ctx, "product_rejected", { resourceId: productId, resourceType: "webshop_products", payload: { reason, previousStatus: STATUS_PENDING } });
+  void logAuditEvent(ctx, "product_rejected", {
+    resourceId: productId,
+    resourceType: "webshop_products",
+    payload: { reason, previousStatus: STATUS_PENDING },
+  });
 
   revalidatePath("/shop/approval-queue");
   revalidatePath("/shop/products");

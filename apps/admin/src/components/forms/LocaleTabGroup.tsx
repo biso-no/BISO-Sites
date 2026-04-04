@@ -33,12 +33,12 @@ export function LocaleTabGroup({
 
   return (
     <div
+      aria-label="Content language"
       className={cn(
         "inline-flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 p-1",
-        className,
+        className
       )}
       role="tablist"
-      aria-label="Content language"
     >
       {locales.map((locale) => {
         const active = locale === activeLocale;
@@ -46,27 +46,27 @@ export function LocaleTabGroup({
 
         return (
           <button
-            key={locale}
-            role="tab"
             aria-selected={active}
-            type="button"
-            onClick={() => onChange(locale)}
             className={cn(
-              "relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+              "relative flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-sm transition-all",
               active
                 ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+                : "text-muted-foreground hover:text-foreground"
             )}
+            key={locale}
+            onClick={() => onChange(locale)}
+            role="tab"
+            type="button"
           >
             <span>{FLAG[locale]}</span>
             <span>{LABEL[locale]}</span>
             {dot && (
               <span
+                aria-hidden
                 className={cn(
                   "ml-0.5 h-1.5 w-1.5 rounded-full",
-                  STATUS_DOT[dot],
+                  STATUS_DOT[dot]
                 )}
-                aria-hidden
               />
             )}
           </button>

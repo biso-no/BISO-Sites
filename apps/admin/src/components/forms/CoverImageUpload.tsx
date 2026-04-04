@@ -25,7 +25,9 @@ export function CoverImageUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const validImages = images.filter((s) => typeof s === "string" && s.trim().length > 0);
+  const validImages = images.filter(
+    (s) => typeof s === "string" && s.trim().length > 0
+  );
   const cover = validImages[0] ?? null;
   const extras = validImages.slice(1);
 
@@ -41,14 +43,19 @@ export function CoverImageUpload({
       const result = await uploadEventImage(fd);
       onChange([...validImages, result.url]);
     } catch {
-      toast({ title: "Upload failed — please try again", variant: "destructive" });
+      toast({
+        title: "Upload failed — please try again",
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
     }
   };
 
   const handleFiles = (files: FileList | null) => {
-    if (!files) return;
+    if (!files) {
+      return;
+    }
     for (const file of Array.from(files)) {
       uploadFile(file);
     }
@@ -67,10 +74,14 @@ export function CoverImageUpload({
   };
 
   const makeCover = (index: number) => {
-    if (index === 0) return;
+    if (index === 0) {
+      return;
+    }
     const next = [...validImages];
     const [picked] = next.splice(index, 1);
-    if (picked) next.unshift(picked);
+    if (picked) {
+      next.unshift(picked);
+    }
     onChange(next);
   };
 
@@ -80,59 +91,59 @@ export function CoverImageUpload({
 
       {/* Drop zone / cover preview */}
       <div
+        aria-label={cover ? "Cover image" : "Click or drag an image to upload"}
         className={cn(
           "relative flex min-h-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
           isDragging
             ? "border-primary bg-primary/5"
             : cover
               ? "border-border/40"
-              : "border-border hover:border-primary/40 hover:bg-muted/40",
+              : "border-border hover:border-primary/40 hover:bg-muted/40"
         )}
         onClick={() => !cover && fileInputRef.current?.click()}
+        onDragLeave={() => setIsDragging(false)}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
         }}
-        onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        role="button"
-        tabIndex={0}
-        aria-label={cover ? "Cover image" : "Click or drag an image to upload"}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             fileInputRef.current?.click();
           }
         }}
+        role="button"
+        tabIndex={0}
       >
         {cover ? (
           <>
             <Image
-              src={cover}
               alt="Cover"
-              fill
               className="object-cover"
+              fill
               sizes="600px"
+              src={cover}
             />
             {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
             {/* Cover badge */}
-            <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-primary-foreground text-xs font-medium">
+            <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 font-medium text-primary-foreground text-xs">
               <Star className="h-3 w-3" />
               Cover
             </span>
 
             {/* Remove button */}
             <Button
-              type="button"
-              size="icon"
-              variant="ghost"
               className="absolute top-2 right-2 h-8 w-8 bg-background/70 hover:bg-background/90"
               onClick={(e) => {
                 e.stopPropagation();
                 removeImage(0);
               }}
+              size="icon"
+              type="button"
+              variant="ghost"
             >
               <Trash2 className="h-4 w-4" />
               <span className="sr-only">Remove cover image</span>
@@ -140,14 +151,14 @@ export function CoverImageUpload({
 
             {/* Replace button */}
             <Button
-              type="button"
-              size="sm"
-              variant="secondary"
               className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-background/80 text-xs hover:bg-background"
               onClick={(e) => {
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
+              size="sm"
+              type="button"
+              variant="secondary"
             >
               <Upload className="mr-1.5 h-3 w-3" />
               Replace
@@ -161,7 +172,7 @@ export function CoverImageUpload({
               <ImageIcon className="h-8 w-8" />
             )}
             <div className="text-center">
-              <p className="text-sm font-medium text-foreground">
+              <p className="font-medium text-foreground text-sm">
                 {uploading ? "Uploading…" : "Drop an image here"}
               </p>
               {!uploading && (
@@ -176,31 +187,31 @@ export function CoverImageUpload({
       {extras.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {extras.map((img, i) => (
-            <div key={img} className="relative aspect-square">
+            <div className="relative aspect-square" key={img}>
               <Image
-                src={img}
                 alt={`Image ${i + 2}`}
-                fill
                 className="rounded-lg object-cover"
+                fill
                 sizes="120px"
+                src={img}
               />
               <div className="absolute inset-0 flex items-center justify-center gap-1 rounded-lg bg-black/0 opacity-0 transition-opacity hover:bg-black/30 hover:opacity-100">
                 <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
                   className="h-7 w-7 bg-background/80 hover:bg-background"
                   onClick={() => makeCover(i + 1)}
+                  size="icon"
                   title="Set as cover"
+                  type="button"
+                  variant="ghost"
                 >
                   <Star className="h-3.5 w-3.5" />
                 </Button>
                 <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
                   className="h-7 w-7 bg-background/80 hover:bg-background"
                   onClick={() => removeImage(i + 1)}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span className="sr-only">Remove</span>
@@ -209,10 +220,10 @@ export function CoverImageUpload({
             </div>
           ))}
           <button
-            type="button"
+            className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-border border-dashed text-muted-foreground text-xs transition-colors hover:border-primary/40 hover:bg-muted/40 disabled:opacity-50"
             disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
-            className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border text-muted-foreground text-xs transition-colors hover:border-primary/40 hover:bg-muted/40 disabled:opacity-50"
+            type="button"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -225,12 +236,12 @@ export function CoverImageUpload({
       )}
 
       <input
+        accept="image/*"
+        className="hidden"
+        multiple
+        onChange={(e) => handleFiles(e.target.files)}
         ref={fileInputRef}
         type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => handleFiles(e.target.files)}
       />
     </div>
   );

@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
 import { StatusBadge } from "./status-badge";
 
 type EditorHeaderProps = {
@@ -29,7 +29,7 @@ export function EditorHeader({
 }: EditorHeaderProps) {
   return (
     <div
-      className="sticky top-0 z-30 flex items-center gap-4 px-6 py-4 mb-8"
+      className="sticky top-0 z-30 mb-8 flex items-center gap-4 px-6 py-4"
       style={{
         background: "rgba(0,10,22,0.85)",
         backdropFilter: "blur(16px)",
@@ -40,21 +40,21 @@ export function EditorHeader({
       }}
     >
       <Link
+        aria-label={backLabel}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors"
         href={backHref}
-        className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 transition-colors"
         style={{
           background: "rgba(255,255,255,0.05)",
           border: "1px solid rgba(255,255,255,0.10)",
           color: "rgba(255,255,255,0.60)",
         }}
-        aria-label={backLabel}
       >
         <ArrowLeft size={15} />
       </Link>
 
-      <div className="flex-1 min-w-0 flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <h1
-          className="text-base font-medium truncate"
+          className="truncate font-medium text-base"
           style={{ color: "#fff" }}
         >
           {title}
@@ -62,9 +62,7 @@ export function EditorHeader({
         {status && <StatusBadge status={status} />}
       </div>
 
-      <div className="flex items-center gap-2">
-        {children}
-      </div>
+      <div className="flex items-center gap-2">{children}</div>
     </div>
   );
 }

@@ -26,7 +26,11 @@ const STATUS_CONFIG: Record<
   SaveStatus,
   { icon: typeof Loader2; color: string; label: string }
 > = {
-  idle: { icon: Clock, color: "text-muted-foreground", label: "Unsaved changes" },
+  idle: {
+    icon: Clock,
+    color: "text-muted-foreground",
+    label: "Unsaved changes",
+  },
   saving: { icon: Loader2, color: "text-amber-500", label: "Saving…" },
   saved: { icon: CheckCircle2, color: "text-emerald-500", label: "Saved" },
   error: { icon: AlertCircle, color: "text-destructive", label: "Save failed" },
@@ -48,7 +52,9 @@ export function SaveBar({
 
   // Refresh the "Saved Xs ago" counter every 15 s
   useEffect(() => {
-    if (!lastSaved) return;
+    if (!lastSaved) {
+      return;
+    }
     const update = () =>
       setRelativeTime(formatDistanceToNow(lastSaved, { addSuffix: true }));
     update();
@@ -57,14 +63,13 @@ export function SaveBar({
   }, [lastSaved]);
 
   const { icon: StatusIcon, color, label } = STATUS_CONFIG[status];
-  const showTime =
-    status === "saved" && lastSaved && relativeTime;
+  const showTime = status === "saved" && lastSaved && relativeTime;
 
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/95 backdrop-blur-sm",
-        "supports-backdrop-filter:bg-background/80",
+        "fixed right-0 bottom-0 left-0 z-50 border-border/60 border-t bg-background/95 backdrop-blur-sm",
+        "supports-backdrop-filter:bg-background/80"
       )}
     >
       <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-3">
@@ -82,9 +87,9 @@ export function SaveBar({
           {/* Autosave toggle */}
           <label className="hidden cursor-pointer items-center gap-2 text-muted-foreground text-xs sm:flex">
             <Switch
+              aria-label="Toggle autosave"
               checked={autosaveEnabled}
               onCheckedChange={onAutosaveToggle}
-              aria-label="Toggle autosave"
             />
             Autosave
           </label>
@@ -93,21 +98,21 @@ export function SaveBar({
         {/* Right — actions */}
         <div className="flex items-center gap-2">
           <Button
+            className="text-muted-foreground"
+            disabled={isSubmitting}
+            onClick={onCancel}
+            size="sm"
             type="button"
             variant="ghost"
-            size="sm"
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="text-muted-foreground"
           >
             {cancelLabel}
           </Button>
           <Button
-            type="button"
-            size="sm"
-            onClick={onSave}
-            disabled={isSubmitting || (!isDirty && status !== "error")}
             className="min-w-[90px]"
+            disabled={isSubmitting || (!isDirty && status !== "error")}
+            onClick={onSave}
+            size="sm"
+            type="button"
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />

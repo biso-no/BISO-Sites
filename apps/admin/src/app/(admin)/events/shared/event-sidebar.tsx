@@ -43,22 +43,28 @@ type SlugSource = "en" | "no" | null;
 function determineSlugUpdate(
   enTitle: string,
   noTitle: string,
-  currentSource: SlugSource,
+  currentSource: SlugSource
 ): { newSource: SlugSource; newSlug: string } {
   let newSource = currentSource;
   let newSlug = "";
 
   if (!currentSource) {
-    if (noTitle && !enTitle) newSource = "no";
-    else if (enTitle && !noTitle) newSource = "en";
+    if (noTitle && !enTitle) {
+      newSource = "no";
+    } else if (enTitle && !noTitle) {
+      newSource = "en";
+    }
   } else if (currentSource === "no" && !noTitle && enTitle) {
     newSource = "en";
   } else if (currentSource === "en" && !enTitle && noTitle) {
     newSource = "no";
   }
 
-  if (newSource === "no" && noTitle) newSlug = slugify(noTitle);
-  else if (newSource === "en" && enTitle) newSlug = slugify(enTitle);
+  if (newSource === "no" && noTitle) {
+    newSlug = slugify(noTitle);
+  } else if (newSource === "en" && enTitle) {
+    newSlug = slugify(enTitle);
+  }
 
   return { newSource, newSlug };
 }
@@ -74,7 +80,7 @@ function applySlugUpdate(
   value: TitleWatchValue,
   form: UseFormReturn<FormValues>,
   slugSource: SlugSource,
-  setSlugSource: (next: SlugSource) => void,
+  setSlugSource: (next: SlugSource) => void
 ) {
   const enTitle = value.translations?.en?.title ?? "";
   const noTitle = value.translations?.no?.title ?? "";
@@ -82,27 +88,37 @@ function applySlugUpdate(
   const matchesEn = slugify(enTitle) === currentSlug;
   const matchesNo = slugify(noTitle) === currentSlug;
 
-  if (currentSlug && !slugSource && !matchesEn && !matchesNo) return;
+  if (currentSlug && !slugSource && !matchesEn && !matchesNo) {
+    return;
+  }
 
-  const { newSource, newSlug } = determineSlugUpdate(enTitle, noTitle, slugSource);
-  if (newSource !== slugSource) setSlugSource(newSource);
-  if (newSlug) form.setValue("slug", newSlug, { shouldValidate: true });
+  const { newSource, newSlug } = determineSlugUpdate(
+    enTitle,
+    noTitle,
+    slugSource
+  );
+  if (newSource !== slugSource) {
+    setSlugSource(newSource);
+  }
+  if (newSlug) {
+    form.setValue("slug", newSlug, { shouldValidate: true });
+  }
 }
 
 function useSlugAutoUpdate(
   form: UseFormReturn<FormValues>,
   isEditingSlug: boolean,
   slugSource: SlugSource,
-  setSlugSource: (next: SlugSource) => void,
+  setSlugSource: (next: SlugSource) => void
 ) {
   useEffect(() => {
-    if (isEditingSlug) return;
+    if (isEditingSlug) {
+      return;
+    }
     const handler: WatchObserver<FormValues> = (value, { name }) => {
-      if (
-        !name?.startsWith("translations.") ||
-        !name.endsWith(".title")
-      )
+      if (!(name?.startsWith("translations.") && name.endsWith(".title"))) {
         return;
+      }
       applySlugUpdate(value, form, slugSource, setSlugSource);
     };
     const sub = form.watch(handler);
@@ -125,19 +141,25 @@ export function EventSidebar({
   const slugInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCampus = campuses.find(
-    (c) => c.$id === form.watch("campus_id"),
+    (c) => c.$id === form.watch("campus_id")
   );
 
   const departmentPlaceholder = useMemo(() => {
-    if (loadingDepartments) return t("editor.placeholders.loading");
-    if (selectedCampus) return t("editor.placeholders.selectDepartmentOptional");
+    if (loadingDepartments) {
+      return t("editor.placeholders.loading");
+    }
+    if (selectedCampus) {
+      return t("editor.placeholders.selectDepartmentOptional");
+    }
     return t("editor.placeholders.selectCampusFirst");
   }, [loadingDepartments, selectedCampus, t]);
 
   useSlugAutoUpdate(form, isEditingSlug, slugSource, setSlugSource);
 
   useEffect(() => {
-    if (isEditingSlug) slugInputRef.current?.focus();
+    if (isEditingSlug) {
+      slugInputRef.current?.focus();
+    }
   }, [isEditingSlug]);
 
   const cancelSlugEdit = () => {
@@ -145,15 +167,17 @@ export function EventSidebar({
     const en = form.getValues("translations.en.title");
     const no = form.getValues("translations.no.title");
     const source = slugSource === "no" ? no : en;
-    if (source) form.setValue("slug", slugify(source));
+    if (source) {
+      form.setValue("slug", slugify(source));
+    }
   };
 
   return (
     <div className="space-y-5 lg:sticky lg:top-[72px] lg:self-start">
       {/* Status & routing */}
       <FormSection
-        title={t("form.settings") || "Settings"}
         subtitle="Status, slug, campus"
+        title={t("form.settings") || "Settings"}
       >
         <div className="space-y-4">
           {/* Status */}
@@ -163,7 +187,10 @@ export function EventSidebar({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t("form.status")}</FormLabel>
-                <Select defaultValue={field.value} onValueChange={field.onChange}>
+                <Select
+                  defaultValue={field.value}
+                  onValueChange={field.onChange}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={t("editor.selectStatus")} />
@@ -171,8 +198,12 @@ export function EventSidebar({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="draft">{t("status.draft")}</SelectItem>
-                    <SelectItem value="published">{t("status.published")}</SelectItem>
-                    <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
+                    <SelectItem value="published">
+                      {t("status.published")}
+                    </SelectItem>
+                    <SelectItem value="cancelled">
+                      {t("status.cancelled")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -193,6 +224,7 @@ export function EventSidebar({
                       <Input
                         placeholder={t("editor.slugPlaceholder")}
                         {...field}
+                        aria-describedby="slug-hint"
                         className="flex-1"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
@@ -208,7 +240,6 @@ export function EventSidebar({
                           field.ref(el);
                           slugInputRef.current = el;
                         }}
-                        aria-describedby="slug-hint"
                       />
                       <Button
                         className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50"
@@ -228,7 +259,9 @@ export function EventSidebar({
                         variant="ghost"
                       >
                         <X className="h-4 w-4" />
-                        <span className="sr-only">{t("editor.cancelSlug")}</span>
+                        <span className="sr-only">
+                          {t("editor.cancelSlug")}
+                        </span>
                       </Button>
                     </div>
                   ) : (
@@ -276,7 +309,10 @@ export function EventSidebar({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t("form.campus")}</FormLabel>
-                <Select defaultValue={field.value} onValueChange={field.onChange}>
+                <Select
+                  defaultValue={field.value}
+                  onValueChange={field.onChange}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={t("editor.selectCampus")} />
@@ -303,7 +339,7 @@ export function EventSidebar({
               <FormItem>
                 <FormLabel>
                   {t("form.department") || "Department"}{" "}
-                  <span className="text-muted-foreground text-xs font-normal">
+                  <span className="font-normal text-muted-foreground text-xs">
                     (optional)
                   </span>
                 </FormLabel>
@@ -337,7 +373,10 @@ export function EventSidebar({
       </FormSection>
 
       {/* Cover image */}
-      <FormSection title="Cover Image" subtitle="Drag and drop or click to upload">
+      <FormSection
+        subtitle="Drag and drop or click to upload"
+        title="Cover Image"
+      >
         <FormField
           control={form.control}
           name="metadata.images"
@@ -346,11 +385,11 @@ export function EventSidebar({
               <FormControl>
                 <CoverImageUpload
                   images={field.value ?? []}
+                  label=""
                   onChange={(next) => {
                     field.onChange(next);
                     form.setValue("image", next[0] ?? "");
                   }}
-                  label=""
                 />
               </FormControl>
               <FormMessage />

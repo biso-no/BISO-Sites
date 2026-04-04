@@ -1,23 +1,23 @@
 import { createBrowserRouter } from "react-router";
 import { AdminLayout } from "./components/AdminLayout";
-import { Dashboard } from "./pages/Dashboard";
-import { PageManagement } from "./pages/PageManagement";
-import { PageEditor } from "./pages/PageEditor";
-import { DepartmentManagement } from "./pages/DepartmentManagement";
-import { JobManagement } from "./pages/JobManagement";
-import { JobEditor } from "./pages/JobEditor";
-import { EventManagement } from "./pages/EventManagement";
-import { EventEditor } from "./pages/EventEditor";
-import { ProductManagement } from "./pages/ProductManagement";
-import { ProductEditor } from "./pages/ProductEditor";
-import { BenefitManagement } from "./pages/BenefitManagement";
-import { BenefitEditor } from "./pages/BenefitEditor";
-import { PartnerManagement } from "./pages/PartnerManagement";
-import { NewsManagement } from "./pages/NewsManagement";
-import { NewsEditor } from "./pages/NewsEditor";
-import { SettingsPage } from "./pages/SettingsPage";
 import { ActivityLog } from "./pages/ActivityLog";
+import { BenefitEditor } from "./pages/BenefitEditor";
+import { BenefitManagement } from "./pages/BenefitManagement";
+import { Dashboard } from "./pages/Dashboard";
+import { DepartmentManagement } from "./pages/DepartmentManagement";
+import { EventEditor } from "./pages/EventEditor";
+import { EventManagement } from "./pages/EventManagement";
+import { JobEditor } from "./pages/JobEditor";
+import { JobManagement } from "./pages/JobManagement";
+import { NewsEditor } from "./pages/NewsEditor";
+import { NewsManagement } from "./pages/NewsManagement";
+import { PageEditor } from "./pages/PageEditor";
+import { PageManagement } from "./pages/PageManagement";
+import { PartnerManagement } from "./pages/PartnerManagement";
+import { ProductEditor } from "./pages/ProductEditor";
+import { ProductManagement } from "./pages/ProductManagement";
 import { ReviewDrafts } from "./pages/ReviewDrafts";
+import { SettingsPage } from "./pages/SettingsPage";
 
 export const router = createBrowserRouter([
   {
@@ -46,5 +46,5 @@ export const router = createBrowserRouter([
   {
     path: "/editor/:id",
     Component: PageEditor, // Editor gets full screen, no standard sidebar
-  }
+  },
 ]);

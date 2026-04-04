@@ -1,75 +1,101 @@
+import { Activity, ArrowUpRight, Eye, TrendingUp, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { Link } from "react-router";
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { ArrowUpRight, Activity, Users, Eye, TrendingUp } from "lucide-react";
 import { MOCK_USER_IMAGE } from "../data";
 
 const data = [
-  { name: 'Mon', views: 4000, unique: 2400 },
-  { name: 'Tue', views: 5000, unique: 1398 },
-  { name: 'Wed', views: 9000, unique: 6800 },
-  { name: 'Thu', views: 8780, unique: 3908 },
-  { name: 'Fri', views: 11900, unique: 4800 },
-  { name: 'Sat', views: 14000, unique: 8800 },
-  { name: 'Sun', views: 18000, unique: 12000 },
+  { name: "Mon", views: 4000, unique: 2400 },
+  { name: "Tue", views: 5000, unique: 1398 },
+  { name: "Wed", views: 9000, unique: 6800 },
+  { name: "Thu", views: 8780, unique: 3908 },
+  { name: "Fri", views: 11_900, unique: 4800 },
+  { name: "Sat", views: 14_000, unique: 8800 },
+  { name: "Sun", views: 18_000, unique: 12_000 },
 ];
 
 export function Dashboard() {
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
+    <motion.div
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
       className="space-y-8 pb-12"
+      initial={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-4">
+      <header className="flex flex-col justify-between gap-6 pt-4 md:flex-row md:items-end">
         <div>
-          <p className="text-[#3DA9E0] font-mono text-sm uppercase tracking-widest mb-2">Overview</p>
-          <h1 className="text-4xl md:text-5xl font-light tracking-tight text-white">
-            Welcome back, <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/50">Alex</span>.
+          <p className="mb-2 font-mono text-[#3DA9E0] text-sm uppercase tracking-widest">
+            Overview
+          </p>
+          <h1 className="font-light text-4xl text-white tracking-tight md:text-5xl">
+            Welcome back,{" "}
+            <span className="bg-gradient-to-r from-white to-white/50 bg-clip-text font-semibold text-transparent">
+              Alex
+            </span>
+            .
           </h1>
         </div>
         <div className="flex gap-4">
-          <Link to="/drafts" className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-colors backdrop-blur-md">
+          <Link
+            className="rounded-full border border-white/10 bg-white/5 px-6 py-3 font-medium text-white backdrop-blur-md transition-colors hover:bg-white/10"
+            to="/drafts"
+          >
             Review Drafts
           </Link>
-          <Link to="/editor/new" className="px-6 py-3 rounded-full bg-[#3DA9E0] text-[#001731] font-semibold shadow-[0_0_20px_rgba(61,169,224,0.3)] hover:shadow-[0_0_30px_rgba(61,169,224,0.5)] transition-all">
+          <Link
+            className="rounded-full bg-[#3DA9E0] px-6 py-3 font-semibold text-[#001731] shadow-[0_0_20px_rgba(61,169,224,0.3)] transition-all hover:shadow-[0_0_30px_rgba(61,169,224,0.5)]"
+            to="/editor/new"
+          >
             New Page
           </Link>
         </div>
       </header>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
           { label: "Total Views", value: "2.4M", trend: "+12.5%", icon: Eye },
-          { label: "Active Users", value: "14.2K", trend: "+5.2%", icon: Users },
+          {
+            label: "Active Users",
+            value: "14.2K",
+            trend: "+5.2%",
+            icon: Users,
+          },
           { label: "Engagement", value: "68%", trend: "+2.1%", icon: Activity },
-          { label: "Conversion", value: "4.3%", trend: "+1.2%", icon: TrendingUp },
+          {
+            label: "Conversion",
+            value: "4.3%",
+            trend: "+1.2%",
+            icon: TrendingUp,
+          },
         ].map((stat, i) => (
-          <motion.div 
-            key={i}
-            initial={{ opacity: 0, scale: 0.95 }}
+          <motion.div
             animate={{ opacity: 1, scale: 1 }}
+            className="group relative overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm transition-colors hover:bg-white/[0.04]"
+            initial={{ opacity: 0, scale: 0.95 }}
+            key={i}
             transition={{ delay: i * 0.1, duration: 0.4 }}
-            className="p-6 rounded-3xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm relative overflow-hidden group hover:bg-white/[0.04] transition-colors"
           >
-            <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
-              <stat.icon size={48} className="text-[#3DA9E0]" />
+            <div className="absolute top-0 right-0 p-6 opacity-20 transition-opacity group-hover:opacity-40">
+              <stat.icon className="text-[#3DA9E0]" size={48} />
             </div>
-            <p className="text-white/50 text-sm font-medium mb-4 relative z-10">{stat.label}</p>
-            <div className="flex items-end gap-3 relative z-10">
-              <span className="text-4xl font-semibold text-white tracking-tight">{stat.value}</span>
-              <span className="flex items-center text-emerald-400 text-sm font-mono mb-1 bg-emerald-400/10 px-2 py-1 rounded-md">
-                <ArrowUpRight size={14} className="mr-1" /> {stat.trend}
+            <p className="relative z-10 mb-4 font-medium text-sm text-white/50">
+              {stat.label}
+            </p>
+            <div className="relative z-10 flex items-end gap-3">
+              <span className="font-semibold text-4xl text-white tracking-tight">
+                {stat.value}
+              </span>
+              <span className="mb-1 flex items-center rounded-md bg-emerald-400/10 px-2 py-1 font-mono text-emerald-400 text-sm">
+                <ArrowUpRight className="mr-1" size={14} /> {stat.trend}
               </span>
             </div>
           </motion.div>
@@ -77,65 +103,133 @@ export function Dashboard() {
       </div>
 
       {/* Main Chart Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-medium text-white">Traffic Overview</h2>
-            <select className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white/80 outline-none focus:border-[#3DA9E0] transition-colors appearance-none">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm md:p-8 lg:col-span-2">
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="font-medium text-white text-xl">Traffic Overview</h2>
+            <select className="appearance-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 outline-none transition-colors focus:border-[#3DA9E0]">
               <option>Last 7 Days</option>
               <option>Last 30 Days</option>
               <option>This Year</option>
             </select>
           </div>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+            <ResponsiveContainer height="100%" width="100%">
+              <AreaChart
+                data={data}
+                margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
+              >
                 <defs>
-                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3DA9E0" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3DA9E0" stopOpacity={0}/>
+                  <linearGradient id="colorViews" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="5%" stopColor="#3DA9E0" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3DA9E0" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value / 1000}k`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#000a16', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-                  itemStyle={{ color: '#fff' }}
+                <CartesianGrid
+                  stroke="rgba(255,255,255,0.05)"
+                  strokeDasharray="3 3"
+                  vertical={false}
                 />
-                <Area type="monotone" dataKey="views" stroke="#3DA9E0" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" />
+                <XAxis
+                  axisLine={false}
+                  dataKey="name"
+                  fontSize={12}
+                  stroke="rgba(255,255,255,0.2)"
+                  tickLine={false}
+                />
+                <YAxis
+                  axisLine={false}
+                  fontSize={12}
+                  stroke="rgba(255,255,255,0.2)"
+                  tickFormatter={(value) => `${value / 1000}k`}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#000a16",
+                    borderColor: "rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                  }}
+                  itemStyle={{ color: "#fff" }}
+                />
+                <Area
+                  dataKey="views"
+                  fill="url(#colorViews)"
+                  fillOpacity={1}
+                  stroke="#3DA9E0"
+                  strokeWidth={3}
+                  type="monotone"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Activity Feed */}
-        <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
-          <h2 className="text-xl font-medium text-white mb-6">Recent Activity</h2>
+        <div className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm md:p-8">
+          <h2 className="mb-6 font-medium text-white text-xl">
+            Recent Activity
+          </h2>
           <div className="space-y-6">
             {[
-              { user: 'Sarah Jenkins', action: 'published', target: 'Student Life', time: '2m ago' },
-              { user: 'Admin', action: 'edited', target: 'Homepage', time: '1h ago' },
-              { user: 'Event Team', action: 'created draft', target: 'Fadderullan 2026', time: '3h ago' },
-              { user: 'Shop Manager', action: 'updated', target: 'Premium Merch', time: '1d ago' },
+              {
+                user: "Sarah Jenkins",
+                action: "published",
+                target: "Student Life",
+                time: "2m ago",
+              },
+              {
+                user: "Admin",
+                action: "edited",
+                target: "Homepage",
+                time: "1h ago",
+              },
+              {
+                user: "Event Team",
+                action: "created draft",
+                target: "Fadderullan 2026",
+                time: "3h ago",
+              },
+              {
+                user: "Shop Manager",
+                action: "updated",
+                target: "Premium Merch",
+                time: "1d ago",
+              },
             ].map((activity, i) => (
-              <div key={i} className="flex gap-4 items-start group">
+              <div className="group flex items-start gap-4" key={i}>
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 group-hover:border-[#3DA9E0] transition-colors">
-                    <img src={MOCK_USER_IMAGE} alt={activity.user} className="w-full h-full object-cover" />
+                  <div className="h-10 w-10 overflow-hidden rounded-full border border-white/10 transition-colors group-hover:border-[#3DA9E0]">
+                    <img
+                      alt={activity.user}
+                      className="h-full w-full object-cover"
+                      src={MOCK_USER_IMAGE}
+                    />
                   </div>
-                  {i !== 3 && <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[1px] h-6 bg-white/10" />}
+                  {i !== 3 && (
+                    <div className="absolute top-10 left-1/2 h-6 w-[1px] -translate-x-1/2 bg-white/10" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-white/80">
-                    <span className="font-semibold text-white">{activity.user}</span> {activity.action} <span className="text-[#3DA9E0]">{activity.target}</span>
+                    <span className="font-semibold text-white">
+                      {activity.user}
+                    </span>{" "}
+                    {activity.action}{" "}
+                    <span className="text-[#3DA9E0]">{activity.target}</span>
                   </p>
-                  <p className="text-xs text-white/40 mt-1 font-mono">{activity.time}</p>
+                  <p className="mt-1 font-mono text-white/40 text-xs">
+                    {activity.time}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
-          <Link to="/activity" className="w-full mt-8 py-3 rounded-xl border border-white/10 text-white/60 text-sm hover:text-white hover:bg-white/5 transition-all text-center block">
+          <Link
+            className="mt-8 block w-full rounded-xl border border-white/10 py-3 text-center text-sm text-white/60 transition-all hover:bg-white/5 hover:text-white"
+            to="/activity"
+          >
             View All Activity
           </Link>
         </div>

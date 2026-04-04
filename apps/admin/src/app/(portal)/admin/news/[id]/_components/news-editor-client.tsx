@@ -1,18 +1,26 @@
 "use client";
 
+import type {
+  Campus,
+  ContentTranslations,
+  News,
+} from "@repo/api/types/appwrite";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { createNews, updateNews } from "../../../_actions/news";
-import { newsSchema, type NewsFormValues } from "../../../_actions/schemas";
+import { type NewsFormValues, newsSchema } from "../../../_actions/schemas";
 import { EditorHeader } from "../../../_components/editor-header";
-import { PreviewPanel } from "../../../_components/preview-panel";
-import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { PortalButton } from "../../../_components/portal-button";
-import { ContentEditor } from "@repo/ui/components/content-editor";
-import type { News, ContentTranslations, Campus } from "@repo/api/types/appwrite";
+import {
+  PortalField,
+  PortalInput,
+  PortalSelect,
+} from "../../../_components/portal-fields";
+import { PreviewPanel } from "../../../_components/preview-panel";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 
@@ -48,7 +56,12 @@ function generateSlug(title: string) {
     .replace(/-+/g, "-");
 }
 
-export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEditorClientProps) {
+export function NewsEditorClient({
+  article,
+  campuses,
+  isNew,
+  labels,
+}: NewsEditorClientProps) {
   const router = useRouter();
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -71,13 +84,13 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
     defaultValues: {
       title: translation?.title ?? "",
       description: translation?.description ?? null,
-      campus_id: article?.campus_id ?? (campuses[0]?.$id ?? ""),
+      campus_id: article?.campus_id ?? campuses[0]?.$id ?? "",
       department_id: article?.department_id ?? null,
       slug: article?.slug ?? "",
       status: (article?.status as NewsFormValues["status"]) ?? "draft",
       locale: (translation?.locale as NewsFormValues["locale"]) ?? "no",
       author: article?.author ?? null,
-      category: category,
+      category,
       image: article?.image ?? null,
       sticky: article?.sticky ?? false,
     },
@@ -95,7 +108,9 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
         return;
       }
       toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
-      if (isNew && result.data) router.push(`/admin/news/${result.data}`);
+      if (isNew && result.data) {
+        router.push(`/admin/news/${result.data}`);
+      }
     },
   });
 
@@ -109,88 +124,96 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
       <EditorHeader
         backHref="/admin/news"
         backLabel={labels.back}
-        title={isNew ? "New Article" : (translation?.title ?? "Edit Article")}
         status={isNew ? undefined : article?.status}
+        title={isNew ? "New Article" : (translation?.title ?? "Edit Article")}
       >
-        <PortalButton variant="ghost" size="sm" onClick={() => router.push("/admin/news")}>
+        <PortalButton
+          onClick={() => router.push("/admin/news")}
+          size="sm"
+          variant="ghost"
+        >
           {labels.discard}
         </PortalButton>
         <PortalButton
-          variant="secondary"
-          size="sm"
           loading={isSaving}
           onClick={() => {
             setIsSaving(true);
             form.setFieldValue("status", "draft");
             form.handleSubmit().finally(() => setIsSaving(false));
           }}
+          size="sm"
+          variant="secondary"
         >
           {labels.saveDraft}
         </PortalButton>
         <PortalButton
-          variant="primary"
-          size="sm"
           loading={isPublishing}
           onClick={() => {
             setIsPublishing(true);
             form.setFieldValue("status", "published");
             form.handleSubmit().finally(() => setIsPublishing(false));
           }}
+          size="sm"
+          variant="primary"
         >
           {labels.publish}
         </PortalButton>
       </EditorHeader>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_300px]">
         <div className="space-y-5">
           {/* Headline */}
           <form.Field name="title">
             {(field) => (
               <PortalField label={labels.title} required>
                 <textarea
-                  rows={2}
-                  value={field.state.value}
+                  className="w-full resize-none rounded-xl px-3 py-2.5 font-light text-xl outline-none transition-all"
                   onBlur={() => {
                     field.handleBlur();
                     if (isNew && !form.getFieldValue("slug")) {
-                      form.setFieldValue("slug", generateSlug(field.state.value));
+                      form.setFieldValue(
+                        "slug",
+                        generateSlug(field.state.value)
+                      );
                     }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.08)";
                   }}
                   onChange={(e) => {
                     field.handleChange(e.target.value);
                     setPreviewTitle(e.target.value);
                   }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(61,169,224,0.50)";
+                  }}
                   placeholder="Headline goes here..."
-                  className="w-full px-3 py-2.5 text-xl font-light resize-none rounded-xl outline-none transition-all"
+                  rows={2}
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.08)",
                     color: "#fff",
                     fontFamily: "serif",
                   }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(61,169,224,0.50)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                  }}
+                  value={field.state.value}
                 />
               </PortalField>
             )}
           </form.Field>
 
           {/* Author / Category / Locale */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <form.Field name="author">
               {(field) => (
                 <PortalField label={labels.author}>
                   <PortalInput
-                    value={field.state.value ?? ""}
                     onChange={(e) => {
                       field.handleChange(e.target.value || null);
                       setPreviewAuthor(e.target.value);
                     }}
                     placeholder="Author name..."
+                    value={field.state.value ?? ""}
                   />
                 </PortalField>
               )}
@@ -199,9 +222,9 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
               {(field) => (
                 <PortalField label={labels.category}>
                   <PortalSelect
-                    value={field.state.value ?? ""}
                     onChange={(e) => field.handleChange(e.target.value || null)}
                     options={CATEGORY_OPTIONS}
+                    value={field.state.value ?? ""}
                   />
                 </PortalField>
               )}
@@ -210,11 +233,11 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
               {(field) => (
                 <PortalField label={labels.locale}>
                   <PortalSelect
-                    value={field.state.value}
                     onChange={(e) =>
                       field.handleChange(e.target.value as "no" | "en")
                     }
                     options={LOCALE_OPTIONS}
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -226,11 +249,11 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
             {(field) => (
               <PortalField label={labels.coverImage}>
                 <ImageUploadField
-                  value={field.state.value}
                   onChange={(url) => {
                     field.handleChange(url);
                     setPreviewImage(url ?? "");
                   }}
+                  value={field.state.value}
                 />
               </PortalField>
             )}
@@ -241,25 +264,25 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
             {(field) => (
               <PortalField label={labels.body}>
                 <ContentEditor
-                  variant="news"
-                  value={field.state.value}
+                  minHeight={320}
                   onChange={(v) => field.handleChange(v || null)}
                   placeholder="Write your article here..."
-                  minHeight={320}
+                  value={field.state.value}
+                  variant="news"
                 />
               </PortalField>
             )}
           </form.Field>
 
           {/* Campus / Status / Slug */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="campus_id">
               {(field) => (
                 <PortalField label={labels.campus} required>
                   <PortalSelect
-                    value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     options={campusOptions}
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -268,10 +291,10 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
               {(field) => (
                 <PortalField label={labels.slug ?? "Slug"} required>
                   <PortalInput
-                    value={field.state.value}
+                    className="font-mono text-xs"
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
-                    className="font-mono text-xs"
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -282,11 +305,11 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
             {(field) => (
               <PortalField label={labels.status}>
                 <PortalSelect
-                  value={field.state.value}
                   onChange={(e) =>
                     field.handleChange(e.target.value as "draft" | "published")
                   }
                   options={STATUS_OPTIONS}
+                  value={field.state.value}
                 />
               </PortalField>
             )}
@@ -294,14 +317,21 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
         </div>
 
         {/* Preview */}
-        <div className="lg:sticky lg:top-32 self-start">
+        <div className="self-start lg:sticky lg:top-32">
           <PreviewPanel title={labels.preview}>
             <div
-              className="rounded-2xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+              className="overflow-hidden rounded-2xl"
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
             >
               {previewImage && (
-                <img src={previewImage} alt="" className="w-full h-28 object-cover" />
+                <img
+                  alt=""
+                  className="h-28 w-full object-cover"
+                  src={previewImage}
+                />
               )}
               <div className="p-4">
                 <p
@@ -310,8 +340,12 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
                 >
                   {previewTitle || "Article Headline"}
                 </p>
-                <p className="text-xs mt-2" style={{ color: "rgba(255,255,255,0.40)" }}>
-                  {previewAuthor || "Author"} · {new Date().toLocaleDateString()}
+                <p
+                  className="mt-2 text-xs"
+                  style={{ color: "rgba(255,255,255,0.40)" }}
+                >
+                  {previewAuthor || "Author"} ·{" "}
+                  {new Date().toLocaleDateString()}
                 </p>
               </div>
             </div>

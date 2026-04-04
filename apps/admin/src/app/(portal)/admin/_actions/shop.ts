@@ -1,29 +1,26 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
+import type {
+  ContentTranslations,
+  WebshopProductStatus,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
-import type {
-  WebshopProducts,
-  ContentTranslations,
-  WebshopProductStatus,
-} from "@repo/api/types/appwrite";
-import { productSchema, type ProductFormValues } from "./schemas";
-
-
+import { type ProductFormValues, productSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
 
@@ -56,7 +53,7 @@ export async function listProducts(opts?: {
   );
 
   const productIds = response.rows.map((p) => p.$id);
-  let translations: ContentTranslations[] = [];
+  const translations: ContentTranslations[] = [];
 
   if (productIds.length > 0) {
     const chunkSize = 25;
@@ -77,9 +74,7 @@ export async function listProducts(opts?: {
 
   return response.rows.map((product) => ({
     ...product,
-    translation_refs: translations.filter(
-      (t) => t.content_id === product.$id
-    ),
+    translation_refs: translations.filter((t) => t.content_id === product.$id),
   }));
 }
 
@@ -93,7 +88,9 @@ export async function getProduct(id: string) {
     [Query.equal("$id", id), Query.limit(1)]
   );
   const product = response.rows[0];
-  if (!product) return null;
+  if (!product) {
+    return null;
+  }
 
   const translationsResponse = await db.listRows<ContentTranslations>(
     "app",
@@ -159,7 +156,9 @@ export async function updateProduct(id: string, values: ProductFormValues) {
     [Query.equal("$id", id), Query.limit(1)]
   );
   const product = existing.rows[0];
-  if (!product) return { error: "Product not found" };
+  if (!product) {
+    return { error: "Product not found" };
+  }
 
   assertWriteAccess(ctx, product.campus_id, product.departmentId);
 
@@ -225,15 +224,16 @@ export async function deleteProduct(id: string) {
     [Query.equal("$id", id), Query.limit(1)]
   );
   const product = existing.rows[0];
-  if (!product) return { error: "Product not found" };
+  if (!product) {
+    return { error: "Product not found" };
+  }
 
   assertWriteAccess(ctx, product.campus_id, product.departmentId);
 
-  const translations = await db.listRows(
-    "app",
-    "content_translations",
-    [Query.equal("content_type", "product"), Query.equal("content_id", id)]
-  );
+  const translations = await db.listRows("app", "content_translations", [
+    Query.equal("content_type", "product"),
+    Query.equal("content_id", id),
+  ]);
   await Promise.all(
     translations.rows.map((t) =>
       db.deleteRow("app", "content_translations", t.$id)

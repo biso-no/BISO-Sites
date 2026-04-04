@@ -1,15 +1,17 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
+import type {
+  ContentTranslations,
+  Events,
+  Jobs,
+  News,
+} from "@repo/api/types/appwrite";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { applyScopeQueries } from "@/lib/utils/authorization";
-import type { Jobs, Events, News, ContentTranslations } from "@repo/api/types/appwrite";
 import { logAuditEvent } from "./audit-log";
 
 export type DraftItem = {
@@ -24,7 +26,9 @@ export type DraftItem = {
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
 
@@ -67,7 +71,9 @@ export async function listDrafts(): Promise<DraftItem[]> {
   const allTranslations = new Map<string, string>();
 
   async function fetchTranslations(ids: string[], contentType: string) {
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+      return;
+    }
     const res = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
@@ -131,15 +137,11 @@ export async function listDrafts(): Promise<DraftItem[]> {
   return drafts;
 }
 
-export async function approveDraft(
-  id: string,
-  type: "job" | "event" | "news"
-) {
+export async function approveDraft(id: string, type: "job" | "event" | "news") {
   const ctx = await requireAuth();
 
   if (
-    !ctx.roles.includes("globaladmin") &&
-    !ctx.roles.includes("campusadmin")
+    !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
   ) {
     return { error: "Unauthorized: only admins can approve drafts" };
   }
@@ -163,8 +165,7 @@ export async function rejectDraft(
   const ctx = await requireAuth();
 
   if (
-    !ctx.roles.includes("globaladmin") &&
-    !ctx.roles.includes("campusadmin")
+    !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
   ) {
     return { error: "Unauthorized: only admins can reject drafts" };
   }
@@ -175,7 +176,11 @@ export async function rejectDraft(
 
   // Keep as draft but optionally log the rejection
   if (reason) {
-    void logAuditEvent(ctx, "draft_rejected", { resourceId: id, resourceType: type, payload: { reason } });
+    void logAuditEvent(ctx, "draft_rejected", {
+      resourceId: id,
+      resourceType: type,
+      payload: { reason },
+    });
   }
 
   revalidatePath("/admin/drafts");

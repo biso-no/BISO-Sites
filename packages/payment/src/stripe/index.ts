@@ -12,15 +12,15 @@ export async function createStripeCheckoutSession(
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
 
   const lineItems = params.items.map((item) => ({
-      price_data: {
-        currency: params.currency.toLowerCase(),
-        product_data: {
-          name: item.title || item.name,
-        },
-        unit_amount: Math.round((item.unit_price ?? item.price) * 100),
+    price_data: {
+      currency: params.currency.toLowerCase(),
+      product_data: {
+        name: item.title || item.name,
       },
-      quantity: item.quantity,
-    }));
+      unit_amount: Math.round((item.unit_price ?? item.price) * 100),
+    },
+    quantity: item.quantity,
+  }));
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

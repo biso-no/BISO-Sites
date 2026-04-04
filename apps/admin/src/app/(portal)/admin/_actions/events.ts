@@ -1,38 +1,32 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
+  CollectionPricing,
+  type ContentTranslations,
+  ContentType,
+  type EventStatus,
+  type Events,
+  Locale,
+} from "@repo/api/types/appwrite";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
-import {
-  type Events,
-  type ContentTranslations,
-  type EventStatus,
-  CollectionPricing,
-  ContentType,
-  Locale,
-  type Campus
-} from "@repo/api/types/appwrite";
-import { z } from "zod";
-import { eventSchema, type EventFormValues } from "./schemas";
-import { EVENTS_PAGE_SIZE } from "./schemas";
 import { logAuditEvent } from "./audit-log";
+import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
-
-
 
 export async function listEvents(opts?: {
   campusId?: string;
@@ -47,7 +41,7 @@ export async function listEvents(opts?: {
     Query.orderDesc("$updatedAt"),
     Query.limit(EVENTS_PAGE_SIZE),
     Query.offset((page - 1) * EVENTS_PAGE_SIZE),
-    Query.select(['*', 'translation_refs.*']),
+    Query.select(["*", "translation_refs.*"]),
     ...applyScopeQueries(ctx),
   ];
 
@@ -73,7 +67,9 @@ export async function getEvent(id: string) {
     Query.limit(1),
   ]);
   const event = response.rows[0];
-  if (!event) return null;
+  if (!event) {
+    return null;
+  }
 
   const translationsResponse = await db.listRows<ContentTranslations>(
     "app",
@@ -132,9 +128,8 @@ export async function createEvent(values: EventFormValues) {
         title: validated.data.title_en,
         description: validated.data.description_en ?? "",
         additional_fields: null,
-      }
-
-    ]
+      },
+    ],
   });
 
   for (const locale of ["no", "en"] as const) {
@@ -143,9 +138,7 @@ export async function createEvent(values: EventFormValues) {
       content_type: "event",
       locale,
       title:
-        locale === "no"
-          ? validated.data.title_no
-          : validated.data.title_en,
+        locale === "no" ? validated.data.title_no : validated.data.title_en,
       description:
         locale === "no"
           ? (validated.data.description_no ?? "")
@@ -153,7 +146,10 @@ export async function createEvent(values: EventFormValues) {
     });
   }
 
-  void logAuditEvent(ctx, "event_created", { resourceId: event.$id, resourceType: "event" });
+  void logAuditEvent(ctx, "event_created", {
+    resourceId: event.$id,
+    resourceType: "event",
+  });
   revalidatePath("/admin/events");
   return { data: event.$id };
 }
@@ -172,7 +168,9 @@ export async function updateEvent(id: string, values: EventFormValues) {
     Query.limit(1),
   ]);
   const event = existing.rows[0];
-  if (!event) return { error: "Event not found" };
+  if (!event) {
+    return { error: "Event not found" };
+  }
 
   assertWriteAccess(ctx, event.campus_id, event.department_id);
 
@@ -207,9 +205,7 @@ export async function updateEvent(id: string, values: EventFormValues) {
       content_type: "event",
       locale,
       title:
-        locale === "no"
-          ? validated.data.title_no
-          : validated.data.title_en,
+        locale === "no" ? validated.data.title_no : validated.data.title_en,
       description:
         locale === "no"
           ? (validated.data.description_no ?? "")
@@ -233,7 +229,11 @@ export async function updateEvent(id: string, values: EventFormValues) {
     }
   }
 
-  void logAuditEvent(ctx, "event_updated", { resourceId: id, resourceType: "event", payload: { status: validated.data.status } });
+  void logAuditEvent(ctx, "event_updated", {
+    resourceId: id,
+    resourceType: "event",
+    payload: { status: validated.data.status },
+  });
   revalidatePath("/admin/events");
   revalidatePath(`/admin/events/${id}`);
   return { data: id };
@@ -248,15 +248,16 @@ export async function deleteEvent(id: string) {
     Query.limit(1),
   ]);
   const event = existing.rows[0];
-  if (!event) return { error: "Event not found" };
+  if (!event) {
+    return { error: "Event not found" };
+  }
 
   assertWriteAccess(ctx, event.campus_id, event.department_id);
 
-  const translations = await db.listRows(
-    "app",
-    "content_translations",
-    [Query.equal("content_type", "event"), Query.equal("content_id", id)]
-  );
+  const translations = await db.listRows("app", "content_translations", [
+    Query.equal("content_type", "event"),
+    Query.equal("content_id", id),
+  ]);
   await Promise.all(
     translations.rows.map((t) =>
       db.deleteRow("app", "content_translations", t.$id)
@@ -264,7 +265,10 @@ export async function deleteEvent(id: string) {
   );
   await db.deleteRow("app", "events", id);
 
-  void logAuditEvent(ctx, "event_deleted", { resourceId: id, resourceType: "event" });
+  void logAuditEvent(ctx, "event_deleted", {
+    resourceId: id,
+    resourceType: "event",
+  });
   revalidatePath("/admin/events");
   return { data: true };
 }

@@ -1,7 +1,7 @@
-import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { getProduct } from "../../_actions/shop";
+import { getTranslations } from "next-intl/server";
 import { listCampuses } from "../../_actions/jobs";
+import { getProduct } from "../../_actions/shop";
 import { ShopEditorClient } from "./_components/shop-editor-client";
 
 type Props = { params: Promise<{ id: string }> };
@@ -16,11 +16,12 @@ export default async function ShopEditorPage({ params }: Props) {
     listCampuses(),
   ]);
 
-  if (!isNew && !product) notFound();
+  if (!(isNew || product)) {
+    notFound();
+  }
 
   return (
     <ShopEditorClient
-      product={product}
       campuses={campuses}
       isNew={isNew}
       labels={{
@@ -42,6 +43,7 @@ export default async function ShopEditorPage({ params }: Props) {
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
       }}
+      product={product}
     />
   );
 }

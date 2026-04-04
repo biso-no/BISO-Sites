@@ -6,21 +6,25 @@ type CharacterCountProps = {
   className?: string;
 };
 
-export function CharacterCount({ current, max, className }: CharacterCountProps) {
+export function CharacterCount({
+  current,
+  max,
+  className,
+}: CharacterCountProps) {
   const pct = max > 0 ? current / max : 0;
   const isWarning = pct >= 0.8 && pct < 0.95;
   const isDanger = pct >= 0.95;
 
   return (
     <span
+      aria-live="polite"
       className={cn(
-        "tabular-nums text-xs transition-colors",
+        "text-xs tabular-nums transition-colors",
         isWarning && "text-amber-500",
         isDanger && "font-medium text-destructive",
-        !isWarning && !isDanger && "text-muted-foreground",
-        className,
+        !(isWarning || isDanger) && "text-muted-foreground",
+        className
       )}
-      aria-live="polite"
     >
       {current.toLocaleString()}/{max.toLocaleString()}
     </span>

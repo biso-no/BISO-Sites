@@ -1,8 +1,8 @@
-import { getTranslations } from "next-intl/server";
 import { FileStack } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { listDrafts } from "../_actions/drafts";
-import { PageHeader } from "../_components/page-header";
 import { EmptyState } from "../_components/empty-state";
+import { PageHeader } from "../_components/page-header";
 import { DraftsReviewClient } from "./_components/drafts-review-client";
 
 export default async function DraftsPage() {
@@ -12,14 +12,15 @@ export default async function DraftsPage() {
 
   return (
     <div className="pb-12">
-      <PageHeader
-        title={t("title")}
-        description={t("description")}
-      >
+      <PageHeader description={t("description")} title={t("title")}>
         {drafts.length > 0 && (
           <span
-            className="px-3 py-1.5 rounded-full text-sm font-medium"
-            style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.25)", color: "#fbbf24" }}
+            className="rounded-full px-3 py-1.5 font-medium text-sm"
+            style={{
+              background: "rgba(251,191,36,0.10)",
+              border: "1px solid rgba(251,191,36,0.25)",
+              color: "#fbbf24",
+            }}
           >
             {t("pending", { count: drafts.length })}
           </span>
@@ -28,9 +29,9 @@ export default async function DraftsPage() {
 
       {drafts.length === 0 ? (
         <EmptyState
+          description={t("emptyDescription")}
           icon={<FileStack size={28} />}
           title={t("empty")}
-          description={t("emptyDescription")}
         />
       ) : (
         <DraftsReviewClient

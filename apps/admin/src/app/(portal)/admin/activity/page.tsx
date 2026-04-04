@@ -1,8 +1,8 @@
-import { getTranslations } from "next-intl/server";
 import { Activity } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { listActivityLog } from "../_actions/activity";
-import { PageHeader } from "../_components/page-header";
 import { EmptyState } from "../_components/empty-state";
+import { PageHeader } from "../_components/page-header";
 
 export default async function ActivityPage() {
   const t = await getTranslations("adminPortal.activity");
@@ -11,48 +11,70 @@ export default async function ActivityPage() {
 
   return (
     <div className="pb-12">
-      <PageHeader title={t("title")} description={t("description")} />
+      <PageHeader description={t("description")} title={t("title")} />
 
       {logs.length === 0 ? (
         <EmptyState icon={<Activity size={28} />} title={t("empty")} />
       ) : (
         <div
-          className="rounded-3xl p-6 space-y-0"
-          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+          className="space-y-0 rounded-3xl p-6"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
         >
           {logs.map((log, idx) => (
             <div
-              key={log.$id}
               className="relative flex items-start gap-4 py-5"
-              style={idx < logs.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.04)" } : undefined}
+              key={log.$id}
+              style={
+                idx < logs.length - 1
+                  ? { borderBottom: "1px solid rgba(255,255,255,0.04)" }
+                  : undefined
+              }
             >
               {/* Timeline dot */}
-              <div className="relative flex-shrink-0 mt-0.5">
+              <div className="relative mt-0.5 flex-shrink-0">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(61,169,224,0.10)", border: "1px solid rgba(61,169,224,0.25)" }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full"
+                  style={{
+                    background: "rgba(61,169,224,0.10)",
+                    border: "1px solid rgba(61,169,224,0.25)",
+                  }}
                 >
                   <Activity size={13} style={{ color: "#3DA9E0" }} />
                 </div>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm" style={{ color: "rgba(255,255,255,0.80)" }}>
+                    <p
+                      className="text-sm"
+                      style={{ color: "rgba(255,255,255,0.80)" }}
+                    >
                       <span className="font-medium" style={{ color: "#fff" }}>
                         {log.actor_email ?? "System"}
                       </span>{" "}
-                      <span className="font-mono text-xs" style={{ color: "#3DA9E0" }}>
+                      <span
+                        className="font-mono text-xs"
+                        style={{ color: "#3DA9E0" }}
+                      >
                         {log.action}
                       </span>
                     </p>
 
                     {log.resource_type && (
-                      <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      <p
+                        className="mt-0.5 text-xs"
+                        style={{ color: "rgba(255,255,255,0.35)" }}
+                      >
                         {log.resource_type}
                         {log.resource_id && (
-                          <span className="ml-2 font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>
+                          <span
+                            className="ml-2 font-mono"
+                            style={{ color: "rgba(255,255,255,0.25)" }}
+                          >
                             #{log.resource_id.slice(0, 8)}
                           </span>
                         )}
@@ -61,9 +83,9 @@ export default async function ActivityPage() {
                   </div>
 
                   <time
-                    className="text-xs flex-shrink-0"
-                    style={{ color: "rgba(255,255,255,0.30)" }}
+                    className="flex-shrink-0 text-xs"
                     dateTime={log.$createdAt}
+                    style={{ color: "rgba(255,255,255,0.30)" }}
                   >
                     {new Date(log.$createdAt).toLocaleString()}
                   </time>

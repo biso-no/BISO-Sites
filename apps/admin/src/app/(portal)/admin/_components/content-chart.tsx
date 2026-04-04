@@ -28,7 +28,10 @@ function formatDate(d: Date) {
 
 function buildChartData(activity: ActivityEntry[], days: number) {
   const now = new Date();
-  const buckets: Record<string, { events: number; news: number; jobs: number; other: number }> = {};
+  const buckets: Record<
+    string,
+    { events: number; news: number; jobs: number; other: number }
+  > = {};
 
   // Create empty buckets for each day
   for (let i = days - 1; i >= 0; i--) {
@@ -43,7 +46,9 @@ function buildChartData(activity: ActivityEntry[], days: number) {
     const d = new Date(entry.$createdAt);
     d.setHours(0, 0, 0, 0);
     const label = formatDate(d);
-    if (!(label in buckets)) continue;
+    if (!(label in buckets)) {
+      continue;
+    }
 
     const rt = (entry.resource_type ?? "").toLowerCase();
     const bucket = buckets[label];
@@ -62,126 +67,164 @@ function buildChartData(activity: ActivityEntry[], days: number) {
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
+  if (!(active && payload?.length)) {
+    return null;
+  }
   return (
     <div
-      className="rounded-xl px-3 py-2.5 text-xs space-y-1.5"
-      style={{ background: "rgba(0,10,22,0.95)", border: "1px solid rgba(255,255,255,0.10)" }}
+      className="space-y-1.5 rounded-xl px-3 py-2.5 text-xs"
+      style={{
+        background: "rgba(0,10,22,0.95)",
+        border: "1px solid rgba(255,255,255,0.10)",
+      }}
     >
-      <p className="font-medium mb-1.5" style={{ color: "rgba(255,255,255,0.50)" }}>{label}</p>
+      <p
+        className="mb-1.5 font-medium"
+        style={{ color: "rgba(255,255,255,0.50)" }}
+      >
+        {label}
+      </p>
       {payload.map((p: any) => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+        <div className="flex items-center gap-2" key={p.dataKey}>
+          <div
+            className="h-2 w-2 rounded-full"
+            style={{ background: p.color }}
+          />
           <span style={{ color: "rgba(255,255,255,0.70)" }}>{p.name}:</span>
-          <span className="font-mono font-medium" style={{ color: "#fff" }}>{p.value}</span>
+          <span className="font-medium font-mono" style={{ color: "#fff" }}>
+            {p.value}
+          </span>
         </div>
       ))}
     </div>
   );
 };
 
-export function ContentActivityChart({ activity, days = 14 }: ContentActivityChartProps) {
+export function ContentActivityChart({
+  activity,
+  days = 14,
+}: ContentActivityChartProps) {
   const data = useMemo(() => buildChartData(activity, days), [activity, days]);
   const hasActivity = activity.length > 0;
 
   return (
     <div
       className="rounded-3xl p-6 md:p-8"
-      style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.05)",
+      }}
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-base font-medium" style={{ color: "#fff" }}>Activity</h2>
-          <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.30)" }}>
+          <h2 className="font-medium text-base" style={{ color: "#fff" }}>
+            Activity
+          </h2>
+          <p
+            className="mt-0.5 text-xs"
+            style={{ color: "rgba(255,255,255,0.30)" }}
+          >
             Last {days} days
           </p>
         </div>
-        <div className="flex items-center gap-4 text-xs" style={{ color: "rgba(255,255,255,0.40)" }}>
+        <div
+          className="flex items-center gap-4 text-xs"
+          style={{ color: "rgba(255,255,255,0.40)" }}
+        >
           {[
             { label: "Events", color: "#3DA9E0" },
             { label: "News", color: "#a78bfa" },
             { label: "Jobs", color: "#4ade80" },
           ].map(({ label, color }) => (
-            <span key={label} className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+            <span className="flex items-center gap-1.5" key={label}>
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: color }}
+              />
               {label}
             </span>
           ))}
         </div>
       </div>
 
-      {!hasActivity ? (
-        <div className="flex items-center justify-center h-40">
-          <p className="text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>
-            No activity recorded yet
-          </p>
-        </div>
-      ) : (
-        <ResponsiveContainer width="100%" height={180}>
-          <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+      {hasActivity ? (
+        <ResponsiveContainer height={180} width="100%">
+          <AreaChart
+            data={data}
+            margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+          >
             <defs>
-              <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="colorEvents" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="5%" stopColor="#3DA9E0" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#3DA9E0" stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="colorNews" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="colorNews" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="colorJobs" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="colorJobs" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="5%" stopColor="#4ade80" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid
-              strokeDasharray="3 3"
               stroke="rgba(255,255,255,0.04)"
+              strokeDasharray="3 3"
               vertical={false}
             />
             <XAxis
+              axisLine={false}
               dataKey="date"
+              interval="preserveStartEnd"
               tick={{ fontSize: 10, fill: "rgba(255,255,255,0.25)" }}
               tickLine={false}
-              axisLine={false}
-              interval="preserveStartEnd"
             />
             <YAxis
+              allowDecimals={false}
+              axisLine={false}
               tick={{ fontSize: 10, fill: "rgba(255,255,255,0.25)" }}
               tickLine={false}
-              axisLine={false}
-              allowDecimals={false}
               width={28}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ stroke: "rgba(255,255,255,0.06)" }}
+            />
             <Area
-              type="monotone"
               dataKey="events"
+              dot={false}
+              fill="url(#colorEvents)"
               name="Events"
               stroke="#3DA9E0"
               strokeWidth={1.5}
-              fill="url(#colorEvents)"
-              dot={false}
+              type="monotone"
             />
             <Area
-              type="monotone"
               dataKey="news"
+              dot={false}
+              fill="url(#colorNews)"
               name="News"
               stroke="#a78bfa"
               strokeWidth={1.5}
-              fill="url(#colorNews)"
-              dot={false}
+              type="monotone"
             />
             <Area
-              type="monotone"
               dataKey="jobs"
+              dot={false}
+              fill="url(#colorJobs)"
               name="Jobs"
               stroke="#4ade80"
               strokeWidth={1.5}
-              fill="url(#colorJobs)"
-              dot={false}
+              type="monotone"
             />
           </AreaChart>
         </ResponsiveContainer>
+      ) : (
+        <div className="flex h-40 items-center justify-center">
+          <p className="text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>
+            No activity recorded yet
+          </p>
+        </div>
       )}
     </div>
   );

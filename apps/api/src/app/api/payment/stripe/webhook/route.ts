@@ -1,10 +1,8 @@
 import { createAdminClient } from "@repo/api/server";
 import { OrderStatus } from "@repo/api/types/appwrite";
-import {
-  getOrderByPaymentSessionId,
-} from "@repo/shared/utils/vipps-order-ops";
-import { triggerMembershipSync } from "@repo/shared/utils/membership-sync";
 import { constructStripeWebhookEvent } from "@repo/payment/stripe";
+import { triggerMembershipSync } from "@repo/shared/utils/membership-sync";
+import { getOrderByPaymentSessionId } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -29,10 +27,16 @@ export async function POST(request: Request) {
 
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as { id: string; payment_intent?: string; receipt_url?: string };
+        const session = event.data.object as {
+          id: string;
+          payment_intent?: string;
+          receipt_url?: string;
+        };
         const found = await getOrderByPaymentSessionId(session.id, db);
         if (!found) {
-          console.error(`[Stripe Webhook] Order not found for session: ${session.id}`);
+          console.error(
+            `[Stripe Webhook] Order not found for session: ${session.id}`
+          );
           break;
         }
         const { orderId, order } = found;
@@ -57,7 +61,9 @@ export async function POST(request: Request) {
         const session = event.data.object as { id: string };
         const found = await getOrderByPaymentSessionId(session.id, db);
         if (!found) {
-          console.error(`[Stripe Webhook] Order not found for session: ${session.id}`);
+          console.error(
+            `[Stripe Webhook] Order not found for session: ${session.id}`
+          );
           break;
         }
         const { orderId } = found;

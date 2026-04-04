@@ -1,7 +1,7 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
-import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseEventMetadata } from "@/lib/types/event";

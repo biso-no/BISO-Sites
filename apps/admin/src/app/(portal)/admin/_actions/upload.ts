@@ -1,33 +1,49 @@
 "use server";
 
-import { ID, InputFile, getStorageFileUrl } from "@repo/api";
+import { getStorageFileUrl, ID, InputFile } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { getUserAuthContext } from "@/lib/authorization";
 import { redirect } from "next/navigation";
+import { getUserAuthContext } from "@/lib/authorization";
 import { MEDIA_BUCKET_ID } from "./schemas";
 
-
-export async function uploadMediaFile(formData: FormData): Promise<{
-  url: string;
-  fileId: string;
-  error?: never;
-} | {
-  url?: never;
-  fileId?: never;
-  error: string;
-}> {
+export async function uploadMediaFile(formData: FormData): Promise<
+  | {
+      url: string;
+      fileId: string;
+      error?: never;
+    }
+  | {
+      url?: never;
+      fileId?: never;
+      error: string;
+    }
+> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
 
   const file = formData.get("file") as File | null;
-  if (!file) return { error: "No file provided" };
+  if (!file) {
+    return { error: "No file provided" };
+  }
 
   const maxSize = 10 * 1024 * 1024; // 10 MB
-  if (file.size > maxSize) return { error: "File too large (max 10 MB)" };
+  if (file.size > maxSize) {
+    return { error: "File too large (max 10 MB)" };
+  }
 
-  const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+  const allowed = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+  ];
   if (!allowed.includes(file.type)) {
-    return { error: "Unsupported file type. Allowed: JPG, PNG, GIF, WEBP, SVG" };
+    return {
+      error: "Unsupported file type. Allowed: JPG, PNG, GIF, WEBP, SVG",
+    };
   }
 
   try {

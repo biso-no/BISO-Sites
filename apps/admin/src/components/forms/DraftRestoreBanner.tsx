@@ -27,20 +27,20 @@ export function DraftRestoreBanner({
       </p>
       <div className="flex items-center gap-2">
         <Button
-          type="button"
-          size="sm"
-          variant="outline"
           className="border-amber-300 bg-white hover:bg-amber-50 dark:border-amber-700 dark:bg-transparent"
           onClick={onRestore}
+          size="sm"
+          type="button"
+          variant="outline"
         >
           Restore draft
         </Button>
         <Button
-          type="button"
-          size="icon"
-          variant="ghost"
           className="h-7 w-7 text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40"
           onClick={onDiscard}
+          size="icon"
+          type="button"
+          variant="ghost"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Discard draft</span>

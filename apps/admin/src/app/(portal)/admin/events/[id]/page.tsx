@@ -1,5 +1,5 @@
-import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getEvent } from "../../_actions/events";
 import { listCampuses } from "../../_actions/jobs";
 import { EventEditorClient } from "./_components/event-editor-client";
@@ -8,7 +8,9 @@ type EventEditorPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function EventEditorPage({ params }: EventEditorPageProps) {
+export default async function EventEditorPage({
+  params,
+}: EventEditorPageProps) {
   const { id } = await params;
   const t = await getTranslations("adminPortal.events");
 
@@ -18,12 +20,14 @@ export default async function EventEditorPage({ params }: EventEditorPageProps) 
     listCampuses(),
   ]);
 
-  if (!isNew && !event) notFound();
+  if (!(isNew || event)) {
+    notFound();
+  }
 
   return (
     <EventEditorClient
-      event={event}
       campuses={campuses}
+      event={event}
       isNew={isNew}
       labels={{
         back: t("title"),

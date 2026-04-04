@@ -22,5 +22,5 @@ export default async function EditEventPage({
     notFound();
   }
 
-  return <EventEditor event={event} campuses={campuses} />;
+  return <EventEditor campuses={campuses} event={event} />;
 }

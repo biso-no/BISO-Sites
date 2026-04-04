@@ -21,7 +21,7 @@ interface EventPageProps {
   params: Promise<{
     slug: string;
   }>;
-};
+}
 
 async function EventDetails({ slug }: { slug: string }) {
   const locale = await getLocale();

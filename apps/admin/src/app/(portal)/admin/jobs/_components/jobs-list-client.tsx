@@ -1,21 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
+import { Briefcase, Pencil, Trash2, Users } from "lucide-react";
 import Link from "next/link";
-import {
-  Briefcase,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteJob } from "../../_actions/jobs";
-import { SearchToolbar } from "../../_components/search-toolbar";
-import { StatusBadge } from "../../_components/status-badge";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
-import type { Jobs, ContentTranslations } from "@repo/api/types/appwrite";
+import { SearchToolbar } from "../../_components/search-toolbar";
+import { StatusBadge } from "../../_components/status-badge";
 
 type JobWithTranslations = Jobs & {
   translation_refs: ContentTranslations[];
@@ -40,7 +34,12 @@ type JobsListClientProps = {
   };
 };
 
-export function JobsListClient({ initialJobs, total, page, labels }: JobsListClientProps) {
+export function JobsListClient({
+  initialJobs,
+  total,
+  page,
+  labels,
+}: JobsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -54,14 +53,11 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
   ];
 
   const filtered = initialJobs.filter((job) => {
-    const noTranslation = job.translation_refs.find(
-      (t) => t.locale === "no"
-    );
+    const noTranslation = job.translation_refs.find((t) => t.locale === "no");
     const title = noTranslation?.title ?? "";
     const matchesSearch =
       !search || title.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter =
-      activeFilter === "all" || job.status === activeFilter;
+    const matchesFilter = activeFilter === "all" || job.status === activeFilter;
     return matchesSearch && matchesFilter;
   });
 
@@ -97,7 +93,9 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
   }
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) return;
+    if (!confirm(labels.deleteConfirm)) {
+      return;
+    }
     startTransition(async () => {
       const result = await deleteJob(id);
       if (result.error) {
@@ -115,13 +113,13 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
   if (initialJobs.length === 0 && page === 1) {
     return (
       <EmptyState
+        description={labels.emptyDescription}
         icon={<Briefcase size={28} />}
         title={labels.empty}
-        description={labels.emptyDescription}
       >
         <Link
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
           href="/admin/jobs/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
           style={{ background: "#3DA9E0", color: "#001731" }}
         >
           Create first job
@@ -133,25 +131,25 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
   return (
     <>
       <SearchToolbar
-        placeholder={labels.searchPlaceholder}
-        onSearch={setSearch}
-        filters={filters}
         activeFilter={activeFilter}
+        filters={filters}
         onFilterChange={setActiveFilter}
+        onSearch={setSearch}
+        placeholder={labels.searchPlaceholder}
       />
 
       {filtered.length === 0 ? (
         <EmptyState
+          description="Try adjusting your search or filters."
           icon={<Briefcase size={28} />}
           title="No matching jobs"
-          description="Try adjusting your search or filters."
         />
       ) : (
         <div className="space-y-2">
           {filtered.map((job) => (
             <div
+              className="group flex items-center gap-4 rounded-2xl px-5 py-4 transition-all"
               key={job.$id}
-              className="group flex items-center gap-4 px-5 py-4 rounded-2xl transition-all"
               style={{
                 background: "rgba(255,255,255,0.02)",
                 border: "1px solid rgba(255,255,255,0.05)",
@@ -159,7 +157,7 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
             >
               {/* Logo placeholder */}
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
                 style={{
                   background: "rgba(61,169,224,0.10)",
                   border: "1px solid rgba(61,169,224,0.20)",
@@ -169,11 +167,11 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
               </div>
 
               {/* Content */}
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <Link
+                    className="truncate font-medium text-sm transition-colors hover:text-[#3DA9E0]"
                     href={`/admin/jobs/${job.$id}`}
-                    className="text-sm font-medium hover:text-[#3DA9E0] transition-colors truncate"
                     style={{ color: "#fff" }}
                   >
                     {getTitle(job)}
@@ -181,7 +179,7 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
                   <StatusBadge status={job.status} />
                 </div>
                 <div
-                  className="flex items-center gap-3 mt-1 text-xs"
+                  className="mt-1 flex items-center gap-3 text-xs"
                   style={{ color: "rgba(255,255,255,0.35)" }}
                 >
                   {getCompany(job) && <span>{getCompany(job)}</span>}
@@ -197,10 +195,10 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
               </div>
 
               {/* Actions */}
-              <div className="relative flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="relative flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <Link
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-all"
                   href={`/admin/jobs/${job.$id}/applications`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all"
                   style={{
                     background: "rgba(255,255,255,0.05)",
                     color: "rgba(255,255,255,0.50)",
@@ -210,25 +208,25 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
                   {labels.applications}
                 </Link>
                 <Link
+                  aria-label={labels.edit}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
                   href={`/admin/jobs/${job.$id}`}
-                  className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
                   style={{
                     background: "rgba(255,255,255,0.05)",
                     color: "rgba(255,255,255,0.50)",
                   }}
-                  aria-label={labels.edit}
                 >
                   <Pencil size={13} />
                 </Link>
                 <button
-                  type="button"
+                  aria-label={labels.delete}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
                   onClick={() => handleDelete(job.$id)}
-                  className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
                   style={{
                     background: "rgba(248,113,113,0.08)",
                     color: "#f87171",
                   }}
-                  aria-label={labels.delete}
+                  type="button"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -238,7 +236,7 @@ export function JobsListClient({ initialJobs, total, page, labels }: JobsListCli
         </div>
       )}
 
-      <PaginationBar total={total} page={page} />
+      <PaginationBar page={page} total={total} />
     </>
   );
 }

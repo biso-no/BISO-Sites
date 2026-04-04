@@ -62,7 +62,9 @@ export function useBenefitEditor({
       // Always explicitly set the status based on the user's intent so that
       // "Save as draft" correctly unpublishes and "Publish" correctly publishes,
       // regardless of what the form's status field currently holds.
-      const statusToSave = publish ? BenefitStatus.PUBLISHED : BenefitStatus.DRAFT;
+      const statusToSave = publish
+        ? BenefitStatus.PUBLISHED
+        : BenefitStatus.DRAFT;
       const valueToSave = { ...value, status: statusToSave };
 
       try {

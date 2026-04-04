@@ -20,8 +20,11 @@ export function BenefitEditorClient({
   managedCampusIds,
   partners,
 }: BenefitEditorClientProps) {
-  const { form, handleSave, handlePartnerSelect } =
-    useBenefitEditor({ benefit, defaultCampusId, partners });
+  const { form, handleSave, handlePartnerSelect } = useBenefitEditor({
+    benefit,
+    defaultCampusId,
+    partners,
+  });
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -37,8 +40,8 @@ export function BenefitEditorClient({
         <BenefitSettingsPanel
           form={form}
           managedCampusIds={managedCampusIds}
-          partners={partners}
           onPartnerSelect={handlePartnerSelect}
+          partners={partners}
         />
       </div>
     </div>

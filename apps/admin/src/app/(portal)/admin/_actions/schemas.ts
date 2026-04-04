@@ -54,7 +54,10 @@ export const jobSchema = z.object({
   description_en: z.string().min(1, "Description (EN) is required"),
   campus_id: z.string().min(1, "Campus is required"),
   department_id: z.string().optional().nullable(),
-  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
   status: z.enum(["draft", "published", "closed"]),
   employment_type: z.string().optional().nullable(),
   company: z.string().optional().nullable(),
@@ -63,42 +66,42 @@ export const JOBS_PAGE_SIZE = 20;
 export type JobFormValues = z.infer<typeof jobSchema>;
 
 export const newsSchema = z.object({
-    title: z.string().min(1, "Title is required"),
-    description: z.string().optional().nullable(),
-    campus_id: z.string().min(1, "Campus is required"),
-    department_id: z.string().optional().nullable(),
-    slug: z
-      .string()
-      .min(1, "Slug is required")
-      .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-    status: z.enum(["draft", "published"]),
-    locale: z.enum(["no", "en"]),
-    author: z.string().optional().nullable(),
-    category: z.string().optional().nullable(),
-    image: z.string().url().optional().nullable().or(z.literal("")),
-    sticky: z.boolean().default(false),
-  });
-  export const NEWS_PAGE_SIZE = 20;
-  export type NewsFormValues = z.infer<typeof newsSchema>;
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().nullable(),
+  campus_id: z.string().min(1, "Campus is required"),
+  department_id: z.string().optional().nullable(),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+  status: z.enum(["draft", "published"]),
+  locale: z.enum(["no", "en"]),
+  author: z.string().optional().nullable(),
+  category: z.string().optional().nullable(),
+  image: z.string().url().optional().nullable().or(z.literal("")),
+  sticky: z.boolean().default(false),
+});
+export const NEWS_PAGE_SIZE = 20;
+export type NewsFormValues = z.infer<typeof newsSchema>;
 
-  export const productSchema = z.object({
-    name: z.string().min(1, "Name is required"),
-    description: z.string().optional().nullable(),
-    campus_id: z.string().min(1, "Campus is required"),
-    department_id: z.string().optional().nullable(),
-    slug: z
-      .string()
-      .min(1, "Slug is required")
-      .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-    status: z.enum(["draft", "pending_approval", "published", "archived"]),
-    category: z.string().optional().nullable(),
-    regular_price: z.coerce.number().nonnegative("Price must be 0 or more"),
-    member_price: z.coerce.number().nonnegative().optional().nullable(),
-    member_only: z.boolean().default(false),
-    image: z.string().url().optional().nullable().or(z.literal("")),
-    stock: z.coerce.number().int().nonnegative().optional().nullable(),
-  });
-  export const PRODUCTS_PAGE_SIZE = 20;
-  export type ProductFormValues = z.infer<typeof productSchema>;
+export const productSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional().nullable(),
+  campus_id: z.string().min(1, "Campus is required"),
+  department_id: z.string().optional().nullable(),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+  status: z.enum(["draft", "pending_approval", "published", "archived"]),
+  category: z.string().optional().nullable(),
+  regular_price: z.coerce.number().nonnegative("Price must be 0 or more"),
+  member_price: z.coerce.number().nonnegative().optional().nullable(),
+  member_only: z.boolean().default(false),
+  image: z.string().url().optional().nullable().or(z.literal("")),
+  stock: z.coerce.number().int().nonnegative().optional().nullable(),
+});
+export const PRODUCTS_PAGE_SIZE = 20;
+export type ProductFormValues = z.infer<typeof productSchema>;
 
-  export const MEDIA_BUCKET_ID = "media";
+export const MEDIA_BUCKET_ID = "media";

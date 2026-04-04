@@ -1,17 +1,16 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
-import { createSessionClient, createAdminClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
 
@@ -19,10 +18,7 @@ export async function listPages(opts?: { status?: string; campusId?: string }) {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
-  const queries: string[] = [
-    Query.orderDesc("$updatedAt"),
-    Query.limit(100),
-  ];
+  const queries: string[] = [Query.orderDesc("$updatedAt"), Query.limit(100)];
 
   if (opts?.status && opts.status !== "all") {
     queries.push(Query.equal("status", opts.status));
@@ -78,14 +74,10 @@ export async function getDashboardStats() {
   ]);
 
   return {
-    jobs:
-      jobsRes.status === "fulfilled" ? jobsRes.value.total ?? 0 : 0,
-    events:
-      eventsRes.status === "fulfilled" ? eventsRes.value.total ?? 0 : 0,
-    news:
-      newsRes.status === "fulfilled" ? newsRes.value.total ?? 0 : 0,
-    drafts:
-      draftsRes.status === "fulfilled" ? draftsRes.value.total ?? 0 : 0,
+    jobs: jobsRes.status === "fulfilled" ? (jobsRes.value.total ?? 0) : 0,
+    events: eventsRes.status === "fulfilled" ? (eventsRes.value.total ?? 0) : 0,
+    news: newsRes.status === "fulfilled" ? (newsRes.value.total ?? 0) : 0,
+    drafts: draftsRes.status === "fulfilled" ? (draftsRes.value.total ?? 0) : 0,
   };
 }
 
@@ -100,23 +92,34 @@ export async function getPageViewStats(days = 14): Promise<PageViewDay[]> {
 
   try {
     const { db } = await createAdminClient();
-    const response = await db.listRows<PageViewEvents>("app", "page_view_events", [
-      Query.greaterThanEqual("$createdAt", since.toISOString()),
-      Query.orderAsc("$createdAt"),
-      Query.limit(5000),
-    ]);
+    const response = await db.listRows<PageViewEvents>(
+      "app",
+      "page_view_events",
+      [
+        Query.greaterThanEqual("$createdAt", since.toISOString()),
+        Query.orderAsc("$createdAt"),
+        Query.limit(5000),
+      ]
+    );
 
     // Bucket by day
     const buckets: Record<string, number> = {};
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      buckets[d.toLocaleDateString("en-US", { month: "short", day: "numeric" })] = 0;
+      buckets[
+        d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      ] = 0;
     }
 
     for (const row of response.rows) {
-      const label = new Date(row.$createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      if (label in buckets) buckets[label]++;
+      const label = new Date(row.$createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      if (label in buckets) {
+        buckets[label]++;
+      }
     }
 
     return Object.entries(buckets).map(([date, views]) => ({ date, views }));

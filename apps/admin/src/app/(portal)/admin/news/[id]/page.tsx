@@ -1,7 +1,7 @@
-import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { getNewsArticle } from "../../_actions/news";
+import { getTranslations } from "next-intl/server";
 import { listCampuses } from "../../_actions/jobs";
+import { getNewsArticle } from "../../_actions/news";
 import { NewsEditorClient } from "./_components/news-editor-client";
 
 type Props = { params: Promise<{ id: string }> };
@@ -16,7 +16,9 @@ export default async function NewsEditorPage({ params }: Props) {
     listCampuses(),
   ]);
 
-  if (!isNew && !article) notFound();
+  if (!(isNew || article)) {
+    notFound();
+  }
 
   return (
     <NewsEditorClient

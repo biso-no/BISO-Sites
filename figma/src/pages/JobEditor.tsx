@@ -1,20 +1,28 @@
-import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router";
+import {
+  ArrowUpRight,
+  Building2,
+  Check,
+  ChevronLeft,
+  Eye,
+  LayoutList,
+  MapPin,
+} from "lucide-react";
 import { motion } from "motion/react";
-import { ChevronLeft, Check, MapPin, Building2, LayoutList, Eye, ArrowUpRight } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
 
 export function JobEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isNew = id === 'new';
+  const isNew = id === "new";
   const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState({
-    title: isNew ? '' : 'Senior Frontend Developer',
-    company: 'TechCorp Oslo',
-    type: 'Full-time',
-    location: 'oslo',
-    status: 'draft'
+    title: isNew ? "" : "Senior Frontend Developer",
+    company: "TechCorp Oslo",
+    type: "Full-time",
+    location: "oslo",
+    status: "draft",
   });
 
   const handleSave = () => {
@@ -26,49 +34,58 @@ export function JobEditor() {
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
+    <motion.div
       animate={{ opacity: 1, y: 0 }}
+      className="mx-auto max-w-[1400px] pb-12"
+      initial={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.5 }}
-      className="max-w-[1400px] mx-auto pb-12"
     >
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-white/10 mb-8 sticky top-0 bg-[#000a16]/90 backdrop-blur-xl z-20 pt-4 -mt-4">
+      <header className="sticky top-0 z-20 -mt-4 mb-8 flex flex-col justify-between gap-6 border-white/10 border-b bg-[#000a16]/90 pt-4 pb-8 backdrop-blur-xl md:flex-row md:items-center">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/jobs')}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all"
+          <button
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50 transition-all hover:bg-white/10 hover:text-white"
+            onClick={() => navigate("/jobs")}
           >
             <ChevronLeft size={20} />
           </button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-light tracking-tight text-white">
-                {isNew ? 'New Job Post' : 'Edit Job Post'}
+              <h1 className="font-light text-2xl text-white tracking-tight">
+                {isNew ? "New Job Post" : "Edit Job Post"}
               </h1>
-              <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/40 text-[10px] uppercase tracking-widest font-mono">
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/40 uppercase tracking-widest">
                 {formData.status}
               </span>
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              <Link to="/jobs" className="text-white/40 text-xs hover:text-[#3DA9E0] transition-colors">Jobs</Link>
+            <div className="mt-1 flex items-center gap-2">
+              <Link
+                className="text-white/40 text-xs transition-colors hover:text-[#3DA9E0]"
+                to="/jobs"
+              >
+                Jobs
+              </Link>
               <span className="text-white/20 text-xs">/</span>
-              <span className="text-white/40 text-xs truncate max-w-[200px]">{formData.title || 'Untitled'}</span>
+              <span className="max-w-[200px] truncate text-white/40 text-xs">
+                {formData.title || "Untitled"}
+              </span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate('/jobs')}
-            className="px-5 py-2.5 rounded-full border border-white/10 text-white/70 text-sm font-medium hover:bg-white/5 transition-all"
+          <button
+            className="rounded-full border border-white/10 px-5 py-2.5 font-medium text-sm text-white/70 transition-all hover:bg-white/5"
+            onClick={() => navigate("/jobs")}
           >
             Discard
           </button>
-          <button 
-            onClick={handleSave}
+          <button
+            className="flex items-center gap-2 rounded-full bg-[#3DA9E0] px-6 py-2.5 font-bold text-[#001731] text-sm shadow-[0_0_20px_rgba(61,169,224,0.3)] transition-all hover:shadow-[0_0_30px_rgba(61,169,224,0.5)] disabled:opacity-50"
             disabled={isSaving}
-            className="px-6 py-2.5 rounded-full bg-[#3DA9E0] text-[#001731] text-sm font-bold shadow-[0_0_20px_rgba(61,169,224,0.3)] hover:shadow-[0_0_30px_rgba(61,169,224,0.5)] transition-all flex items-center gap-2 disabled:opacity-50"
+            onClick={handleSave}
           >
-            {isSaving ? 'Publishing...' : (
+            {isSaving ? (
+              "Publishing..."
+            ) : (
               <>
                 <Check size={16} /> Publish Live
               </>
@@ -77,90 +94,122 @@ export function JobEditor() {
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-start">
+      <div className="flex flex-col items-start gap-12 lg:flex-row lg:gap-16">
         {/* Left: Editorial Form */}
-        <div className="flex-1 w-full space-y-16">
+        <div className="w-full flex-1 space-y-16">
           <section>
-            <input 
-              type="text" 
-              value={formData.title}
-              onChange={e => setFormData({...formData, title: e.target.value})}
+            <input
+              className="w-full border-transparent border-b border-none bg-transparent pb-4 font-light text-4xl text-white tracking-tight outline-none transition-all placeholder:text-white/20 focus:border-[#3DA9E0]/50 focus:border-b md:text-5xl"
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               placeholder="Enter job title..."
-              className="w-full bg-transparent text-4xl md:text-5xl font-light tracking-tight text-white placeholder:text-white/20 border-none outline-none pb-4 focus:border-b focus:border-[#3DA9E0]/50 transition-all border-b border-transparent"
+              type="text"
+              value={formData.title}
             />
           </section>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <section className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-widest font-semibold text-[#3DA9E0]">Company Name</label>
-              <input 
-                type="text" 
-                value={formData.company}
-                onChange={e => setFormData({...formData, company: e.target.value})}
+              <label className="font-semibold text-[#3DA9E0] text-[11px] uppercase tracking-widest">
+                Company Name
+              </label>
+              <input
+                className="w-full border-white/10 border-b bg-transparent pb-2 text-lg text-white outline-none transition-colors focus:border-[#3DA9E0]"
+                onChange={(e) =>
+                  setFormData({ ...formData, company: e.target.value })
+                }
                 placeholder="e.g. TechCorp Oslo"
-                className="w-full bg-transparent border-b border-white/10 pb-2 text-lg text-white outline-none focus:border-[#3DA9E0] transition-colors"
+                type="text"
+                value={formData.company}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-widest font-semibold text-[#3DA9E0]">Employment Type</label>
-              <select 
+              <label className="font-semibold text-[#3DA9E0] text-[11px] uppercase tracking-widest">
+                Employment Type
+              </label>
+              <select
+                className="w-full appearance-none border-white/10 border-b bg-transparent pb-2 text-lg text-white outline-none transition-colors focus:border-[#3DA9E0]"
+                onChange={(e) =>
+                  setFormData({ ...formData, type: e.target.value })
+                }
                 value={formData.type}
-                onChange={e => setFormData({...formData, type: e.target.value})}
-                className="w-full bg-transparent border-b border-white/10 pb-2 text-lg text-white outline-none focus:border-[#3DA9E0] transition-colors appearance-none"
               >
-                <option value="Full-time" className="bg-[#000a16]">Full-time</option>
-                <option value="Part-time" className="bg-[#000a16]">Part-time</option>
-                <option value="Internship" className="bg-[#000a16]">Internship</option>
-                <option value="Graduate" className="bg-[#000a16]">Graduate</option>
+                <option className="bg-[#000a16]" value="Full-time">
+                  Full-time
+                </option>
+                <option className="bg-[#000a16]" value="Part-time">
+                  Part-time
+                </option>
+                <option className="bg-[#000a16]" value="Internship">
+                  Internship
+                </option>
+                <option className="bg-[#000a16]" value="Graduate">
+                  Graduate
+                </option>
               </select>
             </div>
           </section>
 
-          <section className="space-y-8 border-l border-white/10 pl-8 relative">
-            <div className="absolute top-0 -left-[1.5px] w-[3px] h-8 bg-[#3DA9E0] rounded-r-full" />
+          <section className="relative space-y-8 border-white/10 border-l pl-8">
+            <div className="absolute top-0 -left-[1.5px] h-8 w-[3px] rounded-r-full bg-[#3DA9E0]" />
             <div className="space-y-4">
-              <label className="text-[11px] uppercase tracking-widest font-semibold text-white/50">The Role (EN)</label>
-              <textarea 
-                rows={6}
+              <label className="font-semibold text-[11px] text-white/50 uppercase tracking-widest">
+                The Role (EN)
+              </label>
+              <textarea
+                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
                 placeholder="Write a compelling job description..."
-                className="w-full bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 text-white/90 outline-none focus:border-[#3DA9E0]/50 transition-colors resize-none custom-scrollbar leading-relaxed"
+                rows={6}
               />
             </div>
             <div className="space-y-4">
-              <label className="text-[11px] uppercase tracking-widest font-semibold text-white/50">The Role (NO)</label>
-              <textarea 
-                rows={6}
+              <label className="font-semibold text-[11px] text-white/50 uppercase tracking-widest">
+                The Role (NO)
+              </label>
+              <textarea
+                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
                 placeholder="Skriv en overbevisende stillingsbeskrivelse..."
-                className="w-full bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 text-white/90 outline-none focus:border-[#3DA9E0]/50 transition-colors resize-none custom-scrollbar leading-relaxed"
+                rows={6}
               />
             </div>
           </section>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/10">
+          <section className="grid grid-cols-1 gap-8 border-white/10 border-t pt-8 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-widest font-semibold text-white/50 flex items-center gap-2">
+              <label className="flex items-center gap-2 font-semibold text-[11px] text-white/50 uppercase tracking-widest">
                 <MapPin size={12} /> Target Campus
               </label>
-              <select 
+              <select
+                className="w-full appearance-none border-white/10 border-b bg-transparent pb-2 text-white outline-none transition-colors focus:border-[#3DA9E0]"
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
                 value={formData.location}
-                onChange={e => setFormData({...formData, location: e.target.value})}
-                className="w-full bg-transparent border-b border-white/10 pb-2 text-white outline-none focus:border-[#3DA9E0] transition-colors appearance-none"
               >
-                <option value="oslo" className="bg-[#000a16]">BI Oslo</option>
-                <option value="bergen" className="bg-[#000a16]">BI Bergen</option>
-                <option value="trondheim" className="bg-[#000a16]">BI Trondheim</option>
+                <option className="bg-[#000a16]" value="oslo">
+                  BI Oslo
+                </option>
+                <option className="bg-[#000a16]" value="bergen">
+                  BI Bergen
+                </option>
+                <option className="bg-[#000a16]" value="trondheim">
+                  BI Trondheim
+                </option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-widest font-semibold text-white/50 flex items-center gap-2">
+              <label className="flex items-center gap-2 font-semibold text-[11px] text-white/50 uppercase tracking-widest">
                 <LayoutList size={12} /> URL Slug
               </label>
-              <div className="flex border-b border-white/10 pb-2 focus-within:border-[#3DA9E0] transition-colors">
-                <span className="text-white/30 text-sm mt-0.5 mr-1">/jobs/</span>
-                <input 
-                  type="text" 
-                  placeholder="role-title"
+              <div className="flex border-white/10 border-b pb-2 transition-colors focus-within:border-[#3DA9E0]">
+                <span className="mt-0.5 mr-1 text-sm text-white/30">
+                  /jobs/
+                </span>
+                <input
                   className="flex-1 bg-transparent text-white outline-none"
+                  placeholder="role-title"
+                  type="text"
                 />
               </div>
             </div>
@@ -168,38 +217,40 @@ export function JobEditor() {
         </div>
 
         {/* Right: Sticky Cinematic Preview */}
-        <div className="w-full lg:w-[420px] shrink-0 sticky top-32">
-          <div className="flex items-center gap-2 mb-4 px-2">
-            <Eye size={14} className="text-[#3DA9E0]" />
-            <span className="text-xs font-mono text-white/50 uppercase tracking-widest">Live Preview</span>
+        <div className="sticky top-32 w-full shrink-0 lg:w-[420px]">
+          <div className="mb-4 flex items-center gap-2 px-2">
+            <Eye className="text-[#3DA9E0]" size={14} />
+            <span className="font-mono text-white/50 text-xs uppercase tracking-widest">
+              Live Preview
+            </span>
           </div>
 
-          <div className="rounded-3xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/[0.05] p-8 backdrop-blur-xl relative overflow-hidden group">
+          <div className="group relative overflow-hidden rounded-3xl border border-white/[0.05] bg-gradient-to-br from-white/[0.05] to-transparent p-8 backdrop-blur-xl">
             {/* Ambient background blur */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#3DA9E0]/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            
+            <div className="pointer-events-none absolute top-0 right-0 h-64 w-64 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3DA9E0]/10 blur-[80px]" />
+
             <div className="relative z-10 space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-[#001731] border border-white/10 flex items-center justify-center overflow-hidden">
-                <Building2 size={24} className="text-[#3DA9E0]/50" />
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#001731]">
+                <Building2 className="text-[#3DA9E0]/50" size={24} />
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="px-2.5 py-1 rounded-full bg-white/10 text-white/80 text-[10px] uppercase tracking-wider font-semibold border border-white/5">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="rounded-full border border-white/5 bg-white/10 px-2.5 py-1 font-semibold text-[10px] text-white/80 uppercase tracking-wider">
                     {formData.type}
                   </span>
-                  <span className="px-2.5 py-1 rounded-full bg-[#3DA9E0]/10 text-[#3DA9E0] text-[10px] uppercase tracking-wider font-semibold border border-[#3DA9E0]/20">
+                  <span className="rounded-full border border-[#3DA9E0]/20 bg-[#3DA9E0]/10 px-2.5 py-1 font-semibold text-[#3DA9E0] text-[10px] uppercase tracking-wider">
                     {formData.location.toUpperCase()}
                   </span>
                 </div>
-                <h3 className="text-2xl font-light text-white leading-tight mb-2">
-                  {formData.title || 'Untitled Role'}
+                <h3 className="mb-2 font-light text-2xl text-white leading-tight">
+                  {formData.title || "Untitled Role"}
                 </h3>
-                <p className="text-white/50 text-sm">{formData.company}</p>
+                <p className="text-sm text-white/50">{formData.company}</p>
               </div>
 
-              <div className="pt-6 border-t border-white/10">
-                <div className="w-full py-3 rounded-xl bg-white text-black font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200 transition-colors">
+              <div className="border-white/10 border-t pt-6">
+                <div className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white py-3 font-semibold text-black text-sm transition-colors hover:bg-gray-200">
                   Apply Now <ArrowUpRight size={16} />
                 </div>
               </div>

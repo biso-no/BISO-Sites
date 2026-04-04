@@ -24,7 +24,9 @@ export function useDirtyWarning({
   const shouldWarn = isDirty && !isSubmitting;
 
   useEffect(() => {
-    if (!shouldWarn) return;
+    if (!shouldWarn) {
+      return;
+    }
 
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();

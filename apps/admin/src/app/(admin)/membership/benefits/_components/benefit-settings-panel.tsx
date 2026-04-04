@@ -3,6 +3,12 @@
 import type { BenefitPartner } from "@repo/api/types/appwrite";
 import { BENEFIT_CATEGORIES } from "@repo/shared/utils/benefit-scope";
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import {
   Field,
   FieldDescription,
   FieldGroup,
@@ -10,7 +16,6 @@ import {
   FieldSeparator,
 } from "@repo/ui/components/ui/field";
 import { Input } from "@repo/ui/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -26,12 +31,11 @@ import type { BenefitEditorForm } from "./use-benefit-editor";
 interface BenefitSettingsPanelProps {
   form: BenefitEditorForm;
   managedCampusIds: string[];
-  partners: BenefitPartner[];
   onPartnerSelect: (id: string) => void;
+  partners: BenefitPartner[];
 }
 
-const isGlobalAdmin = (ids: string[]) =>
-  ids.includes("5") || ids.length === 0;
+const isGlobalAdmin = (ids: string[]) => ids.includes("5") || ids.length === 0;
 
 const CAMPUS_OPTIONS = ["1", "2", "3", "4"];
 
@@ -46,7 +50,7 @@ export function BenefitSettingsPanel({
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Settings2 className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base font-semibold">Settings</CardTitle>
+          <CardTitle className="font-semibold text-base">Settings</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
@@ -57,8 +61,8 @@ export function BenefitSettingsPanel({
               <Field>
                 <FieldLabel htmlFor="campus-select">Campus</FieldLabel>
                 <Select
-                  value={field.state.value}
                   onValueChange={(v) => field.handleChange(v)}
+                  value={field.state.value}
                 >
                   <SelectTrigger id="campus-select">
                     <SelectValue />
@@ -97,10 +101,10 @@ export function BenefitSettingsPanel({
               <Field>
                 <FieldLabel htmlFor="kind-select">Kind</FieldLabel>
                 <Select
-                  value={field.state.value}
                   onValueChange={(v) =>
                     field.handleChange(v as typeof field.state.value)
                   }
+                  value={field.state.value}
                 >
                   <SelectTrigger id="kind-select">
                     <SelectValue />
@@ -127,8 +131,8 @@ export function BenefitSettingsPanel({
               <Field>
                 <FieldLabel htmlFor="category-select">Category</FieldLabel>
                 <Select
-                  value={field.state.value}
                   onValueChange={(v) => field.handleChange(v)}
+                  value={field.state.value}
                 >
                   <SelectTrigger id="category-select">
                     <SelectValue />
@@ -151,8 +155,8 @@ export function BenefitSettingsPanel({
               <Field>
                 <FieldLabel htmlFor="partner-select">Partner</FieldLabel>
                 <Select
-                  value={field.state.value ?? "none"}
                   onValueChange={onPartnerSelect}
+                  value={field.state.value ?? "none"}
                 >
                   <SelectTrigger id="partner-select">
                     <SelectValue placeholder="No partner" />
@@ -177,12 +181,10 @@ export function BenefitSettingsPanel({
                 <FieldLabel htmlFor="image-url">Image URL</FieldLabel>
                 <Input
                   id="image-url"
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value || null)}
                   placeholder="https://..."
                   value={field.state.value ?? ""}
-                  onBlur={field.handleBlur}
-                  onChange={(e) =>
-                    field.handleChange(e.target.value || null)
-                  }
                 />
               </Field>
             )}
@@ -198,12 +200,12 @@ export function BenefitSettingsPanel({
                 </FieldDescription>
                 <Input
                   id="sort-order"
-                  type="number"
-                  min={0}
                   max={9999}
-                  value={field.state.value ?? 0}
+                  min={0}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(Number(e.target.value))}
+                  type="number"
+                  value={field.state.value ?? 0}
                 />
               </Field>
             )}
@@ -228,14 +230,13 @@ export function BenefitSettingsPanel({
                   </FieldDescription>
                 </FieldLabel>
                 <Switch
-                  id="is-featured"
                   checked={field.state.value}
+                  id="is-featured"
                   onCheckedChange={(v) => field.handleChange(v)}
                 />
               </Field>
             )}
           </form.Field>
-
         </FieldGroup>
       </CardContent>
     </Card>

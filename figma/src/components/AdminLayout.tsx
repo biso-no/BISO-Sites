@@ -3,17 +3,17 @@ import { Sidebar } from "./Sidebar";
 
 export function AdminLayout() {
   return (
-    <div className="flex h-screen w-full bg-[#000a16] text-white overflow-hidden selection:bg-[#3DA9E0]/30 selection:text-white">
+    <div className="flex h-screen w-full overflow-hidden bg-[#000a16] text-white selection:bg-[#3DA9E0]/30 selection:text-white">
       {/* Background ambient glows */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#001731] rounded-full blur-[120px] opacity-80" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#3DA9E0]/10 rounded-full blur-[150px]" />
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] h-[50%] w-[50%] rounded-full bg-[#001731] opacity-80 blur-[120px]" />
+        <div className="absolute right-[-10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-[#3DA9E0]/10 blur-[150px]" />
       </div>
-      
+
       <Sidebar />
-      
-      <main className="flex-1 h-screen overflow-y-auto relative z-10 custom-scrollbar">
-        <div className="max-w-[1600px] mx-auto min-h-full p-8 md:p-12">
+
+      <main className="custom-scrollbar relative z-10 h-screen flex-1 overflow-y-auto">
+        <div className="mx-auto min-h-full max-w-[1600px] p-8 md:p-12">
           <Outlet />
         </div>
       </main>

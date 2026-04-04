@@ -1,6 +1,6 @@
-import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { Plus } from "lucide-react";
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { listJobs } from "../_actions/jobs";
 import { PageHeader } from "../_components/page-header";
 import { JobsListClient } from "./_components/jobs-list-client";
@@ -19,10 +19,10 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
 
   return (
     <div className="pb-12">
-      <PageHeader title={t("title")} description={t("description")}>
+      <PageHeader description={t("description")} title={t("title")}>
         <Link
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm transition-all"
           href="/admin/jobs/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
           style={{
             background: "#3DA9E0",
             color: "#001731",
@@ -36,8 +36,6 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
 
       <JobsListClient
         initialJobs={jobs.rows}
-        total={jobs.total}
-        page={page}
         labels={{
           empty: t("empty"),
           emptyDescription: t("emptyDescription"),
@@ -51,6 +49,8 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
           delete: t("actions.delete"),
           deleteConfirm: tc("confirmDelete"),
         }}
+        page={page}
+        total={jobs.total}
       />
     </div>
   );

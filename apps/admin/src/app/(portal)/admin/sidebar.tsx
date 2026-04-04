@@ -1,27 +1,27 @@
 "use client";
 
-import { motion } from "motion/react";
 import {
-  LayoutDashboard,
-  Layers,
-  Building2,
+  Activity,
   Briefcase,
+  Building2,
   Calendar,
-  ShoppingCart,
-  Gift,
-  Newspaper,
-  Settings,
-  LogOut,
   Command,
   FileStack,
-  Activity,
+  Gift,
+  Layers,
+  LayoutDashboard,
+  LogOut,
+  Newspaper,
+  Settings,
+  ShoppingCart,
 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { signOut } from "@/lib/actions/user";
-import { hasNavAccess, type NavKey } from "@/lib/roles";
 import type { UserRolesForClient } from "@/lib/authorization";
+import { hasNavAccess, type NavKey } from "@/lib/roles";
 
 type SidebarUser = {
   id: string;
@@ -39,7 +39,11 @@ type SidebarProps = {
 const NAV_ITEMS: Array<{
   path: string;
   labelKey: string;
-  icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
+  icon: React.ComponentType<{
+    size?: number;
+    className?: string;
+    style?: React.CSSProperties;
+  }>;
   navKey: NavKey;
 }> = [
   {
@@ -98,11 +102,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
   const t = useTranslations("adminPortal.nav");
 
   const visibleItems = NAV_ITEMS.filter((item) =>
-    hasNavAccess(
-      item.navKey,
-      roles.roles,
-      roles.hasDepartmentMembership
-    )
+    hasNavAccess(item.navKey, roles.roles, roles.hasDepartmentMembership)
   );
 
   const canViewActivity = hasNavAccess(
@@ -122,7 +122,9 @@ export function Sidebar({ user, roles }: SidebarProps) {
   );
 
   function isActive(path: string) {
-    if (path === "/admin") return pathname === "/admin";
+    if (path === "/admin") {
+      return pathname === "/admin";
+    }
     return pathname.startsWith(path);
   }
 
@@ -142,7 +144,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
 
   return (
     <div
-      className="w-72 h-screen flex flex-col relative z-20"
+      className="relative z-20 flex h-screen w-72 flex-col"
       style={{
         borderRight: "1px solid rgba(255,255,255,0.05)",
         background: "rgba(0,10,22,0.80)",
@@ -151,24 +153,24 @@ export function Sidebar({ user, roles }: SidebarProps) {
       }}
     >
       {/* Brand */}
-      <div className="p-8 flex items-center justify-between">
+      <div className="flex items-center justify-between p-8">
         <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(61,169,224,0.4)]"
+            className="flex h-8 w-8 items-center justify-center rounded-full shadow-[0_0_15px_rgba(61,169,224,0.4)]"
             style={{
               background: "linear-gradient(135deg,#3DA9E0,#001731)",
             }}
           >
-            <span className="text-white font-bold text-xs tracking-tighter">
+            <span className="font-bold text-white text-xs tracking-tighter">
               BI
             </span>
           </div>
-          <span className="text-white font-semibold tracking-wide text-lg">
+          <span className="font-semibold text-lg text-white tracking-wide">
             SO OS
           </span>
         </div>
         <div
-          className="flex items-center gap-1 text-xs font-mono rounded-md px-2 py-1"
+          className="flex items-center gap-1 rounded-md px-2 py-1 font-mono text-xs"
           style={{
             color: "rgba(255,255,255,0.40)",
             background: "rgba(255,255,255,0.05)",
@@ -180,31 +182,31 @@ export function Sidebar({ user, roles }: SidebarProps) {
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 px-4 space-y-1 mt-2 overflow-y-auto">
+      <nav className="mt-2 flex-1 space-y-1 overflow-y-auto px-4">
         {visibleItems.map((item) => {
           const active = isActive(item.path);
           return (
             <Link
-              key={item.path}
+              className="group relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
               href={item.path}
-              className="relative flex items-center gap-3 px-4 py-3 rounded-xl group transition-all"
+              key={item.path}
             >
               {active && (
                 <motion.div
-                  layoutId="portal-sidebar-active"
+                  animate={{ opacity: 1 }}
                   className="absolute inset-0 rounded-xl"
+                  initial={{ opacity: 0 }}
+                  layoutId="portal-sidebar-active"
                   style={{
                     background: "rgba(255,255,255,0.05)",
                     border: "1px solid rgba(255,255,255,0.10)",
                   }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
                   transition={{ duration: 0.2 }}
                 />
               )}
               {active && (
                 <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
+                  className="absolute top-1/2 left-0 h-6 w-1 -translate-y-1/2 rounded-r-full"
                   style={{
                     background: "#3DA9E0",
                     boxShadow: "0 0 10px #3DA9E0",
@@ -212,12 +214,12 @@ export function Sidebar({ user, roles }: SidebarProps) {
                 />
               )}
               <item.icon
-                size={18}
                 className="relative z-10 transition-colors"
+                size={18}
                 style={{ color: active ? "#3DA9E0" : "rgba(255,255,255,0.40)" }}
               />
               <span
-                className="relative z-10 text-sm font-medium transition-colors"
+                className="relative z-10 font-medium text-sm transition-colors"
                 style={{ color: active ? "#fff" : "rgba(255,255,255,0.50)" }}
               >
                 {t(item.labelKey)}
@@ -236,13 +238,13 @@ export function Sidebar({ user, roles }: SidebarProps) {
 
         {canViewDrafts && (
           <Link
+            className="group relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
             href="/admin/drafts"
-            className="relative flex items-center gap-3 px-4 py-3 rounded-xl group transition-all"
           >
             {isActive("/admin/drafts") && (
               <motion.div
-                layoutId="portal-sidebar-active"
                 className="absolute inset-0 rounded-xl"
+                layoutId="portal-sidebar-active"
                 style={{
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(255,255,255,0.10)",
@@ -250,8 +252,8 @@ export function Sidebar({ user, roles }: SidebarProps) {
               />
             )}
             <FileStack
-              size={18}
               className="relative z-10"
+              size={18}
               style={{
                 color: isActive("/admin/drafts")
                   ? "#3DA9E0"
@@ -259,7 +261,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
               }}
             />
             <span
-              className="relative z-10 text-sm font-medium"
+              className="relative z-10 font-medium text-sm"
               style={{
                 color: isActive("/admin/drafts")
                   ? "#fff"
@@ -273,13 +275,13 @@ export function Sidebar({ user, roles }: SidebarProps) {
 
         {canViewActivity && (
           <Link
+            className="group relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
             href="/admin/activity"
-            className="relative flex items-center gap-3 px-4 py-3 rounded-xl group transition-all"
           >
             {isActive("/admin/activity") && (
               <motion.div
-                layoutId="portal-sidebar-active"
                 className="absolute inset-0 rounded-xl"
+                layoutId="portal-sidebar-active"
                 style={{
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(255,255,255,0.10)",
@@ -287,8 +289,8 @@ export function Sidebar({ user, roles }: SidebarProps) {
               />
             )}
             <Activity
-              size={18}
               className="relative z-10"
+              size={18}
               style={{
                 color: isActive("/admin/activity")
                   ? "#3DA9E0"
@@ -296,7 +298,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
               }}
             />
             <span
-              className="relative z-10 text-sm font-medium"
+              className="relative z-10 font-medium text-sm"
               style={{
                 color: isActive("/admin/activity")
                   ? "#fff"
@@ -316,17 +318,17 @@ export function Sidebar({ user, roles }: SidebarProps) {
       >
         {canViewSettings && (
           <Link
+            className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
             href="/admin/settings"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
             style={{ color: "rgba(255,255,255,0.50)" }}
           >
             <Settings size={18} />
-            <span className="text-sm font-medium">{t("settings")}</span>
+            <span className="font-medium text-sm">{t("settings")}</span>
           </Link>
         )}
 
         <div
-          className="mt-2 flex items-center gap-3 px-4 py-3 rounded-xl"
+          className="mt-2 flex items-center gap-3 rounded-xl px-4 py-3"
           style={{
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.05)",
@@ -334,14 +336,14 @@ export function Sidebar({ user, roles }: SidebarProps) {
         >
           {user.avatar ? (
             <img
-              src={user.avatar}
               alt={user.name ?? "User"}
-              className="w-9 h-9 rounded-full object-cover"
+              className="h-9 w-9 rounded-full object-cover"
+              src={user.avatar}
               style={{ border: "1px solid rgba(255,255,255,0.10)" }}
             />
           ) : (
             <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full font-bold text-xs"
               style={{
                 background: "rgba(61,169,224,0.20)",
                 color: "#3DA9E0",
@@ -351,23 +353,23 @@ export function Sidebar({ user, roles }: SidebarProps) {
               {initials}
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-sm text-white">
               {user.name ?? user.email ?? "User"}
             </p>
             <p
-              className="text-xs font-mono truncate"
+              className="truncate font-mono text-xs"
               style={{ color: "#3DA9E0" }}
             >
               {user.roleLabel}
             </p>
           </div>
           <button
-            type="button"
-            onClick={handleSignOut}
-            className="transition-colors"
-            style={{ color: "rgba(255,255,255,0.40)" }}
             aria-label="Sign out"
+            className="transition-colors"
+            onClick={handleSignOut}
+            style={{ color: "rgba(255,255,255,0.40)" }}
+            type="button"
           >
             <LogOut size={16} />
           </button>

@@ -34,16 +34,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  createPostFromForm,
-  updatePostFromForm,
-} from "@/app/actions/admin";
+import { createPostFromForm, updatePostFromForm } from "@/app/actions/admin";
 import { CharacterCount } from "@/components/forms/CharacterCount";
 import { CoverImageUpload } from "@/components/forms/CoverImageUpload";
 import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
 import { FormSection } from "@/components/forms/FormSection";
 import { type Locale, LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
-import { type SaveStatus, SaveBar } from "@/components/forms/SaveBar";
+import { SaveBar, type SaveStatus } from "@/components/forms/SaveBar";
 import { NewsPreviewPane } from "@/components/preview/NewsPreviewPane";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { RichTextEditor } from "@/components/rich-text-editor";
@@ -63,7 +60,7 @@ const postSchema = z.object({
       description: z
         .string()
         .min(50, "English content must be at least 50 characters")
-        .max(50000),
+        .max(50_000),
     }),
     no: z.object({
       title: z
@@ -73,7 +70,7 @@ const postSchema = z.object({
       description: z
         .string()
         .min(50, "Norwegian content must be at least 50 characters")
-        .max(50000),
+        .max(50_000),
     }),
   }),
   status: z.enum(["draft", "published"]),
@@ -92,7 +89,10 @@ type PostEditorProps = {
   campuses: Campus[];
 };
 
-function getInitialValues(post: News | null | undefined, locale: string): PostFormValues {
+function getInitialValues(
+  post: News | null | undefined,
+  locale: string
+): PostFormValues {
   if (!post) {
     return {
       translations: {
@@ -108,7 +108,9 @@ function getInitialValues(post: News | null | undefined, locale: string): PostFo
     };
   }
 
-  const refs = Array.isArray(post.translation_refs) ? post.translation_refs : [];
+  const refs = Array.isArray(post.translation_refs)
+    ? post.translation_refs
+    : [];
   const getRef = (loc: string) =>
     refs.find((r) => typeof r !== "string" && r.locale === loc);
 
@@ -118,12 +120,14 @@ function getInitialValues(post: News | null | undefined, locale: string): PostFo
   return {
     translations: {
       en: {
-        title: (typeof enRef !== "string" ? enRef?.title : "") ?? "",
-        description: (typeof enRef !== "string" ? enRef?.description : "") ?? "",
+        title: (typeof enRef === "string" ? "" : enRef?.title) ?? "",
+        description:
+          (typeof enRef === "string" ? "" : enRef?.description) ?? "",
       },
       no: {
-        title: (typeof noRef !== "string" ? noRef?.title : "") ?? "",
-        description: (typeof noRef !== "string" ? noRef?.description : "") ?? "",
+        title: (typeof noRef === "string" ? "" : noRef?.title) ?? "",
+        description:
+          (typeof noRef === "string" ? "" : noRef?.description) ?? "",
       },
     },
     status: (post.status as "draft" | "published") ?? "draft",
@@ -132,16 +136,18 @@ function getInitialValues(post: News | null | undefined, locale: string): PostFo
         ? post.department
         : (post.department?.$id ?? ""),
     campus:
-      typeof post.campus === "string"
-        ? post.campus
-        : (post.campus?.$id ?? ""),
+      typeof post.campus === "string" ? post.campus : (post.campus?.$id ?? ""),
     image: post.image ?? "",
     sticky: post.sticky ?? false,
     author: post.author ?? "",
   };
 }
 
-export default function PostEditor({ post, departments, campuses }: PostEditorProps) {
+export default function PostEditor({
+  post,
+  departments,
+  campuses,
+}: PostEditorProps) {
   const router = useRouter();
   const t = useTranslations("adminPosts");
   const locale = useLocale();
@@ -164,14 +170,18 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
 
   const { isDirty, isSubmitting } = form.formState;
 
-  const { lastSaved, enabled: autosaveEnabled, setEnabled: setAutosave, clearDraft } =
-    useAutosave<PostFormValues>({
-      storageKey,
-      values: form.watch(),
-      isDirty,
-      onRestoreDraft: (draft) =>
-        setPendingDraft({ values: draft, savedAt: new Date() }),
-    });
+  const {
+    lastSaved,
+    enabled: autosaveEnabled,
+    setEnabled: setAutosave,
+    clearDraft,
+  } = useAutosave<PostFormValues>({
+    storageKey,
+    values: form.watch(),
+    isDirty,
+    onRestoreDraft: (draft) =>
+      setPendingDraft({ values: draft, savedAt: new Date() }),
+  });
 
   useDirtyWarning({ isDirty, isSubmitting });
 
@@ -219,8 +229,12 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
   const handleSave = form.handleSubmit(handleSubmit);
   const handleCancel = () => {
     if (isDirty) {
-      const ok = window.confirm("You have unsaved changes. Leave without saving?");
-      if (!ok) return;
+      const ok = window.confirm(
+        "You have unsaved changes. Leave without saving?"
+      );
+      if (!ok) {
+        return;
+      }
     }
     router.back();
   };
@@ -232,8 +246,18 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
   const noDesc = formValues.translations.no.description;
 
   const localeStatus: Record<Locale, "complete" | "partial" | "empty"> = {
-    en: enTitle.length >= 5 && enDesc.length >= 50 ? "complete" : enTitle.length > 0 ? "partial" : "empty",
-    no: noTitle.length >= 5 && noDesc.length >= 50 ? "complete" : noTitle.length > 0 ? "partial" : "empty",
+    en:
+      enTitle.length >= 5 && enDesc.length >= 50
+        ? "complete"
+        : enTitle.length > 0
+          ? "partial"
+          : "empty",
+    no:
+      noTitle.length >= 5 && noDesc.length >= 50
+        ? "complete"
+        : noTitle.length > 0
+          ? "partial"
+          : "empty",
   };
 
   const oppositeLocale: Locale = activeLocale === "en" ? "no" : "en";
@@ -245,7 +269,7 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
   return (
     <div className="flex min-h-screen flex-col">
       {/* Breadcrumb */}
-      <div className="border-b border-border/40 bg-background/80 px-6 py-3 backdrop-blur-sm">
+      <div className="border-border/40 border-b bg-background/80 px-6 py-3 backdrop-blur-sm">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -257,8 +281,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
             <BreadcrumbItem>
               <BreadcrumbPage>
                 {isEditing
-                  ? (enTitle || t("editor.edit") || "Edit Post")
-                  : (t("editor.newPost") || "New Post")}
+                  ? enTitle || t("editor.edit") || "Edit Post"
+                  : t("editor.newPost") || "New Post"}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -269,15 +293,15 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
       {pendingDraft && (
         <div className="px-6 pt-4">
           <DraftRestoreBanner
-            savedAt={pendingDraft.savedAt}
-            onRestore={() => {
-              form.reset(pendingDraft.values);
-              setPendingDraft(null);
-            }}
             onDiscard={() => {
               clearDraft();
               setPendingDraft(null);
             }}
+            onRestore={() => {
+              form.reset(pendingDraft.values);
+              setPendingDraft(null);
+            }}
+            savedAt={pendingDraft.savedAt}
           />
         </div>
       )}
@@ -302,7 +326,7 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
         >
           <Form {...form}>
             <form
-              className="space-y-5 px-6 py-6 lg:grid lg:gap-6 lg:space-y-0 lg:grid-cols-[1fr_320px]"
+              className="space-y-5 px-6 py-6 lg:grid lg:grid-cols-[1fr_320px] lg:gap-6 lg:space-y-0"
               onSubmit={handleSave}
             >
               {/* LEFT — article content */}
@@ -315,9 +339,6 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                     status={localeStatus}
                   />
                   <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
                     className="gap-1.5 text-xs"
                     onClick={() => {
                       // Placeholder — could wire AI translation here
@@ -327,6 +348,9 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                           "Use the AI copilot to translate content between languages.",
                       });
                     }}
+                    size="sm"
+                    type="button"
+                    variant="outline"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     Auto-translate
@@ -334,8 +358,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                 </div>
 
                 <FormSection
-                  title="Headline"
                   subtitle="The title that appears at the top of the article"
+                  title="Headline"
                 >
                   <FormField
                     control={form.control}
@@ -345,7 +369,9 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                         <div className="flex items-center justify-between">
                           <FormLabel aria-required="true">
                             {t("form.title")}{" "}
-                            <span className="text-destructive" aria-hidden>*</span>
+                            <span aria-hidden className="text-destructive">
+                              *
+                            </span>
                           </FormLabel>
                           <CharacterCount
                             current={activeTitle.length}
@@ -360,9 +386,9 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                                 : "Artikkeltittel på norsk"
                             }
                             {...field}
-                            value={field.value ?? ""}
-                            className="text-lg font-medium"
                             aria-required="true"
+                            className="font-medium text-lg"
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />
@@ -372,8 +398,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                 </FormSection>
 
                 <FormSection
-                  title="Content"
                   subtitle="The full article body. Supports rich text formatting."
+                  title="Content"
                 >
                   <FormField
                     control={form.control}
@@ -400,8 +426,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
               {/* RIGHT — settings sidebar */}
               <div className="space-y-5 lg:sticky lg:top-[72px] lg:self-start">
                 <FormSection
-                  title="Publishing"
                   subtitle="Status and visibility"
+                  title="Publishing"
                 >
                   <div className="space-y-4">
                     <FormField
@@ -410,15 +436,24 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("form.status")}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder={t("form.selectStatus")} />
+                                <SelectValue
+                                  placeholder={t("form.selectStatus")}
+                                />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="draft">{t("status.draft")}</SelectItem>
-                              <SelectItem value="published">{t("status.published")}</SelectItem>
+                              <SelectItem value="draft">
+                                {t("status.draft")}
+                              </SelectItem>
+                              <SelectItem value="published">
+                                {t("status.published")}
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -432,9 +467,7 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                       render={({ field }) => (
                         <FormItem className="flex items-center justify-between">
                           <div>
-                            <FormLabel className="mb-0">
-                              Pin to top
-                            </FormLabel>
+                            <FormLabel className="mb-0">Pin to top</FormLabel>
                             <p className="text-muted-foreground text-xs">
                               Keeps this post at the top of the news feed
                             </p>
@@ -469,7 +502,10 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                   </div>
                 </FormSection>
 
-                <FormSection title="Organisation" subtitle="Campus and department">
+                <FormSection
+                  subtitle="Campus and department"
+                  title="Organisation"
+                >
                   <div className="space-y-4">
                     <FormField
                       control={form.control}
@@ -477,10 +513,15 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("form.campus")}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder={t("form.selectCampus")} />
+                                <SelectValue
+                                  placeholder={t("form.selectCampus")}
+                                />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -502,7 +543,10 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("form.department")}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue
@@ -534,8 +578,8 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
                         <FormControl>
                           <CoverImageUpload
                             images={field.value ? [field.value] : []}
-                            onChange={(next) => field.onChange(next[0] ?? "")}
                             label=""
+                            onChange={(next) => field.onChange(next[0] ?? "")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -551,15 +595,15 @@ export default function PostEditor({ post, departments, campuses }: PostEditorPr
 
       {/* Sticky save bar */}
       <SaveBar
-        status={saveStatus}
-        lastSaved={lastSaved}
+        autosaveEnabled={autosaveEnabled}
         isDirty={isDirty}
         isSubmitting={isSubmitting}
-        onSave={handleSave}
-        onCancel={handleCancel}
-        autosaveEnabled={autosaveEnabled}
+        lastSaved={lastSaved}
         onAutosaveToggle={setAutosave}
-        saveLabel={isEditing ? t("form.save") : (t("form.save") || "Publish")}
+        onCancel={handleCancel}
+        onSave={handleSave}
+        saveLabel={isEditing ? t("form.save") : t("form.save") || "Publish"}
+        status={saveStatus}
       />
     </div>
   );

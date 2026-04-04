@@ -41,7 +41,10 @@ export async function GET(request: Request) {
         );
         await updateOrderStatus(orderId, paymentState, sessionData, db);
       } catch (err) {
-        console.error("[Checkout Return] Vipps session verification failed:", err);
+        console.error(
+          "[Checkout Return] Vipps session verification failed:",
+          err
+        );
       }
     }
 

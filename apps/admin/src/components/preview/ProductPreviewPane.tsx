@@ -46,7 +46,13 @@ export function ProductPreviewPane({
       {/* Hero */}
       <div className="relative h-56 overflow-hidden bg-slate-100">
         {imageUrl ? (
-          <Image src={imageUrl} alt={title} fill className="object-cover" sizes="800px" />
+          <Image
+            alt={title}
+            className="object-cover"
+            fill
+            sizes="800px"
+            src={imageUrl}
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-100 to-slate-200">
             <Package className="h-16 w-16 text-slate-300" />
@@ -54,7 +60,7 @@ export function ProductPreviewPane({
         )}
         {data.status !== "published" && (
           <div className="absolute top-3 left-3">
-            <Badge variant="secondary" className="uppercase text-xs">
+            <Badge className="text-xs uppercase" variant="secondary">
               {data.status}
             </Badge>
           </div>
@@ -83,7 +89,7 @@ export function ProductPreviewPane({
                 dangerouslySetInnerHTML={{ __html: t.description }}
               />
             ) : (
-              <p className="italic text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-sm italic">
                 {locale === "en"
                   ? "Product description will appear here…"
                   : "Produktbeskrivelse vises her…"}
@@ -93,7 +99,7 @@ export function ProductPreviewPane({
 
           {/* Sidebar */}
           <div className="space-y-4">
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="space-y-4 rounded-xl border border-border bg-card p-5">
               {/* Pricing */}
               <div>
                 {data.regular_price !== undefined && (
@@ -102,7 +108,7 @@ export function ProductPreviewPane({
                   </p>
                 )}
                 {data.member_price !== undefined && (
-                  <p className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium mt-0.5">
+                  <p className="mt-0.5 flex items-center gap-1.5 font-medium text-emerald-600 text-sm">
                     <Users className="h-3.5 w-3.5" />
                     {locale === "en" ? "Member price:" : "Medlemspris:"}{" "}
                     {fmtNok(data.member_price)}
@@ -117,7 +123,9 @@ export function ProductPreviewPane({
 
               {/* Stock */}
               {data.stock !== undefined && (
-                <p className={`text-sm ${inStock ? "text-emerald-600" : "text-destructive"}`}>
+                <p
+                  className={`text-sm ${inStock ? "text-emerald-600" : "text-destructive"}`}
+                >
                   {inStock
                     ? locale === "en"
                       ? `${data.stock} in stock`
@@ -144,7 +152,7 @@ export function ProductPreviewPane({
 
 function PreviewWatermark() {
   return (
-    <div className="pointer-events-none fixed right-3 top-14 z-50 rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 text-xs font-medium ring-1 ring-amber-200">
+    <div className="pointer-events-none fixed top-14 right-3 z-50 rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-700 text-xs ring-1 ring-amber-200">
       Preview
     </div>
   );

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { Search, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState, useTransition } from "react";
 
 type ChipFilter = {
   label: string;
@@ -45,38 +45,38 @@ export function SearchToolbar({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row gap-3 mb-6">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row">
       {/* Search input */}
-      <div className="relative flex-1 max-w-sm">
+      <div className="relative max-w-sm flex-1">
         <Search
+          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2"
           size={15}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
           style={{ color: "rgba(255,255,255,0.30)" }}
         />
         <input
-          type="text"
-          value={value}
+          className="w-full rounded-2xl py-2.5 pr-9 pl-9 text-sm outline-none transition-all"
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+          }}
           onChange={handleChange}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "rgba(61,169,224,0.50)";
+          }}
           placeholder={placeholder}
-          className="w-full pl-9 pr-9 py-2.5 text-sm rounded-2xl outline-none transition-all"
           style={{
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
             color: "#fff",
           }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = "rgba(61,169,224,0.50)";
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-          }}
+          type="text"
+          value={value}
         />
         {value && (
           <button
-            type="button"
+            className="absolute top-1/2 right-3 -translate-y-1/2"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2"
             style={{ color: "rgba(255,255,255,0.40)" }}
+            type="button"
           >
             <X size={14} />
           </button>
@@ -85,15 +85,14 @@ export function SearchToolbar({
 
       {/* Filter chips */}
       {filters && filters.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+        <div className="hide-scrollbar flex items-center gap-2 overflow-x-auto">
           {filters.map((chip) => {
             const isActive = activeFilter === chip.value;
             return (
               <button
+                className="flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 font-medium text-xs transition-all"
                 key={chip.value}
-                type="button"
                 onClick={() => onFilterChange?.(chip.value)}
-                className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap"
                 style={
                   isActive
                     ? {
@@ -107,6 +106,7 @@ export function SearchToolbar({
                         color: "rgba(255,255,255,0.50)",
                       }
                 }
+                type="button"
               >
                 {chip.label}
               </button>
@@ -117,7 +117,7 @@ export function SearchToolbar({
 
       {/* Right-side slot (buttons, etc.) */}
       {children && (
-        <div className="flex items-center gap-2 ml-auto">{children}</div>
+        <div className="ml-auto flex items-center gap-2">{children}</div>
       )}
     </div>
   );

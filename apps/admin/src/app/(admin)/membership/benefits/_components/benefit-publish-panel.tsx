@@ -10,7 +10,13 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
-import { CheckCircle2, FileEdit, Loader2, RadioTower, Save } from "lucide-react";
+import {
+  CheckCircle2,
+  FileEdit,
+  Loader2,
+  RadioTower,
+  Save,
+} from "lucide-react";
 import type { BenefitEditorForm } from "./use-benefit-editor";
 
 interface BenefitPublishPanelProps {
@@ -39,7 +45,10 @@ const STATUS_CONFIG = {
   },
 };
 
-export function BenefitPublishPanel({ form, onSave }: BenefitPublishPanelProps) {
+export function BenefitPublishPanel({
+  form,
+  onSave,
+}: BenefitPublishPanelProps) {
   return (
     <form.Subscribe
       selector={(state) => ({
@@ -67,7 +76,7 @@ export function BenefitPublishPanel({ form, onSave }: BenefitPublishPanelProps) 
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <RadioTower className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base font-semibold">
+                <CardTitle className="font-semibold text-base">
                   Publish
                 </CardTitle>
               </div>
@@ -75,10 +84,10 @@ export function BenefitPublishPanel({ form, onSave }: BenefitPublishPanelProps) 
             <CardContent className="space-y-4">
               {/* Status indicator */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-muted-foreground text-sm">Status</span>
                 <Badge
-                  variant="outline"
                   className={`flex items-center gap-1.5 font-medium ${config.className}`}
+                  variant="outline"
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
                   {config.label}
@@ -95,11 +104,11 @@ export function BenefitPublishPanel({ form, onSave }: BenefitPublishPanelProps) 
               {/* Actions */}
               <div className="space-y-2">
                 <Button
-                  type="button"
-                  variant="outline"
                   className="w-full"
                   disabled={isSubmitting}
                   onClick={() => onSave(false)}
+                  type="button"
+                  variant="outline"
                 >
                   {isSubmitting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -112,10 +121,10 @@ export function BenefitPublishPanel({ form, onSave }: BenefitPublishPanelProps) 
                 </Button>
 
                 <Button
-                  type="button"
                   className="w-full"
                   disabled={publishDisabled}
                   onClick={() => onSave(true)}
+                  type="button"
                 >
                   {isSubmitting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

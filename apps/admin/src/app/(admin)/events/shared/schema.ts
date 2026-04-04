@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 export { slugify } from "@/components/forms/slugify";
 
 export const formSchema = z.object({
@@ -7,7 +8,10 @@ export const formSchema = z.object({
     .string()
     .min(1, "Slug is required")
     .max(200)
-    .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug can only contain lowercase letters, numbers, and hyphens"
+    ),
   status: z.enum(["draft", "published", "cancelled"]),
   campus_id: z.string().min(1, "Campus is required"),
   start_date: z.string().optional(),
@@ -44,7 +48,7 @@ export const formSchema = z.object({
       description: z
         .string()
         .min(20, "English description must be at least 20 characters")
-        .max(50000),
+        .max(50_000),
     }),
     no: z.object({
       title: z
@@ -54,7 +58,7 @@ export const formSchema = z.object({
       description: z
         .string()
         .min(20, "Norwegian description must be at least 20 characters")
-        .max(50000),
+        .max(50_000),
     }),
   }),
 });

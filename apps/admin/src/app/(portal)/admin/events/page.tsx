@@ -1,6 +1,6 @@
-import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { Plus } from "lucide-react";
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { listEvents } from "../_actions/events";
 import { PageHeader } from "../_components/page-header";
 import { EventsListClient } from "./_components/events-list-client";
@@ -19,11 +19,15 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   return (
     <div className="pb-12">
-      <PageHeader title={t("title")} description={t("description")}>
+      <PageHeader description={t("description")} title={t("title")}>
         <Link
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
           href="/admin/events/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-          style={{ background: "#3DA9E0", color: "#001731", boxShadow: "0 0 20px rgba(61,169,224,0.25)" }}
+          style={{
+            background: "#3DA9E0",
+            color: "#001731",
+            boxShadow: "0 0 20px rgba(61,169,224,0.25)",
+          }}
         >
           <Plus size={15} />
           {t("create")}
@@ -32,8 +36,6 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
       <EventsListClient
         initialEvents={events.rows}
-        total={events.total}
-        page={page}
         labels={{
           empty: t("empty"),
           emptyDescription: t("emptyDescription"),
@@ -46,6 +48,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           delete: t("actions.delete"),
           deleteConfirm: tc("confirmDelete"),
         }}
+        page={page}
+        total={events.total}
       />
     </div>
   );

@@ -1,16 +1,21 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@repo/ui/components/ui/sheet";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@repo/ui/components/ui/resizable";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@repo/ui/components/ui/sheet";
 import { Eye, EyeOff, Monitor, Smartphone } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { type Locale, LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
+import { cn } from "@/lib/utils";
 
 type DeviceMode = "desktop" | "mobile";
 
@@ -38,8 +43,8 @@ export function PreviewPanel({
   const previewContent = (
     <div className="flex h-full flex-col">
       {/* Preview toolbar */}
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/40 bg-muted/30 px-4 py-2">
-        <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium uppercase tracking-wide">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-border/40 border-b bg-muted/30 px-4 py-2">
+        <div className="flex items-center gap-1.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">
           <Eye className="h-3.5 w-3.5" />
           Preview
         </div>
@@ -47,34 +52,34 @@ export function PreviewPanel({
         <div className="flex items-center gap-2">
           <LocaleTabGroup
             activeLocale={locale}
+            className="origin-right scale-90"
             onChange={setLocale}
-            className="scale-90 origin-right"
           />
 
           <div className="flex items-center rounded-md border border-border/60 bg-background p-0.5">
             <button
-              type="button"
-              onClick={() => setDevice("desktop")}
               className={cn(
                 "rounded p-1 transition-colors",
                 device === "desktop"
                   ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "text-muted-foreground hover:text-foreground"
               )}
+              onClick={() => setDevice("desktop")}
               title="Desktop view"
+              type="button"
             >
               <Monitor className="h-3.5 w-3.5" />
             </button>
             <button
-              type="button"
-              onClick={() => setDevice("mobile")}
               className={cn(
                 "rounded p-1 transition-colors",
                 device === "mobile"
                   ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "text-muted-foreground hover:text-foreground"
               )}
+              onClick={() => setDevice("mobile")}
               title="Mobile view"
+              type="button"
             >
               <Smartphone className="h-3.5 w-3.5" />
             </button>
@@ -87,7 +92,8 @@ export function PreviewPanel({
         <div
           className={cn(
             "min-h-full transition-all",
-            device === "mobile" && "mx-auto w-[390px] shadow-xl border-x border-border/40",
+            device === "mobile" &&
+              "mx-auto w-[390px] border-border/40 border-x shadow-xl"
           )}
         >
           {renderPreview(locale, device)}
@@ -99,33 +105,41 @@ export function PreviewPanel({
   return (
     <>
       {/* Desktop — resizable split */}
-      <div className="hidden lg:block h-full">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={62} minSize={40} className="overflow-auto">
+      <div className="hidden h-full lg:block">
+        <ResizablePanelGroup className="h-full" direction="horizontal">
+          <ResizablePanel
+            className="overflow-auto"
+            defaultSize={62}
+            minSize={40}
+          >
             <div className="pb-16">{children}</div>
           </ResizablePanel>
           <ResizableHandle />
-          <ResizablePanel defaultSize={38} minSize={28} className="border-l border-border/40">
+          <ResizablePanel
+            className="border-border/40 border-l"
+            defaultSize={38}
+            minSize={28}
+          >
             {previewContent}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
 
       {/* Mobile — regular form + preview Sheet */}
-      <div className="lg:hidden pb-16">
+      <div className="pb-16 lg:hidden">
         {children}
         <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="fixed bottom-16 right-4 z-40 gap-1.5 shadow-md"
+          className="fixed right-4 bottom-16 z-40 gap-1.5 shadow-md"
           onClick={() => setMobileSheetOpen(true)}
+          size="sm"
+          type="button"
+          variant="outline"
         >
           <Eye className="h-4 w-4" />
           Preview
         </Button>
-        <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
-          <SheetContent side="bottom" className="h-[85vh] p-0">
+        <Sheet onOpenChange={setMobileSheetOpen} open={mobileSheetOpen}>
+          <SheetContent className="h-[85vh] p-0" side="bottom">
             <SheetHeader className="sr-only">
               <SheetTitle>Content Preview</SheetTitle>
             </SheetHeader>
@@ -146,12 +160,14 @@ export function PreviewToggleButton({
   active: boolean;
 }) {
   return (
-    <Button type="button" size="sm" variant="outline" onClick={onClick} className="gap-1.5">
-      {active ? (
-        <EyeOff className="h-4 w-4" />
-      ) : (
-        <Eye className="h-4 w-4" />
-      )}
+    <Button
+      className="gap-1.5"
+      onClick={onClick}
+      size="sm"
+      type="button"
+      variant="outline"
+    >
+      {active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       {active ? "Hide preview" : "Preview"}
     </Button>
   );

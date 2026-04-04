@@ -65,11 +65,12 @@ export function StatusBadge({ status, size = "sm" }: StatusBadgeProps) {
     label: status,
   };
 
-  const padding = size === "sm" ? "px-2.5 py-0.5 text-[11px]" : "px-3 py-1 text-xs";
+  const padding =
+    size === "sm" ? "px-2.5 py-0.5 text-[11px]" : "px-3 py-1 text-xs";
 
   return (
     <span
-      className={`inline-flex items-center rounded-full font-mono font-medium tracking-wide uppercase ${padding}`}
+      className={`inline-flex items-center rounded-full font-medium font-mono uppercase tracking-wide ${padding}`}
       style={{
         color: style.color,
         background: style.bg,

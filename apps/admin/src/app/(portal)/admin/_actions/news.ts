@@ -1,33 +1,29 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
+import type {
+  ContentTranslations,
+  News,
+  NewsStatus,
+} from "@repo/api/types/appwrite";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
-import type {
-  News,
-  ContentTranslations,
-  NewsStatus,
-} from "@repo/api/types/appwrite";
-import { z } from "zod";
-import { newsSchema, type NewsFormValues } from "./schemas";
-import { NEWS_PAGE_SIZE } from "./schemas";
 import { logAuditEvent } from "./audit-log";
+import { NEWS_PAGE_SIZE, type NewsFormValues, newsSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
-
 
 export async function listNews(opts?: {
   campusId?: string;
@@ -53,7 +49,7 @@ export async function listNews(opts?: {
   const total = response.total;
 
   const newsIds = response.rows.map((n) => n.$id);
-  let translations: ContentTranslations[] = [];
+  const translations: ContentTranslations[] = [];
 
   if (newsIds.length > 0) {
     const chunkSize = 25;
@@ -89,7 +85,9 @@ export async function getNewsArticle(id: string) {
     Query.limit(1),
   ]);
   const article = response.rows[0];
-  if (!article) return null;
+  if (!article) {
+    return null;
+  }
 
   const translationsResponse = await db.listRows<ContentTranslations>(
     "app",
@@ -137,7 +135,10 @@ export async function createNews(values: NewsFormValues) {
     }),
   });
 
-  void logAuditEvent(ctx, "news_created", { resourceId: article.$id, resourceType: "news" });
+  void logAuditEvent(ctx, "news_created", {
+    resourceId: article.$id,
+    resourceType: "news",
+  });
   revalidatePath("/admin/news");
   return { data: article.$id };
 }
@@ -156,7 +157,9 @@ export async function updateNews(id: string, values: NewsFormValues) {
     Query.limit(1),
   ]);
   const article = existing.rows[0];
-  if (!article) return { error: "Article not found" };
+  if (!article) {
+    return { error: "Article not found" };
+  }
 
   assertWriteAccess(ctx, article.campus_id, article.department_id);
 
@@ -201,10 +204,19 @@ export async function updateNews(id: string, values: NewsFormValues) {
       translationData
     );
   } else {
-    await db.createRow("app", "content_translations", "unique()", translationData);
+    await db.createRow(
+      "app",
+      "content_translations",
+      "unique()",
+      translationData
+    );
   }
 
-  void logAuditEvent(ctx, "news_updated", { resourceId: id, resourceType: "news", payload: { status: validated.data.status } });
+  void logAuditEvent(ctx, "news_updated", {
+    resourceId: id,
+    resourceType: "news",
+    payload: { status: validated.data.status },
+  });
   revalidatePath("/admin/news");
   revalidatePath(`/admin/news/${id}`);
   return { data: id };
@@ -219,15 +231,16 @@ export async function deleteNews(id: string) {
     Query.limit(1),
   ]);
   const article = existing.rows[0];
-  if (!article) return { error: "Article not found" };
+  if (!article) {
+    return { error: "Article not found" };
+  }
 
   assertWriteAccess(ctx, article.campus_id, article.department_id);
 
-  const translations = await db.listRows(
-    "app",
-    "content_translations",
-    [Query.equal("content_type", "news"), Query.equal("content_id", id)]
-  );
+  const translations = await db.listRows("app", "content_translations", [
+    Query.equal("content_type", "news"),
+    Query.equal("content_id", id),
+  ]);
   await Promise.all(
     translations.rows.map((t) =>
       db.deleteRow("app", "content_translations", t.$id)
@@ -235,7 +248,10 @@ export async function deleteNews(id: string) {
   );
   await db.deleteRow("app", "news", id);
 
-  void logAuditEvent(ctx, "news_deleted", { resourceId: id, resourceType: "news" });
+  void logAuditEvent(ctx, "news_deleted", {
+    resourceId: id,
+    resourceType: "news",
+  });
   revalidatePath("/admin/news");
   return { data: true };
 }

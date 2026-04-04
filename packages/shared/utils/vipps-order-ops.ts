@@ -33,34 +33,29 @@ export async function createOrder(
   const orderId = ID.unique();
 
   try {
-    const order = (await databases.createRow(
-      'app',
-      'orders',
-      orderId,
-      {
-        status: OrderStatus.PENDING,
-        userId: params.userId,
-        buyer_name:
-          params.customerInfo?.firstName && params.customerInfo?.lastName
-            ? `${params.customerInfo.firstName} ${params.customerInfo.lastName}`
-            : null,
-        buyer_email: params.customerInfo?.email || null,
-        buyer_phone: params.customerInfo?.phone || null,
-        subtotal: params.subtotal,
-        discount_total: params.discountTotal || null,
-        total: params.total,
-        currency: params.currency,
-        items_json: JSON.stringify(params.items),
-        membership_applied: params.membershipApplied || null,
-        member_discount_percent: params.memberDiscountPercent || null,
-        campus_id: params.campusId || null,
-        payment_provider: null,
-        payment_session_id: null,
-        payment_intent_id: null,
-        payment_link: null,
-        payment_receipt_url: null,
-      }
-    )) as Orders;
+    const order = (await databases.createRow("app", "orders", orderId, {
+      status: OrderStatus.PENDING,
+      userId: params.userId,
+      buyer_name:
+        params.customerInfo?.firstName && params.customerInfo?.lastName
+          ? `${params.customerInfo.firstName} ${params.customerInfo.lastName}`
+          : null,
+      buyer_email: params.customerInfo?.email || null,
+      buyer_phone: params.customerInfo?.phone || null,
+      subtotal: params.subtotal,
+      discount_total: params.discountTotal || null,
+      total: params.total,
+      currency: params.currency,
+      items_json: JSON.stringify(params.items),
+      membership_applied: params.membershipApplied || null,
+      member_discount_percent: params.memberDiscountPercent || null,
+      campus_id: params.campusId || null,
+      payment_provider: null,
+      payment_session_id: null,
+      payment_intent_id: null,
+      payment_link: null,
+      payment_receipt_url: null,
+    })) as Orders;
 
     return { orderId, order };
   } catch (error) {

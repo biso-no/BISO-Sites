@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  Campus,
+  ContentTranslations,
+  Events,
+} from "@repo/api/types/appwrite";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -7,14 +13,18 @@ import { toast } from "sonner";
 import { createEvent, updateEvent } from "../../../_actions/events";
 import { type EventFormValues, eventSchema } from "../../../_actions/schemas";
 import { EditorHeader } from "../../../_components/editor-header";
-import { PreviewPanel } from "../../../_components/preview-panel";
-import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { PortalButton } from "../../../_components/portal-button";
-import { ContentEditor } from "@repo/ui/components/content-editor";
-import type { Events, ContentTranslations, Campus } from "@repo/api/types/appwrite";
+import {
+  PortalField,
+  PortalInput,
+  PortalSelect,
+} from "../../../_components/portal-fields";
+import { PreviewPanel } from "../../../_components/preview-panel";
 
-type EventWithTranslations = Events & { translation_refs: ContentTranslations[] };
+type EventWithTranslations = Events & {
+  translation_refs: ContentTranslations[];
+};
 
 type EventEditorClientProps = {
   event: EventWithTranslations | null;
@@ -38,7 +48,12 @@ function generateSlug(title: string) {
     .replace(/-+/g, "-");
 }
 
-export function EventEditorClient({ event, campuses, isNew, labels }: EventEditorClientProps) {
+export function EventEditorClient({
+  event,
+  campuses,
+  isNew,
+  labels,
+}: EventEditorClientProps) {
   const router = useRouter();
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -84,7 +99,9 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
         return;
       }
       toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
-      if (isNew && result.data) router.push(`/admin/events/${result.data}`);
+      if (isNew && result.data) {
+        router.push(`/admin/events/${result.data}`);
+      }
     },
   });
 
@@ -98,51 +115,57 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
       <EditorHeader
         backHref="/admin/events"
         backLabel={labels.back}
-        title={isNew ? "New Event" : (noTranslation?.title ?? "Edit Event")}
         status={isNew ? undefined : event?.status}
+        title={isNew ? "New Event" : (noTranslation?.title ?? "Edit Event")}
       >
-        <PortalButton variant="ghost" size="sm" onClick={() => router.push("/admin/events")}>
+        <PortalButton
+          onClick={() => router.push("/admin/events")}
+          size="sm"
+          variant="ghost"
+        >
           {labels.discard}
         </PortalButton>
         <PortalButton
-          variant="secondary"
-          size="sm"
           loading={isSaving}
           onClick={() => {
             setIsSaving(true);
             form.setFieldValue("status", "draft");
             form.handleSubmit().finally(() => setIsSaving(false));
           }}
+          size="sm"
+          variant="secondary"
         >
           {labels.saveDraft}
         </PortalButton>
         <PortalButton
-          variant="primary"
-          size="sm"
           loading={isPublishing}
           onClick={() => {
             setIsPublishing(true);
             form.setFieldValue("status", "published");
             form.handleSubmit().finally(() => setIsPublishing(false));
           }}
+          size="sm"
+          variant="primary"
         >
           {labels.publish}
         </PortalButton>
       </EditorHeader>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
         <div className="space-y-5">
           {/* Titles */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="title_no">
               {(field) => (
                 <PortalField label={labels.titleNo} required>
                   <PortalInput
-                    value={field.state.value}
                     onBlur={() => {
                       field.handleBlur();
                       if (isNew && !form.getFieldValue("slug")) {
-                        form.setFieldValue("slug", generateSlug(field.state.value));
+                        form.setFieldValue(
+                          "slug",
+                          generateSlug(field.state.value)
+                        );
                       }
                     }}
                     onChange={(e) => {
@@ -150,6 +173,7 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
                       setPreviewTitle(e.target.value);
                     }}
                     placeholder="Arrangementstittel..."
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -158,10 +182,10 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
               {(field) => (
                 <PortalField label={labels.titleEn}>
                   <PortalInput
-                    value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                     placeholder="Event title..."
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -169,17 +193,17 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="start_date">
               {(field) => (
                 <PortalField label={labels.startDate}>
                   <PortalInput
-                    type="datetime-local"
-                    value={field.state.value ?? ""}
                     onChange={(e) => {
                       field.handleChange(e.target.value || null);
                       setPreviewDate(e.target.value);
                     }}
+                    type="datetime-local"
+                    value={field.state.value ?? ""}
                   />
                 </PortalField>
               )}
@@ -188,9 +212,9 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
               {(field) => (
                 <PortalField label={labels.endDate}>
                   <PortalInput
+                    onChange={(e) => field.handleChange(e.target.value || null)}
                     type="datetime-local"
                     value={field.state.value ?? ""}
-                    onChange={(e) => field.handleChange(e.target.value || null)}
                   />
                 </PortalField>
               )}
@@ -198,18 +222,18 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
           </div>
 
           {/* Location + Price */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="location">
               {(field) => (
                 <PortalField label={labels.location}>
                   <PortalInput
-                    value={field.state.value ?? ""}
                     onBlur={field.handleBlur}
                     onChange={(e) => {
                       field.handleChange(e.target.value || null);
                       setPreviewLocation(e.target.value);
                     }}
                     placeholder="Oslo, Auditorium A..."
+                    value={field.state.value ?? ""}
                   />
                 </PortalField>
               )}
@@ -218,13 +242,15 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
               {(field) => (
                 <PortalField label={labels.ticketPrice}>
                   <PortalInput
-                    type="number"
                     min="0"
-                    value={field.state.value ?? ""}
                     onChange={(e) =>
-                      field.handleChange(e.target.value ? Number(e.target.value) : null)
+                      field.handleChange(
+                        e.target.value ? Number(e.target.value) : null
+                      )
                     }
                     placeholder="0"
+                    type="number"
+                    value={field.state.value ?? ""}
                   />
                 </PortalField>
               )}
@@ -236,11 +262,11 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
             {(field) => (
               <PortalField label={labels.coverImage}>
                 <ImageUploadField
-                  value={field.state.value}
                   onChange={(url) => {
                     field.handleChange(url);
                     setPreviewImage(url ?? "");
                   }}
+                  value={field.state.value}
                 />
               </PortalField>
             )}
@@ -251,11 +277,11 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
             {(field) => (
               <PortalField label={labels.descriptionNo}>
                 <ContentEditor
-                  variant="events"
-                  value={field.state.value}
+                  minHeight={200}
                   onChange={(v) => field.handleChange(v || null)}
                   placeholder="Beskrivelse..."
-                  minHeight={200}
+                  value={field.state.value}
+                  variant="events"
                 />
               </PortalField>
             )}
@@ -266,25 +292,25 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
             {(field) => (
               <PortalField label={labels.descriptionEn}>
                 <ContentEditor
-                  variant="events"
-                  value={field.state.value}
+                  minHeight={160}
                   onChange={(v) => field.handleChange(v || null)}
                   placeholder="Description (English)..."
-                  minHeight={160}
+                  value={field.state.value}
+                  variant="events"
                 />
               </PortalField>
             )}
           </form.Field>
 
           {/* Campus + Slug */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="campus_id">
               {(field) => (
                 <PortalField label={labels.campus} required>
                   <PortalSelect
-                    value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     options={campusOptions}
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -293,10 +319,10 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
               {(field) => (
                 <PortalField label={labels.slug} required>
                   <PortalInput
-                    value={field.state.value}
+                    className="font-mono text-xs"
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
-                    className="font-mono text-xs"
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -304,16 +330,18 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
           </div>
 
           {/* Status + Ticket URL */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="status">
               {(field) => (
                 <PortalField label={labels.status}>
                   <PortalSelect
-                    value={field.state.value}
                     onChange={(e) =>
-                      field.handleChange(e.target.value as EventFormValues["status"])
+                      field.handleChange(
+                        e.target.value as EventFormValues["status"]
+                      )
                     }
                     options={STATUS_OPTIONS}
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -322,10 +350,10 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
               {(field) => (
                 <PortalField label={labels.ticketUrl}>
                   <PortalInput
-                    value={field.state.value ?? ""}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value || null)}
                     placeholder="https://..."
+                    value={field.state.value ?? ""}
                   />
                 </PortalField>
               )}
@@ -334,26 +362,33 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
         </div>
 
         {/* Preview */}
-        <div className="lg:sticky lg:top-32 self-start">
+        <div className="self-start lg:sticky lg:top-32">
           <PreviewPanel title={labels.preview}>
             <div
-              className="rounded-2xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+              className="overflow-hidden rounded-2xl"
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
             >
               <div
                 className="relative h-32 overflow-hidden"
                 style={{ background: "rgba(61,169,224,0.05)" }}
               >
                 {previewImage ? (
-                  <img src={previewImage} alt="" className="w-full h-full object-cover" />
+                  <img
+                    alt=""
+                    className="h-full w-full object-cover"
+                    src={previewImage}
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
+                  <div className="flex h-full w-full items-center justify-center">
                     <span className="text-3xl">🎉</span>
                   </div>
                 )}
                 {previewDate && (
                   <div
-                    className="absolute bottom-3 left-3 px-2 py-1 rounded-lg text-xs font-mono"
+                    className="absolute bottom-3 left-3 rounded-lg px-2 py-1 font-mono text-xs"
                     style={{ background: "rgba(0,0,0,0.70)", color: "#fff" }}
                   >
                     {new Date(previewDate).toLocaleDateString()}
@@ -364,7 +399,10 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
                 <p className="font-semibold text-sm" style={{ color: "#fff" }}>
                   {previewTitle || "Event Title"}
                 </p>
-                <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.40)" }}>
+                <p
+                  className="mt-1 text-xs"
+                  style={{ color: "rgba(255,255,255,0.40)" }}
+                >
                   {previewLocation || "Location TBD"}
                 </p>
               </div>

@@ -11,7 +11,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="pb-12">
-      <PageHeader title={t("title")} description={t("description")} />
+      <PageHeader description={t("description")} title={t("title")} />
 
       <SettingsClient
         isGlobalAdmin={isGlobalAdmin}

@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation";
-import {
-  getUserAuthContext,
-  getUserRolesForClient,
-} from "@/lib/authorization";
+import { getUserAuthContext, getUserRolesForClient } from "@/lib/authorization";
 import { AdminShell } from "./_components/admin-shell";
 
 export default async function PortalAdminLayout({
@@ -26,11 +23,11 @@ export default async function PortalAdminLayout({
       ? "Global Admin"
       : roles.isCampusAdmin
         ? `Campus Admin · ${ctx.managedCampuses[0] ?? ""}`
-        : ctx.departmentNames[0] ?? "Member",
+        : (ctx.departmentNames[0] ?? "Member"),
   };
 
   return (
-    <AdminShell user={user} roles={roles}>
+    <AdminShell roles={roles} user={user}>
       {children}
     </AdminShell>
   );

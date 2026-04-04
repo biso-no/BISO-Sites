@@ -91,37 +91,37 @@ async function getMemberDiscountIfAny(product: any) {
 }
 
 interface CheckoutLineItemInput {
+  customFieldLabels?: Record<string, string>;
+  customFields?: Record<string, string>;
   productId: string;
-  slug: string;
   quantity: number;
+  slug: string;
   title?: string;
   variationId?: string;
-  customFields?: Record<string, string>;
-  customFieldLabels?: Record<string, string>;
 }
 
 type PaymentProvider = "vipps" | "stripe";
 
 interface CartCheckoutData {
+  email: string;
   items: CheckoutLineItemInput[];
   name: string;
-  email: string;
   phone?: string;
   provider: PaymentProvider;
 }
 
 interface CheckoutResult {
-  success: boolean;
-  paymentUrl?: string;
-  orderId?: string;
   error?: string;
+  orderId?: string;
+  paymentUrl?: string;
+  success: boolean;
 }
 
 interface CheckoutStatusResult {
-  success: boolean;
-  order?: Orders;
-  vippsStatus?: any;
   error?: string;
+  order?: Orders;
+  success: boolean;
+  vippsStatus?: any;
 }
 
 function sanitizeCartItems(items: CheckoutLineItemInput[] | undefined) {
@@ -487,7 +487,7 @@ async function createProviderCheckoutSession({
   const result = await response.json().catch(() => null);
   console.log("Checkout session response", { status: response.status, result });
 
-  if (!response.ok || !result?.checkoutUrl || !result?.orderId) {
+  if (!(response.ok && result?.checkoutUrl && result?.orderId)) {
     throw new Error(
       result?.message ||
         `Failed to create ${provider === "vipps" ? "Vipps" : "Stripe"} checkout session`

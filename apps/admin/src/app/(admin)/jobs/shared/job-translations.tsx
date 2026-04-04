@@ -41,16 +41,18 @@ export function JobTranslations({
   const noDesc = form.watch("translations.no.description");
 
   const getLocaleStatus = (title: string, desc: string) => {
-    if (title?.length >= 5 && desc?.length >= 20) return "complete" as const;
-    if (title || desc) return "partial" as const;
+    if (title?.length >= 5 && desc?.length >= 20) {
+      return "complete" as const;
+    }
+    if (title || desc) {
+      return "partial" as const;
+    }
     return "empty" as const;
   };
 
   const oppositeLocale = activeLocale === "en" ? "no" : "en";
   const hasSourceContent =
-    activeLocale === "en"
-      ? Boolean(enTitle)
-      : Boolean(noTitle);
+    activeLocale === "en" ? Boolean(enTitle) : Boolean(noTitle);
 
   return (
     <div className="space-y-5">
@@ -66,12 +68,12 @@ export function JobTranslations({
 
         {jobId && (
           <Button
+            className="gap-2"
             disabled={isTranslating || !hasSourceContent}
             onClick={() => onTranslate(activeLocale, oppositeLocale)}
             size="sm"
             type="button"
             variant="outline"
-            className="gap-2"
           >
             <Wand2 className="h-3.5 w-3.5" />
             {isTranslating
@@ -83,8 +85,8 @@ export function JobTranslations({
 
       {(["en", "no"] as const).map((locale) => (
         <div
-          key={locale}
           className={locale === activeLocale ? "space-y-4" : "hidden"}
+          key={locale}
           role="tabpanel"
         >
           <FormField
@@ -93,19 +95,20 @@ export function JobTranslations({
             render={({ field }) => (
               <FormItem>
                 <div className="flex items-center justify-between">
-                  <FormLabel aria-required="true">
-                    {t("form.title")}
-                  </FormLabel>
-                  <CharacterCount current={field.value?.length ?? 0} max={100} />
+                  <FormLabel aria-required="true">{t("form.title")}</FormLabel>
+                  <CharacterCount
+                    current={field.value?.length ?? 0}
+                    max={100}
+                  />
                 </div>
                 <FormControl>
                   <Input
+                    aria-required="true"
                     placeholder={
                       locale === "en"
                         ? "Job title in English"
                         : "Stillingstittel på norsk"
                     }
-                    aria-required="true"
                     {...field}
                   />
                 </FormControl>

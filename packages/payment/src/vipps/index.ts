@@ -21,7 +21,9 @@ export async function createVippsCheckoutSession(
   const lineItems = params.items.map((item) => ({
     name: item.title || item.name,
     id: item.productId,
-    totalAmount: Math.round((item.unit_price ?? item.price) * item.quantity * 100),
+    totalAmount: Math.round(
+      (item.unit_price ?? item.price) * item.quantity * 100
+    ),
     totalAmountExcludingTax: Math.round(
       (item.unit_price ?? item.price) * item.quantity * 100
     ),
@@ -92,9 +94,7 @@ export async function getVippsSession(sessionId: string): Promise<{
 
   const sessionData = result.data as any;
   const state =
-    sessionData.sessionState ||
-    sessionData.payment?.state ||
-    "CREATED";
+    sessionData.sessionState || sessionData.payment?.state || "CREATED";
 
   const paymentState: VippsPaymentState = {
     state: state as VippsPaymentState["state"],

@@ -1,7 +1,6 @@
 "use client";
 
 import { Currency } from "@repo/api/types/appwrite";
-import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -9,6 +8,7 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { CreditCard, Package, Sparkles, Tag } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 import { useCart } from "@/lib/contexts/cart-context";
 
 type CartSummaryProps = {
@@ -25,7 +25,6 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
   const regularSubtotal = getRegularSubtotal();
   const totalSavings = getTotalSavings(isMember);
   const discountTotal = isMember ? totalSavings : 0;
-
 
   const hasUnlockableDiscounts =
     !isMember && items.some((item) => item.memberPrice);

@@ -1,28 +1,23 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  getUserAuthContext,
-  type UserAuthContext,
-} from "@/lib/authorization";
-import {
-  applyScopeQueries,
-  assertWriteAccess,
-} from "@/lib/utils/authorization";
 import type {
-  CampusBenefits,
   CampusBenefitStatus,
+  CampusBenefits,
   Partners,
 } from "@repo/api/types/appwrite";
-import { benefitSchema, type BenefitFormValues } from "./schemas";
-
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { assertWriteAccess } from "@/lib/utils/authorization";
+import { type BenefitFormValues, benefitSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
 
@@ -51,10 +46,11 @@ export async function listBenefits(opts?: {
   // Scope by campus for non-global admins
   if (ctx.managedCampusIds.length > 0) {
     queries.push(Query.equal("campus_id", ctx.managedCampusIds));
-  } else if (!ctx.roles.includes("globaladmin")) {
-    if (ctx.resolvedCampusIds.length > 0) {
-      queries.push(Query.equal("campus_id", ctx.resolvedCampusIds));
-    }
+  } else if (
+    !ctx.roles.includes("globaladmin") &&
+    ctx.resolvedCampusIds.length > 0
+  ) {
+    queries.push(Query.equal("campus_id", ctx.resolvedCampusIds));
   }
 
   const response = await db.listRows<CampusBenefits>(
@@ -127,7 +123,9 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
     Query.limit(1),
   ]);
   const benefit = existing.rows[0];
-  if (!benefit) return { error: "Benefit not found" };
+  if (!benefit) {
+    return { error: "Benefit not found" };
+  }
 
   assertWriteAccess(ctx, benefit.campus_id);
 
@@ -167,7 +165,9 @@ export async function deleteBenefit(id: string) {
     Query.limit(1),
   ]);
   const benefit = existing.rows[0];
-  if (!benefit) return { error: "Benefit not found" };
+  if (!benefit) {
+    return { error: "Benefit not found" };
+  }
 
   assertWriteAccess(ctx, benefit.campus_id);
 
@@ -181,14 +181,14 @@ export async function listPartners(opts?: { campusId?: string }) {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
-  const queries: string[] = [
-    Query.orderAsc("name"),
-    Query.limit(100),
-  ];
+  const queries: string[] = [Query.orderAsc("name"), Query.limit(100)];
 
   if (opts?.campusId) {
     queries.push(Query.equal("campus_id", opts.campusId));
-  } else if (ctx.managedCampusIds.length > 0 && !ctx.roles.includes("globaladmin")) {
+  } else if (
+    ctx.managedCampusIds.length > 0 &&
+    !ctx.roles.includes("globaladmin")
+  ) {
     queries.push(Query.equal("campus_id", ctx.managedCampusIds));
   }
 

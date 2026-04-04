@@ -41,7 +41,8 @@ export function JobPreviewPane({
   locale: Locale;
 }) {
   const t = data.translations?.[locale];
-  const title = t?.title || (locale === "en" ? "Position Title" : "Stillingstittel");
+  const title =
+    t?.title || (locale === "en" ? "Position Title" : "Stillingstittel");
   const description = t?.description || "";
 
   return (
@@ -49,21 +50,29 @@ export function JobPreviewPane({
       {/* Hero */}
       <div className="relative h-40 overflow-hidden bg-slate-200">
         {data.image ? (
-          <Image src={data.image} alt={title} fill className="object-cover" sizes="800px" />
+          <Image
+            alt={title}
+            className="object-cover"
+            fill
+            sizes="800px"
+            src={data.image}
+          />
         ) : (
           <div className="h-full w-full bg-linear-to-br from-blue-600 to-blue-800" />
         )}
         <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-5 left-6 right-6">
+        <div className="absolute right-6 bottom-5 left-6">
           {data.type && (
             <Badge className="mb-2 w-fit border-blue-200 bg-blue-50 text-blue-700 text-xs">
               <Briefcase className="mr-1 h-3 w-3" />
               {data.type}
             </Badge>
           )}
-          <h1 className="font-bold text-xl text-white leading-tight">{title}</h1>
+          <h1 className="font-bold text-white text-xl leading-tight">
+            {title}
+          </h1>
           {data.campusName && (
-            <p className="mt-1 flex items-center gap-1 text-white/80 text-sm">
+            <p className="mt-1 flex items-center gap-1 text-sm text-white/80">
               <MapPin className="h-3.5 w-3.5" />
               {data.campusName}
             </p>
@@ -83,7 +92,7 @@ export function JobPreviewPane({
                 dangerouslySetInnerHTML={{ __html: description }}
               />
             ) : (
-              <p className="italic text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-sm italic">
                 {locale === "en"
                   ? "Job description will appear here…"
                   : "Stillingsbeskrivelse vises her…"}
@@ -93,7 +102,7 @@ export function JobPreviewPane({
 
           {/* Sidebar details */}
           <div className="space-y-4">
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="space-y-3 rounded-xl border border-border bg-card p-4">
               <p className="font-medium text-sm">
                 {locale === "en" ? "Details" : "Detaljer"}
               </p>
@@ -101,7 +110,7 @@ export function JobPreviewPane({
                 <div className="flex items-start gap-2 text-sm">
                   <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       {locale === "en" ? "Apply by" : "Søknadsfrist"}
                     </p>
                     <p>{fmtDate(data.application_deadline)}</p>
@@ -112,7 +121,7 @@ export function JobPreviewPane({
                 <div className="flex items-start gap-2 text-sm">
                   <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       {locale === "en" ? "Start date" : "Startdato"}
                     </p>
                     <p>{fmtDate(data.start_date)}</p>
@@ -139,9 +148,15 @@ export function JobPreviewPane({
                   </span>
                 </div>
               )}
-              {!data.application_deadline && !data.contact_name && !data.apply_url && (
-                <p className="italic text-muted-foreground text-xs">
-                  {locale === "en" ? "Details will appear here" : "Detaljer vises her"}
+              {!(
+                data.application_deadline ||
+                data.contact_name ||
+                data.apply_url
+              ) && (
+                <p className="text-muted-foreground text-xs italic">
+                  {locale === "en"
+                    ? "Details will appear here"
+                    : "Detaljer vises her"}
                 </p>
               )}
             </div>
@@ -156,7 +171,7 @@ export function JobPreviewPane({
 
 function PreviewWatermark() {
   return (
-    <div className="pointer-events-none fixed right-3 top-14 z-50 rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 text-xs font-medium ring-1 ring-amber-200">
+    <div className="pointer-events-none fixed top-14 right-3 z-50 rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-700 text-xs ring-1 ring-amber-200">
       Preview
     </div>
   );

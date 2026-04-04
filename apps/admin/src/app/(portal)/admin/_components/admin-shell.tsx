@@ -1,7 +1,7 @@
 "use client";
 
-import { Sidebar } from "../sidebar";
 import type { UserRolesForClient } from "@/lib/authorization";
+import { Sidebar } from "../sidebar";
 
 type AdminShellUser = {
   id: string;
@@ -27,7 +27,7 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
       }}
     >
       {/* Ambient background glows */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
           className="absolute rounded-full"
           style={{
@@ -53,13 +53,13 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
         />
       </div>
 
-      <Sidebar user={user} roles={roles} />
+      <Sidebar roles={roles} user={user} />
 
       <main
-        className="flex-1 h-screen overflow-y-auto relative z-10 portal-scrollbar"
+        className="portal-scrollbar relative z-10 h-screen flex-1 overflow-y-auto"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <div className="max-w-[1600px] mx-auto min-h-full p-8 md:p-12">
+        <div className="mx-auto min-h-full max-w-[1600px] p-8 md:p-12">
           {children}
         </div>
       </main>

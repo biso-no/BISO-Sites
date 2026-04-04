@@ -1,6 +1,10 @@
-import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { getJob, listCampuses, listDepartmentsForCampus } from "../../_actions/jobs";
+import { getTranslations } from "next-intl/server";
+import {
+  getJob,
+  listCampuses,
+  listDepartmentsForCampus,
+} from "../../_actions/jobs";
 import { JobEditorClient } from "./_components/job-editor-client";
 
 type JobEditorPageProps = {
@@ -18,7 +22,7 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
     listCampuses(),
   ]);
 
-  if (!isNew && !job) {
+  if (!(isNew || job)) {
     notFound();
   }
 
@@ -31,10 +35,10 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
 
   return (
     <JobEditorClient
-      job={job}
       campuses={campuses}
       initialDepartments={departments}
       isNew={isNew}
+      job={job}
       labels={{
         back: t("title"),
         titlePlaceholder: t("fields.title"),

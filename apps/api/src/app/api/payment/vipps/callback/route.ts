@@ -1,10 +1,10 @@
 import { createAdminClient } from "@repo/api/server";
+import { getVippsSession, verifyVippsCallbackToken } from "@repo/payment/vipps";
+import { triggerMembershipSync } from "@repo/shared/utils/membership-sync";
 import {
   getOrderByPaymentSessionId,
   updateOrderStatus,
 } from "@repo/shared/utils/vipps-order-ops";
-import { triggerMembershipSync } from "@repo/shared/utils/membership-sync";
-import { getVippsSession, verifyVippsCallbackToken } from "@repo/payment/vipps";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -59,7 +59,9 @@ export async function POST(request: Request) {
 
     const found = await getOrderByPaymentSessionId(sessionId, db);
     if (!found) {
-      console.error(`[Vipps Callback] Order not found for session: ${sessionId}`);
+      console.error(
+        `[Vipps Callback] Order not found for session: ${sessionId}`
+      );
       return NextResponse.json(
         { success: false, message: "Order not found" },
         { status: 404 }
@@ -67,7 +69,12 @@ export async function POST(request: Request) {
     }
 
     const { orderId, order } = found;
-    const { newStatus } = await updateOrderStatus(orderId, paymentState, sessionData, db);
+    const { newStatus } = await updateOrderStatus(
+      orderId,
+      paymentState,
+      sessionData,
+      db
+    );
 
     triggerMembershipSync(order, db).catch((err) =>
       console.error("[Vipps Callback] Membership sync error:", err)

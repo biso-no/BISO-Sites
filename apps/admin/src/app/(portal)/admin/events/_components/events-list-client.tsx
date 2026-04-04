@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import Link from "next/link";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { Calendar, MapPin, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteEvent } from "../../_actions/events";
-import { SearchToolbar } from "../../_components/search-toolbar";
-import { StatusBadge } from "../../_components/status-badge";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
-import type { Events, ContentTranslations } from "@repo/api/types/appwrite";
+import { SearchToolbar } from "../../_components/search-toolbar";
+import { StatusBadge } from "../../_components/status-badge";
 
-type EventWithTranslations = Events & { translation_refs: ContentTranslations[] };
+type EventWithTranslations = Events & {
+  translation_refs: ContentTranslations[];
+};
 
 type EventsListClientProps = {
   initialEvents: Events[];
@@ -31,7 +33,12 @@ type EventsListClientProps = {
   };
 };
 
-export function EventsListClient({ initialEvents, total, page, labels }: EventsListClientProps) {
+export function EventsListClient({
+  initialEvents,
+  total,
+  page,
+  labels,
+}: EventsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [, startTransition] = useTransition();
@@ -48,16 +55,20 @@ export function EventsListClient({ initialEvents, total, page, labels }: EventsL
     return refs?.find((t) => t.locale === "no")?.title ?? "Untitled";
   }
 
-  const filtered = (initialEvents as EventWithTranslations[]).filter((event) => {
-    const title = getTitle(event);
-    return (
-      (!search || title.toLowerCase().includes(search.toLowerCase())) &&
-      (activeFilter === "all" || event.status === activeFilter)
-    );
-  });
+  const filtered = (initialEvents as EventWithTranslations[]).filter(
+    (event) => {
+      const title = getTitle(event);
+      return (
+        (!search || title.toLowerCase().includes(search.toLowerCase())) &&
+        (activeFilter === "all" || event.status === activeFilter)
+      );
+    }
+  );
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) return;
+    if (!confirm(labels.deleteConfirm)) {
+      return;
+    }
     startTransition(async () => {
       const result = await deleteEvent(id);
       if (result.error) {
@@ -70,8 +81,16 @@ export function EventsListClient({ initialEvents, total, page, labels }: EventsL
 
   if (initialEvents.length === 0 && page === 1) {
     return (
-      <EmptyState icon={<Calendar size={28} />} title={labels.empty} description={labels.emptyDescription}>
-        <Link href="/admin/events/new" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#3DA9E0", color: "#001731" }}>
+      <EmptyState
+        description={labels.emptyDescription}
+        icon={<Calendar size={28} />}
+        title={labels.empty}
+      >
+        <Link
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
+          href="/admin/events/new"
+          style={{ background: "#3DA9E0", color: "#001731" }}
+        >
           Create first event
         </Link>
       </EmptyState>
@@ -81,51 +100,86 @@ export function EventsListClient({ initialEvents, total, page, labels }: EventsL
   return (
     <>
       <SearchToolbar
-        placeholder={labels.searchPlaceholder}
-        onSearch={setSearch}
-        filters={filters}
         activeFilter={activeFilter}
+        filters={filters}
         onFilterChange={setActiveFilter}
+        onSearch={setSearch}
+        placeholder={labels.searchPlaceholder}
       />
 
       {filtered.length === 0 ? (
-        <EmptyState icon={<Calendar size={28} />} title="No matching events" description="Try adjusting your search or filters." />
+        <EmptyState
+          description="Try adjusting your search or filters."
+          icon={<Calendar size={28} />}
+          title="No matching events"
+        />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {filtered.map((event) => (
             <div
+              className="group overflow-hidden rounded-3xl transition-all"
               key={event.$id}
-              className="group rounded-3xl overflow-hidden transition-all"
-              style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.05)",
+              }}
             >
-              <div className="relative h-36 overflow-hidden" style={{ background: "rgba(61,169,224,0.05)" }}>
+              <div
+                className="relative h-36 overflow-hidden"
+                style={{ background: "rgba(61,169,224,0.05)" }}
+              >
                 {event.image ? (
-                  <img src={event.image} alt={getTitle(event)} className="w-full h-full object-cover" />
+                  <img
+                    alt={getTitle(event)}
+                    className="h-full w-full object-cover"
+                    src={event.image}
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Calendar size={28} style={{ color: "rgba(255,255,255,0.20)" }} />
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Calendar
+                      size={28}
+                      style={{ color: "rgba(255,255,255,0.20)" }}
+                    />
                   </div>
                 )}
                 <div className="absolute top-3 left-3">
                   <StatusBadge status={event.status} />
                 </div>
-                <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link href={`/admin/events/${event.$id}`} className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: "rgba(0,0,0,0.60)", color: "#fff" }}>
+                <div className="absolute top-3 right-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Link
+                    className="flex h-7 w-7 items-center justify-center rounded-lg"
+                    href={`/admin/events/${event.$id}`}
+                    style={{ background: "rgba(0,0,0,0.60)", color: "#fff" }}
+                  >
                     <Pencil size={12} />
                   </Link>
-                  <button type="button" onClick={() => handleDelete(event.$id)} className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: "rgba(0,0,0,0.60)", color: "#f87171" }}>
+                  <button
+                    className="flex h-7 w-7 items-center justify-center rounded-lg"
+                    onClick={() => handleDelete(event.$id)}
+                    style={{ background: "rgba(0,0,0,0.60)", color: "#f87171" }}
+                    type="button"
+                  >
                     <Trash2 size={12} />
                   </button>
                 </div>
               </div>
 
               <div className="p-4">
-                <Link href={`/admin/events/${event.$id}`} className="font-medium text-sm hover:text-[#3DA9E0] transition-colors" style={{ color: "#fff" }}>
+                <Link
+                  className="font-medium text-sm transition-colors hover:text-[#3DA9E0]"
+                  href={`/admin/events/${event.$id}`}
+                  style={{ color: "#fff" }}
+                >
                   {getTitle(event)}
                 </Link>
-                <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                <div
+                  className="mt-2 flex items-center gap-3 text-xs"
+                  style={{ color: "rgba(255,255,255,0.35)" }}
+                >
                   {event.start_date && (
-                    <span>{new Date(event.start_date).toLocaleDateString()}</span>
+                    <span>
+                      {new Date(event.start_date).toLocaleDateString()}
+                    </span>
                   )}
                   {event.location && (
                     <span className="flex items-center gap-1">
@@ -134,7 +188,9 @@ export function EventsListClient({ initialEvents, total, page, labels }: EventsL
                     </span>
                   )}
                   {event.price != null && (
-                    <span>{event.price === 0 ? "Free" : `${event.price} NOK`}</span>
+                    <span>
+                      {event.price === 0 ? "Free" : `${event.price} NOK`}
+                    </span>
                   )}
                 </div>
               </div>
@@ -143,7 +199,7 @@ export function EventsListClient({ initialEvents, total, page, labels }: EventsL
         </div>
       )}
 
-      <PaginationBar total={total} page={page} />
+      <PaginationBar page={page} total={total} />
     </>
   );
 }

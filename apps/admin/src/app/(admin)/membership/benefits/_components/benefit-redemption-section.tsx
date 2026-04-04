@@ -1,18 +1,18 @@
 "use client";
 
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@repo/ui/components/ui/field";
 import { Input } from "@repo/ui/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -45,7 +45,7 @@ export function BenefitRedemptionSection({
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Ticket className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base font-semibold">
+            <CardTitle className="font-semibold text-base">
               Redemption
             </CardTitle>
           </div>
@@ -60,12 +60,10 @@ export function BenefitRedemptionSection({
                     How members access or redeem this benefit
                   </FieldDescription>
                   <Select
-                    value={field.state.value}
                     onValueChange={(v) =>
-                      field.handleChange(
-                        v as typeof field.state.value
-                      )
+                      field.handleChange(v as typeof field.state.value)
                     }
+                    value={field.state.value}
                   >
                     <SelectTrigger id="redemption-type">
                       <SelectValue />
@@ -82,9 +80,7 @@ export function BenefitRedemptionSection({
               )}
             </form.Field>
 
-            <form.Subscribe
-              selector={(state) => state.values.redemption_type}
-            >
+            <form.Subscribe selector={(state) => state.values.redemption_type}>
               {(redemptionType) =>
                 redemptionType !== "none" && redemptionType !== "onsite" ? (
                   <form.Field name="redemption_value">
@@ -95,16 +91,16 @@ export function BenefitRedemptionSection({
                         </FieldLabel>
                         <Input
                           id="redemption-value"
+                          onBlur={field.handleBlur}
+                          onChange={(e) =>
+                            field.handleChange(e.target.value || null)
+                          }
                           placeholder={
                             redemptionType === "code"
                               ? "e.g. BISO20"
                               : "https://partner.com/student"
                           }
                           value={field.state.value ?? ""}
-                          onBlur={field.handleBlur}
-                          onChange={(e) =>
-                            field.handleChange(e.target.value || null)
-                          }
                         />
                       </Field>
                     )}
@@ -121,7 +117,7 @@ export function BenefitRedemptionSection({
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <CalendarClock className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base font-semibold">
+            <CardTitle className="font-semibold text-base">
               Availability Window
             </CardTitle>
           </div>
@@ -137,16 +133,14 @@ export function BenefitRedemptionSection({
                     </FieldLabel>
                     <Input
                       id="publish-start"
-                      type="datetime-local"
-                      value={field.state.value?.slice(0, 16) ?? ""}
                       onBlur={field.handleBlur}
                       onChange={(e) =>
                         field.handleChange(
-                          e.target.value
-                            ? `${e.target.value}:00.000Z`
-                            : null
+                          e.target.value ? `${e.target.value}:00.000Z` : null
                         )
                       }
+                      type="datetime-local"
+                      value={field.state.value?.slice(0, 16) ?? ""}
                     />
                   </Field>
                 )}
@@ -158,16 +152,14 @@ export function BenefitRedemptionSection({
                     <FieldLabel htmlFor="publish-end">Expires on</FieldLabel>
                     <Input
                       id="publish-end"
-                      type="datetime-local"
-                      value={field.state.value?.slice(0, 16) ?? ""}
                       onBlur={field.handleBlur}
                       onChange={(e) =>
                         field.handleChange(
-                          e.target.value
-                            ? `${e.target.value}:00.000Z`
-                            : null
+                          e.target.value ? `${e.target.value}:00.000Z` : null
                         )
                       }
+                      type="datetime-local"
+                      value={field.state.value?.slice(0, 16) ?? ""}
                     />
                   </Field>
                 )}

@@ -25,7 +25,6 @@ export default async function AdminPostPage({
     notFound();
   }
 
-
   return (
     <PostEditor campuses={campuses} departments={departments} post={post} />
   );

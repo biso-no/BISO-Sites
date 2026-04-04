@@ -568,11 +568,7 @@ function OrderDetailCard({
           </Button>
           {order.payment_link && (
             <Button asChild size="sm" variant="outline">
-              <a
-                href={order.payment_link}
-                rel="noreferrer"
-                target="_blank"
-              >
+              <a href={order.payment_link} rel="noreferrer" target="_blank">
                 {t("orders.detail.openReceipt")}
               </a>
             </Button>

@@ -1,5 +1,5 @@
-import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getBenefit } from "../../_actions/benefits";
 import { listCampuses } from "../../_actions/jobs";
 import { BenefitEditorClient } from "./_components/benefit-editor-client";
@@ -16,7 +16,9 @@ export default async function BenefitEditorPage({ params }: Props) {
     listCampuses(),
   ]);
 
-  if (!isNew && !benefit) notFound();
+  if (!(isNew || benefit)) {
+    notFound();
+  }
 
   return (
     <BenefitEditorClient

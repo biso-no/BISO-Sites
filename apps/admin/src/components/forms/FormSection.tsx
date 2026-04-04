@@ -27,16 +27,17 @@ export function FormSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className={cn("rounded-xl border border-border/60 bg-card", className)}>
+    <div
+      className={cn("rounded-xl border border-border/60 bg-card", className)}
+    >
       <div
+        aria-expanded={collapsible ? open : undefined}
         className={cn(
           "flex items-start justify-between px-6 py-5",
           collapsible && "cursor-pointer select-none",
-          collapsible && !open && "rounded-xl",
+          collapsible && !open && "rounded-xl"
         )}
         onClick={collapsible ? () => setOpen((o) => !o) : undefined}
-        role={collapsible ? "button" : undefined}
-        tabIndex={collapsible ? 0 : undefined}
         onKeyDown={
           collapsible
             ? (e) => {
@@ -47,7 +48,8 @@ export function FormSection({
               }
             : undefined
         }
-        aria-expanded={collapsible ? open : undefined}
+        role={collapsible ? "button" : undefined}
+        tabIndex={collapsible ? 0 : undefined}
       >
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
@@ -73,7 +75,7 @@ export function FormSection({
 
       {(!collapsible || open) && (
         <>
-          <div className="mx-6 border-t border-border/40" />
+          <div className="mx-6 border-border/40 border-t" />
           <div className="p-6">{children}</div>
         </>
       )}

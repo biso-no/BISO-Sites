@@ -13,8 +13,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
 import { FormSection } from "@/components/forms/FormSection";
-import { SaveBar } from "@/components/forms/SaveBar";
 import type { SaveStatus } from "@/components/forms/SaveBar";
+import { SaveBar } from "@/components/forms/SaveBar";
 import { JobPreviewPane } from "@/components/preview/JobPreviewPane";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -62,7 +62,10 @@ export default function JobEditor({
     values: form.watch(),
     isDirty,
     onRestoreDraft: (draft) => {
-      setDraftRestoreData({ values: draft as ReturnType<typeof form.getValues>, savedAt: new Date() });
+      setDraftRestoreData({
+        values: draft as ReturnType<typeof form.getValues>,
+        savedAt: new Date(),
+      });
     },
   });
 
@@ -82,7 +85,9 @@ export default function JobEditor({
   };
 
   const watchValues = form.watch();
-  const campusName = campuses?.find((c) => c.$id === watchValues.campus_id)?.name;
+  const campusName = campuses?.find(
+    (c) => c.$id === watchValues.campus_id
+  )?.name;
 
   const pageTitle = job?.$id
     ? (job.translations?.en?.title ?? job.slug ?? t("edit"))
@@ -91,7 +96,7 @@ export default function JobEditor({
   return (
     <div className="flex h-full flex-col gap-0">
       {/* Breadcrumb */}
-      <div className="shrink-0 border-b border-border/40 bg-background px-6 py-3">
+      <div className="shrink-0 border-border/40 border-b bg-background px-6 py-3">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -108,7 +113,6 @@ export default function JobEditor({
       <PreviewPanel
         renderPreview={(locale) => (
           <JobPreviewPane
-            locale={locale}
             data={{
               status: watchValues.status,
               type: watchValues.type,
@@ -124,6 +128,7 @@ export default function JobEditor({
                 no: watchValues.translations?.no,
               },
             }}
+            locale={locale}
           />
         )}
       >
@@ -131,24 +136,28 @@ export default function JobEditor({
           {/* Draft restore banner */}
           {draftRestoreData && (
             <DraftRestoreBanner
-              savedAt={draftRestoreData.savedAt}
-              onRestore={() => {
-                form.reset(draftRestoreData.values);
-                setDraftRestoreData(null);
-              }}
               onDiscard={() => {
                 autosave.clearDraft();
                 setDraftRestoreData(null);
               }}
+              onRestore={() => {
+                form.reset(draftRestoreData.values);
+                setDraftRestoreData(null);
+              }}
+              savedAt={draftRestoreData.savedAt}
             />
           )}
 
           <Form {...form}>
-            <form id="job-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form
+              className="space-y-6"
+              id="job-form"
+              onSubmit={form.handleSubmit(onSubmit)}
+            >
               {/* Content section */}
               <FormSection
-                title={t("editor.contentTranslations")}
                 subtitle="Write compelling content in both languages to reach all students"
+                title={t("editor.contentTranslations")}
               >
                 <JobTranslations
                   activeLocale={activeLocale}
@@ -161,8 +170,8 @@ export default function JobEditor({
 
               {/* Organisation section */}
               <FormSection
-                title={t("editor.basicInformation")}
                 subtitle="Campus, department and publishing settings"
+                title={t("editor.basicInformation")}
               >
                 <JobBasicInfo
                   campuses={campuses}
@@ -173,10 +182,10 @@ export default function JobEditor({
 
               {/* Details section */}
               <FormSection
-                title={t("editor.metadataTitle")}
-                subtitle="Deadline, contact, and application details"
                 collapsible
                 defaultOpen
+                subtitle="Deadline, contact, and application details"
+                title={t("editor.metadataTitle")}
               >
                 <JobMetadata />
               </FormSection>
@@ -186,16 +195,16 @@ export default function JobEditor({
       </PreviewPanel>
 
       <SaveBar
-        status={autosave.isSaving ? "saving" : saveStatus}
-        lastSaved={autosave.lastSaved}
+        autosaveEnabled={autosave.enabled}
+        cancelLabel={t("form.cancel")}
         isDirty={isDirty}
         isSubmitting={isSubmitting}
-        onSave={handleSave}
-        onCancel={() => router.back()}
-        autosaveEnabled={autosave.enabled}
+        lastSaved={autosave.lastSaved}
         onAutosaveToggle={autosave.setEnabled}
+        onCancel={() => router.back()}
+        onSave={handleSave}
         saveLabel={job?.$id ? t("editor.updateJob") : t("editor.createJob")}
-        cancelLabel={t("form.cancel")}
+        status={autosave.isSaving ? "saving" : saveStatus}
       />
     </div>
   );

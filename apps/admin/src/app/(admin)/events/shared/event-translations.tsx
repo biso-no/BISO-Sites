@@ -32,8 +32,18 @@ export function EventTranslations() {
   const noTitle = form.watch("translations.no.title") ?? "";
 
   const localeStatus: Record<Locale, "complete" | "partial" | "empty"> = {
-    en: enTitle.length >= 5 ? "complete" : enTitle.length > 0 ? "partial" : "empty",
-    no: noTitle.length >= 5 ? "complete" : noTitle.length > 0 ? "partial" : "empty",
+    en:
+      enTitle.length >= 5
+        ? "complete"
+        : enTitle.length > 0
+          ? "partial"
+          : "empty",
+    no:
+      noTitle.length >= 5
+        ? "complete"
+        : noTitle.length > 0
+          ? "partial"
+          : "empty",
   };
 
   const handleTranslate = async (from: Locale, to: Locale) => {
@@ -55,7 +65,10 @@ export function EventTranslations() {
         setActiveLocale(to);
         toast({ title: t("messages.translationCompleted") });
       } else {
-        toast({ title: t("messages.translationError"), variant: "destructive" });
+        toast({
+          title: t("messages.translationError"),
+          variant: "destructive",
+        });
       }
     } catch {
       toast({ title: t("messages.translationError"), variant: "destructive" });
@@ -80,15 +93,17 @@ export function EventTranslations() {
           status={localeStatus}
         />
         <Button
-          type="button"
-          size="sm"
-          variant="outline"
+          className="gap-1.5"
           disabled={isTranslating !== null}
           onClick={() => handleTranslate(oppositeLocale, activeLocale)}
-          className="gap-1.5"
+          size="sm"
+          type="button"
+          variant="outline"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          {isTranslating === activeLocale ? t("editor.translating") : translateLabel}
+          {isTranslating === activeLocale
+            ? t("editor.translating")
+            : translateLabel}
         </Button>
       </div>
 
@@ -101,9 +116,14 @@ export function EventTranslations() {
             <div className="flex items-center justify-between">
               <FormLabel>
                 {t("form.title")}{" "}
-                <span className="ml-1 text-destructive" aria-hidden>*</span>
+                <span aria-hidden className="ml-1 text-destructive">
+                  *
+                </span>
               </FormLabel>
-              <CharacterCount current={field.value?.length ?? 0} max={TITLE_MAX} />
+              <CharacterCount
+                current={field.value?.length ?? 0}
+                max={TITLE_MAX}
+              />
             </div>
             <FormControl>
               <Input
@@ -113,9 +133,9 @@ export function EventTranslations() {
                     : t("editor.placeholders.norwegianTitle")
                 }
                 {...field}
-                value={field.value ?? ""}
-                aria-required="true"
                 aria-describedby={`translations.${activeLocale}.title-error`}
+                aria-required="true"
+                value={field.value ?? ""}
               />
             </FormControl>
             <FormMessage id={`translations.${activeLocale}.title-error`} />
@@ -131,7 +151,9 @@ export function EventTranslations() {
           <FormItem>
             <FormLabel>
               {t("form.description")}{" "}
-              <span className="ml-1 text-destructive" aria-hidden>*</span>
+              <span aria-hidden className="ml-1 text-destructive">
+                *
+              </span>
             </FormLabel>
             <FormControl>
               <RichTextEditor
@@ -140,7 +162,9 @@ export function EventTranslations() {
                 onChange={field.onChange}
               />
             </FormControl>
-            <FormMessage id={`translations.${activeLocale}.description-error`} />
+            <FormMessage
+              id={`translations.${activeLocale}.description-error`}
+            />
           </FormItem>
         )}
       />

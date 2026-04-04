@@ -1,17 +1,21 @@
 "use client";
 
-import { useTransition } from "react";
-import Link from "next/link";
 import {
-  CheckCircle2,
-  XCircle,
   Briefcase,
   Calendar,
-  Newspaper,
+  CheckCircle2,
   ExternalLink,
+  Newspaper,
+  XCircle,
 } from "lucide-react";
+import Link from "next/link";
+import { useTransition } from "react";
 import { toast } from "sonner";
-import { approveDraft, rejectDraft, type DraftItem } from "../../_actions/drafts";
+import {
+  approveDraft,
+  type DraftItem,
+  rejectDraft,
+} from "../../_actions/drafts";
 
 const TYPE_ICONS = {
   job: Briefcase,
@@ -45,7 +49,10 @@ type DraftsReviewClientProps = {
   };
 };
 
-export function DraftsReviewClient({ drafts, labels }: DraftsReviewClientProps) {
+export function DraftsReviewClient({
+  drafts,
+  labels,
+}: DraftsReviewClientProps) {
   const [, startTransition] = useTransition();
 
   function handleApprove(id: string, type: DraftItem["type"]) {
@@ -71,7 +78,7 @@ export function DraftsReviewClient({ drafts, labels }: DraftsReviewClientProps) 
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {drafts.map((draft) => {
         const Icon = TYPE_ICONS[draft.type];
         const color = TYPE_COLORS[draft.type];
@@ -80,28 +87,31 @@ export function DraftsReviewClient({ drafts, labels }: DraftsReviewClientProps) 
 
         return (
           <div
+            className="flex flex-col overflow-hidden rounded-3xl"
             key={`${draft.type}-${draft.id}`}
-            className="flex flex-col rounded-3xl overflow-hidden"
-            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.05)",
+            }}
           >
             {/* Hero */}
             <div
-              className="relative h-28 overflow-hidden flex items-center justify-center"
+              className="relative flex h-28 items-center justify-center overflow-hidden"
               style={{
                 background: `linear-gradient(135deg, ${color}15, rgba(0,10,22,0.80))`,
               }}
             >
               {draft.image ? (
                 <img
-                  src={draft.image}
                   alt={draft.title}
-                  className="w-full h-full object-cover opacity-60"
+                  className="h-full w-full object-cover opacity-60"
+                  src={draft.image}
                 />
               ) : (
                 <Icon size={28} style={{ color: `${color}80` }} />
               )}
               <div
-                className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase"
+                className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium text-[10px] uppercase"
                 style={{
                   background: `${color}20`,
                   border: `1px solid ${color}40`,
@@ -122,7 +132,7 @@ export function DraftsReviewClient({ drafts, labels }: DraftsReviewClientProps) 
                 {draft.title}
               </p>
               <p
-                className="text-xs mt-1"
+                className="mt-1 text-xs"
                 style={{ color: "rgba(255,255,255,0.35)" }}
               >
                 {new Date(draft.updatedAt).toLocaleDateString()}
@@ -130,12 +140,10 @@ export function DraftsReviewClient({ drafts, labels }: DraftsReviewClientProps) 
             </div>
 
             {/* Actions */}
-            <div
-              className="flex items-center gap-2 p-4 pt-0"
-            >
+            <div className="flex items-center gap-2 p-4 pt-0">
               <Link
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
                 href={editPath}
-                className="flex items-center justify-center w-8 h-8 rounded-xl flex-shrink-0"
                 style={{
                   background: "rgba(255,255,255,0.05)",
                   color: "rgba(255,255,255,0.50)",
@@ -145,27 +153,27 @@ export function DraftsReviewClient({ drafts, labels }: DraftsReviewClientProps) 
                 <ExternalLink size={13} />
               </Link>
               <button
-                type="button"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 font-medium text-xs transition-all"
                 onClick={() => handleReject(draft.id, draft.type)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-all"
                 style={{
                   background: "rgba(248,113,113,0.08)",
                   border: "1px solid rgba(248,113,113,0.20)",
                   color: "#f87171",
                 }}
+                type="button"
               >
                 <XCircle size={13} />
                 {labels.reject}
               </button>
               <button
-                type="button"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 font-medium text-xs transition-all"
                 onClick={() => handleApprove(draft.id, draft.type)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-all"
                 style={{
                   background: "rgba(74,222,128,0.10)",
                   border: "1px solid rgba(74,222,128,0.25)",
                   color: "#4ade80",
                 }}
+                type="button"
               >
                 <CheckCircle2 size={13} />
                 {labels.approve}

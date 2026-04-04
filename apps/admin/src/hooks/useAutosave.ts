@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const AUTOSAVE_INTERVAL_MS = 30_000;
-const AUTOSAVE_DEBOUNCE_MS = 5_000;
+const AUTOSAVE_DEBOUNCE_MS = 5000;
 const PREF_KEY_PREFIX = "autosave_enabled:";
 
 type UseAutosaveOptions<T> = {
@@ -68,7 +68,9 @@ export function useAutosave<T>({
   isDirty,
   onRestoreDraft,
 }: UseAutosaveOptions<T>): UseAutosaveReturn {
-  const [enabled, setEnabledState] = useState(() => readEnabledPref(storageKey));
+  const [enabled, setEnabledState] = useState(() =>
+    readEnabledPref(storageKey)
+  );
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -92,7 +94,9 @@ export function useAutosave<T>({
   }, [storageKey]);
 
   const save = useCallback(() => {
-    if (!enabledRef.current || !isDirtyRef.current) return;
+    if (!(enabledRef.current && isDirtyRef.current)) {
+      return;
+    }
     setIsSaving(true);
     writeDraft(storageKey, valuesRef.current);
     setLastSaved(new Date());
@@ -102,14 +106,18 @@ export function useAutosave<T>({
 
   // Debounced save on values change
   useEffect(() => {
-    if (!enabled || !isDirty) return;
+    if (!(enabled && isDirty)) {
+      return;
+    }
     const id = setTimeout(save, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [values, enabled, isDirty, save]);
 
   // Interval save every 30 s
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      return;
+    }
     const id = setInterval(save, AUTOSAVE_INTERVAL_MS);
     return () => clearInterval(id);
   }, [enabled, save]);
@@ -124,7 +132,7 @@ export function useAutosave<T>({
         // silent
       }
     },
-    [storageKey],
+    [storageKey]
   );
 
   const clearDraft = useCallback(() => {
@@ -133,8 +141,8 @@ export function useAutosave<T>({
   }, [storageKey]);
 
   const getDraft = useCallback(
-    <U,>(): U | null => readDraft<U>(storageKey),
-    [storageKey],
+    <U>(): U | null => readDraft<U>(storageKey),
+    [storageKey]
   );
 
   return { lastSaved, isSaving, enabled, setEnabled, clearDraft, getDraft };

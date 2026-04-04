@@ -8,10 +8,10 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, description, children }: PageHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-6 mb-8">
+    <div className="mb-8 flex items-start justify-between gap-6">
       <div>
         <h1
-          className="text-3xl font-light tracking-tight"
+          className="font-light text-3xl tracking-tight"
           style={{ color: "#fff" }}
         >
           {title}
@@ -26,7 +26,7 @@ export function PageHeader({ title, description, children }: PageHeaderProps) {
         )}
       </div>
       {children && (
-        <div className="flex items-center gap-3 flex-shrink-0">{children}</div>
+        <div className="flex flex-shrink-0 items-center gap-3">{children}</div>
       )}
     </div>
   );

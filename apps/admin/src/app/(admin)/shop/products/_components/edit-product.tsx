@@ -69,8 +69,8 @@ import { LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
 import type { SaveStatus } from "@/components/forms/SaveBar";
 import { SaveBar } from "@/components/forms/SaveBar";
 import { slugify } from "@/components/forms/slugify";
-import { ProductPreviewPane } from "@/components/preview/ProductPreviewPane";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
+import { ProductPreviewPane } from "@/components/preview/ProductPreviewPane";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useDirtyWarning } from "@/hooks/useDirtyWarning";
@@ -114,7 +114,10 @@ const productSchema = z.object({
     .string()
     .min(1, "Slug is required")
     .max(200)
-    .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug can only contain lowercase letters, numbers, and hyphens"
+    ),
   status: z.enum(["draft", "published", "archived"]),
   campus_id: z.string().min(1, "Campus is required"),
   category: z.string().min(1, "Category is required"),
@@ -142,7 +145,7 @@ const productSchema = z.object({
       description: z
         .string()
         .min(10, "English description must be at least 10 characters")
-        .max(50000),
+        .max(50_000),
     }),
     no: z.object({
       title: z
@@ -152,7 +155,7 @@ const productSchema = z.object({
       description: z
         .string()
         .min(10, "Norwegian description must be at least 10 characters")
-        .max(50000),
+        .max(50_000),
     }),
   }),
 });
@@ -172,8 +175,12 @@ type ProductPayload = CreateProductData | UpdateProductData;
 // ── Slug helpers ─���────────────────────────────────────────────────────────────
 
 function getSlugSourceLabel(slugSource: SlugSource): string {
-  if (slugSource === "no") return "Norwegian";
-  if (slugSource === "en") return "English";
+  if (slugSource === "no") {
+    return "Norwegian";
+  }
+  if (slugSource === "en") {
+    return "English";
+  }
   return "title";
 }
 
@@ -190,20 +197,26 @@ function computeSlugUpdate(
   titles: { enTitle: string; noTitle: string }
 ): { nextSource: SlugSource; slugValue: string } | null {
   if (!slugSource) {
-    if (titles.noTitle && !titles.enTitle)
+    if (titles.noTitle && !titles.enTitle) {
       return { nextSource: "no", slugValue: slugify(titles.noTitle) };
-    if (titles.enTitle && !titles.noTitle)
+    }
+    if (titles.enTitle && !titles.noTitle) {
       return { nextSource: "en", slugValue: slugify(titles.enTitle) };
+    }
     return null;
   }
-  if (slugSource === "no" && titles.noTitle)
+  if (slugSource === "no" && titles.noTitle) {
     return { nextSource: "no", slugValue: slugify(titles.noTitle) };
-  if (slugSource === "no" && !titles.noTitle && titles.enTitle)
+  }
+  if (slugSource === "no" && !titles.noTitle && titles.enTitle) {
     return { nextSource: "en", slugValue: slugify(titles.enTitle) };
-  if (slugSource === "en" && titles.enTitle)
+  }
+  if (slugSource === "en" && titles.enTitle) {
     return { nextSource: "en", slugValue: slugify(titles.enTitle) };
-  if (slugSource === "en" && !titles.enTitle && titles.noTitle)
+  }
+  if (slugSource === "en" && !titles.enTitle && titles.noTitle) {
     return { nextSource: "no", slugValue: slugify(titles.noTitle) };
+  }
   return null;
 }
 
@@ -213,13 +226,19 @@ function watchSlugUpdates(
   setSlugSource: (source: SlugSource) => void
 ) {
   return form.watch((value, { name }) => {
-    if (!isTranslationTitleChange(name)) return;
+    if (!isTranslationTitleChange(name)) {
+      return;
+    }
     const slugUpdate = computeSlugUpdate(slugSource, {
       enTitle: value.translations?.en?.title || "",
       noTitle: value.translations?.no?.title || "",
     });
-    if (!slugUpdate) return;
-    if (slugUpdate.nextSource !== slugSource) setSlugSource(slugUpdate.nextSource);
+    if (!slugUpdate) {
+      return;
+    }
+    if (slugUpdate.nextSource !== slugSource) {
+      setSlugSource(slugUpdate.nextSource);
+    }
     form.setValue("slug", slugUpdate.slugValue);
   });
 }
@@ -230,8 +249,12 @@ function getTitleForSlug(
 ): string | undefined {
   const enTitle = form.getValues("translations.en.title");
   const noTitle = form.getValues("translations.no.title");
-  if (slugSource === "no") return noTitle;
-  if (slugSource === "en") return enTitle;
+  if (slugSource === "no") {
+    return noTitle;
+  }
+  if (slugSource === "en") {
+    return enTitle;
+  }
   return enTitle || noTitle;
 }
 
@@ -240,7 +263,9 @@ function restoreAutoSlug(
   slugSource: SlugSource
 ) {
   const titleToUse = getTitleForSlug(form, slugSource);
-  if (titleToUse) form.setValue("slug", slugify(titleToUse));
+  if (titleToUse) {
+    form.setValue("slug", slugify(titleToUse));
+  }
 }
 
 function handleSlugKeyDown(
@@ -268,21 +293,33 @@ function buildTranslations(translations: ProductFormData["translations"]): {
   no: ProductTranslation;
 } {
   return {
-    en: { title: translations.en.title, description: translations.en.description },
-    no: { title: translations.no.title, description: translations.no.description },
+    en: {
+      title: translations.en.title,
+      description: translations.en.description,
+    },
+    no: {
+      title: translations.no.title,
+      description: translations.no.description,
+    },
   };
 }
 
 function normalizeImages(images?: string[] | null): string[] | undefined {
-  if (!images) return;
-  const filtered = images.map((u) => u?.trim() || "").filter((u) => u.length > 0);
+  if (!images) {
+    return;
+  }
+  const filtered = images
+    .map((u) => u?.trim() || "")
+    .filter((u) => u.length > 0);
   return filtered.length > 0 ? filtered : undefined;
 }
 
 function normalizeCustomFields(
   customFields?: ProductMetadata["custom_fields"]
 ): ProductMetadata["custom_fields"] | undefined {
-  if (!customFields?.length) return;
+  if (!customFields?.length) {
+    return;
+  }
   return customFields.map((field) => ({
     ...field,
     options:
@@ -295,30 +332,48 @@ function normalizeCustomFields(
 function normalizeVariations(
   variations?: ProductMetadata["variations"]
 ): ProductMetadata["variations"] | undefined {
-  if (!variations?.length) return;
+  if (!variations?.length) {
+    return;
+  }
   return variations.map((v) => ({
     ...v,
     price_modifier: typeof v.price_modifier === "number" ? v.price_modifier : 0,
     stock_quantity:
-      typeof v.stock_quantity === "number" ? Math.max(0, v.stock_quantity) : undefined,
+      typeof v.stock_quantity === "number"
+        ? Math.max(0, v.stock_quantity)
+        : undefined,
   }));
 }
 
 function normalizeMetadata(
   metadata?: ProductFormData["metadata"]
 ): ProductMetadata | undefined {
-  if (!metadata) return;
+  if (!metadata) {
+    return;
+  }
   const normalized: ProductMetadata = {};
   const images = normalizeImages(metadata.images);
   const customFields = normalizeCustomFields(metadata.custom_fields);
   const variations = normalizeVariations(metadata.variations);
   const sku = metadata.sku?.trim();
-  if (sku) normalized.sku = sku;
-  if (images) normalized.images = images;
-  if (typeof metadata.max_per_user === "number") normalized.max_per_user = metadata.max_per_user;
-  if (typeof metadata.max_per_order === "number") normalized.max_per_order = metadata.max_per_order;
-  if (customFields) normalized.custom_fields = customFields;
-  if (variations) normalized.variations = variations;
+  if (sku) {
+    normalized.sku = sku;
+  }
+  if (images) {
+    normalized.images = images;
+  }
+  if (typeof metadata.max_per_user === "number") {
+    normalized.max_per_user = metadata.max_per_user;
+  }
+  if (typeof metadata.max_per_order === "number") {
+    normalized.max_per_order = metadata.max_per_order;
+  }
+  if (customFields) {
+    normalized.custom_fields = customFields;
+  }
+  if (variations) {
+    normalized.variations = variations;
+  }
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
@@ -349,10 +404,17 @@ function getTranslationForProduct(
   product: ProductWithTranslations | undefined,
   locale: "en" | "no"
 ): ProductTranslation {
-  if (!product?.translation_refs) return { title: "", description: "" };
+  if (!product?.translation_refs) {
+    return { title: "", description: "" };
+  }
   const translation = product.translation_refs.find((c) => c.locale === locale);
-  if (!translation) return { title: "", description: "" };
-  return { title: translation.title || "", description: translation.description || "" };
+  if (!translation) {
+    return { title: "", description: "" };
+  }
+  return {
+    title: translation.title || "",
+    description: translation.description || "",
+  };
 }
 
 function getProductDefaultValues(
@@ -414,7 +476,9 @@ function useToggleDefaults(
   } = setters;
 
   useEffect(() => {
-    if (!product) return;
+    if (!product) {
+      return;
+    }
     setMemberPricingEnabled(!!product.member_price);
     setSkuEnabled(!!(product.metadata_parsed as ProductMetadata)?.sku);
     setStockEnabled(product.stock !== undefined && product.stock !== null);
@@ -449,7 +513,9 @@ function useSlugAutofill(
   setSlugSource: (source: SlugSource) => void
 ) {
   useEffect(() => {
-    if (!shouldAutoGenerateSlug(isEditingSlug, isEditing)) return;
+    if (!shouldAutoGenerateSlug(isEditingSlug, isEditing)) {
+      return;
+    }
     const subscription = watchSlugUpdates(form, slugSource, setSlugSource);
     return () => subscription.unsubscribe();
   }, [form, isEditing, isEditingSlug, setSlugSource, slugSource]);
@@ -601,7 +667,10 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
     values: form.watch(),
     isDirty,
     onRestoreDraft: (draft) => {
-      setDraftRestoreData({ values: draft as ProductFormData, savedAt: new Date() });
+      setDraftRestoreData({
+        values: draft as ProductFormData,
+        savedAt: new Date(),
+      });
     },
   });
 
@@ -671,7 +740,12 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
       const translations = buildTranslations(data.translations);
       const metadata = normalizeMetadata(data.metadata);
       const primaryImage = metadata?.images?.[0] || data.image || null;
-      const payload = buildBaseProductPayload(data, metadata, translations, primaryImage);
+      const payload = buildBaseProductPayload(
+        data,
+        metadata,
+        translations,
+        primaryImage
+      );
 
       if (isEditing && product) {
         await updateProduct(product.$id, payload as UpdateProductData);
@@ -712,15 +786,21 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
 
   const handleMemberPricingToggle = (enabled: boolean) => {
     setMemberPricingEnabled(enabled);
-    if (!enabled) form.setValue("member_price", undefined);
+    if (!enabled) {
+      form.setValue("member_price", undefined);
+    }
   };
   const handleStockToggle = (enabled: boolean) => {
     setStockEnabled(enabled);
-    if (!enabled) form.setValue("stock", undefined);
+    if (!enabled) {
+      form.setValue("stock", undefined);
+    }
   };
   const handleSkuToggle = (enabled: boolean) => {
     setSkuEnabled(enabled);
-    if (!enabled) form.setValue("metadata.sku", "");
+    if (!enabled) {
+      form.setValue("metadata.sku", "");
+    }
   };
   const handlePurchaseLimitsToggle = (enabled: boolean) => {
     setPurchaseLimitsEnabled(enabled);
@@ -731,11 +811,15 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
   };
   const handleVariationsToggle = (enabled: boolean) => {
     setVariationsEnabled(enabled);
-    if (!enabled) form.setValue("metadata.variations", []);
+    if (!enabled) {
+      form.setValue("metadata.variations", []);
+    }
   };
   const handleCustomFieldsToggle = (enabled: boolean) => {
     setCustomFieldsEnabled(enabled);
-    if (!enabled) form.setValue("metadata.custom_fields", []);
+    if (!enabled) {
+      form.setValue("metadata.custom_fields", []);
+    }
   };
 
   // ── Watch values for preview ─────────────────────────────────────────────
@@ -749,8 +833,12 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
   const noDesc = watchValues.translations?.no?.description ?? "";
 
   const getLocaleStatus = (title: string, desc: string) => {
-    if (title?.length >= 3 && desc?.length >= 10) return "complete" as const;
-    if (title || desc) return "partial" as const;
+    if (title?.length >= 3 && desc?.length >= 10) {
+      return "complete" as const;
+    }
+    if (title || desc) {
+      return "partial" as const;
+    }
     return "empty" as const;
   };
 
@@ -763,7 +851,7 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Breadcrumb */}
-      <div className="shrink-0 border-b border-border/40 bg-background px-6 py-3">
+      <div className="shrink-0 border-border/40 border-b bg-background px-6 py-3">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -780,7 +868,6 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
       <PreviewPanel
         renderPreview={(locale) => (
           <ProductPreviewPane
-            locale={locale}
             data={{
               status: watchValues.status,
               category: watchValues.category,
@@ -801,6 +888,7 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
                 },
               },
             }}
+            locale={locale}
           />
         )}
       >
@@ -808,24 +896,24 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
           {/* Draft restore banner */}
           {draftRestoreData && (
             <DraftRestoreBanner
-              savedAt={draftRestoreData.savedAt}
-              onRestore={() => {
-                form.reset(draftRestoreData.values);
-                setDraftRestoreData(null);
-              }}
               onDiscard={() => {
                 autosave.clearDraft();
                 setDraftRestoreData(null);
               }}
+              onRestore={() => {
+                form.reset(draftRestoreData.values);
+                setDraftRestoreData(null);
+              }}
+              savedAt={draftRestoreData.savedAt}
             />
           )}
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
               {/* Content & Translations */}
               <FormSection
-                title="Content & Translations"
                 subtitle="Write compelling product copy in both languages"
+                title="Content & Translations"
               >
                 <div className="space-y-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -838,6 +926,7 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
                       }}
                     />
                     <Button
+                      className="gap-2"
                       disabled={
                         activeLocale === "en"
                           ? isTranslating === "en" || !noTitle
@@ -852,7 +941,6 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
                       size="sm"
                       type="button"
                       variant="outline"
-                      className="gap-2"
                     >
                       {isTranslating === activeLocale
                         ? "Translating…"
@@ -862,8 +950,10 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
 
                   {(["en", "no"] as const).map((locale) => (
                     <div
+                      className={
+                        locale === activeLocale ? "space-y-4" : "hidden"
+                      }
                       key={locale}
-                      className={locale === activeLocale ? "space-y-4" : "hidden"}
                       role="tabpanel"
                     >
                       <FormField
@@ -917,8 +1007,8 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
 
               {/* Basic Details */}
               <FormSection
-                title="Basic Details"
                 subtitle="Category, pricing, and availability"
+                title="Basic Details"
               >
                 <div className="space-y-4">
                   <FormField
@@ -984,12 +1074,10 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
 
               {/* Optional Sections */}
               <FormSection
-                title="Pricing & Inventory"
-                subtitle="Member pricing, stock management, and SKU tracking"
                 collapsible
-                defaultOpen={
-                  memberPricingEnabled || stockEnabled || skuEnabled
-                }
+                defaultOpen={memberPricingEnabled || stockEnabled || skuEnabled}
+                subtitle="Member pricing, stock management, and SKU tracking"
+                title="Pricing & Inventory"
               >
                 <div className="space-y-4">
                   <ToggleSection
@@ -1109,7 +1197,8 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
                                 Limit to one per customer
                               </FormLabel>
                               <FormDescription>
-                                Prevents customers from purchasing more than once
+                                Prevents customers from purchasing more than
+                                once
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -1135,9 +1224,7 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
                                 onChange={(event) => {
                                   const next = event.target.value;
                                   field.onChange(
-                                    next
-                                      ? Number.parseInt(next, 10)
-                                      : undefined
+                                    next ? Number.parseInt(next, 10) : undefined
                                   );
                                 }}
                                 placeholder="Unlimited"
@@ -1159,10 +1246,10 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
 
               {/* Advanced */}
               <FormSection
-                title="Advanced Options"
-                subtitle="Product variations and custom checkout fields"
                 collapsible
                 defaultOpen={variationsEnabled || customFieldsEnabled}
+                subtitle="Product variations and custom checkout fields"
+                title="Advanced Options"
               >
                 <Accordion
                   className="space-y-4"
@@ -1227,8 +1314,8 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
 
               {/* Settings (slug, status, campus) + Images */}
               <FormSection
-                title="Settings"
                 subtitle="Publishing status, URL slug, and campus"
+                title="Settings"
               >
                 <div className="space-y-4">
                   <SlugField
@@ -1304,7 +1391,7 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
               </FormSection>
 
               {/* Cover Images */}
-              <FormSection title="Cover Image" subtitle="Product photos">
+              <FormSection subtitle="Product photos" title="Cover Image">
                 <FormField
                   control={form.control}
                   name="metadata.images"
@@ -1328,15 +1415,15 @@ export function EditProduct({ product, campuses = [] }: EditProductProps) {
       </PreviewPanel>
 
       <SaveBar
-        status={autosave.isSaving ? "saving" : saveStatus}
-        lastSaved={autosave.lastSaved}
+        autosaveEnabled={autosave.enabled}
         isDirty={isDirty}
         isSubmitting={isSubmitting}
-        onSave={handleSave}
-        onCancel={() => router.back()}
-        autosaveEnabled={autosave.enabled}
+        lastSaved={autosave.lastSaved}
         onAutosaveToggle={autosave.setEnabled}
+        onCancel={() => router.back()}
+        onSave={handleSave}
         saveLabel={isEditing ? "Update Product" : "Create Product"}
+        status={autosave.isSaving ? "saving" : saveStatus}
       />
     </div>
   );

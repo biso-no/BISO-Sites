@@ -17,7 +17,7 @@ export function EmptyState({
     <div className="flex flex-col items-center justify-center py-24 text-center">
       {icon && (
         <div
-          className="mb-4 w-16 h-16 rounded-2xl flex items-center justify-center"
+          className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
           style={{
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
@@ -28,14 +28,14 @@ export function EmptyState({
         </div>
       )}
       <p
-        className="text-base font-medium"
+        className="font-medium text-base"
         style={{ color: "rgba(255,255,255,0.60)" }}
       >
         {title}
       </p>
       {description && (
         <p
-          className="mt-1 text-sm max-w-xs"
+          className="mt-1 max-w-xs text-sm"
           style={{ color: "rgba(255,255,255,0.30)" }}
         >
           {description}

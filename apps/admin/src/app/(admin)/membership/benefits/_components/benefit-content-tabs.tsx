@@ -1,6 +1,12 @@
 "use client";
 
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import {
   Field,
   FieldDescription,
   FieldError,
@@ -8,12 +14,6 @@ import {
   FieldLabel,
 } from "@repo/ui/components/ui/field";
 import { Input } from "@repo/ui/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
 import {
   Tabs,
   TabsContent,
@@ -31,7 +31,9 @@ interface BenefitContentTabsProps {
 
 function fieldError(errors: unknown[]): string | undefined {
   const first = errors[0];
-  if (!first) return undefined;
+  if (!first) {
+    return undefined;
+  }
   return String(first);
 }
 
@@ -41,7 +43,7 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Languages className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base font-semibold">Content</CardTitle>
+          <CardTitle className="font-semibold text-base">Content</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
@@ -60,22 +62,24 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
             <FieldGroup>
               <form.Field
                 name="title_nb"
-                validators={{ onChange: z.string().min(1, "Title is required") }}
+                validators={{
+                  onChange: z.string().min(1, "Title is required"),
+                }}
               >
                 {(field) => (
                   <Field data-invalid={field.state.meta.errors.length > 0}>
                     <FieldLabel htmlFor="title_nb">
                       Title{" "}
-                      <span className="text-destructive" aria-hidden>
+                      <span aria-hidden className="text-destructive">
                         *
                       </span>
                     </FieldLabel>
                     <Input
                       id="title_nb"
-                      placeholder="f.eks. 20% rabatt på Kaffebrenneriet"
-                      value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="f.eks. 20% rabatt på Kaffebrenneriet"
+                      value={field.state.value}
                     />
                     <FieldError>
                       {fieldError(field.state.meta.errors)}
@@ -94,17 +98,17 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
                   <Field data-invalid={field.state.meta.errors.length > 0}>
                     <FieldLabel htmlFor="description_nb">
                       Description{" "}
-                      <span className="text-destructive" aria-hidden>
+                      <span aria-hidden className="text-destructive">
                         *
                       </span>
                     </FieldLabel>
                     <Textarea
                       id="description_nb"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
                       placeholder="Beskriv fordelen for studenter..."
                       rows={4}
                       value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
                     />
                     <FieldError>
                       {fieldError(field.state.meta.errors)}
@@ -122,12 +126,12 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
                     </FieldDescription>
                     <Input
                       id="teaser_nb"
-                      placeholder="Kort oppsummering for ikke-medlemmer..."
-                      value={field.state.value ?? ""}
                       onBlur={field.handleBlur}
                       onChange={(e) =>
                         field.handleChange(e.target.value || null)
                       }
+                      placeholder="Kort oppsummering for ikke-medlemmer..."
+                      value={field.state.value ?? ""}
                     />
                   </Field>
                 )}
@@ -141,13 +145,13 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
                     </FieldLabel>
                     <Textarea
                       id="terms_nb"
-                      placeholder="Gyldige vilkår..."
-                      rows={2}
-                      value={field.state.value ?? ""}
                       onBlur={field.handleBlur}
                       onChange={(e) =>
                         field.handleChange(e.target.value || null)
                       }
+                      placeholder="Gyldige vilkår..."
+                      rows={2}
+                      value={field.state.value ?? ""}
                     />
                   </Field>
                 )}
@@ -160,22 +164,24 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
             <FieldGroup>
               <form.Field
                 name="title_en"
-                validators={{ onChange: z.string().min(1, "Title is required") }}
+                validators={{
+                  onChange: z.string().min(1, "Title is required"),
+                }}
               >
                 {(field) => (
                   <Field data-invalid={field.state.meta.errors.length > 0}>
                     <FieldLabel htmlFor="title_en">
                       Title{" "}
-                      <span className="text-destructive" aria-hidden>
+                      <span aria-hidden className="text-destructive">
                         *
                       </span>
                     </FieldLabel>
                     <Input
                       id="title_en"
-                      placeholder="e.g. 20% off at Kaffebrenneriet"
-                      value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="e.g. 20% off at Kaffebrenneriet"
+                      value={field.state.value}
                     />
                     <FieldError>
                       {fieldError(field.state.meta.errors)}
@@ -194,17 +200,17 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
                   <Field data-invalid={field.state.meta.errors.length > 0}>
                     <FieldLabel htmlFor="description_en">
                       Description{" "}
-                      <span className="text-destructive" aria-hidden>
+                      <span aria-hidden className="text-destructive">
                         *
                       </span>
                     </FieldLabel>
                     <Textarea
                       id="description_en"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
                       placeholder="Describe the benefit for students..."
                       rows={4}
                       value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
                     />
                     <FieldError>
                       {fieldError(field.state.meta.errors)}
@@ -222,12 +228,12 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
                     </FieldDescription>
                     <Input
                       id="teaser_en"
-                      placeholder="Short preview for non-members..."
-                      value={field.state.value ?? ""}
                       onBlur={field.handleBlur}
                       onChange={(e) =>
                         field.handleChange(e.target.value || null)
                       }
+                      placeholder="Short preview for non-members..."
+                      value={field.state.value ?? ""}
                     />
                   </Field>
                 )}
@@ -241,13 +247,13 @@ export function BenefitContentTabs({ form }: BenefitContentTabsProps) {
                     </FieldLabel>
                     <Textarea
                       id="terms_en"
-                      placeholder="Applicable terms..."
-                      rows={2}
-                      value={field.state.value ?? ""}
                       onBlur={field.handleBlur}
                       onChange={(e) =>
                         field.handleChange(e.target.value || null)
                       }
+                      placeholder="Applicable terms..."
+                      rows={2}
+                      value={field.state.value ?? ""}
                     />
                   </Field>
                 )}

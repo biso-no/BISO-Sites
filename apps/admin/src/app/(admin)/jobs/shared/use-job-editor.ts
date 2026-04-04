@@ -19,8 +19,12 @@ const filterDepartments = (
   departments: { $id: string; Name: string; campus_id?: string }[] | undefined,
   selectedCampus: string
 ) => {
-  if (!departments) return [];
-  if (!selectedCampus) return departments;
+  if (!departments) {
+    return [];
+  }
+  if (!selectedCampus) {
+    return departments;
+  }
   return departments.filter((d) => d.campus_id === selectedCampus);
 };
 

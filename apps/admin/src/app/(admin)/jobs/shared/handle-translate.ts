@@ -10,7 +10,11 @@ type HandleTranslateParams = {
   setIsTranslating: (value: boolean) => void;
   setValue: UseFormSetValue<FormValues>;
   setActiveLocale: (tab: "en" | "no") => void;
-  showToast: (props: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
+  showToast: (props: {
+    title: string;
+    description?: string;
+    variant?: "default" | "destructive";
+  }) => void;
 };
 
 export async function handleTranslate({

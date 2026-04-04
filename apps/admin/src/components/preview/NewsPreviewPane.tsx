@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { format } from "date-fns";
 import { enUS, nb } from "date-fns/locale";
+import Image from "next/image";
 import type { Locale } from "@/components/forms/LocaleTabGroup";
 
 type NewsFormSnapshot = {
@@ -39,7 +39,7 @@ export function NewsPreviewPane({
   return (
     <div className="min-h-full bg-background font-sans">
       {/* Page header */}
-      <div className="border-b border-border/40 bg-muted/20 px-6 py-8">
+      <div className="border-border/40 border-b bg-muted/20 px-6 py-8">
         {/* Breadcrumb */}
         <nav className="mb-4 flex items-center gap-1.5 text-muted-foreground text-xs">
           <span>Home</span>
@@ -52,12 +52,10 @@ export function NewsPreviewPane({
         <h1 className="font-bold text-2xl leading-snug tracking-tight">
           {title}
         </h1>
-        {meta && (
-          <p className="mt-2 text-muted-foreground text-sm">{meta}</p>
-        )}
+        {meta && <p className="mt-2 text-muted-foreground text-sm">{meta}</p>}
 
         {data.sticky && (
-          <span className="mt-3 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-amber-700 text-xs font-medium">
+          <span className="mt-3 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 font-medium text-amber-700 text-xs">
             📌 {locale === "en" ? "Pinned" : "Festet"}
           </span>
         )}
@@ -66,7 +64,13 @@ export function NewsPreviewPane({
       {/* Cover image */}
       {data.image && (
         <div className="relative mx-6 mt-6 h-56 overflow-hidden rounded-xl bg-muted">
-          <Image src={data.image} alt={title} fill className="object-cover" sizes="800px" />
+          <Image
+            alt={title}
+            className="object-cover"
+            fill
+            sizes="800px"
+            src={data.image}
+          />
         </div>
       )}
 
@@ -79,7 +83,7 @@ export function NewsPreviewPane({
             dangerouslySetInnerHTML={{ __html: t.description }}
           />
         ) : (
-          <p className="italic text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm italic">
             {locale === "en"
               ? "Start writing your article…"
               : "Begynn å skrive artikkelen din…"}
@@ -94,7 +98,7 @@ export function NewsPreviewPane({
 
 function PreviewWatermark() {
   return (
-    <div className="pointer-events-none fixed right-3 top-14 z-50 rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 text-xs font-medium ring-1 ring-amber-200">
+    <div className="pointer-events-none fixed top-14 right-3 z-50 rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-700 text-xs ring-1 ring-amber-200">
       Preview
     </div>
   );

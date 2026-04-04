@@ -1,30 +1,30 @@
 "use client";
 
+import type {
+  Campus,
+  ContentTranslations,
+  Departments,
+  Jobs,
+} from "@repo/api/types/appwrite";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
   createJob,
-  updateJob,
   listDepartmentsForCampus,
+  updateJob,
 } from "../../../_actions/jobs";
-import { jobSchema, type JobFormValues } from "../../../_actions/schemas";
+import { type JobFormValues, jobSchema } from "../../../_actions/schemas";
 import { EditorHeader } from "../../../_components/editor-header";
-import { PreviewPanel } from "../../../_components/preview-panel";
+import { PortalButton } from "../../../_components/portal-button";
 import {
   PortalField,
   PortalInput,
   PortalSelect,
 } from "../../../_components/portal-fields";
-import { PortalButton } from "../../../_components/portal-button";
-import { ContentEditor } from "@repo/ui/components/content-editor";
-import type {
-  Jobs,
-  ContentTranslations,
-  Campus,
-  Departments,
-} from "@repo/api/types/appwrite";
+import { PreviewPanel } from "../../../_components/preview-panel";
 
 type JobWithTranslations = Jobs & { translation_refs: ContentTranslations[] };
 
@@ -75,7 +75,11 @@ function buildDefaultValues(job: JobWithTranslations | null): JobFormValues {
   const en = job?.translation_refs.find((t) => t.locale === "en");
   let extra: Record<string, string> = {};
   if (no?.additional_fields) {
-    try { extra = JSON.parse(no.additional_fields); } catch { /* ignore */ }
+    try {
+      extra = JSON.parse(no.additional_fields);
+    } catch {
+      /* ignore */
+    }
   }
   return {
     title_no: no?.title ?? "",
@@ -92,7 +96,12 @@ function buildDefaultValues(job: JobWithTranslations | null): JobFormValues {
 }
 
 function generateSlug(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
 }
 
 export function JobEditorClient({
@@ -113,12 +122,24 @@ export function JobEditorClient({
   );
   const [previewCompany, setPreviewCompany] = useState(() => {
     const t = job?.translation_refs.find((t) => t.locale === "no");
-    if (t?.additional_fields) { try { return JSON.parse(t.additional_fields).company ?? ""; } catch { return ""; } }
+    if (t?.additional_fields) {
+      try {
+        return JSON.parse(t.additional_fields).company ?? "";
+      } catch {
+        return "";
+      }
+    }
     return "";
   });
   const [previewType, setPreviewType] = useState(() => {
     const t = job?.translation_refs.find((t) => t.locale === "no");
-    if (t?.additional_fields) { try { return JSON.parse(t.additional_fields).employment_type ?? ""; } catch { return ""; } }
+    if (t?.additional_fields) {
+      try {
+        return JSON.parse(t.additional_fields).employment_type ?? "";
+      } catch {
+        return "";
+      }
+    }
     return "";
   });
   const [previewSlug, setPreviewSlug] = useState(job?.slug ?? "");
@@ -131,10 +152,17 @@ export function JobEditorClient({
         toast.error(labels.saveError);
         return;
       }
-      const result = isNew ? await createJob(validated.data) : await updateJob(job!.$id, validated.data);
-      if (result.error) { toast.error(labels.saveError); return; }
+      const result = isNew
+        ? await createJob(validated.data)
+        : await updateJob(job!.$id, validated.data);
+      if (result.error) {
+        toast.error(labels.saveError);
+        return;
+      }
       toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
-      if (isNew && result.data) router.push(`/admin/jobs/${result.data}`);
+      if (isNew && result.data) {
+        router.push(`/admin/jobs/${result.data}`);
+      }
     },
   });
 
@@ -161,31 +189,76 @@ export function JobEditorClient({
 
   const editorTitle = isNew
     ? "New Job"
-    : (job?.translation_refs.find((t) => t.locale === "no")?.title ?? "Edit Job");
+    : (job?.translation_refs.find((t) => t.locale === "no")?.title ??
+      "Edit Job");
 
   return (
     <div className="pb-12">
-      <EditorHeader backHref="/admin/jobs" backLabel={labels.back} title={editorTitle} status={isNew ? undefined : job?.status}>
-        <PortalButton variant="ghost" size="sm" onClick={() => router.push("/admin/jobs")}>{labels.discard}</PortalButton>
-        <PortalButton variant="secondary" size="sm" loading={isSaving} onClick={() => { setIsSaving(true); form.setFieldValue("status", "draft"); form.handleSubmit().finally(() => setIsSaving(false)); }}>{labels.saveDraft}</PortalButton>
-        <PortalButton variant="primary" size="sm" loading={isPublishing} onClick={() => { setIsPublishing(true); form.setFieldValue("status", "published"); form.handleSubmit().finally(() => setIsPublishing(false)); }}>{labels.publish}</PortalButton>
+      <EditorHeader
+        backHref="/admin/jobs"
+        backLabel={labels.back}
+        status={isNew ? undefined : job?.status}
+        title={editorTitle}
+      >
+        <PortalButton
+          onClick={() => router.push("/admin/jobs")}
+          size="sm"
+          variant="ghost"
+        >
+          {labels.discard}
+        </PortalButton>
+        <PortalButton
+          loading={isSaving}
+          onClick={() => {
+            setIsSaving(true);
+            form.setFieldValue("status", "draft");
+            form.handleSubmit().finally(() => setIsSaving(false));
+          }}
+          size="sm"
+          variant="secondary"
+        >
+          {labels.saveDraft}
+        </PortalButton>
+        <PortalButton
+          loading={isPublishing}
+          onClick={() => {
+            setIsPublishing(true);
+            form.setFieldValue("status", "published");
+            form.handleSubmit().finally(() => setIsPublishing(false));
+          }}
+          size="sm"
+          variant="primary"
+        >
+          {labels.publish}
+        </PortalButton>
       </EditorHeader>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="title_no">
               {(field) => (
                 <PortalField label={`${labels.titlePlaceholder} (NO)`} required>
                   <PortalInput
-                    value={field.state.value}
                     onBlur={() => {
                       field.handleBlur();
-                      if (!form.getFieldValue("slug") || isNew) form.setFieldValue("slug", generateSlug(field.state.value));
-                      setPreviewSlug(form.getFieldValue("slug") || generateSlug(field.state.value));
+                      if (!form.getFieldValue("slug") || isNew) {
+                        form.setFieldValue(
+                          "slug",
+                          generateSlug(field.state.value)
+                        );
+                      }
+                      setPreviewSlug(
+                        form.getFieldValue("slug") ||
+                          generateSlug(field.state.value)
+                      );
                     }}
-                    onChange={(e) => { field.handleChange(e.target.value); setPreviewTitle(e.target.value); }}
+                    onChange={(e) => {
+                      field.handleChange(e.target.value);
+                      setPreviewTitle(e.target.value);
+                    }}
                     placeholder="Tittel på stilling..."
+                    value={field.state.value}
                   />
                 </PortalField>
               )}
@@ -193,24 +266,44 @@ export function JobEditorClient({
             <form.Field name="title_en">
               {(field) => (
                 <PortalField label={`${labels.titlePlaceholder} (EN)`}>
-                  <PortalInput value={field.state.value} onBlur={field.handleBlur} onChange={(e) => field.handleChange(e.target.value)} placeholder="Job title..." />
+                  <PortalInput
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="Job title..."
+                    value={field.state.value}
+                  />
                 </PortalField>
               )}
             </form.Field>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="company">
               {(field) => (
                 <PortalField label={labels.company}>
-                  <PortalInput value={field.state.value ?? ""} onBlur={field.handleBlur} onChange={(e) => { field.handleChange(e.target.value); setPreviewCompany(e.target.value); }} placeholder="Company name..." />
+                  <PortalInput
+                    onBlur={field.handleBlur}
+                    onChange={(e) => {
+                      field.handleChange(e.target.value);
+                      setPreviewCompany(e.target.value);
+                    }}
+                    placeholder="Company name..."
+                    value={field.state.value ?? ""}
+                  />
                 </PortalField>
               )}
             </form.Field>
             <form.Field name="employment_type">
               {(field) => (
                 <PortalField label={labels.employmentType}>
-                  <PortalSelect value={field.state.value ?? ""} onChange={(e) => { field.handleChange(e.target.value || null); setPreviewType(e.target.value); }} options={EMPLOYMENT_TYPES} />
+                  <PortalSelect
+                    onChange={(e) => {
+                      field.handleChange(e.target.value || null);
+                      setPreviewType(e.target.value);
+                    }}
+                    options={EMPLOYMENT_TYPES}
+                    value={field.state.value ?? ""}
+                  />
                 </PortalField>
               )}
             </form.Field>
@@ -220,11 +313,11 @@ export function JobEditorClient({
             {(field) => (
               <PortalField label={labels.descriptionNo} required>
                 <ContentEditor
-                  variant="jobs"
-                  value={field.state.value}
+                  minHeight={240}
                   onChange={(v) => field.handleChange(v)}
                   placeholder="Stillingsbeskrivelse på norsk..."
-                  minHeight={240}
+                  value={field.state.value}
+                  variant="jobs"
                 />
               </PortalField>
             )}
@@ -234,67 +327,150 @@ export function JobEditorClient({
             {(field) => (
               <PortalField label={labels.descriptionEn} required>
                 <ContentEditor
-                  variant="jobs"
-                  value={field.state.value}
+                  minHeight={200}
                   onChange={(v) => field.handleChange(v)}
                   placeholder="Job description in English..."
-                  minHeight={200}
+                  value={field.state.value}
+                  variant="jobs"
                 />
               </PortalField>
             )}
           </form.Field>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="campus_id">
               {(field) => (
                 <PortalField label={labels.campus} required>
-                  <PortalSelect value={field.state.value} onChange={(e) => { field.handleChange(e.target.value); handleCampusChange(e.target.value); }} options={campusOptions} />
+                  <PortalSelect
+                    onChange={(e) => {
+                      field.handleChange(e.target.value);
+                      handleCampusChange(e.target.value);
+                    }}
+                    options={campusOptions}
+                    value={field.state.value}
+                  />
                 </PortalField>
               )}
             </form.Field>
             <form.Field name="department_id">
               {(field) => (
                 <PortalField label={labels.department}>
-                  <PortalSelect value={field.state.value ?? ""} onChange={(e) => field.handleChange(e.target.value || null)} options={departmentOptions} disabled={departments.length === 0} />
+                  <PortalSelect
+                    disabled={departments.length === 0}
+                    onChange={(e) => field.handleChange(e.target.value || null)}
+                    options={departmentOptions}
+                    value={field.state.value ?? ""}
+                  />
                 </PortalField>
               )}
             </form.Field>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <form.Field name="slug">
               {(field) => (
-                <PortalField label={labels.slug} hint="Lowercase letters, numbers and hyphens" required>
-                  <PortalInput value={field.state.value} onBlur={field.handleBlur} onChange={(e) => { field.handleChange(e.target.value); setPreviewSlug(e.target.value); }} placeholder="job-title-slug" className="font-mono text-xs" />
+                <PortalField
+                  hint="Lowercase letters, numbers and hyphens"
+                  label={labels.slug}
+                  required
+                >
+                  <PortalInput
+                    className="font-mono text-xs"
+                    onBlur={field.handleBlur}
+                    onChange={(e) => {
+                      field.handleChange(e.target.value);
+                      setPreviewSlug(e.target.value);
+                    }}
+                    placeholder="job-title-slug"
+                    value={field.state.value}
+                  />
                 </PortalField>
               )}
             </form.Field>
             <form.Field name="status">
               {(field) => (
                 <PortalField label={labels.status}>
-                  <PortalSelect value={field.state.value} onChange={(e) => field.handleChange(e.target.value as JobFormValues["status"])} options={STATUS_OPTIONS} />
+                  <PortalSelect
+                    onChange={(e) =>
+                      field.handleChange(
+                        e.target.value as JobFormValues["status"]
+                      )
+                    }
+                    options={STATUS_OPTIONS}
+                    value={field.state.value}
+                  />
                 </PortalField>
               )}
             </form.Field>
           </div>
         </div>
 
-        <div className="lg:sticky lg:top-32 self-start">
+        <div className="self-start lg:sticky lg:top-32">
           <PreviewPanel title={labels.preview}>
-            <div className="rounded-2xl p-5 space-y-3" style={{ background: "linear-gradient(135deg, rgba(61,169,224,0.05) 0%, rgba(0,23,49,0.50) 100%)", border: "1px solid rgba(61,169,224,0.15)" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(61,169,224,0.15)", border: "1px solid rgba(61,169,224,0.25)" }}>
+            <div
+              className="space-y-3 rounded-2xl p-5"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(61,169,224,0.05) 0%, rgba(0,23,49,0.50) 100%)",
+                border: "1px solid rgba(61,169,224,0.15)",
+              }}
+            >
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl"
+                style={{
+                  background: "rgba(61,169,224,0.15)",
+                  border: "1px solid rgba(61,169,224,0.25)",
+                }}
+              >
                 <span className="text-lg">💼</span>
               </div>
               <div>
-                <p className="font-semibold text-base leading-tight" style={{ color: "#fff" }}>{previewTitle || "Job Title"}</p>
-                {previewCompany && <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.50)" }}>{previewCompany}</p>}
+                <p
+                  className="font-semibold text-base leading-tight"
+                  style={{ color: "#fff" }}
+                >
+                  {previewTitle || "Job Title"}
+                </p>
+                {previewCompany && (
+                  <p
+                    className="mt-0.5 text-sm"
+                    style={{ color: "rgba(255,255,255,0.50)" }}
+                  >
+                    {previewCompany}
+                  </p>
+                )}
               </div>
               {previewType && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: "rgba(61,169,224,0.10)", border: "1px solid rgba(61,169,224,0.25)", color: "#3DA9E0" }}>{previewType}</span>
+                <span
+                  className="inline-flex items-center rounded-full px-2.5 py-0.5 font-medium text-[11px]"
+                  style={{
+                    background: "rgba(61,169,224,0.10)",
+                    border: "1px solid rgba(61,169,224,0.25)",
+                    color: "#3DA9E0",
+                  }}
+                >
+                  {previewType}
+                </span>
               )}
-              <div className="pt-3 mt-3 flex items-center justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.30)" }}>/{previewSlug || "job-slug"}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(61,169,224,0.10)", color: "#3DA9E0" }}>Apply →</span>
+              <div
+                className="mt-3 flex items-center justify-between pt-3"
+                style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <span
+                  className="font-mono text-xs"
+                  style={{ color: "rgba(255,255,255,0.30)" }}
+                >
+                  /{previewSlug || "job-slug"}
+                </span>
+                <span
+                  className="rounded-full px-2 py-0.5 text-xs"
+                  style={{
+                    background: "rgba(61,169,224,0.10)",
+                    color: "#3DA9E0",
+                  }}
+                >
+                  Apply →
+                </span>
               </div>
             </div>
           </PreviewPanel>
