@@ -214,7 +214,7 @@ export const BasicsComponents = {
       const embedUrl = getEmbedUrl(url);
       const aspectClass =
         aspect === "4:3"
-          ? "aspect-[4/3]"
+          ? "aspect-4/3"
           : aspect === "1:1"
             ? "aspect-square"
             : "aspect-video";

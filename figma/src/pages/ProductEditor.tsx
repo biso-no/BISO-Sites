@@ -158,7 +158,7 @@ export function ProductEditor() {
                 Product Description
               </label>
               <textarea
-                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
+                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/5 bg-white/2 p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
                 placeholder="Details about materials, sizing, and shipping..."
                 rows={5}
               />

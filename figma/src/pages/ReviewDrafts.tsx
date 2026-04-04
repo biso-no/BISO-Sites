@@ -140,7 +140,7 @@ export function ReviewDrafts() {
               return (
                 <motion.div
                   animate={{ opacity: 1, scale: 1 }}
-                  className="group flex flex-col overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] backdrop-blur-sm"
+                  className="group flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-white/2 backdrop-blur-sm"
                   exit={{
                     opacity: 0,
                     scale: 0.9,
@@ -156,7 +156,7 @@ export function ReviewDrafts() {
                       className="h-full w-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105"
                       src={item.image}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#000a16] via-[#000a16]/40 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-[#000a16] via-[#000a16]/40 to-transparent" />
 
                     <div className="absolute top-4 left-4 flex gap-2">
                       <span className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/10 px-2.5 py-1 font-semibold text-[10px] text-white/90 uppercase tracking-wider backdrop-blur-md">

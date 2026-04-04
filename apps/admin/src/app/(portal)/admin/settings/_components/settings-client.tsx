@@ -62,7 +62,7 @@ function Toggle({
 }) {
   return (
     <button
-      className="relative h-6 w-10 flex-shrink-0 rounded-full transition-all"
+      className="relative h-6 w-10 shrink-0 rounded-full transition-all"
       onClick={() => onChange(!checked)}
       style={{
         background: checked ? "#3DA9E0" : "rgba(255,255,255,0.15)",
@@ -159,7 +159,7 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
   return (
     <div className="flex gap-8">
       {/* Left nav */}
-      <div className="w-44 flex-shrink-0">
+      <div className="w-44 shrink-0">
         <nav className="space-y-1">
           {sections.map(([key, label]) => {
             const Icon = SECTION_ICONS[key];

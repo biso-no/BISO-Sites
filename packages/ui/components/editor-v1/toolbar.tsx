@@ -222,7 +222,7 @@ function ImageButton() {
 
 export function EditorV1Toolbar({ variant }: { variant: EditorV1Variant }) {
   return (
-    <div className="border-white/8 border-b bg-white/[0.02] px-2 py-2">
+    <div className="border-white/8 border-b bg-white/2 px-2 py-2">
       <Toolbar className="flex flex-wrap gap-1">
         <ToolbarGroup>
           <SectionTemplateButton variant={variant} />
@@ -273,7 +273,7 @@ export function EditorV1Toolbar({ variant }: { variant: EditorV1Variant }) {
 
 export function EditorV1Helper({ variant }: { variant: EditorV1Variant }) {
   return (
-    <div className="border-white/6 border-b bg-white/[0.015] px-4 py-2 text-white/55 text-xs">
+    <div className="border-white/6 border-b bg-white/1.5 px-4 py-2 text-white/55 text-xs">
       <div className="flex items-center gap-2">
         <TextQuote className="size-3.5 text-white/35" />
         <span>{editorV1VariantMeta[variant].helper}</span>

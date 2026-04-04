@@ -115,7 +115,7 @@ export function JobManagement() {
         {MOCK_JOBS.map((job, i) => (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="group flex flex-col items-start justify-between rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 transition-all duration-300 hover:bg-white/[0.04] md:flex-row md:items-center"
+            className="group flex flex-col items-start justify-between rounded-3xl border border-white/5 bg-white/2 p-6 transition-all duration-300 hover:bg-white/4 md:flex-row md:items-center"
             initial={{ opacity: 0, y: 10 }}
             key={job.id}
             transition={{ delay: i * 0.1 }}

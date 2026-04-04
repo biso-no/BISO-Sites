@@ -102,13 +102,13 @@ export function PageManagement() {
             {MOCK_PAGES.map((page, i) => (
               <motion.div
                 animate={{ opacity: 1, y: 0 }}
-                className="group flex flex-col overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] transition-all duration-300 hover:bg-white/[0.04]"
+                className="group flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-white/2 transition-all duration-300 hover:bg-white/4"
                 initial={{ opacity: 0, y: 20 }}
                 key={page.id}
                 transition={{ delay: i * 0.05 }}
               >
                 <Link
-                  className="relative block aspect-[4/3] overflow-hidden bg-[#001731]"
+                  className="relative block aspect-4/3 overflow-hidden bg-[#001731]"
                   to={`/editor/${page.id}`}
                 >
                   <img
@@ -116,7 +116,7 @@ export function PageManagement() {
                     className="h-full w-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-105 group-hover:opacity-100"
                     src={page.image}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#000a16] via-transparent to-transparent opacity-80" />
+                  <div className="absolute inset-0 bg-linear-to-t from-[#000a16] via-transparent to-transparent opacity-80" />
 
                   <div className="absolute top-4 left-4">
                     <StatusBadge status={page.status} />
@@ -155,7 +155,7 @@ export function PageManagement() {
         ) : (
           <motion.div
             animate={{ opacity: 1 }}
-            className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur-sm"
+            className="overflow-hidden rounded-3xl border border-white/10 bg-white/2 backdrop-blur-sm"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             key="list"

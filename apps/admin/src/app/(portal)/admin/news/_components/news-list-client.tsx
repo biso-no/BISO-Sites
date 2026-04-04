@@ -130,7 +130,7 @@ export function NewsListClient({
               }}
             >
               <div
-                className="h-12 w-16 flex-shrink-0 overflow-hidden rounded-xl"
+                className="h-12 w-16 shrink-0 overflow-hidden rounded-xl"
                 style={{ background: "rgba(255,255,255,0.05)" }}
               >
                 {article.image ? (

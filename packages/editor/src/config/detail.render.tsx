@@ -46,7 +46,7 @@ export function JobDetailRender(props: JobDetailProps) {
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-12">
-      <div className="mb-8 rounded-2xl bg-gradient-to-br from-[#001731] to-[#003366] px-8 py-10 text-white">
+      <div className="mb-8 rounded-2xl bg-linear-to-br from-[#001731] to-[#003366] px-8 py-10 text-white">
         {(props.type || props.paid !== undefined) && (
           <div className="mb-3 flex flex-wrap gap-2">
             {props.type && (

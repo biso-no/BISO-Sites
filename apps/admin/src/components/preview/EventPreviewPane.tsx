@@ -79,7 +79,7 @@ export function EventPreviewPane({
     : "";
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-slate-50 to-background font-sans">
+    <div className="min-h-full bg-linear-to-b from-slate-50 to-background font-sans">
       {/* Hero */}
       <div className="relative h-56 overflow-hidden bg-slate-200">
         {imageUrl ? (
@@ -91,9 +91,9 @@ export function EventPreviewPane({
             src={imageUrl}
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-slate-300 to-slate-400" />
+          <div className="h-full w-full bg-linear-to-br from-slate-300 to-slate-400" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-br from-black/60 via-black/30 to-transparent" />
 
         <div className="absolute inset-0 flex flex-col justify-end p-6">
           {data.status !== "published" && (

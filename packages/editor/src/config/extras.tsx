@@ -223,7 +223,7 @@ export const ExtrasComponents = {
                       src={item.avatar}
                     />
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white text-xl">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 font-bold text-white text-xl">
                       {item.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -298,7 +298,7 @@ export const ExtrasComponents = {
                     src={item.avatar}
                   />
                 ) : (
-                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-2xl text-white">
+                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 font-bold text-2xl text-white">
                     {item.name.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -776,7 +776,7 @@ export const ExtrasComponents = {
         outline:
           "border border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600",
         solid: "bg-blue-600 text-white hover:bg-blue-700",
-        gradient: "bg-gradient-to-r from-blue-600 to-indigo-600 text-white",
+        gradient: "bg-linear-to-r from-blue-600 to-indigo-600 text-white",
       };
 
       return (

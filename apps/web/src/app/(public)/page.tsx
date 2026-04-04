@@ -51,7 +51,7 @@ export default async function HomePage() {
     0
   );
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-section to-background">
+    <div className="min-h-screen bg-linear-to-b from-background via-section to-background">
       <Suspense fallback={<HeroSkeleton />}>
         <HeroSection />
       </Suspense>

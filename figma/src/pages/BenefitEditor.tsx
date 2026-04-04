@@ -50,7 +50,7 @@ export function BenefitEditor() {
 
         <div className="flex-1 space-y-8 pr-2">
           {/* Scope Selection */}
-          <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <section className="rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm">
             <h2 className="mb-6 font-bold text-sm text-white/40 uppercase tracking-widest">
               Target Audience
             </h2>
@@ -116,7 +116,7 @@ export function BenefitEditor() {
           </section>
 
           {/* Basic Details */}
-          <section className="space-y-5 rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <section className="space-y-5 rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm">
             <h2 className="mb-4 font-bold text-sm text-white/40 uppercase tracking-widest">
               Benefit Details
             </h2>
@@ -182,7 +182,7 @@ export function BenefitEditor() {
           </section>
 
           {/* Redemption Details */}
-          <section className="space-y-5 rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <section className="space-y-5 rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm">
             <h2 className="mb-4 font-bold text-sm text-white/40 uppercase tracking-widest">
               Redemption
             </h2>
@@ -213,7 +213,7 @@ export function BenefitEditor() {
           </section>
 
           {/* Image */}
-          <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <section className="rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm">
             <h2 className="mb-4 font-bold text-sm text-white/40 uppercase tracking-widest">
               Cover Image
             </h2>
@@ -249,7 +249,7 @@ export function BenefitEditor() {
         </div>
 
         {/* Mobile Device Mockup */}
-        <div className="relative flex h-[650px] w-[320px] flex-col overflow-hidden rounded-[40px] border-[#001731] border-[8px] bg-black shadow-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+        <div className="relative flex h-[650px] w-[320px] flex-col overflow-hidden rounded-[40px] border-[#001731] border-8 bg-black shadow-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
           {/* Dynamic Island fake */}
           <div className="absolute inset-x-0 top-0 z-50 flex h-6 justify-center">
             <div className="h-5 w-24 rounded-b-xl bg-[#001731]" />
@@ -263,7 +263,7 @@ export function BenefitEditor() {
                 className="h-full w-full object-cover opacity-80"
                 src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb2ZmZWUlMjBzaG9wfGVufDF8fHx8MTc3NTI5NjAwMHww&ixlib=rb-4.1.0&q=80&w=1080"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#000a16] via-[#000a16]/20 to-transparent" />
+              <div className="absolute inset-0 bg-linear-to-t from-[#000a16] via-[#000a16]/20 to-transparent" />
 
               <div className="absolute top-10 left-4">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white backdrop-blur-md">
@@ -313,7 +313,7 @@ export function BenefitEditor() {
 
               {/* Redemption Card */}
               <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#3DA9E0]/10 to-transparent opacity-50" />
+                <div className="absolute inset-0 bg-linear-to-br from-[#3DA9E0]/10 to-transparent opacity-50" />
                 <div className="relative z-10">
                   <QrCode className="mx-auto mb-3 text-white/30" size={48} />
                   <p className="font-medium text-sm text-white">

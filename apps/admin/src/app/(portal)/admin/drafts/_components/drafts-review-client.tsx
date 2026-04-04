@@ -142,7 +142,7 @@ export function DraftsReviewClient({
             {/* Actions */}
             <div className="flex items-center gap-2 p-4 pt-0">
               <Link
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
                 href={editPath}
                 style={{
                   background: "rgba(255,255,255,0.05)",

@@ -90,9 +90,9 @@ function MemberOverview({
       >
         {/* Membership Status */}
         <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-muted to-transparent opacity-50" />
+          <div className="absolute inset-0 bg-linear-to-br from-brand-muted to-transparent opacity-50" />
           <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
               <Shield className="h-6 w-6 text-white" />
             </div>
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -110,9 +110,9 @@ function MemberOverview({
 
         {/* Benefits Available */}
         <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
+          <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
           <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
               <Gift className="h-6 w-6 text-white" />
             </div>
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -129,9 +129,9 @@ function MemberOverview({
 
         {/* Days Remaining */}
         <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
+          <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
           <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
               <Clock className="h-6 w-6 text-white" />
             </div>
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -146,9 +146,9 @@ function MemberOverview({
 
         {/* Estimated Savings */}
         <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
+          <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
           <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
               <TrendingUp className="h-6 w-6 text-white" />
             </div>
             <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -215,7 +215,7 @@ function MemberOverview({
         initial={{ opacity: 0, y: 20 }}
         transition={{ delay: 0.4 }}
       >
-        <Card className="overflow-hidden border-0 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to p-8 shadow-xl">
+        <Card className="overflow-hidden border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to p-8 shadow-xl">
           <div className="flex flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
             <div className="text-white">
               <h3 className="mb-2 font-bold text-2xl">

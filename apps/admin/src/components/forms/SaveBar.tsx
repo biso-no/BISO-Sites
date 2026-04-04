@@ -72,7 +72,7 @@ export function SaveBar({
         "supports-backdrop-filter:bg-background/80"
       )}
     >
-      <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-3">
+      <div className="mx-auto flex max-w-(--breakpoint-2xl) items-center justify-between gap-4 px-6 py-3">
         {/* Left — status */}
         <div className="flex items-center gap-3">
           <div className={cn("flex items-center gap-1.5 text-sm", color)}>

@@ -117,7 +117,7 @@ export function EventEditor() {
                 <CalendarDays size={12} /> Start Date & Time
               </label>
               <input
-                className="w-full border-white/10 border-b bg-transparent pb-2 text-lg text-white outline-none transition-colors [color-scheme:dark] focus:border-[#3DA9E0]"
+                className="w-full border-white/10 border-b bg-transparent pb-2 text-lg text-white outline-none transition-colors scheme-dark focus:border-[#3DA9E0]"
                 onChange={(e) =>
                   setFormData({ ...formData, date: e.target.value })
                 }
@@ -148,7 +148,7 @@ export function EventEditor() {
                 Event Details
               </label>
               <textarea
-                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
+                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/5 bg-white/2 p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
                 placeholder="Write a captivating description of what to expect..."
                 rows={6}
               />
@@ -195,7 +195,7 @@ export function EventEditor() {
             </span>
           </div>
 
-          <div className="group relative aspect-[4/5] overflow-hidden rounded-3xl border border-white/10 bg-[#001731] shadow-2xl">
+          <div className="group relative aspect-4/5 overflow-hidden rounded-3xl border border-white/10 bg-[#001731] shadow-2xl">
             {formData.image ? (
               <img
                 alt="Event Cover"
@@ -203,10 +203,10 @@ export function EventEditor() {
                 src={formData.image}
               />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#001731] to-[#000a16]" />
+              <div className="absolute inset-0 bg-linear-to-br from-[#001731] to-[#000a16]" />
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-[#00050d] via-[#00050d]/60 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-[#00050d] via-[#00050d]/60 to-transparent" />
 
             <div className="absolute inset-0 flex flex-col justify-end p-8">
               <div className="mb-auto self-end">

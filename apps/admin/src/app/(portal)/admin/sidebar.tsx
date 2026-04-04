@@ -343,7 +343,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
             />
           ) : (
             <div
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full font-bold text-xs"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-bold text-xs"
               style={{
                 background: "rgba(61,169,224,0.20)",
                 color: "#3DA9E0",

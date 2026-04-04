@@ -207,7 +207,7 @@ export default async function AdminPortalDashboard() {
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
               >
                 <div
-                  className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full"
+                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                   style={{
                     background: "rgba(61,169,224,0.10)",
                     border: "1px solid rgba(61,169,224,0.20)",

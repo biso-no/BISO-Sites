@@ -128,7 +128,7 @@ function MemberBenefitsView({
               <Button
                 className={`h-auto rounded-full px-4 py-2 transition-all ${
                   isActive
-                    ? "bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
+                    ? "bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
                     : "bg-section text-muted-foreground hover:bg-brand-muted hover:text-brand dark:bg-inverted"
                 }`}
                 key={category.id}
@@ -251,7 +251,7 @@ function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefit[] }) {
             <Button
               className={`h-auto rounded-full px-4 py-2 transition-all ${
                 isActive
-                  ? "bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
+                  ? "bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
                   : "bg-section text-muted-foreground hover:bg-brand-muted hover:text-brand dark:bg-inverted"
               }`}
               key={category.id}

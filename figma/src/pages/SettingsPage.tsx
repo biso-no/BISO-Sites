@@ -99,7 +99,7 @@ export function SettingsPage() {
             >
               {/* GENERAL TAB */}
               {activeTab === "general" && (
-                <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-8 backdrop-blur-sm">
+                <section className="rounded-3xl border border-white/5 bg-white/2 p-8 backdrop-blur-sm">
                   <h2 className="mb-6 font-medium text-white text-xl">
                     Site Details
                   </h2>
@@ -145,7 +145,7 @@ export function SettingsPage() {
 
               {/* APPEARANCE TAB */}
               {activeTab === "appearance" && (
-                <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-8 backdrop-blur-sm">
+                <section className="rounded-3xl border border-white/5 bg-white/2 p-8 backdrop-blur-sm">
                   <h2 className="mb-6 font-medium text-white text-xl">
                     Brand Identity
                   </h2>
@@ -203,7 +203,7 @@ export function SettingsPage() {
 
               {/* TEAM TAB */}
               {activeTab === "team" && (
-                <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-8 backdrop-blur-sm">
+                <section className="rounded-3xl border border-white/5 bg-white/2 p-8 backdrop-blur-sm">
                   <div className="mb-8 flex items-center justify-between">
                     <h2 className="font-medium text-white text-xl">
                       Team & Roles
@@ -291,7 +291,7 @@ export function SettingsPage() {
 
               {/* LOCALIZATION TAB */}
               {activeTab === "localization" && (
-                <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-8 backdrop-blur-sm">
+                <section className="rounded-3xl border border-white/5 bg-white/2 p-8 backdrop-blur-sm">
                   <h2 className="mb-6 flex items-center gap-3 font-medium text-white text-xl">
                     <Globe className="text-[#3DA9E0]" /> AI Localization Engine
                   </h2>
@@ -341,7 +341,7 @@ export function SettingsPage() {
 
               {/* SECURITY TAB */}
               {activeTab === "security" && (
-                <section className="space-y-12 rounded-3xl border border-white/[0.05] bg-white/[0.02] p-8 backdrop-blur-sm">
+                <section className="space-y-12 rounded-3xl border border-white/5 bg-white/2 p-8 backdrop-blur-sm">
                   <div>
                     <h2 className="mb-6 flex items-center gap-3 font-medium text-white text-xl">
                       <Shield className="text-[#3DA9E0]" /> Authentication
@@ -431,7 +431,7 @@ export function SettingsPage() {
 
               {/* INTEGRATIONS TAB */}
               {activeTab === "integrations" && (
-                <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-8 backdrop-blur-sm">
+                <section className="rounded-3xl border border-white/5 bg-white/2 p-8 backdrop-blur-sm">
                   <h2 className="mb-6 font-medium text-white text-xl">
                     Connected Services
                   </h2>
@@ -504,7 +504,7 @@ export function SettingsPage() {
 
               {/* NOTIFICATIONS TAB */}
               {activeTab === "notifications" && (
-                <section className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-8 backdrop-blur-sm">
+                <section className="rounded-3xl border border-white/5 bg-white/2 p-8 backdrop-blur-sm">
                   <h2 className="mb-6 font-medium text-white text-xl">
                     Notification Preferences
                   </h2>

@@ -95,7 +95,7 @@ export function TestimonialsRender({
           <div className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4">
             {testimonials.map((item, i) => (
               <div
-                className="min-w-[320px] max-w-[400px] flex-shrink-0 snap-center"
+                className="min-w-[320px] max-w-[400px] shrink-0 snap-center"
                 key={i}
               >
                 {renderCard(item, i)}

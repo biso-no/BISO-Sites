@@ -90,7 +90,7 @@ export function SearchToolbar({
             const isActive = activeFilter === chip.value;
             return (
               <button
-                className="flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 font-medium text-xs transition-all"
+                className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 font-medium text-xs transition-all"
                 key={chip.value}
                 onClick={() => onFilterChange?.(chip.value)}
                 style={

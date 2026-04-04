@@ -109,8 +109,8 @@ export function PartnerManagement() {
 
       {/* System Metrics */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
-          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3DA9E0]/5 blur-[40px]" />
+        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3DA9E0]/5 blur-2xl" />
           <div className="mb-2 flex items-center gap-3">
             <Building2 className="text-[#3DA9E0]" size={20} />
             <h3 className="font-medium text-sm text-white/60 uppercase tracking-wider">
@@ -119,8 +119,8 @@ export function PartnerManagement() {
           </div>
           <p className="font-light text-4xl text-white">12</p>
         </div>
-        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
-          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/5 blur-[40px]" />
+        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/5 blur-2xl" />
           <div className="mb-2 flex items-center gap-3">
             <Activity className="text-emerald-400" size={20} />
             <h3 className="font-medium text-sm text-white/60 uppercase tracking-wider">
@@ -129,8 +129,8 @@ export function PartnerManagement() {
           </div>
           <p className="font-light text-4xl text-white">99.9%</p>
         </div>
-        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm">
-          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-400/5 blur-[40px]" />
+        <div className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm">
+          <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-400/5 blur-2xl" />
           <div className="mb-2 flex items-center gap-3">
             <TerminalSquare className="text-purple-400" size={20} />
             <h3 className="font-medium text-sm text-white/60 uppercase tracking-wider">
@@ -174,7 +174,7 @@ export function PartnerManagement() {
           ).map((partner, i) => (
             <motion.div
               animate={{ opacity: 1, y: 0 }}
-              className="group flex flex-col justify-between gap-6 rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm transition-colors hover:bg-white/[0.04] xl:flex-row xl:items-center"
+              className="group flex flex-col justify-between gap-6 rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm transition-colors hover:bg-white/4 xl:flex-row xl:items-center"
               initial={{ opacity: 0, y: 10 }}
               key={partner.id}
               layout

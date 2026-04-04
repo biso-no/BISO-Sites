@@ -177,7 +177,7 @@ export function DepartmentManagement() {
           ).map((dept, i) => (
             <motion.div
               animate={{ opacity: 1, scale: 1 }}
-              className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] backdrop-blur-sm"
+              className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-white/2 backdrop-blur-sm"
               initial={{ opacity: 0, scale: 0.95 }}
               key={dept.id}
               layout
@@ -190,7 +190,7 @@ export function DepartmentManagement() {
                   className="h-full w-full object-cover opacity-40 transition-transform duration-700 group-hover:scale-105"
                   src={dept.image}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#000a16] via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-[#000a16] via-transparent to-transparent" />
                 <div className="absolute top-4 left-4 flex gap-2">
                   <span
                     className={`rounded-md border px-2.5 py-1 font-semibold text-[10px] uppercase tracking-wider backdrop-blur-md ${

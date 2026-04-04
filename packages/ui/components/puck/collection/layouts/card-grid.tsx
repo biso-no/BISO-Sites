@@ -18,7 +18,7 @@ const GRID_COLS: Record<number, string> = {
 const ASPECT: Record<string, string> = {
   square: "aspect-square",
   video: "aspect-video",
-  portrait: "aspect-[3/4]",
+  portrait: "aspect-3/4",
 };
 
 function CardItem({

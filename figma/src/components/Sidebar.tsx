@@ -34,7 +34,7 @@ export function Sidebar() {
       {/* Top Brand */}
       <div className="flex items-center justify-between p-8">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#3DA9E0] to-[#001731] shadow-[0_0_15px_rgba(61,169,224,0.4)]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-[#3DA9E0] to-[#001731] shadow-[0_0_15px_rgba(61,169,224,0.4)]">
             <span className="font-bold text-white text-xs tracking-tighter">
               BISO
             </span>

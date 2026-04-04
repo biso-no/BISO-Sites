@@ -169,7 +169,7 @@ export function NewsEditor() {
             <label className="flex items-center gap-2 font-semibold text-[#3DA9E0] text-[11px] uppercase tracking-widest">
               <Type size={12} /> Body Content
             </label>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.01] p-2 transition-colors focus-within:border-[#3DA9E0]/50">
+            <div className="rounded-2xl border border-white/10 bg-white/1 p-2 transition-colors focus-within:border-[#3DA9E0]/50">
               <textarea
                 className="custom-scrollbar w-full resize-none bg-transparent p-4 font-mono text-sm text-white/90 leading-relaxed outline-none"
                 onChange={(e) =>

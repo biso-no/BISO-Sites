@@ -99,7 +99,7 @@ export function EventManagement() {
         {MOCK_EVENTS.map((event, i) => (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="group flex flex-col overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] transition-all duration-300 hover:bg-white/[0.04]"
+            className="group flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-white/2 transition-all duration-300 hover:bg-white/4"
             initial={{ opacity: 0, y: 20 }}
             key={event.id}
             transition={{ delay: i * 0.1 }}
@@ -110,7 +110,7 @@ export function EventManagement() {
                 className="h-full w-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-105 group-hover:opacity-100"
                 src={event.image}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#000a16] via-transparent to-transparent opacity-90" />
+              <div className="absolute inset-0 bg-linear-to-t from-[#000a16] via-transparent to-transparent opacity-90" />
 
               <div className="absolute top-4 left-4">
                 <span className="rounded-full border border-[#3DA9E0]/40 bg-[#3DA9E0]/20 px-3 py-1 font-semibold text-[#3DA9E0] text-[11px] uppercase tracking-wider backdrop-blur-md">

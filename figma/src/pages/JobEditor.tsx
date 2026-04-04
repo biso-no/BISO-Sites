@@ -158,7 +158,7 @@ export function JobEditor() {
                 The Role (EN)
               </label>
               <textarea
-                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
+                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/5 bg-white/2 p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
                 placeholder="Write a compelling job description..."
                 rows={6}
               />
@@ -168,7 +168,7 @@ export function JobEditor() {
                 The Role (NO)
               </label>
               <textarea
-                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/[0.05] bg-white/[0.02] p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
+                className="custom-scrollbar w-full resize-none rounded-2xl border border-white/5 bg-white/2 p-6 text-white/90 leading-relaxed outline-none transition-colors focus:border-[#3DA9E0]/50"
                 placeholder="Skriv en overbevisende stillingsbeskrivelse..."
                 rows={6}
               />
@@ -225,7 +225,7 @@ export function JobEditor() {
             </span>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl border border-white/[0.05] bg-gradient-to-br from-white/[0.05] to-transparent p-8 backdrop-blur-xl">
+          <div className="group relative overflow-hidden rounded-3xl border border-white/5 bg-linear-to-br from-white/5 to-transparent p-8 backdrop-blur-xl">
             {/* Ambient background blur */}
             <div className="pointer-events-none absolute top-0 right-0 h-64 w-64 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3DA9E0]/10 blur-[80px]" />
 

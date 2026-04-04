@@ -97,12 +97,12 @@ export function BenefitCard({
       <Card className="relative overflow-hidden border-0 p-0 shadow-lg transition-all duration-300 hover:shadow-2xl dark:bg-inverted/50 dark:backdrop-blur-sm">
         {/* Animated gradient border on hover */}
         <div
-          className={`absolute inset-0 bg-gradient-to-r ${categoryStyle.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-10`}
+          className={`absolute inset-0 bg-linear-to-r ${categoryStyle.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-10`}
         />
 
         {/* Category gradient header strip */}
         <div
-          className={`h-2 w-full bg-gradient-to-r ${categoryStyle.gradient}`}
+          className={`h-2 w-full bg-linear-to-r ${categoryStyle.gradient}`}
         />
 
         <div className="p-6">
@@ -120,7 +120,7 @@ export function BenefitCard({
                 </div>
               ) : (
                 <div
-                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${categoryStyle.gradient} shadow-md`}
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${categoryStyle.gradient} shadow-md`}
                 >
                   <Icon className="h-7 w-7 text-white" />
                 </div>

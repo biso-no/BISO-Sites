@@ -180,8 +180,8 @@ export function ActivityLog() {
       </div>
 
       {/* Timeline */}
-      <div className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm md:p-8">
-        <div className="relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-[2px] before:-translate-x-px before:bg-gradient-to-b before:from-[#3DA9E0]/50 before:via-white/10 before:to-transparent md:before:mx-auto md:before:translate-x-0">
+      <div className="rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm md:p-8">
+        <div className="relative before:absolute before:inset-0 before:ml-6 before:h-full before:w-[2px] before:-translate-x-px before:bg-linear-to-b before:from-[#3DA9E0]/50 before:via-white/10 before:to-transparent md:before:mx-auto md:before:translate-x-0">
           {ACTIVITY_LOG.map((activity, i) => {
             const TypeIcon =
               TYPE_ICONS[activity.type as keyof typeof TYPE_ICONS];
@@ -204,9 +204,9 @@ export function ActivityLog() {
                 </div>
 
                 {/* Content Card */}
-                <div className="relative w-[calc(100%-4rem)] cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-5 transition-all hover:border-white/10 hover:bg-white/[0.04] group-hover:shadow-lg md:w-[calc(50%-3rem)]">
+                <div className="relative w-[calc(100%-4rem)] cursor-pointer rounded-2xl border border-white/5 bg-white/2 p-5 transition-all hover:border-white/10 hover:bg-white/4 group-hover:shadow-lg md:w-[calc(50%-3rem)]">
                   {/* Pointer arrow */}
-                  <div className="absolute top-1/2 -left-1.5 hidden h-3 w-3 -translate-y-1/2 rotate-45 border-white/5 border-t border-r bg-white/[0.02] transition-all group-hover:border-white/10 group-hover:bg-white/[0.04] md:block md:group-even:-left-1.5 md:group-even:-rotate-[135deg] md:group-odd:-right-1.5 md:group-odd:rotate-45" />
+                  <div className="absolute top-1/2 -left-1.5 hidden h-3 w-3 -translate-y-1/2 rotate-45 border-white/5 border-t border-r bg-white/2 transition-all group-hover:border-white/10 group-hover:bg-white/4 md:block md:group-even:-left-1.5 md:group-even:-rotate-135 md:group-odd:-right-1.5 md:group-odd:rotate-45" />
 
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">

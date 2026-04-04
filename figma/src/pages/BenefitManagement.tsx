@@ -116,7 +116,7 @@ export function BenefitManagement() {
       </header>
 
       {/* Partner Integration Banner */}
-      <div className="group relative overflow-hidden rounded-2xl border border-[#3DA9E0]/30 bg-gradient-to-br from-[#001731] to-[#000a16] p-6 shadow-[0_0_30px_rgba(61,169,224,0.1)] md:p-8">
+      <div className="group relative overflow-hidden rounded-2xl border border-[#3DA9E0]/30 bg-linear-to-br from-[#001731] to-[#000a16] p-6 shadow-[0_0_30px_rgba(61,169,224,0.1)] md:p-8">
         <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-[#3DA9E0]/10 blur-[80px] transition-all duration-700 group-hover:bg-[#3DA9E0]/20" />
         <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <div className="flex items-start gap-4">
@@ -201,7 +201,7 @@ export function BenefitManagement() {
             return (
               <motion.div
                 animate={{ opacity: 1, scale: 1 }}
-                className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] backdrop-blur-sm"
+                className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-white/2 backdrop-blur-sm"
                 initial={{ opacity: 0, scale: 0.95 }}
                 key={benefit.id}
                 layout
@@ -214,7 +214,7 @@ export function BenefitManagement() {
                     className="h-full w-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105 group-hover:opacity-80"
                     src={benefit.image}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#000a16] via-[#000a16]/40 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-[#000a16] via-[#000a16]/40 to-transparent" />
 
                   <div className="absolute top-4 left-4 flex gap-2">
                     <span

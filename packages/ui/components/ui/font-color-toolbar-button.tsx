@@ -490,7 +490,7 @@ function ColorDropdownMenuItem({
       }}
       {...props}
     >
-      {isSelected ? <CheckIcon className="!size-3" strokeWidth={3} /> : null}
+      {isSelected ? <CheckIcon className="size-3!" strokeWidth={3} /> : null}
     </DropdownMenuItem>
   );
 

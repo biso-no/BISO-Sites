@@ -157,7 +157,7 @@ export function JobsListClient({
             >
               {/* Logo placeholder */}
               <div
-                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                 style={{
                   background: "rgba(61,169,224,0.10)",
                   border: "1px solid rgba(61,169,224,0.20)",

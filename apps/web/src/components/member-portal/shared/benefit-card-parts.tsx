@@ -114,7 +114,7 @@ type LinkRevealProps = {
 export function LinkReveal({ value, gradient, label }: LinkRevealProps) {
   return (
     <Button
-      className={`w-full bg-gradient-to-r ${gradient} text-white hover:opacity-90`}
+      className={`w-full bg-linear-to-r ${gradient} text-white hover:opacity-90`}
       onClick={() => window.open(value, "_blank")}
     >
       <ExternalLink className="mr-2 h-4 w-4" />
@@ -149,7 +149,7 @@ export function RevealButton({
       key="reveal-button"
     >
       <Button
-        className={`w-full bg-gradient-to-r ${gradient} text-white hover:opacity-90`}
+        className={`w-full bg-linear-to-r ${gradient} text-white hover:opacity-90`}
         disabled={isRevealing}
         onClick={onReveal}
       >

@@ -24,7 +24,7 @@ export function HeroRender({
             : undefined
         }
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#001731]/80 via-[#001731]/60 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-r from-[#001731]/80 via-[#001731]/60 to-transparent" />
         <div className="relative mx-auto flex max-w-6xl items-center gap-8 px-4 py-24">
           <div className="flex-1 text-white">
             {props.badge && (
@@ -192,7 +192,7 @@ export function PageHeaderRender(
   if (variant === "stat-strip") {
     const stats = props.stats ?? [];
     return (
-      <div className="bg-gradient-to-br from-[#001731] to-[#003366] px-4 py-16 text-white">
+      <div className="bg-linear-to-br from-[#001731] to-[#003366] px-4 py-16 text-white">
         <div className="mx-auto max-w-5xl">
           {props.breadcrumbs && props.breadcrumbs.length > 0 && (
             <nav className="mb-4 flex items-center gap-1.5 text-sm text-white/50">
@@ -264,7 +264,7 @@ export function BannerRender({
       border: "border-emerald-200",
     },
     brand: {
-      bg: "bg-gradient-to-r from-blue-600 to-indigo-600",
+      bg: "bg-linear-to-r from-blue-600 to-indigo-600",
       text: "text-white",
       icon: "text-white/80",
       border: "border-transparent",

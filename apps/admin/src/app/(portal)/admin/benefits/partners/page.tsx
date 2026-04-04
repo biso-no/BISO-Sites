@@ -65,12 +65,12 @@ export default async function BenefitPartnersPage() {
               {partner.image_url ? (
                 <img
                   alt={partner.name}
-                  className="h-10 w-10 flex-shrink-0 rounded-xl object-cover"
+                  className="h-10 w-10 shrink-0 rounded-xl object-cover"
                   src={partner.image_url}
                 />
               ) : (
                 <div
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                   style={{ background: "rgba(61,169,224,0.10)" }}
                 >
                   <Users size={16} style={{ color: "#3DA9E0" }} />

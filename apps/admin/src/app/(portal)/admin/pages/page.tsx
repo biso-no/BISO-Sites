@@ -55,7 +55,7 @@ export default async function PagesPage() {
               }}
             >
               <div
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
                 style={{ background: "rgba(255,255,255,0.05)" }}
               >
                 <Layers size={14} style={{ color: "rgba(255,255,255,0.40)" }} />

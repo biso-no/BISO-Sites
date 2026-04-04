@@ -51,7 +51,7 @@ export function MemberPortalHeader({
   return (
     <div className="relative overflow-hidden">
       {/* Background gradient with animated elements */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to">
+      <div className="absolute inset-0 bg-linear-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to">
         {/* Animated background shapes */}
         <motion.div
           animate={{
@@ -116,7 +116,7 @@ export function MemberPortalHeader({
                   </AvatarFallback>
                 </Avatar>
                 {isMember && (
-                  <div className="absolute -right-1 -bottom-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-accent to-yellow-400 shadow-lg">
+                  <div className="absolute -right-1 -bottom-1 flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-brand-accent to-yellow-400 shadow-lg">
                     <Crown className="h-4 w-4 text-brand-gradient-to" />
                   </div>
                 )}

@@ -82,7 +82,7 @@ export async function MemberPortalContent({
   const biEmail = `${studentId}@bi.no`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-section to-background dark:from-background dark:via-card dark:to-background">
+    <div className="min-h-screen bg-linear-to-b from-background via-section to-background dark:from-background dark:via-card dark:to-background">
       <MemberPortalHeader
         benefitsCount={benefits.length}
         campus={campus}

@@ -116,7 +116,7 @@ export function MembershipCtaSection() {
             >
               {option.popular && (
                 <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
-                  <Badge className="border-0 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to px-4 py-1.5 text-white shadow-lg">
+                  <Badge className="border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to px-4 py-1.5 text-white shadow-lg">
                     <Zap className="mr-1.5 h-3.5 w-3.5" />
                     {t("cta.popular")}
                   </Badge>
@@ -168,7 +168,7 @@ export function MembershipCtaSection() {
           <div className="grid gap-3 sm:grid-cols-2">
             {MEMBERSHIP_BENEFITS.map((benefit, index) => (
               <div className="flex items-center gap-3" key={index}>
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
                   <Check className="h-3.5 w-3.5 text-white" />
                 </div>
                 <span className="text-muted-foreground text-sm dark:text-muted-foreground">
@@ -187,7 +187,7 @@ export function MembershipCtaSection() {
           transition={{ delay: 0.5 }}
         >
           <Button
-            className="h-14 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to px-10 text-lg text-white shadow-brand/30 shadow-xl hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+            className="h-14 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to px-10 text-lg text-white shadow-brand/30 shadow-xl hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
             disabled={isPending}
             onClick={handlePurchase}
             size="lg"

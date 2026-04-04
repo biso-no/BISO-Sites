@@ -37,7 +37,7 @@ export function Dashboard() {
           </p>
           <h1 className="font-light text-4xl text-white tracking-tight md:text-5xl">
             Welcome back,{" "}
-            <span className="bg-gradient-to-r from-white to-white/50 bg-clip-text font-semibold text-transparent">
+            <span className="bg-linear-to-r from-white to-white/50 bg-clip-text font-semibold text-transparent">
               Alex
             </span>
             .
@@ -79,7 +79,7 @@ export function Dashboard() {
         ].map((stat, i) => (
           <motion.div
             animate={{ opacity: 1, scale: 1 }}
-            className="group relative overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm transition-colors hover:bg-white/[0.04]"
+            className="group relative overflow-hidden rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm transition-colors hover:bg-white/4"
             initial={{ opacity: 0, scale: 0.95 }}
             key={i}
             transition={{ delay: i * 0.1, duration: 0.4 }}
@@ -104,7 +104,7 @@ export function Dashboard() {
 
       {/* Main Chart Area */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm md:p-8 lg:col-span-2">
+        <div className="rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm md:p-8 lg:col-span-2">
           <div className="mb-8 flex items-center justify-between">
             <h2 className="font-medium text-white text-xl">Traffic Overview</h2>
             <select className="appearance-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 outline-none transition-colors focus:border-[#3DA9E0]">
@@ -167,7 +167,7 @@ export function Dashboard() {
         </div>
 
         {/* Activity Feed */}
-        <div className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 backdrop-blur-sm md:p-8">
+        <div className="rounded-3xl border border-white/5 bg-white/2 p-6 backdrop-blur-sm md:p-8">
           <h2 className="mb-6 font-medium text-white text-xl">
             Recent Activity
           </h2>
@@ -208,7 +208,7 @@ export function Dashboard() {
                     />
                   </div>
                   {i !== 3 && (
-                    <div className="absolute top-10 left-1/2 h-6 w-[1px] -translate-x-1/2 bg-white/10" />
+                    <div className="absolute top-10 left-1/2 h-6 w-px -translate-x-1/2 bg-white/10" />
                   )}
                 </div>
                 <div>

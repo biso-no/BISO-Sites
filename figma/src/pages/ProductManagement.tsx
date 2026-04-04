@@ -101,7 +101,7 @@ export function ProductManagement() {
         {MOCK_PRODUCTS.map((product, i) => (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="group overflow-hidden rounded-3xl border border-white/[0.05] bg-white/[0.02] transition-all duration-300 hover:bg-white/[0.04]"
+            className="group overflow-hidden rounded-3xl border border-white/5 bg-white/2 transition-all duration-300 hover:bg-white/4"
             initial={{ opacity: 0, y: 20 }}
             key={product.id}
             transition={{ delay: i * 0.1 }}

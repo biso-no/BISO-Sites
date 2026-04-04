@@ -101,7 +101,7 @@ export function NewsManagement() {
         {MOCK_NEWS.map((article, i) => (
           <motion.div
             animate={{ opacity: 1, x: 0 }}
-            className="group flex flex-col items-start justify-between rounded-3xl border border-white/[0.05] bg-white/[0.02] p-4 transition-all duration-300 hover:bg-white/[0.04] md:flex-row md:items-center md:p-6"
+            className="group flex flex-col items-start justify-between rounded-3xl border border-white/5 bg-white/2 p-4 transition-all duration-300 hover:bg-white/4 md:flex-row md:items-center md:p-6"
             initial={{ opacity: 0, x: -10 }}
             key={article.id}
             transition={{ delay: i * 0.1 }}

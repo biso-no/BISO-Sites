@@ -126,7 +126,7 @@ export function CoverImageUpload({
               src={cover}
             />
             {/* Overlay gradient */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
 
             {/* Cover badge */}
             <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 font-medium text-primary-foreground text-xs">

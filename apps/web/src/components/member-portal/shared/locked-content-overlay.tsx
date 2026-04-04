@@ -83,7 +83,7 @@ export function LockedContentOverlay({
       </div>
 
       {/* Overlay */}
-      <div className="absolute inset-0 flex items-start justify-center overflow-y-auto bg-gradient-to-b from-background/60 via-background/80 to-background p-4 pt-12 backdrop-blur-[1px] dark:from-inverted/60 dark:via-inverted/80 dark:to-inverted">
+      <div className="absolute inset-0 flex items-start justify-center overflow-y-auto bg-linear-to-b from-background/60 via-background/80 to-background p-4 pt-12 backdrop-blur-[1px] dark:from-inverted/60 dark:via-inverted/80 dark:to-inverted">
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-2xl"
@@ -100,7 +100,7 @@ export function LockedContentOverlay({
               {/* Lock icon with glow */}
               <motion.div
                 animate={{ scale: [1, 1.05, 1] }}
-                className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to shadow-brand/30 shadow-xl"
+                className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-brand/30 shadow-xl"
                 transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
               >
                 <Lock className="h-10 w-10 text-white" />
@@ -165,7 +165,7 @@ export function LockedContentOverlay({
                   </div>
 
                   <Button
-                    className="h-12 w-full bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+                    className="h-12 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
                     disabled={isPending}
                     onClick={handlePurchase}
                   >
@@ -212,7 +212,7 @@ export function LockedContentOverlay({
                   </div>
 
                   <Button
-                    className="h-12 w-full bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+                    className="h-12 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
                     onClick={handleLinkBIEmail}
                   >
                     <LinkIcon className="mr-2 h-5 w-5" />

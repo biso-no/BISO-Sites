@@ -233,7 +233,7 @@ export function PageEditor() {
                   className="h-full w-full object-cover opacity-60"
                   src={page.image || MOCK_PAGES[0].image}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#040914] via-[#040914]/40 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-[#040914] via-[#040914]/40 to-transparent" />
                 <div className="absolute inset-0 flex flex-col justify-end p-12">
                   <div className="group/edit relative -m-4 cursor-pointer rounded-lg border border-[#3DA9E0]/50 border-dashed p-4 transition-colors hover:bg-[#3DA9E0]/5">
                     <div className="absolute -top-3 -right-3 rounded bg-[#3DA9E0] px-2 py-1 font-bold text-[10px] text-black opacity-0 shadow-lg transition-opacity group-hover/edit:opacity-100">
@@ -369,7 +369,7 @@ export function PageEditor() {
                   <h3 className="mb-6 font-medium text-lg text-white">
                     Revision History
                   </h3>
-                  <div className="relative space-y-6 before:absolute before:inset-0 before:ml-[11px] before:h-full before:w-0.5 before:-translate-x-px before:bg-gradient-to-b before:from-transparent before:via-white/10 before:to-transparent md:before:mx-auto md:before:translate-x-0">
+                  <div className="relative space-y-6 before:absolute before:inset-0 before:ml-[11px] before:h-full before:w-0.5 before:-translate-x-px before:bg-linear-to-b before:from-transparent before:via-white/10 before:to-transparent md:before:mx-auto md:before:translate-x-0">
                     {/* Mock timeline items */}
                     <div className="group is-active relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse">
                       <div className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#001731] text-[#3DA9E0] shadow-[0_0_10px_#3DA9E0] md:order-1 md:group-even:translate-x-1/2 md:group-odd:-translate-x-1/2">
@@ -409,7 +409,7 @@ export function PageEditor() {
         {showPublishModal && (
           <motion.div
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#000a16]/80 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-100 flex items-center justify-center bg-[#000a16]/80 p-4 backdrop-blur-md"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
           >

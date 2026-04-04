@@ -58,11 +58,11 @@ export function BenefitPreviewCard({
     >
       <Card className="relative overflow-hidden border-0 bg-background p-0 shadow-lg transition-all duration-300 hover:shadow-2xl dark:bg-inverted/50">
         {/* Animated gradient border effect */}
-        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-brand/20 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        <div className="absolute inset-0 rounded-xl bg-linear-to-r from-transparent via-brand/20 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
         {/* Category gradient header */}
         <div
-          className={`bg-gradient-to-r ${gradient} relative h-24 overflow-hidden p-4`}
+          className={`bg-linear-to-r ${gradient} relative h-24 overflow-hidden p-4`}
         >
           {/* Background pattern */}
           <div className="absolute inset-0 opacity-20">
@@ -89,7 +89,7 @@ export function BenefitPreviewCard({
         <div className="p-5">
           {/* Category badge */}
           <Badge
-            className={`mb-3 bg-gradient-to-r ${gradient} border-0 text-white`}
+            className={`mb-3 bg-linear-to-r ${gradient} border-0 text-white`}
           >
             {category}
           </Badge>

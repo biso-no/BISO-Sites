@@ -34,7 +34,7 @@ export default async function ActivityPage() {
               }
             >
               {/* Timeline dot */}
-              <div className="relative mt-0.5 flex-shrink-0">
+              <div className="relative mt-0.5 shrink-0">
                 <div
                   className="flex h-8 w-8 items-center justify-center rounded-full"
                   style={{
@@ -83,7 +83,7 @@ export default async function ActivityPage() {
                   </div>
 
                   <time
-                    className="flex-shrink-0 text-xs"
+                    className="shrink-0 text-xs"
                     dateTime={log.$createdAt}
                     style={{ color: "rgba(255,255,255,0.30)" }}
                   >

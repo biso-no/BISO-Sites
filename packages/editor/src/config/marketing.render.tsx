@@ -285,7 +285,7 @@ export function CountdownRender({
       ? "w-full py-12 px-4 bg-white"
       : variant === "minimal"
         ? "w-full py-8 px-4"
-        : "w-full py-16 px-4 bg-gradient-to-br from-gray-900 to-gray-800 text-white";
+        : "w-full py-16 px-4 bg-linear-to-br from-gray-900 to-gray-800 text-white";
 
   const boxClass =
     variant === "card"

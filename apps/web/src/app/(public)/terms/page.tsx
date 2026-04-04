@@ -47,9 +47,9 @@ export default async function TermsPage() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-section to-background">
+    <div className="min-h-screen bg-linear-to-b from-background via-section to-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to py-20">
+      <section className="relative overflow-hidden bg-linear-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to py-20">
         {/* Animated background elements */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-10 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
@@ -109,13 +109,13 @@ export default async function TermsPage() {
               >
                 {/* Section gradient header */}
                 <div
-                  className={`bg-gradient-to-r ${gradient} relative h-2 w-full`}
+                  className={`bg-linear-to-r ${gradient} relative h-2 w-full`}
                 />
 
                 <div className="p-6">
                   <div className="mb-4 flex items-start gap-4">
                     <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} shadow-lg`}
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${gradient} shadow-lg`}
                     >
                       <Icon className="h-6 w-6 text-white" />
                     </div>
@@ -154,7 +154,7 @@ export default async function TermsPage() {
         </div>
 
         {/* Footer CTA */}
-        <Card className="mt-8 border-0 bg-gradient-to-r from-brand-muted to-brand-muted-strong p-8 text-center shadow-lg dark:from-brand-muted dark:to-brand-muted-strong">
+        <Card className="mt-8 border-0 bg-linear-to-r from-brand-muted to-brand-muted-strong p-8 text-center shadow-lg dark:from-brand-muted dark:to-brand-muted-strong">
           <h3 className="mb-2 font-bold text-foreground text-xl">
             {t("footer.title")}
           </h3>
