@@ -25,7 +25,7 @@ async function _getVippsAccessToken() {
   return accessToken;
 }
 
-async function createVippsCheckout({
+async function _createVippsCheckout({
   email,
   firstName,
   lastName,

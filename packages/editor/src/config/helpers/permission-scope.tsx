@@ -102,7 +102,7 @@ export const CAMPUS_OPTIONS = [
 ] as const;
 
 /** Converts a campus name string to its value (e.g. "Oslo" → "1"). */
-function campusNameToValue(name: string): string | undefined {
+function _campusNameToValue(name: string): string | undefined {
   return CAMPUS_OPTIONS.find(
     (o) => o.label.toLowerCase() === name.toLowerCase()
   )?.value;
@@ -167,7 +167,7 @@ function LockedDeptIndicator({ deptName }: { deptName: string }) {
  * - Global admin / campus admin → [] (they can use the scope field freely)
  * - Department user              → department_id filter (forces their content)
  */
-async function getMandatoryScopeFilters(
+async function _getMandatoryScopeFilters(
   table: "events" | "news" | "jobs" | "products",
   user: ScopeUser | undefined,
   metadata: PuckMetadata | undefined

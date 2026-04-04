@@ -156,7 +156,7 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
   return { data: id };
 }
 
-async function deleteBenefit(id: string) {
+async function _deleteBenefit(id: string) {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 

@@ -155,7 +155,7 @@ export function PreviewPanel({
 }
 
 /** Thin wrapper: preview toggle button for the page header */
-function PreviewToggleButton({
+function _PreviewToggleButton({
   onClick,
   active,
 }: {

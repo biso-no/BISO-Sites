@@ -86,7 +86,7 @@ export interface PageViewDay {
   views: number;
 }
 
-async function getPageViewStats(days = 14): Promise<PageViewDay[]> {
+async function _getPageViewStats(days = 14): Promise<PageViewDay[]> {
   await requireAuth();
 
   const since = new Date();

@@ -77,7 +77,7 @@ export async function searchStudentInCRM(
 /**
  * Create a new student customer in 24SevenOffice CRM.
  */
-async function createStudentInCRM(
+async function _createStudentInCRM(
   studentId: string,
   firstName: string,
   lastName: string

@@ -51,7 +51,7 @@ export async function listManagedPartners(
   return { partners: response.rows ?? [], total: response.total ?? 0 };
 }
 
-async function getPartner(id: string): Promise<BenefitPartner> {
+async function _getPartner(id: string): Promise<BenefitPartner> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     throw new Error("Unauthorized");

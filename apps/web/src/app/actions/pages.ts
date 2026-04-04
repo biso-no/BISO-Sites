@@ -64,14 +64,14 @@ export async function getPublicPage(
   return pageData;
 }
 
-function getPublicPagePreview(
+function _getPublicPagePreview(
   slug: string,
   locale: Locale
 ): Promise<PublishedPage | null> {
   return getPublishedPage({ slug, locale, preview: true });
 }
 
-async function getDemoPage(
+async function _getDemoPage(
   slug: string,
   locale: Locale
 ): Promise<PageTranslations | null> {

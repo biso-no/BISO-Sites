@@ -88,7 +88,7 @@ export function buildCompanyCategoriesMap(
 /**
  * Create initial sync state object
  */
-function createInitialSyncState(jobId: string, timestamp: string) {
+function _createInitialSyncState(jobId: string, timestamp: string) {
   return {
     job_id: jobId,
     status: "running",

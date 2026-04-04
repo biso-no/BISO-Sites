@@ -66,6 +66,6 @@ export async function createAuthenticatedClient(
 /**
  * Clear the client cache (useful for testing or token refresh)
  */
-function clearClientCache(): void {
+function _clearClientCache(): void {
   clientCache.clear();
 }

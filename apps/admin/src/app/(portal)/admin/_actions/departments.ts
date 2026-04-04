@@ -44,7 +44,7 @@ export async function listDepartments(opts?: {
   return response.rows;
 }
 
-async function getDepartment(id: string) {
+async function _getDepartment(id: string) {
   await requireAuth();
   const { db } = await createSessionClient();
 

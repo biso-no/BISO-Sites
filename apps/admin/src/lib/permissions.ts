@@ -87,7 +87,7 @@ export function buildPagePermissions(input: {
  * @deprecated Use buildPagePermissions({ departmentTeamId }) instead.
  * Kept for any callers not yet migrated.
  */
-function buildDepartmentPagePermissions(
+function _buildDepartmentPagePermissions(
   departmentTeamId: string,
   campusManagementTeamId?: string | null
 ): string[] {
@@ -98,7 +98,7 @@ function buildDepartmentPagePermissions(
  * @deprecated Use buildPagePermissions({ departmentTeamId, campusManagementTeamId }) instead.
  * Campus teams no longer receive Appwrite permissions.
  */
-function buildCampusPagePermissions(
+function _buildCampusPagePermissions(
   _campusTeamId: string,
   campusManagementTeamId?: string | null
 ): string[] {
@@ -109,7 +109,7 @@ function buildCampusPagePermissions(
  * Build permissions for a product pending approval.
  * Dept team gets read + update; campus mgmt team gets read for the approval workflow.
  */
-function buildPendingProductPermissions(
+function _buildPendingProductPermissions(
   departmentTeamId: string,
   campusManagementTeamId: string
 ): string[] {
@@ -124,15 +124,15 @@ function buildPendingProductPermissions(
 /**
  * Build permissions for a published product
  */
-function buildPublishedProductPermissions(): string[] {
+function _buildPublishedProductPermissions(): string[] {
   return [Permission.read(Role.any())];
 }
 
-function buildEditorialTemplatePermissions(): string[] {
+function _buildEditorialTemplatePermissions(): string[] {
   return [Permission.read(Role.users())];
 }
 
-function buildEditorialEntryPermissions(input: {
+function _buildEditorialEntryPermissions(input: {
   visibility: PageVisibility;
   userId?: string | null;
   campusManagementTeamId?: string | null;
@@ -171,9 +171,7 @@ function buildEditorialEntryPermissions(input: {
  * Table-level read("any") already grants public read; row-level permissions
  * only need to cover write access for the matching SG-App-Dept team.
  */
-function buildDepartmentRowPermissions(
-  departmentTeamId: string
-): string[] {
+function _buildDepartmentRowPermissions(departmentTeamId: string): string[] {
   return [
     Permission.read(Role.any()),
     Permission.update(Role.team(departmentTeamId)),

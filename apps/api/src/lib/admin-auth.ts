@@ -128,7 +128,7 @@ export function canManageCampus(
 /**
  * Check if the admin scope allows managing a specific department
  */
-function canManageDepartment(
+function _canManageDepartment(
   scope: AdminScope,
   campusName: string,
   departmentName: string
@@ -156,7 +156,7 @@ function canManageDepartment(
 /**
  * Filter items by campus scope
  */
-function filterByCampusScope<T>(
+function _filterByCampusScope<T>(
   items: T[],
   scope: AdminScope,
   getCampusName: (item: T) => string | null | undefined
@@ -203,7 +203,7 @@ export async function createAuditLog(data: {
 /**
  * Validate that request has valid admin session
  */
-async function requireAdminScope(req: NextRequest): Promise<AdminScope> {
+async function _requireAdminScope(req: NextRequest): Promise<AdminScope> {
   const scope = await getAdminScope(req);
   if (!scope) {
     throw new Error("Unauthorized: No valid admin session");

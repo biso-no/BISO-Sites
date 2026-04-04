@@ -152,7 +152,7 @@ export async function getManagedPage(pageId: string) {
   return (await canWriteDocument(page.permissions)) ? page : null;
 }
 
-async function createManagedPage(input: CreateManagedPageInput) {
+async function _createManagedPage(input: CreateManagedPageInput) {
   const payload: UpsertPageInput = {
     slug: input.slug,
     title: input.title,
@@ -179,7 +179,7 @@ async function createManagedPage(input: CreateManagedPageInput) {
   return page;
 }
 
-async function updateManagedPage(input: UpdateManagedPageInput) {
+async function _updateManagedPage(input: UpdateManagedPageInput) {
   const existing = await getPageById(input.pageId);
   if (!existing) {
     throw new Error("Page not found");

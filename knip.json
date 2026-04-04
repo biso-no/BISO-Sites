@@ -5,22 +5,22 @@
     "**/public/**",
     "**/*-temp.*",
     "**/i18n/**",
-    
+
     "apps/admin/src/app/actions/migration/**",
     "apps/admin/src/lib/types/**",
     "apps/admin/src/app/(admin)/**/shared/**",
-    
+
     "apps/web/src/components/expense/**",
     "apps/web/src/components/expense-v2/**",
     "apps/web/src/components/shop/product/**",
     "apps/web/src/components/member-portal/**",
     "apps/web/src/lib/types/**",
-    
+
     "packages/editor/src/fields/**"
   ],
   "ignoreDependencies": [
     "classnames",
-    
+
     "@repo/shared",
     "@repo/hooks",
     "postcss",
@@ -31,7 +31,7 @@
     "@ai-sdk/gateway",
     "zod",
     "next",
-    
+
     "@/registry/components/editor/use-chat",
     "@/registry/components/editor/editor-base-kit",
     "@/registry/lib/markdown-joiner-transform",

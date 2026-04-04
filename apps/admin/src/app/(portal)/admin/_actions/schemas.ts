@@ -101,7 +101,7 @@ export const productSchema = z.object({
   image: z.string().url().optional().nullable().or(z.literal("")),
   stock: z.coerce.number().int().nonnegative().optional().nullable(),
 });
-const PRODUCTS_PAGE_SIZE = 20;
+const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;
 
 export const MEDIA_BUCKET_ID = "media";

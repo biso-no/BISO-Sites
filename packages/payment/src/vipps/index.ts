@@ -1,9 +1,5 @@
-import type {
-  CheckoutSessionParams,
-  VippsPaymentState,
-} from "@repo/shared/types/vipps";
-import { buildPrefillCustomer } from "@repo/shared/utils/vipps-pure";
 import { client } from "./client";
+import type { CheckoutSessionParams, VippsPaymentState } from "./types";
 
 const clientId = process.env.VIPPS_CLIENT_ID!;
 const clientSecret = process.env.VIPPS_CLIENT_SECRET!;
@@ -36,8 +32,6 @@ export async function createVippsCheckoutSession(
     },
   }));
 
-  const prefillCustomer = buildPrefillCustomer(params.customerInfo);
-
   const result = await client.checkout.create(clientId, clientSecret, {
     merchantInfo: {
       callbackUrl: `${baseUrl}/api/payment/vipps/callback`,
@@ -59,8 +53,17 @@ export async function createVippsCheckoutSession(
         },
       },
     },
+    prefillCustomer: {
+      firstName: params.customerInfo?.firstName,
+      lastName: params.customerInfo?.lastName,
+      email: params.customerInfo?.email,
+      phoneNumber: params.customerInfo?.phone,
+      city: params.customerInfo?.city,
+      postalCode: params.customerInfo?.postalCode,
+      country: params.customerInfo?.country,
+      streetAddress: params.customerInfo?.streetAddress,
+    },
     type: "PAYMENT" as const,
-    ...(prefillCustomer ? { prefillCustomer } : {}),
   });
 
   if (!result.ok) {
