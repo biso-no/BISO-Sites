@@ -1,5 +1,18 @@
 {
   "enabledPlugins": {
     "oh-my-claudecode@omc": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "bun fix --skip=correctness/noUnusedImports",
+            "type": "command"
+          }
+        ],
+        "matcher": "Write|Edit"
+      }
+    ]
   }
 }
