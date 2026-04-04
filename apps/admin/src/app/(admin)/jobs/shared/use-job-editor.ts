@@ -19,57 +19,38 @@ const filterDepartments = (
   departments: { $id: string; Name: string; campus_id?: string }[] | undefined,
   selectedCampus: string
 ) => {
-  if (!departments) {
-    return [];
-  }
-  if (!selectedCampus) {
-    return departments;
-  }
-  return departments.filter(
-    (department) => department.campus_id === selectedCampus
-  );
+  if (!departments) return [];
+  if (!selectedCampus) return departments;
+  return departments.filter((d) => d.campus_id === selectedCampus);
 };
 
-const getJobMetadata = (job?: AdminJob | null) => job?.metadata_parsed ?? {};
-const getJobTranslation = (
-  job: AdminJob | null | undefined,
-  locale: "en" | "no"
-) => job?.translations?.[locale];
-
-const buildMetadataDefaults = (
-  metadata: ReturnType<typeof getJobMetadata>
-) => ({
-  type: metadata.type || "",
-  application_deadline: metadata.application_deadline || "",
-  start_date: metadata.start_date || "",
-  contact_name: metadata.contact_name || "",
-  contact_email: metadata.contact_email || "",
-  apply_url: metadata.apply_url || "",
-  image: metadata.image || "",
-});
-
-const buildTranslationDefaults = (
-  en: ReturnType<typeof getJobTranslation>,
-  no: ReturnType<typeof getJobTranslation>
-) => ({
-  en_title: en?.title || "",
-  en_description: en?.description || "",
-  no_title: no?.title || "",
-  no_description: no?.description || "",
-});
-
 const buildDefaultValues = (job?: AdminJob | null): FormValues => {
-  const metadata = getJobMetadata(job);
-  const en = getJobTranslation(job, "en");
-  const no = getJobTranslation(job, "no");
+  const metadata = job?.metadata_parsed ?? {};
+  const en = job?.translations?.en;
+  const no = job?.translations?.no;
 
   return {
-    slug: job?.slug || "",
-    status: (job?.status as "draft" | "published" | "closed") || "draft",
-    campus_id: job?.campus_id || "",
-    department_id: job?.department_id || "",
-    ...buildMetadataDefaults(metadata),
-    ...buildTranslationDefaults(en, no),
+    slug: job?.slug ?? "",
+    status: (job?.status as FormValues["status"]) ?? "draft",
+    campus_id: job?.campus_id ?? "",
+    department_id: job?.department_id ?? "",
+    type: (metadata.type as string) ?? "",
+    application_deadline: (metadata.application_deadline as string) ?? "",
+    start_date: (metadata.start_date as string) ?? "",
+    contact_name: (metadata.contact_name as string) ?? "",
+    contact_email: (metadata.contact_email as string) ?? "",
+    apply_url: (metadata.apply_url as string) ?? "",
+    image: (metadata.image as string) ?? "",
+    translations: {
+      en: {
+        title: en?.title ?? "",
+        description: en?.description ?? "",
+      },
+      no: {
+        title: no?.title ?? "",
+        description: no?.description ?? "",
+      },
+    },
   };
 };
 
@@ -80,10 +61,10 @@ export function useJobEditor(
   const router = useRouter();
   const t = useTranslations("adminJobs");
   const [selectedCampus, setSelectedCampus] = useState<string>(
-    job?.campus_id || ""
+    job?.campus_id ?? ""
   );
   const [isTranslating, setIsTranslating] = useState(false);
-  const [activeTab, setActiveTab] = useState<"en" | "no">("en");
+  const [activeLocale, setActiveLocale] = useState<"en" | "no">("en");
 
   const filteredDepartments = useMemo(
     () => filterDepartments(departments, selectedCampus),
@@ -92,6 +73,7 @@ export function useJobEditor(
 
   const form: UseFormReturn<FormValues> = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    mode: "onBlur",
     defaultValues: buildDefaultValues(job),
   });
 
@@ -110,7 +92,7 @@ export function useJobEditor(
       t,
       setIsTranslating,
       setValue: form.setValue,
-      setActiveTab,
+      setActiveLocale,
       showToast: toast,
     });
   };
@@ -122,8 +104,8 @@ export function useJobEditor(
     selectedCampus,
     setSelectedCampus,
     isTranslating,
-    activeTab,
-    setActiveTab,
+    activeLocale,
+    setActiveLocale,
     filteredDepartments,
     onSubmit,
     handleTranslate: onTranslate,

@@ -7,36 +7,38 @@ import {
 } from "@repo/ai/hooks/use-copilot-context";
 import { useCopilotForm } from "@repo/ai/hooks/use-copilot-form";
 import { eventFormFields } from "@repo/ai/schemas/registry";
-// UI components
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@repo/ui/components/ui/breadcrumb";
 import { Form } from "@repo/ui/components/ui/form";
-import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-// External libraries
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
-// Internal server actions
-import {
-  getAllowedCampuses,
-  getCampusWithDepartments,
-} from "@/app/actions/campus";
+import { getCampusWithDepartments } from "@/app/actions/campus";
 import { createEvent, updateEvent } from "@/app/actions/events";
-
-// Internal hooks & types
+import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
+import { FormSection } from "@/components/forms/FormSection";
+import { type SaveStatus, SaveBar } from "@/components/forms/SaveBar";
+import { EventPreviewPane } from "@/components/preview/EventPreviewPane";
+import { PreviewPanel } from "@/components/preview/PreviewPanel";
+import { useAutosave } from "@/hooks/useAutosave";
+import { useDirtyWarning } from "@/hooks/useDirtyWarning";
 import { toast } from "@/lib/hooks/use-toast";
 import type { AdminEvent } from "@/lib/types/event";
 import type { Campus } from "@/lib/types/post";
 
-// Local components
 import { EventOptions } from "./event-options";
 import { EventSchedule } from "./event-schedule";
 import { EventSidebar } from "./event-sidebar";
 import { EventTranslations } from "./event-translations";
 import type { FormValues } from "./schema";
-// Local schema
 import {
   formSchema,
   getEventDefaultValues,
@@ -45,35 +47,57 @@ import {
 
 type EventEditorProps = {
   event?: AdminEvent | null;
+  campuses: Campus[];
 };
 
-export default function EventEditor({ event }: EventEditorProps) {
+export default function EventEditor({ event, campuses }: EventEditorProps) {
   const router = useRouter();
   const t = useTranslations("adminEvents");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [campuses, setCampuses] = useState<Campus[]>([]);
+
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [departments, setDepartments] = useState<
     Array<{ $id: string; Name: string }>
   >([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<{
+    values: FormValues;
+    savedAt: Date;
+  } | null>(null);
 
   const isEditing = !!event;
+  const storageKey = `event:${event?.$id ?? "new"}`;
+  const eventTitle = event?.translation_refs?.[0]?.title ?? event?.slug ?? "";
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: getEventDefaultValues(event || undefined),
+    defaultValues: getEventDefaultValues(event ?? undefined),
+    mode: "onBlur",
   });
 
-  const eventTitle = event?.translation_refs?.[0]?.title || event?.slug || "";
+  const { isDirty, isSubmitting } = form.formState;
 
-  // Register form with AI copilot for streaming field updates
+  // Autosave
+  const { lastSaved, enabled: autosaveEnabled, setEnabled: setAutosave, clearDraft } =
+    useAutosave<FormValues>({
+      storageKey,
+      values: form.watch(),
+      isDirty,
+      onRestoreDraft: (draft) => {
+        // Surface the banner instead of silently restoring
+        setPendingDraft({ values: draft, savedAt: new Date() });
+      },
+    });
+
+  // Dirty state warning
+  useDirtyWarning({ isDirty, isSubmitting });
+
+  // AI copilot wiring (unchanged)
   useCopilotForm({
     form,
     capability: isEditing ? "edit-event" : "create-event",
     fields: eventFormFields,
   });
 
-  // Register entity context with AI copilot (so AI knows what event we're editing)
   useEntityContext(
     event
       ? {
@@ -84,29 +108,14 @@ export default function EventEditor({ event }: EventEditorProps) {
           locale: event.translation_refs?.[0]?.locale,
           metadata: { status: event.status },
         }
-      : null
+      : null,
   );
 
-  // Register page context
   usePageContext({
     section: "events",
     viewType: isEditing ? "editor" : "create",
     breadcrumb: isEditing ? ["Events", eventTitle] : ["Events", "New Event"],
   });
-
-  // Load campuses
-  useEffect(() => {
-    async function fetchCampuses() {
-      try {
-        const campusData = await getAllowedCampuses();
-        setCampuses(campusData);
-      } catch (error) {
-        console.error("Error fetching campuses:", error);
-        toast({ title: "Failed to load campuses", variant: "destructive" });
-      }
-    }
-    fetchCampuses();
-  }, []);
 
   // Load departments when campus changes
   const loadDepartmentsForCampus = useCallback(async (campusId: string) => {
@@ -114,19 +123,19 @@ export default function EventEditor({ event }: EventEditorProps) {
       setDepartments([]);
       return;
     }
-
     setLoadingDepartments(true);
     try {
       const result = await getCampusWithDepartments(campusId);
       if (result.success && result.campus?.departments) {
         setDepartments(
-          result.campus.departments.filter((dept: any) => dept.active)
+          result.campus.departments.filter(
+            (dept: { active?: boolean }) => dept.active,
+          ),
         );
       } else {
         setDepartments([]);
       }
-    } catch (error) {
-      console.error("Error loading departments:", error);
+    } catch {
       toast({ title: "Failed to load departments", variant: "destructive" });
       setDepartments([]);
     } finally {
@@ -134,27 +143,26 @@ export default function EventEditor({ event }: EventEditorProps) {
     }
   }, []);
 
-  // Initial departments load
+  // Initial department load
   useEffect(() => {
     if (event?.campus_id) {
       loadDepartmentsForCampus(event.campus_id);
     }
   }, [event, loadDepartmentsForCampus]);
 
-  // Watch for campus changes
+  // Watch campus changes
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
+    const sub = form.watch((value, { name }) => {
       if (name === "campus_id" && value.campus_id) {
-        // Clear department when campus changes
         form.setValue("department_id", "");
         loadDepartmentsForCampus(value.campus_id);
       }
     });
-    return () => subscription.unsubscribe();
+    return () => sub.unsubscribe();
   }, [form, loadDepartmentsForCampus]);
 
   const onSubmit = async (values: FormValues) => {
-    setIsSubmitting(true);
+    setSaveStatus("saving");
     try {
       const payload = mapFormValuesToPayload(values);
 
@@ -166,71 +174,112 @@ export default function EventEditor({ event }: EventEditorProps) {
         toast({ title: t("messages.eventCreated") });
       }
 
+      clearDraft();
+      setSaveStatus("saved");
       router.push("/events");
     } catch (error) {
       console.error(error);
+      setSaveStatus("error");
       toast({ title: t("messages.eventSaveFailed"), variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const headerTitle = isEditing
-    ? t("editor.headerEdit", { title: eventTitle || t("editor.title") })
-    : t("editor.headerNew");
+  const handleSave = form.handleSubmit(onSubmit);
+  const handleCancel = () => {
+    if (isDirty) {
+      const ok = window.confirm(
+        "You have unsaved changes. Leave without saving?",
+      );
+      if (!ok) return;
+    }
+    router.back();
+  };
+
+  const formValues = form.watch();
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <div className="flex flex-col sm:gap-4">
-        <main className="grid flex-1 items-start gap-4">
-          {/* Header */}
-          <div className="mb-4 flex items-center gap-4">
-            <Button
-              className="h-7 w-7"
-              onClick={() => router.back()}
-              size="icon"
-              variant="outline"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">{t("editor.back")}</span>
-            </Button>
-            <h1 className="flex-1 shrink-0 whitespace-nowrap font-semibold text-xl tracking-tight sm:grow-0">
-              {headerTitle}
-            </h1>
-            <Badge className="ml-auto sm:ml-0" variant="outline">
-              {form.watch("status")}
-            </Badge>
-            <div className="hidden items-center gap-2 md:ml-auto md:flex">
-              <Button onClick={() => router.back()} size="sm" variant="outline">
-                {t("form.cancel")}
-              </Button>
-              <Button
-                disabled={isSubmitting}
-                onClick={form.handleSubmit(onSubmit)}
-                size="sm"
-              >
-                {isSubmitting ? t("editor.saving") : t("editor.saveEvent")}
-              </Button>
-            </div>
-          </div>
+    <div className="flex min-h-screen flex-col">
+      {/* Breadcrumb header */}
+      <div className="border-b border-border/40 bg-background/80 px-6 py-3 backdrop-blur-sm">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/events">
+                {t("editor.events") || "Events"}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {isEditing
+                  ? eventTitle || t("editor.edit")
+                  : t("editor.newEvent") || "New Event"}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
+      {/* Draft restore banner */}
+      {pendingDraft && (
+        <div className="px-6 pt-4">
+          <DraftRestoreBanner
+            savedAt={pendingDraft.savedAt}
+            onRestore={() => {
+              form.reset(pendingDraft.values);
+              setPendingDraft(null);
+            }}
+            onDiscard={() => {
+              clearDraft();
+              setPendingDraft(null);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Main content — PreviewPanel handles resizable split */}
+      <div className="flex-1 overflow-hidden">
+        <PreviewPanel
+          renderPreview={(locale) => (
+            <EventPreviewPane data={formValues} locale={locale} />
+          )}
+        >
           <Form {...form}>
             <form
-              className="grid gap-6 lg:grid-cols-[1fr_400px]"
-              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-6 px-6 py-6 lg:grid lg:gap-6 lg:space-y-0 lg:grid-cols-[1fr_360px]"
+              onSubmit={handleSave}
             >
-              {/* LEFT COLUMN - Form Content */}
-              <div className="space-y-6">
-                <EventTranslations />
-                <EventSchedule
-                  campuses={campuses}
-                  departments={departments}
-                  loadingDepartments={loadingDepartments}
-                />
-                <EventOptions event={event} />
+              {/* LEFT COLUMN */}
+              <div className="space-y-5">
+                <FormSection
+                  title={t("editor.eventContentTitle") || "Event Content"}
+                  subtitle="Title and description in all languages"
+                >
+                  <EventTranslations />
+                </FormSection>
+
+                <FormSection
+                  title={t("editor.scheduleTitle") || "Schedule & Location"}
+                  subtitle="Dates, times, and venue"
+                >
+                  <EventSchedule
+                    campuses={campuses}
+                    departments={departments}
+                    loadingDepartments={loadingDepartments}
+                  />
+                </FormSection>
+
+                <FormSection
+                  title={t("editor.optionsTitle") || "Options"}
+                  subtitle="Pricing, ticket links, member access, collections"
+                  collapsible
+                  defaultOpen={isEditing}
+                >
+                  <EventOptions event={event} />
+                </FormSection>
               </div>
 
-              {/* RIGHT COLUMN - Sticky Sidebar */}
+              {/* RIGHT COLUMN — Sidebar */}
               <EventSidebar
                 campuses={campuses}
                 departments={departments}
@@ -238,22 +287,21 @@ export default function EventEditor({ event }: EventEditorProps) {
               />
             </form>
           </Form>
-
-          {/* Mobile Actions */}
-          <div className="mt-4 flex items-center justify-center gap-2 md:hidden">
-            <Button onClick={() => router.back()} size="sm" variant="outline">
-              {t("form.cancel")}
-            </Button>
-            <Button
-              disabled={isSubmitting}
-              onClick={form.handleSubmit(onSubmit)}
-              size="sm"
-            >
-              {isSubmitting ? t("editor.saving") : t("editor.saveEvent")}
-            </Button>
-          </div>
-        </main>
+        </PreviewPanel>
       </div>
+
+      {/* Sticky save bar */}
+      <SaveBar
+        status={saveStatus}
+        lastSaved={lastSaved}
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        autosaveEnabled={autosaveEnabled}
+        onAutosaveToggle={setAutosave}
+        saveLabel={isEditing ? t("editor.saveEvent") : t("editor.saveEvent")}
+      />
     </div>
   );
 }

@@ -6,7 +6,8 @@
       "Bash(./node_modules/.bin/tsc --noEmit -p apps/admin/tsconfig.json)",
       "Bash(./node_modules/.bin/tsc --noEmit -p packages/editor/tsconfig.json)",
       "Bash(grep -v \"^$\")",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in {**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}.items\\(\\) if '@repo' in k or 'stripe' in k or 'vipps' in k}, indent=2\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in {**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}.items\\(\\) if '@repo' in k or 'stripe' in k or 'vipps' in k}, indent=2\\)\\)\")",
+      "Bash(node -e ':*)"
     ]
   }
 }

@@ -1,8 +1,13 @@
 import { z } from "zod";
+export { slugify } from "@/components/forms/slugify";
 
 export const formSchema = z.object({
   // Database schema fields
-  slug: z.string().min(1, "Slug is required"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .max(200)
+    .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
   status: z.enum(["draft", "published", "cancelled"]),
   campus_id: z.string().min(1, "Campus is required"),
   start_date: z.string().optional(),
@@ -32,36 +37,29 @@ export const formSchema = z.object({
   // Translations
   translations: z.object({
     en: z.object({
-      title: z.string().min(1, "English title is required"),
-      description: z.string().min(1, "English description is required"),
+      title: z
+        .string()
+        .min(5, "English title must be at least 5 characters")
+        .max(100, "English title must be 100 characters or fewer"),
+      description: z
+        .string()
+        .min(20, "English description must be at least 20 characters")
+        .max(50000),
     }),
     no: z.object({
-      title: z.string().min(1, "Norwegian title is required"),
-      description: z.string().min(1, "Norwegian description is required"),
+      title: z
+        .string()
+        .min(5, "Norwegian title must be at least 5 characters")
+        .max(100, "Norwegian title must be 100 characters or fewer"),
+      description: z
+        .string()
+        .min(20, "Norwegian description must be at least 20 characters")
+        .max(50000),
     }),
   }),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
-
-const SLUG_REGEX_WHITESPACE = /\s+/g;
-const SLUG_REGEX_INVALID_CHARS = /[^\w-]+/g;
-const SLUG_REGEX_MULTI_DASH = /--+/g;
-const SLUG_REGEX_START_DASH = /^-+/;
-const SLUG_REGEX_END_DASH = /-+$/;
-
-// Slugify function
-export function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(SLUG_REGEX_WHITESPACE, "-")
-    .replace(SLUG_REGEX_INVALID_CHARS, "")
-    .replace(SLUG_REGEX_MULTI_DASH, "-")
-    .replace(SLUG_REGEX_START_DASH, "")
-    .replace(SLUG_REGEX_END_DASH, "");
-}
 
 export function mapFormValuesToPayload(values: FormValues) {
   const ticketUrl = values.ticket_url?.trim() || undefined;

@@ -1,15 +1,24 @@
 "use client";
 
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@repo/ui/components/ui/breadcrumb";
 import { Form } from "@repo/ui/components/ui/form";
-import { Languages } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
+import { FormSection } from "@/components/forms/FormSection";
+import { SaveBar } from "@/components/forms/SaveBar";
+import type { SaveStatus } from "@/components/forms/SaveBar";
+import { JobPreviewPane } from "@/components/preview/JobPreviewPane";
+import { PreviewPanel } from "@/components/preview/PreviewPanel";
+import { useAutosave } from "@/hooks/useAutosave";
+import { useDirtyWarning } from "@/hooks/useDirtyWarning";
 import type { AdminJob } from "@/lib/types/job";
 import { JobBasicInfo } from "./job-basic-info";
 import { JobMetadata } from "./job-metadata";
@@ -25,135 +34,169 @@ export default function JobEditor({
   campuses?: { $id: string; name: string }[];
   departments?: { $id: string; Name: string; campus_id?: string }[];
 }) {
+  const t = useTranslations("adminJobs");
+  const storageKey = `job:${job?.$id ?? "new"}`;
+
   const {
     form,
-    t,
     router,
     setSelectedCampus,
     isTranslating,
-    activeTab,
-    setActiveTab,
+    activeLocale,
+    setActiveLocale,
     filteredDepartments,
     onSubmit,
     handleTranslate,
   } = useJobEditor(job, departments);
 
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [draftRestoreData, setDraftRestoreData] = useState<{
+    values: ReturnType<typeof form.getValues>;
+    savedAt: Date;
+  } | null>(null);
+
+  const { isDirty, isSubmitting } = form.formState;
+
+  const autosave = useAutosave({
+    storageKey,
+    values: form.watch(),
+    isDirty,
+    onRestoreDraft: (draft) => {
+      setDraftRestoreData({ values: draft as ReturnType<typeof form.getValues>, savedAt: new Date() });
+    },
+  });
+
+  useDirtyWarning({ isDirty, isSubmitting });
+
+  const handleSave = async () => {
+    setSaveStatus("saving");
+    try {
+      await form.handleSubmit(async (values) => {
+        await onSubmit(values);
+        setSaveStatus("saved");
+        autosave.clearDraft();
+      })();
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const watchValues = form.watch();
+  const campusName = campuses?.find((c) => c.$id === watchValues.campus_id)?.name;
+
+  const pageTitle = job?.$id
+    ? (job.translations?.en?.title ?? job.slug ?? t("edit"))
+    : t("new");
+
   return (
-    <div className="grid gap-6 md:grid-cols-3">
-      <div className="md:col-span-2">
-        <Card className="glass-panel">
-          <CardHeader>
-            <CardTitle>{t("editor.jobDetailsTitle")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                className="space-y-6"
-                onSubmit={form.handleSubmit(onSubmit)}
+    <div className="flex h-full flex-col gap-0">
+      {/* Breadcrumb */}
+      <div className="shrink-0 border-b border-border/40 bg-background px-6 py-3">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/jobs">{t("jobs")}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <PreviewPanel
+        renderPreview={(locale) => (
+          <JobPreviewPane
+            locale={locale}
+            data={{
+              status: watchValues.status,
+              type: watchValues.type,
+              application_deadline: watchValues.application_deadline,
+              start_date: watchValues.start_date,
+              contact_name: watchValues.contact_name,
+              contact_email: watchValues.contact_email,
+              apply_url: watchValues.apply_url,
+              image: watchValues.image,
+              campusName,
+              translations: {
+                en: watchValues.translations?.en,
+                no: watchValues.translations?.no,
+              },
+            }}
+          />
+        )}
+      >
+        <div className="space-y-6 p-6">
+          {/* Draft restore banner */}
+          {draftRestoreData && (
+            <DraftRestoreBanner
+              savedAt={draftRestoreData.savedAt}
+              onRestore={() => {
+                form.reset(draftRestoreData.values);
+                setDraftRestoreData(null);
+              }}
+              onDiscard={() => {
+                autosave.clearDraft();
+                setDraftRestoreData(null);
+              }}
+            />
+          )}
+
+          <Form {...form}>
+            <form id="job-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Content section */}
+              <FormSection
+                title={t("editor.contentTranslations")}
+                subtitle="Write compelling content in both languages to reach all students"
+              >
+                <JobTranslations
+                  activeLocale={activeLocale}
+                  isTranslating={isTranslating}
+                  jobId={job?.$id}
+                  onTranslate={handleTranslate}
+                  setActiveLocale={setActiveLocale}
+                />
+              </FormSection>
+
+              {/* Organisation section */}
+              <FormSection
+                title={t("editor.basicInformation")}
+                subtitle="Campus, department and publishing settings"
               >
                 <JobBasicInfo
                   campuses={campuses}
                   filteredDepartments={filteredDepartments}
                   onCampusChange={setSelectedCampus}
                 />
+              </FormSection>
 
+              {/* Details section */}
+              <FormSection
+                title={t("editor.metadataTitle")}
+                subtitle="Deadline, contact, and application details"
+                collapsible
+                defaultOpen
+              >
                 <JobMetadata />
+              </FormSection>
+            </form>
+          </Form>
+        </div>
+      </PreviewPanel>
 
-                <JobTranslations
-                  activeTab={activeTab}
-                  isTranslating={isTranslating}
-                  jobId={job?.$id}
-                  onTranslate={handleTranslate}
-                  setActiveTab={setActiveTab}
-                />
-
-                <div className="flex justify-end gap-3">
-                  <Button
-                    onClick={() => router.back()}
-                    type="button"
-                    variant="outline"
-                  >
-                    {t("form.cancel")}
-                  </Button>
-                  <Button disabled={isTranslating} type="submit">
-                    {job?.$id ? t("editor.updateJob") : t("editor.createJob")}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Preview Panel */}
-      <div className="space-y-4">
-        <Card className="glass-panel">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Languages className="h-4 w-4" />
-              {t("editor.translationStatusTitle")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">{t("editor.english")}</span>
-              {form.watch("en_title") ? (
-                <Badge
-                  className="bg-green-100 text-green-800"
-                  variant="default"
-                >
-                  {t("editor.complete")}
-                </Badge>
-              ) : (
-                <Badge variant="secondary">{t("editor.missing")}</Badge>
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">{t("editor.norwegian")}</span>
-              {form.watch("no_title") ? (
-                <Badge
-                  className="bg-green-100 text-green-800"
-                  variant="default"
-                >
-                  {t("editor.complete")}
-                </Badge>
-              ) : (
-                <Badge variant="secondary">{t("editor.missing")}</Badge>
-              )}
-            </div>
-
-            {job?.$id && (
-              <div className="border-t pt-3">
-                <p className="text-muted-foreground text-xs">
-                  {t("editor.saveBeforeTranslate")}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Preview */}
-        <Card className="glass-panel">
-          <CardHeader>
-            <CardTitle>{t("editor.previewTitle")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <h4 className="font-medium">
-                {activeTab === "en"
-                  ? form.watch("en_title")
-                  : form.watch("no_title") || t("editor.noTitle")}
-              </h4>
-              <p className="text-muted-foreground text-sm">
-                {form.watch("campus_id") &&
-                  campuses?.find((c) => c.$id === form.watch("campus_id"))
-                    ?.name}
-                {form.watch("type") && ` • ${form.watch("type")}`}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <SaveBar
+        status={autosave.isSaving ? "saving" : saveStatus}
+        lastSaved={autosave.lastSaved}
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onCancel={() => router.back()}
+        autosaveEnabled={autosave.enabled}
+        onAutosaveToggle={autosave.setEnabled}
+        saveLabel={job?.$id ? t("editor.updateJob") : t("editor.createJob")}
+        cancelLabel={t("form.cancel")}
+      />
     </div>
   );
 }

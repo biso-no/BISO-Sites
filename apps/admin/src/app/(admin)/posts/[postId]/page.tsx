@@ -25,7 +25,6 @@ export default async function AdminPostPage({
     notFound();
   }
 
-  console.log("POST: ", JSON.stringify(post));
 
   return (
     <PostEditor campuses={campuses} departments={departments} post={post} />

@@ -2,13 +2,6 @@
 
 import { Button } from "@repo/ui/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
-import {
   FormControl,
   FormField,
   FormItem,
@@ -16,204 +9,141 @@ import {
   FormMessage,
 } from "@repo/ui/components/ui/form";
 import { Input } from "@repo/ui/components/ui/input";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@repo/ui/components/ui/tabs";
-import { Languages, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { translateEventContent } from "@/app/actions/events";
+import { CharacterCount } from "@/components/forms/CharacterCount";
+import { type Locale, LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { toast } from "@/lib/hooks/use-toast";
 import type { FormValues } from "./schema";
 
+const TITLE_MAX = 100;
+
 export function EventTranslations() {
   const t = useTranslations("adminEvents");
   const form = useFormContext<FormValues>();
-  const [isTranslating, setIsTranslating] = useState<"en" | "no" | null>(null);
+  const [activeLocale, setActiveLocale] = useState<Locale>("en");
+  const [isTranslating, setIsTranslating] = useState<Locale | null>(null);
 
-  const handleTranslate = async (
-    fromLocale: "en" | "no",
-    toLocale: "en" | "no"
-  ) => {
-    const fromTranslation = form.getValues(`translations.${fromLocale}`);
-    if (!(fromTranslation?.title && fromTranslation?.description)) {
+  const enTitle = form.watch("translations.en.title") ?? "";
+  const noTitle = form.watch("translations.no.title") ?? "";
+
+  const localeStatus: Record<Locale, "complete" | "partial" | "empty"> = {
+    en: enTitle.length >= 5 ? "complete" : enTitle.length > 0 ? "partial" : "empty",
+    no: noTitle.length >= 5 ? "complete" : noTitle.length > 0 ? "partial" : "empty",
+  };
+
+  const handleTranslate = async (from: Locale, to: Locale) => {
+    const fromVal = form.getValues(`translations.${from}`);
+    if (!(fromVal?.title && fromVal?.description)) {
       toast({
         title: t("editor.messages.fillContent", {
-          language:
-            fromLocale === "en" ? t("editor.english") : t("editor.norwegian"),
+          language: from === "en" ? t("editor.english") : t("editor.norwegian"),
         }),
         variant: "destructive",
       });
       return;
     }
-
-    setIsTranslating(toLocale);
-
+    setIsTranslating(to);
     try {
-      const translated = await translateEventContent(
-        fromTranslation,
-        fromLocale,
-        toLocale
-      );
+      const translated = await translateEventContent(fromVal, from, to);
       if (translated) {
-        form.setValue(`translations.${toLocale}`, translated);
-        toast({
-          title: t("messages.translationCompleted"),
-          description: t("messages.translationDescription", {
-            language:
-              toLocale === "en" ? t("editor.english") : t("editor.norwegian"),
-          }),
-        });
+        form.setValue(`translations.${to}`, translated);
+        setActiveLocale(to);
+        toast({ title: t("messages.translationCompleted") });
       } else {
-        toast({
-          title: t("messages.translationError"),
-          variant: "destructive",
-        });
+        toast({ title: t("messages.translationError"), variant: "destructive" });
       }
-    } catch (error) {
-      console.error("Translation error:", error);
+    } catch {
       toast({ title: t("messages.translationError"), variant: "destructive" });
     } finally {
       setIsTranslating(null);
     }
   };
 
+  const oppositeLocale: Locale = activeLocale === "en" ? "no" : "en";
+  const translateLabel =
+    activeLocale === "en"
+      ? t("editor.translateFromNorwegian")
+      : t("editor.translateFromEnglish");
+
   return (
-    <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Languages className="h-5 w-5" />
-          {t("editor.eventContentTitle")}
-        </CardTitle>
-        <CardDescription>{t("editor.eventContentDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs className="w-full" defaultValue="en">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger className="flex items-center gap-2" value="en">
-              🇬🇧 {t("editor.english")}
-            </TabsTrigger>
-            <TabsTrigger className="flex items-center gap-2" value="no">
-              🇳🇴 {t("editor.norwegian")}
-            </TabsTrigger>
-          </TabsList>
+    <div className="space-y-4">
+      {/* Locale switcher */}
+      <div className="flex items-center justify-between">
+        <LocaleTabGroup
+          activeLocale={activeLocale}
+          onChange={setActiveLocale}
+          status={localeStatus}
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isTranslating !== null}
+          onClick={() => handleTranslate(oppositeLocale, activeLocale)}
+          className="gap-1.5"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          {isTranslating === activeLocale ? t("editor.translating") : translateLabel}
+        </Button>
+      </div>
 
-          <TabsContent className="mt-4 space-y-4" value="en">
+      {/* Title */}
+      <FormField
+        control={form.control}
+        name={`translations.${activeLocale}.title`}
+        render={({ field }) => (
+          <FormItem>
             <div className="flex items-center justify-between">
-              <h3 className="font-medium text-lg">
-                {t("editor.englishSectionTitle")}
-              </h3>
-              <Button
-                className="flex items-center gap-2"
-                disabled={isTranslating === "en"}
-                onClick={() => handleTranslate("no", "en")}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Sparkles className="h-4 w-4" />
-                {isTranslating === "en"
-                  ? t("editor.translating")
-                  : t("editor.translateFromNorwegian")}
-              </Button>
+              <FormLabel>
+                {t("form.title")}{" "}
+                <span className="ml-1 text-destructive" aria-hidden>*</span>
+              </FormLabel>
+              <CharacterCount current={field.value?.length ?? 0} max={TITLE_MAX} />
             </div>
-            <FormField
-              control={form.control}
-              name="translations.en.title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("form.title")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={t("editor.placeholders.englishTitle")}
-                      {...field}
-                      className="glass-input"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="translations.en.description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("form.description")}</FormLabel>
-                  <FormControl>
-                    <RichTextEditor
-                      content={field.value || ""}
-                      editable={true}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </TabsContent>
+            <FormControl>
+              <Input
+                placeholder={
+                  activeLocale === "en"
+                    ? t("editor.placeholders.englishTitle")
+                    : t("editor.placeholders.norwegianTitle")
+                }
+                {...field}
+                value={field.value ?? ""}
+                aria-required="true"
+                aria-describedby={`translations.${activeLocale}.title-error`}
+              />
+            </FormControl>
+            <FormMessage id={`translations.${activeLocale}.title-error`} />
+          </FormItem>
+        )}
+      />
 
-          <TabsContent className="mt-4 space-y-4" value="no">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium text-lg">
-                {t("editor.norwegianSectionTitle")}
-              </h3>
-              <Button
-                className="flex items-center gap-2"
-                disabled={isTranslating === "no"}
-                onClick={() => handleTranslate("en", "no")}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Sparkles className="h-4 w-4" />
-                {isTranslating === "no"
-                  ? t("editor.translating")
-                  : t("editor.translateFromEnglish")}
-              </Button>
-            </div>
-            <FormField
-              control={form.control}
-              name="translations.no.title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("form.title")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={t("editor.placeholders.norwegianTitle")}
-                      {...field}
-                      className="glass-input"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="translations.no.description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("form.description")}</FormLabel>
-                  <FormControl>
-                    <RichTextEditor
-                      content={field.value || ""}
-                      editable={true}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+      {/* Description */}
+      <FormField
+        control={form.control}
+        name={`translations.${activeLocale}.description`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t("form.description")}{" "}
+              <span className="ml-1 text-destructive" aria-hidden>*</span>
+            </FormLabel>
+            <FormControl>
+              <RichTextEditor
+                content={field.value ?? ""}
+                editable
+                onChange={field.onChange}
+              />
+            </FormControl>
+            <FormMessage id={`translations.${activeLocale}.description-error`} />
+          </FormItem>
+        )}
+      />
+    </div>
   );
 }

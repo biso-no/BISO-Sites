@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { notFound } from "next/navigation";
 import { getAllowedCampuses } from "@/app/actions/campus";
 import { listDepartments } from "@/app/actions/events";
 import { getJob } from "@/app/actions/jobs";
@@ -16,25 +15,10 @@ export default async function EditJobPage({
     getAllowedCampuses(),
     listDepartments(),
   ]);
-  const t = await getTranslations("adminJobs");
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link className="font-medium" href={`/jobs/${id}`}>
-          {t("edit")}
-        </Link>
-        <Link
-          className="text-muted-foreground hover:text-foreground"
-          href={`/jobs/${id}/applications`}
-        >
-          {t("applications.title")}
-        </Link>
-      </div>
-      <JobEditor
-        campuses={campuses as any}
-        departments={departments as any}
-        job={job as any}
-      />
-    </div>
-  );
+
+  if (!job) {
+    notFound();
+  }
+
+  return <JobEditor campuses={campuses} departments={departments} job={job} />;
 }

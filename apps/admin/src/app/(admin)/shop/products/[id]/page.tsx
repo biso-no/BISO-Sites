@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getAllowedCampuses } from "@/app/actions/campus";
 import { getProduct } from "@/app/actions/products";
 import { EditProduct } from "../_components/edit-product";
 
@@ -9,11 +10,14 @@ type Props = {
 export default async function ProductEditPage({ params }: Props) {
   const { id } = await params;
 
-  const product = await getProduct(id);
+  const [product, campuses] = await Promise.all([
+    getProduct(id),
+    getAllowedCampuses(),
+  ]);
 
   if (!product) {
     notFound();
   }
 
-  return <EditProduct product={product} />;
+  return <EditProduct product={product} campuses={campuses} />;
 }

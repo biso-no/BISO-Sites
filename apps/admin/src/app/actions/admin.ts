@@ -1,5 +1,5 @@
 "use server";
-import { Query } from "@repo/api";
+import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   Campus,
@@ -9,6 +9,7 @@ import type {
   News,
   Users,
 } from "@repo/api/types/appwrite";
+import { ContentType, Locale } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
 import { getUserAuthContext, getUserRolesForClient } from "@/lib/authorization";
@@ -177,6 +178,146 @@ export async function createPost(post: News) {
   revalidatePath("/posts");
   return result;
 }
+
+// ── Typed post save ────────────────────────────────────────────────────────
+// Replaces the old createPost/updatePost which required casting to `News`.
+
+export type PostFormInput = {
+  translations: {
+    en: { title: string; description: string };
+    no: { title: string; description: string };
+  };
+  status: "draft" | "published";
+  campus_id: string;
+  department_id?: string;
+  image?: string;
+  slug?: string;
+  sticky?: boolean;
+  author?: string;
+};
+
+export async function createPostFromForm(data: PostFormInput): Promise<News> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  assertWriteAccess(ctx, data.campus_id, data.department_id);
+
+  const campusManagementTeamId = getCampusManagementTeamId(data.campus_id);
+  const permissions = buildContentPermissions({
+    status: data.status,
+    departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+    campusManagementTeamId,
+  });
+
+  const { db } = await createSessionClient();
+  const newsId = ID.unique();
+
+  const translationRefs: ContentTranslations[] = [
+    {
+      content_id: newsId,
+      content_type: ContentType.NEWS,
+      locale: Locale.EN,
+      title: data.translations.en.title,
+      description: data.translations.en.description,
+      $permissions: permissions,
+    } as ContentTranslations,
+    {
+      content_id: newsId,
+      content_type: ContentType.NEWS,
+      locale: Locale.NO,
+      title: data.translations.no.title,
+      description: data.translations.no.description,
+      $permissions: permissions,
+    } as ContentTranslations,
+  ];
+
+  const result = await db.createRow<News>(
+    "app",
+    "news",
+    newsId,
+    {
+      slug: data.slug ?? null,
+      status: data.status,
+      image: data.image ?? null,
+      campus_id: data.campus_id,
+      department_id: data.department_id ?? null,
+      campus: data.campus_id,
+      department: data.department_id ?? null,
+      sticky: data.sticky ?? false,
+      author: data.author ?? null,
+      translation_refs: translationRefs,
+    },
+    permissions,
+  );
+
+  revalidatePath("/posts");
+  return result;
+}
+
+export async function updatePostFromForm(
+  postId: string,
+  data: PostFormInput,
+): Promise<void> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  const { db } = await createSessionClient();
+
+  // Get existing post to verify access
+  const existing = await db.getRow<News>("app", "news", postId);
+  const existingDeptId =
+    typeof existing.department === "string"
+      ? existing.department
+      : existing.department?.$id;
+  assertWriteAccess(ctx, existing.campus_id, existingDeptId ?? undefined);
+
+  // Update translations
+  const campusManagementTeamId = getCampusManagementTeamId(data.campus_id);
+  const permissions = buildContentPermissions({
+    status: data.status,
+    departmentTeamId: ctx.departmentTeamIds[0] ?? null,
+    campusManagementTeamId,
+  });
+
+  const existingRefs = Array.isArray(existing.translation_refs)
+    ? (existing.translation_refs as ContentTranslations[]).filter(
+        (r): r is ContentTranslations => typeof r !== "string",
+      )
+    : [];
+
+  const buildRef = (locale: Locale, title: string, description: string) => {
+    const found = existingRefs.find((r) => r.locale === locale);
+    return {
+      ...(found?.$id ? { $id: found.$id } : {}),
+      content_id: postId,
+      content_type: ContentType.NEWS,
+      locale,
+      title,
+      description,
+      $permissions: permissions,
+    } as ContentTranslations;
+  };
+
+  const translationRefs = [
+    buildRef(Locale.EN, data.translations.en.title, data.translations.en.description),
+    buildRef(Locale.NO, data.translations.no.title, data.translations.no.description),
+  ];
+
+  await db.updateRow<News>("app", "news", postId, {
+    status: data.status,
+    image: data.image ?? null,
+    campus_id: data.campus_id,
+    department_id: data.department_id ?? null,
+    campus: data.campus_id,
+    department: data.department_id ?? null,
+    sticky: data.sticky ?? false,
+    author: data.author ?? null,
+    translation_refs: translationRefs,
+  });
+
+  revalidatePath("/posts");
+}
+// ── End typed post save ────────────────────────────────────────────────────
 
 export async function deletePost(postId: string) {
   const { db } = await createSessionClient();

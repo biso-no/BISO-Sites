@@ -1,6 +1,15 @@
 "use client";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Campus, Departments, News } from "@repo/api/types/appwrite";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@repo/ui/components/ui/breadcrumb";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Form,
@@ -18,33 +27,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarProvider,
-} from "@repo/ui/components/ui/sidebar";
-import { Loader2 } from "lucide-react";
-import dynamic from "next/dynamic";
+import { Switch } from "@repo/ui/components/ui/switch";
+import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { createPost, updatePost } from "@/app/actions/admin";
+import {
+  createPostFromForm,
+  updatePostFromForm,
+} from "@/app/actions/admin";
+import { CharacterCount } from "@/components/forms/CharacterCount";
+import { CoverImageUpload } from "@/components/forms/CoverImageUpload";
+import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
+import { FormSection } from "@/components/forms/FormSection";
+import { type Locale, LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
+import { type SaveStatus, SaveBar } from "@/components/forms/SaveBar";
+import { NewsPreviewPane } from "@/components/preview/NewsPreviewPane";
+import { PreviewPanel } from "@/components/preview/PreviewPanel";
+import { RichTextEditor } from "@/components/rich-text-editor";
+import { useAutosave } from "@/hooks/useAutosave";
+import { useDirtyWarning } from "@/hooks/useDirtyWarning";
 import { toast } from "@/lib/hooks/use-toast";
 
-const JoditEditor = dynamic(() => import("jodit-react"), { ssr: false });
+const TITLE_MAX = 100;
 
-const baseFormSchema = z.object({
-  title: z.string(),
-  content: z.string(),
-  status: z.enum(["published", "draft"]),
-  department: z.string(),
-  campus: z.string(),
+const postSchema = z.object({
+  translations: z.object({
+    en: z.object({
+      title: z
+        .string()
+        .min(5, "English title must be at least 5 characters")
+        .max(TITLE_MAX, `Title must be ${TITLE_MAX} characters or fewer`),
+      description: z
+        .string()
+        .min(50, "English content must be at least 50 characters")
+        .max(50000),
+    }),
+    no: z.object({
+      title: z
+        .string()
+        .min(5, "Norwegian title must be at least 5 characters")
+        .max(TITLE_MAX, `Title must be ${TITLE_MAX} characters or fewer`),
+      description: z
+        .string()
+        .min(50, "Norwegian content must be at least 50 characters")
+        .max(50000),
+    }),
+  }),
+  status: z.enum(["draft", "published"]),
+  department: z.string().min(1, "Department is required"),
+  campus: z.string().min(1, "Campus is required"),
+  image: z.string().optional(),
+  sticky: z.boolean().optional(),
+  author: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof baseFormSchema>;
+type PostFormValues = z.infer<typeof postSchema>;
 
 type PostEditorProps = {
   post?: News | null;
@@ -52,275 +92,475 @@ type PostEditorProps = {
   campuses: Campus[];
 };
 
-export default function PostEditor({
-  post,
-  departments,
-  campuses,
-}: PostEditorProps) {
+function getInitialValues(post: News | null | undefined, locale: string): PostFormValues {
+  if (!post) {
+    return {
+      translations: {
+        en: { title: "", description: "" },
+        no: { title: "", description: "" },
+      },
+      status: "draft",
+      department: "",
+      campus: "",
+      image: "",
+      sticky: false,
+      author: "",
+    };
+  }
+
+  const refs = Array.isArray(post.translation_refs) ? post.translation_refs : [];
+  const getRef = (loc: string) =>
+    refs.find((r) => typeof r !== "string" && r.locale === loc);
+
+  const enRef = getRef("en") ?? getRef(locale);
+  const noRef = getRef("no");
+
+  return {
+    translations: {
+      en: {
+        title: (typeof enRef !== "string" ? enRef?.title : "") ?? "",
+        description: (typeof enRef !== "string" ? enRef?.description : "") ?? "",
+      },
+      no: {
+        title: (typeof noRef !== "string" ? noRef?.title : "") ?? "",
+        description: (typeof noRef !== "string" ? noRef?.description : "") ?? "",
+      },
+    },
+    status: (post.status as "draft" | "published") ?? "draft",
+    department:
+      typeof post.department === "string"
+        ? post.department
+        : (post.department?.$id ?? ""),
+    campus:
+      typeof post.campus === "string"
+        ? post.campus
+        : (post.campus?.$id ?? ""),
+    image: post.image ?? "",
+    sticky: post.sticky ?? false,
+    author: post.author ?? "",
+  };
+}
+
+export default function PostEditor({ post, departments, campuses }: PostEditorProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const t = useTranslations("adminPosts");
   const locale = useLocale();
 
-  const formSchema = useMemo(
-    () =>
-      baseFormSchema.extend({
-        title: z.string().min(1, t("formValidation.titleRequired")),
-        content: z.string().min(1, t("formValidation.contentRequired")),
-        status: z.enum(["published", "draft"]),
-        department: z.string().min(1, t("formValidation.departmentRequired")),
-        campus: z.string().min(1, t("formValidation.campusRequired")),
-      }),
-    [t]
-  );
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [activeLocale, setActiveLocale] = useState<Locale>("en");
+  const [pendingDraft, setPendingDraft] = useState<{
+    values: PostFormValues;
+    savedAt: Date;
+  } | null>(null);
 
-  const getInitialValues = useMemo((): FormValues => {
-    if (!post) {
-      return {
-        title: "",
-        content: "",
-        status: "draft" as const,
-        department: "",
-        campus: "",
-      };
-    }
+  const isEditing = !!post?.$id;
+  const storageKey = `post:${post?.$id ?? "new"}`;
 
-    const translation =
-      post.translation_refs?.find((ref) => ref.locale === locale) ||
-      post.translation_refs?.[0];
-
-    const departmentId =
-      typeof post.department === "string"
-        ? post.department
-        : post.department?.$id;
-    const campusId =
-      typeof post.campus === "string" ? post.campus : post.campus?.$id;
-
-    return {
-      title: translation?.title || "",
-      content: translation?.description || "",
-      status: (post.status as "published" | "draft") || "draft",
-      department: departmentId || "",
-      campus: campusId || "",
-    };
-  }, [post, locale]);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: getInitialValues,
+  const form = useForm<PostFormValues>({
+    resolver: zodResolver(postSchema),
+    defaultValues: getInitialValues(post, locale),
+    mode: "onBlur",
   });
 
-  const handleSubmit = useCallback(
-    async (values: FormValues) => {
-      setIsSubmitting(true);
-      try {
-        const postData = {
-          title: values.title, // These will be handled into translation_refs by the action or ignored if action needs update
-          content: values.content,
-          status: values.status,
-          department: values.department,
-          campus: values.campus,
-          // We attach existing translation refs so the action knows what to update if it blindly maps
-          translation_refs: post?.translation_refs || [],
-        };
+  const { isDirty, isSubmitting } = form.formState;
 
-        if (post?.$id) {
-          // The action signature expects 'News', but we are passing a constructed object.
-          // We cast to any to bypass strict type check on the action call for now,
-          // assuming the action handles the partial data correctly or we need to fix the action type later.
-          // However, we should try to match News structure as much as possible.
-          await updatePost(post.$id, postData as unknown as News);
-        } else {
-          await createPost(postData as unknown as News);
-        }
+  const { lastSaved, enabled: autosaveEnabled, setEnabled: setAutosave, clearDraft } =
+    useAutosave<PostFormValues>({
+      storageKey,
+      values: form.watch(),
+      isDirty,
+      onRestoreDraft: (draft) =>
+        setPendingDraft({ values: draft, savedAt: new Date() }),
+    });
+
+  useDirtyWarning({ isDirty, isSubmitting });
+
+  const handleSubmit = async (values: PostFormValues) => {
+    setSaveStatus("saving");
+    try {
+      const payload = {
+        translations: values.translations,
+        status: values.status,
+        campus_id: values.campus,
+        department_id: values.department || undefined,
+        image: values.image || undefined,
+        sticky: values.sticky,
+        author: values.author || undefined,
+      };
+
+      if (isEditing && post?.$id) {
+        await updatePostFromForm(post.$id, payload);
         toast({
           title: t("messages.successTitle"),
-          description: post
-            ? t("messages.updateSuccess")
-            : t("messages.createSuccess"),
+          description: t("messages.updateSuccess"),
         });
-        router.push("/posts");
-      } catch (error) {
-        console.error(error);
+      } else {
+        await createPostFromForm(payload);
         toast({
-          title: t("messages.errorTitle"),
-          description: t("messages.saveError"),
-          variant: "destructive",
+          title: t("messages.successTitle"),
+          description: t("messages.createSuccess"),
         });
-      } finally {
-        setIsSubmitting(false);
       }
-    },
-    [post, router, t]
-  );
 
-  const editorConfig = useMemo(() => ({ height: 500 }), []);
+      clearDraft();
+      setSaveStatus("saved");
+      router.push("/posts");
+    } catch (error) {
+      console.error(error);
+      setSaveStatus("error");
+      toast({
+        title: t("messages.errorTitle"),
+        description: t("messages.saveError"),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSave = form.handleSubmit(handleSubmit);
+  const handleCancel = () => {
+    if (isDirty) {
+      const ok = window.confirm("You have unsaved changes. Leave without saving?");
+      if (!ok) return;
+    }
+    router.back();
+  };
+
+  const formValues = form.watch();
+  const enTitle = formValues.translations.en.title;
+  const noTitle = formValues.translations.no.title;
+  const enDesc = formValues.translations.en.description;
+  const noDesc = formValues.translations.no.description;
+
+  const localeStatus: Record<Locale, "complete" | "partial" | "empty"> = {
+    en: enTitle.length >= 5 && enDesc.length >= 50 ? "complete" : enTitle.length > 0 ? "partial" : "empty",
+    no: noTitle.length >= 5 && noDesc.length >= 50 ? "complete" : noTitle.length > 0 ? "partial" : "empty",
+  };
+
+  const oppositeLocale: Locale = activeLocale === "en" ? "no" : "en";
+  const activeTitle = activeLocale === "en" ? enTitle : noTitle;
+
+  const selectedDept = departments.find((d) => d.$id === formValues.department);
+  const selectedCampus = campuses.find((c) => c.$id === formValues.campus);
 
   return (
-    <SidebarProvider side="right">
-      <div className="flex h-screen overflow-hidden">
-        <Form {...form}>
-          <form
-            className="flex flex-1"
-            onSubmit={form.handleSubmit(handleSubmit)}
-          >
-            <div className="flex-1 space-y-8 overflow-auto p-8">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("form.title")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("form.titlePlaceholder")}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="content"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("form.content")}</FormLabel>
-                    <FormControl>
-                      <JoditEditor
-                        config={editorConfig}
-                        onBlur={field.onBlur}
-                        onChange={(newContent: string) =>
-                          field.onChange(newContent)
-                        }
-                        value={field.value}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <Sidebar className="w-80 border-l">
-              <SidebarHeader className="px-4 py-2">
-                <h2 className="font-semibold text-lg">
-                  {t("form.settingsTitle")}
-                </h2>
-              </SidebarHeader>
-              <SidebarContent>
-                <div className="space-y-4 px-4">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.status")}</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("form.selectStatus")}>
-                                {field.value === "published"
-                                  ? t("status.published")
-                                  : t("status.draft")}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="published">
-                              {t("status.published")}
-                            </SelectItem>
-                            <SelectItem value="draft">
-                              {t("status.draft")}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.department")}</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={t("form.selectDepartment")}
-                              >
-                                {departments.find(
-                                  (dep) => dep.$id === field.value
-                                )?.Name || t("form.selectDepartment")}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {departments.map((dep) => (
-                              <SelectItem key={dep.$id} value={dep.$id}>
-                                {dep.Name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="campus"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("form.campus")}</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("form.selectCampus")}>
-                                {campuses.find((c) => c.$id === field.value)
-                                  ?.name || t("form.selectCampus")}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {campuses.map((campus) => (
-                              <SelectItem key={campus.$id} value={campus.$id}>
-                                {campus.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+    <div className="flex min-h-screen flex-col">
+      {/* Breadcrumb */}
+      <div className="border-b border-border/40 bg-background/80 px-6 py-3 backdrop-blur-sm">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/posts">
+                {t("breadcrumb.posts") || "Posts"}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {isEditing
+                  ? (enTitle || t("editor.edit") || "Edit Post")
+                  : (t("editor.newPost") || "New Post")}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      {/* Draft restore banner */}
+      {pendingDraft && (
+        <div className="px-6 pt-4">
+          <DraftRestoreBanner
+            savedAt={pendingDraft.savedAt}
+            onRestore={() => {
+              form.reset(pendingDraft.values);
+              setPendingDraft(null);
+            }}
+            onDiscard={() => {
+              clearDraft();
+              setPendingDraft(null);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 overflow-hidden">
+        <PreviewPanel
+          renderPreview={(previewLocale) => (
+            <NewsPreviewPane
+              data={{
+                status: formValues.status,
+                image: formValues.image || undefined,
+                author: formValues.author || undefined,
+                sticky: formValues.sticky,
+                translations: formValues.translations,
+                campusName: selectedCampus?.name,
+                departmentName: selectedDept?.Name,
+              }}
+              locale={previewLocale}
+            />
+          )}
+        >
+          <Form {...form}>
+            <form
+              className="space-y-5 px-6 py-6 lg:grid lg:gap-6 lg:space-y-0 lg:grid-cols-[1fr_320px]"
+              onSubmit={handleSave}
+            >
+              {/* LEFT — article content */}
+              <div className="space-y-5">
+                {/* Locale switcher */}
+                <div className="flex items-center justify-between">
+                  <LocaleTabGroup
+                    activeLocale={activeLocale}
+                    onChange={setActiveLocale}
+                    status={localeStatus}
                   />
                   <Button
-                    className="w-full"
-                    disabled={isSubmitting}
-                    type="submit"
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs"
+                    onClick={() => {
+                      // Placeholder — could wire AI translation here
+                      toast({
+                        title: "Translation feature",
+                        description:
+                          "Use the AI copilot to translate content between languages.",
+                      });
+                    }}
                   >
-                    {isSubmitting && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {t("form.save")}
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Auto-translate
                   </Button>
                 </div>
-              </SidebarContent>
-            </Sidebar>
-          </form>
-        </Form>
+
+                <FormSection
+                  title="Headline"
+                  subtitle="The title that appears at the top of the article"
+                >
+                  <FormField
+                    control={form.control}
+                    name={`translations.${activeLocale}.title`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel aria-required="true">
+                            {t("form.title")}{" "}
+                            <span className="text-destructive" aria-hidden>*</span>
+                          </FormLabel>
+                          <CharacterCount
+                            current={activeTitle.length}
+                            max={TITLE_MAX}
+                          />
+                        </div>
+                        <FormControl>
+                          <Input
+                            placeholder={
+                              activeLocale === "en"
+                                ? "Article title in English"
+                                : "Artikkeltittel på norsk"
+                            }
+                            {...field}
+                            value={field.value ?? ""}
+                            className="text-lg font-medium"
+                            aria-required="true"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </FormSection>
+
+                <FormSection
+                  title="Content"
+                  subtitle="The full article body. Supports rich text formatting."
+                >
+                  <FormField
+                    control={form.control}
+                    name={`translations.${activeLocale}.description`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="sr-only">
+                          Article content
+                        </FormLabel>
+                        <FormControl>
+                          <RichTextEditor
+                            content={field.value ?? ""}
+                            editable
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </FormSection>
+              </div>
+
+              {/* RIGHT — settings sidebar */}
+              <div className="space-y-5 lg:sticky lg:top-[72px] lg:self-start">
+                <FormSection
+                  title="Publishing"
+                  subtitle="Status and visibility"
+                >
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("form.status")}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={t("form.selectStatus")} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                              <SelectItem value="published">{t("status.published")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="sticky"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between">
+                          <div>
+                            <FormLabel className="mb-0">
+                              Pin to top
+                            </FormLabel>
+                            <p className="text-muted-foreground text-xs">
+                              Keeps this post at the top of the news feed
+                            </p>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value ?? false}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="author"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Author</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Author name"
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </FormSection>
+
+                <FormSection title="Organisation" subtitle="Campus and department">
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="campus"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("form.campus")}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={t("form.selectCampus")} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {campuses.map((c) => (
+                                <SelectItem key={c.$id} value={c.$id}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="department"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("form.department")}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={t("form.selectDepartment")}
+                                />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {departments.map((d) => (
+                                <SelectItem key={d.$id} value={d.$id}>
+                                  {d.Name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </FormSection>
+
+                <FormSection title="Cover Image">
+                  <FormField
+                    control={form.control}
+                    name="image"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <CoverImageUpload
+                            images={field.value ? [field.value] : []}
+                            onChange={(next) => field.onChange(next[0] ?? "")}
+                            label=""
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </FormSection>
+              </div>
+            </form>
+          </Form>
+        </PreviewPanel>
       </div>
-    </SidebarProvider>
+
+      {/* Sticky save bar */}
+      <SaveBar
+        status={saveStatus}
+        lastSaved={lastSaved}
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        autosaveEnabled={autosaveEnabled}
+        onAutosaveToggle={setAutosave}
+        saveLabel={isEditing ? t("form.save") : (t("form.save") || "Publish")}
+      />
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getAllowedCampuses } from "@/app/actions/campus";
 import { getEvent } from "@/app/actions/events";
 import EventEditor from "../shared/event-editor";
 
@@ -12,12 +13,14 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const event = await getEvent(id);
-  console.log("Event: ", event);
+  const [event, campuses] = await Promise.all([
+    getEvent(id),
+    getAllowedCampuses(),
+  ]);
 
   if (!event) {
     notFound();
   }
 
-  return <EventEditor event={event} />;
+  return <EventEditor event={event} campuses={campuses} />;
 }

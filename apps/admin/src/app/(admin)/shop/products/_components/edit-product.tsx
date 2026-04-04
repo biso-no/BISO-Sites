@@ -7,15 +7,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@repo/ui/components/ui/accordion";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@repo/ui/components/ui/breadcrumb";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Form,
   FormControl,
@@ -35,22 +35,12 @@ import {
 } from "@repo/ui/components/ui/select";
 import { Switch } from "@repo/ui/components/ui/switch";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@repo/ui/components/ui/tabs";
-import {
   AlertCircle,
   Check,
-  ChevronLeft,
   DollarSign,
   Edit2,
-  Eye,
   Hash,
-  Languages,
   Package,
-  Sparkles,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -66,15 +56,25 @@ import {
   type UseFormReturn,
   useForm,
 } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
-import { listCampuses } from "@/app/actions/events"; // Using from events actions
 import {
   createProduct,
   translateProductContent,
   updateProduct,
 } from "@/app/actions/products";
+import { CharacterCount } from "@/components/forms/CharacterCount";
+import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
+import { FormSection } from "@/components/forms/FormSection";
+import { LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
+import type { SaveStatus } from "@/components/forms/SaveBar";
+import { SaveBar } from "@/components/forms/SaveBar";
+import { slugify } from "@/components/forms/slugify";
+import { ProductPreviewPane } from "@/components/preview/ProductPreviewPane";
+import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { useAutosave } from "@/hooks/useAutosave";
+import { useDirtyWarning } from "@/hooks/useDirtyWarning";
+import { toast } from "@/lib/hooks/use-toast";
 import type { Campus } from "@/lib/types/post";
 import type {
   CreateProductData,
@@ -85,9 +85,10 @@ import type {
 } from "@/lib/types/product";
 import { CustomFieldsEditor } from "./custom-fields-editor";
 import ImageUploadCard from "./image-upload-card";
-import { ProductPreview } from "./product-preview";
 import { ToggleSection } from "./toggle-section";
 import { VariationsEditor } from "./variations-editor";
+
+// ── Schema ────────────────────────────────────────────────────────────────────
 
 const customFieldSchema = z.object({
   id: z.string(),
@@ -109,17 +110,19 @@ const variationSchema = z.object({
 });
 
 const productSchema = z.object({
-  slug: z.string().min(1, "Slug is required"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .max(200)
+    .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
   status: z.enum(["draft", "published", "archived"]),
   campus_id: z.string().min(1, "Campus is required"),
-  // Top-level database fields
   category: z.string().min(1, "Category is required"),
   regular_price: z.number().min(0, "Price must be 0 or greater"),
   member_price: z.number().min(0).optional(),
   member_only: z.boolean().optional(),
   stock: z.number().int().min(0).optional(),
   image: z.string().optional(),
-  // Additional fields in metadata
   metadata: z
     .object({
       sku: z.string().optional(),
@@ -132,58 +135,49 @@ const productSchema = z.object({
     .optional(),
   translations: z.object({
     en: z.object({
-      title: z.string().min(1, "English title is required"),
-      description: z.string().min(1, "English description is required"),
+      title: z
+        .string()
+        .min(3, "English title must be at least 3 characters")
+        .max(100, "English title must be 100 characters or fewer"),
+      description: z
+        .string()
+        .min(10, "English description must be at least 10 characters")
+        .max(50000),
     }),
     no: z.object({
-      title: z.string().min(1, "Norwegian title is required"),
-      description: z.string().min(1, "Norwegian description is required"),
+      title: z
+        .string()
+        .min(3, "Norwegian title must be at least 3 characters")
+        .max(100, "Norwegian title must be 100 characters or fewer"),
+      description: z
+        .string()
+        .min(10, "Norwegian description must be at least 10 characters")
+        .max(50000),
     }),
   }),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 type EditProductProps = {
   product?: ProductWithTranslations;
+  campuses?: Campus[];
 };
 
 type SlugSource = "en" | "no" | null;
 type ProductPayload = CreateProductData | UpdateProductData;
 
-const MULTIPLE_SPACES_REGEX = /\s+/g;
-const NON_WORD_REGEX = /[^\w-]+/g;
-const MULTIPLE_DASHES_REGEX = /--+/g;
-const LEADING_DASHES_REGEX = /^-+/;
-const TRAILING_DASHES_REGEX = /-+$/;
-
-// Slugify function
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(MULTIPLE_SPACES_REGEX, "-") // Replace spaces with -
-    .replace(NON_WORD_REGEX, "") // Remove all non-word chars
-    .replace(MULTIPLE_DASHES_REGEX, "-") // Replace multiple - with single -
-    .replace(LEADING_DASHES_REGEX, "") // Trim - from start of text
-    .replace(TRAILING_DASHES_REGEX, ""); // Trim - from end of text
-}
+// ── Slug helpers ─���────────────────────────────────────────────────────────────
 
 function getSlugSourceLabel(slugSource: SlugSource): string {
-  if (slugSource === "no") {
-    return "Norwegian";
-  }
-  if (slugSource === "en") {
-    return "English";
-  }
+  if (slugSource === "no") return "Norwegian";
+  if (slugSource === "en") return "English";
   return "title";
 }
 
-function shouldAutoGenerateSlug(
-  isEditingSlug: boolean,
-  isEditing: boolean
-): boolean {
+function shouldAutoGenerateSlug(isEditingSlug: boolean, isEditing: boolean) {
   return !(isEditingSlug || isEditing);
 }
 
@@ -196,27 +190,20 @@ function computeSlugUpdate(
   titles: { enTitle: string; noTitle: string }
 ): { nextSource: SlugSource; slugValue: string } | null {
   if (!slugSource) {
-    if (titles.noTitle && !titles.enTitle) {
+    if (titles.noTitle && !titles.enTitle)
       return { nextSource: "no", slugValue: slugify(titles.noTitle) };
-    }
-    if (titles.enTitle && !titles.noTitle) {
+    if (titles.enTitle && !titles.noTitle)
       return { nextSource: "en", slugValue: slugify(titles.enTitle) };
-    }
     return null;
   }
-
-  if (slugSource === "no" && titles.noTitle) {
+  if (slugSource === "no" && titles.noTitle)
     return { nextSource: "no", slugValue: slugify(titles.noTitle) };
-  }
-  if (slugSource === "no" && !titles.noTitle && titles.enTitle) {
+  if (slugSource === "no" && !titles.noTitle && titles.enTitle)
     return { nextSource: "en", slugValue: slugify(titles.enTitle) };
-  }
-  if (slugSource === "en" && titles.enTitle) {
+  if (slugSource === "en" && titles.enTitle)
     return { nextSource: "en", slugValue: slugify(titles.enTitle) };
-  }
-  if (slugSource === "en" && !titles.enTitle && titles.noTitle) {
+  if (slugSource === "en" && !titles.enTitle && titles.noTitle)
     return { nextSource: "no", slugValue: slugify(titles.noTitle) };
-  }
   return null;
 }
 
@@ -226,23 +213,13 @@ function watchSlugUpdates(
   setSlugSource: (source: SlugSource) => void
 ) {
   return form.watch((value, { name }) => {
-    if (!isTranslationTitleChange(name)) {
-      return;
-    }
-
+    if (!isTranslationTitleChange(name)) return;
     const slugUpdate = computeSlugUpdate(slugSource, {
       enTitle: value.translations?.en?.title || "",
       noTitle: value.translations?.no?.title || "",
     });
-
-    if (!slugUpdate) {
-      return;
-    }
-
-    if (slugUpdate.nextSource !== slugSource) {
-      setSlugSource(slugUpdate.nextSource);
-    }
-
+    if (!slugUpdate) return;
+    if (slugUpdate.nextSource !== slugSource) setSlugSource(slugUpdate.nextSource);
     form.setValue("slug", slugUpdate.slugValue);
   });
 }
@@ -253,13 +230,8 @@ function getTitleForSlug(
 ): string | undefined {
   const enTitle = form.getValues("translations.en.title");
   const noTitle = form.getValues("translations.no.title");
-
-  if (slugSource === "no") {
-    return noTitle;
-  }
-  if (slugSource === "en") {
-    return enTitle;
-  }
+  if (slugSource === "no") return noTitle;
+  if (slugSource === "en") return enTitle;
   return enTitle || noTitle;
 }
 
@@ -268,9 +240,7 @@ function restoreAutoSlug(
   slugSource: SlugSource
 ) {
   const titleToUse = getTitleForSlug(form, slugSource);
-  if (titleToUse) {
-    form.setValue("slug", slugify(titleToUse));
-  }
+  if (titleToUse) form.setValue("slug", slugify(titleToUse));
 }
 
 function handleSlugKeyDown(
@@ -291,48 +261,33 @@ function handleSlugKeyDown(
   }
 }
 
+// ── Payload builders ──────────────────────────────────────────────────────────
+
 function buildTranslations(translations: ProductFormData["translations"]): {
   en: ProductTranslation;
   no: ProductTranslation;
 } {
   return {
-    en: {
-      title: translations.en.title,
-      description: translations.en.description,
-    },
-    no: {
-      title: translations.no.title,
-      description: translations.no.description,
-    },
+    en: { title: translations.en.title, description: translations.en.description },
+    no: { title: translations.no.title, description: translations.no.description },
   };
 }
 
 function normalizeImages(images?: string[] | null): string[] | undefined {
-  if (!images) {
-    return;
-  }
-
-  const filtered = images
-    .map((url) => url?.trim() || "")
-    .filter((url) => url.length > 0);
-
+  if (!images) return;
+  const filtered = images.map((u) => u?.trim() || "").filter((u) => u.length > 0);
   return filtered.length > 0 ? filtered : undefined;
 }
 
 function normalizeCustomFields(
   customFields?: ProductMetadata["custom_fields"]
 ): ProductMetadata["custom_fields"] | undefined {
-  if (!customFields?.length) {
-    return;
-  }
-
+  if (!customFields?.length) return;
   return customFields.map((field) => ({
     ...field,
     options:
       field.type === "select"
-        ? (field.options || [])
-            .map((option) => option.trim())
-            .filter((option) => option.length > 0)
+        ? (field.options || []).map((o) => o.trim()).filter((o) => o.length > 0)
         : undefined,
   }));
 }
@@ -340,55 +295,30 @@ function normalizeCustomFields(
 function normalizeVariations(
   variations?: ProductMetadata["variations"]
 ): ProductMetadata["variations"] | undefined {
-  if (!variations?.length) {
-    return;
-  }
-
-  return variations.map((variation) => ({
-    ...variation,
-    price_modifier:
-      typeof variation.price_modifier === "number"
-        ? variation.price_modifier
-        : 0,
+  if (!variations?.length) return;
+  return variations.map((v) => ({
+    ...v,
+    price_modifier: typeof v.price_modifier === "number" ? v.price_modifier : 0,
     stock_quantity:
-      typeof variation.stock_quantity === "number"
-        ? Math.max(0, variation.stock_quantity)
-        : undefined,
+      typeof v.stock_quantity === "number" ? Math.max(0, v.stock_quantity) : undefined,
   }));
 }
 
 function normalizeMetadata(
   metadata?: ProductFormData["metadata"]
 ): ProductMetadata | undefined {
-  if (!metadata) {
-    return;
-  }
-
+  if (!metadata) return;
   const normalized: ProductMetadata = {};
   const images = normalizeImages(metadata.images);
   const customFields = normalizeCustomFields(metadata.custom_fields);
   const variations = normalizeVariations(metadata.variations);
   const sku = metadata.sku?.trim();
-
-  if (sku) {
-    normalized.sku = sku;
-  }
-  if (images) {
-    normalized.images = images;
-  }
-  if (typeof metadata.max_per_user === "number") {
-    normalized.max_per_user = metadata.max_per_user;
-  }
-  if (typeof metadata.max_per_order === "number") {
-    normalized.max_per_order = metadata.max_per_order;
-  }
-  if (customFields) {
-    normalized.custom_fields = customFields;
-  }
-  if (variations) {
-    normalized.variations = variations;
-  }
-
+  if (sku) normalized.sku = sku;
+  if (images) normalized.images = images;
+  if (typeof metadata.max_per_user === "number") normalized.max_per_user = metadata.max_per_user;
+  if (typeof metadata.max_per_order === "number") normalized.max_per_order = metadata.max_per_order;
+  if (customFields) normalized.custom_fields = customFields;
+  if (variations) normalized.variations = variations;
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
@@ -413,129 +343,16 @@ function buildBaseProductPayload(
   };
 }
 
-function useCampusesData(setCampuses: (campuses: Campus[]) => void) {
-  useEffect(() => {
-    async function fetchCampuses() {
-      try {
-        const campusData = await listCampuses();
-        setCampuses(campusData);
-      } catch (error) {
-        console.error("Error fetching campuses:", error);
-        toast.error("Failed to load campuses");
-      }
-    }
-
-    fetchCampuses();
-  }, [setCampuses]);
-}
-
-type ToggleDefaultsConfig = {
-  product: ProductWithTranslations | undefined;
-  setCustomFieldsEnabled: (value: boolean) => void;
-  setMemberPricingEnabled: (value: boolean) => void;
-  setPurchaseLimitsEnabled: (value: boolean) => void;
-  setSkuEnabled: (value: boolean) => void;
-  setStockEnabled: (value: boolean) => void;
-  setVariationsEnabled: (value: boolean) => void;
-};
-
-function useToggleDefaults({
-  product,
-  setCustomFieldsEnabled,
-  setMemberPricingEnabled,
-  setPurchaseLimitsEnabled,
-  setSkuEnabled,
-  setStockEnabled,
-  setVariationsEnabled,
-}: ToggleDefaultsConfig) {
-  useEffect(() => {
-    if (!product) {
-      return;
-    }
-    setMemberPricingEnabled(!!product.member_price);
-    setSkuEnabled(!!(product.metadata_parsed as ProductMetadata)?.sku);
-    setStockEnabled(product.stock !== undefined && product.stock !== null);
-    setPurchaseLimitsEnabled(
-      !!(
-        (product.metadata_parsed as ProductMetadata)?.max_per_user ||
-        (product.metadata_parsed as ProductMetadata)?.max_per_order
-      )
-    );
-    setVariationsEnabled(
-      !!(product.metadata_parsed as ProductMetadata)?.variations?.length
-    );
-    setCustomFieldsEnabled(
-      !!(product.metadata_parsed as ProductMetadata)?.custom_fields?.length
-    );
-  }, [
-    product,
-    setCustomFieldsEnabled,
-    setMemberPricingEnabled,
-    setPurchaseLimitsEnabled,
-    setSkuEnabled,
-    setStockEnabled,
-    setVariationsEnabled,
-  ]);
-}
-
-type SlugAutofillConfig = {
-  form: UseFormReturn<ProductFormData>;
-  isEditing: boolean;
-  isEditingSlug: boolean;
-  setSlugSource: (source: SlugSource) => void;
-  slugSource: SlugSource;
-};
-
-function useSlugAutofill({
-  form,
-  isEditing,
-  isEditingSlug,
-  setSlugSource,
-  slugSource,
-}: SlugAutofillConfig) {
-  useEffect(() => {
-    if (!shouldAutoGenerateSlug(isEditingSlug, isEditing)) {
-      return;
-    }
-
-    const subscription = watchSlugUpdates(form, slugSource, setSlugSource);
-
-    return () => subscription.unsubscribe();
-  }, [form, isEditing, isEditingSlug, setSlugSource, slugSource]);
-}
-
-function useSlugFocus(
-  isEditingSlug: boolean,
-  slugInputRef: RefObject<HTMLInputElement>
-) {
-  useEffect(() => {
-    if (isEditingSlug && slugInputRef.current) {
-      slugInputRef.current.focus();
-      slugInputRef.current.select();
-    }
-  }, [isEditingSlug, slugInputRef]);
-}
+// ── Default values ────────────────────────────────────────────────────────────
 
 function getTranslationForProduct(
   product: ProductWithTranslations | undefined,
   locale: "en" | "no"
 ): ProductTranslation {
-  if (!product?.translation_refs) {
-    return { title: "", description: "" };
-  }
-
-  const translation = product.translation_refs.find(
-    (candidate) => candidate.locale === locale
-  );
-
-  if (!translation) {
-    return { title: "", description: "" };
-  }
-
-  return {
-    title: translation.title || "",
-    description: translation.description || "",
-  };
+  if (!product?.translation_refs) return { title: "", description: "" };
+  const translation = product.translation_refs.find((c) => c.locale === locale);
+  if (!translation) return { title: "", description: "" };
+  return { title: translation.title || "", description: translation.description || "" };
 }
 
 function getProductDefaultValues(
@@ -574,6 +391,84 @@ function getProductDefaultValues(
   };
 }
 
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+function useToggleDefaults(
+  product: ProductWithTranslations | undefined,
+  setters: {
+    setCustomFieldsEnabled: (v: boolean) => void;
+    setMemberPricingEnabled: (v: boolean) => void;
+    setPurchaseLimitsEnabled: (v: boolean) => void;
+    setSkuEnabled: (v: boolean) => void;
+    setStockEnabled: (v: boolean) => void;
+    setVariationsEnabled: (v: boolean) => void;
+  }
+) {
+  const {
+    setCustomFieldsEnabled,
+    setMemberPricingEnabled,
+    setPurchaseLimitsEnabled,
+    setSkuEnabled,
+    setStockEnabled,
+    setVariationsEnabled,
+  } = setters;
+
+  useEffect(() => {
+    if (!product) return;
+    setMemberPricingEnabled(!!product.member_price);
+    setSkuEnabled(!!(product.metadata_parsed as ProductMetadata)?.sku);
+    setStockEnabled(product.stock !== undefined && product.stock !== null);
+    setPurchaseLimitsEnabled(
+      !!(
+        (product.metadata_parsed as ProductMetadata)?.max_per_user ||
+        (product.metadata_parsed as ProductMetadata)?.max_per_order
+      )
+    );
+    setVariationsEnabled(
+      !!(product.metadata_parsed as ProductMetadata)?.variations?.length
+    );
+    setCustomFieldsEnabled(
+      !!(product.metadata_parsed as ProductMetadata)?.custom_fields?.length
+    );
+  }, [
+    product,
+    setCustomFieldsEnabled,
+    setMemberPricingEnabled,
+    setPurchaseLimitsEnabled,
+    setSkuEnabled,
+    setStockEnabled,
+    setVariationsEnabled,
+  ]);
+}
+
+function useSlugAutofill(
+  form: UseFormReturn<ProductFormData>,
+  isEditing: boolean,
+  isEditingSlug: boolean,
+  slugSource: SlugSource,
+  setSlugSource: (source: SlugSource) => void
+) {
+  useEffect(() => {
+    if (!shouldAutoGenerateSlug(isEditingSlug, isEditing)) return;
+    const subscription = watchSlugUpdates(form, slugSource, setSlugSource);
+    return () => subscription.unsubscribe();
+  }, [form, isEditing, isEditingSlug, setSlugSource, slugSource]);
+}
+
+function useSlugFocus(
+  isEditingSlug: boolean,
+  slugInputRef: RefObject<HTMLInputElement>
+) {
+  useEffect(() => {
+    if (isEditingSlug && slugInputRef.current) {
+      slugInputRef.current.focus();
+      slugInputRef.current.select();
+    }
+  }, [isEditingSlug, slugInputRef]);
+}
+
+// ── Sub-components ──��─────────────────────────────────────────────────────────
+
 type SlugFieldProps = {
   closeSlugEditing: () => void;
   form: UseFormReturn<ProductFormData>;
@@ -608,7 +503,7 @@ function SlugField({
                 <Input
                   placeholder="product-slug"
                   {...field}
-                  className="glass-input flex-1"
+                  className="flex-1"
                   onKeyDown={handleSlugKeyDownEvent}
                   ref={(element) => {
                     field.ref(element);
@@ -637,7 +532,7 @@ function SlugField({
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-white/40 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
                 <code className="flex-1 font-mono text-muted-foreground text-sm">
                   {field.value || "auto-generated-from-title"}
                 </code>
@@ -662,213 +557,20 @@ function SlugField({
   );
 }
 
-type ProductHeaderProps = {
-  isEditing: boolean;
-  isSubmitting: boolean;
-  onBack: () => void;
-  onCancel: () => void;
-  onSave: () => void;
-  status: ProductFormData["status"];
-  title: string;
-};
+// ── Main component ────────────────────────────────────────────────────────────
 
-function ProductHeader({
-  isEditing,
-  isSubmitting,
-  onBack,
-  onCancel,
-  onSave,
-  status,
-  title,
-}: ProductHeaderProps) {
-  return (
-    <div className="mb-4 flex items-center gap-4">
-      <Button
-        className="h-7 w-7"
-        onClick={onBack}
-        size="icon"
-        variant="outline"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        <span className="sr-only">Back</span>
-      </Button>
-      <h1 className="flex-1 shrink-0 whitespace-nowrap font-semibold text-xl tracking-tight sm:grow-0">
-        {isEditing ? `Edit ${title}` : "New Product"}
-      </h1>
-      <Badge className="ml-auto sm:ml-0" variant="outline">
-        {status}
-      </Badge>
-      <div className="hidden items-center gap-2 md:ml-auto md:flex">
-        <Button onClick={onCancel} size="sm" variant="outline">
-          Cancel
-        </Button>
-        <Button disabled={isSubmitting} onClick={onSave} size="sm">
-          {isSubmitting ? "Saving..." : "Save Product"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-type ProductContentSectionProps = {
-  form: UseFormReturn<ProductFormData>;
-  handleTranslate: (
-    fromLocale: "en" | "no",
-    toLocale: "en" | "no"
-  ) => Promise<void>;
-  isTranslating: "en" | "no" | null;
-};
-
-function ProductContentSection({
-  form,
-  handleTranslate,
-  isTranslating,
-}: ProductContentSectionProps) {
-  return (
-    <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Languages className="h-5 w-5" />
-          Product Content
-        </CardTitle>
-        <CardDescription>
-          Manage product content in multiple languages
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs className="w-full" defaultValue="en">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger className="flex items-center gap-2" value="en">
-              🇬🇧 English
-            </TabsTrigger>
-            <TabsTrigger className="flex items-center gap-2" value="no">
-              🇳🇴 Norsk
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent className="mt-4 space-y-4" value="en">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium text-lg">English Content</h3>
-              <Button
-                className="flex items-center gap-2"
-                disabled={isTranslating === "en"}
-                onClick={() => handleTranslate("no", "en")}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Sparkles className="h-4 w-4" />
-                {isTranslating === "en"
-                  ? "Translating..."
-                  : "Translate from Norwegian"}
-              </Button>
-            </div>
-            <FormField
-              control={form.control}
-              name="translations.en.title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Product title in English"
-                      {...field}
-                      className="glass-input"
-                      value={field.value || ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="translations.en.description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <RichTextEditor
-                      content={field.value || ""}
-                      editable={true}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </TabsContent>
-
-          <TabsContent className="mt-4 space-y-4" value="no">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium text-lg">Norwegian Content</h3>
-              <Button
-                className="flex items-center gap-2"
-                disabled={isTranslating === "no"}
-                onClick={() => handleTranslate("en", "no")}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <Sparkles className="h-4 w-4" />
-                {isTranslating === "no"
-                  ? "Translating..."
-                  : "Translate from English"}
-              </Button>
-            </div>
-            <FormField
-              control={form.control}
-              name="translations.no.title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tittel</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Produkttittel på norsk"
-                      {...field}
-                      className="glass-input"
-                      value={field.value || ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="translations.no.description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Beskrivelse</FormLabel>
-                  <FormControl>
-                    <RichTextEditor
-                      content={field.value || ""}
-                      editable={true}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function EditProduct({ product }: EditProductProps) {
+export function EditProduct({ product, campuses = [] }: EditProductProps) {
   const router = useRouter();
-  const [campuses, setCampuses] = useState<Campus[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditing = !!product;
+  const storageKey = `product:${product?.$id ?? "new"}`;
+
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isTranslating, setIsTranslating] = useState<"en" | "no" | null>(null);
-  const [previewLocale, setPreviewLocale] = useState<"en" | "no">("en");
+  const [activeLocale, setActiveLocale] = useState<"en" | "no">("en");
 
   // Slug editing state
   const [isEditingSlug, setIsEditingSlug] = useState(false);
-  const [slugSource, setSlugSource] = useState<"en" | "no" | null>(null);
+  const [slugSource, setSlugSource] = useState<SlugSource>(null);
   const slugInputRef = useRef<HTMLInputElement>(null);
 
   // Toggle states for optional sections
@@ -879,16 +581,33 @@ export function EditProduct({ product }: EditProductProps) {
   const [variationsEnabled, setVariationsEnabled] = useState(false);
   const [customFieldsEnabled, setCustomFieldsEnabled] = useState(false);
 
-  const isEditing = !!product;
+  // Draft restore
+  const [draftRestoreData, setDraftRestoreData] = useState<{
+    values: ProductFormData;
+    savedAt: Date;
+  } | null>(null);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
+    mode: "onBlur",
     defaultValues: getProductDefaultValues(product),
   });
 
-  useCampusesData(setCampuses);
-  useToggleDefaults({
-    product,
+  const { isDirty, isSubmitting } = form.formState;
+
+  // Autosave
+  const autosave = useAutosave({
+    storageKey,
+    values: form.watch(),
+    isDirty,
+    onRestoreDraft: (draft) => {
+      setDraftRestoreData({ values: draft as ProductFormData, savedAt: new Date() });
+    },
+  });
+
+  useDirtyWarning({ isDirty, isSubmitting });
+
+  useToggleDefaults(product, {
     setCustomFieldsEnabled,
     setMemberPricingEnabled,
     setPurchaseLimitsEnabled,
@@ -896,14 +615,11 @@ export function EditProduct({ product }: EditProductProps) {
     setStockEnabled,
     setVariationsEnabled,
   });
-  useSlugAutofill({
-    form,
-    isEditing,
-    isEditingSlug,
-    setSlugSource,
-    slugSource,
-  });
+
+  useSlugAutofill(form, isEditing, isEditingSlug, slugSource, setSlugSource);
   useSlugFocus(isEditingSlug, slugInputRef);
+
+  // ── Translation ──────────────────────────────────────────────────────────
 
   const handleTranslate = async (
     fromLocale: "en" | "no",
@@ -911,13 +627,13 @@ export function EditProduct({ product }: EditProductProps) {
   ) => {
     const fromTranslation = form.getValues(`translations.${fromLocale}`);
     if (!(fromTranslation?.title && fromTranslation?.description)) {
-      toast.error(
-        `Please fill in the ${fromLocale === "en" ? "English" : "Norwegian"} content first`
-      );
+      toast({
+        title: `Please fill in the ${fromLocale === "en" ? "English" : "Norwegian"} content first`,
+        variant: "destructive",
+      });
       return;
     }
 
-    // Ensure we have the required fields for ProductTranslation
     const translationData: ProductTranslation = {
       title: fromTranslation.title,
       description: fromTranslation.description,
@@ -933,54 +649,54 @@ export function EditProduct({ product }: EditProductProps) {
       );
       if (translated) {
         form.setValue(`translations.${toLocale}`, translated);
-        toast.success(
-          `Content translated to ${toLocale === "en" ? "English" : "Norwegian"}`
-        );
+        toast({
+          title: `Content translated to ${toLocale === "en" ? "English" : "Norwegian"}`,
+        });
       } else {
-        toast.error("Translation failed");
+        toast({ title: "Translation failed", variant: "destructive" });
       }
     } catch (error) {
       console.error("Translation error:", error);
-      toast.error("Translation failed");
+      toast({ title: "Translation failed", variant: "destructive" });
     } finally {
       setIsTranslating(null);
     }
   };
 
-  const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
-    setIsSubmitting(true);
+  // ── Submit ─���─────────────────────────────────────────────────────────────
 
+  const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
+    setSaveStatus("saving");
     try {
       const translations = buildTranslations(data.translations);
       const metadata = normalizeMetadata(data.metadata);
       const primaryImage = metadata?.images?.[0] || data.image || null;
-      const payload = buildBaseProductPayload(
-        data,
-        metadata,
-        translations,
-        primaryImage
-      );
+      const payload = buildBaseProductPayload(data, metadata, translations, primaryImage);
 
       if (isEditing && product) {
         await updateProduct(product.$id, payload as UpdateProductData);
-        toast.success("Product updated successfully");
+        toast({ title: "Product updated successfully" });
       } else {
         await createProduct(payload as CreateProductData);
-        toast.success("Product created successfully");
+        toast({ title: "Product created successfully" });
+        router.push("/shop/products");
       }
 
-      router.push("/shop/products");
+      setSaveStatus("saved");
+      autosave.clearDraft();
     } catch (error) {
       console.error("Error saving product:", error);
-      toast.error("Failed to save product");
-    } finally {
-      setIsSubmitting(false);
+      toast({ title: "Failed to save product", variant: "destructive" });
+      setSaveStatus("error");
     }
   };
 
-  const selectedCampus = campuses.find(
-    (c) => c.$id === form.watch("campus_id")
-  );
+  const handleSave = async () => {
+    await form.handleSubmit(onSubmit)();
+  };
+
+  // ── Slug helpers ─────────────────────────────────────────────────────────
+
   const closeSlugEditing = () => setIsEditingSlug(false);
   const handleSlugCancel = () => {
     restoreAutoSlug(form, slugSource);
@@ -990,24 +706,21 @@ export function EditProduct({ product }: EditProductProps) {
     handleSlugKeyDown(event, form, slugSource, closeSlugEditing);
   const slugDescription = isEditingSlug
     ? "Press Enter to save, Escape to cancel"
-    : `Auto-generated from ${getSlugSourceLabel(slugSource)} • Click edit to customize`;
+    : `Auto-generated from ${getSlugSourceLabel(slugSource)} · Click edit to customize`;
+
+  // ── Toggle handlers ──────────────────────────────────────────────────────
+
   const handleMemberPricingToggle = (enabled: boolean) => {
     setMemberPricingEnabled(enabled);
-    if (!enabled) {
-      form.setValue("member_price", undefined);
-    }
+    if (!enabled) form.setValue("member_price", undefined);
   };
   const handleStockToggle = (enabled: boolean) => {
     setStockEnabled(enabled);
-    if (!enabled) {
-      form.setValue("stock", undefined);
-    }
+    if (!enabled) form.setValue("stock", undefined);
   };
   const handleSkuToggle = (enabled: boolean) => {
     setSkuEnabled(enabled);
-    if (!enabled) {
-      form.setValue("metadata.sku", "");
-    }
+    if (!enabled) form.setValue("metadata.sku", "");
   };
   const handlePurchaseLimitsToggle = (enabled: boolean) => {
     setPurchaseLimitsEnabled(enabled);
@@ -1018,121 +731,266 @@ export function EditProduct({ product }: EditProductProps) {
   };
   const handleVariationsToggle = (enabled: boolean) => {
     setVariationsEnabled(enabled);
-    if (!enabled) {
-      form.setValue("metadata.variations", []);
-    }
+    if (!enabled) form.setValue("metadata.variations", []);
   };
   const handleCustomFieldsToggle = (enabled: boolean) => {
     setCustomFieldsEnabled(enabled);
-    if (!enabled) {
-      form.setValue("metadata.custom_fields", []);
-    }
+    if (!enabled) form.setValue("metadata.custom_fields", []);
   };
 
+  // ── Watch values for preview ─────────────────────────────────────────────
+
+  const watchValues = form.watch();
+  const selectedCampus = campuses.find((c) => c.$id === watchValues.campus_id);
+
+  const enTitle = watchValues.translations?.en?.title ?? "";
+  const noTitle = watchValues.translations?.no?.title ?? "";
+  const enDesc = watchValues.translations?.en?.description ?? "";
+  const noDesc = watchValues.translations?.no?.description ?? "";
+
+  const getLocaleStatus = (title: string, desc: string) => {
+    if (title?.length >= 3 && desc?.length >= 10) return "complete" as const;
+    if (title || desc) return "partial" as const;
+    return "empty" as const;
+  };
+
+  const pageTitle = isEditing
+    ? (product.translation_refs?.[0]?.title ?? product.slug ?? "Edit Product")
+    : "New Product";
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <div className="flex flex-col sm:gap-4">
-        <main className="grid flex-1 items-start gap-4">
-          <ProductHeader
-            isEditing={isEditing}
-            isSubmitting={isSubmitting}
-            onBack={() => router.back()}
-            onCancel={() => router.back()}
-            onSave={form.handleSubmit(onSubmit)}
-            status={form.watch("status")}
-            title={product?.translation_refs?.[0]?.title || product?.slug || ""}
+    <div className="flex h-full flex-col">
+      {/* Breadcrumb */}
+      <div className="shrink-0 border-b border-border/40 bg-background px-6 py-3">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/shop/products">Products</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <PreviewPanel
+        renderPreview={(locale) => (
+          <ProductPreviewPane
+            locale={locale}
+            data={{
+              status: watchValues.status,
+              category: watchValues.category,
+              regular_price: watchValues.regular_price,
+              member_price: watchValues.member_price,
+              member_only: watchValues.member_only,
+              stock: watchValues.stock,
+              image: watchValues.image,
+              metadata: watchValues.metadata,
+              translations: {
+                en: {
+                  title: enTitle,
+                  description: enDesc,
+                },
+                no: {
+                  title: noTitle,
+                  description: noDesc,
+                },
+              },
+            }}
           />
+        )}
+      >
+        <div className="space-y-6 p-6">
+          {/* Draft restore banner */}
+          {draftRestoreData && (
+            <DraftRestoreBanner
+              savedAt={draftRestoreData.savedAt}
+              onRestore={() => {
+                form.reset(draftRestoreData.values);
+                setDraftRestoreData(null);
+              }}
+              onDiscard={() => {
+                autosave.clearDraft();
+                setDraftRestoreData(null);
+              }}
+            />
+          )}
 
           <Form {...form}>
-            <form
-              className="grid gap-6 lg:grid-cols-[1fr_400px]"
-              onSubmit={form.handleSubmit(onSubmit)}
-            >
-              {/* LEFT COLUMN - Form Content */}
-              <div className="space-y-6">
-                {/* Product Content with Translations */}
-                <ProductContentSection
-                  form={form}
-                  handleTranslate={handleTranslate}
-                  isTranslating={isTranslating}
-                />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Content & Translations */}
+              <FormSection
+                title="Content & Translations"
+                subtitle="Write compelling product copy in both languages"
+              >
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <LocaleTabGroup
+                      activeLocale={activeLocale}
+                      onChange={setActiveLocale}
+                      status={{
+                        en: getLocaleStatus(enTitle, enDesc),
+                        no: getLocaleStatus(noTitle, noDesc),
+                      }}
+                    />
+                    <Button
+                      disabled={
+                        activeLocale === "en"
+                          ? isTranslating === "en" || !noTitle
+                          : isTranslating === "no" || !enTitle
+                      }
+                      onClick={() =>
+                        handleTranslate(
+                          activeLocale === "en" ? "no" : "en",
+                          activeLocale
+                        )
+                      }
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      {isTranslating === activeLocale
+                        ? "Translating…"
+                        : `Translate to ${activeLocale === "en" ? "English" : "Norwegian"}`}
+                    </Button>
+                  </div>
 
-                {/* Basic Product Details */}
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle>Basic Details</CardTitle>
-                    <CardDescription>
-                      Configure essential product information
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Product category"
-                              {...field}
-                              className="glass-input"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="regular_price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Regular Price (NOK)</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="0.00"
-                              step="0.01"
-                              type="number"
-                              {...field}
-                              className="glass-input"
-                              onChange={(e) =>
-                                field.onChange(
-                                  Number.parseFloat(e.target.value) || 0
-                                )
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="member_only"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 bg-white/40 p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Members Only
-                            </FormLabel>
-                            <FormDescription>
-                              Only members can purchase this product
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                  {(["en", "no"] as const).map((locale) => (
+                    <div
+                      key={locale}
+                      className={locale === activeLocale ? "space-y-4" : "hidden"}
+                      role="tabpanel"
+                    >
+                      <FormField
+                        control={form.control}
+                        name={`translations.${locale}.title`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center justify-between">
+                              <FormLabel>Title</FormLabel>
+                              <CharacterCount
+                                current={field.value?.length ?? 0}
+                                max={100}
+                              />
+                            </div>
+                            <FormControl>
+                              <Input
+                                placeholder={
+                                  locale === "en"
+                                    ? "Product title in English"
+                                    : "Produkttittel på norsk"
+                                }
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`translations.${locale}.description`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <RichTextEditor
+                                content={field.value || ""}
+                                editable
+                                onChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </FormSection>
 
-                {/* Toggle Sections for Optional Fields */}
+              {/* Basic Details */}
+              <FormSection
+                title="Basic Details"
+                subtitle="Category, pricing, and availability"
+              >
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Product category" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="regular_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Regular Price (NOK)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="0.00"
+                            step="0.01"
+                            type="number"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(
+                                Number.parseFloat(e.target.value) || 0
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="member_only"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border/60 p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Members Only
+                          </FormLabel>
+                          <FormDescription>
+                            Only members can purchase this product
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </FormSection>
+
+              {/* Optional Sections */}
+              <FormSection
+                title="Pricing & Inventory"
+                subtitle="Member pricing, stock management, and SKU tracking"
+                collapsible
+                defaultOpen={
+                  memberPricingEnabled || stockEnabled || skuEnabled
+                }
+              >
                 <div className="space-y-4">
                   <ToggleSection
                     description="Set a special price for members"
@@ -1149,7 +1007,6 @@ export function EditProduct({ product }: EditProductProps) {
                           <FormLabel>Member Price (NOK)</FormLabel>
                           <FormControl>
                             <Input
-                              className="glass-input"
                               onChange={(e) => {
                                 const value = e.target.value;
                                 field.onChange(
@@ -1189,7 +1046,6 @@ export function EditProduct({ product }: EditProductProps) {
                               placeholder="Available quantity"
                               type="number"
                               {...field}
-                              className="glass-input"
                               onChange={(e) =>
                                 field.onChange(
                                   Number.parseInt(e.target.value, 10) || 0
@@ -1223,7 +1079,6 @@ export function EditProduct({ product }: EditProductProps) {
                             <Input
                               placeholder="Product SKU"
                               {...field}
-                              className="glass-input"
                               value={field.value || ""}
                             />
                           </FormControl>
@@ -1248,14 +1103,13 @@ export function EditProduct({ product }: EditProductProps) {
                         control={form.control}
                         name="metadata.max_per_user"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-primary/20 bg-white/40 p-4">
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border/60 p-4">
                             <div className="space-y-0.5">
                               <FormLabel className="text-base">
                                 Limit to one per customer
                               </FormLabel>
                               <FormDescription>
-                                Prevents customers from purchasing more than
-                                once
+                                Prevents customers from purchasing more than once
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -1277,12 +1131,13 @@ export function EditProduct({ product }: EditProductProps) {
                             <FormLabel>Maximum per order</FormLabel>
                             <FormControl>
                               <Input
-                                className="glass-input"
                                 min={1}
                                 onChange={(event) => {
                                   const next = event.target.value;
                                   field.onChange(
-                                    next ? Number.parseInt(next, 10) : undefined
+                                    next
+                                      ? Number.parseInt(next, 10)
+                                      : undefined
                                   );
                                 }}
                                 placeholder="Unlimited"
@@ -1300,26 +1155,29 @@ export function EditProduct({ product }: EditProductProps) {
                     </div>
                   </ToggleSection>
                 </div>
+              </FormSection>
 
-                {/* Options & Fields Accordion */}
+              {/* Advanced */}
+              <FormSection
+                title="Advanced Options"
+                subtitle="Product variations and custom checkout fields"
+                collapsible
+                defaultOpen={variationsEnabled || customFieldsEnabled}
+              >
                 <Accordion
                   className="space-y-4"
                   defaultValue={[]}
                   type="multiple"
                 >
                   <AccordionItem
-                    className="glass-card overflow-hidden rounded-lg border bg-card"
+                    className="overflow-hidden rounded-lg border bg-card"
                     value="options-fields"
                   >
                     <AccordionTrigger className="px-4 py-3 text-left font-semibold text-base hover:no-underline">
-                      Advanced Options
+                      Configure variations and custom fields
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
-                      <p className="pb-4 text-muted-foreground text-sm">
-                        Configure product variations and custom fields for
-                        additional customer input.
-                      </p>
-                      <div className="space-y-4">
+                      <div className="space-y-4 pt-2">
                         <ToggleSection
                           description="Offer different options like sizes, colors, or packages"
                           enabled={variationsEnabled}
@@ -1365,92 +1223,88 @@ export function EditProduct({ product }: EditProductProps) {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
-              </div>
+              </FormSection>
 
-              {/* RIGHT COLUMN - Sticky Sidebar */}
-              <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-                {/* Status & Campus */}
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle>Product Settings</CardTitle>
-                    <CardDescription>
-                      Configure status and location
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-4">
-                    <SlugField
-                      closeSlugEditing={closeSlugEditing}
-                      form={form}
-                      handleSlugCancel={handleSlugCancel}
-                      handleSlugKeyDownEvent={handleSlugKeyDownEvent}
-                      isEditingSlug={isEditingSlug}
-                      slugDescription={slugDescription}
-                      slugInputRef={slugInputRef}
-                      startEditing={() => setIsEditingSlug(true)}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Status</FormLabel>
-                          <Select
-                            defaultValue={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="glass-input">
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="published">
-                                Published
+              {/* Settings (slug, status, campus) + Images */}
+              <FormSection
+                title="Settings"
+                subtitle="Publishing status, URL slug, and campus"
+              >
+                <div className="space-y-4">
+                  <SlugField
+                    closeSlugEditing={closeSlugEditing}
+                    form={form}
+                    handleSlugCancel={handleSlugCancel}
+                    handleSlugKeyDownEvent={handleSlugKeyDownEvent}
+                    isEditingSlug={isEditingSlug}
+                    slugDescription={slugDescription}
+                    slugInputRef={slugInputRef}
+                    startEditing={() => setIsEditingSlug(true)}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select
+                          defaultValue={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
+                            <SelectItem value="archived">Archived</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="campus_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campus</FormLabel>
+                        <Select
+                          defaultValue={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select campus" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {campuses.map((campus) => (
+                              <SelectItem key={campus.$id} value={campus.$id}>
+                                {campus.name}
                               </SelectItem>
-                              <SelectItem value="archived">Archived</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="campus_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campus</FormLabel>
-                          <Select
-                            defaultValue={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="glass-input">
-                                <SelectValue placeholder="Select campus" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {campuses.map((campus) => (
-                                <SelectItem key={campus.$id} value={campus.$id}>
-                                  {campus.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {selectedCampus && (
-                            <FormDescription>
-                              Selected: {selectedCampus.name}
-                            </FormDescription>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedCampus && (
+                          <FormDescription>
+                            Selected: {selectedCampus.name}
+                          </FormDescription>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </FormSection>
 
-                {/* Product Images */}
+              {/* Cover Images */}
+              <FormSection title="Cover Image" subtitle="Product photos">
                 <FormField
                   control={form.control}
                   name="metadata.images"
@@ -1467,62 +1321,23 @@ export function EditProduct({ product }: EditProductProps) {
                     </FormItem>
                   )}
                 />
-
-                {/* Live Preview */}
-                <Card className="glass-card">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <Eye className="h-5 w-5" />
-                        Live Preview
-                      </CardTitle>
-                      <Tabs
-                        className="w-auto"
-                        onValueChange={(value) =>
-                          setPreviewLocale(value as "en" | "no")
-                        }
-                        value={previewLocale}
-                      >
-                        <TabsList className="h-8">
-                          <TabsTrigger className="px-2 text-xs" value="en">
-                            🇬🇧
-                          </TabsTrigger>
-                          <TabsTrigger className="px-2 text-xs" value="no">
-                            🇳🇴
-                          </TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    <CardDescription>
-                      See how your product will appear to customers
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ProductPreview
-                      data={form.watch()}
-                      locale={previewLocale}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
+              </FormSection>
             </form>
           </Form>
+        </div>
+      </PreviewPanel>
 
-          {/* Mobile Actions */}
-          <div className="mt-4 flex items-center justify-center gap-2 md:hidden">
-            <Button onClick={() => router.back()} size="sm" variant="outline">
-              Cancel
-            </Button>
-            <Button
-              disabled={isSubmitting}
-              onClick={form.handleSubmit(onSubmit)}
-              size="sm"
-            >
-              {isSubmitting ? "Saving..." : "Save Product"}
-            </Button>
-          </div>
-        </main>
-      </div>
+      <SaveBar
+        status={autosave.isSaving ? "saving" : saveStatus}
+        lastSaved={autosave.lastSaved}
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onSave={handleSave}
+        onCancel={() => router.back()}
+        autosaveEnabled={autosave.enabled}
+        onAutosaveToggle={autosave.setEnabled}
+        saveLabel={isEditing ? "Update Product" : "Create Product"}
+      />
     </div>
   );
 }

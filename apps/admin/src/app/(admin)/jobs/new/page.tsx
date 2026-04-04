@@ -7,7 +7,5 @@ export default async function NewJobPage() {
     getAllowedCampuses(),
     listDepartments(),
   ]);
-  return (
-    <JobEditor campuses={campuses as any} departments={departments as any} />
-  );
+  return <JobEditor campuses={campuses} departments={departments} />;
 }

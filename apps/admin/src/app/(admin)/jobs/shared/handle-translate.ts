@@ -9,8 +9,8 @@ type HandleTranslateParams = {
   t: (key: string) => string;
   setIsTranslating: (value: boolean) => void;
   setValue: UseFormSetValue<FormValues>;
-  setActiveTab: (tab: "en" | "no") => void;
-  showToast: (props: any) => void;
+  setActiveLocale: (tab: "en" | "no") => void;
+  showToast: (props: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
 };
 
 export async function handleTranslate({
@@ -20,7 +20,7 @@ export async function handleTranslate({
   t,
   setIsTranslating,
   setValue,
-  setActiveTab,
+  setActiveLocale,
   showToast,
 }: HandleTranslateParams) {
   if (!jobId) {
@@ -38,8 +38,8 @@ export async function handleTranslate({
     const translation = await translateJobContent(jobId, fromLocale, toLocale);
 
     if (translation) {
-      setValue(`${toLocale}_title`, translation.title);
-      setValue(`${toLocale}_description`, translation.description);
+      setValue(`translations.${toLocale}.title`, translation.title);
+      setValue(`translations.${toLocale}.description`, translation.description);
 
       showToast({
         title: t("messages.translationCompleted"),
@@ -49,7 +49,7 @@ export async function handleTranslate({
         }),
       });
 
-      setActiveTab(toLocale);
+      setActiveLocale(toLocale);
     } else {
       throw new Error("Translation failed");
     }

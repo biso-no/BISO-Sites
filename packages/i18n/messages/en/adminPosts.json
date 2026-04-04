@@ -7,6 +7,15 @@
   "publish": "Publish",
   "unpublish": "Unpublish",
   "search": "Search posts...",
+  "breadcrumb": {
+    "posts": "Posts",
+    "newPost": "New post",
+    "editPost": "Edit post"
+  },
+  "editor": {
+    "newPost": "Create new post",
+    "editPost": "Edit post"
+  },
   "filters": {
     "all": "All posts",
     "published": "Published",

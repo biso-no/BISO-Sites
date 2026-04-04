@@ -29,29 +29,23 @@ export async function submitJob({
       campus_id: values.campus_id,
       department_id: values.department_id,
       metadata: {
-        type: values.type,
-        application_deadline: values.application_deadline,
-        start_date: values.start_date,
-        contact_name: values.contact_name,
-        contact_email: values.contact_email,
-        apply_url: values.apply_url,
-        image: values.image,
+        type: values.type || undefined,
+        application_deadline: values.application_deadline || undefined,
+        start_date: values.start_date || undefined,
+        contact_name: values.contact_name || undefined,
+        contact_email: values.contact_email || undefined,
+        apply_url: values.apply_url || undefined,
+        image: values.image || undefined,
       },
       translations: {
-        ...(values.en_title &&
-          values.en_description && {
-            en: {
-              title: values.en_title,
-              description: values.en_description,
-            },
-          }),
-        ...(values.no_title &&
-          values.no_description && {
-            no: {
-              title: values.no_title,
-              description: values.no_description,
-            },
-          }),
+        en: {
+          title: values.translations.en.title,
+          description: values.translations.en.description,
+        },
+        no: {
+          title: values.translations.no.title,
+          description: values.translations.no.description,
+        },
       },
     };
 
