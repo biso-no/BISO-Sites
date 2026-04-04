@@ -21,8 +21,6 @@ export interface ProductVariation {
   stock_quantity?: number;
 }
 
-type Product = WebshopProducts;
-
 // Helper type for products with parsed metadata
 export type ProductWithTranslations = WebshopProducts & {
   metadata_parsed?: ProductMetadata;

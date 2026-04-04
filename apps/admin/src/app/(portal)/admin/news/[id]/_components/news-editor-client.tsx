@@ -7,6 +7,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -56,6 +57,7 @@ function generateSlug(title: string) {
     .replace(/-+/g, "-");
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: component manages form state, preview sync, and conditional submit
 export function NewsEditorClient({
   article,
   campuses,
@@ -80,6 +82,25 @@ export function NewsEditorClient({
   const [previewAuthor, setPreviewAuthor] = useState(article?.author ?? "");
   const [previewImage, setPreviewImage] = useState(article?.image ?? "");
 
+  async function handleFormSubmit(value: NewsFormValues) {
+    const validated = newsSchema.safeParse(value);
+    if (!validated.success) {
+      toast.error(labels.saveError);
+      return;
+    }
+    const result = isNew
+      ? await createNews(validated.data)
+      : await updateNews(article!.$id, validated.data);
+    if (result.error) {
+      toast.error(labels.saveError);
+      return;
+    }
+    toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
+    if (isNew && result.data) {
+      router.push(`/admin/news/${result.data}`);
+    }
+  }
+
   const form = useForm({
     defaultValues: {
       title: translation?.title ?? "",
@@ -94,24 +115,7 @@ export function NewsEditorClient({
       image: article?.image ?? null,
       sticky: article?.sticky ?? false,
     },
-    onSubmit: async ({ value }) => {
-      const validated = newsSchema.safeParse(value);
-      if (!validated.success) {
-        toast.error(labels.saveError);
-        return;
-      }
-      const result = isNew
-        ? await createNews(validated.data)
-        : await updateNews(article!.$id, validated.data);
-      if (result.error) {
-        toast.error(labels.saveError);
-        return;
-      }
-      toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
-      if (isNew && result.data) {
-        router.push(`/admin/news/${result.data}`);
-      }
-    },
+    onSubmit: async ({ value }) => handleFormSubmit(value),
   });
 
   const campusOptions = [
@@ -168,7 +172,7 @@ export function NewsEditorClient({
               <PortalField label={labels.title} required>
                 <textarea
                   className="w-full resize-none rounded-xl px-3 py-2.5 font-light text-xl outline-none transition-all"
-                  onBlur={() => {
+                  onBlur={(e) => {
                     field.handleBlur();
                     if (isNew && !form.getFieldValue("slug")) {
                       form.setFieldValue(
@@ -176,8 +180,6 @@ export function NewsEditorClient({
                         generateSlug(field.state.value)
                       );
                     }
-                  }}
-                  onBlur={(e) => {
                     e.currentTarget.style.borderColor =
                       "rgba(255,255,255,0.08)";
                   }}
@@ -327,11 +329,14 @@ export function NewsEditorClient({
               }}
             >
               {previewImage && (
-                <img
-                  alt=""
-                  className="h-28 w-full object-cover"
-                  src={previewImage}
-                />
+                <div className="relative h-28 w-full overflow-hidden">
+                  <Image
+                    alt=""
+                    className="object-cover"
+                    fill
+                    src={previewImage}
+                  />
+                </div>
               )}
               <div className="p-4">
                 <p

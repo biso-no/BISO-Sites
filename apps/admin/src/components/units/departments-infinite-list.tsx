@@ -73,8 +73,7 @@ export function DepartmentsInfiniteList({
       } else {
         setHasMore(false);
       }
-    } catch (error) {
-      console.error("Error loading more departments:", error);
+    } catch {
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -115,7 +114,7 @@ export function DepartmentsInfiniteList({
     };
   }, [hasMore, isLoading, loadMore]);
 
-  const handleEditDepartment = (department: any) => {
+  const handleEditDepartment = (department: { $id: string }) => {
     router.push(`/units/${department.$id}`);
   };
 

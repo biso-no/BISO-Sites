@@ -14,7 +14,10 @@ import {
 } from "@repo/ui/components/ui/sheet";
 import { Eye, EyeOff, Monitor, Smartphone } from "lucide-react";
 import { useState } from "react";
-import { type Locale, LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
+import {
+  type Locale,
+  LocaleTabGroup,
+} from "@/components/forms/locale-tab-group";
 import { cn } from "@/lib/utils";
 
 type DeviceMode = "desktop" | "mobile";

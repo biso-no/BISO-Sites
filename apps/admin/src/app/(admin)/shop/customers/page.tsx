@@ -24,7 +24,7 @@ export default async function CustomersPage() {
     string,
     { name: string; email: string; orders: number; total: number }
   >();
-  for (const o of orders as any[]) {
+  for (const o of orders) {
     const email = (o.buyer_email || "").toLowerCase().trim();
     const name = o.buyer_name || "Guest";
     const key = email || `guest-${name}`;

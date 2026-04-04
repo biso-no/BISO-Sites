@@ -16,18 +16,14 @@ async function getSettings() {
   const { db } = await createSessionClient();
   try {
     const doc = await db.getRow("app", "shop_settings", "singleton");
+    const row = doc as Record<string, unknown>;
     const parsed = {
       ...doc,
       general:
-        typeof (doc as any).general === "string"
-          ? JSON.parse((doc as any).general)
-          : (doc as any).general,
-      vipps:
-        typeof (doc as any).vipps === "string"
-          ? JSON.parse((doc as any).vipps)
-          : (doc as any).vipps,
+        typeof row.general === "string" ? JSON.parse(row.general) : row.general,
+      vipps: typeof row.vipps === "string" ? JSON.parse(row.vipps) : row.vipps,
     };
-    return parsed as any;
+    return parsed as Record<string, unknown>;
   } catch {
     return null;
   }

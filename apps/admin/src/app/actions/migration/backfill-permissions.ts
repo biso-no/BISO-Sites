@@ -58,6 +58,7 @@ function getDeptTeamIdFromDeptName(
   return `sg-app-dept-${normalized.toLowerCase()}`;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: batch migration with nested loops and error handling
 async function backfillContentTable(
   db: Awaited<ReturnType<typeof createAdminClient>>["db"],
   tableId: string,

@@ -19,7 +19,7 @@ export default function useDepartmentsFilter() {
 
   const [isPending, startTransition] = useTransition();
 
-  const updateFilter = useCallback((key: keyof FilterState, value: any) => {
+  const updateFilter = useCallback((key: keyof FilterState, value: unknown) => {
     startTransition(() => {
       setFilters((prev) => ({
         ...prev,

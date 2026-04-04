@@ -214,9 +214,7 @@ export function ProductPreview({ data, locale }: ProductPreviewProps) {
 
   const shortDescription = useMemo(() => {
     const plainText = stripHtml(translation.description);
-    return plainText.length > 100
-      ? `${plainText.substring(0, 100)}...`
-      : plainText;
+    return plainText.length > 100 ? `${plainText.slice(0, 100)}...` : plainText;
   }, [translation.description, stripHtml]);
 
   return (

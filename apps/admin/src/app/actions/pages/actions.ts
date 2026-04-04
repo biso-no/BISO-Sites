@@ -31,6 +31,7 @@ function sanitizeSlug(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: role-based permission logic with multiple branches
 async function applyUserPageScope(
   input: UpsertPageInput
 ): Promise<UpsertPageInput> {

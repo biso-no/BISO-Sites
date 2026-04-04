@@ -3,6 +3,22 @@ import type { Departments } from "@repo/api/types/appwrite";
 import { getDepartments } from "@repo/connectors/24sevenoffice";
 import { type NextRequest, NextResponse } from "next/server";
 
+function getCampusId(deptNum: number): string {
+  if (deptNum >= 1 && deptNum <= 299) {
+    return "1";
+  }
+  if (deptNum >= 300 && deptNum <= 599) {
+    return "2";
+  }
+  if (deptNum >= 600 && deptNum <= 799) {
+    return "3";
+  }
+  if (deptNum >= 800 && deptNum <= 999) {
+    return "4";
+  }
+  return "5";
+}
+
 export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
     const { db } = await createAdminClient();
@@ -16,18 +32,8 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
         Id: department.value,
         Name: department.name,
         active: true,
-        campus_id:
-          deptNum >= 1 && deptNum <= 299
-            ? "1"
-            : deptNum >= 300 && deptNum <= 599
-              ? "2"
-              : deptNum >= 600 && deptNum <= 799
-                ? "3"
-                : deptNum >= 800 && deptNum <= 999
-                  ? "4"
-                  : "5",
+        campus_id: getCampusId(deptNum),
       };
-      console.log("Syncing department:", row);
       return db.upsertRow<Departments>("app", "departments", row.$id, row);
     });
 

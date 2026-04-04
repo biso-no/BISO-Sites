@@ -187,13 +187,13 @@ export async function updateBenefit(
 
 // ─── Publish ─────────────────────────────────────────────────────────────────
 
-export async function publishBenefit(id: string): Promise<CampusBenefit> {
+export function publishBenefit(id: string): Promise<CampusBenefit> {
   return updateBenefit(id, { status: BenefitStatus.PUBLISHED });
 }
 
 // ─── Archive ─────────────────────────────────────────────────────────────────
 
-export async function archiveBenefit(id: string): Promise<CampusBenefit> {
+export function archiveBenefit(id: string): Promise<CampusBenefit> {
   return updateBenefit(id, { status: BenefitStatus.ARCHIVED });
 }
 

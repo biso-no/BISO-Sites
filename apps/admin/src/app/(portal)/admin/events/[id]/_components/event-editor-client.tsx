@@ -7,6 +7,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -48,6 +49,7 @@ function generateSlug(title: string) {
     .replace(/-+/g, "-");
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: component manages form state, preview sync, and conditional submit
 export function EventEditorClient({
   event,
   campuses,
@@ -67,6 +69,25 @@ export function EventEditorClient({
   const [previewDate, setPreviewDate] = useState(event?.start_date ?? "");
   const [previewImage, setPreviewImage] = useState(event?.image ?? "");
 
+  async function handleFormSubmit(value: EventFormValues) {
+    const validated = eventSchema.safeParse(value);
+    if (!validated.success) {
+      toast.error(labels.saveError);
+      return;
+    }
+    const result = isNew
+      ? await createEvent(validated.data)
+      : await updateEvent(event!.$id, validated.data);
+    if (result.error) {
+      toast.error(labels.saveError);
+      return;
+    }
+    toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
+    if (isNew && result.data) {
+      router.push(`/admin/events/${result.data}`);
+    }
+  }
+
   const form = useForm({
     defaultValues: {
       title_no: noTranslation?.title ?? "",
@@ -85,24 +106,7 @@ export function EventEditorClient({
       ticket_url: event?.ticket_url ?? null,
       member_only: event?.member_only ?? false,
     },
-    onSubmit: async ({ value }) => {
-      const validated = eventSchema.safeParse(value);
-      if (!validated.success) {
-        toast.error(labels.saveError);
-        return;
-      }
-      const result = isNew
-        ? await createEvent(validated.data)
-        : await updateEvent(event!.$id, validated.data);
-      if (result.error) {
-        toast.error(labels.saveError);
-        return;
-      }
-      toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
-      if (isNew && result.data) {
-        router.push(`/admin/events/${result.data}`);
-      }
-    },
+    onSubmit: async ({ value }) => handleFormSubmit(value),
   });
 
   const campusOptions = [
@@ -376,9 +380,10 @@ export function EventEditorClient({
                 style={{ background: "rgba(61,169,224,0.05)" }}
               >
                 {previewImage ? (
-                  <img
+                  <Image
                     alt=""
-                    className="h-full w-full object-cover"
+                    className="object-cover"
+                    fill
                     src={previewImage}
                   />
                 ) : (

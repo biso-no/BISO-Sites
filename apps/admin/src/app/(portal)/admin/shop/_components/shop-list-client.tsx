@@ -5,6 +5,7 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { AlertTriangle, Pencil, ShoppingCart, Trash2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -66,9 +67,6 @@ export function ShopListClient({
   });
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) {
-      return;
-    }
     startTransition(async () => {
       const result = await deleteProduct(id);
       if (result.error) {
@@ -127,9 +125,10 @@ export function ShopListClient({
                 style={{ background: "rgba(255,255,255,0.03)" }}
               >
                 {product.image ? (
-                  <img
+                  <Image
                     alt={getTitle(product)}
-                    className="h-full w-full object-cover"
+                    className="object-cover"
+                    fill
                     src={product.image}
                   />
                 ) : (

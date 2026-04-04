@@ -93,9 +93,6 @@ export function JobsListClient({
   }
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) {
-      return;
-    }
     startTransition(async () => {
       const result = await deleteJob(id);
       if (result.error) {

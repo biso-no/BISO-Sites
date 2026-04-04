@@ -20,6 +20,7 @@ interface UseBenefitEditorOptions {
   partners: BenefitPartner[];
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: hook encapsulates multi-step publish/save logic
 export function useBenefitEditor({
   benefit,
   defaultCampusId,
@@ -57,6 +58,7 @@ export function useBenefitEditor({
     validators: {
       onSubmit: benefitFormSchema,
     },
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: submit handles publish/unpublish/draft with translation sync
     onSubmit: async ({ value }) => {
       const publish = publishIntentRef.current;
       // Always explicitly set the status based on the user's intent so that

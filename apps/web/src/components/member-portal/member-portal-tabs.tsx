@@ -50,7 +50,7 @@ export function MemberPortalTabs({
   biEmail,
   userName,
   studentId,
-  bankAccount,
+  bankAccount: _bankAccount,
 }: MemberPortalTabsProps) {
   const handleTabChange = (tab: string) => {
     if (typeof window !== "undefined") {

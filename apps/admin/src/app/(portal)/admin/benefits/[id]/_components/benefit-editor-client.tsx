@@ -3,6 +3,7 @@
 import type { Campus, CampusBenefits } from "@repo/api/types/appwrite";
 import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ const CATEGORY_OPTIONS = [
   ),
 ];
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: component manages form state, preview sync, and conditional submit
 export function BenefitEditorClient({
   benefit,
   campuses,
@@ -74,6 +76,25 @@ export function BenefitEditorClient({
   const [previewRedemption, setPreviewRedemption] = useState<string>(
     benefit?.redemption_type ?? "none"
   );
+
+  async function handleFormSubmit(value: BenefitFormValues) {
+    const validated = benefitSchema.safeParse(value);
+    if (!validated.success) {
+      toast.error(labels.saveError);
+      return;
+    }
+    const result = isNew
+      ? await createBenefit(validated.data)
+      : await updateBenefit(benefit!.$id, validated.data);
+    if (result.error) {
+      toast.error(labels.saveError);
+      return;
+    }
+    toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
+    if (isNew && result.data) {
+      router.push(`/admin/benefits/${result.data}`);
+    }
+  }
 
   const form = useForm({
     defaultValues: {
@@ -99,24 +120,7 @@ export function BenefitEditorClient({
       publish_end: benefit?.publish_end ?? null,
       sort_order: benefit?.sort_order ?? 0,
     },
-    onSubmit: async ({ value }) => {
-      const validated = benefitSchema.safeParse(value);
-      if (!validated.success) {
-        toast.error(labels.saveError);
-        return;
-      }
-      const result = isNew
-        ? await createBenefit(validated.data)
-        : await updateBenefit(benefit!.$id, validated.data);
-      if (result.error) {
-        toast.error(labels.saveError);
-        return;
-      }
-      toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
-      if (isNew && result.data) {
-        router.push(`/admin/benefits/${result.data}`);
-      }
-    },
+    onSubmit: async ({ value }) => handleFormSubmit(value),
   });
 
   const campusOptions = [
@@ -350,16 +354,17 @@ export function BenefitEditorClient({
               }}
             >
               <div
-                className="h-24"
+                className="relative h-24 overflow-hidden"
                 style={{
                   background:
                     "linear-gradient(135deg, rgba(61,169,224,0.15), rgba(0,23,49,0.80))",
                 }}
               >
                 {previewImage && (
-                  <img
+                  <Image
                     alt=""
-                    className="h-full w-full object-cover opacity-60"
+                    className="object-cover opacity-60"
+                    fill
                     src={previewImage}
                   />
                 )}

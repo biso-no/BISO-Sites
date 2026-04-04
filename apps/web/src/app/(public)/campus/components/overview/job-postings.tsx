@@ -70,14 +70,14 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
                         {job.department.Name}
                       </div>
                     )}
-                    {(job.metadata as Record<string, any>)
+                    {(job.metadata as Record<string, unknown>)
                       ?.application_deadline && (
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-brand" />
                         {locale === "en" ? "Deadline:" : "Søknadsfrist:"}{" "}
                         {formatDate(
-                          (job.metadata as Record<string, any>)
-                            .application_deadline
+                          (job.metadata as Record<string, unknown>)
+                            .application_deadline as string
                         )}
                       </div>
                     )}

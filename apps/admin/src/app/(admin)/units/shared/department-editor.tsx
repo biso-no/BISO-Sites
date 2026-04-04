@@ -76,9 +76,15 @@ const departmentSchema = z.object({
 
 type DepartmentFormData = z.infer<typeof departmentSchema>;
 
+type DepartmentWithStats = Departments & {
+  userCount?: number;
+  boardMemberCount?: number;
+  socialsCount?: number;
+};
+
 interface DepartmentEditorProps {
   campuses: Array<{ $id: string; name: string }>;
-  department?: Departments;
+  department?: DepartmentWithStats;
   types: string[];
 }
 
@@ -90,8 +96,8 @@ export default function DepartmentEditor({
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeLocale, setActiveLocale] = useState<"en" | "no">("en");
-  const editorRefEn = useRef<any>(null);
-  const editorRefNo = useRef<any>(null);
+  const editorRefEn = useRef<unknown>(null);
+  const editorRefNo = useRef<unknown>(null);
 
   // Build translations map from department data
   const translationsMap = useMemo(() => {
@@ -127,7 +133,7 @@ export default function DepartmentEditor({
       campus_id: department?.campus_id || "",
       type: department?.type || "",
       logo: department?.logo || "",
-      hero: (department as any)?.hero || "",
+      hero: department?.hero || "",
       active: department?.active ?? true,
       translations: translationsMap,
     },
@@ -160,7 +166,7 @@ export default function DepartmentEditor({
             logo: data.logo || null,
             hero: data.hero || null,
             active: data.active,
-          } as any,
+          },
           translations
         );
 
@@ -179,7 +185,7 @@ export default function DepartmentEditor({
             { locale: "en", ...data.translations.en },
             { locale: "no", ...data.translations.no },
           ],
-        } as any);
+        });
 
         toast.success("Department created successfully!");
       }
@@ -557,9 +563,9 @@ export default function DepartmentEditor({
                 stats={
                   department
                     ? {
-                        userCount: (department as any).userCount,
-                        boardMemberCount: (department as any).boardMemberCount,
-                        socialsCount: (department as any).socialsCount,
+                        userCount: department.userCount,
+                        boardMemberCount: department.boardMemberCount,
+                        socialsCount: department.socialsCount,
                       }
                     : undefined
                 }

@@ -171,7 +171,7 @@ export function BulkUserCreateForm() {
       });
 
       setResult(data);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Bulk creation failed:", error);
     } finally {
       setIsSubmitting(false);

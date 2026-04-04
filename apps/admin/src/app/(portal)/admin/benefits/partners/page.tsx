@@ -1,4 +1,5 @@
 import { ArrowLeft, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listPartners } from "../../_actions/benefits";
@@ -63,10 +64,12 @@ export default async function BenefitPartnersPage() {
               }}
             >
               {partner.image_url ? (
-                <img
+                <Image
                   alt={partner.name}
                   className="h-10 w-10 shrink-0 rounded-xl object-cover"
+                  height={40}
                   src={partner.image_url}
+                  width={40}
                 />
               ) : (
                 <div

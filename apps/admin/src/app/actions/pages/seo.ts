@@ -21,6 +21,8 @@ export interface GenerateSeoResult {
  *
  * Uses the same OpenAI model and pattern as /api/ai/assist.
  */
+const JSON_OBJECT_PATTERN = /\{[\s\S]*\}/;
+
 export async function generateSeoMetadata(
   input: GenerateSeoInput
 ): Promise<GenerateSeoResult | null> {
@@ -48,7 +50,7 @@ Reply ONLY with valid JSON in this exact shape — no markdown, no explanation:
     });
 
     // Strip potential markdown code fences
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(JSON_OBJECT_PATTERN);
     if (!jsonMatch) {
       return null;
     }

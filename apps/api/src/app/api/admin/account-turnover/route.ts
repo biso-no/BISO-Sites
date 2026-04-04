@@ -98,7 +98,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Parse webhook response (if any)
-    let responseData = null;
+    let responseData: Record<string, unknown> | null = null;
     try {
       responseData = await webhookResponse.json();
     } catch {
@@ -128,10 +128,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       dryRun,
       webhookResponse: responseData,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in account turnover:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to process account turnover" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to process account turnover",
+      },
       { status: 500 }
     );
   }

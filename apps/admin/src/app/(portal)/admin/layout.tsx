@@ -2,6 +2,19 @@ import { redirect } from "next/navigation";
 import { getUserAuthContext, getUserRolesForClient } from "@/lib/authorization";
 import { AdminShell } from "./_components/admin-shell";
 
+type UserRoles = Awaited<ReturnType<typeof getUserRolesForClient>>;
+type AuthContext = NonNullable<Awaited<ReturnType<typeof getUserAuthContext>>>;
+
+function getRoleLabel(roles: UserRoles, ctx: AuthContext): string {
+  if (roles.isGlobalAdmin) {
+    return "Global Admin";
+  }
+  if (roles.isCampusAdmin) {
+    return `Campus Admin · ${ctx.managedCampuses[0] ?? ""}`;
+  }
+  return ctx.departmentNames[0] ?? "Member";
+}
+
 export default async function PortalAdminLayout({
   children,
 }: {
@@ -19,11 +32,7 @@ export default async function PortalAdminLayout({
     name: null as string | null,
     email: null as string | null,
     avatar: null as string | null,
-    roleLabel: roles.isGlobalAdmin
-      ? "Global Admin"
-      : roles.isCampusAdmin
-        ? `Campus Admin · ${ctx.managedCampuses[0] ?? ""}`
-        : (ctx.departmentNames[0] ?? "Member"),
+    roleLabel: getRoleLabel(roles, ctx),
   };
 
   return (

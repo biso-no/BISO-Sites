@@ -20,10 +20,6 @@ export interface EventMetadata {
   [key: string]: unknown;
 }
 
-interface EventWithTranslation extends ContentTranslations {
-  event_ref: NonNullable<ContentTranslations["event_ref"]>;
-}
-
 export const eventCategories = [
   "Social",
   "Career",

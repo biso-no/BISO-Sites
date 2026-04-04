@@ -9,7 +9,7 @@ import type {
   PageStatus,
   PageVisibility,
 } from "@repo/api/types/appwrite";
-import type { Data } from "@repo/editor";
+import type { Config, Data } from "@repo/editor";
 import { config as baseEditorConfig } from "@repo/editor/config";
 import {
   AiAssistantContext,
@@ -137,12 +137,12 @@ export function UnifiedEditorClient({
       root: {
         ...currentLocaleInfo.data.root,
         props: {
-          ...(currentLocaleInfo.data.root?.props as any),
+          ...(currentLocaleInfo.data.root?.props as Record<string, unknown>),
           title: currentLocaleInfo.title,
           slug: effectiveSlug,
           // description is now a root field — keep it in sync with localeData
           description: currentLocaleInfo.description,
-        } as any,
+        } as Record<string, unknown>,
       },
     }),
     [currentLocaleInfo, effectiveSlug]
@@ -261,8 +261,7 @@ export function UnifiedEditorClient({
     localeData,
     setLocaleData,
     availableLocales,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    config: baseEditorConfig as any,
+    config: baseEditorConfig as Config,
   });
 
   const handlePuckChange = useCallback(
@@ -274,7 +273,6 @@ export function UnifiedEditorClient({
   );
 
   const {
-    isSaving,
     isTranslating,
     handleTranslate,
     handleSave,

@@ -52,7 +52,7 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
   const shortDescription =
     shortDescriptionFromTranslation ||
     (description.length > 150
-      ? `${description.substring(0, 150)}...`
+      ? `${description.slice(0, 150)}...`
       : description);
 
   return (

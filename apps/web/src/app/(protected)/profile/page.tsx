@@ -19,12 +19,15 @@ export const metadata: Metadata = {
 
 export default async function PublicProfilePage() {
   const userData = await getLoggedInUser();
-  let identitiesResp: any = null;
-  let membership: any = null;
+  let identitiesResp: {
+    identities?: { $id: string; provider: string }[];
+  } | null = null;
+  let membership: { ok: boolean; active?: boolean } | null = null;
   let hasBIIdentity = false;
 
   identitiesResp = await listIdentities();
-  const ids: any[] = identitiesResp?.identities || [];
+  const ids: { $id: string; provider: string }[] =
+    identitiesResp?.identities || [];
   hasBIIdentity =
     Array.isArray(ids) &&
     ids.some((i) => String(i?.provider || "").toLowerCase() === "oidc");

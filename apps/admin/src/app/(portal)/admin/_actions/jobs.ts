@@ -149,7 +149,7 @@ export async function createJob(values: JobFormValues) {
     });
   }
 
-  void logAuditEvent(ctx, "job_created", {
+  await logAuditEvent(ctx, "job_created", {
     resourceId: job.$id,
     resourceType: "job",
   });
@@ -229,7 +229,7 @@ export async function updateJob(id: string, values: JobFormValues) {
     }
   }
 
-  void logAuditEvent(ctx, "job_updated", {
+  await logAuditEvent(ctx, "job_updated", {
     resourceId: id,
     resourceType: "job",
     payload: { status: validated.data.status },
@@ -265,7 +265,7 @@ export async function deleteJob(id: string) {
   );
   await db.deleteRow("app", "jobs", id);
 
-  void logAuditEvent(ctx, "job_deleted", {
+  await logAuditEvent(ctx, "job_deleted", {
     resourceId: id,
     resourceType: "job",
   });

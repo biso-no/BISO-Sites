@@ -10,7 +10,7 @@ interface NewsGridProps {
   selectedCategory: string;
 }
 
-export async function NewsGrid({
+export function NewsGrid({
   articles,
   selectedCategory,
   searchQuery,

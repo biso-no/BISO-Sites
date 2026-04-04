@@ -62,18 +62,18 @@ import {
   translateProductContent,
   updateProduct,
 } from "@/app/actions/products";
-import { CharacterCount } from "@/components/forms/CharacterCount";
-import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
-import { FormSection } from "@/components/forms/FormSection";
-import { LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
-import type { SaveStatus } from "@/components/forms/SaveBar";
-import { SaveBar } from "@/components/forms/SaveBar";
+import { CharacterCount } from "@/components/forms/character-count";
+import { DraftRestoreBanner } from "@/components/forms/draft-restore-banner";
+import { FormSection } from "@/components/forms/form-section";
+import { LocaleTabGroup } from "@/components/forms/locale-tab-group";
+import type { SaveStatus } from "@/components/forms/save-bar";
+import { SaveBar } from "@/components/forms/save-bar";
 import { slugify } from "@/components/forms/slugify";
-import { PreviewPanel } from "@/components/preview/PreviewPanel";
-import { ProductPreviewPane } from "@/components/preview/ProductPreviewPane";
+import { PreviewPanel } from "@/components/preview/preview-panel";
+import { ProductPreviewPane } from "@/components/preview/product-preview-pane";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { useAutosave } from "@/hooks/useAutosave";
-import { useDirtyWarning } from "@/hooks/useDirtyWarning";
+import { useAutosave } from "@/hooks/use-autosave";
+import { useDirtyWarning } from "@/hooks/use-dirty-warning";
 import { toast } from "@/lib/hooks/use-toast";
 import type { Campus } from "@/lib/types/post";
 import type {

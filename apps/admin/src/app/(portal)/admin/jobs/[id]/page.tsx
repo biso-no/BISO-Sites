@@ -27,11 +27,10 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
   }
 
   const defaultCampusId = campuses[0]?.$id ?? "";
-  const departments = job?.campus_id
-    ? await listDepartmentsForCampus(job.campus_id)
-    : defaultCampusId
-      ? await listDepartmentsForCampus(defaultCampusId)
-      : [];
+  const campusIdForDepts = job?.campus_id ?? defaultCampusId;
+  const departments = campusIdForDepts
+    ? await listDepartmentsForCampus(campusIdForDepts)
+    : [];
 
   return (
     <JobEditorClient

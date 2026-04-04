@@ -21,7 +21,7 @@ export function DepartmentFiltersWrapper({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const updateFilter = (key: keyof FilterState, value: any) => {
+  const updateFilter = (key: keyof FilterState, value: unknown) => {
     const params = new URLSearchParams(searchParams.toString());
 
     // Map filter keys to URL param names

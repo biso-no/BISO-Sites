@@ -31,7 +31,7 @@ export function PortalField({
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label
+        <span
           className="font-medium text-xs"
           style={{ color: "rgba(255,255,255,0.60)" }}
         >
@@ -41,7 +41,7 @@ export function PortalField({
               *
             </span>
           )}
-        </label>
+        </span>
       )}
       {children}
       {hint && !error && (

@@ -11,8 +11,8 @@ import { MemberPortalHeader } from "@/components/member-portal/shared/member-por
 
 interface MemberPortalContentProps {
   hasBIIdentity: boolean;
-  membership: any;
-  user: any;
+  membership: Record<string, unknown>;
+  user: Record<string, unknown> | null;
 }
 
 const calculateEstimatedSavings = (_userId: string) => {

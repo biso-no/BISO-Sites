@@ -116,7 +116,7 @@ export async function approveProduct(productId: string): Promise<void> {
     },
   });
 
-  void logAuditEvent(ctx, "product_approved", {
+  await logAuditEvent(ctx, "product_approved", {
     resourceId: productId,
     resourceType: "webshop_products",
     payload: { status: STATUS_PUBLISHED },
@@ -178,7 +178,7 @@ export async function rejectProduct(
     },
   });
 
-  void logAuditEvent(ctx, "product_rejected", {
+  await logAuditEvent(ctx, "product_rejected", {
     resourceId: productId,
     resourceType: "webshop_products",
     payload: { reason, previousStatus: STATUS_PENDING },

@@ -242,9 +242,7 @@ export function EventPreview({ data, locale }: EventPreviewProps) {
       return "";
     }
     const plainText = stripHtml(translation.description);
-    return plainText.length > 150
-      ? `${plainText.substring(0, 150)}...`
-      : plainText;
+    return plainText.length > 150 ? `${plainText.slice(0, 150)}...` : plainText;
   }, [translation.description]);
 
   return (

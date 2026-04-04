@@ -153,8 +153,11 @@ export function UserCreateForm() {
         temporaryPassword: data.temporaryPassword,
         groupsAssigned: data.groupsAssigned,
       });
-    } catch (error: any) {
-      setResult({ success: false, error: error.message || "Network error" });
+    } catch (error) {
+      setResult({
+        success: false,
+        error: error instanceof Error ? error.message : "Network error",
+      });
     } finally {
       setIsLoading(false);
     }

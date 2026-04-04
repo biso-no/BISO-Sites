@@ -66,7 +66,22 @@ function buildChartData(activity: ActivityEntry[], days: number) {
   return Object.entries(buckets).map(([date, counts]) => ({ date, ...counts }));
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipPayloadEntry {
+  color?: string;
+  dataKey?: string;
+  name?: string;
+  value?: number;
+}
+
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  label?: string;
+  payload?: TooltipPayloadEntry[];
+}) => {
   if (!(active && payload?.length)) {
     return null;
   }
@@ -84,7 +99,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       >
         {label}
       </p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div className="flex items-center gap-2" key={p.dataKey}>
           <div
             className="h-2 w-2 rounded-full"

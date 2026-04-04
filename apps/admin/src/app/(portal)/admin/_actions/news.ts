@@ -135,7 +135,7 @@ export async function createNews(values: NewsFormValues) {
     }),
   });
 
-  void logAuditEvent(ctx, "news_created", {
+  await logAuditEvent(ctx, "news_created", {
     resourceId: article.$id,
     resourceType: "news",
   });
@@ -212,7 +212,7 @@ export async function updateNews(id: string, values: NewsFormValues) {
     );
   }
 
-  void logAuditEvent(ctx, "news_updated", {
+  await logAuditEvent(ctx, "news_updated", {
     resourceId: id,
     resourceType: "news",
     payload: { status: validated.data.status },
@@ -248,7 +248,7 @@ export async function deleteNews(id: string) {
   );
   await db.deleteRow("app", "news", id);
 
-  void logAuditEvent(ctx, "news_deleted", {
+  await logAuditEvent(ctx, "news_deleted", {
     resourceId: id,
     resourceType: "news",
   });

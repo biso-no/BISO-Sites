@@ -9,7 +9,7 @@ const CHAT_SESSION_KEY = "admin-assistant-session-id";
  * Generate a unique session ID for the current chat session
  */
 export function generateSessionId(): string {
-  return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /**

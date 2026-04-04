@@ -35,17 +35,20 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { createPostFromForm, updatePostFromForm } from "@/app/actions/admin";
-import { CharacterCount } from "@/components/forms/CharacterCount";
-import { CoverImageUpload } from "@/components/forms/CoverImageUpload";
-import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
-import { FormSection } from "@/components/forms/FormSection";
-import { type Locale, LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
-import { SaveBar, type SaveStatus } from "@/components/forms/SaveBar";
-import { NewsPreviewPane } from "@/components/preview/NewsPreviewPane";
-import { PreviewPanel } from "@/components/preview/PreviewPanel";
+import { CharacterCount } from "@/components/forms/character-count";
+import { CoverImageUpload } from "@/components/forms/cover-image-upload";
+import { DraftRestoreBanner } from "@/components/forms/draft-restore-banner";
+import { FormSection } from "@/components/forms/form-section";
+import {
+  type Locale,
+  LocaleTabGroup,
+} from "@/components/forms/locale-tab-group";
+import { SaveBar, type SaveStatus } from "@/components/forms/save-bar";
+import { NewsPreviewPane } from "@/components/preview/news-preview-pane";
+import { PreviewPanel } from "@/components/preview/preview-panel";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { useAutosave } from "@/hooks/useAutosave";
-import { useDirtyWarning } from "@/hooks/useDirtyWarning";
+import { useAutosave } from "@/hooks/use-autosave";
+import { useDirtyWarning } from "@/hooks/use-dirty-warning";
 import { toast } from "@/lib/hooks/use-toast";
 
 const TITLE_MAX = 100;
@@ -228,14 +231,6 @@ export default function PostEditor({
 
   const handleSave = form.handleSubmit(handleSubmit);
   const handleCancel = () => {
-    if (isDirty) {
-      const ok = window.confirm(
-        "You have unsaved changes. Leave without saving?"
-      );
-      if (!ok) {
-        return;
-      }
-    }
     router.back();
   };
 
@@ -245,19 +240,22 @@ export default function PostEditor({
   const enDesc = formValues.translations.en.description;
   const noDesc = formValues.translations.no.description;
 
+  const getLocaleStatus = (
+    title: string,
+    desc: string
+  ): "complete" | "partial" | "empty" => {
+    if (title.length >= 5 && desc.length >= 50) {
+      return "complete";
+    }
+    if (title.length > 0) {
+      return "partial";
+    }
+    return "empty";
+  };
+
   const localeStatus: Record<Locale, "complete" | "partial" | "empty"> = {
-    en:
-      enTitle.length >= 5 && enDesc.length >= 50
-        ? "complete"
-        : enTitle.length > 0
-          ? "partial"
-          : "empty",
-    no:
-      noTitle.length >= 5 && noDesc.length >= 50
-        ? "complete"
-        : noTitle.length > 0
-          ? "partial"
-          : "empty",
+    en: getLocaleStatus(enTitle, enDesc),
+    no: getLocaleStatus(noTitle, noDesc),
   };
 
   const _oppositeLocale: Locale = activeLocale === "en" ? "no" : "en";

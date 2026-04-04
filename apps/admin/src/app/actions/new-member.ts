@@ -68,7 +68,7 @@ export async function searchStudentInCRM(
     }
 
     return { found: false, customer: null };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[New Member] Failed to search student:", error);
     return { found: false, customer: null };
   }
@@ -93,9 +93,12 @@ export async function createStudentInCRM(
       lastName
     );
     return { success: true, customer };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[New Member] Failed to create student:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -216,8 +219,11 @@ export async function createMembershipForStudent(params: {
       invoiceOrderId: invoice.OrderId,
       categoryAssigned,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[New Member] Failed to create membership:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }

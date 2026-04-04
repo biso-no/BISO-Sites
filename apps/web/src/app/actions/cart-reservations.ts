@@ -208,7 +208,7 @@ async function _getUserReservation(
  * Returns active (non-expired) reservations only
  * RLS automatically filters to current user
  */
-async function getUserCartReservations(): Promise<any[]> {
+async function getUserCartReservations(): Promise<Record<string, unknown>[]> {
   try {
     const { db } = await createSessionClient();
 
@@ -229,14 +229,30 @@ async function getUserCartReservations(): Promise<any[]> {
  * Get cart items with full product details
  * Returns enriched cart data ready for display
  */
+interface CartItem {
+  category: unknown;
+  expiresAt: unknown;
+  image: unknown;
+  memberOnly: unknown;
+  memberPrice: unknown;
+  metadata: unknown;
+  name: string;
+  productId: string;
+  quantity: unknown;
+  regularPrice: unknown;
+  reservationId: string;
+  slug: string;
+  stock: unknown;
+}
+
 export async function getCartItemsWithDetails(
   locale: "en" | "no" = "en"
-): Promise<any[]> {
+): Promise<CartItem[]> {
   try {
     const reservations = await getUserCartReservations();
     const { db } = await createSessionClient();
 
-    const cartItems: any[] = [];
+    const cartItems: CartItem[] = [];
 
     for (const reservation of reservations) {
       try {

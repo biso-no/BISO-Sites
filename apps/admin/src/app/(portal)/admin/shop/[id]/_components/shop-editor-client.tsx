@@ -7,6 +7,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ function generateSlug(name: string) {
     .replace(/-+/g, "-");
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: component manages form state, preview sync, and conditional submit
 export function ShopEditorClient({
   product,
   campuses,
@@ -80,6 +82,25 @@ export function ShopEditorClient({
     product?.stock ?? null
   );
 
+  async function handleFormSubmit(value: ProductFormValues) {
+    const validated = productSchema.safeParse(value);
+    if (!validated.success) {
+      toast.error(labels.saveError);
+      return;
+    }
+    const result = isNew
+      ? await createProduct(validated.data)
+      : await updateProduct(product!.$id, validated.data);
+    if (result.error) {
+      toast.error(labels.saveError);
+      return;
+    }
+    toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
+    if (isNew && result.data) {
+      router.push(`/admin/shop/${result.data}`);
+    }
+  }
+
   const form = useForm({
     defaultValues: {
       name: translation?.title ?? "",
@@ -95,24 +116,7 @@ export function ShopEditorClient({
       image: product?.image ?? null,
       stock: product?.stock ?? null,
     },
-    onSubmit: async ({ value }) => {
-      const validated = productSchema.safeParse(value);
-      if (!validated.success) {
-        toast.error(labels.saveError);
-        return;
-      }
-      const result = isNew
-        ? await createProduct(validated.data)
-        : await updateProduct(product!.$id, validated.data);
-      if (result.error) {
-        toast.error(labels.saveError);
-        return;
-      }
-      toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
-      if (isNew && result.data) {
-        router.push(`/admin/shop/${result.data}`);
-      }
-    },
+    onSubmit: async ({ value }) => handleFormSubmit(value),
   });
 
   const campusOptions = [
@@ -324,13 +328,14 @@ export function ShopEditorClient({
               }}
             >
               <div
-                className="h-40 overflow-hidden"
+                className="relative h-40 overflow-hidden"
                 style={{ background: "rgba(255,255,255,0.03)" }}
               >
                 {previewImage ? (
-                  <img
+                  <Image
                     alt=""
-                    className="h-full w-full object-cover"
+                    className="object-cover"
+                    fill
                     src={previewImage}
                   />
                 ) : (

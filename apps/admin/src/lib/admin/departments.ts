@@ -15,7 +15,13 @@ function _getDepartmentTypes(): string[] {
   return [];
 }
 
-async function _updateDepartment({ id, data }: { id: string; data: any }) {
+async function _updateDepartment({
+  id,
+  data,
+}: {
+  id: string;
+  data: Record<string, unknown>;
+}) {
   const { createSessionClient } = await import("@repo/api/server");
   const { db } = await createSessionClient();
 

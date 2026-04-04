@@ -1,4 +1,5 @@
 import { Building2 } from "lucide-react";
+import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { listCampuses, listDepartments } from "../_actions/departments";
 import { EmptyState } from "../_components/empty-state";
@@ -41,9 +42,10 @@ export default async function DepartmentsPage() {
                 style={{ background: "rgba(61,169,224,0.05)" }}
               >
                 {dept.hero ? (
-                  <img
+                  <Image
                     alt={dept.Name}
-                    className="h-full w-full object-cover opacity-60"
+                    className="object-cover opacity-60"
+                    fill
                     src={dept.hero}
                   />
                 ) : (

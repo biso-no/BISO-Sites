@@ -27,7 +27,7 @@ export function EventsSummary({
   const translationCoverage = formatPercentage(
     events.filter((evt) => {
       const refs = evt.translation_refs ?? [];
-      const locales = refs.map((ref: any) => ref.locale);
+      const locales = refs.map((ref: { locale?: string }) => ref.locale);
       return locales.includes("no") && locales.includes("en");
     }).length,
     totalEvents

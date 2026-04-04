@@ -27,7 +27,7 @@ const typeColors: Record<string, string> = {
   service: "bg-green-100 text-green-700 border-green-200",
 };
 
-const typeIcons: Record<string, any> = {
+const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   committee: Target,
   team: Users,
   service: Heart,

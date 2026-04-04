@@ -8,6 +8,7 @@ import {
   Newspaper,
   XCircle,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -102,9 +103,10 @@ export function DraftsReviewClient({
               }}
             >
               {draft.image ? (
-                <img
+                <Image
                   alt={draft.title}
-                  className="h-full w-full object-cover opacity-60"
+                  className="object-cover opacity-60"
+                  fill
                   src={draft.image}
                 />
               ) : (

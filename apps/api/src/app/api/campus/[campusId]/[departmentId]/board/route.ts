@@ -135,13 +135,15 @@ export async function GET(
     console.log("[DEBUG] Users returned from Graph:", matchedUsers.length);
     console.log("[DEBUG] @odata.count:", response["@odata.count"]);
 
-    const members: DepartmentMember[] = matchedUsers.map((user: any) => ({
-      name: user.displayName || "",
-      email: user.mail || "",
-      phone: user.businessPhones?.[0] || user.mobilePhone || "",
-      role: user.jobTitle || "",
-      officeLocation: user.officeLocation || campusInfo.officeFilter,
-    }));
+    const members: DepartmentMember[] = matchedUsers.map(
+      (user: Record<string, unknown>) => ({
+        name: user.displayName || "",
+        email: user.mail || "",
+        phone: user.businessPhones?.[0] || user.mobilePhone || "",
+        role: user.jobTitle || "",
+        officeLocation: user.officeLocation || campusInfo.officeFilter,
+      })
+    );
 
     // Sort: Managers/Presidents first
     members.sort((a, b) => {
@@ -187,12 +189,13 @@ export async function GET(
       departmentName,
       campus: campusInfo.name,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Internal Server Error",
+        message:
+          error instanceof Error ? error.message : "Internal Server Error",
       },
       { status: 500 }
     );

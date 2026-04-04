@@ -166,6 +166,7 @@ export async function createDepartment(data: {
   active?: boolean;
   type?: string;
   logo?: string;
+  hero?: string;
   translations: Array<{
     locale: "en" | "no";
     title: string;
@@ -201,7 +202,7 @@ export async function createDepartment(data: {
       type: data.type || null,
       logo: data.logo || null,
       translation_refs: translationRefs,
-    } as any
+    } as unknown as Departments
   );
 
   return department;
@@ -213,7 +214,8 @@ export async function updateDepartmentWithTranslations(
     Name?: string;
     active?: boolean;
     type?: string;
-    logo?: string;
+    logo?: string | null;
+    hero?: string | null;
     campus_id?: string;
   },
   translations: Array<{
@@ -253,7 +255,7 @@ export async function updateDepartmentWithTranslations(
           title: translation.title,
           description: translation.description,
           short_description: translation.short_description || null,
-        } as any
+        } as unknown as ContentTranslations
       );
     }
   }

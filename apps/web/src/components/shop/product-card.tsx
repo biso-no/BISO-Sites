@@ -66,7 +66,7 @@ export function ProductCard({
   const shortDescription =
     shortDescriptionText ||
     (description.length > 100
-      ? `${description.substring(0, 100)}...`
+      ? `${description.slice(0, 100)}...`
       : description);
 
   const imageUrl = productData.image || "/images/logo-home.png";

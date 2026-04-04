@@ -1,15 +1,39 @@
 "use server";
 import { createSessionClient } from "@repo/api/server";
 
+interface MembershipData {
+  status?: unknown;
+  [key: string]: unknown;
+}
+
+interface CheckMembershipData {
+  active?: boolean;
+  categories?: number[];
+  error?: string;
+  membership?: MembershipData;
+  studentId?: number;
+}
+
 export type MembershipCheckResult =
   | {
       ok: true;
       active: boolean;
-      membership?: any;
+      membership?: MembershipData;
       studentId?: number;
       categories?: number[];
     }
   | { ok: false; error: string };
+
+interface IdentityLike {
+  provider?: string;
+}
+interface IdentitiesResponse {
+  identities?: IdentityLike[];
+}
+interface ExecutionLike {
+  response?: string;
+  responseBody?: string;
+}
 
 export async function checkMembership(): Promise<MembershipCheckResult> {
   try {
@@ -17,29 +41,29 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
 
     // Only verify if BI Student identity is linked
     try {
-      const identities = await account.listIdentities();
+      const identities = (await account.listIdentities()) as IdentitiesResponse;
       const hasBI = (identities?.identities || []).some(
-        (i: any) => String(i?.provider || "").toLowerCase() === "oidc"
+        (i) => String(i?.provider || "").toLowerCase() === "oidc"
       );
       if (!hasBI) {
         return { ok: true, active: false };
       }
-    } catch (e: any) {
+    } catch (e) {
       return {
         ok: false,
-        error: `Failed to inspect identities: ${String(e?.message || e)}`,
+        error: `Failed to inspect identities: ${e instanceof Error ? e.message : String(e)}`,
       };
     }
-    const exec: any = await functions.createExecution(
+    const exec = (await functions.createExecution(
       "verify_biso_membership",
       undefined,
       false
-    );
+    )) as unknown as ExecutionLike;
 
-    const raw = (exec && (exec.responseBody || (exec as any).response)) ?? "{}";
-    let data: any = {};
+    const raw = (exec && (exec.responseBody || exec.response)) ?? "{}";
+    let data: CheckMembershipData = {};
     try {
-      data = JSON.parse(raw);
+      data = JSON.parse(raw) as CheckMembershipData;
     } catch {
       const sample = String(raw).slice(0, 200);
       return { ok: false, error: `Bad JSON from function: ${sample}` };
@@ -58,7 +82,10 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
       : undefined;
 
     return { ok: true, active, membership, studentId, categories };
-  } catch (err: any) {
-    return { ok: false, error: String(err?.message || err) };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }

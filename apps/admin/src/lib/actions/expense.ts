@@ -157,7 +157,7 @@ export async function createExpense(data: {
       "app",
       "expense",
       ID.unique(),
-      expenseData as any
+      expenseData as unknown as Expenses
     );
 
     revalidatePath("/fs");
@@ -237,7 +237,7 @@ export async function createExpenseAttachment(data: {
       "app",
       "expense_attachments",
       ID.unique(),
-      attachmentData as any
+      attachmentData as unknown as ExpenseAttachments
     );
 
     return {
@@ -286,7 +286,7 @@ async function _updateExpense(
       "app",
       "expense",
       expenseId,
-      data as any
+      data as unknown as Partial<Expenses>
     );
 
     revalidatePath("/fs");

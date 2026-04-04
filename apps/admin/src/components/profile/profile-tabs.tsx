@@ -23,8 +23,8 @@ export function ProfileTabs({
   userData,
   identities,
 }: {
-  userData: any;
-  identities?: any[];
+  userData: Record<string, unknown>;
+  identities?: unknown[];
 }) {
   const [activeTab, setActiveTab] = useState("account");
 

@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { enUS, nb } from "date-fns/locale";
 import Image from "next/image";
-import type { Locale } from "@/components/forms/LocaleTabGroup";
+import type { Locale } from "@/components/forms/locale-tab-group";
 
 interface NewsFormSnapshot {
   author?: string;

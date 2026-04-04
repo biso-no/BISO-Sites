@@ -90,8 +90,10 @@ export function IdentityManagement({
           ["openid", "email", "profile"]
         );
         // Browser will redirect; no-op here
-      } catch (err: any) {
-        toast.error(`Linking failed: ${String(err?.message || err)}`);
+      } catch (err: unknown) {
+        toast.error(
+          `Linking failed: ${String(err instanceof Error ? err.message : err)}`
+        );
       }
     });
   };
@@ -113,9 +115,9 @@ export function IdentityManagement({
           description: String(res?.error || "Unknown error"),
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Failed to remove", {
-        description: String(err?.message || err),
+        description: String(err instanceof Error ? err.message : err),
       });
     } finally {
       setRemovingId(null);

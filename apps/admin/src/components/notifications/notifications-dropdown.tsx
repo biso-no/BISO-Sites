@@ -73,13 +73,8 @@ const typeConfig: Record<
 };
 
 export function NotificationsDropdown() {
-  const {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-  } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications();
   const [open, setOpen] = useState(false);
 
   const handleNotificationClick = (notification: Notification) => {

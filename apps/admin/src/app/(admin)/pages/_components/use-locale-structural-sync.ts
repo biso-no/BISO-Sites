@@ -146,6 +146,7 @@ export function useLocaleStructuralSync({
       const prevStructure = lastStructureRef.current;
 
       if (isStructuralChange(prevStructure, nextStructure)) {
+        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: structural sync iterates locales with block-level merging
         setLocaleData((prev) => {
           const updated = { ...prev };
           for (const locale of availableLocales) {

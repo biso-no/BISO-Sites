@@ -129,7 +129,7 @@ export async function upsertSitePage(
           locale,
           title: translation.title,
           description: translation.body,
-          content_type: "site_page" as any,
+          content_type: "site_page",
         });
       }
     }
@@ -232,7 +232,7 @@ Please respond with a JSON object containing the translated title and body:
         locale: toLocale,
         title: translated.title,
         description: translated.body,
-        content_type: "site_page" as any,
+        content_type: "site_page",
       });
     }
 

@@ -18,19 +18,6 @@ interface FormFieldUpdate {
   value: string;
 }
 
-interface FormContextType {
-  fields: Array<{
-    id: string;
-    name: string;
-    type: string;
-    label: string;
-    required?: boolean;
-    currentValue?: unknown;
-  }>;
-  formId: string;
-  formName: string;
-}
-
 interface PuckContentUpdate {
   block: {
     type: string;

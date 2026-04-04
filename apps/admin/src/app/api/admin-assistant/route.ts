@@ -72,51 +72,6 @@ interface RequestBody {
   puckData?: unknown;
 }
 
-interface StreamFinishParams {
-  finishReason: string;
-  text?: string;
-  toolCalls?: Array<{ toolName: string; toolCallId: string; args?: unknown }>;
-  toolResults?: Array<{ toolName: string; result?: unknown }>;
-  usage?: unknown;
-}
-
-function logToolCalls(toolCalls: StreamFinishParams["toolCalls"]): void {
-  if (!toolCalls?.length) {
-    return;
-  }
-  console.log("Tool Calls:");
-  for (const call of toolCalls) {
-    console.log(`  - ${call.toolName} (ID: ${call.toolCallId})`);
-    const argsStr = JSON.stringify(call.args || {});
-    console.log(`    Args: ${argsStr.substring(0, 200)}`);
-  }
-}
-
-function logToolResults(toolResults: StreamFinishParams["toolResults"]): void {
-  if (!toolResults?.length) {
-    return;
-  }
-  console.log("Tool Results:");
-  for (const toolResult of toolResults) {
-    console.log(`  - Tool: ${toolResult.toolName}`);
-    const resultStr = JSON.stringify(toolResult.result || {});
-    console.log(`    Result: ${resultStr.substring(0, 200)}`);
-  }
-}
-
-function logStreamFinished(params: StreamFinishParams): void {
-  console.log("=== STREAM FINISHED ===");
-  console.log(`Finish Reason: ${params.finishReason}`);
-  console.log(`Text Content Length: ${params.text?.length || 0}`);
-  console.log(`Text Content: ${params.text || "[EMPTY]"}`);
-  console.log(`Tool Calls Count: ${params.toolCalls?.length || 0}`);
-  logToolCalls(params.toolCalls);
-  console.log(`Tool Results Count: ${params.toolResults?.length || 0}`);
-  logToolResults(params.toolResults);
-  console.log(`Usage: ${JSON.stringify(params.usage)}`);
-  console.log("======================");
-}
-
 /**
  * Build page context section for AI prompt
  */
@@ -169,7 +124,7 @@ function buildEntityContextSection(entityContext: EntityContext): string {
   const dataPreview = JSON.stringify(entityContext.data, null, 2);
   const truncatedData =
     dataPreview.length > 3000
-      ? `${dataPreview.substring(0, 3000)}\n... (truncated)`
+      ? `${dataPreview.slice(0, 3000)}\n... (truncated)`
       : dataPreview;
 
   return `## Current Entity\n${entityInfo}\n\n### Entity Data:\n\`\`\`json\n${truncatedData}\n\`\`\``;
@@ -187,7 +142,7 @@ function buildPuckContextSection(puckData: unknown): string[] {
   const puckPreview = JSON.stringify(puckData, null, 2);
   const truncatedPuck =
     puckPreview.length > 2000
-      ? `${puckPreview.substring(0, 2000)}\n... (truncated)`
+      ? `${puckPreview.slice(0, 2000)}\n... (truncated)`
       : puckPreview;
   parts.push(
     `### Current Page Structure:\n\`\`\`json\n${truncatedPuck}\n\`\`\``
@@ -197,8 +152,6 @@ function buildPuckContextSection(puckData: unknown): string[] {
 }
 
 export async function POST(req: Request) {
-  console.log("--- AI Chat API Request Received ---");
-
   const {
     messages,
     capability,
@@ -208,19 +161,6 @@ export async function POST(req: Request) {
     entityContext,
     pageContext,
   }: RequestBody = await req.json();
-
-  // Log request inputs
-  console.log(`Input messages count: ${messages.length}`);
-  console.log(`Current Path: ${currentPath}`);
-  console.log(`Capability: ${capability || "none"}`);
-  console.log(`Form Fields count: ${formFields?.length || 0}`);
-  console.log(`Puck Data present (Editor mode): ${!!puckData}`);
-  console.log(
-    `Entity Context: ${entityContext ? `${entityContext.type}:${entityContext.id}` : "none"}`
-  );
-  console.log(
-    `Page Context: ${pageContext ? `${pageContext.section}/${pageContext.viewType}` : "none"}`
-  );
 
   // Get capability from path if not provided
   const detectedCapability =
@@ -282,27 +222,17 @@ Example page structure:
 }
 `;
 
-  console.log("Using hardcoded Puck schema (avoiding config import issues).");
-
-  // --- Tool Initialization and Logging ---
-
   // Create navigation tool with admin routes
   const navigate = createNavigationTool(defaultAdminRoutes);
-  console.log("Navigation tool created.");
 
   // Create task analyzer tool
   const analyzeTask = createTaskAnalyzerTool();
-  console.log("Task analyzer tool created.");
 
   // Create page creator tool
   const createPage = createPageCreatorTool();
-  console.log("Page creator tool created.");
 
   // Create Puck content generator tool
   const generatorToolInput = `${schemaDescription}\n\n${puckExample}`;
-  console.log(
-    `Puck Generator tool initialized with schema length: ${generatorToolInput.length} characters.`
-  );
   const generatePuckContent = createPuckGeneratorTool(generatorToolInput);
 
   // Create form filler tool - use provided fields, capability fields, or default to event fields
@@ -329,22 +259,13 @@ Example page structure:
       required: f.required,
       currentValue: f.currentValue,
     }));
-    console.log(
-      `Form filler tool initialized with ${formFieldsForTool.length} fields from request.`
-    );
   } else if (
     detectedCapability &&
     CAPABILITY_REGISTRY[detectedCapability]?.formFields.length
   ) {
     formFieldsForTool = CAPABILITY_REGISTRY[detectedCapability].formFields;
-    console.log(
-      `Form filler tool initialized with ${formFieldsForTool.length} fields from capability registry (${detectedCapability}).`
-    );
   } else {
     formFieldsForTool = eventFormFields;
-    console.log(
-      `Form filler tool initialized with default eventFormFields (${formFieldsForTool.length} fields).`
-    );
   }
 
   const fillFormFields = createFormFillerTool(formFieldsForTool);
@@ -358,64 +279,35 @@ Example page structure:
     translateContent: translateContentTool,
   };
 
-  // Log the active tools
-  console.log(
-    `Active tools for this request: ${Object.keys(tools).join(", ")}`
-  );
-
-  // --- System Prompt Building ---
-
   // Build rich context for the AI using extracted helpers
   const contextParts: string[] = [];
 
-  // Current location
   if (currentPath) {
     contextParts.push(`## Current Location\nPath: ${currentPath}`);
   }
 
-  // Page context (what section/view type)
   if (pageContext) {
     contextParts.push(...buildPageContextSection(pageContext));
   }
 
-  // Entity context (the thing being viewed/edited)
   if (entityContext) {
     contextParts.push(buildEntityContextSection(entityContext));
   }
 
-  // Puck editor context
   if (puckData) {
     contextParts.push(...buildPuckContextSection(puckData));
   }
 
   const contextInfo = contextParts.join("\n\n");
 
-  console.log(
-    `Context Info generated (${contextInfo.length} chars):\n${contextInfo.substring(0, 500)}...`
-  );
-
   const systemPrompt = getSystemPrompt("admin", contextInfo);
-  // Log the final system prompt (or a snippet)
-  console.log(`System Prompt length: ${systemPrompt.length}`);
-  console.log(
-    `System Prompt start:\n---\n${systemPrompt.substring(0, 500)}...\n---`
-  );
-
-  // --- Streaming Execution ---
-
-  console.log("Starting streamText with gpt-5...");
 
   const result = streamText({
     model: openai("gpt-5"),
     messages: convertToModelMessages(messages),
     system: systemPrompt,
     tools: tools as Parameters<typeof streamText>[0]["tools"],
-    // Enable multi-step agentic execution - AI can chain multiple tool calls
-    // stepCountIs(10) allows up to 10 steps: tool calls → process results → more tools → final response
     stopWhen: stepCountIs(10),
-    onFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-      logStreamFinished({ text, toolCalls, toolResults, finishReason, usage });
-    },
   });
 
   return result.toUIMessageStreamResponse();

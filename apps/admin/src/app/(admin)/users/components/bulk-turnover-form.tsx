@@ -110,7 +110,7 @@ export function BulkTurnoverForm() {
       );
 
       setResult(data);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Bulk turnover failed:", error);
     } finally {
       setIsSubmitting(false);

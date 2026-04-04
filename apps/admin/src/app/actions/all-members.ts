@@ -33,6 +33,16 @@ interface BatchContext {
   timestamp: string;
 }
 
+interface SyncStateRow {
+  $id: string;
+  job_id: unknown;
+  message: unknown;
+  progress_current: unknown;
+  progress_total: unknown;
+  status: unknown;
+  updated_at: unknown;
+}
+
 /**
  * Process a single batch of companies and sync to Appwrite
  */
@@ -56,7 +66,16 @@ async function processBatch(
     }
 
     try {
-      await (ctx.db as any).upsertRow("app", "members", doc.id, doc.data);
+      await (
+        ctx.db as unknown as {
+          upsertRow: (
+            db: string,
+            table: string,
+            id: string,
+            data: unknown
+          ) => Promise<unknown>;
+        }
+      ).upsertRow("app", "members", doc.id, doc.data);
       count += 1;
     } catch (err) {
       console.error(`[Sync] upsert error for ${doc.id}:`, err);
@@ -72,10 +91,11 @@ async function processBatch(
 async function reportSyncError(errorMessage: string): Promise<void> {
   try {
     const { db } = await createAdminClient();
-    const existingStates = await db.listRows<any>("app", "sync_states", [
-      Query.equal("job_id", JOB_ID),
-      Query.limit(1),
-    ]);
+    const existingStates = await db.listRows<SyncStateRow>(
+      "app",
+      "sync_states",
+      [Query.equal("job_id", JOB_ID), Query.limit(1)]
+    );
     if (existingStates.rows.length > 0) {
       await db.updateRow("app", "sync_states", existingStates.rows[0].$id, {
         status: "error",
@@ -94,7 +114,7 @@ async function reportSyncError(errorMessage: string): Promise<void> {
 export async function getSyncStatus(): Promise<SyncState | null> {
   try {
     const { db } = await createAdminClient();
-    const response = await db.listRows<any>("app", "sync_states", [
+    const response = await db.listRows<SyncStateRow>("app", "sync_states", [
       Query.equal("job_id", JOB_ID),
       Query.limit(1),
     ]);
@@ -105,12 +125,12 @@ export async function getSyncStatus(): Promise<SyncState | null> {
 
     const row = response.rows[0];
     return {
-      job_id: row.job_id,
-      status: row.status,
-      progress_current: row.progress_current,
-      progress_total: row.progress_total,
-      message: row.message,
-      updated_at: row.updated_at,
+      job_id: row.job_id as string,
+      status: row.status as string,
+      progress_current: row.progress_current as number,
+      progress_total: row.progress_total as number,
+      message: row.message as string,
+      updated_at: row.updated_at as string,
     };
   } catch (error) {
     console.error("Failed to get sync status:", error);
@@ -126,9 +146,7 @@ export async function stopSync(): Promise<void> {
   const status = await getSyncStatus();
 
   if (status && status.status === "running") {
-    // Find row ID to update. Since job_id isn't the doc ID, we query it.
-    // Actually, let's just query to get the ID.
-    const response = await db.listRows<any>("app", "sync_states", [
+    const response = await db.listRows<SyncStateRow>("app", "sync_states", [
       Query.equal("job_id", JOB_ID),
       Query.limit(1),
     ]);
@@ -158,10 +176,11 @@ export async function syncAllMembers(): Promise<{
 
     // 1. Initialize Sync State
     let stateDocId = "";
-    const existingStates = await db.listRows<any>("app", "sync_states", [
-      Query.equal("job_id", JOB_ID),
-      Query.limit(1),
-    ]);
+    const existingStates = await db.listRows<SyncStateRow>(
+      "app",
+      "sync_states",
+      [Query.equal("job_id", JOB_ID), Query.limit(1)]
+    );
 
     const now = new Date().toISOString();
     const initialState = {
@@ -196,7 +215,11 @@ export async function syncAllMembers(): Promise<{
 
     // Helper to check for stop signal
     const shouldStop = async () => {
-      const current = await db.getRow<any>("app", "sync_states", stateDocId);
+      const current = await db.getRow<SyncStateRow>(
+        "app",
+        "sync_states",
+        stateDocId
+      );
       return current.status === "stopping";
     };
 
@@ -292,16 +315,14 @@ export async function syncAllMembers(): Promise<{
       progress_current: totalCount,
     });
 
-    // Reset to idle after a short delay or leave as success?
-    // Best to leave as success so user sees it completed, then reset on next run.
-
     console.log(`[Sync] Successfully synced ${syncedCount} members`);
     revalidatePath("/membership/all");
     return { success: true, count: syncedCount };
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[Sync] Sync failed:", error);
-    await reportSyncError(error.message);
-    return { success: false, count: 0, error: error.message };
+    await reportSyncError(errorMessage);
+    return { success: false, count: 0, error: errorMessage };
   }
 }
 
@@ -326,9 +347,6 @@ export async function getSyncedMembers(
     queries.push(Query.search("name", search));
   }
 
-  // Get active memberships definition to map names back to expiry dates if needed,
-  // though the SyncedMembers only stores category names.
-  // To show expiry, we still need the membership definitions.
   const membershipsResponse = await db.listRows<Memberships>(
     "app",
     "memberships",
@@ -347,8 +365,6 @@ export async function getSyncedMembers(
     mapSyncedMemberToInfo(row, membershipMap)
   );
 
-  // Get the timestamp of the most recently synced item (proxy for global last sync)
-  // or we could store a global sync state object.
   const lastSynced = rows.length > 0 ? rows[0].last_synced : null;
 
   return {

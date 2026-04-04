@@ -196,7 +196,8 @@ export default async function PartnersAdminPage() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-primary-80">
-                    {(partner as any).campus?.name || "—"}
+                    {(partner as unknown as { campus?: { name?: string } })
+                      .campus?.name || "—"}
                   </td>
                   <td className="px-4 py-3 text-primary-80">
                     {partner.image_bucket}/{partner.image_file_id}

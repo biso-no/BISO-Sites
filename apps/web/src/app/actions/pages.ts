@@ -64,7 +64,7 @@ export async function getPublicPage(
   return pageData;
 }
 
-export async function getPublicPagePreview(
+export function getPublicPagePreview(
   slug: string,
   locale: Locale
 ): Promise<PublishedPage | null> {

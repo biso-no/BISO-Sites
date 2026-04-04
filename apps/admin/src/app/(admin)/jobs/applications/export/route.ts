@@ -15,7 +15,9 @@ export async function GET(req: Request) {
     "applicant_phone",
     "applied_at",
   ];
-  const rows = apps.map((a: any) => headers.map((h) => a?.[h] ?? "").join(","));
+  const rows = apps.map((a) =>
+    headers.map((h) => (a as Record<string, unknown>)?.[h] ?? "").join(",")
+  );
   const csv = [headers.join(","), ...rows].join("\n");
   return new NextResponse(csv, {
     headers: {

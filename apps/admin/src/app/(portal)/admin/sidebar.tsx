@@ -16,6 +16,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { motion } from "motion/react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -335,11 +336,13 @@ export function Sidebar({ user, roles }: SidebarProps) {
           }}
         >
           {user.avatar ? (
-            <img
+            <Image
               alt={user.name ?? "User"}
               className="h-9 w-9 rounded-full object-cover"
+              height={36}
               src={user.avatar}
               style={{ border: "1px solid rgba(255,255,255,0.10)" }}
+              width={36}
             />
           ) : (
             <div

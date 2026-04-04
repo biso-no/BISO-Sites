@@ -146,7 +146,7 @@ export async function createEvent(values: EventFormValues) {
     });
   }
 
-  void logAuditEvent(ctx, "event_created", {
+  await logAuditEvent(ctx, "event_created", {
     resourceId: event.$id,
     resourceType: "event",
   });
@@ -229,7 +229,7 @@ export async function updateEvent(id: string, values: EventFormValues) {
     }
   }
 
-  void logAuditEvent(ctx, "event_updated", {
+  await logAuditEvent(ctx, "event_updated", {
     resourceId: id,
     resourceType: "event",
     payload: { status: validated.data.status },
@@ -265,7 +265,7 @@ export async function deleteEvent(id: string) {
   );
   await db.deleteRow("app", "events", id);
 
-  void logAuditEvent(ctx, "event_deleted", {
+  await logAuditEvent(ctx, "event_deleted", {
     resourceId: id,
     resourceType: "event",
   });

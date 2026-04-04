@@ -21,11 +21,7 @@ export function EditorHeader({
   backLabel,
   title,
   status,
-  discardLabel = "Discard",
-  publishLabel = "Publish",
-  saveDraftLabel,
   children,
-  isSubmitting,
 }: EditorHeaderProps) {
   return (
     <div

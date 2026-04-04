@@ -90,81 +90,73 @@ export function CoverImageUpload({
       <p className="font-medium text-sm">{label}</p>
 
       {/* Drop zone / cover preview */}
-      <div
-        aria-label={cover ? "Cover image" : "Click or drag an image to upload"}
-        className={cn(
-          "relative flex min-h-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
-          isDragging
-            ? "border-primary bg-primary/5"
-            : cover
-              ? "border-border/40"
-              : "border-border hover:border-primary/40 hover:bg-muted/40"
-        )}
-        onClick={() => !cover && fileInputRef.current?.click()}
-        onDragLeave={() => setIsDragging(false)}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDrop={handleDrop}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+      {cover ? (
+        <button
+          aria-label="Cover image. Drop a new image to replace."
+          className={cn(
+            "relative flex min-h-[160px] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
+            isDragging ? "border-primary bg-primary/5" : "border-border/40"
+          )}
+          onClick={() => fileInputRef.current?.click()}
+          onDragLeave={() => setIsDragging(false)}
+          onDragOver={(e) => {
             e.preventDefault();
-            fileInputRef.current?.click();
-          }
-        }}
-        role="button"
-        tabIndex={0}
-      >
-        {cover ? (
-          <>
-            <Image
-              alt="Cover"
-              className="object-cover"
-              fill
-              sizes="600px"
-              src={cover}
-            />
-            {/* Overlay gradient */}
-            <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
-
-            {/* Cover badge */}
-            <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 font-medium text-primary-foreground text-xs">
-              <Star className="h-3 w-3" />
-              Cover
-            </span>
-
-            {/* Remove button */}
-            <Button
-              className="absolute top-2 right-2 h-8 w-8 bg-background/70 hover:bg-background/90"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeImage(0);
-              }}
-              size="icon"
-              type="button"
-              variant="ghost"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">Remove cover image</span>
-            </Button>
-
-            {/* Replace button */}
-            <Button
-              className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-background/80 text-xs hover:bg-background"
-              onClick={(e) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              <Upload className="mr-1.5 h-3 w-3" />
-              Replace
-            </Button>
-          </>
-        ) : (
+            setIsDragging(true);
+          }}
+          onDrop={handleDrop}
+          type="button"
+        >
+          <Image
+            alt="Cover"
+            className="object-cover"
+            fill
+            sizes="600px"
+            src={cover}
+          />
+          <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
+          <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 font-medium text-primary-foreground text-xs">
+            <Star className="h-3 w-3" />
+            Cover
+          </span>
+          <Button
+            className="absolute top-2 right-2 h-8 w-8 bg-background/70 hover:bg-background/90"
+            onClick={() => removeImage(0)}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Remove cover image</span>
+          </Button>
+          <Button
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-background/80 text-xs hover:bg-background"
+            onClick={() => fileInputRef.current?.click()}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            <Upload className="mr-1.5 h-3 w-3" />
+            Replace
+          </Button>
+        </button>
+      ) : (
+        <button
+          aria-label="Click or drag an image to upload"
+          className={cn(
+            "relative flex min-h-[160px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
+            isDragging
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/40 hover:bg-muted/40"
+          )}
+          onClick={() => fileInputRef.current?.click()}
+          onDragLeave={() => setIsDragging(false)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDrop={handleDrop}
+          type="button"
+        >
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             {uploading ? (
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -180,8 +172,8 @@ export function CoverImageUpload({
               )}
             </div>
           </div>
-        )}
-      </div>
+        </button>
+      )}
 
       {/* Additional images */}
       {extras.length > 0 && (

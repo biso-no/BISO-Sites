@@ -246,6 +246,7 @@ export function useUnifiedEditorHandlers({
   /**
    * Shared publish execution — runs after any translation step or directly.
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: publish handles SEO gen, translation, permissions, and routing
   async function executePublish(
     data: Data,
     metadata: { title: string; slug: string; description?: string },

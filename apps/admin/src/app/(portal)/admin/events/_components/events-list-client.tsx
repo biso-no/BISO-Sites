@@ -2,6 +2,7 @@
 
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { Calendar, MapPin, Pencil, Trash2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -66,9 +67,6 @@ export function EventsListClient({
   );
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) {
-      return;
-    }
     startTransition(async () => {
       const result = await deleteEvent(id);
       if (result.error) {
@@ -129,9 +127,10 @@ export function EventsListClient({
                 style={{ background: "rgba(61,169,224,0.05)" }}
               >
                 {event.image ? (
-                  <img
+                  <Image
                     alt={getTitle(event)}
-                    className="h-full w-full object-cover"
+                    className="object-cover"
+                    fill
                     src={event.image}
                   />
                 ) : (

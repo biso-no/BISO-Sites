@@ -1,3 +1,4 @@
+import type { Orders } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import {
   Card,
@@ -17,18 +18,18 @@ export default async function AdminOrderDetail({
 }) {
   const { id } = await params;
   const t = await getTranslations("adminShop");
-  const order: any = await getOrder(id);
+  const order: Orders | null = await getOrder(id);
   if (!order) {
     return notFound();
   }
 
   const items = (() => {
     try {
-      return JSON.parse(order.items_json || "[]");
+      return JSON.parse(order.items_json || "[]") as Record<string, unknown>[];
     } catch {
-      return [];
+      return [] as Record<string, unknown>[];
     }
-  })() as any[];
+  })();
 
   return (
     <div className="grid gap-6 p-4 md:grid-cols-2">

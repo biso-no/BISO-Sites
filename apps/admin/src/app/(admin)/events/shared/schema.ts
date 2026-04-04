@@ -113,13 +113,16 @@ interface EventInput {
   is_collection?: boolean | null;
   location?: string | null;
   member_only?: boolean | null;
-  metadata_parsed?: any;
+  metadata_parsed?: Record<string, unknown>;
   price?: number | null;
   slug?: string | null;
   start_date?: string | null;
   status?: string | null;
   ticket_url?: string | null;
-  translations?: any;
+  translations?: {
+    en?: { title?: string; description?: string };
+    no?: { title?: string; description?: string };
+  };
 }
 
 export function getEventDefaultValues(event?: EventInput): Partial<FormValues> {
@@ -150,7 +153,10 @@ export function getEventDefaultValues(event?: EventInput): Partial<FormValues> {
   };
 }
 
-function getMetadataDefaults(metadata: any, image?: string | null) {
+function getMetadataDefaults(
+  metadata: Record<string, unknown>,
+  image?: string | null
+) {
   return {
     start_time: (metadata.start_time as string) ?? "",
     end_time: (metadata.end_time as string) ?? "",
@@ -159,17 +165,20 @@ function getMetadataDefaults(metadata: any, image?: string | null) {
   };
 }
 
-function getDefaultUnits(metadata: any): string[] {
+function getDefaultUnits(metadata: Record<string, unknown>): string[] {
   if (!metadata?.units) {
     return [];
   }
   if (Array.isArray(metadata.units)) {
-    return metadata.units.map((value: any) => String(value));
+    return metadata.units.map((value) => String(value));
   }
   return [];
 }
 
-function getTranslationDefaults(translations: any) {
+function getTranslationDefaults(translations?: {
+  en?: { title?: string; description?: string };
+  no?: { title?: string; description?: string };
+}) {
   const t = translations ?? {
     en: { title: "", description: "" },
     no: { title: "", description: "" },

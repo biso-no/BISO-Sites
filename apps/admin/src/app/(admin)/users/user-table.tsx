@@ -571,7 +571,7 @@ export function UserTable({
                             <div>
                               <div className="font-medium">{user.name}</div>
                               <div className="text-muted-foreground text-sm">
-                                ID: {user.$id.substring(0, 8)}
+                                ID: {user.$id.slice(0, 8)}
                               </div>
                             </div>
                           </div>

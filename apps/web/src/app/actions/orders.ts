@@ -14,6 +14,8 @@ import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
 
+const WHITESPACE_RE = /\s+/;
+
 async function _getOrders({
   limit = 100,
   userId = "",
@@ -54,7 +56,7 @@ async function _getOrder(id: string) {
   }
 }
 
-async function getMemberDiscountIfAny(product: any) {
+async function getMemberDiscountIfAny(product: Record<string, unknown>) {
   try {
     if (
       !(product?.member_discount_enabled && product?.member_discount_percent)
@@ -76,7 +78,9 @@ async function getMemberDiscountIfAny(product: any) {
       String(studentId),
       false
     );
-    const res = JSON.parse((exec as any).responseBody || "{}");
+    const res = JSON.parse(
+      (exec as { responseBody?: string }).responseBody || "{}"
+    );
     const isActive = !!res?.membership?.status;
     if (!isActive) {
       return { applied: false, percent: 0 };
@@ -121,7 +125,7 @@ interface CheckoutStatusResult {
   error?: string;
   order?: Orders;
   success: boolean;
-  vippsStatus?: any;
+  vippsStatus?: unknown;
 }
 
 function sanitizeCartItems(items: CheckoutLineItemInput[] | undefined) {
@@ -153,7 +157,7 @@ function buildQuantityByProduct(items: CheckoutLineItemInput[]) {
 async function loadProduct(
   productId: string,
   locale: Locale,
-  cache: Map<string, any>
+  cache: Map<string, Record<string, unknown>>
 ) {
   const cached = cache.get(productId);
   if (cached) {
@@ -203,7 +207,7 @@ async function loadProduct(
 }
 
 async function ensureStockAvailability(
-  product: any,
+  product: Record<string, unknown>,
   productId: string,
   requestedQuantity: number,
   slug?: string
@@ -227,7 +231,7 @@ async function ensurePurchaseLimit(
   productId: string,
   userId: string,
   quantity: number,
-  metadata: any
+  metadata: Record<string, unknown>
 ) {
   const limitCheck = await validatePurchaseLimits(
     productId,
@@ -243,16 +247,18 @@ async function ensurePurchaseLimit(
   );
 }
 
-function findVariation(product: any, variationId?: string) {
+function findVariation(product: Record<string, unknown>, variationId?: string) {
   if (!variationId) {
     return;
   }
-  return product.variations?.find((variant: any) => variant.id === variationId);
+  return (product.variations as Record<string, unknown>[])?.find(
+    (variant) => variant.id === variationId
+  );
 }
 
 async function resolvePricing(
-  product: any,
-  variation: any,
+  product: Record<string, unknown>,
+  variation: Record<string, unknown> | undefined,
   discountCache: Map<string, { applied: boolean; percent: number }>,
   productId: string
 ) {
@@ -278,7 +284,7 @@ async function resolvePricing(
 }
 
 function buildCustomFieldPayload(
-  product: any,
+  product: Record<string, unknown>,
   responses: Record<string, string>,
   labels?: Record<string, string>
 ) {
@@ -286,10 +292,10 @@ function buildCustomFieldPayload(
     return { responses: undefined, details: undefined };
   }
 
-  const missingFields = product.custom_fields
-    .filter((field: any) => field.required)
-    .filter((field: any) => !responses[field.id])
-    .map((field: any) => field.label);
+  const missingFields = (product.custom_fields as Record<string, unknown>[])
+    .filter((field) => field.required)
+    .filter((field) => !responses[field.id as string])
+    .map((field) => field.label);
 
   if (missingFields.length > 0) {
     throw new Error(
@@ -321,7 +327,7 @@ async function buildOrderItems(items: CheckoutLineItemInput[], locale: Locale) {
     string,
     { applied: boolean; percent: number }
   >();
-  const productCache = new Map<string, any>();
+  const productCache = new Map<string, Record<string, unknown>>();
   const orderItems: OrderItem[] = [];
   const campusIds = new Set<string>();
 
@@ -485,7 +491,6 @@ async function createProviderCheckoutSession({
   );
 
   const result = await response.json().catch(() => null);
-  console.log("Checkout session response", { status: response.status, result });
 
   if (!(response.ok && result?.checkoutUrl && result?.orderId)) {
     throw new Error(
@@ -516,7 +521,7 @@ export async function createCartCheckoutSession(
     } = await buildOrderItems(sanitizedItems, locale);
 
     const discountTotal = Math.max(0, originalTotal - subtotal);
-    const [firstName, ...lastNameParts] = data.name.trim().split(/\s+/);
+    const [firstName, ...lastNameParts] = data.name.trim().split(WHITESPACE_RE);
     const { checkoutUrl, orderId } = await createProviderCheckoutSession({
       provider: data.provider,
       payload: {
@@ -562,7 +567,7 @@ export async function createCartCheckoutSession(
   }
 }
 
-export async function getOrder(id: string) {
+export function getOrder(id: string) {
   return _getOrder(id);
 }
 

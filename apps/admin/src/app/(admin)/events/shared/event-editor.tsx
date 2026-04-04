@@ -23,13 +23,13 @@ import { useForm } from "react-hook-form";
 
 import { getCampusWithDepartments } from "@/app/actions/campus";
 import { createEvent, updateEvent } from "@/app/actions/events";
-import { DraftRestoreBanner } from "@/components/forms/DraftRestoreBanner";
-import { FormSection } from "@/components/forms/FormSection";
-import { SaveBar, type SaveStatus } from "@/components/forms/SaveBar";
-import { EventPreviewPane } from "@/components/preview/EventPreviewPane";
-import { PreviewPanel } from "@/components/preview/PreviewPanel";
-import { useAutosave } from "@/hooks/useAutosave";
-import { useDirtyWarning } from "@/hooks/useDirtyWarning";
+import { DraftRestoreBanner } from "@/components/forms/draft-restore-banner";
+import { FormSection } from "@/components/forms/form-section";
+import { SaveBar, type SaveStatus } from "@/components/forms/save-bar";
+import { EventPreviewPane } from "@/components/preview/event-preview-pane";
+import { PreviewPanel } from "@/components/preview/preview-panel";
+import { useAutosave } from "@/hooks/use-autosave";
+import { useDirtyWarning } from "@/hooks/use-dirty-warning";
 import { toast } from "@/lib/hooks/use-toast";
 import type { AdminEvent } from "@/lib/types/event";
 import type { Campus } from "@/lib/types/post";
@@ -190,14 +190,6 @@ export default function EventEditor({ event, campuses }: EventEditorProps) {
 
   const handleSave = form.handleSubmit(onSubmit);
   const handleCancel = () => {
-    if (isDirty) {
-      const ok = window.confirm(
-        "You have unsaved changes. Leave without saving?"
-      );
-      if (!ok) {
-        return;
-      }
-    }
     router.back();
   };
 

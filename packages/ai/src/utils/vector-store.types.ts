@@ -2,19 +2,19 @@ export interface VectorDocument {
   content: string;
   embedding?: number[];
   id: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface SearchResult {
   content: string;
   distance: number;
   id: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   score: number;
 }
 
 export interface SearchOptions {
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
   includeMetadata?: boolean;
   k?: number;
   query: string;
@@ -31,6 +31,6 @@ export interface IVectorStore {
   updateDocument(
     id: string,
     content: string,
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
   ): Promise<void>;
 }

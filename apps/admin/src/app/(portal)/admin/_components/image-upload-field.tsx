@@ -1,6 +1,7 @@
 "use client";
 
 import { ImageIcon, Loader2, Upload, X } from "lucide-react";
+import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { uploadMediaFile } from "../_actions/upload";
@@ -11,11 +12,7 @@ interface ImageUploadFieldProps {
   value: string | null;
 }
 
-export function ImageUploadField({
-  value,
-  onChange,
-  label,
-}: ImageUploadFieldProps) {
+export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -77,7 +74,12 @@ export function ImageUploadField({
           className="group relative overflow-hidden rounded-xl"
           style={{ border: "1px solid rgba(255,255,255,0.08)" }}
         >
-          <img alt="Cover" className="h-40 w-full object-cover" src={value} />
+          <Image
+            alt="Cover"
+            className="h-40 w-full object-cover"
+            fill
+            src={value}
+          />
           <div
             className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity group-hover:opacity-100"
             style={{ background: "rgba(0,0,0,0.55)" }}
@@ -108,14 +110,12 @@ export function ImageUploadField({
           </div>
         </div>
       ) : (
-        <div
-          className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl transition-all"
+        <button
+          className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-xl transition-all"
           onClick={() => inputRef.current?.click()}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-          role="button"
           style={{
             height: 140,
             border: isDragging
@@ -125,7 +125,7 @@ export function ImageUploadField({
               ? "rgba(61,169,224,0.06)"
               : "rgba(255,255,255,0.02)",
           }}
-          tabIndex={0}
+          type="button"
         >
           {isPending ? (
             <Loader2
@@ -160,7 +160,7 @@ export function ImageUploadField({
               </div>
             </>
           )}
-        </div>
+        </button>
       )}
     </div>
   );

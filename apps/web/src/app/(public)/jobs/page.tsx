@@ -48,7 +48,7 @@ async function JobsList({
 
   // Calculate stats for hero
   const paidPositions = jobs.filter((job) => {
-    const jobMetadata = job.metadata as Record<string, any>;
+    const jobMetadata = job.metadata as Record<string, unknown>;
     return jobMetadata.paid === true;
   }).length;
 

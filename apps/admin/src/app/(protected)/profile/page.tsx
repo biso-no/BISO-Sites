@@ -18,19 +18,17 @@ export const metadata: Metadata = {
 
 export default async function PublicProfilePage() {
   const userData = await getLoggedInUser();
-  let identitiesResp: any = null;
-  let _membership: any = null;
+  let identitiesResp: { identities?: Array<{ provider?: string }> } | null =
+    null;
   let hasBIIdentity = false;
 
   identitiesResp = await listIdentities();
-  const ids: any[] = identitiesResp?.identities || [];
+  const ids: Array<{ provider?: string }> = identitiesResp?.identities || [];
   hasBIIdentity =
     Array.isArray(ids) &&
     ids.some((i) => String(i?.provider || "").toLowerCase() === "oidc");
   if (hasBIIdentity) {
-    _membership = await checkMembership();
-  } else {
-    _membership = null;
+    await checkMembership();
   }
 
   return (

@@ -32,15 +32,15 @@ export async function generateSitemap() {
 
   const dynamicPaths: MetadataRoute.Sitemap = [
     ...news.rows.map((n) => ({
-      url: `${base}/news/${(n as any).$id}`,
+      url: `${base}/news/${n.$id}`,
       lastModified: new Date(n.$updatedAt || n.$createdAt),
     })),
     ...events.rows.map((e) => ({
-      url: `${base}/events/${(e as any).$id}`,
+      url: `${base}/events/${e.$id}`,
       lastModified: new Date(e.$updatedAt || e.$createdAt),
     })),
     ...jobs.rows.map((j) => ({
-      url: `${base}/jobs/${(j as any).slug || (j as any).$id}`,
+      url: `${base}/jobs/${(j as unknown as { slug?: string }).slug ?? j.$id}`,
       lastModified: new Date(j.$updatedAt || j.$createdAt),
     })),
   ];

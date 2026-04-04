@@ -39,7 +39,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { deletePost } from "@/app/actions/admin";
 
 const getUniqueDepartments = (posts: News[]): Departments[] => {
@@ -152,7 +152,7 @@ export function PostTable({ posts }: { posts: News[] }) {
   const totalPages = Math.ceil(filteredPosts.length / 3);
 
   //for the form for filter and view electin
-  const handleChange = (eOrField: any) => {
+  const handleChange = (eOrField: string | ChangeEvent<HTMLInputElement>) => {
     if (typeof eOrField === "string") {
       // This is for the Select components
       return (newValue: string) => {

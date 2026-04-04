@@ -1,4 +1,5 @@
 import { ExternalLink, Gift, Plus } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listBenefits } from "../_actions/benefits";
@@ -76,9 +77,10 @@ export default async function BenefitsPage() {
                 }}
               >
                 {benefit.image_url ? (
-                  <img
+                  <Image
                     alt={benefit.title_en}
                     className="h-full w-full object-cover opacity-80"
+                    fill
                     src={benefit.image_url}
                   />
                 ) : (

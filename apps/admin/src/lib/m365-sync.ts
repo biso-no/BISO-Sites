@@ -48,9 +48,9 @@ async function syncTeamMembership(
 
   try {
     await teams.createMembership(teamId, roles, undefined, userId);
-  } catch (err: any) {
-    if (err.code === 404) {
-      console.log(`Creating new Team: ${teamName} (${teamId})`);
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    if (e.code === 404) {
       await teams.create(teamId, teamName);
       await teams.createMembership(teamId, roles, undefined, userId);
 
@@ -62,10 +62,10 @@ async function syncTeamMembership(
         const rawDeptName = azureGroup.name.replace("SG-App-Dept-", "");
         await grantDeptTeamAccess(teamId, rawDeptName);
       }
-    } else if (err.code === 409) {
+    } else if (e.code === 409) {
       await updateExistingMembership(teams, teamId, roles, userId);
     } else {
-      console.error(`Failed to sync team ${teamName}:`, err.message);
+      throw err;
     }
   }
 }
@@ -95,7 +95,9 @@ async function updateExistingMembership(
  * SG-App-Role-* groups are no longer supported — access is derived entirely
  * from campus + department team combinations.
  */
-function parseAzureGroups(azureGroups: any[]): {
+function parseAzureGroups(
+  azureGroups: { id: string; displayName?: string }[]
+): {
   teamsToSync: AzureGroup[];
 } {
   const teamsToSync: AzureGroup[] = [];
@@ -141,7 +143,8 @@ export async function syncM365Permissions(userId: string) {
       throw new Error(`Graph Error: ${JSON.stringify(graphData)}`);
     }
 
-    const azureGroups = (graphData.value as any[]) || [];
+    const azureGroups =
+      (graphData.value as { id: string; displayName?: string }[]) || [];
     const { teamsToSync } = parseAzureGroups(azureGroups);
 
     await Promise.all(

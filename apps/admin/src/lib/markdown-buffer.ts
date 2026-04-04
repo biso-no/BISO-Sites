@@ -85,7 +85,7 @@ export class MarkdownBuffer {
     }
 
     if (safeEndIndex > this.emittedLength) {
-      const toEmit = this.buffer.substring(0, safeEndIndex);
+      const toEmit = this.buffer.slice(0, safeEndIndex);
       this.emit(toEmit);
     }
   }

@@ -2,6 +2,7 @@
 
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import { Newspaper, Pencil, Trash2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -73,9 +74,6 @@ export function NewsListClient({
   });
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) {
-      return;
-    }
     startTransition(async () => {
       const result = await deleteNews(id);
       if (result.error) {
@@ -130,13 +128,14 @@ export function NewsListClient({
               }}
             >
               <div
-                className="h-12 w-16 shrink-0 overflow-hidden rounded-xl"
+                className="relative h-12 w-16 shrink-0 overflow-hidden rounded-xl"
                 style={{ background: "rgba(255,255,255,0.05)" }}
               >
                 {article.image ? (
-                  <img
+                  <Image
                     alt=""
-                    className="h-full w-full object-cover"
+                    className="object-cover"
+                    fill
                     src={article.image}
                   />
                 ) : (

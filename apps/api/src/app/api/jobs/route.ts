@@ -222,9 +222,9 @@ async function fetchCampusWithRetry(
       }
 
       return campus;
-    } catch (err: any) {
+    } catch (err) {
       if (attempt > retries) {
-        if (err.code === 404) {
+        if ((err as { code?: number }).code === 404) {
           throw new AppwriteJobsError(
             `Campus with ID "${campusId}" not found`,
             404,
@@ -239,7 +239,10 @@ async function fetchCampusWithRetry(
         );
       }
 
-      log(`Campus fetch attempt ${attempt} failed, retrying...`, err.message);
+      log(
+        `Campus fetch attempt ${attempt} failed, retrying...`,
+        err instanceof Error ? err.message : String(err)
+      );
       await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
     }
   }
@@ -375,8 +378,8 @@ async function fetchJobsWithRetry(
 
 function generateRequestId(): string {
   return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
+    Math.random().toString(36).slice(2, 15) +
+    Math.random().toString(36).slice(2, 15)
   );
 }
 

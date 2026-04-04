@@ -35,7 +35,7 @@ interface CampusLeader {
   role?: string;
 }
 
-function mapToLeader(entry: any): CampusLeader {
+function mapToLeader(entry: Record<string, unknown>): CampusLeader {
   return {
     name: entry?.name ?? entry?.displayName ?? "",
     email: entry?.email ?? entry?.mail ?? undefined,

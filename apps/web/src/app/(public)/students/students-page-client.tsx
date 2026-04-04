@@ -454,12 +454,12 @@ export const StudentsPageClient = ({
                   <div className="flex items-center justify-between text-xs">
                     <span>{job.campus?.name || job.campus_id}</span>
                     <span>
-                      {(job.metadata as Record<string, any>)
+                      {(job.metadata as Record<string, unknown>)
                         ?.application_deadline
                         ? formatDateReadable(
                             new Date(
-                              (job.metadata as Record<string, any>)
-                                ?.application_deadline || ""
+                              ((job.metadata as Record<string, unknown>)
+                                ?.application_deadline as string) || ""
                             )
                           )
                         : t("jobs.rolling")}

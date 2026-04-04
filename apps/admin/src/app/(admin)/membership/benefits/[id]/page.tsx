@@ -1,3 +1,4 @@
+import type { CampusBenefit } from "@repo/api/types/appwrite";
 import { notFound, redirect } from "next/navigation";
 import {
   getManagedBenefit,
@@ -23,7 +24,7 @@ export default async function EditBenefitPage({
   const { id } = await params;
   const ctx = await getUserAuthContext();
 
-  let benefit;
+  let benefit: CampusBenefit | undefined;
   try {
     benefit = await getManagedBenefit(id);
   } catch {

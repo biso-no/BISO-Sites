@@ -14,8 +14,11 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { translateEventContent } from "@/app/actions/events";
-import { CharacterCount } from "@/components/forms/CharacterCount";
-import { type Locale, LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
+import { CharacterCount } from "@/components/forms/character-count";
+import {
+  type Locale,
+  LocaleTabGroup,
+} from "@/components/forms/locale-tab-group";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { toast } from "@/lib/hooks/use-toast";
 import type { FormValues } from "./schema";
@@ -31,19 +34,19 @@ export function EventTranslations() {
   const enTitle = form.watch("translations.en.title") ?? "";
   const noTitle = form.watch("translations.no.title") ?? "";
 
+  const getLocaleStatus = (title: string): "complete" | "partial" | "empty" => {
+    if (title.length >= 5) {
+      return "complete";
+    }
+    if (title.length > 0) {
+      return "partial";
+    }
+    return "empty";
+  };
+
   const localeStatus: Record<Locale, "complete" | "partial" | "empty"> = {
-    en:
-      enTitle.length >= 5
-        ? "complete"
-        : enTitle.length > 0
-          ? "partial"
-          : "empty",
-    no:
-      noTitle.length >= 5
-        ? "complete"
-        : noTitle.length > 0
-          ? "partial"
-          : "empty",
+    en: getLocaleStatus(enTitle),
+    no: getLocaleStatus(noTitle),
   };
 
   const handleTranslate = async (from: Locale, to: Locale) => {

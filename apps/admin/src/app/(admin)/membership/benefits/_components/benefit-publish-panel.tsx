@@ -65,11 +65,12 @@ export function BenefitPublishPanel({
         // Publish button: always enabled for drafts, enabled for published
         // only when there are unsaved changes.
         const publishDisabled = isSubmitting || (isLive && !isDirty);
-        const publishLabel = isLive
-          ? isDirty
-            ? "Save & keep published"
-            : "Up to date"
-          : "Publish now";
+        let publishLabel: string;
+        if (isLive) {
+          publishLabel = isDirty ? "Save & keep published" : "Up to date";
+        } else {
+          publishLabel = "Publish now";
+        }
 
         return (
           <Card>
@@ -110,11 +111,13 @@ export function BenefitPublishPanel({
                   type="button"
                   variant="outline"
                 >
-                  {isSubmitting ? (
+                  {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : isLive ? (
+                  )}
+                  {!isSubmitting && isLive && (
                     <FileEdit className="mr-2 h-4 w-4" />
-                  ) : (
+                  )}
+                  {!(isSubmitting || isLive) && (
                     <Save className="mr-2 h-4 w-4" />
                   )}
                   {isLive ? "Unpublish & save draft" : "Save as draft"}

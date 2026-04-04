@@ -85,10 +85,14 @@ export function SaveBar({
           <div className="hidden h-4 w-px bg-border sm:block" />
 
           {/* Autosave toggle */}
-          <label className="hidden cursor-pointer items-center gap-2 text-muted-foreground text-xs sm:flex">
+          <label
+            className="hidden cursor-pointer items-center gap-2 text-muted-foreground text-xs sm:flex"
+            htmlFor="autosave-toggle"
+          >
             <Switch
               aria-label="Toggle autosave"
               checked={autosaveEnabled}
+              id="autosave-toggle"
               onCheckedChange={onAutosaveToggle}
             />
             Autosave

@@ -122,20 +122,11 @@ export async function removeIdentity(identityId: string) {
     return { success: true };
   } catch (error) {
     console.error("Failed to remove identity", error);
-    return { success: false, error: String((error as any)?.message || error) };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
-}
-
-interface ProfileDetails {
-  address?: string;
-  bank_account?: string;
-  city?: string;
-  department?: string;
-  email?: string;
-  name?: string;
-  phone?: string;
-  swift?: string;
-  zip?: string;
 }
 
 export async function updateProfile(profile: Partial<Users>) {
@@ -173,7 +164,7 @@ export async function updateProfile(profile: Partial<Users>) {
 
 async function _createProfile(profile: Partial<Users>, userId: string) {
   try {
-    const { account, db } = await createSessionClient();
+    const { db } = await createSessionClient();
 
     const existingProfile = await db.getRow("app", "user", userId);
 
@@ -203,9 +194,9 @@ export async function getUserPreferences(
 
 async function _updateUserPreferences(
   _userId: string,
-  prefs: Record<string, any>
+  prefs: Record<string, unknown>
 ): Promise<Models.Preferences | null> {
-  const { account, db } = await createSessionClient();
+  const { account } = await createSessionClient();
   const user = await account.get();
 
   if (!user) {

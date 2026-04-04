@@ -518,7 +518,9 @@ export function ProductsTable({
                   const uniqueLocales = getUniqueLocales(refs);
                   const primaryImage =
                     product.image ||
-                    (metadata as any).image ||
+                    ((metadata as Record<string, unknown>)?.image as
+                      | string
+                      | undefined) ||
                     "/placeholder.svg";
 
                   const isSelected = selectedIds.includes(product.$id);

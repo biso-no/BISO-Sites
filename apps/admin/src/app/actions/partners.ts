@@ -16,21 +16,25 @@ export async function listPartners(level?: "national" | "campus") {
 
 export async function createPartner(formData: FormData) {
   const { db } = await createSessionClient();
-  const data = {
+  const campusId = String(formData.get("campus_id") || "").trim();
+  const data: {
+    name: string;
+    url?: string;
+    level: "national" | "campus";
+    image_bucket: string;
+    image_file_id: string;
+    campus?: string;
+  } = {
     name: String(formData.get("name") || "").trim(),
-    url: (formData.get("url") ? String(formData.get("url")) : undefined) as
-      | string
-      | undefined,
+    url: formData.get("url") ? String(formData.get("url")) : undefined,
     level: String(formData.get("level") || "national") as "national" | "campus",
     image_bucket: String(formData.get("image_bucket") || "partners").trim(),
     image_file_id: String(formData.get("image_file_id") || "").trim(),
-    campus: undefined as any,
   };
 
-  const campusId = String(formData.get("campus_id") || "").trim();
   if (campusId) {
     // relationship expects document id reference
-    (data as any).campus = campusId;
+    data.campus = campusId;
   }
 
   if (!(data.name && data.level && data.image_bucket && data.image_file_id)) {

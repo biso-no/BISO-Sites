@@ -170,13 +170,9 @@ export async function rejectDraft(
     return { error: "Unauthorized: only admins can reject drafts" };
   }
 
-  const { db } = await createSessionClient();
-  const tableMap = { job: "jobs", event: "events", news: "news" } as const;
-  const _table = tableMap[type];
-
   // Keep as draft but optionally log the rejection
   if (reason) {
-    void logAuditEvent(ctx, "draft_rejected", {
+    await logAuditEvent(ctx, "draft_rejected", {
       resourceId: id,
       resourceType: type,
       payload: { reason },

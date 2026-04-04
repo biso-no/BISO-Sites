@@ -48,7 +48,26 @@ export async function getOrder(id: string) {
   }
 }
 
-async function getMemberDiscountIfAny(product: any) {
+interface ProductLike {
+  $id: string;
+  campus_id?: string;
+  custom_fields?: Array<{ id: string; label: string; required?: boolean }>;
+  max_per_order?: number;
+  max_per_user?: number;
+  member_discount_enabled?: boolean;
+  member_discount_percent?: number;
+  price?: number | string;
+  slug?: string;
+  title?: string;
+  variations?: Array<{ id: string; name?: string; price_modifier?: number }>;
+}
+
+interface FunctionExecution {
+  responseBody?: string;
+  [key: string]: unknown;
+}
+
+async function getMemberDiscountIfAny(product: ProductLike) {
   try {
     if (
       !(product?.member_discount_enabled && product?.member_discount_percent)
@@ -70,7 +89,7 @@ async function getMemberDiscountIfAny(product: any) {
       String(studentId),
       false
     );
-    const res = JSON.parse((exec as any).responseBody || "{}");
+    const res = JSON.parse((exec as FunctionExecution).responseBody ?? "{}");
     const isActive = !!res?.membership?.status;
     if (!isActive) {
       return { applied: false, percent: 0 };
@@ -163,7 +182,7 @@ function buildQuantityByProduct(items: CheckoutLineItemInput[]) {
 }
 
 async function getCachedProduct(
-  productCache: Map<string, any>,
+  productCache: Map<string, ProductLike>,
   productId: string,
   slug: string
 ) {
@@ -176,12 +195,12 @@ async function getCachedProduct(
   if (!product) {
     throw new Error(`Product ${slug || productId} is not available anymore.`);
   }
-  productCache.set(productId, product);
-  return product;
+  productCache.set(productId, product as ProductLike);
+  return product as ProductLike;
 }
 
 function validateProductLimits(
-  product: any,
+  product: ProductLike,
   totalForProduct: number,
   _input: CheckoutLineItemInput
 ) {
@@ -205,12 +224,12 @@ function validateProductLimits(
 }
 
 async function resolvePricing(
-  product: any,
+  product: ProductLike,
   input: CheckoutLineItemInput,
   discountCache: Map<string, DiscountInfo>
 ) {
   const variation = product.variations?.find(
-    (variant: any) => variant.id === input.variationId
+    (variant) => variant.id === input.variationId
   );
   const basePrice = Number(product.price || 0);
   const variationModifier = Number(variation?.price_modifier || 0);
@@ -234,7 +253,7 @@ async function resolvePricing(
 }
 
 function validateCustomFieldsForProduct(
-  product: any,
+  product: ProductLike,
   customFieldResponses: Record<string, string>
 ) {
   if (!product.custom_fields) {
@@ -242,9 +261,9 @@ function validateCustomFieldsForProduct(
   }
 
   const missingFields = product.custom_fields
-    .filter((field: any) => field.required)
-    .filter((field: any) => !customFieldResponses[field.id])
-    .map((field: any) => field.label);
+    .filter((field) => field.required)
+    .filter((field) => !customFieldResponses[field.id])
+    .map((field) => field.label);
 
   if (missingFields.length > 0) {
     throw new Error(
@@ -261,10 +280,10 @@ function buildOrderItemPayload({
   variationModifier,
   customFieldResponses,
 }: {
-  product: any;
+  product: ProductLike;
   input: CheckoutLineItemInput;
   discountedUnit: number;
-  variation?: any;
+  variation?: { id: string; name?: string; price_modifier?: number };
   variationModifier: number;
   customFieldResponses: Record<string, string>;
 }): OrderItem {
@@ -307,7 +326,7 @@ async function buildOrderComputation(
   quantityByProduct: Map<string, number>
 ): Promise<CheckoutComputation> {
   const discountCache = new Map<string, DiscountInfo>();
-  const productCache = new Map<string, any>();
+  const productCache = new Map<string, ProductLike>();
   const orderItems: OrderItem[] = [];
   const campusIds = new Set<string>();
   let subtotal = 0;

@@ -46,8 +46,7 @@ export function LogoUploadPreview({
       const result = await uploadDepartmentLogo(formData);
       onChange(result.url);
       toast.success("Logo uploaded successfully");
-    } catch (error) {
-      console.error("Failed to upload logo", error);
+    } catch {
       toast.error("Failed to upload logo");
     } finally {
       setIsUploading(false);
@@ -77,7 +76,7 @@ export function LogoUploadPreview({
     toast.info("Logo removed");
   };
 
-  const initials = departmentName.substring(0, 2).toUpperCase();
+  const initials = departmentName.slice(0, 2).toUpperCase();
 
   const renderPreview = () => {
     if (isUploading) {

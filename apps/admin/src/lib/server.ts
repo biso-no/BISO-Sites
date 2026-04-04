@@ -7,22 +7,6 @@ import { redirect } from "next/navigation";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-interface DashboardCard {
-  groupId: string | null;
-  id: string;
-  title: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-}
-
-interface DashboardConfig {
-  groups: Group[];
-  layout: DashboardCard[];
-}
-
 export async function signInWithAzure() {
   const { account } = await createSessionClient();
 
@@ -78,13 +62,13 @@ async function _createMagicLinkSession(userId: string, secret: string) {
 type Team = Models.Team;
 type Teams = Models.TeamList<Models.Preferences>;
 async function _getTeams(query: string[]): Promise<Teams> {
-  const { account, teams } = await createSessionClient();
+  const { teams } = await createSessionClient();
 
   return teams.list(query);
 }
 
 async function _getTeam(teamId: string): Promise<Team> {
-  const { account, teams } = await createSessionClient();
+  const { teams } = await createSessionClient();
 
   return teams.get(teamId);
 }

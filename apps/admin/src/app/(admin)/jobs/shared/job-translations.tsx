@@ -12,8 +12,8 @@ import { Input } from "@repo/ui/components/ui/input";
 import { Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useFormContext } from "react-hook-form";
-import { CharacterCount } from "@/components/forms/CharacterCount";
-import { LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
+import { CharacterCount } from "@/components/forms/character-count";
+import { LocaleTabGroup } from "@/components/forms/locale-tab-group";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import type { FormValues } from "./schema";
 

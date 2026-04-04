@@ -108,8 +108,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           const errorText = await webhookResponse.text();
           result.error = `Webhook failed: ${webhookResponse.status} - ${errorText}`;
         }
-      } catch (error: any) {
-        result.error = error.message || "Unknown error";
+      } catch (error) {
+        result.error = error instanceof Error ? error.message : "Unknown error";
       }
 
       results.push(result);
@@ -134,10 +134,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       totalFailed: results.filter((r) => !r.success).length,
       results,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in bulk account turnover:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to process bulk turnover" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to process bulk turnover",
+      },
       { status: 500 }
     );
   }

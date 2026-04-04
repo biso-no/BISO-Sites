@@ -334,7 +334,7 @@ export async function createProduct(
         departmentId,
         department: null,
         translation_refs: translationRefs,
-      } as any,
+      },
       permissions
     );
 

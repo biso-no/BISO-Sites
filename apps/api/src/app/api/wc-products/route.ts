@@ -351,8 +351,8 @@ function processProducts(
 
 function generateRequestId(): string {
   return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
+    Math.random().toString(36).slice(2, 15) +
+    Math.random().toString(36).slice(2, 15)
   );
 }
 
@@ -360,11 +360,11 @@ export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
   const startTime = Date.now();
 
-  const logWithId = (message: string, ...args: any[]) => {
+  const logWithId = (message: string, ...args: unknown[]) => {
     console.log(`[${requestId}] ${message}`, ...args);
   };
 
-  const errorLog = (message: string, ...args: any[]) => {
+  const errorLog = (message: string, ...args: unknown[]) => {
     console.error(message, ...args);
   };
 
@@ -417,7 +417,7 @@ export async function POST(req: NextRequest) {
     };
 
     return NextResponse.json(response);
-  } catch (err: any) {
+  } catch (err) {
     const executionTime = Date.now() - startTime;
 
     if (err instanceof ProductsError) {

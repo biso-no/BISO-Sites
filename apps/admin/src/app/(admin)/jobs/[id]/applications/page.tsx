@@ -40,7 +40,7 @@ export default async function AdminJobApplications({
             </tr>
           </thead>
           <tbody>
-            {apps.map((a: any) => (
+            {apps.map((a) => (
               <tr className="border-t" key={a.$id}>
                 <td className="p-3">{a.applicant_name}</td>
                 <td className="p-3">{a.applicant_email}</td>

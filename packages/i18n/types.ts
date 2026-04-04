@@ -32,7 +32,7 @@ export type MessageNamespace =
   | "adminPosts";
 
 // Messages type structure
-export type Messages = Record<string, any>;
+export type Messages = Record<string, unknown>;
 
 export type LocaleMessages = {
   [K in MessageNamespace]?: Messages;

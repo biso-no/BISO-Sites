@@ -199,12 +199,14 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
               <div className="flex flex-col gap-1.5">
                 <label
                   className="text-xs"
+                  htmlFor="settings-locale"
                   style={{ color: "rgba(255,255,255,0.50)" }}
                 >
                   {labels.general.locale}
                 </label>
                 <select
                   className="rounded-xl px-3 py-2 text-sm outline-none"
+                  id="settings-locale"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.08)",
@@ -222,12 +224,14 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
               <div className="flex flex-col gap-1.5">
                 <label
                   className="text-xs"
+                  htmlFor="settings-timezone"
                   style={{ color: "rgba(255,255,255,0.50)" }}
                 >
                   {labels.general.timezone}
                 </label>
                 <select
                   className="rounded-xl px-3 py-2 text-sm outline-none"
+                  id="settings-timezone"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.08)",

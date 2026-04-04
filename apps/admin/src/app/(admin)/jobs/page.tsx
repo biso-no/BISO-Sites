@@ -47,7 +47,7 @@ export default async function AdminJobsPage({
   const translationCoverage = formatPercentage(
     jobs.filter((job) => {
       const refs = job.translation_refs ?? [];
-      const locales = refs.map((ref: any) => ref.locale);
+      const locales = refs.map((ref: { locale?: string }) => ref.locale);
       return locales.includes("no") && locales.includes("en");
     }).length,
     totalJobs

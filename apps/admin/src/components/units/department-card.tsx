@@ -39,7 +39,7 @@ interface DepartmentCardProps {
     boardMemberCount?: number;
     socialsCount?: number;
   };
-  onEdit?: (department: any) => void;
+  onEdit?: (department: DepartmentCardProps["department"]) => void;
 }
 
 export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
@@ -54,7 +54,7 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
 
   const placeholderLogo =
     "https://via.placeholder.com/80?text=" +
-    encodeURIComponent(displayName.substring(0, 2));
+    encodeURIComponent(displayName.slice(0, 2));
 
   const logoUrl = department.logo || placeholderLogo;
 
@@ -104,7 +104,7 @@ export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
                 />
               ) : (
                 <span className="font-bold text-white text-xl">
-                  {displayName.substring(0, 2).toUpperCase()}
+                  {displayName.slice(0, 2).toUpperCase()}
                 </span>
               )}
             </div>

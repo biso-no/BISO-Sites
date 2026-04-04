@@ -25,8 +25,8 @@ import {
   useFormContext,
   type WatchObserver,
 } from "react-hook-form";
-import { CoverImageUpload } from "@/components/forms/CoverImageUpload";
-import { FormSection } from "@/components/forms/FormSection";
+import { CoverImageUpload } from "@/components/forms/cover-image-upload";
+import { FormSection } from "@/components/forms/form-section";
 import type { Campus } from "@/lib/types/post";
 import { type FormValues, slugify } from "./schema";
 
@@ -286,16 +286,20 @@ export function EventSidebar({
                   )}
                 </FormControl>
                 <FormDescription id="slug-hint">
-                  {isEditingSlug
-                    ? t("editor.slugEditingHint")
-                    : slugSource
-                      ? t("editor.slugDescriptionAuto", {
-                          source:
-                            slugSource === "no"
-                              ? t("editor.norwegian")
-                              : t("editor.english"),
-                        })
-                      : t("editor.slugDescriptionFallback")}
+                  {(() => {
+                    if (isEditingSlug) {
+                      return t("editor.slugEditingHint");
+                    }
+                    if (slugSource) {
+                      return t("editor.slugDescriptionAuto", {
+                        source:
+                          slugSource === "no"
+                            ? t("editor.norwegian")
+                            : t("editor.english"),
+                      });
+                    }
+                    return t("editor.slugDescriptionFallback");
+                  })()}
                 </FormDescription>
                 <FormMessage />
               </FormItem>

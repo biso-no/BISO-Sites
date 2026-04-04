@@ -1,12 +1,6 @@
 import type { Models } from "@repo/api";
 import type { ExpenseAttachment } from "./expense-attachment";
 
-interface Campus extends Models.Row {
-  name: string;
-}
-interface Department extends Models.Row {
-  name: string;
-}
 export interface User extends Models.Row {
   name: string;
 }

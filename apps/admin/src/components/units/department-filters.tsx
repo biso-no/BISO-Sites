@@ -56,7 +56,7 @@ interface DepartmentFiltersProps {
   resetFilters: () => void;
   setSearchTerm: (term: string) => void;
   types: string[];
-  updateFilter: (key: keyof FilterState, value: any) => void;
+  updateFilter: (key: keyof FilterState, value: unknown) => void;
 }
 
 interface FilterControlsProps {

@@ -58,9 +58,12 @@ export async function updateMembershipStatus(
     await db.updateRow("app", "memberships", id, { status });
     revalidatePath("/membership/settings");
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[Membership Settings] Failed to update status:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -76,9 +79,12 @@ export async function updateMembershipPurchasable(
     await db.updateRow("app", "memberships", id, { canPurchase });
     revalidatePath("/membership/settings");
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("[Membership Settings] Failed to update canPurchase:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -106,8 +112,10 @@ export async function bulkUpdateMemberships(
         await db.updateRow("app", "memberships", update.id, data);
         updated += 1;
       }
-    } catch (error: any) {
-      errors.push(`Failed to update ${update.id}: ${error.message}`);
+    } catch (error) {
+      errors.push(
+        `Failed to update ${update.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
