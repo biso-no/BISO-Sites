@@ -1,6 +1,7 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseEventMetadata } from "@/lib/types/event";
@@ -29,9 +30,7 @@ export function EventContent({ event }: EventContentProps) {
         <h2 className="mb-4 font-bold text-2xl text-foreground">
           {t("modal.about")}
         </h2>
-        <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-          {translation?.description ?? ""}
-        </p>
+        <PlateContentRenderer value={translation?.description} />
       </Card>
 
       {/* Highlights */}

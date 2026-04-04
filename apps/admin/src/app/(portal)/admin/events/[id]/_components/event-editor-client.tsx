@@ -11,7 +11,7 @@ import { PreviewPanel } from "../../../_components/preview-panel";
 import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { PortalButton } from "../../../_components/portal-button";
-import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import type { Events, ContentTranslations, Campus } from "@repo/api/types/appwrite";
 
 type EventWithTranslations = Events & { translation_refs: ContentTranslations[] };
@@ -250,7 +250,8 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
           <form.Field name="description_no">
             {(field) => (
               <PortalField label={labels.descriptionNo}>
-                <PortalBodyEditor
+                <ContentEditor
+                  variant="events"
                   value={field.state.value}
                   onChange={(v) => field.handleChange(v || null)}
                   placeholder="Beskrivelse..."
@@ -264,7 +265,8 @@ export function EventEditorClient({ event, campuses, isNew, labels }: EventEdito
           <form.Field name="description_en">
             {(field) => (
               <PortalField label={labels.descriptionEn}>
-                <PortalBodyEditor
+                <ContentEditor
+                  variant="events"
                   value={field.state.value}
                   onChange={(v) => field.handleChange(v || null)}
                   placeholder="Description (English)..."

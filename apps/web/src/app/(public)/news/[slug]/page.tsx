@@ -1,30 +1,20 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getLocale } from "@/app/actions/locale";
-import { getNewsItem } from "@/app/actions/news";
+import { getNewsBySlug } from "@/app/actions/news";
 import { PublicPageHeader } from "@/components/public/public-page-header";
 
-function HtmlContent({ html }: { html: string }) {
-  return (
-    <article
-      className="prose dark:prose-invert max-w-none"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is authored by trusted admins in the CMS.
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-}
-
-export default async function PublicNewsDetail({
+export default async function PublicNewsDetailBySlug({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = await params;
+  const { slug } = await params;
 
-  // Get user's preferred locale from their account preferences
   const locale = await getLocale();
-  const item = await getNewsItem(id, locale);
+  const item = await getNewsBySlug(slug, locale);
 
   if (!item) {
     return notFound();
@@ -64,7 +54,7 @@ export default async function PublicNewsDetail({
           <Image alt={title} className="object-cover" fill src={item.image} />
         </div>
       )}
-      <HtmlContent html={description} />
+      <PlateContentRenderer value={description} />
     </div>
   );
 }

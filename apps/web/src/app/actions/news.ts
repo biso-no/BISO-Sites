@@ -124,3 +124,51 @@ export async function getNewsItem(
     return null;
   }
 }
+
+export async function getNewsBySlug(
+  slug: string,
+  locale: "en" | "no"
+): Promise<News | null> {
+  try {
+    const { db } = await createSessionClient();
+
+    const response = await db.listRows<News>("app", "news", [
+      Query.equal("slug", slug),
+      Query.equal("translation_refs.locale", locale as Locale),
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "slug",
+        "status",
+        "campus_id",
+        "department_id",
+        "sticky",
+        "url",
+        "image",
+        "metadata",
+        "author",
+        "campus.$id",
+        "campus.name",
+        "department.$id",
+        "department.Name",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.content_id",
+        "translation_refs.content_type",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.description",
+        "translation_refs.short_description",
+        "translation_refs.additional_fields",
+      ]),
+      Query.limit(1),
+    ]);
+
+    return response.rows[0] ?? null;
+  } catch (error) {
+    console.error("Error fetching news item by slug:", error);
+    return null;
+  }
+}

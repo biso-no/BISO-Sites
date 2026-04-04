@@ -12,10 +12,14 @@ import {
   applyScopeQueries,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
-import type {
-  Events,
-  ContentTranslations,
-  EventStatus,
+import {
+  type Events,
+  type ContentTranslations,
+  type EventStatus,
+  CollectionPricing,
+  ContentType,
+  Locale,
+  type Campus
 } from "@repo/api/types/appwrite";
 import { z } from "zod";
 import { eventSchema, type EventFormValues } from "./schemas";
@@ -95,7 +99,7 @@ export async function createEvent(values: EventFormValues) {
 
   const { db } = await createSessionClient();
 
-  const event = await db.createRow("app", "events", "unique()", {
+  const event = await db.upsertRow<Events>("app", "events", "unique()", {
     slug: validated.data.slug,
     status: "draft" as EventStatus,
     campus_id: validated.data.campus_id,
@@ -108,7 +112,29 @@ export async function createEvent(values: EventFormValues) {
     ticket_url: validated.data.ticket_url || null,
     member_only: validated.data.member_only ?? false,
     is_collection: false,
-    collection_pricing: "individual",
+    collection_pricing: CollectionPricing.INDIVIDUAL,
+    metadata: null,
+    campus: validated.data.campus_id,
+    department: validated.data.department_id ?? null,
+    translation_refs: [
+      {
+        content_id: "", // Placeholder, will be created after event
+        content_type: ContentType.EVENT,
+        locale: Locale.NO,
+        title: validated.data.title_no,
+        description: validated.data.description_no ?? "",
+        additional_fields: null,
+      },
+      {
+        content_id: "", // Placeholder, will be created after event
+        content_type: ContentType.EVENT,
+        locale: Locale.EN,
+        title: validated.data.title_en,
+        description: validated.data.description_en ?? "",
+        additional_fields: null,
+      }
+
+    ]
   });
 
   for (const locale of ["no", "en"] as const) {

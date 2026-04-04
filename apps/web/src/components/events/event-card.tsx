@@ -217,9 +217,6 @@ export function EventCard({
           <h3 className="mb-3 font-semibold text-foreground text-xl">
             {title}
           </h3>
-          <p className="mb-4 line-clamp-2 grow text-muted-foreground text-sm">
-            {description}
-          </p>
 
           {eventData?.is_collection && (
             <div className="mb-4 rounded-lg border border-brand-border bg-brand-muted p-3">

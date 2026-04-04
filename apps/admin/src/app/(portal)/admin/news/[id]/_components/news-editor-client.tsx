@@ -11,7 +11,7 @@ import { PreviewPanel } from "../../../_components/preview-panel";
 import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { PortalButton } from "../../../_components/portal-button";
-import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import type { News, ContentTranslations, Campus } from "@repo/api/types/appwrite";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
@@ -240,7 +240,8 @@ export function NewsEditorClient({ article, campuses, isNew, labels }: NewsEdito
           <form.Field name="description">
             {(field) => (
               <PortalField label={labels.body}>
-                <PortalBodyEditor
+                <ContentEditor
+                  variant="news"
                   value={field.state.value}
                   onChange={(v) => field.handleChange(v || null)}
                   placeholder="Write your article here..."

@@ -18,7 +18,7 @@ import {
   PortalSelect,
 } from "../../../_components/portal-fields";
 import { PortalButton } from "../../../_components/portal-button";
-import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import type {
   Jobs,
   ContentTranslations,
@@ -219,7 +219,8 @@ export function JobEditorClient({
           <form.Field name="description_no">
             {(field) => (
               <PortalField label={labels.descriptionNo} required>
-                <PortalBodyEditor
+                <ContentEditor
+                  variant="jobs"
                   value={field.state.value}
                   onChange={(v) => field.handleChange(v)}
                   placeholder="Stillingsbeskrivelse på norsk..."
@@ -232,7 +233,8 @@ export function JobEditorClient({
           <form.Field name="description_en">
             {(field) => (
               <PortalField label={labels.descriptionEn} required>
-                <PortalBodyEditor
+                <ContentEditor
+                  variant="jobs"
                   value={field.state.value}
                   onChange={(v) => field.handleChange(v)}
                   placeholder="Job description in English..."

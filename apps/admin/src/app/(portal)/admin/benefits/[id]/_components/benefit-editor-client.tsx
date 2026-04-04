@@ -11,7 +11,7 @@ import { PreviewPanel } from "../../../_components/preview-panel";
 import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { PortalButton } from "../../../_components/portal-button";
 import { ImageUploadField } from "../../../_components/image-upload-field";
-import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import type { CampusBenefits, Campus } from "@repo/api/types/appwrite";
 
 type BenefitEditorClientProps = {
@@ -93,14 +93,14 @@ export function BenefitEditorClient({ benefit, campuses, isNew, labels }: Benefi
           <form.Field name="description_nb">
             {(field) => (
               <PortalField label={labels.descriptionNo} required>
-                <PortalBodyEditor value={field.state.value} onChange={(v) => field.handleChange(v)} placeholder="Beskrivelse på norsk..." minHeight={180} />
+                <ContentEditor variant="base" value={field.state.value} onChange={(v) => field.handleChange(v)} placeholder="Beskrivelse på norsk..." minHeight={180} />
               </PortalField>
             )}
           </form.Field>
           <form.Field name="description_en">
             {(field) => (
               <PortalField label={labels.descriptionEn} required>
-                <PortalBodyEditor value={field.state.value} onChange={(v) => field.handleChange(v)} placeholder="Description in English..." minHeight={180} />
+                <ContentEditor variant="base" value={field.state.value} onChange={(v) => field.handleChange(v)} placeholder="Description in English..." minHeight={180} />
               </PortalField>
             )}
           </form.Field>

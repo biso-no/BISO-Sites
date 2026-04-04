@@ -11,7 +11,7 @@ import { PreviewPanel } from "../../../_components/preview-panel";
 import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { PortalButton } from "../../../_components/portal-button";
 import { ImageUploadField } from "../../../_components/image-upload-field";
-import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
+import { ContentEditor } from "@repo/ui/components/content-editor";
 import type { WebshopProducts, ContentTranslations, Campus } from "@repo/api/types/appwrite";
 
 type ProductWithTranslations = WebshopProducts & { translation_refs: ContentTranslations[] };
@@ -103,7 +103,8 @@ export function ShopEditorClient({ product, campuses, isNew, labels }: ShopEdito
           <form.Field name="description">
             {(field) => (
               <PortalField label={labels.description}>
-                <PortalBodyEditor
+                <ContentEditor
+                  variant="products"
                   value={field.state.value}
                   onChange={(v) => field.handleChange(v || null)}
                   placeholder="Product description..."

@@ -3,7 +3,7 @@ import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { getCollectionEvents, getEvent } from "@/app/actions/events";
+import { getCollectionEvents, getEventBySlug } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
 import { EventActions } from "@/components/events/event-actions";
 import { EventCollectionList } from "@/components/events/event-collection-list";
@@ -17,23 +17,21 @@ import {
 } from "@/components/events/event-info-cards";
 import { formatEventPrice } from "@/lib/types/event";
 
-type EventPageProps = {
-  params: {
-    id: string;
-  };
+interface EventPageProps {
+  params: Promise<{
+    slug: string;
+  }>;
 };
 
-async function EventDetails({ id }: { id: string }) {
+async function EventDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
 
-  // Fetch the event
-  const event = await getEvent(id, locale);
-
+  const event = await getEventBySlug(slug, locale);
+  console.log("Fetched event:", event);
   if (!event) {
     notFound();
   }
 
-  // Fetch collection events if this event belongs to or is a collection
   let collectionEvents: Events[] | null = null;
   const eventData = event;
   const translation = Array.isArray(event.translation_refs)
@@ -46,13 +44,11 @@ async function EventDetails({ id }: { id: string }) {
   const description = translation?.description ?? "";
 
   if (eventData?.is_collection && eventData.collection_id) {
-    // This is a collection parent - fetch all its child events
     collectionEvents = await getCollectionEvents(
       eventData.collection_id,
       locale
     );
   } else if (eventData?.collection_id) {
-    // This is a child event - fetch all events in the same collection
     collectionEvents = await getCollectionEvents(
       eventData.collection_id,
       locale
@@ -130,18 +126,19 @@ function EventDetailsSkeleton() {
   );
 }
 
-export default function EventPage({ params }: EventPageProps) {
+export default async function EventPage({ params }: EventPageProps) {
+  const { slug } = await params;
   return (
     <Suspense fallback={<EventDetailsSkeleton />}>
-      <EventDetails id={params.id} />
+      <EventDetails slug={slug} />
     </Suspense>
   );
 }
 
-// Generate metadata for SEO
 export async function generateMetadata({ params }: EventPageProps) {
   const locale = await getLocale();
-  const event = await getEvent(params.id, locale);
+  const { slug } = await params;
+  const event = await getEventBySlug(slug, locale);
 
   if (!event) {
     return {

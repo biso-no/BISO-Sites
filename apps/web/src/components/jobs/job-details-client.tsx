@@ -17,6 +17,7 @@ import {
   Send,
   Users,
 } from "lucide-react";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 
@@ -60,7 +61,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
     : null;
   const title = translation?.title ?? "Untitled";
   const description = translation?.description ?? "";
-  const metadata = jobData?.metadata as Record<string, any>;
+  const metadata = jobData?.metadata as unknown as Record<string, any>;
   const category = getJobCategory(metadata);
 
   // Extract data
@@ -180,9 +181,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 <h2 className="mb-4 font-bold text-2xl text-foreground">
                   Position Overview
                 </h2>
-                <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-                  {description}
-                </p>
+                <PlateContentRenderer value={description} className="text-muted-foreground" />
               </Card>
             </motion.div>
 
