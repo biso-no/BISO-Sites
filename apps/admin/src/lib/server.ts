@@ -1,14 +1,14 @@
 "use server";
 
 import { ID, type Models, OAuthProvider } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 export async function signInWithAzure() {
-  const { account } = await createSessionClient();
+  const { account } = await createAdminClient();
 
   const origin = (await headers()).get("origin");
 

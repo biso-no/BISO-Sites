@@ -8,6 +8,7 @@ const withMDX = createMDX({
 const config = {
   reactStrictMode: true,
   output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, '../../'),
 };
 
 export default withMDX(config);
