@@ -25,7 +25,7 @@ export type Role = (typeof ROLES)[keyof typeof ROLES];
 export const DEPARTMENT_ROLE = "department" as const;
 
 // All valid role values including pseudo-roles
-export type RoleOrDepartment = Role | typeof DEPARTMENT_ROLE;
+type RoleOrDepartment = Role | typeof DEPARTMENT_ROLE;
 
 /**
  * Navigation access rules based on campus + department membership.

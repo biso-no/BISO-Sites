@@ -605,7 +605,7 @@ export async function listDepartmentsWithWriterAccess() {
 }
 
 // Helper function to get campuses
-export async function listCampuses() {
+async function listCampuses() {
   try {
     const { db } = await createSessionClient();
     const response = await db.listRows<Campus>("app", "campus");

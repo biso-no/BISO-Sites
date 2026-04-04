@@ -23,7 +23,7 @@ interface DashboardConfig {
   layout: DashboardCard[];
 }
 
-export async function signInWithAzure() {
+async function signInWithAzure() {
   const { account } = await createSessionClient();
 
   const origin = (await headers()).get("origin");

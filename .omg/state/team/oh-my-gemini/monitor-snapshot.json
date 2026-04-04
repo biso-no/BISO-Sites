@@ -1,0 +1,130 @@
+{
+  "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+  "teamName": "oh-my-gemini",
+  "handleId": "tmux-3e441afc-4618-43de-b903-adb8157121ed",
+  "backend": "tmux",
+  "status": "failed",
+  "updatedAt": "2026-04-04T19:35:16.396Z",
+  "workers": [
+    {
+      "workerId": "worker-1",
+      "status": "done",
+      "lastHeartbeatAt": "2026-04-04T19:35:14.182Z",
+      "details": "pane_id=%1, command=shell, pane=active, exit=0 | heartbeat=dead | pid=38756 | done_signal=completed,summary=Worker worker-1 completed task for team oh-my-gemini | pid=38756 | heartbeat=dead | done_signal=completed,summary=Worker worker-1 completed task for team oh-my-gemini"
+    },
+    {
+      "workerId": "worker-2",
+      "status": "done",
+      "lastHeartbeatAt": "2026-04-04T19:35:16.396Z",
+      "details": "pane_id=%4, command=shell, pane=inactive, exit=0"
+    },
+    {
+      "workerId": "worker-3",
+      "status": "done",
+      "lastHeartbeatAt": "2026-04-04T19:35:16.396Z",
+      "details": "pane_id=%3, command=shell, pane=inactive, exit=0"
+    }
+  ],
+  "summary": "Missing worker delivery acknowledgment for worker-2, worker-3. | runtime status is failed; completed terminal status is required | verify baseline did not pass",
+  "failureReason": "Missing worker delivery acknowledgment for worker-2, worker-3. | runtime status is failed; completed terminal status is required | verify baseline did not pass",
+  "runtime": {
+    "sessionName": "oh-my-gemini-1775331313076",
+    "commandTemplate": "node 'C:\\Users\\marku\\AppData\\Roaming\\npm\\node_modules\\oh-my-gemini-sisyphus\\dist\\cli\\index.js' worker run --team 'oh-my-gemini' --worker 'worker-1'",
+    "workers": 3,
+    "stateRoot": "C:\\Dev\\folder\\BISO-Sites\\.omg\\state",
+    "deliveryAcks": [
+      {
+        "workerId": "worker-1",
+        "acknowledged": true,
+        "observedSignal": "done",
+        "observedAt": "2026-04-04T19:35:14.179Z"
+      },
+      {
+        "workerId": "worker-2",
+        "acknowledged": false
+      },
+      {
+        "workerId": "worker-3",
+        "acknowledged": false
+      }
+    ],
+    "workerCliSelection": {
+      "worker-1": "omg",
+      "worker-2": "omg",
+      "worker-3": "omg"
+    },
+    "taskAuditLogPath": "C:\\Dev\\folder\\BISO-Sites\\.omg\\state\\team\\oh-my-gemini\\events\\task-lifecycle.ndjson",
+    "verifyBaselinePassed": false,
+    "verifyBaselineSource": "tmux-runtime",
+    "sessionExists": true,
+    "paneCount": 3,
+    "workerStatusCounts": {
+      "running": 0,
+      "done": 3,
+      "failed": 0,
+      "unknown": 0
+    },
+    "paneHealth": {
+      "checkedAt": "2026-04-04T19:35:16.396Z",
+      "staleHeartbeatWorkers": 0,
+      "acknowledgedWorkers": 1,
+      "missingDeliveryAckWorkers": ["worker-2", "worker-3"],
+      "healthy": false
+    },
+    "runInput": {
+      "version": 1,
+      "task": "Review and systematically fix all ultracite errors.",
+      "cwd": "C:\\Dev\\folder\\BISO-Sites",
+      "backend": "tmux",
+      "workers": 3,
+      "maxFixLoop": 3
+    },
+    "successChecklist": {
+      "runtimeStatus": "failed",
+      "treatRunningAsSuccess": false,
+      "verifyGate": {
+        "passed": false,
+        "reason": "verify baseline did not pass"
+      },
+      "roleContract": {
+        "passed": true,
+        "summary": "role output contract not applicable: selected subagent assignments absent",
+        "issues": [],
+        "applicable": false,
+        "assignmentCount": 0,
+        "outputCount": 0
+      },
+      "prdContract": {
+        "passed": true,
+        "summary": "prd acceptance contract not applicable: runtime.prd is missing",
+        "issues": [],
+        "applicable": false,
+        "storyCount": 0
+      },
+      "taskCounts": {
+        "total": 0,
+        "required": 0,
+        "failed": 0,
+        "incompleteRequired": 0,
+        "activeNonTerminal": 0
+      },
+      "taskAudit": {
+        "total": 0,
+        "byAction": {
+          "claim": 0,
+          "transition": 0,
+          "release": 0
+        },
+        "byTask": {},
+        "byReasonCode": {}
+      },
+      "health": {
+        "healthy": false,
+        "deadWorkers": [],
+        "nonReportingWorkers": [],
+        "watchdogExpired": false
+      },
+      "legacyBypassAudit": []
+    }
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "teamName": "oh-my-gemini",
+  "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+  "currentPhase": "failed",
+  "maxFixAttempts": 3,
+  "currentFixAttempt": 3,
+  "transitions": [
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "plan",
+      "to": "exec",
+      "at": "2026-04-04T19:35:02.870Z",
+      "reason": "Runtime prerequisites validated.",
+      "metadata": {
+        "backend": "tmux"
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "exec",
+      "to": "verify",
+      "at": "2026-04-04T19:35:06.185Z",
+      "reason": "Verification attempt 1",
+      "metadata": {
+        "attempt": 1,
+        "maxFixAttempts": 3
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "verify",
+      "to": "fix",
+      "at": "2026-04-04T19:35:06.252Z",
+      "reason": "Fix attempt 1 of 3",
+      "metadata": {
+        "attempt": 1,
+        "maxFixAttempts": 3,
+        "runtimeStatus": "failed",
+        "failureReason": "Missing worker delivery acknowledgment for worker-2, worker-3. | runtime status is failed; completed terminal status is required | verify baseline did not pass"
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "fix",
+      "to": "exec",
+      "at": "2026-04-04T19:35:06.269Z",
+      "reason": "Restarting runtime after fix attempt 1",
+      "metadata": {
+        "attempt": 1,
+        "maxFixAttempts": 3
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "exec",
+      "to": "verify",
+      "at": "2026-04-04T19:35:09.613Z",
+      "reason": "Verification attempt 2",
+      "metadata": {
+        "attempt": 2,
+        "maxFixAttempts": 3
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "verify",
+      "to": "fix",
+      "at": "2026-04-04T19:35:09.676Z",
+      "reason": "Fix attempt 2 of 3",
+      "metadata": {
+        "attempt": 2,
+        "maxFixAttempts": 3,
+        "runtimeStatus": "failed",
+        "failureReason": "Missing worker delivery acknowledgment for worker-2, worker-3. | runtime status is failed; completed terminal status is required | verify baseline did not pass"
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "fix",
+      "to": "exec",
+      "at": "2026-04-04T19:35:09.694Z",
+      "reason": "Restarting runtime after fix attempt 2",
+      "metadata": {
+        "attempt": 2,
+        "maxFixAttempts": 3
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "exec",
+      "to": "verify",
+      "at": "2026-04-04T19:35:12.987Z",
+      "reason": "Verification attempt 3",
+      "metadata": {
+        "attempt": 3,
+        "maxFixAttempts": 3
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "verify",
+      "to": "fix",
+      "at": "2026-04-04T19:35:13.052Z",
+      "reason": "Fix attempt 3 of 3",
+      "metadata": {
+        "attempt": 3,
+        "maxFixAttempts": 3,
+        "runtimeStatus": "failed",
+        "failureReason": "Missing worker delivery acknowledgment for worker-2, worker-3. | runtime status is failed; completed terminal status is required | verify baseline did not pass"
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "fix",
+      "to": "exec",
+      "at": "2026-04-04T19:35:13.070Z",
+      "reason": "Restarting runtime after fix attempt 3",
+      "metadata": {
+        "attempt": 3,
+        "maxFixAttempts": 3
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "exec",
+      "to": "verify",
+      "at": "2026-04-04T19:35:16.391Z",
+      "reason": "Verification attempt 4",
+      "metadata": {
+        "attempt": 4,
+        "maxFixAttempts": 3
+      }
+    },
+    {
+      "teamName": "oh-my-gemini",
+      "runId": "bcdcfeba-8e44-427b-98bb-86616a1e46f6",
+      "from": "verify",
+      "to": "failed",
+      "at": "2026-04-04T19:35:16.461Z",
+      "reason": "Missing worker delivery acknowledgment for worker-2, worker-3. | runtime status is failed; completed terminal status is required | verify baseline did not pass",
+      "metadata": {
+        "attempts": 3,
+        "maxFixAttempts": 3
+      }
+    }
+  ],
+  "updatedAt": "2026-04-04T19:35:16.461Z",
+  "lastError": "Missing worker delivery acknowledgment for worker-2, worker-3. | runtime status is failed; completed terminal status is required | verify baseline did not pass"
+}

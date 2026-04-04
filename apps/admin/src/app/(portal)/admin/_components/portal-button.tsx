@@ -73,7 +73,7 @@ interface LinkButtonProps {
   variant?: Variant;
 }
 
-export function PortalLinkButton({
+function PortalLinkButton({
   href,
   variant = "secondary",
   size = "md",

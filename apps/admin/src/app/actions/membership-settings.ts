@@ -91,7 +91,7 @@ export async function updateMembershipPurchasable(
 /**
  * Bulk update multiple memberships
  */
-export async function bulkUpdateMemberships(
+async function bulkUpdateMemberships(
   updates: Array<{ id: string; status?: boolean; canPurchase?: boolean }>
 ): Promise<{ success: boolean; updated: number; errors: string[] }> {
   const { db } = await createAdminClient();

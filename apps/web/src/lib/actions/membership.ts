@@ -79,7 +79,7 @@ export async function refreshMembershipStatus(): Promise<MembershipStatus> {
  * Clear the membership cache.
  * Call this on logout or when you want to force a fresh check.
  */
-export async function clearMembershipCache(): Promise<void> {
+async function clearMembershipCache(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(MEMBERSHIP_COOKIE_NAME);
   console.log("[Membership] Cache cleared");

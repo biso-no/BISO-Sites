@@ -22,7 +22,7 @@ interface PuckContentHandlerProps {
  * Hook to handle AI-generated Puck content updates
  * This integrates with the streaming JSON parser to apply content in real-time
  */
-export function usePuckContentHandler({
+function usePuckContentHandler({
   onContentUpdate,
   onContentComplete,
 }: PuckContentHandlerProps) {

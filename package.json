@@ -29,7 +29,5 @@
       "bun x ultracite fix"
     ]
   },
-  "dependencies": {
-    "tailwindcss": "^4.2.2"
-  }
+  "dependencies": {}
 }

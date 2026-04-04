@@ -15,8 +15,6 @@
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {
-    "@repo/connectors": "*",
-    "@repo/typescript-config": "*",
     "ts-node": "^10.9.2"
   },
   "dependencies": {

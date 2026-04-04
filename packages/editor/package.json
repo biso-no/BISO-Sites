@@ -32,7 +32,6 @@
   },
   "dependencies": {
     "@json-render/core": "^0.2.0",
-    "@json-render/react": "^0.2.0",
     "@puckeditor/core": "^0.21.0",
     "@puckeditor/plugin-heading-analyzer": "^0.21.1",
     "@repo/api": "workspace:*",
@@ -40,7 +39,6 @@
     "lucide-react": "^0.552.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "zod": "4.1.13"
   },

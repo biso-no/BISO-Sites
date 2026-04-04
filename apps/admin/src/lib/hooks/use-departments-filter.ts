@@ -9,7 +9,7 @@ export interface FilterState {
   type: string | undefined;
 }
 
-export default function useDepartmentsFilter() {
+function useDepartmentsFilter() {
   const [filters, setFilters] = useState<FilterState>({
     active: true, // Default to showing active departments
     campus_id: undefined,

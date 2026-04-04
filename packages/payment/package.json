@@ -9,9 +9,7 @@
     "./vipps": "./src/vipps/index.ts",
     "./stripe": "./src/stripe/index.ts"
   },
-  "devDependencies": {
-    "@repo/typescript-config": "workspace:*"
-  },
+  "devDependencies": {},
   "dependencies": {
     "@repo/shared": "workspace:*",
     "@types/node": "^24.9.2",

@@ -77,7 +77,7 @@ export async function listNews(params: ListNewsParams = {}): Promise<News[]> {
   }
 }
 
-export async function getNewsItem(
+async function getNewsItem(
   id: string,
   locale: "en" | "no"
 ): Promise<News | null> {

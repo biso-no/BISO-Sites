@@ -97,7 +97,7 @@ export function clearChatHistory(): void {
 /**
  * Check if there's an active chat session
  */
-export function hasActiveChatSession(): boolean {
+function hasActiveChatSession(): boolean {
   if (typeof window === "undefined") {
     return false;
   }

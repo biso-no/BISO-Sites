@@ -243,7 +243,7 @@ export async function duplicateBenefit(
 
 // ─── Delete ──────────────────────────────────────────────────────────────────
 
-export async function deleteBenefit(id: string): Promise<void> {
+async function deleteBenefit(id: string): Promise<void> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     throw new Error("Unauthorized");
@@ -258,7 +258,7 @@ export async function deleteBenefit(id: string): Promise<void> {
 
 // ─── Campus scoped list for web (no auth required) ───────────────────────────
 
-export async function getPublishedBenefitsByCampus(
+async function getPublishedBenefitsByCampus(
   campusId?: string | null
 ): Promise<CampusBenefit[]> {
   const campusIds = resolveBenefitCampusIds(campusId);
@@ -277,7 +277,7 @@ export async function getPublishedBenefitsByCampus(
 
 // ─── Featured benefits for a campus ──────────────────────────────────────────
 
-export async function getFeaturedBenefitsByCampus(
+async function getFeaturedBenefitsByCampus(
   campusId?: string | null
 ): Promise<CampusBenefit[]> {
   const campusIds = resolveBenefitCampusIds(campusId);

@@ -178,7 +178,7 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
 /**
  * Check if user has a specific role
  */
-export async function hasRole(role: string): Promise<boolean> {
+async function hasRole(role: string): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
@@ -200,7 +200,7 @@ export async function isGlobalAdmin(): Promise<boolean> {
 /**
  * Check if user is a campus admin (manages at least one campus).
  */
-export async function isCampusAdmin(): Promise<boolean> {
+async function isCampusAdmin(): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
@@ -211,7 +211,7 @@ export async function isCampusAdmin(): Promise<boolean> {
 /**
  * Check if user belongs to a specific campus team
  */
-export async function belongsToCampus(campusTeamId: string): Promise<boolean> {
+async function belongsToCampus(campusTeamId: string): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
@@ -225,7 +225,7 @@ export async function belongsToCampus(campusTeamId: string): Promise<boolean> {
 /**
  * Check if user belongs to a specific department team
  */
-export async function belongsToDepartment(
+async function belongsToDepartment(
   departmentTeamId: string
 ): Promise<boolean> {
   const ctx = await getUserAuthContext();
@@ -319,7 +319,7 @@ export async function canWriteDocument(
 /**
  * Check if user has read access based on $permissions array
  */
-export async function canReadDocument(permissions: string[]): Promise<boolean> {
+async function canReadDocument(permissions: string[]): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;

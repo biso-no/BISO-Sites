@@ -111,7 +111,7 @@ export const ICON_VALUES = [
   "ArrowRight",
 ] as const;
 
-export type IconValue = (typeof ICON_VALUES)[number];
+type IconValue = (typeof ICON_VALUES)[number];
 
 export const ICON_OPTIONS = [
   { label: "None", value: "" },

@@ -32,7 +32,7 @@ export interface SyncState {
   updated_at: string;
 }
 
-export type CategoryToMembershipMap = Map<
+type CategoryToMembershipMap = Map<
   string,
   {
     $id: string;
@@ -42,7 +42,7 @@ export type CategoryToMembershipMap = Map<
   }
 >;
 
-export type CompanyCategoriesMap = Map<number, number[]>;
+type CompanyCategoriesMap = Map<number, number[]>;
 
-export type SyncUpdateFn = (updates: Partial<SyncState>) => Promise<void>;
-export type ShouldStopFn = () => Promise<boolean>;
+type SyncUpdateFn = (updates: Partial<SyncState>) => Promise<void>;
+type ShouldStopFn = () => Promise<boolean>;

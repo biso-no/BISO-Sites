@@ -17,7 +17,7 @@ export const client: ReturnType<typeof Client> = Client({
   systemVersion: "1.0.0",
 });
 
-export async function getAccessToken(): Promise<string> {
+async function getAccessToken(): Promise<string> {
   const token = await client.auth.getToken(clientId, clientSecret);
   if (token.ok) {
     return token.data.access_token;

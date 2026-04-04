@@ -178,7 +178,7 @@ async function _createProfile(profile: Partial<Users>, userId: string) {
   }
 }
 
-export async function getUserPreferences(
+async function getUserPreferences(
   _userId: string
 ): Promise<Models.Preferences | null> {
   const { account } = await createSessionClient();

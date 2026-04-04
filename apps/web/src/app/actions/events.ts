@@ -90,7 +90,7 @@ export async function listEvents(
   }
 }
 
-export async function getEvent(
+async function getEvent(
   id: string,
   locale: "en" | "no"
 ): Promise<Events | null> {

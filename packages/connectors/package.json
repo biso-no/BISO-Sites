@@ -15,7 +15,6 @@
     "./woocommerce": "./src/woocommerce/index.ts"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*",
     "@types/node": "^22.0.0",
     "openapi-typescript": "^7.13.0"
   },

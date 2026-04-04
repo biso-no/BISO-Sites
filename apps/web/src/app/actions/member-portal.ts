@@ -113,7 +113,7 @@ export async function getFeaturedBenefits(
 /**
  * @deprecated Use getMemberPortalBenefits instead. Kept for backward compat.
  */
-export async function getMemberBenefits(): Promise<CampusBenefit[]> {
+async function getMemberBenefits(): Promise<CampusBenefit[]> {
   return await getMemberPortalBenefits();
 }
 

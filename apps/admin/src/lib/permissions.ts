@@ -87,7 +87,7 @@ export function buildPagePermissions(input: {
  * @deprecated Use buildPagePermissions({ departmentTeamId }) instead.
  * Kept for any callers not yet migrated.
  */
-export function buildDepartmentPagePermissions(
+function buildDepartmentPagePermissions(
   departmentTeamId: string,
   campusManagementTeamId?: string | null
 ): string[] {
@@ -98,7 +98,7 @@ export function buildDepartmentPagePermissions(
  * @deprecated Use buildPagePermissions({ departmentTeamId, campusManagementTeamId }) instead.
  * Campus teams no longer receive Appwrite permissions.
  */
-export function buildCampusPagePermissions(
+function buildCampusPagePermissions(
   _campusTeamId: string,
   campusManagementTeamId?: string | null
 ): string[] {
@@ -109,7 +109,7 @@ export function buildCampusPagePermissions(
  * Build permissions for a product pending approval.
  * Dept team gets read + update; campus mgmt team gets read for the approval workflow.
  */
-export function buildPendingProductPermissions(
+function buildPendingProductPermissions(
   departmentTeamId: string,
   campusManagementTeamId: string
 ): string[] {
@@ -124,15 +124,15 @@ export function buildPendingProductPermissions(
 /**
  * Build permissions for a published product
  */
-export function buildPublishedProductPermissions(): string[] {
+function buildPublishedProductPermissions(): string[] {
   return [Permission.read(Role.any())];
 }
 
-export function buildEditorialTemplatePermissions(): string[] {
+function buildEditorialTemplatePermissions(): string[] {
   return [Permission.read(Role.users())];
 }
 
-export function buildEditorialEntryPermissions(input: {
+function buildEditorialEntryPermissions(input: {
   visibility: PageVisibility;
   userId?: string | null;
   campusManagementTeamId?: string | null;
@@ -171,7 +171,7 @@ export function buildEditorialEntryPermissions(input: {
  * Table-level read("any") already grants public read; row-level permissions
  * only need to cover write access for the matching SG-App-Dept team.
  */
-export function buildDepartmentRowPermissions(
+function buildDepartmentRowPermissions(
   departmentTeamId: string
 ): string[] {
   return [

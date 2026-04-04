@@ -63,7 +63,7 @@ export async function getPost(postId: string) {
   return response;
 }
 
-export async function updatePost(postId: string, post: News) {
+async function updatePost(postId: string, post: News) {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     throw new Error("Unauthorized");
@@ -131,7 +131,7 @@ export async function updatePost(postId: string, post: News) {
   );
 }
 
-export async function createPost(post: News) {
+async function createPost(post: News) {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     throw new Error("Unauthorized");
