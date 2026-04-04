@@ -2,7 +2,7 @@ import { createAdminClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
 import { getDepartments } from "@repo/connectors/24sevenoffice";
 import { type NextRequest, NextResponse } from "next/server";
-
+import { getAuthStatus } from "@/lib/auth-utils";
 function getCampusId(deptNum: number): string {
   if (deptNum >= 1 && deptNum <= 299) {
     return "1";
@@ -21,7 +21,12 @@ function getCampusId(deptNum: number): string {
 
 export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
+    const authStatus = await getAuthStatus();
+    if (!authStatus.isAuthenticated) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { db } = await createAdminClient();
+    
 
     const departments = await getDepartments();
 
@@ -33,6 +38,7 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
         Name: department.name,
         active: true,
         campus_id: getCampusId(deptNum),
+        campus: getCampusId(deptNum),
       };
       return db.upsertRow<Departments>("app", "departments", row.$id, row);
     });
