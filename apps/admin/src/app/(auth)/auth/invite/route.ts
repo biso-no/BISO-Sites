@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
-const NEXT_PUBLIC_APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+const NEXT_PUBLIC_APPWRITE_ENDPOINT =
+  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const PROJECT_ID = "biso";
 const API_KEY = process.env.NEXT_PUBLIC_APPWRITE_API_KEY;
 

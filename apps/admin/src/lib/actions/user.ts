@@ -2,10 +2,9 @@
 import { ID, type Models, OAuthProvider } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isGlobalAdmin } from "@/lib/authorization";
-import { getRequestOrigin } from "@/lib/request-origin";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 //
@@ -93,7 +92,7 @@ async function _signIn(email: string) {
 async function _signInWithOauth() {
   const { account } = await createSessionClient();
 
-  const origin = await getRequestOrigin();
+  const origin = (await headers()).get("origin");
 
   const redirectUrl = await account.createOAuth2Token(
     OAuthProvider.Microsoft,
