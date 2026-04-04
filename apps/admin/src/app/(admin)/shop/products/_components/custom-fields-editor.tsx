@@ -19,10 +19,10 @@ import type {
   ProductCustomFieldType,
 } from "@/lib/types/product";
 
-type CustomFieldsEditorProps = {
-  value: ProductCustomField[];
+interface CustomFieldsEditorProps {
   onChange: (next: ProductCustomField[]) => void;
-};
+  value: ProductCustomField[];
+}
 
 const customFieldTypes: { value: ProductCustomFieldType; label: string }[] = [
   { value: "text", label: "Single line text" },

@@ -8,13 +8,13 @@ import { uploadEventImage } from "@/app/actions/events";
 import { toast } from "@/lib/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type CoverImageUploadProps = {
+interface CoverImageUploadProps {
   /** Ordered list of image URLs. First is the cover. */
   images: string[];
-  onChange: (next: string[]) => void;
   /** Optional label override shown above the drop zone */
   label?: string;
-};
+  onChange: (next: string[]) => void;
+}
 
 export function CoverImageUpload({
   images = [],

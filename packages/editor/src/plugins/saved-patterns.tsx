@@ -23,12 +23,12 @@ import { cloneWithNewIds, createId } from "../utils/clone-block";
 
 const STORAGE_KEY = "biso-editor-patterns";
 
-type SavedPattern = {
-  id: string;
-  name: string;
+interface SavedPattern {
   blocks: ComponentData[];
   createdAt: string;
-};
+  id: string;
+  name: string;
+}
 
 function loadPatterns(): SavedPattern[] {
   if (typeof window === "undefined") {

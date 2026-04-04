@@ -34,14 +34,14 @@ export function ConfettiAnimation() {
   );
 }
 
-type CodeRevealProps = {
-  value: string;
-  showConfetti: boolean;
+interface CodeRevealProps {
   copiedCode: boolean;
-  onCopy: () => void;
-  copyLabel: string;
   copiedLabel: string;
-};
+  copyLabel: string;
+  onCopy: () => void;
+  showConfetti: boolean;
+  value: string;
+}
 
 /**
  * Revealed code display with copy functionality
@@ -85,9 +85,9 @@ export function CodeReveal({
   );
 }
 
-type QrRevealProps = {
+interface QrRevealProps {
   value: string;
-};
+}
 
 /**
  * QR code display
@@ -102,11 +102,11 @@ export function QrReveal({ value: _value }: QrRevealProps) {
   );
 }
 
-type LinkRevealProps = {
-  value: string;
+interface LinkRevealProps {
   gradient: string;
   label: string;
-};
+  value: string;
+}
 
 /**
  * Link activation button
@@ -123,13 +123,13 @@ export function LinkReveal({ value, gradient, label }: LinkRevealProps) {
   );
 }
 
-type RevealButtonProps = {
-  isRevealing: boolean;
+interface RevealButtonProps {
   gradient: string;
+  isRevealing: boolean;
   onReveal: () => void;
-  revealLabel: string;
   revealingLabel: string;
-};
+  revealLabel: string;
+}
 
 /**
  * Button to reveal a benefit

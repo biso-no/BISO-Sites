@@ -36,15 +36,15 @@ import {
   useState,
 } from "react";
 
-type CommandMenuItem = {
-  id: string;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
+interface CommandMenuItem {
   action: () => void;
-  shortcut?: string;
   group: string;
+  icon: ComponentType<{ className?: string }>;
+  id: string;
   keywords?: string[];
-};
+  label: string;
+  shortcut?: string;
+}
 
 export function CommandMenu() {
   const t = useTranslations("admin");

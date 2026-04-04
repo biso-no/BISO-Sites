@@ -126,7 +126,7 @@ export class MarkdownBuffer {
 /**
  * Create a markdown buffer for streaming content
  */
-function createMarkdownBuffer(
+function _createMarkdownBuffer(
   onUpdate: (content: string) => void
 ): MarkdownBuffer {
   return new MarkdownBuffer(onUpdate);

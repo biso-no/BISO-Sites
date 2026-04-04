@@ -5,21 +5,21 @@ import { Briefcase, Calendar, Globe, Mail, MapPin, User } from "lucide-react";
 import Image from "next/image";
 import type { Locale } from "@/components/forms/LocaleTabGroup";
 
-type JobFormSnapshot = {
-  status: string;
-  type?: string;
+interface JobFormSnapshot {
   application_deadline?: string;
-  start_date?: string;
-  contact_name?: string;
-  contact_email?: string;
   apply_url?: string;
-  image?: string;
   campusName?: string;
+  contact_email?: string;
+  contact_name?: string;
+  image?: string;
+  start_date?: string;
+  status: string;
   translations?: {
     en?: { title?: string; description?: string };
     no?: { title?: string; description?: string };
   };
-};
+  type?: string;
+}
 
 function fmtDate(d: string) {
   try {

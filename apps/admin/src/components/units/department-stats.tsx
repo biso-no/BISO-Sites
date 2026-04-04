@@ -13,10 +13,10 @@ import { GlassCard } from "@/components/shared/glass-card";
 import { MetricCard } from "@/components/shared/metric-card";
 import type { Department } from "@/lib/admin/departments";
 
-type DepartmentStatsProps = {
+interface DepartmentStatsProps {
   departments: Department[];
   loading?: boolean;
-};
+}
 
 export function DepartmentStats({
   departments,

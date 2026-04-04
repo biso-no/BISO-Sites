@@ -6,27 +6,27 @@ const AUTOSAVE_INTERVAL_MS = 30_000;
 const AUTOSAVE_DEBOUNCE_MS = 5000;
 const PREF_KEY_PREFIX = "autosave_enabled:";
 
-type UseAutosaveOptions<T> = {
-  /** Unique storage key — e.g. "event:new" or "event:abc123" */
-  storageKey: string;
-  /** Current form values to persist */
-  values: T;
+interface UseAutosaveOptions<T> {
   /** Whether the form has unsaved changes */
   isDirty: boolean;
   /** Called on mount when a saved draft is found in localStorage */
   onRestoreDraft?: (draft: T) => void;
-};
+  /** Unique storage key — e.g. "event:new" or "event:abc123" */
+  storageKey: string;
+  /** Current form values to persist */
+  values: T;
+}
 
-type UseAutosaveReturn = {
-  lastSaved: Date | null;
-  isSaving: boolean;
-  enabled: boolean;
-  setEnabled: (v: boolean) => void;
+interface UseAutosaveReturn {
   /** Call after a successful server save to clear the local draft */
   clearDraft: () => void;
+  enabled: boolean;
   /** Returns the saved draft or null */
   getDraft: <T>() => T | null;
-};
+  isSaving: boolean;
+  lastSaved: Date | null;
+  setEnabled: (v: boolean) => void;
+}
 
 function readDraft<T>(key: string): T | null {
   try {
@@ -91,7 +91,7 @@ export function useAutosave<T>({
     }
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [storageKey, onRestoreDraft]);
 
   const save = useCallback(() => {
     if (!(enabledRef.current && isDirtyRef.current)) {
@@ -111,7 +111,7 @@ export function useAutosave<T>({
     }
     const id = setTimeout(save, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [values, enabled, isDirty, save]);
+  }, [enabled, isDirty, save]);
 
   // Interval save every 30 s
   useEffect(() => {

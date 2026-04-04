@@ -5,15 +5,15 @@ import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type ToggleSectionProps = {
-  title: string;
+interface ToggleSectionProps {
+  children: ReactNode;
+  className?: string;
   description: string;
   enabled: boolean;
-  onToggle: (enabled: boolean) => void;
-  children: ReactNode;
   icon?: React.ElementType;
-  className?: string;
-};
+  onToggle: (enabled: boolean) => void;
+  title: string;
+}
 
 export function ToggleSection({
   title,

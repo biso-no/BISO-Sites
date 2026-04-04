@@ -5,17 +5,17 @@ import { createAdminClient } from "@repo/api/server";
 import type { Memberships } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-export type MembershipSettingsItem = {
+export interface MembershipSettingsItem {
+  canPurchase: boolean;
+  category: string | null;
+  expiryDate: string;
   id: string;
+  isExpired: boolean;
   name: string;
   productId: string;
-  category: string | null;
   startDate: string;
-  expiryDate: string;
   status: boolean;
-  canPurchase: boolean;
-  isExpired: boolean;
-};
+}
 
 /**
  * Fetch all memberships from Appwrite for the settings page

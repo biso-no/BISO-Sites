@@ -7,19 +7,19 @@ import { CAMPUS_NAME_TO_ID } from "./campus-constants";
  * User authorization context containing their teams and roles parsed from
  * Azure AD Security Groups (SG-App-Campus-*, SG-App-Dept-*)
  */
-export type UserAuthContext = {
-  userId: string;
-  email: string | null;
-  campusTeamIds: string[]; // Azure GUIDs for SG-App-Campus-* teams
+export interface UserAuthContext {
   campusNames: string[]; // Parsed campus names (e.g., "National", "Oslo")
-  departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
+  campusTeamIds: string[]; // Azure GUIDs for SG-App-Campus-* teams
   departmentNames: string[]; // Parsed department names (e.g., "OperationsUnit", "LedelsenOslo")
-  roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
+  departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
+  email: string | null;
   labels: string[]; // Appwrite user labels (legacy, kept for read-only checks)
   managedCampuses: string[]; // Campus names this user manages (for campus admins)
   managedCampusIds: string[]; // Numeric campus_id values for managedCampuses
   resolvedCampusIds: string[]; // Numeric campus_id values for ALL campuses user belongs to
-};
+  roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
+  userId: string;
+}
 
 /**
  * Determine if a user is a global admin based on their team memberships.
@@ -60,13 +60,13 @@ function getManagedCampuses(
   return managedCampuses;
 }
 
-type TeamParseResult = {
-  campusTeamIds: string[];
+interface TeamParseResult {
   campusNames: string[];
-  departmentTeamIds: string[];
+  campusTeamIds: string[];
   departmentNames: string[];
+  departmentTeamIds: string[];
   roles: string[];
-};
+}
 
 /**
  * Parse team memberships into categorized arrays.
@@ -361,15 +361,15 @@ import { hasNavAccess, type NavKey, ROLES } from "./roles";
  * User role info for client-side navigation rendering and data scoping.
  * Includes campus and department context for proper access control.
  */
-export type UserRolesForClient = {
-  roles: string[];
-  hasDepartmentMembership: boolean;
+export interface UserRolesForClient {
   campusNames: string[];
   departmentNames: string[];
-  managedCampuses: string[];
-  isGlobalAdmin: boolean;
+  hasDepartmentMembership: boolean;
   isCampusAdmin: boolean;
-};
+  isGlobalAdmin: boolean;
+  managedCampuses: string[];
+  roles: string[];
+}
 
 /**
  * Get user roles formatted for client-side navigation and data filtering.

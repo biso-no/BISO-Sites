@@ -43,12 +43,12 @@ const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
-type TranslationStats = {
+interface TranslationStats {
+  errors: number;
   filesProcessed: number;
   keysTranslated: number;
-  errors: number;
   startTime: number;
-};
+}
 
 const stats: TranslationStats = {
   filesProcessed: 0,

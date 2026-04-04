@@ -40,9 +40,9 @@ import {
   searchStudentInCRM,
 } from "@/app/actions/new-member";
 
-type NewMemberFormProps = {
+interface NewMemberFormProps {
   memberships: PurchasableMembership[];
-};
+}
 
 type Step = "student" | "membership" | "confirm" | "result";
 

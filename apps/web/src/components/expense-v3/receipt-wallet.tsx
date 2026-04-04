@@ -12,13 +12,13 @@ import Link from "next/link";
 import { type ChangeEvent, type DragEvent, useCallback, useState } from "react";
 import type { Receipt } from "./store";
 
-type ReceiptWalletProps = {
-  receipts: Receipt[];
-  onUpload: (files: File[]) => void;
-  onSelect: (id: string) => void;
+interface ReceiptWalletProps {
   onRemove: (id: string) => void;
+  onSelect: (id: string) => void;
+  onUpload: (files: File[]) => void;
+  receipts: Receipt[];
   selectedId: string | null;
-};
+}
 
 export function ReceiptWallet({
   receipts,

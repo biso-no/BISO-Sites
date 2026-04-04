@@ -5,11 +5,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { FileText, ImageIcon, Sparkles, Upload } from "lucide-react";
 import { useCallback, useState } from "react";
 
-type DropZoneProps = {
-  onFilesDropped: (files: File[]) => void;
+interface DropZoneProps {
   isProcessing: boolean;
+  onFilesDropped: (files: File[]) => void;
   receiptCount: number;
-};
+}
 
 const ACCEPTED_TYPES = [
   "image/jpeg",
@@ -187,7 +187,7 @@ export function DropZone({
   receiptCount,
 }: DropZoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
-  const [dragCounter, setDragCounter] = useState(0);
+  const [_dragCounter, setDragCounter] = useState(0);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();

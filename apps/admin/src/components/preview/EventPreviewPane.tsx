@@ -8,21 +8,21 @@ import Image from "next/image";
 import { useMemo } from "react";
 import type { Locale } from "@/components/forms/LocaleTabGroup";
 
-type EventFormSnapshot = {
-  status: string;
-  start_date?: string;
+interface EventFormSnapshot {
   end_date?: string;
+  image?: string;
   location?: string;
-  price?: number;
-  ticket_url?: string;
   member_only?: boolean;
   metadata?: { start_time?: string; end_time?: string; images?: string[] };
-  image?: string;
+  price?: number;
+  start_date?: string;
+  status: string;
+  ticket_url?: string;
   translations: {
     en: { title: string; description: string };
     no: { title: string; description: string };
   };
-};
+}
 
 function fmtDate(d: string, locale: Locale) {
   try {
@@ -57,7 +57,7 @@ export function EventPreviewPane({
   const title =
     t.title || (locale === "en" ? "Event Title" : "Arrangementstittel");
 
-  const plainDescription = useMemo(() => {
+  const _plainDescription = useMemo(() => {
     if (!t.description) {
       return "";
     }

@@ -5,26 +5,26 @@ import type { ComponentData, Config } from "@puckeditor/core";
  * Each content type describes a kind of page with recommended blocks,
  * a starter template, and metadata for the content type picker UI.
  */
-export type ContentTypeDefinition = {
+export interface ContentTypeDefinition {
+  /** Build the starter template blocks for this content type */
+  buildStarter: (config: Config) => ComponentData[];
+  /** Short description shown in the picker */
+  description: string;
+  /** Content family */
+  family: "page" | "policy" | "article";
+  /** Lucide icon name for the picker UI */
+  icon: string;
   /** Unique key for this content type */
   key: string;
   /** Human-readable name */
   name: string;
-  /** Short description shown in the picker */
-  description: string;
-  /** Lucide icon name for the picker UI */
-  icon: string;
-  /** Content family */
-  family: "page" | "policy" | "article";
-  /** Block component names shown first in the sidebar "Recommended" section */
-  suggestedBlocks: string[];
   /** Block component names hidden for this type (if any) */
   restrictedBlocks?: string[];
-  /** Build the starter template blocks for this content type */
-  buildStarter: (config: Config) => ComponentData[];
   /** Default root field values */
   rootDefaults?: Record<string, unknown>;
-};
+  /** Block component names shown first in the sidebar "Recommended" section */
+  suggestedBlocks: string[];
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 

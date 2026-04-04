@@ -11,11 +11,11 @@ export type AgentState =
   | "executing"
   | "error";
 
-export type AgentStateInfo = {
-  state: AgentState;
+export interface AgentStateInfo {
   message?: string;
   progress?: number;
-};
+  state: AgentState;
+}
 
 /**
  * Get display text for agent state

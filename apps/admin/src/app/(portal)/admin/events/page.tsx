@@ -5,9 +5,9 @@ import { listEvents } from "../_actions/events";
 import { PageHeader } from "../_components/page-header";
 import { EventsListClient } from "./_components/events-list-client";
 
-type EventsPageProps = {
+interface EventsPageProps {
   searchParams: Promise<{ page?: string }>;
-};
+}
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
   const t = await getTranslations("adminPortal.events");

@@ -18,13 +18,13 @@ import { getPages } from "./get-pages";
 import { getTables } from "./get-tables";
 import { listImages, uploadImage } from "./upload-image";
 
-type PuckFieldProps = {
-  value: unknown;
+interface PuckFieldProps {
+  field?: unknown;
+  name?: string;
   onChange: (value: unknown) => void;
   readOnly?: boolean;
-  name?: string;
-  field?: unknown;
-};
+  value: unknown;
+}
 
 function ReadOnlyWrapper({
   children,

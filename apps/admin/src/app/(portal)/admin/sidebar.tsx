@@ -23,18 +23,18 @@ import { signOut } from "@/lib/actions/user";
 import type { UserRolesForClient } from "@/lib/authorization";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
 
-type SidebarUser = {
+interface SidebarUser {
+  avatar: string | null;
+  email: string | null;
   id: string;
   name: string | null;
-  email: string | null;
-  avatar: string | null;
   roleLabel: string;
-};
+}
 
-type SidebarProps = {
-  user: SidebarUser;
+interface SidebarProps {
   roles: UserRolesForClient;
-};
+  user: SidebarUser;
+}
 
 const NAV_ITEMS: Array<{
   path: string;

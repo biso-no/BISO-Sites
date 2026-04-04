@@ -5,18 +5,18 @@ import { enUS, nb } from "date-fns/locale";
 import Image from "next/image";
 import type { Locale } from "@/components/forms/LocaleTabGroup";
 
-type NewsFormSnapshot = {
-  status: string;
-  image?: string;
+interface NewsFormSnapshot {
   author?: string;
+  campusName?: string;
+  departmentName?: string;
+  image?: string;
+  status: string;
   sticky?: boolean;
   translations: {
     en: { title: string; description: string };
     no: { title: string; description: string };
   };
-  campusName?: string;
-  departmentName?: string;
-};
+}
 
 export function NewsPreviewPane({
   data,

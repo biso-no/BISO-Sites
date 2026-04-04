@@ -14,13 +14,13 @@ import { cloneWithNewIds } from "../utils/clone-block";
 
 type InsertMode = "append" | "replace";
 
-type AppwriteTemplate = {
+interface AppwriteTemplate {
+  data: { content: ComponentData[] };
+  description: string;
   key: string;
   name: string;
-  description: string;
   thumbnail?: string;
-  data: { content: ComponentData[] };
-};
+}
 
 function buildItem(
   config: Config,

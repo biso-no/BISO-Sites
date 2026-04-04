@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 
-type UseDirtyWarningOptions = {
+interface UseDirtyWarningOptions {
   isDirty: boolean;
   isSubmitting: boolean;
   message?: string;
-};
+}
 
 /**
  * Shows a browser confirmation dialog when the user tries to navigate

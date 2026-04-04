@@ -83,42 +83,42 @@ export type BulkAccountTurnoverInput = z.infer<
 // Response Types
 // ============================================================================
 
-export type CreateUserResult = {
-  success: boolean;
-  userId?: string;
-  upn?: string;
+export interface CreateUserResult {
   error?: string;
   groupsAssigned?: string[];
-};
+  success: boolean;
+  upn?: string;
+  userId?: string;
+}
 
-export type BulkCreateUserResult = {
+export interface BulkCreateUserResult {
   index: number;
   input: CreateUserInput;
   result: CreateUserResult;
-};
+}
 
-export type BulkCreateUsersResponse = {
-  totalRequested: number;
-  totalSucceeded: number;
-  totalFailed: number;
+export interface BulkCreateUsersResponse {
   results: BulkCreateUserResult[];
-};
-
-export type AccountTurnoverResult = {
-  success: boolean;
-  roleMailboxUpn: string;
-  incomingUserUpn: string;
-  dryRun: boolean;
-  webhookResponse?: unknown;
-  error?: string;
-};
-
-export type BulkAccountTurnoverResponse = {
+  totalFailed: number;
   totalRequested: number;
   totalSucceeded: number;
-  totalFailed: number;
+}
+
+export interface AccountTurnoverResult {
+  dryRun: boolean;
+  error?: string;
+  incomingUserUpn: string;
+  roleMailboxUpn: string;
+  success: boolean;
+  webhookResponse?: unknown;
+}
+
+export interface BulkAccountTurnoverResponse {
   results: AccountTurnoverResult[];
-};
+  totalFailed: number;
+  totalRequested: number;
+  totalSucceeded: number;
+}
 
 // ============================================================================
 // Admin Scope Types
@@ -127,58 +127,58 @@ export type BulkAccountTurnoverResponse = {
 /**
  * Represents the authorization scope for an admin user
  */
-export type AdminScope = {
-  /** User ID of the admin */
-  userId: string;
+export interface AdminScope {
   /** True if admin can manage any campus (National + OperationsUnit) */
   canManageAnyCampus: boolean;
+  /** Whether admin is a campus admin */
+  isCampusAdmin: boolean;
+  /** Whether admin is a global admin */
+  isGlobalAdmin: boolean;
   /** Campus names the admin can manage */
   managedCampusNames: string[];
   /** Department names the admin can manage (empty if campus-level or global) */
   managedDepartmentNames: string[];
-  /** Whether admin is a global admin */
-  isGlobalAdmin: boolean;
-  /** Whether admin is a campus admin */
-  isCampusAdmin: boolean;
-};
+  /** User ID of the admin */
+  userId: string;
+}
 
 // ============================================================================
 // M365 Group Types
 // ============================================================================
 
-export type M365Group = {
-  id: string;
-  displayName: string;
+export interface M365Group {
   description?: string;
-  isSecurityGroup: boolean;
-};
-
-export type M365User = {
-  id: string;
   displayName: string;
-  userPrincipalName: string;
-  mail?: string;
+  id: string;
+  isSecurityGroup: boolean;
+}
+
+export interface M365User {
   department?: string;
-  officeLocation?: string;
+  displayName: string;
+  id: string;
+  mail?: string;
   managerId?: string;
-};
+  officeLocation?: string;
+  userPrincipalName: string;
+}
 
 // ============================================================================
 // Campus & Department Selection Types
 // ============================================================================
 
-export type CampusOption = {
+export interface CampusOption {
   id: string;
   name: string;
   officeLocation: string; // Maps to M365 Office location
-};
+}
 
-export type DepartmentOption = {
+export interface DepartmentOption {
+  campusId: string;
   id: string;
   name: string;
-  campusId: string;
   securityGroupName: string; // e.g., "SG-App-Department-OSL-SIVOK"
-};
+}
 
 // ============================================================================
 // Audit Log Types
@@ -192,20 +192,20 @@ export type UserManagementAuditAction =
   | "turnover"
   | "bulk-turnover";
 
-export type UserManagementAuditLog = {
-  actorId: string;
-  actorEmail?: string;
+export interface UserManagementAuditLog {
   action: UserManagementAuditAction;
-  targetUserIds: string[];
-  requestedCampusId?: string;
-  requestedDepartmentId?: string;
-  requestedManagerId?: string;
+  actorEmail?: string;
+  actorId: string;
+  error?: string;
   groupChanges?: {
     added: string[];
     removed: string[];
   };
-  webhookResponse?: unknown;
+  requestedCampusId?: string;
+  requestedDepartmentId?: string;
+  requestedManagerId?: string;
   success: boolean;
-  error?: string;
+  targetUserIds: string[];
   timestamp: string;
-};
+  webhookResponse?: unknown;
+}

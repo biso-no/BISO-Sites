@@ -3,11 +3,11 @@ import { createJWT } from "@/lib/actions/user";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3003";
 
-type RequestOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+interface RequestOptions {
   body?: unknown;
   headers?: Record<string, string>;
-};
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+}
 
 /**
  * Authenticated API client for direct calls to the API service.

@@ -14,15 +14,15 @@ import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { applyScopeQueries } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
-export type DraftItem = {
-  id: string;
-  type: "job" | "event" | "news";
-  title: string;
+export interface DraftItem {
   campus_id: string;
-  status: string;
-  updatedAt: string;
+  id: string;
   image?: string | null;
-};
+  status: string;
+  title: string;
+  type: "job" | "event" | "news";
+  updatedAt: string;
+}
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -172,7 +172,7 @@ export async function rejectDraft(
 
   const { db } = await createSessionClient();
   const tableMap = { job: "jobs", event: "events", news: "news" } as const;
-  const table = tableMap[type];
+  const _table = tableMap[type];
 
   // Keep as draft but optionally log the rejection
   if (reason) {

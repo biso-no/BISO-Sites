@@ -1,17 +1,7 @@
 // app/api/products/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 
-type WooCommerceProduct = {
-  id: number;
-  name: string;
-  permalink: string;
-  description: string;
-  price: string;
-  sale_price: string;
-  images: {
-    id: number;
-    src: string;
-  }[];
+interface WooCommerceProduct {
   acf: {
     campus: {
       value: string;
@@ -38,46 +28,56 @@ type WooCommerceProduct = {
       label: string;
     } | null;
   };
-};
-
-type ProductResponse = {
+  description: string;
   id: number;
+  images: {
+    id: number;
+    src: string;
+  }[];
   name: string;
-  campus: { value: string; label: string } | null;
-  department: { value: string; label: string } | null;
-  images: string[];
+  permalink: string;
   price: string;
   sale_price: string;
-  description: string;
-  url: string;
-};
+}
 
-type PaginationInfo = {
+interface ProductResponse {
+  campus: { value: string; label: string } | null;
+  department: { value: string; label: string } | null;
+  description: string;
+  id: number;
+  images: string[];
+  name: string;
+  price: string;
+  sale_price: string;
+  url: string;
+}
+
+interface PaginationInfo {
   current_page: number;
-  per_page: number;
-  total_products: number;
-  total_pages: number;
   has_next: boolean;
   has_previous: boolean;
-};
+  per_page: number;
+  total_pages: number;
+  total_products: number;
+}
 
-type ApiResponse = {
-  success: boolean;
-  products: ProductResponse[];
-  pagination: PaginationInfo;
+interface ApiResponse {
   filters: {
     campus?: string;
     department?: string;
   };
-};
+  pagination: PaginationInfo;
+  products: ProductResponse[];
+  success: boolean;
+}
 
-type ValidatedRequestBody = {
+interface ValidatedRequestBody {
   campus?: string | null;
   campusId?: string | null;
   departmentId?: string | null;
   page: number;
   perPage: number;
-};
+}
 
 const CONFIG = {
   MAX_PER_PAGE: 100,

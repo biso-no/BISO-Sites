@@ -3,13 +3,13 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
-type ProcessedReceiptData = {
-  date: string | null;
+interface ProcessedReceiptData {
   amount: number | null;
-  description: string | null;
   confidence: number;
   currency?: string | null;
-};
+  date: string | null;
+  description: string | null;
+}
 
 /**
  * Process a receipt file using OCR to extract data

@@ -9,13 +9,13 @@ import type {
   Locale,
 } from "@repo/api/types/appwrite";
 
-type ListEventsParams = {
-  limit?: number;
-  status?: string;
+interface ListEventsParams {
   campus?: string;
-  search?: string;
+  limit?: number;
   locale?: "en" | "no";
-};
+  search?: string;
+  status?: string;
+}
 
 export async function listEvents(
   params: ListEventsParams = {}

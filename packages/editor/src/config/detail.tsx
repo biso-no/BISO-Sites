@@ -31,43 +31,43 @@ import { resolveComponentPermissions } from "./utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type JobDetailProps = {
-  dataMode?: "manual" | "dynamic";
-  dataSource?: DataSourceValue;
-  title?: string;
-  department?: string;
-  location?: string;
-  type?: string;
-  deadline?: string;
-  paid?: boolean;
-  salary?: string;
-  description?: string;
-  responsibilities?: { value: string }[];
-  requirements?: { value: string }[];
-  applyUrl?: string;
+export interface JobDetailProps {
   applyLabel?: string;
+  applyUrl?: string;
   contactEmail?: string;
-  showApplyButton?: boolean;
-};
-
-export type ProductDetailProps = {
   dataMode?: "manual" | "dynamic";
   dataSource?: DataSourceValue;
-  title?: string;
+  deadline?: string;
+  department?: string;
   description?: string;
-  price?: string;
-  originalPrice?: string;
-  images?: { url: string; alt?: string }[];
+  location?: string;
+  paid?: boolean;
+  requirements?: { value: string }[];
+  responsibilities?: { value: string }[];
+  salary?: string;
+  showApplyButton?: boolean;
+  title?: string;
+  type?: string;
+}
+
+export interface ProductDetailProps {
   badge?: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+  dataMode?: "manual" | "dynamic";
+  dataSource?: DataSourceValue;
+  description?: string;
+  features?: { value: string }[];
+  images?: { url: string; alt?: string }[];
+  options?: { name: string; values: { value: string }[] }[];
+  originalPrice?: string;
+  pickupInfo?: string;
+  price?: string;
+  showAddToCart?: boolean;
   sku?: string;
   stock?: number;
-  pickupInfo?: string;
-  options?: { name: string; values: { value: string }[] }[];
-  ctaLabel?: string;
-  ctaHref?: string;
-  features?: { value: string }[];
-  showAddToCart?: boolean;
-};
+  title?: string;
+}
 
 // ─── Components ───────────────────────────────────────────────────────────────
 

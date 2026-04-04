@@ -22,25 +22,25 @@ import { BenefitCard } from "../shared/benefit-card";
 import { BenefitsShowcase } from "../shared/benefits-showcase";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 
-type HomeTabProps = {
-  membershipType: string;
+interface HomeTabProps {
+  benefits: CampusBenefit[];
   benefitsCount: number;
   daysRemaining: number;
   estimatedSavings: number;
-  startDate: string;
   expiryDate: string;
-  benefits: CampusBenefit[];
-  revealedBenefits: Set<string>;
-  isMember: boolean;
   hasBIIdentity: boolean;
+  isMember: boolean;
+  membershipType: string;
   onTabChange: (tab: string) => void;
-};
+  revealedBenefits: Set<string>;
+  startDate: string;
+}
 
-type AnimatedCounterProps = {
-  value: number;
-  suffix?: string;
+interface AnimatedCounterProps {
   prefix?: string;
-};
+  suffix?: string;
+  value: number;
+}
 
 function AnimatedCounter({
   value,

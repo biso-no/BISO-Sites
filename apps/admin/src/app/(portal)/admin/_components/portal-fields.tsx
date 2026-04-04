@@ -13,13 +13,13 @@ const INPUT_STYLE: React.CSSProperties = {
   color: "#fff",
 };
 
-type FieldProps = {
-  label?: string;
+interface FieldProps {
+  children: ReactNode;
   error?: string;
   hint?: string;
+  label?: string;
   required?: boolean;
-  children: ReactNode;
-};
+}
 
 export function PortalField({
   label,

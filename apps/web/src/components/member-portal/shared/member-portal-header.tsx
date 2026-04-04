@@ -21,15 +21,15 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-type MemberPortalHeaderProps = {
-  userName: string;
-  userAvatar?: string | null;
+interface MemberPortalHeaderProps {
+  benefitsCount?: number;
   campus: string;
-  membershipExpiry: string;
   daysRemaining: number;
   isMember?: boolean;
-  benefitsCount?: number;
-};
+  membershipExpiry: string;
+  userAvatar?: string | null;
+  userName: string;
+}
 
 export function MemberPortalHeader({
   userName,

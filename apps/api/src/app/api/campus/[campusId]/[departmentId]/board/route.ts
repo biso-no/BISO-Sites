@@ -7,14 +7,14 @@ import { NextResponse } from "next/server";
 const MANAGER_ROLE_REGEX = /manager|president/i;
 
 // --- Types ---
-type DepartmentMember = {
-  name: string;
+interface DepartmentMember {
   email: string;
-  phone: string;
-  role: string;
+  name: string;
   officeLocation: string;
+  phone: string;
   profilePhotoUrl?: string;
-};
+  role: string;
+}
 
 const CAMPUS_MAPPINGS = [
   {
@@ -86,7 +86,7 @@ export async function GET(
       try {
         const department = await db.getRow("app", "departments", departmentId);
         departmentName = department.Name || departmentId;
-      } catch (error) {
+      } catch (_error) {
         return NextResponse.json(
           { success: false, message: `Department ${departmentId} not found` },
           { status: 404 }
@@ -174,7 +174,7 @@ export async function GET(
 
           const base64 = Buffer.from(photoStream).toString("base64");
           member.profilePhotoUrl = `data:image/jpeg;base64,${base64}`;
-        } catch (e) {
+        } catch (_e) {
           // No photo found, skip silently
         }
       })

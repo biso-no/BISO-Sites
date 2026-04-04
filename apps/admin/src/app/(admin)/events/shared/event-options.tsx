@@ -24,9 +24,9 @@ import type { AdminEvent } from "@/lib/types/event";
 import type { FormValues } from "./schema";
 import { ToggleSection } from "./toggle-section";
 
-type EventOptionsProps = {
+interface EventOptionsProps {
   event?: AdminEvent | null;
-};
+}
 
 export function EventOptions({ event }: EventOptionsProps) {
   const t = useTranslations("adminEvents");

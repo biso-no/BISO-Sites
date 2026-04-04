@@ -5,11 +5,11 @@ import { useTransition } from "react";
 import type { FilterState } from "@/lib/hooks/use-departments-filter";
 import { DepartmentFilters } from "./department-filters";
 
-type DepartmentFiltersWrapperProps = {
-  filters: FilterState;
+interface DepartmentFiltersWrapperProps {
   campuses: Array<{ id: string; name: string }>;
+  filters: FilterState;
   types: string[];
-};
+}
 
 export function DepartmentFiltersWrapper({
   filters,

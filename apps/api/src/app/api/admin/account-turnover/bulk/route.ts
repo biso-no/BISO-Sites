@@ -19,15 +19,15 @@ const bulkTurnoverSchema = z.object({
   dryRunAll: z.boolean().default(false),
 });
 
-type TurnoverResult = {
-  index: number;
-  success: boolean;
-  roleMailboxUpn: string;
-  incomingUserUpn: string;
+interface TurnoverResult {
   dryRun: boolean;
-  webhookResponse?: unknown;
   error?: string;
-};
+  incomingUserUpn: string;
+  index: number;
+  roleMailboxUpn: string;
+  success: boolean;
+  webhookResponse?: unknown;
+}
 
 /**
  * POST /api/admin/account-turnover/bulk

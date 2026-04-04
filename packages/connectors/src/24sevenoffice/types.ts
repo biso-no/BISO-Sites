@@ -8,19 +8,19 @@ import type { Models } from "@repo/api";
 
 // ============= Authentication =============
 
-export type Credentials = {
+export interface Credentials {
   ApplicationId: string;
-  Username: string;
   Password: string;
-};
+  Username: string;
+}
 
-export type LoginResult = {
+export interface LoginResult {
   LoginResult: string;
-};
+}
 
-export type HasSessionResult = {
+export interface HasSessionResult {
   HasSessionResult: boolean;
-};
+}
 
 export type StoredToken = Models.Row & {
   token: string;
@@ -29,44 +29,44 @@ export type StoredToken = Models.Row & {
 
 // ============= Company (Customer) =============
 
-export type Address = {
+export interface Address {
   Address1?: string;
   Address2?: string;
   City?: string;
-  PostalCode?: string;
   Country?: string;
-};
+  PostalCode?: string;
+}
 
-export type Addresses = {
-  Post?: Address;
+export interface Addresses {
   Delivery?: Address;
-  Visit?: Address;
   Invoice?: Address;
-};
+  Post?: Address;
+  Visit?: Address;
+}
 
-export type PhoneNumber = {
+export interface PhoneNumber {
   Value?: string;
-};
+}
 
-export type PhoneNumbers = {
-  Home?: PhoneNumber;
+export interface PhoneNumbers {
   Fax?: PhoneNumber;
+  Home?: PhoneNumber;
   Mobile?: PhoneNumber;
   Primary?: PhoneNumber;
   Work?: PhoneNumber;
-};
+}
 
-export type EmailAddress = {
+export interface EmailAddress {
   Value?: string;
-};
+}
 
-export type EmailAddresses = {
+export interface EmailAddresses {
+  Alternative?: EmailAddress;
   Home?: EmailAddress;
   Invoice?: EmailAddress;
   Primary?: EmailAddress;
   Work?: EmailAddress;
-  Alternative?: EmailAddress;
-};
+}
 
 export type CompanyType =
   | "None"
@@ -75,156 +75,156 @@ export type CompanyType =
   | "Business"
   | "Supplier";
 
-export type Company = {
-  Id?: number;
-  ExternalId?: string;
-  OrganizationNumber?: string;
-  Name?: string;
-  FirstName?: string;
-  NickName?: string;
+export interface Company {
   Addresses?: Addresses;
-  PhoneNumbers?: PhoneNumbers;
-  EmailAddresses?: EmailAddresses;
-  Url?: string;
   Country?: string;
-  Note?: string;
-  Type?: CompanyType;
-  Status?: number;
   CurrencyId?: string;
-  Private?: boolean;
-  DateCreated?: string;
   DateChanged?: string;
-};
-
-export type CompanySearchParams = {
+  DateCreated?: string;
+  EmailAddresses?: EmailAddresses;
   ExternalId?: string;
+  FirstName?: string;
+  Id?: number;
+  Name?: string;
+  NickName?: string;
+  Note?: string;
+  OrganizationNumber?: string;
+  PhoneNumbers?: PhoneNumbers;
+  Private?: boolean;
+  Status?: number;
+  Type?: CompanyType;
+  Url?: string;
+}
+
+export interface CompanySearchParams {
+  ChangedAfter?: string;
+  CompanyEmail?: string;
   CompanyId?: number;
   CompanyIds?: number[];
   CompanyName?: string;
-  ChangedAfter?: string;
-  CompanyEmail?: string;
   CompanyPhone?: string;
+  ExternalId?: string;
   OrganizationNumber?: string;
-};
+}
 
-export type GetCompaniesResult = {
+export interface GetCompaniesResult {
   GetCompaniesResult?: {
     Company?: Company | Company[];
   };
-};
+}
 
-export type SaveCompaniesResult = {
+export interface SaveCompaniesResult {
   SaveCompaniesResult?: {
     Company?: Company | Company[];
   };
-};
+}
 
 // ============= Customer Categories =============
 
-export type KeyValuePair = {
+export interface KeyValuePair {
   Key: string;
   Value: string;
-};
+}
 
-export type SaveCustomerCategoriesResult = {
+export interface SaveCustomerCategoriesResult {
   SaveCustomerCategoriesResult?: {
     APIException?: APIException | APIException[];
   };
-};
+}
 
-export type GetCustomerCategoriesResult = {
+export interface GetCustomerCategoriesResult {
   GetCustomerCategoriesResult?: {
     // API returns category IDs as integers, not names
     int?: number | number[];
     APIException?: APIException | APIException[];
   } | null;
-};
+}
 
-export type APIException = {
-  Type?: string;
+export interface APIException {
   Message?: string;
   StackTrace?: string;
-};
+  Type?: string;
+}
 
 // ============= Sync Results =============
 
-export type MembershipSyncResult = {
-  success: boolean;
+export interface MembershipSyncResult {
+  categoryAssigned?: string;
   companyId?: number;
   companyName?: string;
-  categoryAssigned?: string;
   error?: string;
-};
+  success: boolean;
+}
 
-export type CustomerData = {
+export interface CustomerData {
+  email?: string;
   firstName: string;
   lastName: string;
-  email?: string;
   phone?: string;
   studentId?: string;
   userId: string;
-};
+}
 
 // ============= Products API =============
 
-export type Product = {
+export interface Product {
+  APIException?: APIException;
+  CategoryId?: number;
+  DateChanged?: string;
+  Description?: string;
   Id?: number;
   Name?: string;
   No?: string;
   Price?: number;
-  Description?: string;
-  CategoryId?: number;
-  DateChanged?: string;
-  APIException?: APIException;
-};
+}
 
-export type ProductSearchParams = {
+export interface ProductSearchParams {
+  CategoryId?: number;
   Id?: number;
-  CategoryId?: number;
-  No?: string;
   Name?: string;
+  No?: string;
   ProductIds?: number[];
-};
+}
 
-export type GetProductsResult = {
+export interface GetProductsResult {
   GetProductsResult?: {
     Product?: Product | Product[];
   };
-};
+}
 
 // ============= Category Definitions API =============
 
-export type CategoryDefinition = {
+export interface CategoryDefinition {
   Id?: number;
   Name?: string;
-  ShowContact?: boolean;
   ShowCompany?: boolean;
-};
+  ShowContact?: boolean;
+}
 
-export type GetCategoriesResult = {
+export interface GetCategoriesResult {
   GetCategoriesResult?: {
     Category?: CategoryDefinition | CategoryDefinition[];
   };
-};
+}
 
 // ============= Membership Sync Types =============
 
-export type MembershipProductSyncItem = {
-  productId: number;
-  productName: string;
-  productNo: string;
+export interface MembershipProductSyncItem {
   categoryId: number | null;
   categoryName: string | null;
   expiryDate: string;
-  startDate: string;
   isActive: boolean;
-};
+  productId: number;
+  productName: string;
+  productNo: string;
+  startDate: string;
+}
 
-export type MembershipProductSyncResult = {
-  success: boolean;
+export interface MembershipProductSyncResult {
   created: number;
-  updated: number;
-  skipped: number;
   errors: string[];
   items: MembershipProductSyncItem[];
-};
+  skipped: number;
+  success: boolean;
+  updated: number;
+}

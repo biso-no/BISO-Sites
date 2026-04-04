@@ -4,9 +4,9 @@ import type { DepartmentSocials } from "@repo/api/types/appwrite";
 import { Facebook, Globe, Instagram, Linkedin, Twitter } from "lucide-react";
 import { motion } from "motion/react";
 
-type SocialLinksProps = {
+interface SocialLinksProps {
   socials: DepartmentSocials[];
-};
+}
 
 export function SocialLinks({ socials }: SocialLinksProps) {
   const getSocialIcon = (platform: string) => {

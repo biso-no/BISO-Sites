@@ -18,26 +18,26 @@ import { translatePageContent } from "@/app/actions/pages/translate";
 import { sanitizeSlug } from "@/lib/utils";
 import type { UntranslatedLocaleInfo } from "./translation-check-modal";
 
-type LocaleData = {
-  title: string;
-  description: string;
+interface LocaleData {
   data: Data;
-};
+  description: string;
+  title: string;
+}
 
-type UseUnifiedEditorHandlersProps = {
+interface UseUnifiedEditorHandlersProps {
+  availableLocales: Locale[];
   currentLocale: Locale;
+  effectiveSlug: string;
+  enforcedDepartmentSlug: string | null;
+  initialVisibility: PageVisibility;
   localeData: Record<Locale, LocaleData | null>;
+  pageId?: string;
+  setCurrentLocale: (locale: Locale) => void;
   setLocaleData: React.Dispatch<
     React.SetStateAction<Record<Locale, LocaleData | null>>
   >;
-  setCurrentLocale: (locale: Locale) => void;
-  availableLocales: Locale[];
-  effectiveSlug: string;
-  enforcedDepartmentSlug: string | null;
-  pageId?: string;
-  initialVisibility: PageVisibility;
   setSlug: (slug: string) => void;
-};
+}
 
 // ── Detection helpers ──────────────────────────────────────────────────────
 
@@ -443,7 +443,7 @@ export function useUnifiedEditorHandlers({
     // Validate all locales have at least a title and some content
     const hasAllLocales = availableLocales.every((locale) => {
       const locData = tentativeLocaleData[locale];
-      return locData && locData.title.trim() && locData.data.content?.length;
+      return locData?.title.trim() && locData.data.content?.length;
     });
 
     if (!hasAllLocales) {
@@ -592,16 +592,16 @@ export function useUnifiedEditorHandlers({
 
 // ── Context registration hook ──────────────────────────────────────────────
 
-type UseUnifiedEditorContextsProps = {
+interface UseUnifiedEditorContextsProps {
+  availableLocales: Locale[];
+  currentLocale: Locale;
+  initialStatus: PageStatus;
+  initialVisibility: PageVisibility;
+  localeData: Record<Locale, LocaleData | null>;
   pageId?: string;
   slug: string;
   title: string;
-  initialStatus: PageStatus;
-  initialVisibility: PageVisibility;
-  currentLocale: Locale;
-  availableLocales: Locale[];
-  localeData: Record<Locale, LocaleData | null>;
-};
+}
 
 export function useUnifiedEditorContexts({
   pageId,

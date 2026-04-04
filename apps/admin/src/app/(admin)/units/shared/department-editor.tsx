@@ -76,11 +76,11 @@ const departmentSchema = z.object({
 
 type DepartmentFormData = z.infer<typeof departmentSchema>;
 
-type DepartmentEditorProps = {
-  department?: Departments;
+interface DepartmentEditorProps {
   campuses: Array<{ $id: string; name: string }>;
+  department?: Departments;
   types: string[];
-};
+}
 
 export default function DepartmentEditor({
   department,

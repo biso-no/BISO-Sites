@@ -4,11 +4,11 @@ import { notFound } from "next/navigation";
 import { getLocale } from "@/app/actions/locale";
 import { getPublicPage } from "@/app/actions/pages";
 
-type PageProps = {
+interface PageProps {
   params: Promise<{
     slug: string[];
   }>;
-};
+}
 
 export default async function Page({ params }: PageProps) {
   const { slug } = await params;

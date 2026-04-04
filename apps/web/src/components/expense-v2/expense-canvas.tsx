@@ -41,10 +41,10 @@ import {
   useExpenseStore,
 } from "./store";
 
-type ExpenseCanvasProps = {
+interface ExpenseCanvasProps {
   campuses: Campus[];
   initialProfile: Partial<Users>;
-};
+}
 
 // Hero header matching app design language
 function ExpenseHeader() {
@@ -298,8 +298,7 @@ async function processReceiptFile(
   }
 }
 
-type OcrApiResponse = {
-  success: boolean;
+interface OcrApiResponse {
   data: {
     description: string | null;
     amount: number | null;
@@ -307,9 +306,10 @@ type OcrApiResponse = {
     date: string | null;
     vendor: string | null;
   };
-  rawText: string;
   method: "pdf" | "ocr";
-};
+  rawText: string;
+  success: boolean;
+}
 
 function updateReceiptWithOcrResult(
   store: ExpenseStore,

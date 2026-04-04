@@ -7,11 +7,11 @@ import { Card } from "@repo/ui/components/ui/card";
 import { ArrowRight, DollarSign, Heart, Users } from "lucide-react";
 import { motion } from "motion/react";
 
-type JobCardProps = {
-  job: Jobs;
+interface JobCardProps {
   index: number;
+  job: Jobs;
   onViewDetails: (job: Jobs) => void;
-};
+}
 
 const getJobCategory = (metadata: Record<string, any>) =>
   metadata.category || "General";

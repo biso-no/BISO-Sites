@@ -15,10 +15,10 @@ import {
 import { EventCard } from "./event-card";
 import { EventDetailModal } from "./event-detail-modal";
 
-type EventsListClientProps = {
+interface EventsListClientProps {
   events: Events[];
   isMember?: boolean;
-};
+}
 
 function getEventTranslation(event: Events) {
   if (!Array.isArray(event.translation_refs)) {

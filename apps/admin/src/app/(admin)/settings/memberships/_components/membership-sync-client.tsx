@@ -43,9 +43,9 @@ import {
 import { useState, useTransition } from "react";
 import { executeSync, previewSync } from "@/app/actions/membership-sync";
 
-type MembershipSyncClientProps = {
+interface MembershipSyncClientProps {
   initialItems: MembershipProductSyncItem[];
-};
+}
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
   day: "numeric",

@@ -38,12 +38,12 @@ import {
   syncAllMembers,
 } from "@/app/actions/all-members";
 
-type AllMembersClientProps = {
-  members: MemberInfo[];
-  totalCount: number;
+interface AllMembersClientProps {
   activeMembershipCount: number;
   lastSynced: string | null;
-};
+  members: MemberInfo[];
+  totalCount: number;
+}
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
   day: "numeric",

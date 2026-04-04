@@ -54,32 +54,32 @@ const CONFIG = {
 
 const SHAREPOINT_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
-type BatchItem = {
+interface BatchItem {
   doc: VectorDocument;
-  text: string;
   originalIndex: number;
+  text: string;
   tokenCount: number;
-};
+}
 
-type ProcessingBatch = {
+interface ProcessingBatch {
   indices: number[];
   texts: string[];
   tokenSum: number;
-};
+}
 
-type PineconeVector = {
+interface PineconeVector {
   id: string;
-  values: number[];
   metadata: RecordMetadata;
-};
+  values: number[];
+}
 
-type ModelStats = {
-  model: string;
-  vectorSize: number;
-  estimatedCostPer1kTokens: number;
-  totalTokensProcessed: number;
+interface ModelStats {
   estimatedCost: number;
-};
+  estimatedCostPer1kTokens: number;
+  model: string;
+  totalTokensProcessed: number;
+  vectorSize: number;
+}
 
 export class PineconeVectorStore implements IVectorStore {
   private readonly client: Pinecone;

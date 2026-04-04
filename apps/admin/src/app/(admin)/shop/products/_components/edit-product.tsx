@@ -164,10 +164,10 @@ type ProductFormData = z.infer<typeof productSchema>;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type EditProductProps = {
-  product?: ProductWithTranslations;
+interface EditProductProps {
   campuses?: Campus[];
-};
+  product?: ProductWithTranslations;
+}
 
 type SlugSource = "en" | "no" | null;
 type ProductPayload = CreateProductData | UpdateProductData;
@@ -535,7 +535,7 @@ function useSlugFocus(
 
 // ── Sub-components ──��─────────────────────────────────────────────────────────
 
-type SlugFieldProps = {
+interface SlugFieldProps {
   closeSlugEditing: () => void;
   form: UseFormReturn<ProductFormData>;
   handleSlugCancel: () => void;
@@ -544,7 +544,7 @@ type SlugFieldProps = {
   slugDescription: string;
   slugInputRef: RefObject<HTMLInputElement>;
   startEditing: () => void;
-};
+}
 
 function SlugField({
   closeSlugEditing,

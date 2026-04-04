@@ -80,12 +80,12 @@ async function reserveStock(
   return { success: true, newAvailable };
 }
 
-type BuildCartItemParams = {
+interface BuildCartItemParams {
+  metadata: ReturnType<typeof parseProductMetadata>;
+  namedOptions: Record<string, string>;
   product: WebshopProducts;
   productId: string;
-  namedOptions: Record<string, string>;
-  metadata: ReturnType<typeof parseProductMetadata>;
-};
+}
 
 function buildCartItem({
   product,

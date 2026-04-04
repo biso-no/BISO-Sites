@@ -57,15 +57,15 @@ function ImageWithFallback({
 
 type HeroCarouselItem = Events | News;
 
-type HeroCarouselProps = {
+interface HeroCarouselProps {
   featuredContent: HeroCarouselItem[];
-};
+}
 
-type HeroCarouselSlideProps = {
+interface HeroCarouselSlideProps {
   index: number;
   item: HeroCarouselItem;
   t: ReturnType<typeof useTranslations>;
-};
+}
 
 function getTranslation(item: HeroCarouselItem): ContentTranslations | null {
   if (!Array.isArray(item.translation_refs)) {

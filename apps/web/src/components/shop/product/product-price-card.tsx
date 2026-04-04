@@ -4,10 +4,10 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { calculateSavings, getDisplayPrice } from "@/lib/types/webshop";
 import { PriceDetails } from "../price-details";
 
-type ProductPriceCardProps = {
-  product: WebshopProducts;
+interface ProductPriceCardProps {
   isMember: boolean;
-};
+  product: WebshopProducts;
+}
 
 export function ProductPriceCard({ product, isMember }: ProductPriceCardProps) {
   const productRef = product;

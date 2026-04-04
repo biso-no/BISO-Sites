@@ -5,33 +5,33 @@ import { createGraphClient } from "./index";
 // Types
 // ============================================================================
 
-export type GraphUserCreateInput = {
-  displayName: string;
-  userPrincipalName: string;
-  mailNickname: string;
-  password: string;
+export interface GraphUserCreateInput {
   department?: string;
-  officeLocation?: string;
+  displayName: string;
   forceChangePasswordNextSignIn?: boolean;
-};
-
-export type GraphUser = {
-  id: string;
-  displayName: string;
-  userPrincipalName: string;
-  mail?: string;
-  department?: string;
+  mailNickname: string;
   officeLocation?: string;
-  jobTitle?: string;
-};
+  password: string;
+  userPrincipalName: string;
+}
 
-export type GraphGroup = {
-  id: string;
+export interface GraphUser {
+  department?: string;
   displayName: string;
+  id: string;
+  jobTitle?: string;
+  mail?: string;
+  officeLocation?: string;
+  userPrincipalName: string;
+}
+
+export interface GraphGroup {
   description?: string;
-  securityEnabled: boolean;
+  displayName: string;
+  id: string;
   mailEnabled: boolean;
-};
+  securityEnabled: boolean;
+}
 
 // ============================================================================
 // User Management Service

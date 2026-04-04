@@ -103,24 +103,24 @@ function mapMetadata(metadata: FormValues["metadata"]) {
   };
 }
 
-type EventInput = {
-  slug?: string | null;
-  status?: string | null;
+interface EventInput {
   campus_id?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
-  location?: string | null;
-  price?: number | null;
-  ticket_url?: string | null;
-  image?: string | null;
-  member_only?: boolean | null;
   collection_id?: string | null;
-  is_collection?: boolean | null;
   collection_pricing?: string | null;
   department_id?: string | null;
+  end_date?: string | null;
+  image?: string | null;
+  is_collection?: boolean | null;
+  location?: string | null;
+  member_only?: boolean | null;
   metadata_parsed?: any;
+  price?: number | null;
+  slug?: string | null;
+  start_date?: string | null;
+  status?: string | null;
+  ticket_url?: string | null;
   translations?: any;
-};
+}
 
 export function getEventDefaultValues(event?: EventInput): Partial<FormValues> {
   const metadata = event?.metadata_parsed ?? {};

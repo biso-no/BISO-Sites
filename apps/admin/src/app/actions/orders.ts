@@ -84,28 +84,28 @@ async function getMemberDiscountIfAny(product: any) {
   }
 }
 
-export type CheckoutLineItemInput = {
-  productId: string;
-  slug: string;
-  quantity: number;
-  variationId?: string;
-  customFields?: Record<string, string>;
+export interface CheckoutLineItemInput {
   customFieldLabels?: Record<string, string>;
-};
+  customFields?: Record<string, string>;
+  productId: string;
+  quantity: number;
+  slug: string;
+  variationId?: string;
+}
 
-export type CartCheckoutData = {
+export interface CartCheckoutData {
+  email: string;
   items: CheckoutLineItemInput[];
   name: string;
-  email: string;
   phone?: string;
-};
+}
 
-export type CheckoutResult = {
-  success: boolean;
-  paymentUrl?: string;
-  orderId?: string;
+export interface CheckoutResult {
   error?: string;
-};
+  orderId?: string;
+  paymentUrl?: string;
+  success: boolean;
+}
 
 function normalizeCustomFields(inputs?: Record<string, string>) {
   if (!inputs) {
@@ -127,7 +127,10 @@ function normalizeCustomFields(inputs?: Record<string, string>) {
   );
 }
 
-type DiscountInfo = { applied: boolean; percent: number };
+interface DiscountInfo {
+  applied: boolean;
+  percent: number;
+}
 
 function sanitizeCartItems(data: CartCheckoutData): CheckoutLineItemInput[] {
   if (!data.items || data.items.length === 0) {
@@ -290,14 +293,14 @@ function buildOrderItemPayload({
   };
 }
 
-type CheckoutComputation = {
-  orderItems: OrderItem[];
-  subtotal: number;
-  originalTotal: number;
-  membershipApplied: boolean;
-  maxDiscountPercent: number;
+interface CheckoutComputation {
   campusIds: Set<string>;
-};
+  maxDiscountPercent: number;
+  membershipApplied: boolean;
+  orderItems: OrderItem[];
+  originalTotal: number;
+  subtotal: number;
+}
 
 async function buildOrderComputation(
   items: CheckoutLineItemInput[],

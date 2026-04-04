@@ -26,12 +26,12 @@ import type {
 const JOB_ID = "member_sync";
 const PARALLEL_BATCH_SIZE = 5;
 
-type BatchContext = {
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"];
-  companyCategories: Map<number, number[]>;
+interface BatchContext {
   categoryToMembership: Map<string, Memberships>;
+  companyCategories: Map<number, number[]>;
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"];
   timestamp: string;
-};
+}
 
 /**
  * Process a single batch of companies and sync to Appwrite

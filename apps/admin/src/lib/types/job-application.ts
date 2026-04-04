@@ -22,11 +22,11 @@ export interface JobApplication extends Models.Row {
   status: "submitted" | "reviewed" | "interview" | "accepted" | "rejected";
 }
 
-export type JobApplicationFormData = {
-  applicant_name: string;
+export interface JobApplicationFormData {
   applicant_email: string;
+  applicant_name: string;
   applicant_phone?: string;
   cover_letter?: string;
   gdpr_consent: boolean;
   resume?: File;
-};
+}

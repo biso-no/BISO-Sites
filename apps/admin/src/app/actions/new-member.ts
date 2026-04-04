@@ -13,32 +13,32 @@ import {
 
 // ============= Types =============
 
-export type StudentSearchResult = {
-  found: boolean;
+export interface StudentSearchResult {
   customer: {
     id: number;
     name: string;
     externalId: string;
   } | null;
-};
+  found: boolean;
+}
 
-export type PurchasableMembership = {
+export interface PurchasableMembership {
+  category: string | null;
+  expiryDate: string;
   id: string;
   name: string;
-  productId: string;
-  category: string | null;
   price: number;
-  expiryDate: string;
-};
+  productId: string;
+}
 
-export type CreateMemberResult = {
-  success: boolean;
+export interface CreateMemberResult {
+  categoryAssigned?: string;
   customerId?: number;
   customerName?: string;
-  invoiceOrderId?: number;
-  categoryAssigned?: string;
   error?: string;
-};
+  invoiceOrderId?: number;
+  success: boolean;
+}
 
 // ============= Server Actions =============
 

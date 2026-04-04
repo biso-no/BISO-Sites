@@ -3,20 +3,20 @@
 import type { Data } from "@repo/editor";
 import { useCallback, useRef } from "react";
 
-type PuckContentUpdate = {
-  type: "puck-content";
-  blockIndex: number;
+interface PuckContentUpdate {
   block: {
     type: string;
     props: Record<string, unknown>;
   };
+  blockIndex: number;
   isComplete: boolean;
-};
+  type: "puck-content";
+}
 
-type PuckContentHandlerProps = {
-  onContentUpdate?: (update: PuckContentUpdate) => void;
+interface PuckContentHandlerProps {
   onContentComplete?: (data: Data) => void;
-};
+  onContentUpdate?: (update: PuckContentUpdate) => void;
+}
 
 /**
  * Hook to handle AI-generated Puck content updates

@@ -213,16 +213,16 @@ export async function getMembershipCategories(): Promise<CategoryDefinition[]> {
 
 // ============= Customer Category Tree =============
 
-export type CustomerCategoryMapping = {
-  companyId: number;
+export interface CustomerCategoryMapping {
   categoryId: number;
-};
+  companyId: number;
+}
 
-type GetCustomerCategoryTreeResult = {
+interface GetCustomerCategoryTreeResult {
   GetCustomerCategoryTreeResult?: {
     KeyValuePair?: KeyValuePair | KeyValuePair[];
   };
-};
+}
 
 /**
  * Get all customer-category mappings from 24SevenOffice.

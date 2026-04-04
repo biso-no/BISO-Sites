@@ -6,10 +6,10 @@
 import type { Memberships } from "@repo/api/types/appwrite";
 import type { Company } from "@repo/connectors/24sevenoffice";
 
-export type CompanyDocument = {
-  id: string;
+export interface CompanyDocument {
   data: Record<string, unknown>;
-};
+  id: string;
+}
 
 /**
  * Build document data for a company to sync to Appwrite

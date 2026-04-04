@@ -5,9 +5,9 @@ import { ArrowLeft, Building2, MapPin } from "lucide-react";
 import Link from "next/link";
 import { SocialLinks } from "./social-links";
 
-type DepartmentHeroProps = {
+interface DepartmentHeroProps {
   department: ContentTranslations;
-};
+}
 
 export function DepartmentHero({ department }: DepartmentHeroProps) {
   const dept = department.department_ref;

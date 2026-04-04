@@ -7,7 +7,7 @@ import type { Locale, Pages, PageTranslations } from "@repo/api/types/appwrite";
 import type { Data } from "@repo/editor";
 import { cache } from "react";
 
-const resolvePublishedPage = cache(async (slug: string, locale: Locale) =>
+const _resolvePublishedPage = cache(async (slug: string, locale: Locale) =>
   getPublishedPage({ slug, locale, preview: false })
 );
 
@@ -56,7 +56,7 @@ export async function getPublicPage(
       typeof item === "object" && item !== null && item.locale === locale
   );
 
-  if (!(translation && translation.is_published)) {
+  if (!translation?.is_published) {
     return null;
   }
 

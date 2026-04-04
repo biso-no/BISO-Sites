@@ -15,44 +15,44 @@ import {
   getCartItemsWithDetails,
 } from "@/app/actions/cart-reservations";
 
-export type CartItem = {
-  id: string; // unique cart item id (contentId + options hash)
-  contentId: string; // product content_id from database
-  productId: string; // product webshop_products id
-  slug: string;
-  name: string;
-  image: string | null;
+export interface CartItem {
   category: string;
-  regularPrice: number;
-  memberPrice: number | null;
-  memberOnly: boolean;
-  quantity: number;
-  stock: number | null;
+  contentId: string; // product content_id from database
   expiresAt?: string; // reservation expiration time
-  selectedOptions?: Record<string, string>;
+  id: string; // unique cart item id (contentId + options hash)
+  image: string | null;
+  memberOnly: boolean;
+  memberPrice: number | null;
   metadata?: {
     max_per_user?: number;
     max_per_order?: number;
     sku?: string;
   };
-};
+  name: string;
+  productId: string; // product webshop_products id
+  quantity: number;
+  regularPrice: number;
+  selectedOptions?: Record<string, string>;
+  slug: string;
+  stock: number | null;
+}
 
-type CartContextType = {
-  items: CartItem[];
-  isLoading: boolean;
+interface CartContextType {
   addItem: (
     item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
   ) => Promise<void>;
+  clearCart: () => void;
+  getEarliestExpiration: () => string | null;
+  getItemCount: () => number;
+  getRegularSubtotal: () => number;
+  getSubtotal: (isMember: boolean) => number;
+  getTotalSavings: (isMember: boolean) => number;
+  isLoading: boolean;
+  items: CartItem[];
+  refreshCart: () => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
-  clearCart: () => void;
-  getItemCount: () => number;
-  getSubtotal: (isMember: boolean) => number;
-  getRegularSubtotal: () => number;
-  getTotalSavings: (isMember: boolean) => number;
-  refreshCart: () => Promise<void>;
-  getEarliestExpiration: () => string | null;
-};
+}
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 

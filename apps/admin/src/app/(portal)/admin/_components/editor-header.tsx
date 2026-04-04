@@ -3,18 +3,18 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatusBadge } from "./status-badge";
 
-type EditorHeaderProps = {
+interface EditorHeaderProps {
   backHref: string;
   backLabel: string;
-  title: string;
-  status?: string;
-  onDiscard?: () => void;
+  children?: ReactNode;
   discardLabel?: string;
+  isSubmitting?: boolean;
+  onDiscard?: () => void;
   publishLabel?: string;
   saveDraftLabel?: string;
-  children?: ReactNode;
-  isSubmitting?: boolean;
-};
+  status?: string;
+  title: string;
+}
 
 export function EditorHeader({
   backHref,

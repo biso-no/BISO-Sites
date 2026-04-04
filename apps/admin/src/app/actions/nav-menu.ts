@@ -26,33 +26,33 @@ type NavMenuTranslationDocument = Models.Row & {
   title: string;
 };
 
-export type NavMenuAdminItem = {
+export interface NavMenuAdminItem {
+  children: NavMenuAdminItem[];
   id: string;
-  slug: string;
+  isExternal: boolean;
   order: number;
   parentId: string | null;
   path: string | null;
-  url: string | null;
-  isExternal: boolean;
+  slug: string;
   translations: Record<Locale, string>;
-  children: NavMenuAdminItem[];
-};
+  url: string | null;
+}
 
-export type NavMenuAdminTree = {
-  tree: NavMenuAdminItem[];
+export interface NavMenuAdminTree {
   flat: NavMenuAdminItem[];
-};
+  tree: NavMenuAdminItem[];
+}
 
-export type NavMenuStructureItem = {
+export interface NavMenuStructureItem {
   id: string;
-  parentId: string | null;
   order: number;
-};
+  parentId: string | null;
+}
 
-type MutationResponse = {
-  success: boolean;
+interface MutationResponse {
   error?: string;
-};
+  success: boolean;
+}
 
 const normalizeOrderValue = (value: number | null | undefined): number => {
   if (typeof value === "number" && !Number.isNaN(value)) {
@@ -291,14 +291,14 @@ export const listNavMenuAdmin = async (): Promise<NavMenuAdminTree> => {
   return buildNavTree(documents, translations, DEFAULT_LOCALE);
 };
 
-type CreateNavMenuInput = {
-  slug: string;
+interface CreateNavMenuInput {
+  isExternal?: boolean;
   parentId?: string | null;
   path?: string | null;
-  url?: string | null;
-  isExternal?: boolean;
+  slug: string;
   translations: Record<Locale, string>;
-};
+  url?: string | null;
+}
 
 export const createNavMenuItem = async (
   input: CreateNavMenuInput
@@ -355,14 +355,14 @@ export const createNavMenuItem = async (
   }
 };
 
-type UpdateNavMenuInput = {
+interface UpdateNavMenuInput {
   id: string;
+  isExternal?: boolean;
   parentId?: string | null;
   path?: string | null;
-  url?: string | null;
-  isExternal?: boolean;
   translations: Record<Locale, string>;
-};
+  url?: string | null;
+}
 
 export const updateNavMenuItem = async (
   input: UpdateNavMenuInput

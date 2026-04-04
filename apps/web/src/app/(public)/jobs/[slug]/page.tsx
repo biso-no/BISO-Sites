@@ -6,11 +6,11 @@ import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobDetailsClient } from "@/components/jobs/job-details-client";
 
-type JobPageProps = {
+interface JobPageProps {
   params: {
     slug: string;
   };
-};
+}
 
 async function JobDetails({ slug }: { slug: string }) {
   const locale = await getLocale();

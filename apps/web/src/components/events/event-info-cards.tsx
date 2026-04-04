@@ -10,11 +10,11 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-type EventPriceCardProps = {
-  event: Events;
+interface EventPriceCardProps {
   collectionCount?: number;
+  event: Events;
   isMember?: boolean;
-};
+}
 
 function PriceHelperText({
   price,
@@ -112,9 +112,9 @@ export function EventPriceCard({
   );
 }
 
-type EventDetailsCardProps = {
+interface EventDetailsCardProps {
   event: Events;
-};
+}
 
 export function EventDetailsCard({ event }: EventDetailsCardProps) {
   const t = useTranslations("events");
@@ -194,9 +194,9 @@ export function EventDetailsCard({ event }: EventDetailsCardProps) {
   );
 }
 
-type EventImportantInfoCardProps = {
+interface EventImportantInfoCardProps {
   price: string;
-};
+}
 
 export function EventImportantInfoCard({ price }: EventImportantInfoCardProps) {
   const t = useTranslations("events");

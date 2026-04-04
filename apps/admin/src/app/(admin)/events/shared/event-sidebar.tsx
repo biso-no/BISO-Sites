@@ -30,11 +30,11 @@ import { FormSection } from "@/components/forms/FormSection";
 import type { Campus } from "@/lib/types/post";
 import { type FormValues, slugify } from "./schema";
 
-type EventSidebarProps = {
+interface EventSidebarProps {
   campuses: Campus[];
   departments: Array<{ $id: string; Name: string }>;
   loadingDepartments: boolean;
-};
+}
 
 type SlugSource = "en" | "no" | null;
 
@@ -69,12 +69,12 @@ function determineSlugUpdate(
   return { newSource, newSlug };
 }
 
-type TitleWatchValue = {
+interface TitleWatchValue {
   translations?: {
     en?: { title?: string | null };
     no?: { title?: string | null };
   };
-};
+}
 
 function applySlugUpdate(
   value: TitleWatchValue,

@@ -31,92 +31,92 @@ export type FilterOperator =
   | "isNotNull";
 
 /** Single filter condition */
-export type DataFilter = {
+export interface DataFilter {
   field: string;
   operator: FilterOperator;
   value: unknown;
-};
+}
 
 /** Sort direction */
 export type SortDirection = "asc" | "desc";
 
 /** Sort configuration */
-export type DataSort = {
-  field: string;
+export interface DataSort {
   direction: SortDirection;
-};
+  field: string;
+}
 
 /** Field mapping for transforming data to component props */
-export type FieldMapping = {
+export interface FieldMapping {
+  fallback?: unknown;
   source: string;
   target: string;
   transform?: "none" | "date" | "currency" | "image" | "truncate";
-  fallback?: unknown;
-};
+}
 
 /**
  * Complete data source configuration
  * This is what gets stored in Puck component props
  */
-export type DataSourceConfig = {
-  /** The database table to query */
-  table: DataTable | string;
+export interface DataSourceConfig {
   /** Filters to apply */
   filters?: DataFilter[];
-  /** Sort configuration */
-  sort?: DataSort;
-  /** Maximum items to fetch */
-  limit?: number;
-  /** Offset for pagination */
-  offset?: number;
-  /** Field mappings for transforming data */
-  mappings?: FieldMapping[];
   /** Whether to include related data */
   includeRelations?: boolean;
+  /** Maximum items to fetch */
+  limit?: number;
   /** Locale for content translations */
   locale?: string;
-};
+  /** Field mappings for transforming data */
+  mappings?: FieldMapping[];
+  /** Offset for pagination */
+  offset?: number;
+  /** Sort configuration */
+  sort?: DataSort;
+  /** The database table to query */
+  table: DataTable | string;
+}
 
 /**
  * Normalized item from any data source
  * Common shape that all fetched items get transformed to
  */
-export type NormalizedItem = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  description?: string;
-  image?: string;
-  href?: string;
-  date?: string;
-  endDate?: string;
-  location?: string;
-  category?: string;
+export interface NormalizedItem {
   badge?: string;
+  category?: string;
+  date?: string;
+  description?: string;
+  endDate?: string;
+  href?: string;
+  id: string;
+  image?: string;
+  location?: string;
   metadata?: Record<string, unknown>;
   raw?: Record<string, unknown>;
-};
+  subtitle?: string;
+  title: string;
+}
 
 /** Result from data fetching */
-export type DataFetchResult = {
+export interface DataFetchResult {
+  hasMore: boolean;
   items: NormalizedItem[];
   total: number;
-  hasMore: boolean;
-};
+}
 
 /** Table schema information for the picker UI */
-export type TableSchema = {
-  id: DataTable | string;
-  label: string;
+export interface TableSchema {
+  defaultSort?: DataSort;
   description?: string;
   fields: {
     name: string;
     type: "string" | "number" | "boolean" | "date" | "array" | "object";
     label: string;
   }[];
-  defaultSort?: DataSort;
+  id: DataTable | string;
+  label: string;
   presetFilters?: {
     label: string;
     filters: DataFilter[];
   }[];
-};
+}

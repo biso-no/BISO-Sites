@@ -7,14 +7,14 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-type TabNavigationProps = {
-  defaultTab?: string;
+interface TabNavigationProps {
   benefitsCount: number;
-  isMember: boolean;
+  children: React.ReactNode;
+  defaultTab?: string;
   hasBIIdentity: boolean;
   isGuest?: boolean;
-  children: React.ReactNode;
-};
+  isMember: boolean;
+}
 
 const tabs = [
   { id: "home", icon: Sparkles },

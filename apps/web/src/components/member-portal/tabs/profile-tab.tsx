@@ -20,11 +20,11 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { updatePublicProfile, uploadAvatar } from "@/app/actions/member-portal";
 
-type ProfileTabProps = {
-  user: Users | null;
-  publicProfile: PublicProfiles | null;
+interface ProfileTabProps {
   biEmail: string;
-};
+  publicProfile: PublicProfiles | null;
+  user: Users | null;
+}
 
 export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
   const t = useTranslations("memberPortal.profile");

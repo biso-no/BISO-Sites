@@ -182,19 +182,19 @@ export async function createPost(post: News) {
 // ── Typed post save ────────────────────────────────────────────────────────
 // Replaces the old createPost/updatePost which required casting to `News`.
 
-export type PostFormInput = {
-  translations: {
-    en: { title: string; description: string };
-    no: { title: string; description: string };
-  };
-  status: "draft" | "published";
+export interface PostFormInput {
+  author?: string;
   campus_id: string;
   department_id?: string;
   image?: string;
   slug?: string;
+  status: "draft" | "published";
   sticky?: boolean;
-  author?: string;
-};
+  translations: {
+    en: { title: string; description: string };
+    no: { title: string; description: string };
+  };
+}
 
 export async function createPostFromForm(data: PostFormInput): Promise<News> {
   const ctx = await getUserAuthContext();

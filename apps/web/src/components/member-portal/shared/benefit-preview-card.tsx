@@ -15,13 +15,13 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 
-type BenefitPreviewCardProps = {
+interface BenefitPreviewCardProps {
   category: string;
-  partnerName: string;
-  partnerLogo?: string | null;
   discountText: string;
   index?: number;
-};
+  partnerLogo?: string | null;
+  partnerName: string;
+}
 
 const getCategoryIcon = (category: string) => {
   const icons: Record<string, typeof Coffee> = {
@@ -36,7 +36,7 @@ const getCategoryIcon = (category: string) => {
   return icons[category] || Sparkles;
 };
 
-const getCategoryGradient = (category: string) => {
+const getCategoryGradient = (_category: string) => {
   return "from-brand-gradient-from to-brand-gradient-to";
 };
 

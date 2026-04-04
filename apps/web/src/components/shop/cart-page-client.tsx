@@ -8,10 +8,10 @@ import { CartEmptyState } from "./cart/cart-empty-state";
 import { CartList } from "./cart/cart-list";
 import { CartSummary } from "./cart/cart-summary";
 
-type CartPageClientProps = {
+interface CartPageClientProps {
   isMember?: boolean;
   userId?: string | null;
-};
+}
 
 export function CartPageClient({
   isMember = false,

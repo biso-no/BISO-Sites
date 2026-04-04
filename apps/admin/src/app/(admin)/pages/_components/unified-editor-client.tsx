@@ -36,24 +36,23 @@ const PageEditor = dynamic(
   { ssr: false }
 );
 
-type LocaleData = {
-  title: string;
-  description: string;
+interface LocaleData {
   data: Data;
-};
+  description: string;
+  title: string;
+}
 
-type UnifiedEditorClientProps = {
-  pageId?: string;
-  initialSlug: string;
-  initialLocaleData: Record<Locale, LocaleData | null>;
-  currentLocale: Locale;
+interface UnifiedEditorClientProps {
   availableLocales: Locale[];
-  status: PageStatus;
-  visibility: PageVisibility;
+  currentLocale: Locale;
+  initialLocaleData: Record<Locale, LocaleData | null>;
+  initialSlug: string;
   pageContext?: {
     campusId?: string | null;
     departmentId?: string | null;
   };
+  pageId?: string;
+  status: PageStatus;
   userContext: {
     campusNames: string[];
     departmentNames: string[];
@@ -61,7 +60,8 @@ type UnifiedEditorClientProps = {
     isGlobalAdmin: boolean;
     isCampusAdmin: boolean;
   };
-};
+  visibility: PageVisibility;
+}
 
 const EMPTY_DATA: Data = {
   root: { props: {} },
@@ -107,7 +107,7 @@ export function UnifiedEditorClient({
   const [slug, setSlug] = useState(initialSlug);
   /* replaced by hook */
   // Track selected block index for targeted AI editing
-  const [selectedBlockIndex, setSelectedBlockIndex] = useState<
+  const [selectedBlockIndex, _setSelectedBlockIndex] = useState<
     number | undefined
   >(undefined);
   const [departments, setDepartments] = useState<
@@ -253,7 +253,7 @@ export function UnifiedEditorClient({
       }));
       setCurrentLocale(newLocale);
     },
-    [currentLocale, setLocaleData]
+    [currentLocale]
   );
 
   const { handleDataChange: handleStructuralSync } = useLocaleStructuralSync({

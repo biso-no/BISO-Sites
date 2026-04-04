@@ -17,12 +17,14 @@ import { ContentActivityChart } from "./_components/content-chart";
 export default async function AdminPortalDashboard() {
   const t = await getTranslations("adminPortal.dashboard");
 
-  const [ctx, stats, recentActivity, chartActivity] = await Promise.allSettled([
-    getUserAuthContext(),
-    getDashboardStats(),
-    listActivityLog({ limit: 5 }),
-    listActivityLog({ limit: 200 }),
-  ]);
+  const [_ctx, stats, recentActivity, chartActivity] = await Promise.allSettled(
+    [
+      getUserAuthContext(),
+      getDashboardStats(),
+      listActivityLog({ limit: 5 }),
+      listActivityLog({ limit: 200 }),
+    ]
+  );
 
   const statsData =
     stats.status === "fulfilled"

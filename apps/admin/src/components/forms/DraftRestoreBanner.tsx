@@ -4,11 +4,11 @@ import { Button } from "@repo/ui/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { FileText, X } from "lucide-react";
 
-type DraftRestoreBannerProps = {
-  savedAt: Date;
-  onRestore: () => void;
+interface DraftRestoreBannerProps {
   onDiscard: () => void;
-};
+  onRestore: () => void;
+  savedAt: Date;
+}
 
 export function DraftRestoreBanner({
   savedAt,

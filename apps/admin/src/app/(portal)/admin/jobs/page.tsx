@@ -5,9 +5,9 @@ import { listJobs } from "../_actions/jobs";
 import { PageHeader } from "../_components/page-header";
 import { JobsListClient } from "./_components/jobs-list-client";
 
-type JobsPageProps = {
+interface JobsPageProps {
   searchParams: Promise<{ page?: string }>;
-};
+}
 
 export default async function JobsPage({ searchParams }: JobsPageProps) {
   const t = await getTranslations("adminPortal.jobs");

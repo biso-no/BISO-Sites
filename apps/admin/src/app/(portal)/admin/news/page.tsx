@@ -5,9 +5,9 @@ import { listNews } from "../_actions/news";
 import { PageHeader } from "../_components/page-header";
 import { NewsListClient } from "./_components/news-list-client";
 
-type NewsPageProps = {
+interface NewsPageProps {
   searchParams: Promise<{ page?: string }>;
-};
+}
 
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const t = await getTranslations("adminPortal.news");

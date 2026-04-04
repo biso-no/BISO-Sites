@@ -65,13 +65,13 @@ import {
   updateVarslingSettings,
 } from "@/app/actions/varsling";
 
-type VarslingFormData = {
+interface VarslingFormData {
   campus_id: string;
-  role_name: string;
   email: string;
   is_active: boolean;
+  role_name: string;
   sort_order: number;
-};
+}
 
 export default function VarslingAdminPage() {
   const t = useTranslations("varsling.admin");

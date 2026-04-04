@@ -29,20 +29,20 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-type ProfileFormProps = {
-  initialData: Models.Document | null | any;
+interface ProfileFormProps {
   email: string;
-};
+  initialData: Models.Document | null | any;
+}
 
-type FieldConfig = {
-  name: keyof ProfileFormValues;
-  label: string;
-  placeholder: string;
-  type?: string;
-  required?: boolean;
+interface FieldConfig {
   disabled?: boolean;
   gridClassName?: string;
-};
+  label: string;
+  name: keyof ProfileFormValues;
+  placeholder: string;
+  required?: boolean;
+  type?: string;
+}
 
 export function ProfileForm({ initialData, email }: ProfileFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);

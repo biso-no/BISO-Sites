@@ -28,14 +28,14 @@ import { buildContentPermissions } from "@/lib/permissions";
 const DATABASE_ID = "app";
 const BATCH_SIZE = 100;
 
-type ContentRow = {
+interface ContentRow {
   $id: string;
   campus_id?: string | null;
   department_id?: string | null;
   departmentId?: string | null;
   status?: string | null;
   translation_refs?: Array<{ $id: string } | string> | null;
-};
+}
 
 /**
  * Derive the dept team $id from a department_id string stored on a content row.

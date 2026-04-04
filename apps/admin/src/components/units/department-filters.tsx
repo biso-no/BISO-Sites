@@ -49,37 +49,37 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-type DepartmentFiltersProps = {
+interface DepartmentFiltersProps {
+  campuses: Array<{ id: string; name: string }>;
   filters: FilterState;
   isPending: boolean;
-  updateFilter: (key: keyof FilterState, value: any) => void;
   resetFilters: () => void;
   setSearchTerm: (term: string) => void;
-  campuses: Array<{ id: string; name: string }>;
   types: string[];
-};
+  updateFilter: (key: keyof FilterState, value: any) => void;
+}
 
-type FilterControlsProps = {
-  filters: FilterState;
+interface FilterControlsProps {
+  activeFilterCount: number;
   campuses: Array<{ id: string; name: string }>;
+  filters: FilterState;
+  isPending: boolean;
+  resetFilters: () => void;
   types: string[];
   updateFilter: (key: keyof FilterState, value: unknown) => void;
-  resetFilters: () => void;
-  activeFilterCount: number;
-  isPending: boolean;
-};
+}
 
 type MobileFiltersProps = FilterControlsProps & {
   showMobileFilters: boolean;
   setShowMobileFilters: (value: boolean) => void;
 };
 
-type ActiveFiltersProps = {
-  filters: FilterState;
+interface ActiveFiltersProps {
   campuses: Array<{ id: string; name: string }>;
   clearSearch: () => void;
+  filters: FilterState;
   updateFilter: (key: keyof FilterState, value: unknown) => void;
-};
+}
 
 function DesktopFilters({
   filters,

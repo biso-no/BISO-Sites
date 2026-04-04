@@ -5,20 +5,20 @@ import { useAI } from "../provider";
 import type { AssistantAction, AssistantMessage } from "../types";
 import { streamResponse } from "../utils/streaming";
 
-type UseAssistantOptions = {
+interface UseAssistantOptions {
   /** API endpoint for the assistant */
   api: string;
-  /** Called when navigation action is triggered */
-  onNavigate?: (path: string) => void;
   /** Called when form field should be updated */
   onFormField?: (fieldId: string, value: string, streaming?: boolean) => void;
+  /** Called when navigation action is triggered */
+  onNavigate?: (path: string) => void;
   /** Called when toast should be shown */
   onToast?: (
     title: string,
     description?: string,
     variant?: "default" | "destructive"
   ) => void;
-};
+}
 
 export function useAssistant({
   api,

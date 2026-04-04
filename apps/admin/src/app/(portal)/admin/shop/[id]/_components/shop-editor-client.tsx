@@ -29,12 +29,12 @@ type ProductWithTranslations = WebshopProducts & {
   translation_refs: ContentTranslations[];
 };
 
-type ShopEditorClientProps = {
-  product: ProductWithTranslations | null;
+interface ShopEditorClientProps {
   campuses: Campus[];
   isNew: boolean;
   labels: Record<string, string>;
-};
+  product: ProductWithTranslations | null;
+}
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },

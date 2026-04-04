@@ -61,11 +61,11 @@ function getAttendees(metadata: unknown): string | null {
   return null;
 }
 
-type EventCardProps = {
+interface EventCardProps {
   event: Events;
   index: number;
   registerLabel: string;
-};
+}
 
 function EventCard({ event, index, registerLabel }: EventCardProps) {
   const isFeatured = index === 0;
@@ -157,9 +157,9 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
   );
 }
 
-type EventsSectionProps = {
+interface EventsSectionProps {
   events: Events[];
-};
+}
 
 export function EventsSection({ events }: EventsSectionProps) {
   const t = useTranslations("home.events");

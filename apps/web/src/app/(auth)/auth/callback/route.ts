@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
   const fetchedCookies = await cookies();
   console.log("Setting cookies");
-  const setCookie = fetchedCookies.set("a_session_biso", session.secret, {
+  const _setCookie = fetchedCookies.set("a_session_biso", session.secret, {
     path: "/",
     httpOnly: true,
     sameSite: isProd ? "none" : "lax",

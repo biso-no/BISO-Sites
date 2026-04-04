@@ -9,10 +9,10 @@ import {
 } from "@repo/ui/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-type UserStatusProps = {
-  isActive: boolean;
+interface UserStatusProps {
   compact?: boolean;
-};
+  isActive: boolean;
+}
 
 export function UserStatus({ isActive, compact = false }: UserStatusProps) {
   return (

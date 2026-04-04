@@ -7,15 +7,15 @@ import { getUserAuthContext } from "@/lib/authorization";
 import { getCampusManagementTeamId } from "@/lib/campus-constants";
 import { assertWriteAccess } from "@/lib/utils/authorization";
 
-export type CreatePartnerInput = {
+export interface CreatePartnerInput {
+  campus_id?: string | null;
+  description_en?: string | null;
+  description_nb?: string | null;
+  is_active?: boolean;
+  logo_url?: string | null;
   name: string;
   website_url?: string | null;
-  logo_url?: string | null;
-  description_nb?: string | null;
-  description_en?: string | null;
-  campus_id?: string | null;
-  is_active?: boolean;
-};
+}
 
 export type UpdatePartnerInput = Partial<CreatePartnerInput>;
 

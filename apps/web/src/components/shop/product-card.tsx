@@ -17,12 +17,12 @@ import {
   getDisplayPrice,
 } from "@/lib/types/webshop";
 
-type ProductCardProps = {
-  product: WebshopProducts;
+interface ProductCardProps {
   index: number;
   isMember?: boolean;
   onViewDetails: (product: WebshopProducts) => void;
-};
+  product: WebshopProducts;
+}
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",

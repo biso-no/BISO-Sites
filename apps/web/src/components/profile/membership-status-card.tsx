@@ -25,24 +25,24 @@ type MembershipCheckResult =
     }
   | { ok: false; error: string };
 
-type MembershipPayload = {
-  membership?: { status?: string };
+interface MembershipPayload {
   active?: boolean;
-  studentId?: number;
   categories?: number[];
   error?: string;
-};
+  membership?: { status?: string };
+  studentId?: number;
+}
 
-type StatusVisuals = {
+interface StatusVisuals {
   actionLabel: string;
   badgeClassName: string;
   badgeLabel: string;
   badgeVariant: "secondary" | "destructive";
+  IconComponent: LucideIcon;
   iconBackgroundClassName: string;
   iconClassName: string;
-  IconComponent: LucideIcon;
   showPulse: boolean;
-};
+}
 
 const MEMBERSHIP_ROUTE = "/membership";
 

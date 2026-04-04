@@ -21,12 +21,12 @@ export const metadata: Metadata = {
   },
 };
 
-type NewsPageProps = {
+interface NewsPageProps {
   searchParams: Promise<{
     category?: string;
     search?: string;
   }>;
-};
+}
 
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const { category, search } = await searchParams;

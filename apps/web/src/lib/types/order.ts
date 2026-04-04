@@ -8,18 +8,18 @@ type OrderStatus =
   | "failed"
   | "refunded";
 
-export type OrderItem = {
+export interface OrderItem {
+  custom_field_responses?: Record<string, string>;
+  custom_fields?: { id: string; label: string; value: string }[];
   product_id: string;
   product_slug?: string;
+  quantity: number;
   title?: string;
   unit_price: number;
-  quantity: number;
   variation_id?: string;
   variation_name?: string;
   variation_price?: number;
-  custom_field_responses?: Record<string, string>;
-  custom_fields?: { id: string; label: string; value: string }[];
-};
+}
 
 interface Order extends Models.Row {
   buyer_email?: string;

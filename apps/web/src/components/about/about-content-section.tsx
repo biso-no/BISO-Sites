@@ -3,10 +3,10 @@
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
-type AboutContentSectionProps = {
+interface AboutContentSectionProps {
   children: ReactNode;
   className?: string;
-};
+}
 
 export function AboutContentSection({
   children,
@@ -29,11 +29,11 @@ export function AboutContentSection({
   );
 }
 
-type ContentBlockProps = {
-  title?: string;
+interface ContentBlockProps {
   children: ReactNode;
   icon?: ReactNode;
-};
+  title?: string;
+}
 
 export function ContentBlock({ title, children, icon }: ContentBlockProps) {
   return (
@@ -61,9 +61,9 @@ export function ContentBlock({ title, children, icon }: ContentBlockProps) {
   );
 }
 
-type HighlightListProps = {
+interface HighlightListProps {
   items: string[];
-};
+}
 
 export function HighlightList({ items }: HighlightListProps) {
   return (

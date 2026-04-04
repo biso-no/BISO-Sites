@@ -6,9 +6,9 @@ import { CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseEventMetadata } from "@/lib/types/event";
 
-type EventContentProps = {
+interface EventContentProps {
   event: Events;
-};
+}
 
 export function EventContent({ event }: EventContentProps) {
   const t = useTranslations("events");

@@ -223,7 +223,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Create user document in Appwrite
-    const appwriteUser = await adminDb.createRow("app", "user", graphUser.id, {
+    const _appwriteUser = await adminDb.createRow("app", "user", graphUser.id, {
       name: displayName,
       email: upn,
       campus_id: input.campusId,

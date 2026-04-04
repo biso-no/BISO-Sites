@@ -7,33 +7,33 @@ import type { Orders } from "@repo/api/types/appwrite";
 const DATABASE_ID = "app";
 const ORDERS_TABLE = "orders";
 
-type ExportOrdersParams = {
-  startDate?: string;
-  endDate?: string;
-  /** Filter by order status. "all" includes all statuses. */
-  status?: "all" | "paid" | "authorized" | "pending" | "cancelled";
+interface ExportOrdersParams {
   /** Filter by campus ID */
   campusId?: string;
+  endDate?: string;
   /** Export format - "standard" for regular export, "booking" for 24SO-ready format */
   format?: "standard" | "booking";
-};
+  startDate?: string;
+  /** Filter by order status. "all" includes all statuses. */
+  status?: "all" | "paid" | "authorized" | "pending" | "cancelled";
+}
 
-type CsvResult = {
-  filename: string;
+interface CsvResult {
   content: string;
-};
+  filename: string;
+}
 
-type ParsedOrderItem = {
+interface ParsedOrderItem {
+  category?: string;
+  name?: string;
+  price?: number;
   product_id?: string;
   product_slug?: string;
-  title?: string;
-  name?: string;
-  quantity?: number;
-  unit_price?: number;
-  price?: number;
-  category?: string;
   product_type?: string;
-};
+  quantity?: number;
+  title?: string;
+  unit_price?: number;
+}
 
 export async function exportOrdersToCSV(
   params: ExportOrdersParams
@@ -260,13 +260,13 @@ const expandOrderItems = (
   return itemRows;
 };
 
-type BookingOrderContext = {
-  subtotal: number;
-  discount: number;
-  total: number;
+interface BookingOrderContext {
   campusId: string;
+  discount: number;
   membershipApplied: string;
-};
+  subtotal: number;
+  total: number;
+}
 
 const expandOrderItemsBooking = (
   items: ParsedOrderItem[],

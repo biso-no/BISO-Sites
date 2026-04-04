@@ -8,9 +8,9 @@ import {
 } from "@repo/ui/components/ui/tooltip";
 import { Sparkles } from "lucide-react";
 
-type AssistantTriggerProps = {
+interface AssistantTriggerProps {
   onClick: () => void;
-};
+}
 
 export function AssistantTrigger({ onClick }: AssistantTriggerProps) {
   return (

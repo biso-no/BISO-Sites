@@ -4,16 +4,16 @@ import type { CustomField } from "@puckeditor/core";
 import { TablePicker } from "@repo/ui/components/table-picker";
 import { getTables } from "../get-tables";
 
-export type TablePickerValue = {
-  table?: string;
+export interface TablePickerValue {
   filters?: {
     field: string;
     operator: string;
     value: unknown;
   }[];
-  operation?: "list" | "count" | "sum";
   limit?: number;
-};
+  operation?: "list" | "count" | "sum";
+  table?: string;
+}
 
 export function tablePickerField({
   label = "Table",

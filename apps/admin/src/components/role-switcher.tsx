@@ -9,11 +9,11 @@ import {
 } from "@repo/ui/components/ui/select";
 import { DEPARTMENT_ROLE, ROLES } from "@/lib/roles";
 
-type RoleSwitcherProps = {
+interface RoleSwitcherProps {
   roles: string[];
   selectedRole: string;
   setSelectedRole: (role: string) => void;
-};
+}
 
 export function RoleSwitcher({
   roles,

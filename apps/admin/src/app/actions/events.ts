@@ -63,34 +63,34 @@ function transformEventData(event: Events): AdminEvent {
   } as AdminEvent;
 }
 
-export type ListEventsParams = {
-  limit?: number;
-  status?: string;
+export interface ListEventsParams {
   campus?: string;
-  search?: string;
+  limit?: number;
   locale?: "en" | "no";
-};
+  search?: string;
+  status?: string;
+}
 
-export type CreateEventData = {
-  slug?: string;
-  status: "draft" | "published" | "cancelled";
+export interface CreateEventData {
   campus_id: string;
-  start_date?: string;
-  end_date?: string;
-  location?: string;
-  price?: number;
-  ticket_url?: string;
-  image?: string;
-  member_only?: boolean;
   collection_id?: string;
-  is_collection?: boolean;
   collection_pricing?: "bundle" | "individual";
   department_id?: string;
+  end_date?: string;
+  image?: string;
+  is_collection?: boolean;
+  location?: string;
+  member_only?: boolean;
   metadata?: {
     start_time?: string;
     end_time?: string;
     units?: string[];
   };
+  price?: number;
+  slug?: string;
+  start_date?: string;
+  status: "draft" | "published" | "cancelled";
+  ticket_url?: string;
   translations: {
     en: {
       title: string;
@@ -101,28 +101,28 @@ export type CreateEventData = {
       description: string;
     };
   };
-};
+}
 
-export type UpdateEventData = {
-  slug?: string;
-  status?: "draft" | "published" | "cancelled";
+export interface UpdateEventData {
   campus_id?: string;
-  start_date?: string;
-  end_date?: string;
-  location?: string;
-  price?: number;
-  ticket_url?: string;
-  image?: string;
-  member_only?: boolean;
   collection_id?: string;
-  is_collection?: boolean;
   collection_pricing?: "bundle" | "individual";
   department_id?: string;
+  end_date?: string;
+  image?: string;
+  is_collection?: boolean;
+  location?: string;
+  member_only?: boolean;
   metadata?: {
     start_time?: string;
     end_time?: string;
     units?: string[];
   };
+  price?: number;
+  slug?: string;
+  start_date?: string;
+  status?: "draft" | "published" | "cancelled";
+  ticket_url?: string;
   translations?: {
     en: {
       title: string;
@@ -133,7 +133,7 @@ export type UpdateEventData = {
       description: string;
     };
   };
-};
+}
 
 type AdminDbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
 type EventStatus = CreateEventData["status"];

@@ -45,10 +45,10 @@ import {
   mapFormValuesToPayload,
 } from "./schema";
 
-type EventEditorProps = {
-  event?: AdminEvent | null;
+interface EventEditorProps {
   campuses: Campus[];
-};
+  event?: AdminEvent | null;
+}
 
 export default function EventEditor({ event, campuses }: EventEditorProps) {
   const router = useRouter();

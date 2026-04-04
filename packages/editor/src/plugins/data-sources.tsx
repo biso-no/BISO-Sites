@@ -17,10 +17,10 @@ import { TABLE_SCHEMAS } from "../data/schemas";
  * Root-level data source configuration stored in root.props._dataSources.
  * Keys are table IDs from TABLE_SCHEMAS.
  */
-type DataSourceConfig = {
+interface DataSourceConfig {
   enabled: boolean;
   label: string;
-};
+}
 
 type DataSourcesMap = Record<string, DataSourceConfig>;
 

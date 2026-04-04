@@ -8,20 +8,12 @@ import type {
   ProductWithTranslations,
 } from "@/lib/types/product";
 
-type CartItem = {
-  id: string;
-  productId: string;
-  slug: string;
-  title: string;
-  quantity: number;
-  unitPrice: number;
+interface CartItem {
   basePrice: number;
-  variation?: {
-    id?: string;
-    name?: string;
-    priceModifier?: number;
-    description?: string;
-  };
+  customFieldDefinitions?: Record<
+    string,
+    { label: string; required?: boolean }
+  >;
   customFieldResponses?: Record<string, string>;
   customFields?: {
     id: string;
@@ -29,23 +21,31 @@ type CartItem = {
     value: string;
     required?: boolean;
   }[];
-  customFieldDefinitions?: Record<
-    string,
-    { label: string; required?: boolean }
-  >;
+  id: string;
   image?: string;
   maxPerOrder?: number;
   maxPerUser?: number;
-  memberDiscountPercent?: number;
   memberDiscountEnabled?: boolean;
-};
+  memberDiscountPercent?: number;
+  productId: string;
+  quantity: number;
+  slug: string;
+  title: string;
+  unitPrice: number;
+  variation?: {
+    id?: string;
+    name?: string;
+    priceModifier?: number;
+    description?: string;
+  };
+}
 
-type AddItemInput = {
+interface AddItemInput {
+  customFieldResponses?: Record<string, string>;
   product: ProductWithTranslations;
   quantity?: number;
   variation?: ProductVariation;
-  customFieldResponses?: Record<string, string>;
-};
+}
 
 type ProductWithOptionalFields = ProductWithTranslations & {
   custom_fields?: ProductCustomField[];
@@ -60,14 +60,14 @@ type ProductWithOptionalFields = ProductWithTranslations & {
 
 type Variation = ProductVariation;
 
-type CartState = {
-  items: CartItem[];
+interface CartState {
   addItem: (input: AddItemInput) => { success: boolean; message?: string };
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
-  setCustomFieldResponse: (id: string, fieldId: string, value: string) => void;
   clear: () => void;
-};
+  items: CartItem[];
+  removeItem: (id: string) => void;
+  setCustomFieldResponse: (id: string, fieldId: string, value: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+}
 
 const STORAGE_KEY = "biso-webshop-cart";
 

@@ -4,7 +4,7 @@ import { Bell, Globe, Lock, Shield, Users, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-type SettingsClientProps = {
+interface SettingsClientProps {
   isGlobalAdmin: boolean;
   labels: {
     save: string;
@@ -33,7 +33,7 @@ type SettingsClientProps = {
     };
     saveSuccess: string;
   };
-};
+}
 
 type Section =
   | "general"

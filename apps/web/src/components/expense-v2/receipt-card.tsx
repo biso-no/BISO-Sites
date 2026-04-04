@@ -18,12 +18,12 @@ import Image from "next/image";
 import { useState } from "react";
 import type { Receipt, ReceiptStatus } from "./store";
 
-type ReceiptCardProps = {
-  receipt: Receipt;
-  onUpdate: (updates: Partial<Receipt>) => void;
-  onRemove: () => void;
+interface ReceiptCardProps {
   index: number;
-};
+  onRemove: () => void;
+  onUpdate: (updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+}
 
 function StatusIndicator({ status }: { status: ReceiptStatus }) {
   const configs: Record<

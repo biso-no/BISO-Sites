@@ -7,11 +7,10 @@ const SITE_URL_REGEX = /^https?:\/\//i;
 const LEADING_SLASHES_REGEX = /^\/+/;
 const TRAILING_SLASHES_REGEX = /\/+$/;
 
-export type SharePointConfig = {
+export interface SharePointConfig {
+  authority: string;
   clientId: string;
   clientSecret: string;
-  tenantId: string;
-  authority: string;
   /**
    * Optional list of SharePoint site identifiers that the app is allowed to access.
    * Each entry can be either a full site URL (e.g., https://contoso.sharepoint.com/sites/mysite)
@@ -19,30 +18,31 @@ export type SharePointConfig = {
    * When provided, site listing will resolve only these sites instead of attempting to enumerate all sites.
    */
   siteIdentifiers?: string[];
-};
+  tenantId: string;
+}
 
-export type SharePointDocument = {
-  id: string;
-  name: string;
-  webUrl: string;
-  siteId: string;
-  siteName: string;
+export interface SharePointDocument {
+  content?: string;
+  contentType: string;
+  createdBy: string;
   driveId: string;
   folderPath: string;
-  contentType: string;
-  size: number;
+  id: string;
   lastModified: string;
-  createdBy: string;
-  content?: string;
   metadata: Record<string, any>;
-};
+  name: string;
+  siteId: string;
+  siteName: string;
+  size: number;
+  webUrl: string;
+}
 
-export type SharePointSite = {
+export interface SharePointSite {
+  displayName: string;
   id: string;
   name: string;
-  displayName: string;
   webUrl: string;
-};
+}
 
 export class SharePointService {
   private readonly msalClient: ConfidentialClientApplication;

@@ -10,15 +10,15 @@ import {
 import { Briefcase, GraduationCap, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type CampusTabsProps = {
-  locale: Locale;
+interface CampusTabsProps {
   content: {
     overview: React.ReactNode;
     students: React.ReactNode;
     partners: React.ReactNode;
     team: React.ReactNode;
   };
-};
+  locale: Locale;
+}
 
 export function CampusTabs({ locale, content }: CampusTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");

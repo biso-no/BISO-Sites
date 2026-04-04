@@ -9,11 +9,11 @@ import { ArrowRight, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type ArticleCardProps = {
+interface ArticleCardProps {
   article: News;
-  variant: "featured" | "regular";
   index?: number;
-};
+  variant: "featured" | "regular";
+}
 
 const categoryColors: Record<string, string> = {
   "Press Release": "bg-brand-muted text-brand-dark border-brand-border",

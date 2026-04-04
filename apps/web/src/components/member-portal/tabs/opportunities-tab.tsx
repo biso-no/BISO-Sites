@@ -7,7 +7,7 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
 export function OpportunitiesTab() {
-  const t = useTranslations("memberPortal.opportunities"); // Assuming we have or will add this
+  const _t = useTranslations("memberPortal.opportunities"); // Assuming we have or will add this
 
   return (
     <TabsContent className="space-y-8" value="opportunities">

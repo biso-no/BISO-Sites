@@ -1,7 +1,7 @@
-type StatusToken = {
-  label: string;
+interface StatusToken {
   className: string;
-};
+  label: string;
+}
 
 type StatusTokenRecord = Record<string, StatusToken>;
 

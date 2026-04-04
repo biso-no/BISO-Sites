@@ -3,34 +3,34 @@
  * Extracted from server action to comply with architectural rules
  */
 
-export type MemberInfo = {
+export interface MemberInfo {
   companyId: number;
-  name: string;
   externalId: string | null;
+  lastSynced?: string;
   memberships: {
     id: string;
     name: string;
     categoryId: string;
     expiryDate: string;
   }[];
-  lastSynced?: string;
-};
+  name: string;
+}
 
-export type AllMembersResult = {
-  members: MemberInfo[];
-  totalCount: number;
+export interface AllMembersResult {
   activeMembershipCount: number;
   lastSynced: string | null;
-};
+  members: MemberInfo[];
+  totalCount: number;
+}
 
-export type SyncState = {
+export interface SyncState {
   job_id: string;
-  status: "idle" | "running" | "stopping" | "error" | "success";
+  message?: string;
   progress_current: number;
   progress_total: number;
-  message?: string;
+  status: "idle" | "running" | "stopping" | "error" | "success";
   updated_at: string;
-};
+}
 
 export type CategoryToMembershipMap = Map<
   string,

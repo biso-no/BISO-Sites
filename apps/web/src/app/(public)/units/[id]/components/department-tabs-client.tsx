@@ -14,10 +14,10 @@ import { OverviewTab } from "./overview-tab";
 import { ProductsTab } from "./products-tab";
 import { TeamTab } from "./team-tab";
 
-type DepartmentTabsClientProps = {
+interface DepartmentTabsClientProps {
   department: DepartmentTranslation;
   isMember: boolean;
-};
+}
 
 export function DepartmentTabsClient({
   department,

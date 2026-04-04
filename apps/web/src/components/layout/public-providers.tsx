@@ -6,7 +6,7 @@ import { CartProvider } from "@/lib/contexts/cart-context";
 import { CampusProvider } from "../context/campus";
 import { MembershipProvider } from "../context/membership-provider";
 
-type PublicProvidersProps = {
+interface PublicProvidersProps {
   children: React.ReactNode;
   /**
    * Initial membership status from server-side.
@@ -14,7 +14,7 @@ type PublicProvidersProps = {
    * instead of fetching on client mount.
    */
   initialMembershipStatus?: MembershipStatus;
-};
+}
 
 export const PublicProviders = ({
   children,

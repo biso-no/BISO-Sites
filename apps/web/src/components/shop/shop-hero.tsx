@@ -6,9 +6,9 @@ import { ChevronDown, ShoppingBag, Sparkles, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
-type ShopHeroProps = {
+interface ShopHeroProps {
   isMember?: boolean;
-};
+}
 
 export function ShopHero({ isMember = false }: ShopHeroProps) {
   const t = useTranslations("shop");

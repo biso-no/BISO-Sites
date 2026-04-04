@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 
-type CharacterCountProps = {
+interface CharacterCountProps {
+  className?: string;
   current: number;
   max: number;
-  className?: string;
-};
+}
 
 export function CharacterCount({
   current,

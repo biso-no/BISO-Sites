@@ -2,18 +2,18 @@ import { createJob, updateJob } from "@/app/actions/jobs";
 import type { AdminJob } from "@/lib/types/job";
 import type { FormValues } from "./schema";
 
-type Toast = {
+interface Toast {
   title: string;
   variant?: "default" | "destructive";
-};
+}
 
-type SubmitJobOptions = {
-  values: FormValues;
+interface SubmitJobOptions {
   job?: AdminJob | null;
-  t: (key: string) => string;
   router: { push: (url: string) => void };
   showToast: (props: Toast) => void;
-};
+  t: (key: string) => string;
+  values: FormValues;
+}
 
 export async function submitJob({
   values,

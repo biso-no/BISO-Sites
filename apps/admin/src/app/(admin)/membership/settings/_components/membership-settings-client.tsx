@@ -42,10 +42,10 @@ import {
   updateMembershipStatus,
 } from "@/app/actions/membership-settings";
 
-type MembershipSettingsClientProps = {
+interface MembershipSettingsClientProps {
   initialItems: MembershipSettingsItem[];
   onSync: () => Promise<void>;
-};
+}
 
 type FilterType =
   | "all"

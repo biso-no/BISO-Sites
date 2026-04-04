@@ -3,9 +3,9 @@ import { AllMembersClient } from "./_components/all-members-client";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = {
+interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-};
+}
 
 export default async function AllMembersPage({ searchParams }: PageProps) {
   const params = await searchParams;

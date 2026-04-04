@@ -43,14 +43,14 @@ import type {
   TagListProps,
 } from "./extras";
 
-export type DataSourceValue = {
-  table?: string;
+export interface DataSourceValue {
   filters?: { field: string; operator: string; value: unknown }[];
-  sort?: { field: string; direction: "asc" | "desc" };
   limit?: number;
-  offset?: number;
   locale?: string;
-};
+  offset?: number;
+  sort?: { field: string; direction: "asc" | "desc" };
+  table?: string;
+}
 
 /**
  * EditorMetadata is an alias for PuckMetadata (augmented in puck-augments.d.ts).
@@ -125,7 +125,7 @@ export type EditorJoinUsProps = Omit<JoinUsProps, "memberFeatures"> & {
   memberFeatures: { feature: string }[];
 };
 
-export type PricingTableProps = {
+export interface PricingTableProps {
   plans?: {
     name: string;
     price: string;
@@ -137,115 +137,115 @@ export type PricingTableProps = {
     ctaLabel?: string;
     ctaHref?: string;
   }[];
-  variant?: "cards" | "table";
-  title?: string;
   subtitle?: string;
-};
+  title?: string;
+  variant?: "cards" | "table";
+}
 
-export type CountdownProps = {
+export interface CountdownProps {
+  completedMessage?: string;
+  subtitle?: string;
   targetDate?: string;
   title?: string;
-  subtitle?: string;
-  completedMessage?: string;
   variant?: "default" | "card" | "minimal";
-};
+}
 
-export type VideoEmbedProps = {
-  url?: string;
+export interface VideoEmbedProps {
   aspect?: "16:9" | "4:3" | "1:1";
-  caption?: string;
   autoplay?: boolean;
-};
+  caption?: string;
+  url?: string;
+}
 
-export type BannerProps = {
-  message?: string;
-  variant?: "info" | "warning" | "success" | "brand";
+export interface BannerProps {
   dismissible?: boolean;
   link?: string;
   linkLabel?: string;
-};
+  message?: string;
+  variant?: "info" | "warning" | "success" | "brand";
+}
 
-export type TestimonialsProps = {
-  items?: { quote: string; author: string; role?: string; avatar?: string }[];
-  variant?: "carousel" | "grid" | "single";
+export interface TestimonialsProps {
   columns?: 2 | 3;
+  items?: { quote: string; author: string; role?: string; avatar?: string }[];
   title?: string;
-};
+  variant?: "carousel" | "grid" | "single";
+}
 
-export type DepartmentsGridProps = {
+export interface DepartmentsGridProps {
+  columns?: 2 | 3 | 4;
   dataMode?: "manual" | "dynamic";
   dataSource?: DataSourceValue;
+  items?: CollectionItem[];
   scope?: "page" | "all";
   showFilters?: boolean;
-  columns?: 2 | 3 | 4;
-  variant?: "card" | "compact";
-  title?: string;
   subtitle?: string;
-  items?: CollectionItem[];
-};
+  title?: string;
+  variant?: "card" | "compact";
+}
 
-export type EventsCalendarProps = {
+export interface EventsCalendarProps {
   dataMode?: "manual" | "dynamic";
   dataSource?: DataSourceValue;
-  view?: "calendar" | "list" | "timeline";
+  events?: EventItem[];
   showFilters?: boolean;
   title?: string;
-  events?: EventItem[];
-};
+  view?: "calendar" | "list" | "timeline";
+}
 
-export type ArticleDetailProps = {
-  dataMode?: "manual" | "dynamic";
-  dataSource?: DataSourceValue;
-  showRelated?: boolean;
-  layout?: "standard" | "wide";
-  title?: string;
+export interface ArticleDetailProps {
   author?: string;
-  date?: string;
-  image?: string;
   content?: string;
-  relatedItems?: { title: string; href: string; image?: string }[];
-};
-
-export type EventDetailProps = {
   dataMode?: "manual" | "dynamic";
   dataSource?: DataSourceValue;
-  showRegistration?: boolean;
-  showMap?: boolean;
-  title?: string;
   date?: string;
-  endDate?: string;
-  location?: string;
   image?: string;
-  description?: string;
-  ticketUrl?: string;
-  price?: string;
-};
-
-export type ContactFormProps = {
-  fields?: { name: string; label: string; type: string; required?: boolean }[];
-  contactCards?: { title: string; value: string; icon: string }[];
-  showMap?: boolean;
-  formAction?: string;
+  layout?: "standard" | "wide";
+  relatedItems?: { title: string; href: string; image?: string }[];
+  showRelated?: boolean;
   title?: string;
-  subtitle?: string;
-};
+}
 
-export type MapEmbedProps = {
+export interface EventDetailProps {
+  dataMode?: "manual" | "dynamic";
+  dataSource?: DataSourceValue;
+  date?: string;
+  description?: string;
+  endDate?: string;
+  image?: string;
+  location?: string;
+  price?: string;
+  showMap?: boolean;
+  showRegistration?: boolean;
+  ticketUrl?: string;
+  title?: string;
+}
+
+export interface ContactFormProps {
+  contactCards?: { title: string; value: string; icon: string }[];
+  fields?: { name: string; label: string; type: string; required?: boolean }[];
+  formAction?: string;
+  showMap?: boolean;
+  subtitle?: string;
+  title?: string;
+}
+
+export interface MapEmbedProps {
+  height?: string;
   lat?: number;
   lng?: number;
-  zoom?: number;
-  height?: string;
   title?: string;
-};
+  zoom?: number;
+}
 
 /** Binding config stored in Grid.dataSource when dataMode === "table" */
-export type GridDataBinding = {
+export interface GridDataBinding {
+  limit?: number;
+  sortDirection?: "asc" | "desc";
+  sortField?: string;
   tableId: string;
   tableLabel: string;
-  limit?: number;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
-};
+}
 
 /**
  * Preset layout names for the Grid component.
@@ -255,11 +255,8 @@ export type GridDataBinding = {
  */
 export type GridPreset = "cards" | "masonry" | "featured";
 
-export type GridProps = {
-  preset?: GridPreset;
+export interface GridProps {
   columns?: 2 | 3 | 4;
-  title?: string;
-  subtitle?: string;
   /** "manual" — items populated by hand; "table" — bound to a database table */
   dataMode?: "manual" | "table";
   /** Set when dataMode === "table" */
@@ -272,57 +269,60 @@ export type GridProps = {
     badge?: string;
     href?: string;
   }[];
-};
+  preset?: GridPreset;
+  subtitle?: string;
+  title?: string;
+}
 
-export type Props = {
-  Grid: GridProps;
-  Heading: HeadingProps;
-  Text: TextProps;
-  Image: PuckImageProps;
-  ButtonRow: ButtonRowProps;
-  Divider: DividerProps;
-  Hero: HeroPropsWithSlot;
+export interface Props {
   About: AboutProps;
-  JoinUs: EditorJoinUsProps;
-  News: EditorNewsProps;
-  Events: EditorEventsProps;
-  ProductsGrid: EditorProductsGridProps;
-  Section: SectionPropsWithSlot;
-  FeatureGrid: FeatureGridProps;
-  CTA: CTAProps;
-  Columns: ColumnsPropsWithSlots;
   Accordion: AccordionBlockProps;
-  Spacer: SpacerProps;
-  Tabs: TabsPropsWithSlots;
-  StatsGrid: StatsGridProps;
-  TeamGrid: TeamGridProps;
-  Timeline: TimelinePropsWithSlot;
-  LogoGrid: LogoGridProps;
-  FilterBar: FilterBarProps;
-  JobsList: EditorJobsListProps;
-  Collection: EditorCollectionProps;
-  RichText: RichTextProps;
-  PageHeader: PageHeaderProps;
-  TableOfContents: TableOfContentsProps;
-  PricingTable: PricingTableProps;
-  Countdown: CountdownProps;
-  VideoEmbed: VideoEmbedProps;
-  Banner: BannerProps;
-  Testimonials: TestimonialsProps;
-  DepartmentsGrid: DepartmentsGridProps;
-  EventsCalendar: EventsCalendarProps;
+  AlertCard: AlertCardProps;
   ArticleDetail: ArticleDetailProps;
-  EventDetail: EventDetailProps;
-  ContactForm: ContactFormProps;
-  MapEmbed: MapEmbedProps;
-  // New detail blocks
-  JobDetail: JobDetailProps;
-  ProductDetail: ProductDetailProps;
+  Banner: BannerProps;
+  ButtonRow: ButtonRowProps;
+  ChecklistCard: ChecklistCardProps;
+  Collection: EditorCollectionProps;
+  Columns: ColumnsPropsWithSlots;
   // New content blocks
   ContactCards: ContactCardsProps;
+  ContactForm: ContactFormProps;
+  Countdown: CountdownProps;
+  CTA: CTAProps;
+  DepartmentsGrid: DepartmentsGridProps;
+  Divider: DividerProps;
   DownloadList: DownloadListProps;
+  EventDetail: EventDetailProps;
+  Events: EditorEventsProps;
+  EventsCalendar: EventsCalendarProps;
+  FeatureGrid: FeatureGridProps;
+  FilterBar: FilterBarProps;
+  Grid: GridProps;
+  Heading: HeadingProps;
+  Hero: HeroPropsWithSlot;
+  Image: PuckImageProps;
+  // New detail blocks
+  JobDetail: JobDetailProps;
+  JobsList: EditorJobsListProps;
+  JoinUs: EditorJoinUsProps;
+  LogoGrid: LogoGridProps;
+  MapEmbed: MapEmbedProps;
+  News: EditorNewsProps;
   NumberedSteps: NumberedStepsProps;
+  PageHeader: PageHeaderProps;
+  PricingTable: PricingTableProps;
+  ProductDetail: ProductDetailProps;
+  ProductsGrid: EditorProductsGridProps;
+  RichText: RichTextProps;
+  Section: SectionPropsWithSlot;
+  Spacer: SpacerProps;
+  StatsGrid: StatsGridProps;
+  TableOfContents: TableOfContentsProps;
+  Tabs: TabsPropsWithSlots;
   TagList: TagListProps;
-  AlertCard: AlertCardProps;
-  ChecklistCard: ChecklistCardProps;
-};
+  TeamGrid: TeamGridProps;
+  Testimonials: TestimonialsProps;
+  Text: TextProps;
+  Timeline: TimelinePropsWithSlot;
+  VideoEmbed: VideoEmbedProps;
+}

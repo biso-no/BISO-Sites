@@ -37,7 +37,7 @@ export function AssistantSidebar() {
   const close = useCopilotStore((state) => state.close);
   const agentState = useCopilotStore((state) => state.agentState);
   const agentMessage = useCopilotStore((state) => state.agentMessage);
-  const activeHandler = useCopilotStore((state) => state.activeHandler);
+  const _activeHandler = useCopilotStore((state) => state.activeHandler);
   const setCurrentPath = useCopilotStore((state) => state.setCurrentPath);
   const router = useRouter();
   const pathname = usePathname();

@@ -4,38 +4,38 @@ import type { Campus } from "@repo/api/types/appwrite";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Models } from "node-appwrite";
 
-type RequestBody = {
+interface RequestBody {
   campusId: string;
-  per_page?: number;
-  page?: number;
   departmentId?: string;
-  verv?: string;
   includeExpired?: boolean;
-};
+  page?: number;
+  per_page?: number;
+  verv?: string;
+}
 
-type WordPressJob = {
-  id: number;
-  title: string;
-  content: string;
-  excerpt: string;
-  slug: string;
-  campus: string[];
-  department: string[];
-  verv: string[];
-  url: string;
-  date_posted: string;
-  date_modified: string;
-  expiry_date: string | null;
-  is_expired: boolean;
-  location: string | null;
-  job_type: string | null;
-  salary_range: string | null;
+interface WordPressJob {
   application_deadline: string | null;
+  campus: string[];
+  content: string;
+  date_modified: string;
+  date_posted: string;
+  department: string[];
+  excerpt: string;
+  expiry_date: string | null;
+  id: number;
+  is_expired: boolean;
   is_featured: boolean;
+  job_type: string | null;
+  location: string | null;
+  salary_range: string | null;
+  slug: string;
   thumbnail: unknown;
-};
+  title: string;
+  url: string;
+  verv: string[];
+}
 
-type WordPressJobsApiResponse = {
+interface WordPressJobsApiResponse {
   jobs: WordPressJob[];
   pagination: {
     current_page: number;
@@ -45,7 +45,7 @@ type WordPressJobsApiResponse = {
     has_next: boolean;
     has_previous: boolean;
   };
-};
+}
 
 interface CampusDocument extends Models.Document {
   name: string;

@@ -31,14 +31,14 @@ type BenefitKey =
   | "safety"
   | "businessBenefits";
 
-type StudentsPageClientProps = {
-  events: Events[];
-  jobs: Jobs[];
-  departments: Departments[];
+interface StudentsPageClientProps {
   campusData: CampusData[];
+  departments: Departments[];
+  events: Events[];
   globalBenefits: CampusData | null;
+  jobs: Jobs[];
   locale: Locale;
-};
+}
 
 const getTranslation = (
   translations: Events["translation_refs"] | Jobs["translation_refs"]

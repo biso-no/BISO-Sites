@@ -5,8 +5,12 @@ import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-type AnimatedBadgeProps = {
+interface AnimatedBadgeProps {
   children: ReactNode;
+  className?: string;
+  gradient?: boolean;
+  icon?: LucideIcon;
+  pulse?: boolean;
   variant?:
     | "default"
     | "secondary"
@@ -14,11 +18,7 @@ type AnimatedBadgeProps = {
     | "outline"
     | "success"
     | "warning";
-  icon?: LucideIcon;
-  pulse?: boolean;
-  gradient?: boolean;
-  className?: string;
-};
+}
 
 export function AnimatedBadge({
   children,

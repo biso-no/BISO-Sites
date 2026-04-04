@@ -6,10 +6,10 @@ import { useCallback } from "react";
 
 export const PAGE_SIZE = 20;
 
-type PaginationBarProps = {
-  total: number;
+interface PaginationBarProps {
   page: number;
-};
+  total: number;
+}
 
 export function PaginationBar({ total, page }: PaginationBarProps) {
   const router = useRouter();

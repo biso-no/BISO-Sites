@@ -4,9 +4,9 @@ import { getEvent } from "../../_actions/events";
 import { listCampuses } from "../../_actions/jobs";
 import { EventEditorClient } from "./_components/event-editor-client";
 
-type EventEditorPageProps = {
+interface EventEditorPageProps {
   params: Promise<{ id: string }>;
-};
+}
 
 export default async function EventEditorPage({
   params,

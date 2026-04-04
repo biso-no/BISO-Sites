@@ -41,19 +41,19 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 import { RoleSwitcher } from "./role-switcher";
 
-type AdminLayoutProps = {
+interface AdminLayoutProps {
   children: ReactNode;
-  roles: string[];
   firstName: string;
-};
+  roles: string[];
+}
 
-type NavItem = {
+interface NavItem {
   href: string;
   icon: React.ElementType;
   label: string;
   roles: string[];
   subItems?: { href: string; label: string; roles?: string[] }[];
-};
+}
 
 const SidebarItem = ({
   item,

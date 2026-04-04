@@ -1,9 +1,9 @@
 import "server-only";
 import { Buffer } from "node:buffer";
 
-type PdfTextItem = {
+interface PdfTextItem {
   str: string;
-};
+}
 
 type PdfInput = ArrayBuffer | Uint8Array | Buffer;
 

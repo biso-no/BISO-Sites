@@ -9,18 +9,18 @@ import { cn } from "@/lib/utils";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-type SaveBarProps = {
-  status: SaveStatus;
-  lastSaved?: Date | null;
+interface SaveBarProps {
+  autosaveEnabled: boolean;
+  cancelLabel?: string;
   isDirty: boolean;
   isSubmitting: boolean;
-  onSave: () => void;
-  onCancel: () => void;
-  autosaveEnabled: boolean;
+  lastSaved?: Date | null;
   onAutosaveToggle: (enabled: boolean) => void;
+  onCancel: () => void;
+  onSave: () => void;
   saveLabel?: string;
-  cancelLabel?: string;
-};
+  status: SaveStatus;
+}
 
 const STATUS_CONFIG: Record<
   SaveStatus,

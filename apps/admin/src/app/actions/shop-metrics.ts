@@ -13,38 +13,38 @@ const PUBLISHED_STATUS = "published";
 
 type TrendDirection = "up" | "down" | "flat";
 
-export type MetricTrend = {
+export interface MetricTrend {
   absolute: number;
-  percent: number;
   direction: TrendDirection;
   label: string;
-};
+  percent: number;
+}
 
-export type MetricSummary = {
-  value: number;
+export interface MetricSummary {
   trend: MetricTrend;
-};
+  value: number;
+}
 
-export type ShopMetrics = {
-  revenue: MetricSummary;
-  catalog: MetricSummary;
-  sales: MetricSummary;
+export interface ShopMetrics {
   activeCatalog: MetricSummary;
-};
+  catalog: MetricSummary;
+  revenue: MetricSummary;
+  sales: MetricSummary;
+}
 
 type DbClient = Awaited<ReturnType<typeof createSessionClient>>["db"];
 
-type SimplifiedOrder = {
-  id: string;
+interface SimplifiedOrder {
   createdAt: Date;
+  id: string;
   total: number;
-};
+}
 
-type SimplifiedProduct = {
-  id: string;
+interface SimplifiedProduct {
   createdAt: Date;
+  id: string;
   status: string;
-};
+}
 
 export async function getShopMetrics(): Promise<ShopMetrics> {
   const { db } = await createSessionClient();

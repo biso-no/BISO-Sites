@@ -23,11 +23,11 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-type EventDetailModalProps = {
+interface EventDetailModalProps {
   event: Events;
   isMember?: boolean;
   onClose: () => void;
-};
+}
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",

@@ -10,8 +10,8 @@ export interface ContentTranslation extends Models.Row {
   title: string;
 }
 
-type TranslatableContent = {
-  title: string;
+interface TranslatableContent {
   description: string;
+  title: string;
   [key: string]: any; // For additional translatable fields
-};
+}

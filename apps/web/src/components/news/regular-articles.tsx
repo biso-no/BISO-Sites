@@ -4,10 +4,10 @@ import type { News } from "@repo/api/types/appwrite";
 import { motion } from "motion/react";
 import { ArticleCard } from "./article-card";
 
-type RegularArticlesProps = {
+interface RegularArticlesProps {
   articles: News[];
   showHeader: boolean;
-};
+}
 
 export function RegularArticles({
   articles,

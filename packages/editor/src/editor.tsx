@@ -76,35 +76,35 @@ const DATA_DISPLAY_TYPES = new Set([
   "EventDetail",
 ]);
 
-export type PageEditorProps = {
-  initialData: Data;
-  /** Fallback title for Puck's header display — real title lives in initialData.root.props.title */
-  title: string;
-  /** Fallback slug for Puck's header path — real slug lives in initialData.root.props.slug */
-  slug: string;
-  locale: Locale;
+export interface PageEditorProps {
   availableLocales: Locale[];
   departments: { label: string; value: string }[];
-  status: PageStatus;
   editorContext?: EditorContext;
-  onSave: (
-    data: Data,
-    metadata: { title: string; slug: string; description?: string }
-  ) => Promise<void>;
+  initialData: Data;
+  locale: Locale;
+  onBack: () => void;
+  /** Called on every Puck onChange — used by parent for cross-locale structural sync. */
+  onDataChange?: (data: Data) => void;
+  onLocaleChange: (locale: Locale) => void;
   onPublish: (
     data: Data,
     metadata: { title: string; slug: string; description?: string }
   ) => Promise<void>;
-  onLocaleChange: (locale: Locale) => void;
-  onBack: () => void;
+  onSave: (
+    data: Data,
+    metadata: { title: string; slug: string; description?: string }
+  ) => Promise<void>;
   onTranslate?: (
     data: Data,
     metadata: { title: string; slug: string; description?: string },
     targetLocale: Locale
   ) => Promise<void>;
-  /** Called on every Puck onChange — used by parent for cross-locale structural sync. */
-  onDataChange?: (data: Data) => void;
-};
+  /** Fallback slug for Puck's header path — real slug lives in initialData.root.props.slug */
+  slug: string;
+  status: PageStatus;
+  /** Fallback title for Puck's header display — real title lives in initialData.root.props.title */
+  title: string;
+}
 
 export function PageEditor({
   initialData,
@@ -220,7 +220,7 @@ export function PageEditor({
 
   const dynamicConfig = useMemo(() => {
     const user = editorContext?.user;
-    const isDeptUser = isDepartmentUser(user);
+    const _isDeptUser = isDepartmentUser(user);
 
     // Campus field: global admins see all options; everyone else gets a
     // role-locked badge showing which campus they belong to.

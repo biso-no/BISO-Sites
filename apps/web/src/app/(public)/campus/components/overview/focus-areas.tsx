@@ -4,10 +4,10 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Award } from "lucide-react";
 import { motion } from "motion/react";
 
-type FocusAreasProps = {
+interface FocusAreasProps {
   campusMetadata: CampusMetadata | null;
   locale: Locale;
-};
+}
 
 export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
   const focusAreas = campusMetadata

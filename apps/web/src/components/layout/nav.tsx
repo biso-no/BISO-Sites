@@ -21,12 +21,12 @@ import { useCampus } from "@/components/context/campus";
 import { SelectCampus } from "@/components/select-campus";
 import { LocaleSwitcher } from "../locale-switcher";
 
-type NavigationProps = {
+interface NavigationProps {
+  onApplyClick?: () => void;
   onEventsClick?: () => void;
   onNewsClick?: () => void;
-  onApplyClick?: () => void;
   onShopClick?: () => void;
-};
+}
 
 export function Navigation({
   onEventsClick,

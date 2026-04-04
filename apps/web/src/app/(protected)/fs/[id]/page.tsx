@@ -46,11 +46,11 @@ const statusConfig = {
   },
 };
 
-type ExpenseDetailsProps = {
+interface ExpenseDetailsProps {
   params: Promise<{
     id: string;
   }>;
-};
+}
 
 async function ExpenseDetails({ expenseId }: { expenseId: string }) {
   const result = await getExpenseById(expenseId);

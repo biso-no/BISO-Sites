@@ -4,25 +4,21 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Locale, WebshopProducts } from "@repo/api/types/appwrite";
 
-type ListProductsParams = {
-  limit?: number;
-  status?: string;
+interface ListProductsParams {
   campus?: string;
   category?: string;
+  limit?: number;
   locale?: "en" | "no";
   memberOnly?: boolean;
-};
+  status?: string;
+}
 
-type CreateProductData = {
-  slug: string;
-  status: "draft" | "published" | "closed";
+interface CreateProductData {
   campus_id: string;
   category: string;
-  regular_price: number;
-  member_price?: number;
-  member_only?: boolean;
   image?: string;
-  stock?: number;
+  member_only?: boolean;
+  member_price?: number;
   metadata?: {
     product_options?: Array<{
       type: "select" | "input";
@@ -32,6 +28,10 @@ type CreateProductData = {
       placeholder?: string;
     }>;
   };
+  regular_price: number;
+  slug: string;
+  status: "draft" | "published" | "closed";
+  stock?: number;
   translations: {
     en?: {
       title: string;
@@ -44,7 +44,7 @@ type CreateProductData = {
       short_description?: string;
     };
   };
-};
+}
 
 export async function listProducts(
   params: ListProductsParams = {}

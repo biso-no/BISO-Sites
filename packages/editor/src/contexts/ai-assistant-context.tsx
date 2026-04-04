@@ -16,25 +16,13 @@ export type AssistAction =
   | "translate-en"
   | "translate-no";
 
-export type AiAssistCallbacks = {
-  onToken: (token: string) => void;
+export interface AiAssistCallbacks {
   onComplete: (fullText: string) => void;
   onError?: (error: Error) => void;
-};
+  onToken: (token: string) => void;
+}
 
-export type AiAssistantContextValue = {
-  /**
-   * Generate or modify Puck canvas content via JSONL streaming patches.
-   * Used for: page generation, improve-block actions.
-   *
-   * @param prompt - Natural language instruction
-   * @param selectedBlockIndex - Optional index override for targeted block edits
-   */
-  generate: (prompt: string, selectedBlockIndex?: number) => Promise<void>;
-
-  /** True while canvas generation is streaming */
-  isStreaming: boolean;
-
+export interface AiAssistantContextValue {
   /** Abort any active canvas generation */
   abort: () => void;
 
@@ -47,9 +35,20 @@ export type AiAssistantContextValue = {
     content: string,
     callbacks: AiAssistCallbacks
   ) => Promise<void>;
+  /**
+   * Generate or modify Puck canvas content via JSONL streaming patches.
+   * Used for: page generation, improve-block actions.
+   *
+   * @param prompt - Natural language instruction
+   * @param selectedBlockIndex - Optional index override for targeted block edits
+   */
+  generate: (prompt: string, selectedBlockIndex?: number) => Promise<void>;
 
   /** True while a text assist operation is running */
   isAssisting: boolean;
+
+  /** True while canvas generation is streaming */
+  isStreaming: boolean;
 
   /**
    * Called by the AI assistant plugin panel on mount/unmount to register
@@ -63,7 +62,7 @@ export type AiAssistantContextValue = {
    * Pass null to unregister (called on plugin unmount).
    */
   onDataReady: (handler: ((data: Data) => void) | null) => void;
-};
+}
 
 export const AiAssistantContext = createContext<AiAssistantContextValue | null>(
   null

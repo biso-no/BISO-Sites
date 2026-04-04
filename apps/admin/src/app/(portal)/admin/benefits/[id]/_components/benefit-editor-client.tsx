@@ -21,12 +21,12 @@ import {
 } from "../../../_components/portal-fields";
 import { PreviewPanel } from "../../../_components/preview-panel";
 
-type BenefitEditorClientProps = {
+interface BenefitEditorClientProps {
   benefit: CampusBenefits | null;
   campuses: Campus[];
   isNew: boolean;
   labels: Record<string, string>;
-};
+}
 
 const KIND_OPTIONS = [
   { value: "offer", label: "Offer" },

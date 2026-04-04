@@ -1,29 +1,29 @@
 import { create } from "zustand";
 import type { User } from "@/lib/types/user";
 
-type UserTableState = {
-  users: User[];
-  filteredUsers: User[];
-  searchTerm: string;
-  filterRole: string;
+interface UserTableState {
   currentPage: number;
-  totalPages: number;
-  usersPerPage: number;
-  selectedUsers: string[];
-  sortField: keyof User | null;
-  sortDirection: "asc" | "desc";
+  filteredUsers: User[];
+  filterRole: string;
   isLoading: boolean;
+  searchTerm: string;
+  selectAllUsers: (select: boolean) => void;
+  selectedUsers: string[];
+  setCurrentPage: (page: number) => void;
+  setFilterRole: (role: string) => void;
+  setIsLoading: (loading: boolean) => void;
+  setSearchTerm: (term: string) => void;
+  setSorting: (field: keyof User | null, direction: "asc" | "desc") => void;
 
   // Actions
   setUsers: (users: User[]) => void;
-  setSearchTerm: (term: string) => void;
-  setFilterRole: (role: string) => void;
-  setCurrentPage: (page: number) => void;
+  sortDirection: "asc" | "desc";
+  sortField: keyof User | null;
   toggleUserSelection: (userId: string) => void;
-  selectAllUsers: (select: boolean) => void;
-  setSorting: (field: keyof User | null, direction: "asc" | "desc") => void;
-  setIsLoading: (loading: boolean) => void;
-};
+  totalPages: number;
+  users: User[];
+  usersPerPage: number;
+}
 
 export const useUserStore = create<UserTableState>((set) => ({
   users: [],

@@ -15,10 +15,10 @@ import { toast } from "sonner";
 import { uploadProductImage } from "@/app/actions/products";
 import { cn } from "@/lib/utils";
 
-type ProductImagesProps = {
+interface ProductImagesProps {
   images: string[];
   onChange: (next: string[]) => void;
-};
+}
 
 export default function ImageUploadCard({
   images = [],

@@ -6,7 +6,10 @@ import {
   grantTeamContentAccess,
 } from "./team-provisioning";
 
-type AzureGroup = { id: string; name: string };
+interface AzureGroup {
+  id: string;
+  name: string;
+}
 
 /**
  * Derive a deterministic Appwrite team $id from the Azure displayName.

@@ -16,11 +16,11 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { getCampusWithDepartments } from "@/app/actions/campus";
 
-type CampusStepProps = {
+interface CampusStepProps {
   campuses: Array<{ $id: string; name: string }>;
-  onNext: (data: { campusId: string; departmentId: string }) => void;
   onBack: () => void;
-};
+  onNext: (data: { campusId: string; departmentId: string }) => void;
+}
 
 export function CampusStep({ campuses, onNext, onBack }: CampusStepProps) {
   const [selectedCampus, setSelectedCampus] = useState("");

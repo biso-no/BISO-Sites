@@ -8,22 +8,22 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import { useMemo } from "react";
 
-type EventFormData = {
-  slug: string;
-  status: "draft" | "published" | "cancelled";
+interface EventFormData {
   campus_id: string;
-  start_date?: string;
   end_date?: string;
-  location?: string;
-  price?: number;
-  ticket_url?: string;
   image?: string;
+  location?: string;
   member_only?: boolean;
   metadata?: {
     start_time?: string;
     end_time?: string;
     images?: string[];
   };
+  price?: number;
+  slug: string;
+  start_date?: string;
+  status: "draft" | "published" | "cancelled";
+  ticket_url?: string;
   translations: {
     en: {
       title: string;
@@ -34,12 +34,12 @@ type EventFormData = {
       description: string;
     };
   };
-};
+}
 
-type EventPreviewProps = {
+interface EventPreviewProps {
   data: EventFormData;
   locale: "en" | "no";
-};
+}
 
 // Helper functions moved outside component to reduce complexity
 const formatPrice = (price: number) =>

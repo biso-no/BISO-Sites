@@ -11,16 +11,16 @@ import {
   YAxis,
 } from "recharts";
 
-type ActivityEntry = {
+interface ActivityEntry {
   $createdAt: string;
   action?: string | null;
   resource_type?: string | null;
-};
+}
 
-type ContentActivityChartProps = {
+interface ContentActivityChartProps {
   activity: ActivityEntry[];
   days?: number;
-};
+}
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });

@@ -16,11 +16,11 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { uploadDepartmentHero } from "@/lib/actions/departments";
 
-type HeroUploadPreviewProps = {
+interface HeroUploadPreviewProps {
+  departmentName: string;
   heroUrl?: string;
   onChange: (url: string) => void;
-  departmentName: string;
-};
+}
 
 const DEFAULT_HERO_URL =
   "https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso";

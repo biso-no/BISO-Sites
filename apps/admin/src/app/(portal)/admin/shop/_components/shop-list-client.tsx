@@ -17,7 +17,7 @@ type ProductWithTranslations = WebshopProducts & {
   translation_refs: ContentTranslations[];
 };
 
-type ShopListClientProps = {
+interface ShopListClientProps {
   initialProducts: ProductWithTranslations[];
   labels: {
     empty: string;
@@ -33,7 +33,7 @@ type ShopListClientProps = {
     deleteConfirm: string;
     lowStock: string;
   };
-};
+}
 
 export function ShopListClient({
   initialProducts,

@@ -3,16 +3,16 @@ import { z } from "zod";
 // Lazy import heavy indexing service to reduce initial bundle size
 import { documentClassifier } from "./document-classifier";
 
-export type RagSearchResult = {
-  text: string;
-  source: string;
-  title: string;
-  site: string;
+export interface RagSearchResult {
+  documentViewerUrl?: string;
   lastModified: string;
   score: number;
-  documentViewerUrl?: string;
+  site: string;
+  source: string;
+  text: string;
+  title: string;
   webUrl?: string;
-};
+}
 
 // Helper functions for language-aware responses
 function getLanguageInfo(results: any[], _queryLanguage: string) {

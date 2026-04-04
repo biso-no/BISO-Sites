@@ -28,7 +28,7 @@ export async function runProvisionExistingTeams(): Promise<{
   let errors = 0;
 
   // Fetch all teams (paginate if needed)
-  let offset = 0;
+  let _offset = 0;
   const BATCH = 100;
 
   while (true) {
@@ -49,7 +49,7 @@ export async function runProvisionExistingTeams(): Promise<{
       }
     }
 
-    offset += BATCH;
+    _offset += BATCH;
     if (page.teams.length < BATCH) {
       break;
     }

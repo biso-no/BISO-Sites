@@ -7,33 +7,33 @@
 import { getValidSession } from "./auth";
 import { createAuthenticatedClient } from "./client";
 
-export type InvoiceRow = {
-  ProductId: number;
-  Price: number;
-  Quantity: number;
-  Name?: string;
-  DiscountRate?: number;
+export interface InvoiceRow {
   DepartmentId?: number;
-};
+  DiscountRate?: number;
+  Name?: string;
+  Price: number;
+  ProductId: number;
+  Quantity: number;
+}
 
-export type InvoiceOrder = {
-  OrderId?: number;
+export interface InvoiceOrder {
   CustomerId: number;
-  OrderStatus?: "None" | "Registered" | "Invoiced" | "PartlyInvoiced";
-  DateOrdered?: string;
   DateInvoiced?: string;
-  PaymentTime?: number;
+  DateOrdered?: string;
   DeliveryMethod?: string;
-  Note?: string;
-  OurReference?: string;
-  YourReference?: string;
+  DepartmentId?: number;
   InvoiceRows?: {
     InvoiceRow: InvoiceRow | InvoiceRow[];
   };
-  DepartmentId?: number;
-};
+  Note?: string;
+  OrderId?: number;
+  OrderStatus?: "None" | "Registered" | "Invoiced" | "PartlyInvoiced";
+  OurReference?: string;
+  PaymentTime?: number;
+  YourReference?: string;
+}
 
-export type SaveInvoicesResult = {
+export interface SaveInvoicesResult {
   SaveInvoicesResult?: {
     InvoiceOrder?: InvoiceOrder | InvoiceOrder[];
     APIException?: {
@@ -41,7 +41,7 @@ export type SaveInvoicesResult = {
       Message?: string;
     };
   };
-};
+}
 
 /**
  * Campus to 24SevenOffice DepartmentId mapping
@@ -62,13 +62,13 @@ export const CAMPUS_NAMES: Record<string, string> = {
   "5": "National",
 };
 
-export type CreateMembershipInvoiceParams = {
+export interface CreateMembershipInvoiceParams {
+  campusId: string;
   customerId: number;
+  price: number;
   productId: number;
   productName: string;
-  price: number;
-  campusId: string;
-};
+}
 
 /**
  * Create a membership invoice in 24SevenOffice

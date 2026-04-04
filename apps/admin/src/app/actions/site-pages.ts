@@ -9,18 +9,18 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-type SitePageTranslation = {
-  title: string;
+interface SitePageTranslation {
   body: string;
-};
+  title: string;
+}
 
-type UpsertSitePageInput = {
+interface UpsertSitePageInput {
   slug: string;
   status: string;
   translations: {
     [key in Locale]?: SitePageTranslation;
   };
-};
+}
 
 export async function getSitePageTranslation(
   slug: string,

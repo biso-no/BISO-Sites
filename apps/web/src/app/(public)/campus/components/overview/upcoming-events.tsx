@@ -8,10 +8,10 @@ import { Calendar, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type UpcomingEventsProps = {
+interface UpcomingEventsProps {
   events: Events[];
   locale: Locale;
-};
+}
 
 export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
   if (!events || events.length === 0) {

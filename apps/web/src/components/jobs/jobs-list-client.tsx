@@ -20,9 +20,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { JobCard } from "./job-card";
 
-type JobsListClientProps = {
+interface JobsListClientProps {
   jobs: Jobs[];
-};
+}
 
 const getJobCategory = (metadata: Record<string, any>) =>
   metadata.category || "General";

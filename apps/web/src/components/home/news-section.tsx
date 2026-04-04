@@ -8,9 +8,9 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-type NewsClientProps = {
+interface NewsClientProps {
   news: News[];
-};
+}
 
 export function NewsSection({ news }: NewsClientProps) {
   const t = useTranslations("home.news");

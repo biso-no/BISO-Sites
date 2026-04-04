@@ -20,9 +20,9 @@ import {
   rejectProduct,
 } from "@/app/actions/shop/approval-actions";
 
-type ApprovalActionsProps = {
+interface ApprovalActionsProps {
   productId: string;
-};
+}
 
 export function ApprovalActions({ productId }: ApprovalActionsProps) {
   const [isApproving, setIsApproving] = useState(false);

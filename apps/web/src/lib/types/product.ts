@@ -5,24 +5,24 @@ import type {
 
 type ProductCustomFieldType = "text" | "textarea" | "number" | "select";
 
-export type ProductCustomField = {
+export interface ProductCustomField {
   id: string;
   label: string;
-  type: ProductCustomFieldType;
-  required?: boolean;
-  placeholder?: string;
   options?: string[];
-};
+  placeholder?: string;
+  required?: boolean;
+  type: ProductCustomFieldType;
+}
 
-export type ProductVariation = {
-  id: string;
-  name: string;
+export interface ProductVariation {
   description?: string;
+  id: string;
+  is_default?: boolean;
+  name: string;
   price_modifier?: number;
   sku?: string;
   stock_quantity?: number;
-  is_default?: boolean;
-};
+}
 
 export type Product = WebshopProducts;
 
@@ -70,38 +70,38 @@ interface ProductMetadata extends Record<string, unknown> {
   weight?: number;
 }
 
-export type ProductTranslation = {
-  title: string;
+export interface ProductTranslation {
   description: string;
-};
+  title: string;
+}
 
-export type CreateProductData = {
-  slug: string;
-  status: "draft" | "published" | "archived";
+export interface CreateProductData {
   campus_id: string;
   metadata?: ProductMetadata;
+  slug: string;
+  status: "draft" | "published" | "archived";
   translations: {
     en?: ProductTranslation;
     no?: ProductTranslation;
   };
-};
+}
 
-export type UpdateProductData = {
-  slug?: string;
-  status?: "draft" | "published" | "archived";
+export interface UpdateProductData {
   campus_id?: string;
   metadata?: ProductMetadata;
+  slug?: string;
+  status?: "draft" | "published" | "archived";
   translations?: {
     en?: ProductTranslation;
     no?: ProductTranslation;
   };
-};
+}
 
-export type ListProductsParams = {
-  status?: "draft" | "published" | "archived";
+export interface ListProductsParams {
   campus_id?: string;
-  locale?: "en" | "no";
   limit?: number;
+  locale?: "en" | "no";
   offset?: number;
   search?: string;
-};
+  status?: "draft" | "published" | "archived";
+}

@@ -5,19 +5,19 @@ import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type MetricCardProps = {
-  title: string;
-  value: number;
+interface MetricCardProps {
+  animate?: boolean;
+  className?: string;
   icon: LucideIcon;
-  iconColor?: string;
   iconBgColor?: string;
+  iconColor?: string;
+  title: string;
   trend?: {
     value: number;
     isPositive: boolean;
   };
-  className?: string;
-  animate?: boolean;
-};
+  value: number;
+}
 
 export function MetricCard({
   title,

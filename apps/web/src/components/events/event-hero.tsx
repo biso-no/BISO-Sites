@@ -11,9 +11,9 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-type EventHeroProps = {
+interface EventHeroProps {
   event: Events;
-};
+}
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",

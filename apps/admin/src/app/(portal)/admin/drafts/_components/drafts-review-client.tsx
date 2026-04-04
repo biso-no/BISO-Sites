@@ -35,7 +35,7 @@ const EDIT_PATHS = {
   news: "/admin/news",
 } as const;
 
-type DraftsReviewClientProps = {
+interface DraftsReviewClientProps {
   drafts: DraftItem[];
   labels: {
     approve: string;
@@ -47,7 +47,7 @@ type DraftsReviewClientProps = {
     rejectError: string;
     types: { job: string; event: string; news: string };
   };
-};
+}
 
 export function DraftsReviewClient({
   drafts,

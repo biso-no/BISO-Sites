@@ -18,9 +18,9 @@ const MEMBERSHIP_PRICES = {
   "three-year": 1400,
 };
 
-type NotMemberStateProps = {
+interface NotMemberStateProps {
   benefitsCount?: number;
-};
+}
 
 export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
   const t = useTranslations("memberPortal");

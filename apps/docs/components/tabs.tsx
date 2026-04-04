@@ -3,16 +3,16 @@
 import { cn } from "@repo/ui/lib/utils";
 import { type ReactNode, useState } from "react";
 
-type Tab = {
+interface Tab {
+  content: ReactNode;
   label: string;
   value: string;
-  content: ReactNode;
-};
+}
 
-type TabsProps = {
-  tabs: Tab[];
+interface TabsProps {
   defaultValue?: string;
-};
+  tabs: Tab[];
+}
 
 export function Tabs({ tabs, defaultValue }: TabsProps) {
   const [activeTab, setActiveTab] = useState(defaultValue || tabs[0]?.value);
@@ -44,9 +44,9 @@ export function Tabs({ tabs, defaultValue }: TabsProps) {
   );
 }
 
-type CodeTabsProps = {
+interface CodeTabsProps {
   children: ReactNode;
-};
+}
 
 export function CodeTabs({ children }: CodeTabsProps) {
   return <div className="my-6">{children}</div>;

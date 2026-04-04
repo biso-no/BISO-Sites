@@ -46,32 +46,32 @@ type BenefitKey = keyof Pick<
   | "businessBenefits"
 >;
 
-type BenefitConfig = {
-  key: BenefitKey;
-  title: string;
-  globalDescription: string;
-  localDescription: string;
-  icon: LucideIcon;
+interface BenefitConfig {
   colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
-};
-
-type BenefitSection = {
+  globalDescription: string;
+  icon: LucideIcon;
   key: BenefitKey;
+  localDescription: string;
   title: string;
+}
+
+interface BenefitSection {
+  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
   description: string;
   icon: LucideIcon;
   items: string[];
-  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
-};
+  key: BenefitKey;
+  title: string;
+}
 
 type BenefitLocaleSuffix = "nb" | "en";
 type LocalizedBenefitKey = `${BenefitKey}_${BenefitLocaleSuffix}`;
 
-type MembershipPageClientProps = {
+interface MembershipPageClientProps {
   campusData: CampusData[];
   globalBenefits: CampusData | null;
   locale: Locale;
-};
+}
 
 const colorSchemes = {
   blue: {

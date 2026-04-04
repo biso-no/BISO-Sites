@@ -2,10 +2,10 @@
 
 import { listPages as apiListPages } from "@repo/api/page-builder";
 
-export type PageOption = {
+export interface PageOption {
   label: string;
   value: string;
-};
+}
 
 export async function getPages(): Promise<PageOption[]> {
   const pages = await apiListPages({ limit: 100 });

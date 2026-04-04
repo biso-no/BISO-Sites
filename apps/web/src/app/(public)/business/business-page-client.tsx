@@ -49,9 +49,9 @@ const colorSchemes = {
   },
 };
 
-type BusinessPageClientProps = {
+interface BusinessPageClientProps {
   activeCampus: string | null;
-};
+}
 
 export function BusinessPageClient({ activeCampus }: BusinessPageClientProps) {
   const t = useTranslations("partner");

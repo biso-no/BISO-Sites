@@ -14,14 +14,14 @@ import type { FilterState } from "@/lib/hooks/use-departments-filter";
 
 export const revalidate = 0;
 
-type PageProps = {
+interface PageProps {
   searchParams: Promise<{
     active?: string;
     campus_id?: string;
     type?: string;
     search?: string;
   }>;
-};
+}
 
 const PAGE_SIZE = 20;
 

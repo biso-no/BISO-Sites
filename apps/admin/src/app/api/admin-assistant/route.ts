@@ -29,11 +29,9 @@ import {
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
 
-type EntityContext = {
-  type: string;
-  id: string;
-  title: string;
+interface EntityContext {
   data: Record<string, unknown>;
+  id: string;
   locale?: string;
   metadata?: {
     status?: string;
@@ -41,11 +39,11 @@ type EntityContext = {
     updatedAt?: string;
     author?: string;
   };
-};
+  title: string;
+  type: string;
+}
 
-type PageContext = {
-  section: string;
-  viewType: string;
+interface PageContext {
   breadcrumb?: string[];
   filters?: Record<string, unknown>;
   listSummary?: {
@@ -53,11 +51,14 @@ type PageContext = {
     displayedCount: number;
     items?: Array<{ id: string; title: string; status?: string }>;
   };
-};
+  section: string;
+  viewType: string;
+}
 
-type RequestBody = {
-  messages: UIMessage[];
+interface RequestBody {
   capability?: PageCapability;
+  currentPath?: string;
+  entityContext?: EntityContext;
   formFields?: Array<{
     id: string;
     name: string;
@@ -66,19 +67,18 @@ type RequestBody = {
     required?: boolean;
     currentValue?: unknown;
   }>;
-  currentPath?: string;
-  puckData?: unknown;
-  entityContext?: EntityContext;
+  messages: UIMessage[];
   pageContext?: PageContext;
-};
+  puckData?: unknown;
+}
 
-type StreamFinishParams = {
+interface StreamFinishParams {
+  finishReason: string;
   text?: string;
   toolCalls?: Array<{ toolName: string; toolCallId: string; args?: unknown }>;
   toolResults?: Array<{ toolName: string; result?: unknown }>;
-  finishReason: string;
   usage?: unknown;
-};
+}
 
 function logToolCalls(toolCalls: StreamFinishParams["toolCalls"]): void {
   if (!toolCalls?.length) {

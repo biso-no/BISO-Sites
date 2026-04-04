@@ -18,7 +18,12 @@ import { treeToPuckData } from "@repo/editor/tree-to-puck";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type AgentState, useCopilotStore } from "../stores/copilot-store";
 
-type UseStreamingPuckOptions = {
+interface UseStreamingPuckOptions {
+  /**
+   * API endpoint for streaming generation
+   * @default "/api/ai/generate-page"
+   */
+  apiEndpoint?: string;
   /**
    * Current Puck data state
    */
@@ -33,24 +38,18 @@ type UseStreamingPuckOptions = {
    * Currently selected block index in Puck (if any)
    */
   selectedBlockIndex?: number;
+}
+
+interface UseStreamingPuckReturn {
+  /**
+   * Abort current streaming
+   */
+  abort: () => void;
 
   /**
-   * API endpoint for streaming generation
-   * @default "/api/ai/generate-page"
+   * Clear current tree
    */
-  apiEndpoint?: string;
-};
-
-type UseStreamingPuckReturn = {
-  /**
-   * Current json-render tree (for preview if needed)
-   */
-  tree: UITree | null;
-
-  /**
-   * Whether content is currently streaming
-   */
-  isStreaming: boolean;
+  clear: () => void;
 
   /**
    * Any error that occurred
@@ -66,15 +65,14 @@ type UseStreamingPuckReturn = {
   generate: (prompt: string, selectedBlockIndex?: number) => Promise<void>;
 
   /**
-   * Abort current streaming
+   * Whether content is currently streaming
    */
-  abort: () => void;
-
+  isStreaming: boolean;
   /**
-   * Clear current tree
+   * Current json-render tree (for preview if needed)
    */
-  clear: () => void;
-};
+  tree: UITree | null;
+}
 
 /**
  * Hook for streaming AI-generated Puck content

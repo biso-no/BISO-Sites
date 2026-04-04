@@ -31,73 +31,97 @@ const PAGE_VIEW_LOOKBACK_DAYS = 90;
 const MONTHS_TO_TRACK = 6;
 const KNOWN_LOCALES = new Set(["en", "no"]);
 
-type PageViewMetric = { name: string; views: number };
-type UserDistributionMetric = { name: string; value: number };
-type UserGrowthMetric = { date: string; users: number };
-type TrafficSourceMetric = { name: string; value: number };
-type RecentActivityMetric = {
-  id: number;
-  user: string;
+interface PageViewMetric {
+  name: string;
+  views: number;
+}
+interface UserDistributionMetric {
+  name: string;
+  value: number;
+}
+interface UserGrowthMetric {
+  date: string;
+  users: number;
+}
+interface TrafficSourceMetric {
+  name: string;
+  value: number;
+}
+interface RecentActivityMetric {
   action: string;
-  timestamp: string;
-};
-type SystemAlertMetric = {
   id: number;
-  type: "error" | "warning" | "info" | "success";
+  timestamp: string;
+  user: string;
+}
+interface SystemAlertMetric {
+  id: number;
   message: string;
   timestamp: string;
-};
-type PostEngagementMetric = {
-  name: string;
-  likes: number;
+  type: "error" | "warning" | "info" | "success";
+}
+interface PostEngagementMetric {
   comments: number;
+  likes: number;
+  name: string;
   shares: number;
-};
-type AudienceGrowthMetric = { date: string; followers: number };
-type RevenueMetric = { name: string; revenue: number };
-type ExpenseCategoryMetric = { category: string; amount: number };
-type JobApplicationMetric = {
-  position: string;
+}
+interface AudienceGrowthMetric {
+  date: string;
+  followers: number;
+}
+interface RevenueMetric {
+  name: string;
+  revenue: number;
+}
+interface ExpenseCategoryMetric {
+  amount: number;
+  category: string;
+}
+interface JobApplicationMetric {
   applications: number;
   openPositions: number;
-};
-type EmployeeDistributionMetric = { name: string; value: number };
+  position: string;
+}
+interface EmployeeDistributionMetric {
+  name: string;
+  value: number;
+}
 
-export type DashboardMetrics = {
-  // Count metrics (optimized with $sequence)
-  totalUsers: number;
-  totalPageViews: number;
-  totalOrders: number;
-  totalJobApplications: number;
-  // Detailed metrics for graphs and analysis
-  pageViews: PageViewMetric[];
-  userDistribution: UserDistributionMetric[];
-  userGrowth: UserGrowthMetric[];
-  trafficSources: TrafficSourceMetric[];
-  recentActivities: RecentActivityMetric[];
-  systemAlerts: SystemAlertMetric[];
-  postEngagement: PostEngagementMetric[];
+export interface DashboardMetrics {
   audienceGrowth: AudienceGrowthMetric[];
-  revenueByProduct: RevenueMetric[];
+  employeeDistribution: EmployeeDistributionMetric[];
   expenseCategories: ExpenseCategoryMetric[];
   jobApplications: JobApplicationMetric[];
-  employeeDistribution: EmployeeDistributionMetric[];
-};
+  // Detailed metrics for graphs and analysis
+  pageViews: PageViewMetric[];
+  postEngagement: PostEngagementMetric[];
+  recentActivities: RecentActivityMetric[];
+  revenueByProduct: RevenueMetric[];
+  systemAlerts: SystemAlertMetric[];
+  totalJobApplications: number;
+  totalOrders: number;
+  totalPageViews: number;
+  // Count metrics (optimized with $sequence)
+  totalUsers: number;
+  trafficSources: TrafficSourceMetric[];
+  userDistribution: UserDistributionMetric[];
+  userGrowth: UserGrowthMetric[];
+}
 
 type DbClient = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
-type JobMetadata = {
-  status: string | null;
+interface JobMetadata {
   openPositions: number;
-};
+  status: string | null;
+}
 
-type ParsedOrderItem = {
-  title?: string;
+interface ParsedOrderItem {
   product_id?: string;
   product_slug?: string;
-  unit_price?: number;
   quantity?: number;
-};
+  title?: string;
+  unit_price?: number;
+}
 
 export type DateRangeFilter = "7d" | "30d" | "90d" | "all";
 

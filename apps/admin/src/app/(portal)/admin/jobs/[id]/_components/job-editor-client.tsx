@@ -28,11 +28,11 @@ import { PreviewPanel } from "../../../_components/preview-panel";
 
 type JobWithTranslations = Jobs & { translation_refs: ContentTranslations[] };
 
-type JobEditorClientProps = {
-  job: JobWithTranslations | null;
+interface JobEditorClientProps {
   campuses: Campus[];
   initialDepartments: Departments[];
   isNew: boolean;
+  job: JobWithTranslations | null;
   labels: {
     back: string;
     titlePlaceholder: string;
@@ -53,7 +53,7 @@ type JobEditorClientProps = {
     publishSuccess: string;
     publishError: string;
   };
-};
+}
 
 const EMPLOYMENT_TYPES = [
   { value: "", label: "— Select type —" },

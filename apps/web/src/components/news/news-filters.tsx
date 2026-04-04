@@ -6,11 +6,11 @@ import { Filter, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 
-type NewsFiltersProps = {
+interface NewsFiltersProps {
   categories: string[];
-  selectedCategory: string;
   searchQuery: string;
-};
+  selectedCategory: string;
+}
 
 export function NewsFilters({
   categories,

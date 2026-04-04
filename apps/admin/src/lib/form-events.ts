@@ -3,13 +3,13 @@
  * This allows the assistant sidebar to communicate with forms on any page
  */
 
-export type FormFieldUpdate = {
+export interface FormFieldUpdate {
   fieldId: string;
   fieldName: string;
-  value: string;
-  streaming?: boolean;
   isComplete?: boolean;
-};
+  streaming?: boolean;
+  value: string;
+}
 
 type FormFieldListener = (update: FormFieldUpdate) => void;
 

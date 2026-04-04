@@ -5,18 +5,18 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { type ProductOption, parseProductMetadata } from "@/lib/types/webshop";
 import { useProductActions } from "../use-product-actions";
 
-type ProductPurchaseContextType = {
-  selectedOptions: Record<string, string>;
-  handleOptionChange: (optionIndex: number, value: string) => void;
-  handleAddToCart: () => Promise<void>;
+interface ProductPurchaseContextType {
   addedToCart: boolean;
-  errors: Record<string, boolean>;
   availableStock: number | null;
+  errors: Record<string, boolean>;
+  handleAddToCart: () => Promise<void>;
+  handleOptionChange: (optionIndex: number, value: string) => void;
   isLoadingStock: boolean;
+  isMember: boolean;
   product: WebshopProducts;
   productOptions: ProductOption[];
-  isMember: boolean;
-};
+  selectedOptions: Record<string, string>;
+}
 
 const ProductPurchaseContext = createContext<ProductPurchaseContextType | null>(
   null

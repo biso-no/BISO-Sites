@@ -16,11 +16,11 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { uploadDepartmentLogo } from "@/lib/actions/departments";
 
-type LogoUploadPreviewProps = {
+interface LogoUploadPreviewProps {
+  departmentName: string;
   logoUrl?: string;
   onChange: (url: string) => void;
-  departmentName: string;
-};
+}
 
 export function LogoUploadPreview({
   logoUrl,

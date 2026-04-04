@@ -18,13 +18,13 @@ const translatedContentSchema = z.object({
     .describe("Translated page content blocks"),
 });
 
-type TranslatePageInput = {
+interface TranslatePageInput {
+  content: Array<{ type: string; props: Record<string, unknown> }>;
+  description?: string;
   sourceLocale: Locale;
   targetLocale: Locale;
   title: string;
-  description?: string;
-  content: Array<{ type: string; props: Record<string, unknown> }>;
-};
+}
 
 export async function translatePageContent(input: TranslatePageInput): Promise<{
   title: string;

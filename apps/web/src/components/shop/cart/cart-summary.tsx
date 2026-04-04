@@ -11,10 +11,10 @@ import { useTransition } from "react";
 import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 import { useCart } from "@/lib/contexts/cart-context";
 
-type CartSummaryProps = {
+interface CartSummaryProps {
   isMember: boolean;
   userId: string | null;
-};
+}
 
 export function CartSummary({ isMember, userId }: CartSummaryProps) {
   const router = useRouter();
@@ -36,7 +36,7 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
         return sum + price * item.quantity;
       }, 0);
 
-  const handleCheckout = () => {
+  const _handleCheckout = () => {
     startTransition(async () => {
       await initiateVippsCheckout({
         // TODO: Generate a unique reference ID

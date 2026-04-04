@@ -7,10 +7,10 @@ import { ChevronRight, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type LatestNewsProps = {
-  news: News[];
+interface LatestNewsProps {
   locale: Locale;
-};
+  news: News[];
+}
 
 export function LatestNews({ news, locale }: LatestNewsProps) {
   if (!news || news.length === 0) {

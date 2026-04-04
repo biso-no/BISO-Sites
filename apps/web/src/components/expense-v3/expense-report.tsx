@@ -34,15 +34,15 @@ import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { ProfileCompletionBanner } from "./profile-completion-banner";
 import type { Receipt } from "./store";
 
-type ReceiptRowProps = {
-  receipt: Receipt;
-  selectedId: string | null;
+interface ReceiptRowProps {
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   onSelect: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
-  uploadingId: string | null;
+  receipt: Receipt;
+  selectedId: string | null;
   setUploadingId: (id: string | null) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-};
+  uploadingId: string | null;
+}
 
 function ReceiptRow({
   receipt,
@@ -124,13 +124,13 @@ function ReceiptRow({
   );
 }
 
-type ForeignCurrencyWarningProps = {
-  receipt: Receipt;
-  onUpdate: (id: string, updates: Partial<Receipt>) => void;
-  uploadingId: string | null;
-  setUploadingId: (id: string | null) => void;
+interface ForeignCurrencyWarningProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-};
+  onUpdate: (id: string, updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+  setUploadingId: (id: string | null) => void;
+  uploadingId: string | null;
+}
 
 function ForeignCurrencyWarning({
   receipt,
@@ -204,25 +204,25 @@ function ForeignCurrencyWarning({
   );
 }
 
-type ExpenseReportProps = {
-  receipts: Receipt[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onUpdate: (id: string, updates: Partial<Receipt>) => void;
-  onInsert: (afterId: string, receipt: Receipt) => void;
-  onSubmit: () => void;
-  isSubmitting: boolean;
-  totalAmount: number;
+interface ExpenseReportProps {
   campuses: any[];
+  description: string;
+  isGeneratingSummary: boolean;
+  isSubmitting: boolean;
+  onAssign: (campusId: string, departmentId: string) => void;
+  onDescriptionChange: (description: string) => void;
+  onInsert: (afterId: string, receipt: Receipt) => void;
+  onProfileUpdate: (profile: Partial<Users>) => void;
+  onSelect: (id: string) => void;
+  onSubmit: () => void;
+  onUpdate: (id: string, updates: Partial<Receipt>) => void;
+  receipts: Receipt[];
   selectedCampusId: string;
   selectedDepartmentId: string;
-  onAssign: (campusId: string, departmentId: string) => void;
+  selectedId: string | null;
+  totalAmount: number;
   userProfile: Partial<Users>;
-  onProfileUpdate: (profile: Partial<Users>) => void;
-  description: string;
-  onDescriptionChange: (description: string) => void;
-  isGeneratingSummary: boolean;
-};
+}
 
 export function ExpenseReport({
   receipts,
@@ -304,7 +304,7 @@ export function ExpenseReport({
       } else {
         toast.error("Upload failed");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Upload failed");
     } finally {
       setUploadingId(null);

@@ -5,11 +5,11 @@ import { getManagedPage } from "@/app/actions/pages/actions";
 import { getUserRolesForClient } from "@/lib/authorization";
 import { UnifiedEditorClient } from "../_components/unified-editor-client";
 
-type EditorPageProps = {
+interface EditorPageProps {
   params: Promise<{
     pageId: string;
   }>;
-};
+}
 
 const SUPPORTED_LOCALES: Locale[] = [Locale.NO, Locale.EN];
 

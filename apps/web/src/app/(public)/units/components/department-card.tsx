@@ -16,10 +16,10 @@ import {
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type DepartmentCardProps = {
+interface DepartmentCardProps {
   department: ContentTranslations;
   index: number;
-};
+}
 
 const typeColors: Record<string, string> = {
   committee: "bg-brand-muted text-brand border-brand-border-strong",

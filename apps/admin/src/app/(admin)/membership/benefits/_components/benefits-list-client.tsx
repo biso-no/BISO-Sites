@@ -62,10 +62,10 @@ const KIND_STYLES: Record<string, string> = {
   service: "bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400",
 };
 
-type BenefitsListClientProps = {
+interface BenefitsListClientProps {
   benefits: CampusBenefit[];
   total: number;
-};
+}
 
 export function BenefitsListClient({
   benefits: initial,

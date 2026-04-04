@@ -4,10 +4,10 @@ import { Heart, Shield, TrendingUp, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { BenefitsSection } from "./benefits-section";
 
-type StudentsTabProps = {
+interface StudentsTabProps {
   campusData: CampusData | null;
   locale: Locale;
-};
+}
 
 const copy = {
   en: {

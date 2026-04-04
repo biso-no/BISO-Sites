@@ -10,16 +10,16 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useCampus } from "@/components/context/campus";
 
-type CampusHeroProps = {
-  campusName: string | null;
+interface CampusHeroProps {
   campusMetadata: CampusMetadata | null;
+  campusName: string | null;
+  locale: Locale;
   stats: {
     departments: number;
     events: number;
     jobs: number;
   };
-  locale: Locale;
-};
+}
 
 const DEFAULT_TAGLINE = "Where Innovation Meets Opportunity";
 const DEFAULT_DESCRIPTION =

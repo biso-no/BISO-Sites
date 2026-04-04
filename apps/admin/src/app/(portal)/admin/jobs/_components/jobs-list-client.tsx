@@ -15,10 +15,8 @@ type JobWithTranslations = Jobs & {
   translation_refs: ContentTranslations[];
 };
 
-type JobsListClientProps = {
+interface JobsListClientProps {
   initialJobs: JobWithTranslations[];
-  total: number;
-  page: number;
   labels: {
     empty: string;
     emptyDescription: string;
@@ -32,7 +30,9 @@ type JobsListClientProps = {
     delete: string;
     deleteConfirm: string;
   };
-};
+  page: number;
+  total: number;
+}
 
 export function JobsListClient({
   initialJobs,
@@ -42,7 +42,7 @@ export function JobsListClient({
 }: JobsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [_openMenuId, _setOpenMenuId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const filters = [

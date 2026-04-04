@@ -46,20 +46,13 @@ const CAMPUS_CANDIDATES = [
   "bodoe",
 ];
 
-export type IndexingJob = {
-  id: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  siteId: string;
-  siteName: string;
-  folderPath: string;
-  recursive: boolean;
-  totalDocuments: number;
-  processedDocuments: number;
-  failedDocuments: number;
-  skippedDocuments: number; // New: track skipped docs
-  startTime: Date;
+export interface IndexingJob {
   endTime?: Date;
   error?: string;
+  failedDocuments: number;
+  folderPath: string;
+  id: string;
+  processedDocuments: number;
   processingDetails: {
     chunksCreated: number;
     avgChunksPerDocument: number;
@@ -70,33 +63,40 @@ export type IndexingJob = {
       max: number;
     };
   };
-};
-
-export type IndexingOptions = {
+  recursive: boolean;
   siteId: string;
-  folderPath?: string;
-  recursive?: boolean;
-  batchSize?: number;
-  maxConcurrency?: number;
-  validateChunks?: boolean; // New: enable chunk validation
-};
+  siteName: string;
+  skippedDocuments: number; // New: track skipped docs
+  startTime: Date;
+  status: "pending" | "processing" | "completed" | "failed";
+  totalDocuments: number;
+}
 
-export type ProcessedDocumentResult = {
-  documentId: string;
+export interface IndexingOptions {
+  batchSize?: number;
+  folderPath?: string;
+  maxConcurrency?: number;
+  recursive?: boolean;
+  siteId: string;
+  validateChunks?: boolean; // New: enable chunk validation
+}
+
+export interface ProcessedDocumentResult {
   chunks: VectorDocument[];
   chunksCreated: number;
-  tokensProcessed: number;
-  processingTimeMs: number;
+  documentId: string;
   error?: string;
+  processingTimeMs: number;
   skipped?: boolean;
   skipReason?: string;
-};
+  tokensProcessed: number;
+}
 
-type SearchContext = {
-  category?: string;
+interface SearchContext {
   campus?: string;
+  category?: string;
   language?: "norwegian" | "english" | "mixed";
-};
+}
 
 // Helper functions extracted to reduce complexity
 function resolveCategoryTerm(

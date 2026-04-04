@@ -5,17 +5,17 @@ import { createSessionClient } from "@repo/api/server";
 import type { VarslingSettings } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
-export type VarslingSubmission = {
+export interface VarslingSubmission {
   campus_id: string;
-  role_name: string;
-  recipient_email: string;
-  submitter_email?: string;
   case_description: string;
+  recipient_email: string;
+  role_name: string;
   submission_type: "harassment" | "witness" | "other";
-};
+  submitter_email?: string;
+}
 
 // Get varsling settings for a specific campus
-async function getVarslingSettings(
+async function _getVarslingSettings(
   campusId?: string
 ): Promise<VarslingSettings[]> {
   try {

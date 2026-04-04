@@ -2,13 +2,13 @@ import { Card } from "@repo/ui/components/ui/card";
 import { CheckCircle, type LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 
-type BenefitsSectionProps = {
-  title: string;
+interface BenefitsSectionProps {
+  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
   description: string;
   icon: LucideIcon;
   items: string[];
-  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
-};
+  title: string;
+}
 
 const colorSchemes = {
   blue: {

@@ -61,13 +61,10 @@ export type EntityType =
  * Entity context - the current entity being viewed/edited
  * This gives the AI full understanding of what the user is working with
  */
-export type EntityContext = {
-  type: EntityType;
-  id: string;
-  /** Human-readable title/name for the entity */
-  title: string;
+export interface EntityContext {
   /** The full entity data - AI can read this to understand current state */
   data: Record<string, unknown>;
+  id: string;
   /** Locale if applicable */
   locale?: string;
   /** Additional metadata */
@@ -77,12 +74,25 @@ export type EntityContext = {
     updatedAt?: string;
     author?: string;
   };
-};
+  /** Human-readable title/name for the entity */
+  title: string;
+  type: EntityType;
+}
 
 /**
  * Page context - broader context about the current page
  */
-export type PageContext = {
+export interface PageContext {
+  /** Breadcrumb path for context */
+  breadcrumb?: string[];
+  /** Any filters/search applied (for list views) */
+  filters?: Record<string, unknown>;
+  /** List of items if on a list page (summary only) */
+  listSummary?: {
+    totalCount: number;
+    displayedCount: number;
+    items?: Array<{ id: string; title: string; status?: string }>;
+  };
   /** What section of admin we're in */
   section:
     | "dashboard"
@@ -97,28 +107,18 @@ export type PageContext = {
     | "other";
   /** Is this a list view, detail view, or editor? */
   viewType: "list" | "detail" | "editor" | "create" | "dashboard";
-  /** Breadcrumb path for context */
-  breadcrumb?: string[];
-  /** Any filters/search applied (for list views) */
-  filters?: Record<string, unknown>;
-  /** List of items if on a list page (summary only) */
-  listSummary?: {
-    totalCount: number;
-    displayedCount: number;
-    items?: Array<{ id: string; title: string; status?: string }>;
-  };
-};
+}
 
 /**
  * Active handler registration - connects a page's form/editor to the copilot
  */
-export type ActiveHandler = {
+export interface ActiveHandler {
   capability: PageCapability;
   formFields?: FormFieldInfo[];
   onFormField?: FormFieldHandler;
   onPuckContent?: PuckContentHandler;
   puckData?: unknown;
-};
+}
 
 /**
  * Agent state for UI feedback
@@ -138,23 +138,33 @@ export type AgentState =
 /**
  * Pending Puck content - queued when AI generates content before editor is ready
  */
-export type PendingPuckContent = {
+export interface PendingPuckContent {
   blocks: Array<{
     type: string;
     props: Record<string, unknown>;
   }>;
-  /** Whether to replace all content or append */
-  mode: "replace" | "append";
   /** Timestamp for expiry */
   createdAt: number;
-};
+  /** Whether to replace all content or append */
+  mode: "replace" | "append";
+}
 
 /**
  * Copilot store state
  */
-type CopilotState = {
-  // Sidebar state
-  isOpen: boolean;
+interface CopilotState {
+  // Active page capability and handler
+  activeHandler: ActiveHandler | null;
+  agentMessage: string | null;
+
+  // Agent state for UI feedback
+  agentState: AgentState;
+  close: () => void;
+
+  /**
+   * Get and clear pending Puck content
+   */
+  consumePendingPuckContent: () => PendingPuckContent | null;
 
   // Current location
   currentPath: string;
@@ -162,15 +172,30 @@ type CopilotState = {
   // Current entity context (the thing being viewed/edited)
   entityContext: EntityContext | null;
 
+  /**
+   * Execute pending navigation and clear it
+   */
+  executePendingNavigation: () => string | null;
+
+  /**
+   * Get full context for AI - combines all context into a single object
+   */
+  getFullContext: () => {
+    path: string;
+    entity: EntityContext | null;
+    page: PageContext | null;
+    capability: PageCapability | null;
+    formFields: FormFieldInfo[] | undefined;
+    puckData: unknown;
+  };
+  // Sidebar state
+  isOpen: boolean;
+
+  // Actions
+  open: () => void;
+
   // Current page context (broader page info)
   pageContext: PageContext | null;
-
-  // Active page capability and handler
-  activeHandler: ActiveHandler | null;
-
-  // Agent state for UI feedback
-  agentState: AgentState;
-  agentMessage: string | null;
 
   // Pending navigation (when AI wants to navigate)
   pendingNavigation: string | null;
@@ -178,10 +203,16 @@ type CopilotState = {
   // Pending Puck content (queued when AI generates content before editor is ready)
   pendingPuckContent: PendingPuckContent | null;
 
-  // Actions
-  open: () => void;
-  close: () => void;
-  toggle: () => void;
+  /**
+   * Register a page's capability and handlers with the copilot
+   * Call this in useEffect when a form/editor mounts
+   */
+  registerHandler: (handler: ActiveHandler) => void;
+
+  /**
+   * Update agent state with optional message
+   */
+  setAgentState: (state: AgentState, message?: string) => void;
 
   setCurrentPath: (path: string) => void;
 
@@ -198,54 +229,22 @@ type CopilotState = {
   setPageContext: (context: PageContext | null) => void;
 
   /**
-   * Register a page's capability and handlers with the copilot
-   * Call this in useEffect when a form/editor mounts
+   * Set pending navigation (AI requested navigation)
    */
-  registerHandler: (handler: ActiveHandler) => void;
+  setPendingNavigation: (path: string | null) => void;
+
+  /**
+   * Queue Puck content to be applied when editor is ready
+   */
+  setPendingPuckContent: (content: PendingPuckContent | null) => void;
+  toggle: () => void;
 
   /**
    * Unregister the current handler
    * Call this in useEffect cleanup when a form/editor unmounts
    */
   unregisterHandler: () => void;
-
-  /**
-   * Update agent state with optional message
-   */
-  setAgentState: (state: AgentState, message?: string) => void;
-
-  /**
-   * Set pending navigation (AI requested navigation)
-   */
-  setPendingNavigation: (path: string | null) => void;
-
-  /**
-   * Execute pending navigation and clear it
-   */
-  executePendingNavigation: () => string | null;
-
-  /**
-   * Queue Puck content to be applied when editor is ready
-   */
-  setPendingPuckContent: (content: PendingPuckContent | null) => void;
-
-  /**
-   * Get and clear pending Puck content
-   */
-  consumePendingPuckContent: () => PendingPuckContent | null;
-
-  /**
-   * Get full context for AI - combines all context into a single object
-   */
-  getFullContext: () => {
-    path: string;
-    entity: EntityContext | null;
-    page: PageContext | null;
-    capability: PageCapability | null;
-    formFields: FormFieldInfo[] | undefined;
-    puckData: unknown;
-  };
-};
+}
 
 export const useCopilotStore = create<CopilotState>((set, get) => ({
   // Initial state

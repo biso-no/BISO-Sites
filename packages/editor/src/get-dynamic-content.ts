@@ -3,22 +3,22 @@
 import { fetchDynamicData } from "./data/fetch-data";
 import type { DataSourceConfig, NormalizedItem } from "./data/types";
 
-export type DynamicContentItem = {
-  title: string;
-  subtitle?: string;
-  image?: string;
-  href?: string;
-  value?: string;
-  label?: string;
-  description?: string;
-  date?: string;
-  location?: string;
-  category?: string;
+export interface DynamicContentItem {
   badge?: string;
+  category?: string;
+  date?: string;
+  description?: string;
+  href?: string;
   icon?: string;
   id?: string;
+  image?: string;
+  label?: string;
+  location?: string;
   metadata?: Record<string, unknown>;
-};
+  subtitle?: string;
+  title: string;
+  value?: string;
+}
 
 /**
  * Converts NormalizedItem to legacy DynamicContentItem format

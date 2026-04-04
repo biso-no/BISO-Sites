@@ -14,15 +14,18 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 
-type BreadcrumbEntry = { label: string; href?: string };
+interface BreadcrumbEntry {
+  href?: string;
+  label: string;
+}
 
-type AboutHeroProps = {
-  title: string;
-  subtitle?: string;
+interface AboutHeroProps {
   breadcrumbs: BreadcrumbEntry[];
-  icon?: ReactNode;
   compact?: boolean;
-};
+  icon?: ReactNode;
+  subtitle?: string;
+  title: string;
+}
 
 export function AboutHero({
   title,

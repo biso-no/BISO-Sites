@@ -17,19 +17,19 @@ import type { Data } from "@puckeditor/core";
 /**
  * JSONL Patch operation format from json-render
  */
-export type PatchOperation = {
+export interface PatchOperation {
   op: "set" | "add" | "replace" | "remove";
   path: string; // e.g., "/root", "/content/2", "/content/2/props/title"
   value?: unknown;
-};
+}
 
 /**
  * Block structure in Puck's content array
  */
-type PuckBlock = {
-  type: string;
+interface PuckBlock {
   props: Record<string, unknown>;
-};
+  type: string;
+}
 
 /**
  * Validate that a block value has the required `type` field.

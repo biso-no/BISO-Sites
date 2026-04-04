@@ -1,10 +1,6 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": [
-    "ultracite/core",
-    "ultracite/react",
-    "ultracite/biome/core"
-  ],
+  "extends": ["ultracite/core", "ultracite/react", "ultracite/biome/core"],
   "files": {
     "maxSize": 5242880,
     "includes": [

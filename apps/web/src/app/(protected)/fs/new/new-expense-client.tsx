@@ -25,10 +25,10 @@ const steps = [
   { id: 3, title: "Attachments", description: "Upload Receipts" },
 ];
 
-type NewExpenseClientProps = {
-  initialProfile: Partial<Users>;
+interface NewExpenseClientProps {
   campuses: Array<{ $id: string; name: string }>;
-};
+  initialProfile: Partial<Users>;
+}
 
 export function NewExpenseClient({
   initialProfile,

@@ -249,7 +249,7 @@ export function BenefitEditor() {
         </div>
 
         {/* Mobile Device Mockup */}
-        <div className="relative flex h-[650px] w-[320px] flex-col overflow-hidden rounded-[40px] border-[#001731] border-8 bg-black shadow-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+        <div className="relative flex h-[650px] w-[320px] flex-col overflow-hidden rounded-[40px] border-8 border-[#001731] bg-black shadow-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
           {/* Dynamic Island fake */}
           <div className="absolute inset-x-0 top-0 z-50 flex h-6 justify-center">
             <div className="h-5 w-24 rounded-b-xl bg-[#001731]" />

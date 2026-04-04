@@ -24,12 +24,12 @@ import { PreviewPanel } from "../../../_components/preview-panel";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 
-type NewsEditorClientProps = {
+interface NewsEditorClientProps {
   article: NewsWithTranslations | null;
   campuses: Campus[];
   isNew: boolean;
   labels: Record<string, string>;
-};
+}
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },

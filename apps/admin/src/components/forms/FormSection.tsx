@@ -4,16 +4,16 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-type FormSectionProps = {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  collapsible?: boolean;
-  defaultOpen?: boolean;
-  className?: string;
+interface FormSectionProps {
   /** Renders a badge/chip next to the title */
   badge?: React.ReactNode;
-};
+  children: React.ReactNode;
+  className?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  subtitle?: string;
+  title: string;
+}
 
 export function FormSection({
   title,

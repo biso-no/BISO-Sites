@@ -5,32 +5,32 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { PageBuilderDocument } from "@repo/editor";
 
-export type ManagedPageTranslationInput = {
-  locale: Locale;
-  title?: string;
+export interface ManagedPageTranslationInput {
   description?: string | null;
   draftDocument?: PageBuilderDocument | null;
+  locale: Locale;
   publish?: boolean;
-};
+  title?: string;
+}
 
-export type CreateManagedPageInput = {
-  slug: string;
-  title: string;
-  status?: PageStatus;
-  visibility?: PageVisibility;
-  template?: string | null;
+export interface CreateManagedPageInput {
   campusId?: string | null;
   departmentId?: string | null;
+  slug: string;
+  status?: PageStatus;
+  template?: string | null;
+  title: string;
   translations: ManagedPageTranslationInput[];
-};
+  visibility?: PageVisibility;
+}
 
-export type UpdateManagedPageInput = {
+export interface UpdateManagedPageInput {
+  campusId?: string | null;
+  departmentId?: string | null;
   pageId: string;
   slug?: string;
-  title?: string;
   status?: PageStatus;
-  visibility?: PageVisibility;
   template?: string | null;
-  campusId?: string | null;
-  departmentId?: string | null;
-};
+  title?: string;
+  visibility?: PageVisibility;
+}

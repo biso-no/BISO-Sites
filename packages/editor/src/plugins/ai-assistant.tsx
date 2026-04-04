@@ -47,11 +47,11 @@ type LoadingKey =
   | "action-translate-no"
   | "action-suggest";
 
-type AssistResult = {
+interface AssistResult {
+  isStreaming: boolean;
   key: string;
   text: string;
-  isStreaming: boolean;
-};
+}
 
 // ---------------------------------------------------------------------------
 // Helpers – extract readable text from Puck block props
@@ -503,7 +503,7 @@ function AiAssistantPanel() {
         },
       });
     },
-    [ai, startLoading]
+    [ai, startLoading, actionForKey]
   );
 
   // ------------------------------------------------------------------
@@ -566,7 +566,7 @@ function AiAssistantPanel() {
         },
       });
     },
-    [ai, getPuck, startLoading]
+    [ai, getPuck, startLoading, actionForKey]
   );
 
   const selectedBlockType = selectedItem?.type ?? null;

@@ -12,10 +12,10 @@ import type { Data } from "@puckeditor/core";
 /**
  * Puck block structure
  */
-type PuckBlock = {
-  type: string;
+interface PuckBlock {
   props: Record<string, unknown>;
-};
+  type: string;
+}
 
 /**
  * Convert a json-render UITree to Puck Data format

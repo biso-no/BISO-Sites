@@ -27,17 +27,30 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { apiClient } from "@/lib/api-client";
 
-type Campus = { id: string; name: string; officeLocation: string };
-type Department = { id: string; name: string; code: string; campusId: string };
-type Group = { id: string; displayName: string; description?: string };
+interface Campus {
+  id: string;
+  name: string;
+  officeLocation: string;
+}
+interface Department {
+  campusId: string;
+  code: string;
+  id: string;
+  name: string;
+}
+interface Group {
+  description?: string;
+  displayName: string;
+  id: string;
+}
 
-type CreateUserResult = {
-  success: boolean;
-  user?: { id: string; displayName: string; upn: string };
-  temporaryPassword?: string;
-  groupsAssigned?: string[];
+interface CreateUserResult {
   error?: string;
-};
+  groupsAssigned?: string[];
+  success: boolean;
+  temporaryPassword?: string;
+  user?: { id: string; displayName: string; upn: string };
+}
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -57,7 +70,7 @@ export function UserCreateForm() {
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [result, setResult] = useState<CreateUserResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [loadingDepts, setLoadingDepts] = useState(false);
 
   // Fetch campuses on mount

@@ -15,10 +15,10 @@ import { uploadEventImage } from "@/app/actions/events";
 import { toast } from "@/lib/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type EventImagesProps = {
+interface EventImagesProps {
   images: string[];
   onChange: (next: string[]) => void;
-};
+}
 
 export default function ImageUploadCard({
   images = [],

@@ -6,10 +6,10 @@ import { Building2, Calendar, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type JobPostingsProps = {
+interface JobPostingsProps {
   jobs: Jobs[];
   locale: Locale;
-};
+}
 
 export function JobPostings({ jobs, locale }: JobPostingsProps) {
   if (!jobs || jobs.length === 0) {

@@ -10,9 +10,9 @@ import {
   TableRow,
 } from "@repo/ui/components/ui/table";
 
-type UserTableSkeletonProps = {
+interface UserTableSkeletonProps {
   rowCount?: number;
-};
+}
 
 export function UserTableSkeleton({ rowCount = 10 }: UserTableSkeletonProps) {
   return (

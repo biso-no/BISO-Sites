@@ -24,10 +24,7 @@ import { resolveComponentPermissions } from "./utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ContactCardsProps = {
-  title?: string;
-  subtitle?: string;
-  variant?: "cards" | "compact" | "horizontal";
+export interface ContactCardsProps {
   columns?: 1 | 2 | 3 | 4;
   items?: {
     name: string;
@@ -38,11 +35,12 @@ export type ContactCardsProps = {
     avatar?: string;
     department?: string;
   }[];
-};
-
-export type DownloadListProps = {
-  title?: string;
   subtitle?: string;
+  title?: string;
+  variant?: "cards" | "compact" | "horizontal";
+}
+
+export interface DownloadListProps {
   items?: {
     name: string;
     description?: string;
@@ -50,47 +48,49 @@ export type DownloadListProps = {
     type?: string;
     size?: string;
   }[];
-  variant?: "list" | "grid";
-};
-
-export type NumberedStepsProps = {
-  title?: string;
   subtitle?: string;
-  variant?: "vertical" | "horizontal" | "cards";
+  title?: string;
+  variant?: "list" | "grid";
+}
+
+export interface NumberedStepsProps {
   steps?: {
     title: string;
     description?: string;
     icon?: string;
   }[];
-};
-
-export type TagListProps = {
+  subtitle?: string;
   title?: string;
-  tags?: { label: string; href?: string }[];
-  variant?: "default" | "outline" | "solid" | "gradient";
-  size?: "sm" | "md" | "lg";
+  variant?: "vertical" | "horizontal" | "cards";
+}
+
+export interface TagListProps {
   align?: "left" | "center" | "right";
-};
-
-export type AlertCardProps = {
+  size?: "sm" | "md" | "lg";
+  tags?: { label: string; href?: string }[];
   title?: string;
+  variant?: "default" | "outline" | "solid" | "gradient";
+}
+
+export interface AlertCardProps {
   content?: string;
-  variant?: "info" | "warning" | "success" | "error" | "neutral";
-  icon?: boolean;
+  ctaHref?: string;
+  ctaLabel?: string;
   dismissible?: boolean;
-  ctaLabel?: string;
-  ctaHref?: string;
-};
-
-export type ChecklistCardProps = {
+  icon?: boolean;
   title?: string;
-  description?: string;
-  variant?: "default" | "bordered" | "tinted";
+  variant?: "info" | "warning" | "success" | "error" | "neutral";
+}
+
+export interface ChecklistCardProps {
   checkStyle?: "circle" | "square" | "arrow";
-  items?: { text: string; checked?: boolean }[];
-  ctaLabel?: string;
   ctaHref?: string;
-};
+  ctaLabel?: string;
+  description?: string;
+  items?: { text: string; checked?: boolean }[];
+  title?: string;
+  variant?: "default" | "bordered" | "tinted";
+}
 
 // ─── Components ───────────────────────────────────────────────────────────────
 

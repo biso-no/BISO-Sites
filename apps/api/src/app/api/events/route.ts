@@ -3,43 +3,43 @@ import { createAdminClient } from "@repo/api/server";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-type RequestBody = {
+interface RequestBody {
   campusId?: string;
-  per_page?: number;
-  page?: number;
   include_past?: boolean;
+  page?: number;
+  per_page?: number;
   search?: string;
-};
+}
 
-type ValidatedRequestBody = {
+interface ValidatedRequestBody {
   campusId?: string;
-  per_page: number;
-  page: number;
   include_past: boolean;
+  page: number;
+  per_page: number;
   search?: string;
-};
+}
 
-type WordPressEvent = {
-  id: number;
-  title: string;
-  slug: string;
-  description: string;
-  excerpt: string;
-  start_date: string;
-  end_date: string;
+interface WordPressEvent {
   all_day: boolean;
-  cost: string;
-  website: string;
-  thumbnail: unknown;
-  organizer: unknown;
-  venue: unknown;
   categories: string[];
-  tags: string[];
+  cost: string;
+  description: string;
+  end_date: string;
+  excerpt: string;
+  id: number;
   language: string;
+  organizer: unknown;
+  slug: string;
+  start_date: string;
+  tags: string[];
+  thumbnail: unknown;
+  title: string;
   translations: Record<string, number>;
-};
+  venue: unknown;
+  website: string;
+}
 
-type WordPressApiResponse = {
+interface WordPressApiResponse {
   events: WordPressEvent[];
   pagination: {
     current_page: number;
@@ -50,21 +50,21 @@ type WordPressApiResponse = {
     has_previous: boolean;
   };
   search_term?: string | null;
-};
+}
 
-type CampusRow = {
+interface CampusRow {
   $id: string;
   name?: string | null;
   [key: string]: unknown;
-};
+}
 
-type DbClient = {
+interface DbClient {
   getRow: (
     databaseId: string,
     tableId: string,
     rowId: string
   ) => Promise<unknown>;
-};
+}
 
 const CONFIG = {
   TIMEOUT_MS: Number.parseInt(process.env.FETCH_TIMEOUT_MS ?? "8000", 10),
@@ -214,13 +214,13 @@ function validateRequestBody(body: unknown): ValidatedRequestBody {
   };
 }
 
-type FetchCampusOptions = {
-  databaseId: string;
-  tableId: string;
+interface FetchCampusOptions {
   campusId: string;
+  databaseId: string;
   log: (message: string, ...args: unknown[]) => void;
   retries?: number;
-};
+  tableId: string;
+}
 
 async function fetchCampusWithRetry(
   db: DbClient,
@@ -468,8 +468,7 @@ function sanitizeHeaders(headers: Headers): Record<string, unknown> {
   return masked;
 }
 
-type ErrorResponsePayload = {
-  success: false;
+interface ErrorResponsePayload {
   error: {
     code: string;
     message: string;
@@ -480,15 +479,16 @@ type ErrorResponsePayload = {
     executionTime: number;
     timestamp: string;
   };
-};
+  success: false;
+}
 
-type ErrorParams = {
+interface ErrorParams {
   code: string;
-  message: string;
-  statusCode: number;
-  requestId: string;
   executionTime: number;
-};
+  message: string;
+  requestId: string;
+  statusCode: number;
+}
 
 function buildErrorResponse(params: ErrorParams): ErrorResponsePayload {
   return {
@@ -518,12 +518,12 @@ async function parseRequestBody(req: NextRequest): Promise<unknown> {
   }
 }
 
-type ResolveCampusParams = {
+interface ResolveCampusParams {
   campusId: string;
-  databaseId: string;
   collectionId: string;
+  databaseId: string;
   log: (message: string, ...args: unknown[]) => void;
-};
+}
 
 async function resolveCampus(params: ResolveCampusParams): Promise<CampusRow> {
   const { db } = await createAdminClient();

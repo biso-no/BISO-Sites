@@ -86,7 +86,7 @@ export async function listJobs(opts?: {
 }
 
 export async function getJob(id: string) {
-  const ctx = await requireAuth();
+  const _ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const jobsResponse = await db.listRows<Jobs>("app", "jobs", [

@@ -5,16 +5,16 @@ import { RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AdminSummary } from "@/components/admin/admin-summary";
 
-type UnitsHeroSectionProps = {
-  totalDepartments: number;
+interface UnitsHeroSectionProps {
   campusOptions: Array<{ id: string; name: string }>;
-};
+  totalDepartments: number;
+}
 
 export function UnitsHeroSection({
   totalDepartments,
   campusOptions,
 }: UnitsHeroSectionProps) {
-  const router = useRouter();
+  const _router = useRouter();
 
   const handleSync = async () => {
     const response = await fetch("/api/units/sync");

@@ -21,9 +21,9 @@ import {
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 
-type JobDetailsClientProps = {
+interface JobDetailsClientProps {
   job: Jobs;
-};
+}
 
 const getJobCategory = (metadata: Record<string, any>) =>
   metadata.category || "General";

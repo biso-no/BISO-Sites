@@ -4,11 +4,11 @@ import { FeaturedArticles } from "./featured-articles";
 import { NoResults } from "./no-results";
 import { RegularArticles } from "./regular-articles";
 
-type NewsGridProps = {
+interface NewsGridProps {
   articles: News[];
-  selectedCategory: string;
   searchQuery: string;
-};
+  selectedCategory: string;
+}
 
 export async function NewsGrid({
   articles,

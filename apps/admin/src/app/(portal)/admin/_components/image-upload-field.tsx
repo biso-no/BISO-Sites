@@ -5,11 +5,11 @@ import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { uploadMediaFile } from "../_actions/upload";
 
-type ImageUploadFieldProps = {
-  value: string | null;
-  onChange: (url: string | null) => void;
+interface ImageUploadFieldProps {
   label?: string;
-};
+  onChange: (url: string | null) => void;
+  value: string | null;
+}
 
 export function ImageUploadField({
   value,

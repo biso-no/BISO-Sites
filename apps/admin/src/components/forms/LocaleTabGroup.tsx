@@ -6,13 +6,13 @@ export type Locale = "en" | "no";
 
 type LocaleStatus = "complete" | "partial" | "empty";
 
-type LocaleTabGroupProps = {
+interface LocaleTabGroupProps {
   activeLocale: Locale;
+  className?: string;
   onChange: (locale: Locale) => void;
   /** Pass the status per locale so the tab can show a completion dot */
   status?: Record<Locale, LocaleStatus>;
-  className?: string;
-};
+}
 
 const FLAG: Record<Locale, string> = { en: "🇬🇧", no: "🇳🇴" };
 const LABEL: Record<Locale, string> = { en: "English", no: "Norwegian" };

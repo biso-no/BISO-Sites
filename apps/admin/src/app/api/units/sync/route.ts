@@ -3,7 +3,7 @@ import type { Departments } from "@repo/api/types/appwrite";
 import { getDepartments } from "@repo/connectors/24sevenoffice";
 import { type NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
     const { db } = await createAdminClient();
 

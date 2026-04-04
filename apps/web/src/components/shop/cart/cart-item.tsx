@@ -7,12 +7,12 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Minus, Plus, Trash2, Users } from "lucide-react";
 import type { CartItem as CartItemType } from "@/lib/contexts/cart-context";
 
-type CartItemProps = {
-  item: CartItemType;
+interface CartItemProps {
   isMember: boolean;
-  onUpdateQuantity: (id: string, amount: number) => void;
+  item: CartItemType;
   onRemove: (id: string) => void;
-};
+  onUpdateQuantity: (id: string, amount: number) => void;
+}
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",

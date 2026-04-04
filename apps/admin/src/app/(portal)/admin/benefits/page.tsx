@@ -8,7 +8,7 @@ import { StatusBadge } from "../_components/status-badge";
 
 export default async function BenefitsPage() {
   const t = await getTranslations("adminPortal.benefits");
-  const tc = await getTranslations("adminPortal.common");
+  const _tc = await getTranslations("adminPortal.common");
 
   const benefits = await listBenefits();
 

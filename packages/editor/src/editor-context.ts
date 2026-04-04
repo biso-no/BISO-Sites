@@ -1,7 +1,9 @@
 export type EditorMode = "direct";
 
-export type EditorContext = {
-  mode: EditorMode;
+export interface EditorContext {
+  constraints: {
+    slugLocked: boolean;
+  };
   /**
    * Content type key from the content type registry (e.g., "homepage", "news-listing")
    */
@@ -10,6 +12,7 @@ export type EditorContext = {
    * Optional locale for dynamic content resolution (e.g. translated fields)
    */
   locale?: string;
+  mode: EditorMode;
   page: {
     id?: string;
     status: "draft" | "published" | "archived";
@@ -24,7 +27,4 @@ export type EditorContext = {
     departmentNames: string[];
     managedCampuses: string[];
   };
-  constraints: {
-    slugLocked: boolean;
-  };
-};
+}

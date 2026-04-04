@@ -6,16 +6,16 @@ import { useCallback, useEffect, useRef } from "react";
 
 type ComponentData = Data["content"][number];
 
-type BlockStructure = {
+interface BlockStructure {
   id: string;
   type: string;
-};
+}
 
-type LocaleData = {
-  title: string;
-  description: string;
+interface LocaleData {
   data: Data;
-};
+  description: string;
+  title: string;
+}
 
 function extractStructure(content: ComponentData[]): BlockStructure[] {
   return content.map((block) => ({
@@ -138,7 +138,7 @@ export function useLocaleStructuralSync({
     const currentContent = localeData[currentLocale]?.data.content ?? [];
     lastStructureRef.current = extractStructure(currentContent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLocale]);
+  }, [currentLocale, localeData]);
 
   const handleDataChange = useCallback(
     (nextData: Data) => {

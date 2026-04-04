@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 
-type PreviewPanelProps = {
-  title?: string;
+interface PreviewPanelProps {
   children: ReactNode;
-};
+  title?: string;
+}
 
 export function PreviewPanel({
   title = "Live Preview",

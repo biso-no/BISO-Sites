@@ -10,10 +10,10 @@ import { useMemo } from "react";
 import type { ProductVariation } from "@/lib/types/product";
 import { cn } from "@/lib/utils";
 
-type VariationsEditorProps = {
-  value: ProductVariation[];
+interface VariationsEditorProps {
   onChange: (next: ProductVariation[]) => void;
-};
+  value: ProductVariation[];
+}
 
 const createVariation = (): ProductVariation => ({
   id:

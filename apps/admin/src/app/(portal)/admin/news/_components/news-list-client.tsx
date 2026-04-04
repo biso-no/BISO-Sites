@@ -13,10 +13,8 @@ import { StatusBadge } from "../../_components/status-badge";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 
-type NewsListClientProps = {
+interface NewsListClientProps {
   initialArticles: NewsWithTranslations[];
-  total: number;
-  page: number;
   labels: {
     empty: string;
     emptyDescription: string;
@@ -28,7 +26,9 @@ type NewsListClientProps = {
     delete: string;
     deleteConfirm: string;
   };
-};
+  page: number;
+  total: number;
+}
 
 export function NewsListClient({
   initialArticles,

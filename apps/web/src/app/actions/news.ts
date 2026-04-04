@@ -4,13 +4,13 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Locale, News } from "@repo/api/types/appwrite";
 
-type ListNewsParams = {
-  limit?: number;
-  status?: string;
+interface ListNewsParams {
   campus?: string;
-  search?: string;
+  limit?: number;
   locale?: "en" | "no";
-};
+  search?: string;
+  status?: string;
+}
 
 export async function listNews(params: ListNewsParams = {}): Promise<News[]> {
   const { limit = 25, status, campus, locale, search } = params;

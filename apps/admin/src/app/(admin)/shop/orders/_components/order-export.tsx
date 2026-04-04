@@ -27,11 +27,11 @@ const DATE_SUMMARY = new Intl.DateTimeFormat("nb-NO", {
   year: "numeric",
 });
 
-type Preset = {
+interface Preset {
+  days: number | null;
   id: string;
   label: string;
-  days: number | null;
-};
+}
 
 const PRESETS: Preset[] = [
   { id: "7", label: "Last 7 days", days: 7 },
@@ -50,7 +50,7 @@ const STATUS_OPTIONS: StatusOption[] = [
   "pending",
   "cancelled",
 ];
-const FORMAT_OPTIONS: FormatOption[] = ["standard", "booking"];
+const _FORMAT_OPTIONS: FormatOption[] = ["standard", "booking"];
 
 export function OrderExportPopover() {
   const t = useTranslations("adminShop");

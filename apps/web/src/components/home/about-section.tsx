@@ -11,11 +11,11 @@ import {
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
-type AboutClientProps = {
+interface AboutClientProps {
+  departmentsCount: number;
   eventCount: number;
   jobCount: number;
-  departmentsCount: number;
-};
+}
 
 export function AboutSection({
   eventCount,

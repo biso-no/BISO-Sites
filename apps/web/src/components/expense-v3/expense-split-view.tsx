@@ -15,15 +15,15 @@ import { GenerativeReceiptPreview } from "./generative-receipt-preview";
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
 
-type OcrData = {
-  description?: string;
-  vendor?: string;
+interface OcrData {
   amount?: number;
   amountInNok?: number;
-  exchangeRate?: number;
-  date?: string;
   currency?: string;
-};
+  date?: string;
+  description?: string;
+  exchangeRate?: number;
+  vendor?: string;
+}
 
 function buildReceiptFromOcr(
   data: OcrData,
@@ -47,10 +47,10 @@ function buildReceiptFromOcr(
   };
 }
 
-type ExpenseSplitViewProps = {
+interface ExpenseSplitViewProps {
   campuses: Campus[];
   initialProfile: Partial<Users>;
-};
+}
 
 export function ExpenseSplitView({
   campuses,

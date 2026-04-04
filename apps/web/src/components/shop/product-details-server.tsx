@@ -18,12 +18,12 @@ import { AddToCartClient } from "./add-to-cart-client"; // New Client Component
 import { MemberCalloutClient } from "./member-callout-client"; // New Client Component
 import { ProductOptionsClient } from "./product-options-client"; // New Client Component
 
-type ProductDetailsServerProps = {
-  product: WebshopProducts;
+interface ProductDetailsServerProps {
   isMember: boolean;
+  product: WebshopProducts;
   // TODO: Get actual userId from auth
   userId?: string | null;
-};
+}
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",

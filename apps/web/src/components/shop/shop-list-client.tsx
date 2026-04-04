@@ -15,10 +15,10 @@ import { listProducts } from "@/app/actions/webshop";
 import { useCampus } from "@/components/context/campus";
 import { ProductCard } from "./product-card";
 
-type ShopListClientProps = {
-  products: WebshopProducts[];
+interface ShopListClientProps {
   isMember?: boolean;
-};
+  products: WebshopProducts[];
+}
 
 const categories = ["All", "Merch", "Trips", "Lockers", "Membership"];
 

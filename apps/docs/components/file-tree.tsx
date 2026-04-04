@@ -1,9 +1,9 @@
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 
-type FileTreeProps = {
+interface FileTreeProps {
   children: ReactNode;
-};
+}
 
 export function FileTree({ children }: FileTreeProps) {
   return (
@@ -13,12 +13,12 @@ export function FileTree({ children }: FileTreeProps) {
   );
 }
 
-type FileTreeItemProps = {
-  name: string;
-  icon?: "📁" | "📄" | "⚙️" | "📦";
-  depth?: number;
+interface FileTreeItemProps {
   children?: ReactNode;
-};
+  depth?: number;
+  icon?: "📁" | "📄" | "⚙️" | "📦";
+  name: string;
+}
 
 export function FileTreeItem({
   name,

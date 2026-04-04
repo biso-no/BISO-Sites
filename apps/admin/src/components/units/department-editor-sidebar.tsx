@@ -15,20 +15,20 @@ import { AnimatedBadge } from "@/components/shared/animated-badge";
 import { GlassCard } from "@/components/shared/glass-card";
 import { LogoUploadPreview } from "./logo-upload-preview";
 
-type DepartmentEditorSidebarProps = {
+interface DepartmentEditorSidebarProps {
+  campusControl: ReactNode;
   departmentName: string;
+  isNew?: boolean;
   logoUrl?: string;
   onLogoChange: (url: string) => void;
-  statusControl: ReactNode;
-  campusControl: ReactNode;
-  typeControl: ReactNode;
   stats?: {
     userCount?: number;
     boardMemberCount?: number;
     socialsCount?: number;
   };
-  isNew?: boolean;
-};
+  statusControl: ReactNode;
+  typeControl: ReactNode;
+}
 
 export function DepartmentEditorSidebar({
   departmentName,

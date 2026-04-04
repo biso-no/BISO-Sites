@@ -1,7 +1,7 @@
-type StatusBadgeProps = {
-  status: string;
+interface StatusBadgeProps {
   size?: "sm" | "md";
-};
+  status: string;
+}
 
 const STATUS_STYLES: Record<
   string,

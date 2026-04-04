@@ -4,7 +4,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;

@@ -15,10 +15,8 @@ type EventWithTranslations = Events & {
   translation_refs: ContentTranslations[];
 };
 
-type EventsListClientProps = {
+interface EventsListClientProps {
   initialEvents: Events[];
-  total: number;
-  page: number;
   labels: {
     empty: string;
     emptyDescription: string;
@@ -31,7 +29,9 @@ type EventsListClientProps = {
     delete: string;
     deleteConfirm: string;
   };
-};
+  page: number;
+  total: number;
+}
 
 export function EventsListClient({
   initialEvents,

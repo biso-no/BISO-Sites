@@ -2,20 +2,20 @@ import type { UseFormSetValue } from "react-hook-form";
 import { translateJobContent } from "@/app/actions/jobs";
 import type { FormValues } from "./schema";
 
-type HandleTranslateParams = {
-  jobId?: string;
+interface HandleTranslateParams {
   fromLocale: "en" | "no";
-  toLocale: "en" | "no";
-  t: (key: string) => string;
+  jobId?: string;
+  setActiveLocale: (tab: "en" | "no") => void;
   setIsTranslating: (value: boolean) => void;
   setValue: UseFormSetValue<FormValues>;
-  setActiveLocale: (tab: "en" | "no") => void;
   showToast: (props: {
     title: string;
     description?: string;
     variant?: "default" | "destructive";
   }) => void;
-};
+  t: (key: string) => string;
+  toLocale: "en" | "no";
+}
 
 export async function handleTranslate({
   jobId,

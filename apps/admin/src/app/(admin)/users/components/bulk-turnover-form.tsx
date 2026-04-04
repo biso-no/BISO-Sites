@@ -29,28 +29,28 @@ import { AlertCircle, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { apiClient } from "@/lib/api-client";
 
-type TurnoverRow = {
-  id: string;
-  roleMailboxUpn: string;
-  incomingUserUpn: string;
+interface TurnoverRow {
   ensureShared: boolean;
-};
-
-type TurnoverResult = {
-  index: number;
-  success: boolean;
-  roleMailboxUpn: string;
+  id: string;
   incomingUserUpn: string;
+  roleMailboxUpn: string;
+}
+
+interface TurnoverResult {
   dryRun: boolean;
   error?: string;
-};
+  incomingUserUpn: string;
+  index: number;
+  roleMailboxUpn: string;
+  success: boolean;
+}
 
-type BulkTurnoverResult = {
+interface BulkTurnoverResult {
+  results: TurnoverResult[];
+  totalFailed: number;
   totalRequested: number;
   totalSucceeded: number;
-  totalFailed: number;
-  results: TurnoverResult[];
-};
+}
 
 export function BulkTurnoverForm() {
   const [rows, setRows] = useState<TurnoverRow[]>([createEmptyRow()]);

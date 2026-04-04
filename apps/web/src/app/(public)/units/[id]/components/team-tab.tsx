@@ -11,9 +11,9 @@ import { ChevronRight, Linkedin, Mail, Users } from "lucide-react";
 import { motion } from "motion/react";
 import type { DepartmentTranslation } from "@/lib/actions/departments";
 
-type TeamTabProps = {
+interface TeamTabProps {
   department: DepartmentTranslation;
-};
+}
 
 export function TeamTab({ department }: TeamTabProps) {
   const dept = department.department_ref;

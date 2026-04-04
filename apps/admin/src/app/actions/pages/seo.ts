@@ -3,17 +3,17 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
-export type GenerateSeoInput = {
-  title: string;
-  description?: string;
+export interface GenerateSeoInput {
   /** Abbreviated page content for context (first ~8 block summaries) */
   contentSummary?: string;
-};
+  description?: string;
+  title: string;
+}
 
-export type GenerateSeoResult = {
-  seoTitle: string;
+export interface GenerateSeoResult {
   seoDescription: string;
-};
+  seoTitle: string;
+}
 
 /**
  * Generate SEO title and meta description using AI.

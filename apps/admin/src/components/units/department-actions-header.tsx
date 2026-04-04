@@ -4,11 +4,11 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-type DepartmentActionsHeaderProps = {
-  sortOrder?: string;
+interface DepartmentActionsHeaderProps {
   campuses: Array<{ id: string; name: string }>;
+  sortOrder?: string;
   types: string[];
-};
+}
 
 export function DepartmentActionsHeader({
   campuses: _campuses,

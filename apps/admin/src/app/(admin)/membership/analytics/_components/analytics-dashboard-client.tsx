@@ -17,7 +17,9 @@ import {
 import type { BenefitAnalyticsSummary } from "@/app/actions/benefit-analytics";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 
-type Props = { summary: BenefitAnalyticsSummary };
+interface Props {
+  summary: BenefitAnalyticsSummary;
+}
 
 const STAT_CARDS = [
   {

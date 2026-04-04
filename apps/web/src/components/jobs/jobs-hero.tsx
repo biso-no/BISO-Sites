@@ -5,11 +5,11 @@ import { ChevronDown, Heart } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
-type JobsHeroProps = {
-  totalPositions: number;
-  paidPositions: number;
+interface JobsHeroProps {
   departmentCount: number;
-};
+  paidPositions: number;
+  totalPositions: number;
+}
 
 export function JobsHero({
   totalPositions,

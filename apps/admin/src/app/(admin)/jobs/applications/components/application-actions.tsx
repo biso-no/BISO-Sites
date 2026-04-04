@@ -29,9 +29,9 @@ import {
 import { toast } from "@/lib/hooks/use-toast";
 import type { JobApplication } from "@/lib/types/job-application";
 
-type ApplicationActionsProps = {
+interface ApplicationActionsProps {
   application: JobApplication;
-};
+}
 
 export function ApplicationActions({ application }: ApplicationActionsProps) {
   const router = useRouter();

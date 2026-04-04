@@ -83,11 +83,11 @@ const postSchema = z.object({
 
 type PostFormValues = z.infer<typeof postSchema>;
 
-type PostEditorProps = {
-  post?: News | null;
-  departments: Departments[];
+interface PostEditorProps {
   campuses: Campus[];
-};
+  departments: Departments[];
+  post?: News | null;
+}
 
 function getInitialValues(
   post: News | null | undefined,
@@ -260,7 +260,7 @@ export default function PostEditor({
           : "empty",
   };
 
-  const oppositeLocale: Locale = activeLocale === "en" ? "no" : "en";
+  const _oppositeLocale: Locale = activeLocale === "en" ? "no" : "en";
   const activeTitle = activeLocale === "en" ? enTitle : noTitle;
 
   const selectedDept = departments.find((d) => d.$id === formValues.department);

@@ -31,7 +31,7 @@ function _HTMLContent({
   return <div className={className}>{text}</div>;
 }
 
-type DepartmentCardProps = {
+interface DepartmentCardProps {
   department: Departments & {
     campusName?: string;
     displayTitle?: string;
@@ -40,7 +40,7 @@ type DepartmentCardProps = {
     socialsCount?: number;
   };
   onEdit?: (department: any) => void;
-};
+}
 
 export function DepartmentCard({ department, onEdit }: DepartmentCardProps) {
   const [_isDetailsOpen, _setIsDetailsOpen] = useState(false);

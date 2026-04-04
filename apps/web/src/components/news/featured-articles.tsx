@@ -4,9 +4,9 @@ import type { News } from "@repo/api/types/appwrite";
 import { motion } from "motion/react";
 import { ArticleCard } from "./article-card";
 
-type FeaturedArticlesProps = {
+interface FeaturedArticlesProps {
   articles: News[];
-};
+}
 
 export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
   if (!articles || articles.length === 0) {

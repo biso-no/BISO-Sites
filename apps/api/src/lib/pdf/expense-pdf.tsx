@@ -10,26 +10,26 @@ import {
   View,
 } from "@react-pdf/renderer";
 
-type ExpenseAttachment = {
-  description: string;
-  date: string;
+interface ExpenseAttachment {
   amount: number;
-};
+  date: string;
+  description: string;
+}
 
-type ExpenseTemplateData = {
-  reimbursementNumber: string;
-  name: string;
+interface ExpenseTemplateData {
   address: string;
-  phone: string;
-  email: string;
-  bankAccount: string;
-  invoiceDate: string;
-  campusAndUnit: string;
-  purpose: string;
   attachments: ExpenseAttachment[];
+  bankAccount: string;
+  campusAndUnit: string;
+  email: string;
+  invoiceDate: string;
+  name: string;
+  phone: string;
+  purpose: string;
+  reimbursementNumber: string;
   subtotal: number;
   total: number;
-};
+}
 
 const styles = StyleSheet.create({
   page: {

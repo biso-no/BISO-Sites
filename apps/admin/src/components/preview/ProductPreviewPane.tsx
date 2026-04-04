@@ -6,20 +6,20 @@ import { Package, ShoppingCart, Tag, Users } from "lucide-react";
 import Image from "next/image";
 import type { Locale } from "@/components/forms/LocaleTabGroup";
 
-type ProductFormSnapshot = {
-  status: string;
+interface ProductFormSnapshot {
   category?: string;
-  regular_price?: number;
-  member_price?: number;
-  member_only?: boolean;
-  stock?: number;
   image?: string;
+  member_only?: boolean;
+  member_price?: number;
   metadata?: { images?: string[] };
+  regular_price?: number;
+  status: string;
+  stock?: number;
   translations: {
     en: { title: string; description: string };
     no: { title: string; description: string };
   };
-};
+}
 
 function fmtNok(n: number) {
   return new Intl.NumberFormat("nb-NO", {

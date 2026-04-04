@@ -2,12 +2,12 @@
 
 import { useCallback, useState, useTransition } from "react";
 
-export type FilterState = {
+export interface FilterState {
   active: boolean | undefined;
   campus_id: string | undefined;
-  type: string | undefined;
   searchTerm: string | undefined;
-};
+  type: string | undefined;
+}
 
 export default function useDepartmentsFilter() {
   const [filters, setFilters] = useState<FilterState>({

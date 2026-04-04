@@ -16,40 +16,40 @@ import type {
   FormStreamEvent,
 } from "./types";
 
-type AIContextValue = {
+interface AIContextValue {
+  addMessage: (message: AssistantMessage) => void;
+
+  // Action handling
+  addPendingAction: (action: AssistantAction) => void;
+  clearMessages: () => void;
+  clearPendingActions: () => void;
+  context: AdminAssistantContext | null;
+  executePendingAction: (action: AssistantAction) => void;
+  isLoading: boolean;
   // State
   isOpen: boolean;
-  isLoading: boolean;
   messages: AssistantMessage[];
+
+  // Form streaming
+  onFormStream?: (event: FormStreamEvent) => void;
   pendingActions: AssistantAction[];
-  context: AdminAssistantContext | null;
+  setContext: (context: AdminAssistantContext) => void;
+  setFormStreamHandler: (handler: (event: FormStreamEvent) => void) => void;
+  setLoading: (loading: boolean) => void;
+  setMessages: (messages: AssistantMessage[]) => void;
 
   // Actions
   setOpen: (open: boolean) => void;
   toggle: () => void;
-  setLoading: (loading: boolean) => void;
-  addMessage: (message: AssistantMessage) => void;
-  setMessages: (messages: AssistantMessage[]) => void;
-  clearMessages: () => void;
-  setContext: (context: AdminAssistantContext) => void;
   updateFormContext: (formContext: FormContext | undefined) => void;
-
-  // Action handling
-  addPendingAction: (action: AssistantAction) => void;
-  clearPendingActions: () => void;
-  executePendingAction: (action: AssistantAction) => void;
-
-  // Form streaming
-  onFormStream?: (event: FormStreamEvent) => void;
-  setFormStreamHandler: (handler: (event: FormStreamEvent) => void) => void;
-};
+}
 
 const AIContext = createContext<AIContextValue | null>(null);
 
-type AIProviderProps = {
+interface AIProviderProps {
   children: ReactNode;
   initialContext?: Partial<AdminAssistantContext>;
-};
+}
 
 export function AIProvider({ children, initialContext }: AIProviderProps) {
   const [isOpen, setIsOpen] = useState(false);

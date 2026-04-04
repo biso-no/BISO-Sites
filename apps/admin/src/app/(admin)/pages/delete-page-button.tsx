@@ -4,9 +4,9 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Trash } from "lucide-react";
 import { deleteManagedPage } from "@/app/actions/pages/actions";
 
-type DeletePageButtonProps = {
+interface DeletePageButtonProps {
   pageId: string;
-};
+}
 
 export function DeletePageButton({ pageId }: DeletePageButtonProps) {
   return (

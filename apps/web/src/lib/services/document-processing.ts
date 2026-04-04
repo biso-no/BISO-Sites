@@ -1,14 +1,14 @@
 import "server-only";
 
-type ExtractedDocumentData = {
-  date: string | null;
+interface ExtractedDocumentData {
   amount: number | null;
-  description: string | null;
   confidence: number;
-  method: "pdf" | "ocr" | "manual";
   currency?: string | null;
+  date: string | null;
+  description: string | null;
   exchangeRate?: number | null;
-};
+  method: "pdf" | "ocr" | "manual";
+}
 
 const DATE_PATTERNS: readonly RegExp[] = [
   /\b\d{2}[-./]\d{2}[-./]\d{4}\b/, // DD/MM/YYYY
@@ -31,7 +31,7 @@ const AMOUNT_LINE_REGEX = /^\d+[.,]\d{2}$/;
 const DATE_LINE_REGEX = /^\d{2}[-./]\d{2}[-./]\d{4}$/;
 
 // Helper function to extract dates using various formats
-function extractDate(text: string): string | null {
+function _extractDate(text: string): string | null {
   for (const pattern of DATE_PATTERNS) {
     const match = text.match(pattern);
     if (!match) {
@@ -52,7 +52,7 @@ function extractDate(text: string): string | null {
 }
 
 // Helper function to extract amounts
-function extractAmount(text: string): number | null {
+function _extractAmount(text: string): number | null {
   // Look for currency amounts with various formats
   for (const pattern of AMOUNT_PATTERNS) {
     const match = text.match(pattern);
@@ -67,7 +67,7 @@ function extractAmount(text: string): number | null {
 }
 
 // Helper function to extract description
-function extractDescription(text: string): string | null {
+function _extractDescription(text: string): string | null {
   // Remove common headers and footers
   const cleanText = text
     .replace(DESCRIPTION_HEADER_REGEX, "")

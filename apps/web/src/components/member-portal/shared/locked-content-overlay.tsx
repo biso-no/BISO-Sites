@@ -18,10 +18,10 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 
-type LockedContentOverlayProps = {
-  hasBIIdentity: boolean;
+interface LockedContentOverlayProps {
   children: React.ReactNode;
-};
+  hasBIIdentity: boolean;
+}
 
 type MembershipDuration = "semester" | "year" | "three-year";
 

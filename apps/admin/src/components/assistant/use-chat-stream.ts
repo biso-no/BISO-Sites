@@ -8,19 +8,17 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MarkdownBuffer } from "@/lib/markdown-buffer";
 
 // Chat persistence key
-const CHAT_STORAGE_KEY = "admin-assistant-chat-history";
+const _CHAT_STORAGE_KEY = "admin-assistant-chat-history";
 
-type FormFieldUpdate = {
+interface FormFieldUpdate {
   fieldId: string;
   fieldName: string;
-  value: string;
-  streaming?: boolean;
   isComplete?: boolean;
-};
+  streaming?: boolean;
+  value: string;
+}
 
-type FormContextType = {
-  formId: string;
-  formName: string;
+interface FormContextType {
   fields: Array<{
     id: string;
     name: string;
@@ -29,22 +27,24 @@ type FormContextType = {
     required?: boolean;
     currentValue?: unknown;
   }>;
-};
+  formId: string;
+  formName: string;
+}
 
-type PuckContentUpdate = {
-  type: "puck-content";
-  blockIndex: number;
+interface PuckContentUpdate {
   block: {
     type: string;
     props: Record<string, unknown>;
   };
+  blockIndex: number;
   isComplete: boolean;
-};
+  type: "puck-content";
+}
 
-type PuckBlock = {
-  type: string;
+interface PuckBlock {
   props: Record<string, unknown>;
-};
+  type: string;
+}
 
 /**
  * Process Puck content blocks - either send to handler or queue for later
@@ -81,9 +81,10 @@ function processPuckBlocks(blocks: PuckBlock[]): void {
   }
 }
 
-type UseChatStreamOptions = {
+interface UseChatStreamOptions {
   api: string;
-  onNavigate?: (path: string) => void;
+  /** @deprecated Path is tracked by copilot store */
+  currentPath?: string;
   onCreatePage?: (params: {
     title: string;
     slug: string;
@@ -92,20 +93,19 @@ type UseChatStreamOptions = {
   }) => Promise<void>;
   /** @deprecated Use useCopilotForm hook instead - kept for backward compatibility */
   onFormField?: (update: FormFieldUpdate) => void;
+  onNavigate?: (path: string) => void;
   /** @deprecated Use useCopilotPuck hook instead - kept for backward compatibility */
   onPuckContent?: (update: PuckContentUpdate) => void;
   /** @deprecated Handlers now come from copilot store */
   puckData?: unknown;
-  /** @deprecated Path is tracked by copilot store */
-  currentPath?: string;
-};
+}
 
-type ChatMessagePart = {
-  type: string;
+interface ChatMessagePart {
   input?: unknown;
-  toolCallId?: string;
   state?: string;
-};
+  toolCallId?: string;
+  type: string;
+}
 
 type NavigateToolPart = ChatMessagePart & {
   type: "tool-navigate";
@@ -223,7 +223,7 @@ export function useChatStream({
   // Get handlers from copilot store (new approach)
   const activeHandler = useCopilotStore((state) => state.activeHandler);
   const storePath = useCopilotStore((state) => state.currentPath);
-  const setAgentState = useCopilotStore((state) => state.setAgentState);
+  const _setAgentState = useCopilotStore((state) => state.setAgentState);
 
   // Store callbacks in refs to avoid stale closures
   const onNavigateRef = useRef(onNavigate);

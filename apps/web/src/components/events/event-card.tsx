@@ -25,12 +25,12 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-type EventCardProps = {
+interface EventCardProps {
   event: Events;
   index: number;
   isMember?: boolean;
   onViewDetails: (event: Events) => void;
-};
+}
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",
@@ -40,13 +40,13 @@ const categoryColors: Record<EventCategory, string> = {
   Culture: "bg-pink-100 text-pink-700 border-pink-200",
 };
 
-type EventBadgesProps = {
+interface EventBadgesProps {
   category: EventCategory;
-  isCollection?: boolean;
-  memberOnly?: boolean;
   hasMemberDiscount: boolean;
   hasTicketUrl: boolean;
-};
+  isCollection?: boolean;
+  memberOnly?: boolean;
+}
 
 function EventBadges({
   category,
@@ -92,11 +92,11 @@ function EventBadges({
   );
 }
 
-type PriceDisplayProps = {
-  price: string;
-  memberPrice: string | null;
+interface PriceDisplayProps {
   isMember: boolean;
-};
+  memberPrice: string | null;
+  price: string;
+}
 
 function PriceDisplay({ price, memberPrice, isMember }: PriceDisplayProps) {
   const t = useTranslations("events");
@@ -144,7 +144,7 @@ export function EventCard({
       )
     : null;
   const title = translation?.title ?? "Untitled";
-  const description = translation?.description ?? "";
+  const _description = translation?.description ?? "";
 
   // Parse metadata if available
   const metadata = parseEventMetadata(eventData?.metadata);

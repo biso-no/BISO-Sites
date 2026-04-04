@@ -10,15 +10,15 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 
-type GlassCardProps = {
-  title?: string;
-  description?: string;
+interface GlassCardProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  variant?: "default" | "premium" | "subtle";
+  description?: string;
   hover?: boolean;
-};
+  title?: string;
+  variant?: "default" | "premium" | "subtle";
+}
 
 export function GlassCard({
   title,

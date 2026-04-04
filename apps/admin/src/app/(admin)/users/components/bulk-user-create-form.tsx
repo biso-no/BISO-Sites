@@ -34,32 +34,40 @@ import { AlertCircle, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api-client";
 
-type Campus = { id: string; name: string };
-type Department = { id: string; name: string; code: string; campusId: string };
-
-type UserRow = {
+interface Campus {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
+}
+interface Department {
+  campusId: string;
+  code: string;
+  id: string;
+  name: string;
+}
+
+interface UserRow {
   campusId: string;
   departmentId: string;
-};
+  firstName: string;
+  id: string;
+  lastName: string;
+}
 
-type RowResult = {
-  index: number;
-  success: boolean;
-  input: { firstName: string; lastName: string };
-  user?: { id: string; displayName: string; upn: string };
-  temporaryPassword?: string;
+interface RowResult {
   error?: string;
-};
+  index: number;
+  input: { firstName: string; lastName: string };
+  success: boolean;
+  temporaryPassword?: string;
+  user?: { id: string; displayName: string; upn: string };
+}
 
-type BulkResult = {
+interface BulkResult {
+  results: RowResult[];
+  totalFailed: number;
   totalRequested: number;
   totalSucceeded: number;
-  totalFailed: number;
-  results: RowResult[];
-};
+}
 
 export function BulkUserCreateForm() {
   const [campuses, setCampuses] = useState<Campus[]>([]);

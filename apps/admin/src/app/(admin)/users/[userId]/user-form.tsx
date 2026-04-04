@@ -53,10 +53,10 @@ import { useState } from "react";
 import { updateProfile } from "@/lib/actions/user";
 import { toast } from "@/lib/hooks/use-toast";
 
-export type UserFormProps = {
-  user: Users;
+export interface UserFormProps {
   campuses: Campus[];
-};
+  user: Users;
+}
 
 export function UserForm({ user: initialUser, campuses }: UserFormProps) {
   const [user, setUser] = useState<Users>(initialUser);

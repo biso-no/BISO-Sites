@@ -18,12 +18,12 @@ export type MetricType =
 /**
  * Stored metric data structure
  */
-export type StoredMetric = {
-  metric_type: MetricType;
-  metric_data: string; // JSON stringified data
-  date_range: DateRange;
+export interface StoredMetric {
   computed_at: string; // ISO datetime
-};
+  date_range: DateRange;
+  metric_data: string; // JSON stringified data
+  metric_type: MetricType;
+}
 
 /**
  * Get a cached metric from the dashboard_metrics table

@@ -12,31 +12,31 @@ import type { Data } from "@repo/editor";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type PuckContentUpdate = {
-  type: "puck-content";
-  blockIndex: number;
+interface PuckContentUpdate {
   block: {
     type: string;
     props: Record<string, unknown>;
   };
+  blockIndex: number;
   isComplete: boolean;
-};
+  type: "puck-content";
+}
 
-type UsePuckChatStreamOptions = {
+interface UsePuckChatStreamOptions {
   api: string;
+  currentPath?: string;
   onNavigate?: (path: string) => void;
   onPuckContent?: (update: PuckContentUpdate) => void;
-  currentPath?: string;
   puckData?: Data;
-};
+}
 
-type ChatMessagePart = {
-  type: string;
+interface ChatMessagePart {
   input?: unknown;
-  toolCallId?: string;
   state?: string;
   text?: string;
-};
+  toolCallId?: string;
+  type: string;
+}
 
 type NavigateToolPart = ChatMessagePart & {
   type: "tool-navigate";

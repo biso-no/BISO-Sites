@@ -3,19 +3,19 @@
 import type { UserRolesForClient } from "@/lib/authorization";
 import { Sidebar } from "../sidebar";
 
-type AdminShellUser = {
+interface AdminShellUser {
+  avatar: string | null;
+  email: string | null;
   id: string;
   name: string | null;
-  email: string | null;
-  avatar: string | null;
   roleLabel: string;
-};
+}
 
-type AdminShellProps = {
+interface AdminShellProps {
   children: React.ReactNode;
-  user: AdminShellUser;
   roles: UserRolesForClient;
-};
+  user: AdminShellUser;
+}
 
 export function AdminShell({ children, user, roles }: AdminShellProps) {
   return (

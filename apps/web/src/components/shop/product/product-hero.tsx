@@ -19,10 +19,10 @@ const categoryColors: Record<string, string> = {
   Membership: "bg-orange-100 text-orange-700 border-orange-200",
 };
 
-type ProductHeroProps = {
-  product: WebshopProducts;
+interface ProductHeroProps {
   isMember: boolean;
-};
+  product: WebshopProducts;
+}
 
 export function ProductHero({ product, isMember }: ProductHeroProps) {
   const productRef = product;

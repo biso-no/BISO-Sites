@@ -12,10 +12,10 @@ const AUDIENCE = "https://api.24sevenoffice.com";
 // Refresh token 60 seconds before it actually expires
 const EXPIRY_BUFFER_MS = 60 * 1000;
 
-type CachedToken = {
+interface CachedToken {
   accessToken: string;
   expiresAt: number;
-};
+}
 
 let cached: CachedToken | null = null;
 

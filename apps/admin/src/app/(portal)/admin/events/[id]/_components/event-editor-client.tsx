@@ -26,12 +26,12 @@ type EventWithTranslations = Events & {
   translation_refs: ContentTranslations[];
 };
 
-type EventEditorClientProps = {
-  event: EventWithTranslations | null;
+interface EventEditorClientProps {
   campuses: Campus[];
+  event: EventWithTranslations | null;
   isNew: boolean;
   labels: Record<string, string>;
-};
+}
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },

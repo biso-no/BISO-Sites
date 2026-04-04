@@ -17,13 +17,13 @@ import { LocaleTabGroup } from "@/components/forms/LocaleTabGroup";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import type { FormValues } from "./schema";
 
-type JobTranslationsProps = {
-  jobId?: string;
-  isTranslating: boolean;
+interface JobTranslationsProps {
   activeLocale: "en" | "no";
-  setActiveLocale: (locale: "en" | "no") => void;
+  isTranslating: boolean;
+  jobId?: string;
   onTranslate: (from: "en" | "no", to: "en" | "no") => void;
-};
+  setActiveLocale: (locale: "en" | "no") => void;
+}
 
 export function JobTranslations({
   jobId,

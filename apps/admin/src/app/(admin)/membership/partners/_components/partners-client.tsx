@@ -30,19 +30,19 @@ import {
 } from "@/app/actions/benefit-partners";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 
-type PartnersClientProps = {
+interface PartnersClientProps {
   partners: BenefitPartner[];
   total: number;
-};
+}
 
-type PartnerFormState = {
+interface PartnerFormState {
+  campus_id: string;
+  description_en: string;
+  description_nb: string;
+  logo_url: string;
   name: string;
   website_url: string;
-  logo_url: string;
-  description_nb: string;
-  description_en: string;
-  campus_id: string;
-};
+}
 
 const emptyForm: PartnerFormState = {
   name: "",

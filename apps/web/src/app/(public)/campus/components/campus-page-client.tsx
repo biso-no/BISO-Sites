@@ -23,15 +23,15 @@ import { PartnersTab } from "./partners/partners-tab";
 import { StudentsTab } from "./students/students-tab";
 import { TeamTab } from "./team/team-tab";
 
-type CampusPageClientProps = {
-  events: Events[];
-  jobs: Jobs[];
-  news: News[];
-  departments: ContentTranslations[];
+interface CampusPageClientProps {
   campusData: CampusData[];
   campusMetadata: Record<string, CampusMetadata>;
+  departments: ContentTranslations[];
+  events: Events[];
+  jobs: Jobs[];
   locale: Locale;
-};
+  news: News[];
+}
 
 export function CampusPageClient({
   events,

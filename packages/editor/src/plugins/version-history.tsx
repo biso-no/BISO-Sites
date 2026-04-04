@@ -257,7 +257,7 @@ function VersionHistoryPanel() {
 
       return () => clearTimeout(timeout);
     }
-  }, [currentFingerprint, getPuck]);
+  }, [currentFingerprint, getPuck, content.length, appState.data]);
 
   const handleRestore = useCallback(
     (version: VersionEntry) => {

@@ -8,7 +8,7 @@ import { Query } from "node-appwrite";
 import { parseOrderItems } from "./order-parsing";
 
 // Define a type for the DB client to avoid 'any' if possible, or keep as any for compatibility
-type DbClient = {
+interface DbClient {
   getRow: (
     dbId: string,
     collId: string,
@@ -19,7 +19,7 @@ type DbClient = {
     collId: string,
     queries?: string[]
   ) => Promise<Models.DocumentList<Models.Document>>;
-};
+}
 
 /**
  * Triggers 24SevenOffice sync for membership orders

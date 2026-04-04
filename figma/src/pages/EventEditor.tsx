@@ -117,7 +117,7 @@ export function EventEditor() {
                 <CalendarDays size={12} /> Start Date & Time
               </label>
               <input
-                className="w-full border-white/10 border-b bg-transparent pb-2 text-lg text-white outline-none transition-colors scheme-dark focus:border-[#3DA9E0]"
+                className="scheme-dark w-full border-white/10 border-b bg-transparent pb-2 text-lg text-white outline-none transition-colors focus:border-[#3DA9E0]"
                 onChange={(e) =>
                   setFormData({ ...formData, date: e.target.value })
                 }

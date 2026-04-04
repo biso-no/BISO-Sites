@@ -1,16 +1,16 @@
 /**
  * AI Configuration for the monorepo
  */
-export type AIConfig = {
-  /** Default model to use */
-  model: string;
-  /** Maximum duration for streaming responses */
-  maxDuration: number;
-  /** System prompt prefix */
-  systemPromptPrefix?: string;
+export interface AIConfig {
   /** Enable debug logging */
   debug?: boolean;
-};
+  /** Maximum duration for streaming responses */
+  maxDuration: number;
+  /** Default model to use */
+  model: string;
+  /** System prompt prefix */
+  systemPromptPrefix?: string;
+}
 
 const defaultConfig: AIConfig = {
   model: "gpt-5",

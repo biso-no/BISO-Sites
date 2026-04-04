@@ -52,14 +52,14 @@ type PreparedOrder = Orders & {
 
 type Translator = Awaited<ReturnType<typeof getTranslations>>;
 
-type OrdersTableLabels = {
+interface OrdersTableLabels {
+  amount: string;
   customer: string;
+  date: string;
   email: string;
   status: string;
-  date: string;
-  amount: string;
   view: string;
-};
+}
 
 const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
   style: "currency",
@@ -296,14 +296,14 @@ export default async function Dashboard() {
   );
 }
 
-type OrdersTableProps = {
-  orders: PreparedOrder[];
-  title: string;
+interface OrdersTableProps {
   description: string;
   emptyMessage: string;
   labels: OrdersTableLabels;
+  orders: PreparedOrder[];
   t: Translator;
-};
+  title: string;
+}
 
 function OrdersTable({
   orders,
@@ -579,14 +579,14 @@ function OrderDetailCard({
   );
 }
 
-type ParsedOrderItem = {
+interface ParsedOrderItem {
   product_id?: string;
   product_slug?: string;
-  title?: string;
   quantity?: number;
+  title?: string;
   unit_price?: number;
   variation_id?: string;
-};
+}
 
 function parseOrderItems(itemsJson?: string | null): ParsedOrderItem[] {
   if (!itemsJson) {

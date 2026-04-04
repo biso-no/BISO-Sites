@@ -7,9 +7,9 @@ import {
 } from "../../_actions/jobs";
 import { JobEditorClient } from "./_components/job-editor-client";
 
-type JobEditorPageProps = {
+interface JobEditorPageProps {
   params: Promise<{ id: string }>;
-};
+}
 
 export default async function JobEditorPage({ params }: JobEditorPageProps) {
   const { id } = await params;

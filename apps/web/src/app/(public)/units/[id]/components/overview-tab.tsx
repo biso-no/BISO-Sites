@@ -8,9 +8,9 @@ import { Award, Calendar, Heart, Users } from "lucide-react";
 import { motion } from "motion/react";
 import type { DepartmentTranslation } from "@/lib/actions/departments";
 
-type OverviewTabProps = {
+interface OverviewTabProps {
   department: DepartmentTranslation;
-};
+}
 
 export function OverviewTab({ department }: OverviewTabProps) {
   const dept = department.department_ref;

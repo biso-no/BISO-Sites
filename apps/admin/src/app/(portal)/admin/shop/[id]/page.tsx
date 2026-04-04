@@ -4,7 +4,9 @@ import { listCampuses } from "../../_actions/jobs";
 import { getProduct } from "../../_actions/shop";
 import { ShopEditorClient } from "./_components/shop-editor-client";
 
-type Props = { params: Promise<{ id: string }> };
+interface Props {
+  params: Promise<{ id: string }>;
+}
 
 export default async function ShopEditorPage({ params }: Props) {
   const { id } = await params;

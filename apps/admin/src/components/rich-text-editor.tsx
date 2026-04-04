@@ -42,11 +42,11 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Markdown } from "tiptap-markdown";
 
-type RichTextEditorProps = {
+interface RichTextEditorProps {
   content: string;
-  onChange: (content: string) => void;
   editable?: boolean;
-};
+  onChange: (content: string) => void;
+}
 
 type Level = 1 | 2 | 3;
 

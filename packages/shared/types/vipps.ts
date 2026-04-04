@@ -1,26 +1,8 @@
 import type { Currency } from "@repo/api/types/appwrite";
 
-export type CheckoutSessionParams = {
-  userId: string;
-  items: Array<{
-    productId: string;
-    name: string;
-    price: number;
-    quantity: number;
-    title?: string; // Add optional fields that might be used
-    unit_price?: number;
-    product_type?: string;
-    category?: string;
-  }>;
-  subtotal: number;
-  discountTotal?: number;
-  shippingCost?: number;
-  total: number;
-  reference: string;
-  currency: Currency;
-  membershipApplied?: boolean;
-  memberDiscountPercent?: number;
+export interface CheckoutSessionParams {
   campusId?: string;
+  currency: Currency;
   customerInfo?: {
     firstName?: string;
     lastName?: string;
@@ -31,18 +13,36 @@ export type CheckoutSessionParams = {
     postalCode?: string;
     country?: string;
   };
-};
+  discountTotal?: number;
+  items: Array<{
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    title?: string; // Add optional fields that might be used
+    unit_price?: number;
+    product_type?: string;
+    category?: string;
+  }>;
+  memberDiscountPercent?: number;
+  membershipApplied?: boolean;
+  reference: string;
+  shippingCost?: number;
+  subtotal: number;
+  total: number;
+  userId: string;
+}
 
-export type VippsCheckoutResponse = {
+export interface VippsCheckoutResponse {
   checkoutUrl: string;
   orderId: string;
   sessionId: string;
-};
+}
 
-export type VippsPaymentState = {
-  state: "CREATED" | "AUTHORIZED" | "ABORTED" | "EXPIRED" | "TERMINATED";
+export interface VippsPaymentState {
   amount?: {
     value: number;
     currency: string;
   };
-};
+  state: "CREATED" | "AUTHORIZED" | "ABORTED" | "EXPIRED" | "TERMINATED";
+}

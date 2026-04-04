@@ -386,7 +386,7 @@ export function PageEditor() {
                     </div>
 
                     <div className="group relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse">
-                      <div className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#000a16] md:order-1 md:group-even:translate-x-1/2 md:group-odd:-translate-x-1/2"></div>
+                      <div className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#000a16] md:order-1 md:group-even:translate-x-1/2 md:group-odd:-translate-x-1/2" />
                       <div className="w-[calc(100%-2.5rem)] cursor-pointer rounded-xl border border-white/5 p-3 transition-colors hover:border-white/10 hover:bg-white/5 md:w-[calc(50%-1.5rem)]">
                         <p className="font-medium text-sm text-white/80">
                           Published

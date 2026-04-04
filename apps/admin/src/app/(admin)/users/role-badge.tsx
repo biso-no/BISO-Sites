@@ -3,13 +3,13 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type RoleColors = {
+interface RoleColors {
   [key: string]: {
     bg: string;
     text: string;
     border?: string;
   };
-};
+}
 
 const ROLE_COLORS: RoleColors = {
   User: {
@@ -49,10 +49,10 @@ const ROLE_COLORS: RoleColors = {
   },
 };
 
-type RoleBadgeProps = {
-  role: string;
+interface RoleBadgeProps {
   className?: string;
-};
+  role: string;
+}
 
 export function RoleBadge({ role, className }: RoleBadgeProps) {
   const colors = ROLE_COLORS[role] || ROLE_COLORS.default;
@@ -73,11 +73,11 @@ export function RoleBadge({ role, className }: RoleBadgeProps) {
   );
 }
 
-type RoleBadgeListProps = {
-  roles: string[];
-  limit?: number;
+interface RoleBadgeListProps {
   className?: string;
-};
+  limit?: number;
+  roles: string[];
+}
 
 export function RoleBadgeList({
   roles,

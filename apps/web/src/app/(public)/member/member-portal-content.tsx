@@ -9,11 +9,11 @@ import {
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
 
-type MemberPortalContentProps = {
-  user: any;
-  membership: any;
+interface MemberPortalContentProps {
   hasBIIdentity: boolean;
-};
+  membership: any;
+  user: any;
+}
 
 const calculateEstimatedSavings = (_userId: string) => {
   // TODO: Implement estimated savings calculation

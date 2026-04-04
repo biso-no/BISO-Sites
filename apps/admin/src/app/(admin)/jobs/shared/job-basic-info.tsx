@@ -19,11 +19,11 @@ import { useTranslations } from "next-intl";
 import { useFormContext } from "react-hook-form";
 import type { FormValues } from "./schema";
 
-type JobBasicInfoProps = {
+interface JobBasicInfoProps {
   campuses?: { $id: string; name: string }[];
   filteredDepartments: { $id: string; Name: string }[];
   onCampusChange: (value: string) => void;
-};
+}
 
 export function JobBasicInfo({
   campuses,

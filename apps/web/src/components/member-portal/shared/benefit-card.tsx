@@ -21,7 +21,7 @@ interface BenefitCardProps {
   isRevealed: boolean;
 }
 
-const getCategoryColor = (category: string) => {
+const getCategoryColor = (_category: string) => {
   // Use BI brand colors for all categories for a unified premium look
   return {
     bg: "bg-brand-muted",

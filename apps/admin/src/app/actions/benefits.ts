@@ -15,42 +15,42 @@ import {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type CreateBenefitInput = {
+export interface CreateBenefitInput {
   campus_id: string;
-  status: BenefitStatus;
-  kind: "offer" | "perk" | "service";
-  redemption_type: "none" | "code" | "link" | "qr" | "onsite";
   category: string;
-  partner_id?: string | null;
-  partner_name?: string | null;
-  partner_logo_url?: string | null;
-  title_nb: string;
-  title_en: string;
-  description_nb: string;
   description_en: string;
-  teaser_nb?: string | null;
-  teaser_en?: string | null;
-  terms_nb?: string | null;
-  terms_en?: string | null;
-  redemption_value?: string | null;
+  description_nb: string;
   image_url?: string | null;
   is_featured?: boolean;
-  publish_start?: string | null;
+  kind: "offer" | "perk" | "service";
+  partner_id?: string | null;
+  partner_logo_url?: string | null;
+  partner_name?: string | null;
   publish_end?: string | null;
+  publish_start?: string | null;
+  redemption_type: "none" | "code" | "link" | "qr" | "onsite";
+  redemption_value?: string | null;
   sort_order?: number;
-};
+  status: BenefitStatus;
+  teaser_en?: string | null;
+  teaser_nb?: string | null;
+  terms_en?: string | null;
+  terms_nb?: string | null;
+  title_en: string;
+  title_nb: string;
+}
 
 export type UpdateBenefitInput = Partial<CreateBenefitInput>;
 
-export type BenefitFilters = {
+export interface BenefitFilters {
   campus_id?: string;
-  status?: BenefitStatus;
   category?: string;
   is_featured?: boolean;
-  search?: string;
   limit?: number;
   offset?: number;
-};
+  search?: string;
+  status?: BenefitStatus;
+}
 
 export type BenefitListItem = CampusBenefit;
 

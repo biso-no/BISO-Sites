@@ -668,7 +668,7 @@ export default function AdminDashboard({
     }
   };
 
-  const renderHRContent = (tab: string) => {
+  const _renderHRContent = (tab: string) => {
     switch (tab) {
       case "overview":
         return (

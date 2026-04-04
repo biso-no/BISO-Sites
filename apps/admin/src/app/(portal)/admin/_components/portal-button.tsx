@@ -65,13 +65,13 @@ export function PortalButton({
   );
 }
 
-type LinkButtonProps = {
-  href: string;
-  variant?: Variant;
-  size?: Size;
+interface LinkButtonProps {
   children: ReactNode;
   className?: string;
-};
+  href: string;
+  size?: Size;
+  variant?: Variant;
+}
 
 export function PortalLinkButton({
   href,

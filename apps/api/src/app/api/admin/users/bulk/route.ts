@@ -41,15 +41,15 @@ const bulkCreateUsersSchema = z.object({
 });
 
 type BulkCreateInput = z.infer<typeof bulkCreateUserRowSchema>;
-type BulkCreateResult = {
-  index: number;
-  success: boolean;
-  input: BulkCreateInput;
-  user?: { id: string; displayName: string; upn: string };
-  temporaryPassword?: string;
-  groupsAssigned?: string[];
+interface BulkCreateResult {
   error?: string;
-};
+  groupsAssigned?: string[];
+  index: number;
+  input: BulkCreateInput;
+  success: boolean;
+  temporaryPassword?: string;
+  user?: { id: string; displayName: string; upn: string };
+}
 
 /**
  * POST /api/admin/users/bulk

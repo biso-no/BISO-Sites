@@ -6,39 +6,38 @@ import { type PageCapability, useCopilotStore } from "../stores/copilot-store";
 // Re-export the new streaming hook for easy access
 export { useStreamingPuck, useStreamingPuckRaw } from "./use-streaming-puck";
 
-type PuckBlock = {
-  type: string;
+interface PuckBlock {
   props: Record<string, unknown>;
-};
+  type: string;
+}
 
-type PuckData = {
+interface PuckData {
   content: PuckBlock[];
   root?: {
     props?: Record<string, unknown>;
   };
-};
+}
 
-type UseCopilotPuckOptions = {
+interface UseCopilotPuckOptions {
+  /**
+   * The capability this editor provides (e.g., "create-page", "edit-page")
+   */
+  capability: PageCapability;
   /**
    * Current Puck data state
    */
   data: PuckData;
 
   /**
-   * Callback to update Puck data
-   */
-  onDataChange: (data: PuckData) => void;
-
-  /**
-   * The capability this editor provides (e.g., "create-page", "edit-page")
-   */
-  capability: PageCapability;
-
-  /**
    * Whether the copilot integration is enabled (default: true)
    */
   enabled?: boolean;
-};
+
+  /**
+   * Callback to update Puck data
+   */
+  onDataChange: (data: PuckData) => void;
+}
 
 /**
  * Hook to connect a Puck editor to the AI copilot

@@ -8,7 +8,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getDepartmentsClient } from "@/lib/actions/departments";
 import { DepartmentCard } from "./department-card";
 
-type DepartmentsInfiniteListProps = {
+interface DepartmentsInfiniteListProps {
+  filters: {
+    active?: boolean;
+    campus_id?: string;
+    type?: string;
+    search?: string;
+  };
+  hasMore: boolean;
   initialDepartments: (Departments & {
     campusName?: string;
     displayTitle?: string;
@@ -16,15 +23,8 @@ type DepartmentsInfiniteListProps = {
     boardMemberCount?: number;
     socialsCount?: number;
   })[];
-  hasMore: boolean;
   pageSize: number;
-  filters: {
-    active?: boolean;
-    campus_id?: string;
-    type?: string;
-    search?: string;
-  };
-};
+}
 
 export function DepartmentsInfiniteList({
   initialDepartments,

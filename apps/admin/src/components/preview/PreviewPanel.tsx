@@ -19,13 +19,13 @@ import { cn } from "@/lib/utils";
 
 type DeviceMode = "desktop" | "mobile";
 
-type PreviewPanelProps = {
+interface PreviewPanelProps {
   children: React.ReactNode;
-  /** The preview content — receives locale and deviceMode */
-  renderPreview: (locale: Locale, deviceMode: DeviceMode) => React.ReactNode;
   /** Default locale for preview */
   defaultLocale?: Locale;
-};
+  /** The preview content — receives locale and deviceMode */
+  renderPreview: (locale: Locale, deviceMode: DeviceMode) => React.ReactNode;
+}
 
 /**
  * On desktop (lg+): resizable split — form left, preview right.

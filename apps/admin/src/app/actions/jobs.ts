@@ -27,17 +27,15 @@ import {
 } from "@/lib/utils/authorization";
 import { JOB_SELECT_FIELDS, normalizeJobRow } from "./_utils/translatable";
 
-export type ListJobsParams = {
-  limit?: number;
-  status?: string;
+export interface ListJobsParams {
   campus?: string;
-  search?: string;
+  limit?: number;
   locale?: "en" | "no";
-};
+  search?: string;
+  status?: string;
+}
 
-export type CreateJobData = {
-  slug: string;
-  status: "draft" | "published" | "closed";
+export interface CreateJobData {
   campus_id: string;
   department_id?: string;
   metadata?: {
@@ -49,6 +47,8 @@ export type CreateJobData = {
     apply_url?: string;
     image?: string;
   };
+  slug: string;
+  status: "draft" | "published" | "closed";
   translations: {
     en?: {
       title: string;
@@ -61,7 +61,7 @@ export type CreateJobData = {
       short_description?: string;
     };
   };
-};
+}
 
 const JOB_STATUS_MAP: Record<CreateJobData["status"], Status> = {
   draft: Status.DRAFT,

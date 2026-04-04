@@ -3,24 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormFieldInfo, FormStreamEvent } from "../types";
 
-type UseFormAutopilotOptions = {
+interface UseFormAutopilotOptions {
+  /** Field definitions */
+  fields: FormFieldInfo[];
   /** Form ID for identification */
   formId: string;
   /** Form name for display */
   formName: string;
-  /** Field definitions */
-  fields: FormFieldInfo[];
-  /** Callback to set a field value */
-  onSetValue: (fieldId: string, value: unknown) => void;
   /** Callback to get current field value */
   onGetValue: (fieldId: string) => unknown;
-};
+  /** Callback to set a field value */
+  onSetValue: (fieldId: string, value: unknown) => void;
+}
 
-type FormAutopilotState = {
-  isActive: boolean;
+interface FormAutopilotState {
   currentField: string | null;
+  isActive: boolean;
   streamingText: string;
-};
+}
 
 /**
  * Hook for enabling AI autopilot form filling

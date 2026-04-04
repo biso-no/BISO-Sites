@@ -33,20 +33,20 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-type ProfileFormProps = {
-  initialData: Models.Document | null | any;
+interface ProfileFormProps {
   email: string;
-};
+  initialData: Models.Document | null | any;
+}
 
-type ProfileFieldConfig = {
-  name: keyof ProfileFormValues;
-  label: string;
-  placeholder?: string;
-  type?: string;
-  required?: boolean;
+interface ProfileFieldConfig {
   colSpan?: boolean;
   disabled?: boolean;
-};
+  label: string;
+  name: keyof ProfileFormValues;
+  placeholder?: string;
+  required?: boolean;
+  type?: string;
+}
 
 type ProfileInputFieldProps = ProfileFieldConfig & {
   register: UseFormRegister<ProfileFormValues>;
@@ -88,10 +88,10 @@ const ProfileInputField = ({
   );
 };
 
-type FormMessagesProps = {
-  successMessage: string | null;
+interface FormMessagesProps {
   errorMessage: string | null;
-};
+  successMessage: string | null;
+}
 
 const FormMessages = ({ successMessage, errorMessage }: FormMessagesProps) => (
   <>

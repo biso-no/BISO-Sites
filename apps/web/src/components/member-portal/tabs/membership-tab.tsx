@@ -20,16 +20,16 @@ const MEMBERSHIP_PRICES = {
   "three-year": 1400,
 };
 
-type MembershipTabProps = {
-  userName: string;
-  studentId: string;
-  currentPlan: MembershipDuration;
-  expiryDate: string;
-  daysRemaining: number;
+interface MembershipTabProps {
   autoRenew: boolean;
-  isMember: boolean;
+  currentPlan: MembershipDuration;
+  daysRemaining: number;
+  expiryDate: string;
   hasBIIdentity: boolean;
-};
+  isMember: boolean;
+  studentId: string;
+  userName: string;
+}
 
 export function MembershipTab({
   userName,

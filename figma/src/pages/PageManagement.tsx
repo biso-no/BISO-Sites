@@ -181,7 +181,7 @@ export function PageManagement() {
                 </tr>
               </thead>
               <tbody>
-                {MOCK_PAGES.map((page, i) => (
+                {MOCK_PAGES.map((page, _i) => (
                   <tr
                     className="group border-white/5 border-b transition-colors hover:bg-white/5"
                     key={page.id}

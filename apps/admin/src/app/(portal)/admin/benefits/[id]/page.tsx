@@ -4,7 +4,9 @@ import { getBenefit } from "../../_actions/benefits";
 import { listCampuses } from "../../_actions/jobs";
 import { BenefitEditorClient } from "./_components/benefit-editor-client";
 
-type Props = { params: Promise<{ id: string }> };
+interface Props {
+  params: Promise<{ id: string }>;
+}
 
 export default async function BenefitEditorPage({ params }: Props) {
   const { id } = await params;

@@ -126,17 +126,17 @@ export async function removeIdentity(identityId: string) {
   }
 }
 
-type ProfileDetails = {
-  department?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
+interface ProfileDetails {
   address?: string;
-  city?: string;
-  zip?: string;
   bank_account?: string;
+  city?: string;
+  department?: string;
+  email?: string;
+  name?: string;
+  phone?: string;
   swift?: string;
-};
+  zip?: string;
+}
 
 export async function updateProfile(profile: Partial<Users>) {
   try {

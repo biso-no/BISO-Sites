@@ -6,22 +6,22 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import { useCallback, useMemo } from "react";
 
-type ProductFormData = {
-  slug: string;
-  status: "draft" | "published" | "archived";
+interface ProductFormData {
   campus_id: string;
   category: string;
-  regular_price: number;
-  member_price?: number;
-  member_only?: boolean;
-  stock?: number;
   image?: string;
+  member_only?: boolean;
+  member_price?: number;
   metadata?: {
     sku?: string;
     images?: string[];
     max_per_user?: number;
     max_per_order?: number;
   };
+  regular_price: number;
+  slug: string;
+  status: "draft" | "published" | "archived";
+  stock?: number;
   translations: {
     en: {
       title: string;
@@ -32,12 +32,12 @@ type ProductFormData = {
       description: string;
     };
   };
-};
+}
 
-type ProductPreviewProps = {
+interface ProductPreviewProps {
   data: ProductFormData;
   locale: "en" | "no";
-};
+}
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",

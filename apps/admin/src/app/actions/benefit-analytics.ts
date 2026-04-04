@@ -6,22 +6,22 @@ import type { BenefitInteraction } from "@repo/api/types/appwrite";
 import { BenefitInteractionAction } from "@repo/api/types/appwrite";
 import { getUserAuthContext } from "@/lib/authorization";
 
-export type BenefitAnalyticsSummary = {
-  totalViews: number;
-  totalReveals: number;
-  totalClicks: number;
-  totalRedeems: number;
-  topBenefits: { benefit_id: string; count: number; action: string }[];
+export interface BenefitAnalyticsSummary {
   byCampus: { campus_id: string; count: number }[];
   byCategory: { category: string; count: number }[];
-};
+  topBenefits: { benefit_id: string; count: number; action: string }[];
+  totalClicks: number;
+  totalRedeems: number;
+  totalReveals: number;
+  totalViews: number;
+}
 
-export type BenefitAnalyticsFilters = {
-  campusId?: string;
-  benefitId?: string;
+export interface BenefitAnalyticsFilters {
   action?: BenefitInteractionAction;
+  benefitId?: string;
+  campusId?: string;
   since?: string; // ISO date string
-};
+}
 
 export async function getBenefitInteractions(
   filters: BenefitAnalyticsFilters = {}

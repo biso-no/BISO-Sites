@@ -8,7 +8,7 @@ import { PageStatus, type PageVisibility } from "./types/appwrite";
 
 const DATABASE_ID = "app";
 const PAGES_TABLE_ID = "pages";
-const PAGE_TRANSLATIONS_TABLE_ID = "page_translations";
+const _PAGE_TRANSLATIONS_TABLE_ID = "page_translations";
 
 export type PageDocument = Record<string, unknown>;
 
@@ -108,41 +108,41 @@ function serializePublished(
   return JSON.stringify(cloneDocument(document));
 }
 
-export type PageTranslationRecord = {
-  id: string;
-  pageId: string;
-  locale: Locale;
-  title: string;
-  slug: string | null;
+export interface PageTranslationRecord {
+  createdAt: string;
   description: string | null;
   draftDocument: PageDocument;
-  publishedDocument: PageDocument | null;
-  isPublished: boolean;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type PageRecord = {
   id: string;
-  slug: string;
+  isPublished: boolean;
+  locale: Locale;
+  pageId: string;
+  publishedAt: string | null;
+  publishedDocument: PageDocument | null;
+  slug: string | null;
   title: string;
-  status: PageStatus;
-  visibility: PageVisibility;
-  template: string | null;
-  campusId: string | null;
-  departmentId: string | null;
-  permissions: string[];
-  createdAt: string;
   updatedAt: string;
-  translations: PageTranslationRecord[];
-};
+}
 
-export type PublishedPage = {
+export interface PageRecord {
+  campusId: string | null;
+  createdAt: string;
+  departmentId: string | null;
+  id: string;
+  permissions: string[];
+  slug: string;
+  status: PageStatus;
+  template: string | null;
+  title: string;
+  translations: PageTranslationRecord[];
+  updatedAt: string;
+  visibility: PageVisibility;
+}
+
+export interface PublishedPage {
+  document: PageDocument;
   page: PageRecord;
   translation: PageTranslationRecord;
-  document: PageDocument;
-};
+}
 
 async function hasAuthenticatedSession(): Promise<boolean> {
   try {
@@ -238,16 +238,16 @@ async function fetchPageRow(pageId: string) {
   });
 }
 
-export type ListPagesParams = {
-  search?: string;
-  status?: PageStatus[];
-  visibility?: PageVisibility[];
-  limit?: number;
+export interface ListPagesParams {
   campusId?: string | null;
   departmentId?: string | null;
+  limit?: number;
+  search?: string;
+  status?: PageStatus[];
   /** Use session client instead of admin client (respects RLS) */
   useSession?: boolean;
-};
+  visibility?: PageVisibility[];
+}
 
 export async function listPages(
   params: ListPagesParams = {}
@@ -303,11 +303,11 @@ export async function getPageById(pageId: string): Promise<PageRecord | null> {
   }
 }
 
-export type GetPageBySlugParams = {
-  slug: string;
+export interface GetPageBySlugParams {
   locale: Locale;
   preview?: boolean;
-};
+  slug: string;
+}
 
 export async function getPublishedPage({
   slug,
@@ -371,15 +371,15 @@ export async function getPublishedPage({
   };
 }
 
-export type UpdatePageInput = {
+export interface UpdatePageInput {
+  campusId?: string | null;
   pageId: string;
   slug?: string;
-  title?: string;
   status?: PageStatus;
-  visibility?: PageVisibility;
   template?: string | null;
-  campusId?: string | null;
-};
+  title?: string;
+  visibility?: PageVisibility;
+}
 
 export async function updatePage({
   pageId,
@@ -428,27 +428,27 @@ export async function deletePage(pageId: string): Promise<void> {
   });
 }
 
-export type UpsertPageTranslationData = {
-  locale: Locale;
-  title: string;
-  slug?: string | null;
+export interface UpsertPageTranslationData {
   description?: string | null;
   draftDocument: PageDocument;
+  locale: Locale;
   publish: boolean;
-};
-
-export type UpsertPageInput = {
-  pageId?: string;
-  slug: string;
+  slug?: string | null;
   title: string;
-  status: PageStatus;
-  visibility: PageVisibility;
-  template?: string | null;
+}
+
+export interface UpsertPageInput {
   campusId?: string | null;
   departmentId?: string | null;
+  pageId?: string;
   permissions?: string[];
+  slug: string;
+  status: PageStatus;
+  template?: string | null;
+  title: string;
   translations: UpsertPageTranslationData[];
-};
+  visibility: PageVisibility;
+}
 
 export async function upsertPage(input: UpsertPageInput): Promise<PageRecord> {
   const { db } = await createSessionClient();

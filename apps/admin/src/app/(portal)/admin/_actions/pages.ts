@@ -81,7 +81,10 @@ export async function getDashboardStats() {
   };
 }
 
-export type PageViewDay = { date: string; views: number };
+export interface PageViewDay {
+  date: string;
+  views: number;
+}
 
 export async function getPageViewStats(days = 14): Promise<PageViewDay[]> {
   await requireAuth();

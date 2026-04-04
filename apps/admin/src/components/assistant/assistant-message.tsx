@@ -4,9 +4,9 @@ import type { AssistantMessage as AssistantMessageType } from "@repo/ai/types";
 import { cn } from "@repo/ui/lib/utils";
 import { Bot, User } from "lucide-react";
 
-type AssistantMessageProps = {
+interface AssistantMessageProps {
   message: AssistantMessageType;
-};
+}
 
 function getMessageText(message: AssistantMessageType): string {
   if (!message.parts || message.parts.length === 0) {

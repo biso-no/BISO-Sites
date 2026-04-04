@@ -4,22 +4,22 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 
-type SummaryMetric = {
+interface SummaryMetric {
+  hint?: ReactNode;
   label: string;
   value: ReactNode;
-  hint?: ReactNode;
-};
+}
 
-type AdminSummaryProps = {
-  badge?: string;
-  title: string;
-  description?: ReactNode;
-  metrics?: SummaryMetric[];
+interface AdminSummaryProps {
   action?: ReactNode;
-  footer?: ReactNode;
-  slot?: ReactNode;
+  badge?: string;
   className?: string;
-};
+  description?: ReactNode;
+  footer?: ReactNode;
+  metrics?: SummaryMetric[];
+  slot?: ReactNode;
+  title: string;
+}
 
 export const AdminSummary = ({
   badge,

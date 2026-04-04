@@ -8,13 +8,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { formatEventPrice } from "@/lib/types/event";
 
-type EventCollectionListProps = {
-  currentEventId: string;
+interface EventCollectionListProps {
   collectionEvents: Events[];
-  isCollectionParent: boolean;
   collectionPricing: string | null;
+  currentEventId: string;
+  isCollectionParent: boolean;
   priceDisplay: string;
-};
+}
 
 export function EventCollectionList({
   currentEventId,

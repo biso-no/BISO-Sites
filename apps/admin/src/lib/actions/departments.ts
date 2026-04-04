@@ -9,14 +9,14 @@ import {
   Locale,
 } from "@repo/api/types/appwrite";
 
-type GetDepartmentsParams = {
-  campusId?: string;
+interface GetDepartmentsParams {
   active?: boolean;
-  type?: string;
-  search?: string;
+  campusId?: string;
   limit?: number;
   offset?: number;
-};
+  search?: string;
+  type?: string;
+}
 
 export async function getDepartments(params: GetDepartmentsParams = {}) {
   const { db } = await createSessionClient();

@@ -9,9 +9,9 @@ import { Calendar, ExternalLink, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type NewsTabProps = {
+interface NewsTabProps {
   news: News[];
-};
+}
 
 export function NewsTab({ news }: NewsTabProps) {
   return (

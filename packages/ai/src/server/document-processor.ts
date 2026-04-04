@@ -4,17 +4,17 @@ import TurndownService from "turndown";
 import { correctMimeType } from "../utils/mime-utils";
 import { extractTextFromPdf } from "./pdf-text-extractor";
 
-export type ProcessedDocument = {
-  content: string;
-  metadata: Record<string, any>;
+export interface ProcessedDocument {
   chunks: DocumentChunk[];
-};
-
-export type DocumentChunk = {
   content: string;
   metadata: Record<string, any>;
+}
+
+export interface DocumentChunk {
   chunkIndex: number;
-};
+  content: string;
+  metadata: Record<string, any>;
+}
 
 // Configuration constants
 const CHUNKING_CONFIG = {

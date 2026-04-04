@@ -4,20 +4,20 @@ import { Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
 
-type ChipFilter = {
+interface ChipFilter {
   label: string;
   value: string;
-};
+}
 
-type SearchToolbarProps = {
-  placeholder?: string;
-  defaultSearch?: string;
-  onSearch?: (value: string) => void;
-  filters?: ChipFilter[];
+interface SearchToolbarProps {
   activeFilter?: string;
-  onFilterChange?: (value: string) => void;
   children?: ReactNode;
-};
+  defaultSearch?: string;
+  filters?: ChipFilter[];
+  onFilterChange?: (value: string) => void;
+  onSearch?: (value: string) => void;
+  placeholder?: string;
+}
 
 export function SearchToolbar({
   placeholder = "Search...",

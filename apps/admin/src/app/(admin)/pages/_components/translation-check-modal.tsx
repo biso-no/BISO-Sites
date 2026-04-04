@@ -13,27 +13,27 @@ import {
 } from "@repo/ui/components/ui/dialog";
 import { Globe, Languages, Loader2, SkipForward } from "lucide-react";
 
-export type UntranslatedLocaleInfo = {
-  locale: Locale;
-  missingFields: string[];
+export interface UntranslatedLocaleInfo {
   blockCount: number;
   filledBlockCount: number;
-};
+  locale: Locale;
+  missingFields: string[];
+}
 
 type TranslationProgress = Record<
   string,
   "pending" | "translating" | "done" | "error"
 >;
 
-type TranslationCheckModalProps = {
-  open: boolean;
-  untranslatedLocales: UntranslatedLocaleInfo[];
-  onTranslateAndPublish: () => void;
-  onSkipAndPublish: () => void;
-  onCancel: () => void;
+interface TranslationCheckModalProps {
   isTranslating: boolean;
+  onCancel: () => void;
+  onSkipAndPublish: () => void;
+  onTranslateAndPublish: () => void;
+  open: boolean;
   translationProgress: TranslationProgress;
-};
+  untranslatedLocales: UntranslatedLocaleInfo[];
+}
 
 const LOCALE_LABELS: Record<string, string> = {
   no: "Norwegian",

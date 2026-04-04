@@ -15,16 +15,16 @@ import { Filter, MapPin, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useCampus } from "@/components/context/campus";
 
-type DepartmentsFiltersClientProps = {
+interface DepartmentsFiltersClientProps {
   availableTypes: string[];
   onFilterChange: (filters: FilterState) => void;
-};
+}
 
-export type FilterState = {
-  search: string;
+export interface FilterState {
   campusId: string | null;
+  search: string;
   type: string | null;
-};
+}
 
 export function DepartmentsFiltersClient({
   availableTypes,

@@ -14,17 +14,17 @@ import { PriceDetails } from "./price-details";
 import { StockStatusCard } from "./stock-status-card";
 import { useProductActions } from "./use-product-actions";
 
-type AddToCartClientProps = {
-  product: WebshopProducts;
-  isMember: boolean;
-  userId: string | null;
-  regularPrice: number;
-  memberPrice?: number | null;
+interface AddToCartClientProps {
   displayPrice: number;
   hasDiscount: boolean;
+  isMember: boolean;
+  memberPrice?: number | null;
+  product: WebshopProducts;
+  regularPrice: number;
   savings: number;
   stock: number | null;
-};
+  userId: string | null;
+}
 
 // This component encapsulates all interactive sidebar elements
 export function AddToCartClient({

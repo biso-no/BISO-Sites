@@ -6,13 +6,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
 
-type CreateAttachmentData = {
-  date: string;
-  url: string;
+interface CreateAttachmentData {
   amount: number;
+  date: string;
   description: string;
   type: string;
-};
+  url: string;
+}
 
 export type CreateExpenseData = Models.Row & {
   campus: string;

@@ -4,7 +4,9 @@ import { listCampuses } from "../../_actions/jobs";
 import { getNewsArticle } from "../../_actions/news";
 import { NewsEditorClient } from "./_components/news-editor-client";
 
-type Props = { params: Promise<{ id: string }> };
+interface Props {
+  params: Promise<{ id: string }>;
+}
 
 export default async function NewsEditorPage({ params }: Props) {
   const { id } = await params;

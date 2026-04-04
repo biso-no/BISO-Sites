@@ -4,9 +4,9 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { useTranslations } from "next-intl";
 import type { JobApplication } from "@/lib/types/job-application";
 
-type ApplicationStatusBadgeProps = {
+interface ApplicationStatusBadgeProps {
   status: JobApplication["status"];
-};
+}
 
 export function ApplicationStatusBadge({
   status,

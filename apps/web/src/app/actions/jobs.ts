@@ -4,13 +4,13 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Jobs, Locale } from "@repo/api/types/appwrite";
 
-type ListJobsParams = {
-  limit?: number;
-  status?: string;
+interface ListJobsParams {
   campus?: string;
-  search?: string;
+  limit?: number;
   locale?: "en" | "no";
-};
+  search?: string;
+  status?: string;
+}
 
 export async function listJobs(params: ListJobsParams = {}): Promise<Jobs[]> {
   const { limit = 25, status = "published", campus, locale, search } = params;

@@ -13,10 +13,10 @@ import { ChevronRight, ShoppingBag, Tag } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type ProductsTabProps = {
-  products: WebshopProducts[];
+interface ProductsTabProps {
   isMember: boolean;
-};
+  products: WebshopProducts[];
+}
 
 const StockBadge = ({ stock }: { stock?: number | null }) => {
   if (stock === null || stock === undefined) {

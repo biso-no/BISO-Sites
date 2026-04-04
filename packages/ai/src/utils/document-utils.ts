@@ -2,10 +2,10 @@
  * Utility functions for document handling and URL generation
  */
 
-export type DocumentViewerUrlOptions = {
-  fileName: string;
+export interface DocumentViewerUrlOptions {
   baseUrl?: string;
-};
+  fileName: string;
+}
 
 /**
  * Generate a public document viewer URL for a SharePoint document

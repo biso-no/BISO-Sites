@@ -2,17 +2,17 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import type { LucideIcon } from "lucide-react";
 
-type QuickStatsCardProps = {
-  icon: LucideIcon;
-  iconColor: string;
-  value: string | number;
-  label: string;
+interface QuickStatsCardProps {
   badge?: {
     text: string;
     variant?: "default" | "secondary" | "destructive" | "outline";
     className?: string;
   };
-};
+  icon: LucideIcon;
+  iconColor: string;
+  label: string;
+  value: string | number;
+}
 
 export function QuickStatsCard({
   icon: Icon,
