@@ -4,13 +4,14 @@ import { ID, type Models, OAuthProvider } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getRequestOrigin } from "@/lib/request-origin";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 export async function signInWithAzure() {
   const { account } = await createAdminClient();
 
-  const origin = (await headers()).get("origin");
+  const origin = await getRequestOrigin();
 
   // Get the redirectTo parameter from the URL if it exists
   const url = new URL(
@@ -35,7 +36,7 @@ export async function signInWithAzure() {
 export async function signInWithMagicLink(email: string) {
   const { account } = await createSessionClient();
 
-  const origin = (await headers()).get("origin");
+  const origin = await getRequestOrigin();
 
   /*
     if (email.includes("@biso.no")) {
