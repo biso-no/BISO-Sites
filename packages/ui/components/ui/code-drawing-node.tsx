@@ -30,20 +30,20 @@ import {
 import debounce from 'lodash/debounce.js';
 import { Trash2, DownloadIcon } from 'lucide-react';
 
-import { Button } from '@repo/components/ui/button';
+import { Button } from './button';
 import { useIsMobile } from '@repo/hooks/use-mobile';
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-} from '@repo/components/ui/popover';
+} from './popover';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@repo/components/ui/select';
+} from './select';
 
 function useCodeDrawingElement({ element }: { element: TCodeDrawingElement }) {
   const editor = useEditorRef();

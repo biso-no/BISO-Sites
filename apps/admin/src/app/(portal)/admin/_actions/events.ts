@@ -19,7 +19,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { z } from "zod";
 import { eventSchema, type EventFormValues } from "./schemas";
-
+import { EVENTS_PAGE_SIZE } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -27,16 +27,21 @@ async function requireAuth(): Promise<UserAuthContext> {
   return ctx;
 }
 
+
+
 export async function listEvents(opts?: {
   campusId?: string;
   status?: string;
+  page?: number;
 }) {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
+  const page = Math.max(1, opts?.page ?? 1);
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
-    Query.limit(100),
+    Query.limit(EVENTS_PAGE_SIZE),
+    Query.offset((page - 1) * EVENTS_PAGE_SIZE),
     Query.select(['*', 'translation_refs.*']),
     ...applyScopeQueries(ctx),
   ];
@@ -51,7 +56,7 @@ export async function listEvents(opts?: {
 
   const response = await db.listRows<Events>("app", "events", queries);
 
- return response;
+  return { rows: response.rows, total: response.total };
 }
 
 export async function getEvent(id: string) {

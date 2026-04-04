@@ -44,7 +44,7 @@ export const eventSchema = z.object({
   ticket_url: z.string().url().optional().nullable().or(z.literal("")),
   member_only: z.boolean().default(false),
 });
-
+export const EVENTS_PAGE_SIZE = 20;
 export type EventFormValues = z.infer<typeof eventSchema>;
 
 export const jobSchema = z.object({
@@ -59,7 +59,7 @@ export const jobSchema = z.object({
   employment_type: z.string().optional().nullable(),
   company: z.string().optional().nullable(),
 });
-
+export const JOBS_PAGE_SIZE = 20;
 export type JobFormValues = z.infer<typeof jobSchema>;
 
 export const newsSchema = z.object({
@@ -78,7 +78,7 @@ export const newsSchema = z.object({
     image: z.string().url().optional().nullable().or(z.literal("")),
     sticky: z.boolean().default(false),
   });
-  
+  export const NEWS_PAGE_SIZE = 20;
   export type NewsFormValues = z.infer<typeof newsSchema>;
 
   export const productSchema = z.object({
@@ -98,5 +98,7 @@ export const newsSchema = z.object({
     image: z.string().url().optional().nullable().or(z.literal("")),
     stock: z.coerce.number().int().nonnegative().optional().nullable(),
   });
-  
+  export const PRODUCTS_PAGE_SIZE = 20;
   export type ProductFormValues = z.infer<typeof productSchema>;
+
+  export const MEDIA_BUCKET_ID = "media";

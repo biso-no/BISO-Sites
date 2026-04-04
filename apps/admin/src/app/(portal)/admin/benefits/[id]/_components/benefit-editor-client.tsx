@@ -4,11 +4,14 @@ import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { createBenefit, updateBenefit, benefitSchema, type BenefitFormValues } from "../../../_actions/benefits";
+import { createBenefit, updateBenefit } from "../../../_actions/benefits";
+import { benefitSchema, BenefitFormValues } from "@/app/(portal)/admin/_actions/schemas"
 import { EditorHeader } from "../../../_components/editor-header";
 import { PreviewPanel } from "../../../_components/preview-panel";
-import { PortalField, PortalInput, PortalSelect, PortalTextarea } from "../../../_components/portal-fields";
+import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { PortalButton } from "../../../_components/portal-button";
+import { ImageUploadField } from "../../../_components/image-upload-field";
+import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
 import type { CampusBenefits, Campus } from "@repo/api/types/appwrite";
 
 type BenefitEditorClientProps = {
@@ -87,10 +90,20 @@ export function BenefitEditorClient({ benefit, campuses, isNew, labels }: Benefi
             <form.Field name="title_en">{(field) => (<PortalField label={labels.titleEn} required><PortalInput value={field.state.value} onBlur={field.handleBlur} onChange={(e) => { field.handleChange(e.target.value); setPreviewTitle(e.target.value); }} /></PortalField>)}</form.Field>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <form.Field name="description_nb">{(field) => (<PortalField label={labels.descriptionNo} required><PortalTextarea rows={4} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></PortalField>)}</form.Field>
-            <form.Field name="description_en">{(field) => (<PortalField label={labels.descriptionEn} required><PortalTextarea rows={4} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></PortalField>)}</form.Field>
-          </div>
+          <form.Field name="description_nb">
+            {(field) => (
+              <PortalField label={labels.descriptionNo} required>
+                <PortalBodyEditor value={field.state.value} onChange={(v) => field.handleChange(v)} placeholder="Beskrivelse på norsk..." minHeight={180} />
+              </PortalField>
+            )}
+          </form.Field>
+          <form.Field name="description_en">
+            {(field) => (
+              <PortalField label={labels.descriptionEn} required>
+                <PortalBodyEditor value={field.state.value} onChange={(v) => field.handleChange(v)} placeholder="Description in English..." minHeight={180} />
+              </PortalField>
+            )}
+          </form.Field>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <form.Field name="kind">{(field) => (<PortalField label={labels.kind}><PortalSelect value={field.state.value} onChange={(e) => { field.handleChange(e.target.value as BenefitFormValues["kind"]); setPreviewKind(e.target.value); }} options={KIND_OPTIONS} /></PortalField>)}</form.Field>
@@ -103,7 +116,19 @@ export function BenefitEditorClient({ benefit, campuses, isNew, labels }: Benefi
             <form.Field name="redemption_value">{(field) => (<PortalField label={labels.redemptionValue}><PortalInput value={field.state.value ?? ""} onChange={(e) => field.handleChange(e.target.value || null)} placeholder="Code / URL..." /></PortalField>)}</form.Field>
           </div>
 
-          <form.Field name="image_url">{(field) => (<PortalField label={labels.imageUrl}><PortalInput value={field.state.value ?? ""} onChange={(e) => { field.handleChange(e.target.value || null); setPreviewImage(e.target.value); }} placeholder="https://..." /></PortalField>)}</form.Field>
+          <form.Field name="image_url">
+            {(field) => (
+              <PortalField label={labels.imageUrl}>
+                <ImageUploadField
+                  value={field.state.value}
+                  onChange={(url) => {
+                    field.handleChange(url);
+                    setPreviewImage(url ?? "");
+                  }}
+                />
+              </PortalField>
+            )}
+          </form.Field>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <form.Field name="campus_id">{(field) => (<PortalField label={labels.campus} required><PortalSelect value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} options={campusOptions} /></PortalField>)}</form.Field>

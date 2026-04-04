@@ -1,17 +1,21 @@
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { Plus, Briefcase } from "lucide-react";
+import { Plus } from "lucide-react";
 import { listJobs } from "../_actions/jobs";
 import { PageHeader } from "../_components/page-header";
-import { EmptyState } from "../_components/empty-state";
-import { StatusBadge } from "../_components/status-badge";
 import { JobsListClient } from "./_components/jobs-list-client";
 
-export default async function JobsPage() {
+type JobsPageProps = {
+  searchParams: Promise<{ page?: string }>;
+};
+
+export default async function JobsPage({ searchParams }: JobsPageProps) {
   const t = await getTranslations("adminPortal.jobs");
   const tc = await getTranslations("adminPortal.common");
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
 
-  const jobs = await listJobs();
+  const jobs = await listJobs({ page });
 
   return (
     <div className="pb-12">
@@ -31,7 +35,9 @@ export default async function JobsPage() {
       </PageHeader>
 
       <JobsListClient
-        initialJobs={jobs}
+        initialJobs={jobs.rows}
+        total={jobs.total}
+        page={page}
         labels={{
           empty: t("empty"),
           emptyDescription: t("emptyDescription"),

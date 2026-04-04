@@ -51,6 +51,7 @@ import {
   type TTableElement,
   type TTableRowElement,
   KEYS,
+  Path,
   PathApi,
 } from 'platejs';
 import {
@@ -70,7 +71,7 @@ import {
 } from 'platejs/react';
 import { useElementSelector } from 'platejs/react';
 
-import { Button } from '@repo/components/ui/button';
+import { Button } from './button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -79,12 +80,12 @@ import {
   DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuTrigger,
-} from '@repo/components/ui/dropdown-menu';
+} from './dropdown-menu';
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-} from '@repo/components/ui/popover';
+} from './popover';
 import { cn } from '@repo/ui/lib/utils';
 
 import { blockSelectionVariants } from './block-selection';
@@ -703,11 +704,11 @@ export const TableElement = withHOC(
               ref={tableRef}
               className={cn(
                 'mr-0 ml-px table h-px table-fixed border-collapse',
-                'data-[table-selecting=true]:[&_*::selection]:!bg-transparent',
-                'data-[table-selecting=true]:[&_*::selection]:!text-inherit',
-                'data-[table-selecting=true]:[&_*::-moz-selection]:!bg-transparent',
-                'data-[table-selecting=true]:[&_*::-moz-selection]:!text-inherit',
-                'data-[table-selecting=true]:[&_*]:!caret-transparent'
+                'data-[table-selecting=true]:[&_*::selection]:bg-transparent!',
+                'data-[table-selecting=true]:[&_*::selection]:text-inherit!',
+                'data-[table-selecting=true]:[&_*::-moz-selection]:bg-transparent!',
+                'data-[table-selecting=true]:[&_*::-moz-selection]:text-inherit!',
+                'data-[table-selecting=true]:**:caret-transparent!'
               )}
               style={tableStyle}
               {...tableProps}
@@ -1168,7 +1169,7 @@ export function TableRowElement({
   const { isDragging, nodeRef, previewRef, handleRef } = useDraggable({
     element,
     type: element.type,
-    canDropNode: ({ dragEntry, dropEntry }) =>
+    canDropNode: ({ dragEntry, dropEntry }: { dragEntry: [TElement, Path]; dropEntry: [TElement, Path] }) =>
       PathApi.equals(
         PathApi.parent(dragEntry[1]),
         PathApi.parent(dropEntry[1])
@@ -1239,10 +1240,19 @@ function useTableCellPresentation(element: TTableCellElement) {
 function RowDragHandle({ dragRef }: { dragRef: React.Ref<any> }) {
   const editor = useEditorRef();
   const element = useElement();
+  const localRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (typeof dragRef === 'function') {
+      dragRef(localRef.current);
+    } else if (dragRef && 'current' in dragRef) {
+      (dragRef as React.MutableRefObject<HTMLButtonElement | null>).current = localRef.current;
+    }
+  });
 
   return (
     <Button
-      ref={dragRef}
+      ref={localRef}
       variant="outline"
       className={cn(
         '-translate-y-1/2 absolute top-1/2 left-0 z-51 h-6 w-4 p-0 focus-visible:ring-0 focus-visible:ring-offset-0',
@@ -1382,7 +1392,7 @@ const TableCellResizeControls = React.memo(function TableCellResizeControls({
       suppressContentEditableWarning={true}
     >
       <div
-        className="-top-2 -right-1 pointer-events-auto absolute z-40 h-[calc(100%_+_8px)] w-2 cursor-col-resize touch-none"
+        className="-top-2 -right-1 pointer-events-auto absolute z-40 h-[calc(100%+8px)] w-2 cursor-col-resize touch-none"
         onPointerEnter={(event) => {
           setResizePreview(event, {
             colIndex,

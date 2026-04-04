@@ -7,19 +7,18 @@ import { toast } from "sonner";
 import {
   createJob,
   updateJob,
-  jobSchema,
-  type JobFormValues,
   listDepartmentsForCampus,
 } from "../../../_actions/jobs";
+import { jobSchema, type JobFormValues } from "../../../_actions/schemas";
 import { EditorHeader } from "../../../_components/editor-header";
 import { PreviewPanel } from "../../../_components/preview-panel";
 import {
   PortalField,
   PortalInput,
   PortalSelect,
-  PortalTextarea,
 } from "../../../_components/portal-fields";
 import { PortalButton } from "../../../_components/portal-button";
+import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
 import type {
   Jobs,
   ContentTranslations,
@@ -220,7 +219,12 @@ export function JobEditorClient({
           <form.Field name="description_no">
             {(field) => (
               <PortalField label={labels.descriptionNo} required>
-                <PortalTextarea rows={6} value={field.state.value} onBlur={field.handleBlur} onChange={(e) => field.handleChange(e.target.value)} placeholder="Stillingsbeskrivelse på norsk..." />
+                <PortalBodyEditor
+                  value={field.state.value}
+                  onChange={(v) => field.handleChange(v)}
+                  placeholder="Stillingsbeskrivelse på norsk..."
+                  minHeight={240}
+                />
               </PortalField>
             )}
           </form.Field>
@@ -228,7 +232,12 @@ export function JobEditorClient({
           <form.Field name="description_en">
             {(field) => (
               <PortalField label={labels.descriptionEn} required>
-                <PortalTextarea rows={6} value={field.state.value} onBlur={field.handleBlur} onChange={(e) => field.handleChange(e.target.value)} placeholder="Job description in English..." />
+                <PortalBodyEditor
+                  value={field.state.value}
+                  onChange={(v) => field.handleChange(v)}
+                  placeholder="Job description in English..."
+                  minHeight={200}
+                />
               </PortalField>
             )}
           </form.Field>

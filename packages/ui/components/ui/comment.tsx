@@ -36,15 +36,15 @@ import {
   usePluginOption,
 } from 'platejs/react';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@repo/components/ui/avatar';
-import { Button } from '@repo/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from './avatar';
+import { Button } from './button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@repo/components/ui/dropdown-menu';
+} from './dropdown-menu';
 import { cn } from '@repo/ui/lib/utils';
 import { BasicMarksKit } from '@repo/ui/components/basic-marks-kit';
 import {

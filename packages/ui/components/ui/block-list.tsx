@@ -15,7 +15,7 @@ import {
   useReadOnly,
 } from 'platejs/react';
 
-import { Checkbox } from '@repo/components/ui/checkbox';
+import { Checkbox } from './checkbox';
 import { cn } from '@repo/ui/lib/utils';
 
 const config: Record<

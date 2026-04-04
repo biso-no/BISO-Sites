@@ -22,13 +22,13 @@ import {
   useSelected,
 } from 'platejs/react';
 
-import { Button, buttonVariants } from '@repo/components/ui/button';
+import { Button, buttonVariants } from './button';
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-} from '@repo/components/ui/popover';
-import { Separator } from '@repo/components/ui/separator';
+} from './popover';
+import { Separator } from './separator';
 
 import { CaptionButton } from './caption';
 

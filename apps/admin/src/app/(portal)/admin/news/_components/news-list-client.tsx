@@ -8,12 +8,15 @@ import { deleteNews } from "../../_actions/news";
 import { SearchToolbar } from "../../_components/search-toolbar";
 import { StatusBadge } from "../../_components/status-badge";
 import { EmptyState } from "../../_components/empty-state";
+import { PaginationBar } from "../../_components/pagination-bar";
 import type { News, ContentTranslations } from "@repo/api/types/appwrite";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 
 type NewsListClientProps = {
   initialArticles: NewsWithTranslations[];
+  total: number;
+  page: number;
   labels: {
     empty: string;
     emptyDescription: string;
@@ -27,7 +30,7 @@ type NewsListClientProps = {
   };
 };
 
-export function NewsListClient({ initialArticles, labels }: NewsListClientProps) {
+export function NewsListClient({ initialArticles, total, page, labels }: NewsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [, startTransition] = useTransition();
@@ -66,7 +69,7 @@ export function NewsListClient({ initialArticles, labels }: NewsListClientProps)
     });
   }
 
-  if (initialArticles.length === 0) {
+  if (initialArticles.length === 0 && page === 1) {
     return (
       <EmptyState icon={<Newspaper size={28} />} title={labels.empty} description={labels.emptyDescription}>
         <Link href="/admin/news/new" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#3DA9E0", color: "#001731" }}>Write first article</Link>
@@ -87,7 +90,6 @@ export function NewsListClient({ initialArticles, labels }: NewsListClientProps)
               className="group flex items-center gap-4 px-5 py-4 rounded-2xl transition-all"
               style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
             >
-              {/* Thumbnail */}
               <div className="w-16 h-12 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
                 {article.image ? (
                   <img src={article.image} alt="" className="w-full h-full object-cover" />
@@ -125,6 +127,8 @@ export function NewsListClient({ initialArticles, labels }: NewsListClientProps)
           ))}
         </div>
       )}
+
+      <PaginationBar total={total} page={page} />
     </>
   );
 }

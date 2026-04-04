@@ -19,7 +19,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { z } from "zod";
 import { newsSchema, type NewsFormValues } from "./schemas";
-
+import { NEWS_PAGE_SIZE } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -27,16 +27,20 @@ async function requireAuth(): Promise<UserAuthContext> {
   return ctx;
 }
 
+
 export async function listNews(opts?: {
   campusId?: string;
   status?: string;
+  page?: number;
 }) {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
+  const page = Math.max(1, opts?.page ?? 1);
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
-    Query.limit(100),
+    Query.limit(NEWS_PAGE_SIZE),
+    Query.offset((page - 1) * NEWS_PAGE_SIZE),
     ...applyScopeQueries(ctx),
   ];
 
@@ -45,6 +49,7 @@ export async function listNews(opts?: {
   }
 
   const response = await db.listRows<News>("app", "news", queries);
+  const total = response.total;
 
   const newsIds = response.rows.map((n) => n.$id);
   let translations: ContentTranslations[] = [];
@@ -66,10 +71,12 @@ export async function listNews(opts?: {
     }
   }
 
-  return response.rows.map((article) => ({
+  const rows = response.rows.map((article) => ({
     ...article,
     translation_refs: translations.filter((t) => t.content_id === article.$id),
   }));
+
+  return { rows, total };
 }
 
 export async function getNewsArticle(id: string) {

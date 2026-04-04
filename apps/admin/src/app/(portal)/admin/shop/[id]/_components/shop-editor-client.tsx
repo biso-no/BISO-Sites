@@ -8,8 +8,10 @@ import { createProduct, updateProduct } from "../../../_actions/shop";
 import { ProductFormValues, productSchema } from "../../../_actions/schemas";
 import { EditorHeader } from "../../../_components/editor-header";
 import { PreviewPanel } from "../../../_components/preview-panel";
-import { PortalField, PortalInput, PortalSelect, PortalTextarea } from "../../../_components/portal-fields";
+import { PortalField, PortalInput, PortalSelect } from "../../../_components/portal-fields";
 import { PortalButton } from "../../../_components/portal-button";
+import { ImageUploadField } from "../../../_components/image-upload-field";
+import { PortalBodyEditor } from "@repo/ui/components/portal-body-editor";
 import type { WebshopProducts, ContentTranslations, Campus } from "@repo/api/types/appwrite";
 
 type ProductWithTranslations = WebshopProducts & { translation_refs: ContentTranslations[] };
@@ -101,7 +103,12 @@ export function ShopEditorClient({ product, campuses, isNew, labels }: ShopEdito
           <form.Field name="description">
             {(field) => (
               <PortalField label={labels.description}>
-                <PortalTextarea rows={4} value={field.state.value ?? ""} onChange={(e) => field.handleChange(e.target.value || null)} placeholder="Product description..." />
+                <PortalBodyEditor
+                  value={field.state.value}
+                  onChange={(v) => field.handleChange(v || null)}
+                  placeholder="Product description..."
+                  minHeight={180}
+                />
               </PortalField>
             )}
           </form.Field>
@@ -138,14 +145,21 @@ export function ShopEditorClient({ product, campuses, isNew, labels }: ShopEdito
                 </PortalField>
               )}
             </form.Field>
-            <form.Field name="image">
-              {(field) => (
-                <PortalField label={labels.image}>
-                  <PortalInput value={field.state.value ?? ""} onChange={(e) => { field.handleChange(e.target.value || null); setPreviewImage(e.target.value); }} placeholder="https://..." />
-                </PortalField>
-              )}
-            </form.Field>
           </div>
+
+          <form.Field name="image">
+            {(field) => (
+              <PortalField label={labels.image}>
+                <ImageUploadField
+                  value={field.state.value}
+                  onChange={(url) => {
+                    field.handleChange(url);
+                    setPreviewImage(url ?? "");
+                  }}
+                />
+              </PortalField>
+            )}
+          </form.Field>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <form.Field name="campus_id">

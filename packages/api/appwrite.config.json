@@ -8910,5 +8910,24 @@
         "mockNumbers": []
       }
     }
-  }
+  },
+  "buckets": [
+    {
+      "$id": "media",
+      "name": "Media",
+      "enabled": true,
+      "fileSecurity": false,
+      "permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "maximumFileSize": 10485760,
+      "allowedFileExtensions": ["jpg", "jpeg", "png", "gif", "webp", "svg", "pdf"],
+      "compression": "none",
+      "encryption": false,
+      "antivirus": false
+    }
+  ]
 }

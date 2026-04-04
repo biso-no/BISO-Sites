@@ -18,7 +18,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { z } from "zod";
 import { jobSchema, type JobFormValues } from "./schemas";
-
+import { JOBS_PAGE_SIZE } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -26,13 +26,17 @@ async function requireAuth(): Promise<UserAuthContext> {
   return ctx;
 }
 
-export async function listJobs(opts?: { campusId?: string; status?: string; search?: string }) {
+
+
+export async function listJobs(opts?: { campusId?: string; status?: string; search?: string; page?: number }) {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
+  const page = Math.max(1, opts?.page ?? 1);
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
-    Query.limit(100),
+    Query.limit(JOBS_PAGE_SIZE),
+    Query.offset((page - 1) * JOBS_PAGE_SIZE),
     ...applyScopeQueries(ctx),
   ];
 
@@ -45,6 +49,7 @@ export async function listJobs(opts?: { campusId?: string; status?: string; sear
   }
 
   const jobsResponse = await db.listRows<Jobs>("app", "jobs", queries);
+  const total = jobsResponse.total;
 
   const jobIds = jobsResponse.rows.map((j) => j.$id);
 
@@ -66,12 +71,14 @@ export async function listJobs(opts?: { campusId?: string; status?: string; sear
     }
   }
 
-  return jobsResponse.rows.map((job) => {
+  const rows = jobsResponse.rows.map((job) => {
     const jobTranslations = translations.filter(
       (t) => t.content_id === job.$id
     );
     return { ...job, translation_refs: jobTranslations };
   });
+
+  return { rows, total };
 }
 
 export async function getJob(id: string) {

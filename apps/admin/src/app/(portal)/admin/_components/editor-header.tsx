@@ -41,7 +41,7 @@ export function EditorHeader({
     >
       <Link
         href={backHref}
-        className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 transition-colors"
+        className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 transition-colors"
         style={{
           background: "rgba(255,255,255,0.05)",
           border: "1px solid rgba(255,255,255,0.10)",

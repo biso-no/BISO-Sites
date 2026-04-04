@@ -237,7 +237,7 @@ export async function createPostFromForm(data: PostFormInput): Promise<News> {
     newsId,
     {
       slug: data.slug ?? null,
-      status: data.status,
+      status: data.status as News["status"],
       image: data.image ?? null,
       campus_id: data.campus_id,
       department_id: data.department_id ?? null,
@@ -304,7 +304,7 @@ export async function updatePostFromForm(
   ];
 
   await db.updateRow<News>("app", "news", postId, {
-    status: data.status,
+    status: data.status as News["status"],
     image: data.image ?? null,
     campus_id: data.campus_id,
     department_id: data.department_id ?? null,

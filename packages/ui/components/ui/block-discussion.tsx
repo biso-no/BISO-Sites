@@ -25,14 +25,14 @@ import {
 } from 'platejs';
 import { useEditorPlugin, useEditorRef, usePluginOption } from 'platejs/react';
 
-import { Button } from '@repo/components/ui/button';
+import { Button } from './button';
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
-} from '@repo/components/ui/popover';
-import { commentPlugin } from '@repo/ui/components/editor/plugins/comment-kit';
+} from './popover';
+import { commentPlugin } from '../comment-kit';
 import {
   type TDiscussion,
   discussionPlugin,
@@ -250,7 +250,7 @@ const BlockCommentContent = ({
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
-                className="!px-1.5 mt-1 ml-1 flex h-6 gap-1 py-0 text-muted-foreground/80 hover:text-muted-foreground/80 data-[active=true]:bg-muted"
+                className="px-1.5! mt-1 ml-1 flex h-6 gap-1 py-0 text-muted-foreground/80 hover:text-muted-foreground/80 data-[active=true]:bg-muted"
                 data-active={open}
                 contentEditable={false}
               >

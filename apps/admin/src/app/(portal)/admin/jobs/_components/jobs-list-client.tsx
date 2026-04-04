@@ -14,6 +14,7 @@ import { deleteJob } from "../../_actions/jobs";
 import { SearchToolbar } from "../../_components/search-toolbar";
 import { StatusBadge } from "../../_components/status-badge";
 import { EmptyState } from "../../_components/empty-state";
+import { PaginationBar } from "../../_components/pagination-bar";
 import type { Jobs, ContentTranslations } from "@repo/api/types/appwrite";
 
 type JobWithTranslations = Jobs & {
@@ -22,6 +23,8 @@ type JobWithTranslations = Jobs & {
 
 type JobsListClientProps = {
   initialJobs: JobWithTranslations[];
+  total: number;
+  page: number;
   labels: {
     empty: string;
     emptyDescription: string;
@@ -37,7 +40,7 @@ type JobsListClientProps = {
   };
 };
 
-export function JobsListClient({ initialJobs, labels }: JobsListClientProps) {
+export function JobsListClient({ initialJobs, total, page, labels }: JobsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -109,7 +112,7 @@ export function JobsListClient({ initialJobs, labels }: JobsListClientProps) {
     });
   }
 
-  if (initialJobs.length === 0) {
+  if (initialJobs.length === 0 && page === 1) {
     return (
       <EmptyState
         icon={<Briefcase size={28} />}
@@ -234,6 +237,8 @@ export function JobsListClient({ initialJobs, labels }: JobsListClientProps) {
           ))}
         </div>
       )}
+
+      <PaginationBar total={total} page={page} />
     </>
   );
 }

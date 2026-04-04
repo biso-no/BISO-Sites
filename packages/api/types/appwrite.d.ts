@@ -78,7 +78,7 @@ export enum JobApplicationStatus {
   REJECTED = "rejected",
 }
 
-export enum ContentLocale {
+export enum Locale {
   EN = "en",
   NO = "no",
 }
@@ -659,7 +659,7 @@ export type JobApplications = Models.Row & {
 
 export type ContentTranslations = Models.Row & {
   content_id: string;
-  locale: ContentLocale;
+  locale: Locale;
   title: string;
   description: string;
   additional_fields: string | null;

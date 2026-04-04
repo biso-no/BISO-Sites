@@ -12,14 +12,16 @@ import {
 import { getDashboardStats } from "./_actions/pages";
 import { listActivityLog } from "./_actions/activity";
 import { getUserAuthContext } from "@/lib/authorization";
+import { ContentActivityChart } from "./_components/content-chart";
 
 export default async function AdminPortalDashboard() {
   const t = await getTranslations("adminPortal.dashboard");
 
-  const [ctx, stats, recentActivity] = await Promise.allSettled([
+  const [ctx, stats, recentActivity, chartActivity] = await Promise.allSettled([
     getUserAuthContext(),
     getDashboardStats(),
     listActivityLog({ limit: 5 }),
+    listActivityLog({ limit: 200 }),
   ]);
 
   const statsData =
@@ -28,6 +30,8 @@ export default async function AdminPortalDashboard() {
       : { jobs: 0, events: 0, news: 0, drafts: 0 };
   const activity =
     recentActivity.status === "fulfilled" ? recentActivity.value : [];
+  const allActivity =
+    chartActivity.status === "fulfilled" ? chartActivity.value : [];
 
   const statCards = [
     { label: t("stats.jobs"), value: statsData.jobs, icon: Briefcase, href: "/admin/jobs", color: "#3DA9E0" },
@@ -45,7 +49,7 @@ export default async function AdminPortalDashboard() {
           style={{ background: "rgba(61,169,224,0.10)", border: "1px solid rgba(61,169,224,0.25)", color: "#3DA9E0" }}
         >
           <Activity size={11} />
-          BISO OS
+          BISO
         </div>
         <h1 className="text-4xl md:text-5xl font-light tracking-tight mb-2" style={{ color: "#fff" }}>
           {t("greeting")},{" "}
@@ -89,6 +93,11 @@ export default async function AdminPortalDashboard() {
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* Activity chart */}
+      <div className="mb-10">
+        <ContentActivityChart activity={allActivity} days={14} />
       </div>
 
       {/* Recent activity */}

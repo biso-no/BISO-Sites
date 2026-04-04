@@ -31,13 +31,13 @@ import {
   XIcon,
 } from 'lucide-react';
 
-import { Button } from '@repo/components/ui/button';
+import { Button } from './button';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@repo/components/ui/tooltip';
+} from './tooltip';
 import { cn } from '@repo/ui/lib/utils';
 import { ToolbarButton } from '@repo/ui/components/ui/toolbar';
 

@@ -2,18 +2,21 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Calendar, Pencil, Trash2, MapPin } from "lucide-react";
+import { Calendar, MapPin, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteEvent } from "../../_actions/events";
 import { SearchToolbar } from "../../_components/search-toolbar";
 import { StatusBadge } from "../../_components/status-badge";
 import { EmptyState } from "../../_components/empty-state";
+import { PaginationBar } from "../../_components/pagination-bar";
 import type { Events, ContentTranslations } from "@repo/api/types/appwrite";
 
 type EventWithTranslations = Events & { translation_refs: ContentTranslations[] };
 
 type EventsListClientProps = {
   initialEvents: Events[];
+  total: number;
+  page: number;
   labels: {
     empty: string;
     emptyDescription: string;
@@ -28,7 +31,7 @@ type EventsListClientProps = {
   };
 };
 
-export function EventsListClient({ initialEvents, labels }: EventsListClientProps) {
+export function EventsListClient({ initialEvents, total, page, labels }: EventsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [, startTransition] = useTransition();
@@ -41,10 +44,17 @@ export function EventsListClient({ initialEvents, labels }: EventsListClientProp
   ];
 
   function getTitle(event: Events) {
-    return event.translation_refs.find((t) => t.locale === "no")?.title ?? "Untitled";
+    const refs = (event as EventWithTranslations).translation_refs;
+    return refs?.find((t) => t.locale === "no")?.title ?? "Untitled";
   }
 
-
+  const filtered = (initialEvents as EventWithTranslations[]).filter((event) => {
+    const title = getTitle(event);
+    return (
+      (!search || title.toLowerCase().includes(search.toLowerCase())) &&
+      (activeFilter === "all" || event.status === activeFilter)
+    );
+  });
 
   function handleDelete(id: string) {
     if (!confirm(labels.deleteConfirm)) return;
@@ -58,7 +68,7 @@ export function EventsListClient({ initialEvents, labels }: EventsListClientProp
     });
   }
 
-  if (initialEvents.length === 0) {
+  if (initialEvents.length === 0 && page === 1) {
     return (
       <EmptyState icon={<Calendar size={28} />} title={labels.empty} description={labels.emptyDescription}>
         <Link href="/admin/events/new" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#3DA9E0", color: "#001731" }}>
@@ -70,19 +80,24 @@ export function EventsListClient({ initialEvents, labels }: EventsListClientProp
 
   return (
     <>
-      <SearchToolbar placeholder={labels.searchPlaceholder} onSearch={setSearch} filters={filters} activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+      <SearchToolbar
+        placeholder={labels.searchPlaceholder}
+        onSearch={setSearch}
+        filters={filters}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+      />
 
-      {initialEvents.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState icon={<Calendar size={28} />} title="No matching events" description="Try adjusting your search or filters." />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {initialEvents.map((event) => (
+          {filtered.map((event) => (
             <div
               key={event.$id}
               className="group rounded-3xl overflow-hidden transition-all"
               style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
             >
-              {/* Image */}
               <div className="relative h-36 overflow-hidden" style={{ background: "rgba(61,169,224,0.05)" }}>
                 {event.image ? (
                   <img src={event.image} alt={getTitle(event)} className="w-full h-full object-cover" />
@@ -104,7 +119,6 @@ export function EventsListClient({ initialEvents, labels }: EventsListClientProp
                 </div>
               </div>
 
-              {/* Content */}
               <div className="p-4">
                 <Link href={`/admin/events/${event.$id}`} className="font-medium text-sm hover:text-[#3DA9E0] transition-colors" style={{ color: "#fff" }}>
                   {getTitle(event)}
@@ -128,6 +142,8 @@ export function EventsListClient({ initialEvents, labels }: EventsListClientProp
           ))}
         </div>
       )}
+
+      <PaginationBar total={total} page={page} />
     </>
   );
 }

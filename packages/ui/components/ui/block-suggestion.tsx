@@ -24,8 +24,8 @@ import {
 } from 'platejs';
 import { useEditorPlugin, usePluginOption } from 'platejs/react';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@repo/components/ui/avatar';
-import { Button } from '@repo/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from './avatar';
+import { Button } from './button';
 import {
   type TDiscussion,
   discussionPlugin,

@@ -13,7 +13,7 @@ import {
 } from 'platejs/react';
 import { useEditorRef, useElement, useReadOnly } from 'platejs/react';
 
-import { Button } from '@repo/components/ui/button';
+import { Button } from './button';
 import {
   Command,
   CommandEmpty,
@@ -21,12 +21,12 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@repo/components/ui/command';
+} from './command';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@repo/components/ui/popover';
+} from './popover';
 import { cn } from '@repo/ui/lib/utils';
 
 export function CodeBlockElement(props: PlateElementProps<TCodeBlockElement>) {
@@ -54,7 +54,7 @@ export function CodeBlockElement(props: PlateElementProps<TCodeBlockElement>) {
               onClick={() => formatCodeBlock(editor, { element })}
               title="Format code"
             >
-              <BracesIcon className="!size-3.5 text-muted-foreground" />
+              <BracesIcon className="size-3.5! text-muted-foreground" />
             </Button>
           )}
 
@@ -178,9 +178,9 @@ function CopyButton({
     >
       <span className="sr-only">Copy</span>
       {hasCopied ? (
-        <CheckIcon className="!size-3" />
+        <CheckIcon className="size-3!" />
       ) : (
-        <CopyIcon className="!size-3" />
+        <CopyIcon className="size-3!" />
       )}
     </Button>
   );

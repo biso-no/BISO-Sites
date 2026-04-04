@@ -5,11 +5,17 @@ import { listNews } from "../_actions/news";
 import { PageHeader } from "../_components/page-header";
 import { NewsListClient } from "./_components/news-list-client";
 
-export default async function NewsPage() {
+type NewsPageProps = {
+  searchParams: Promise<{ page?: string }>;
+};
+
+export default async function NewsPage({ searchParams }: NewsPageProps) {
   const t = await getTranslations("adminPortal.news");
   const tc = await getTranslations("adminPortal.common");
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
 
-  const articles = await listNews();
+  const articles = await listNews({ page });
 
   return (
     <div className="pb-12">
@@ -25,7 +31,9 @@ export default async function NewsPage() {
       </PageHeader>
 
       <NewsListClient
-        initialArticles={articles}
+        initialArticles={articles.rows}
+        total={articles.total}
+        page={page}
         labels={{
           empty: t("empty"),
           emptyDescription: t("emptyDescription"),
