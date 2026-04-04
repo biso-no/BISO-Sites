@@ -19,6 +19,7 @@ import type {
 import { z } from "zod";
 import { jobSchema, type JobFormValues } from "./schemas";
 import { JOBS_PAGE_SIZE } from "./schemas";
+import { logAuditEvent } from "./audit-log";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -143,6 +144,7 @@ export async function createJob(values: JobFormValues) {
     });
   }
 
+  void logAuditEvent(ctx, "job_created", { resourceId: job.$id, resourceType: "job" });
   revalidatePath("/admin/jobs");
   return { data: job.$id };
 }
@@ -217,6 +219,7 @@ export async function updateJob(id: string, values: JobFormValues) {
     }
   }
 
+  void logAuditEvent(ctx, "job_updated", { resourceId: id, resourceType: "job", payload: { status: validated.data.status } });
   revalidatePath("/admin/jobs");
   revalidatePath(`/admin/jobs/${id}`);
   return { data: id };
@@ -247,6 +250,7 @@ export async function deleteJob(id: string) {
   );
   await db.deleteRow("app", "jobs", id);
 
+  void logAuditEvent(ctx, "job_deleted", { resourceId: id, resourceType: "job" });
   revalidatePath("/admin/jobs");
   return { data: true };
 }

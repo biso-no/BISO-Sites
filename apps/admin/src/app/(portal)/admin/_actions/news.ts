@@ -20,6 +20,7 @@ import type {
 import { z } from "zod";
 import { newsSchema, type NewsFormValues } from "./schemas";
 import { NEWS_PAGE_SIZE } from "./schemas";
+import { logAuditEvent } from "./audit-log";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -136,6 +137,7 @@ export async function createNews(values: NewsFormValues) {
     }),
   });
 
+  void logAuditEvent(ctx, "news_created", { resourceId: article.$id, resourceType: "news" });
   revalidatePath("/admin/news");
   return { data: article.$id };
 }
@@ -202,6 +204,7 @@ export async function updateNews(id: string, values: NewsFormValues) {
     await db.createRow("app", "content_translations", "unique()", translationData);
   }
 
+  void logAuditEvent(ctx, "news_updated", { resourceId: id, resourceType: "news", payload: { status: validated.data.status } });
   revalidatePath("/admin/news");
   revalidatePath(`/admin/news/${id}`);
   return { data: id };
@@ -232,6 +235,7 @@ export async function deleteNews(id: string) {
   );
   await db.deleteRow("app", "news", id);
 
+  void logAuditEvent(ctx, "news_deleted", { resourceId: id, resourceType: "news" });
   revalidatePath("/admin/news");
   return { data: true };
 }

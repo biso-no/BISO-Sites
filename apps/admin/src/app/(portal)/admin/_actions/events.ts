@@ -20,6 +20,7 @@ import type {
 import { z } from "zod";
 import { eventSchema, type EventFormValues } from "./schemas";
 import { EVENTS_PAGE_SIZE } from "./schemas";
+import { logAuditEvent } from "./audit-log";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -126,6 +127,7 @@ export async function createEvent(values: EventFormValues) {
     });
   }
 
+  void logAuditEvent(ctx, "event_created", { resourceId: event.$id, resourceType: "event" });
   revalidatePath("/admin/events");
   return { data: event.$id };
 }
@@ -205,6 +207,7 @@ export async function updateEvent(id: string, values: EventFormValues) {
     }
   }
 
+  void logAuditEvent(ctx, "event_updated", { resourceId: id, resourceType: "event", payload: { status: validated.data.status } });
   revalidatePath("/admin/events");
   revalidatePath(`/admin/events/${id}`);
   return { data: id };
@@ -235,6 +238,7 @@ export async function deleteEvent(id: string) {
   );
   await db.deleteRow("app", "events", id);
 
+  void logAuditEvent(ctx, "event_deleted", { resourceId: id, resourceType: "event" });
   revalidatePath("/admin/events");
   return { data: true };
 }

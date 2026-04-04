@@ -10,6 +10,7 @@ import {
 } from "@/lib/authorization";
 import { applyScopeQueries } from "@/lib/utils/authorization";
 import type { Jobs, Events, News, ContentTranslations } from "@repo/api/types/appwrite";
+import { logAuditEvent } from "./audit-log";
 
 export type DraftItem = {
   id: string;
@@ -174,13 +175,7 @@ export async function rejectDraft(
 
   // Keep as draft but optionally log the rejection
   if (reason) {
-    await db.createRow("app", "audit_logs", "unique()", {
-      actor_id: ctx.userId,
-      action: `draft_rejected`,
-      resource_id: id,
-      resource_type: type,
-      payload: JSON.stringify({ reason }),
-    });
+    void logAuditEvent(ctx, "draft_rejected", { resourceId: id, resourceType: type, payload: { reason } });
   }
 
   revalidatePath("/admin/drafts");

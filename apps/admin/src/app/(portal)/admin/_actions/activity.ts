@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import {
   getUserAuthContext,
   type UserAuthContext,
@@ -31,7 +31,7 @@ export async function listActivityLog(opts?: {
     return [];
   }
 
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const queries: string[] = [
     Query.orderDesc("$createdAt"),

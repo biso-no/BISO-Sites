@@ -9,6 +9,7 @@ import { CAMPUS_NAME_TO_ID } from "./campus-constants";
  */
 export type UserAuthContext = {
   userId: string;
+  email: string | null;
   campusTeamIds: string[]; // Azure GUIDs for SG-App-Campus-* teams
   campusNames: string[]; // Parsed campus names (e.g., "National", "Oslo")
   departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
@@ -157,6 +158,7 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
 
     return {
       userId: user.$id,
+      email: user.email ?? null,
       campusTeamIds: parsed.campusTeamIds,
       campusNames: parsed.campusNames,
       departmentTeamIds: parsed.departmentTeamIds,

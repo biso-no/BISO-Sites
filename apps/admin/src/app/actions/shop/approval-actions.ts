@@ -8,6 +8,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
+import { logAuditEvent } from "@/app/(portal)/admin/_actions/audit-log";
 
 // Product status constants
 const STATUS_PENDING = "pending_approval";
@@ -115,18 +116,7 @@ export async function approveProduct(productId: string): Promise<void> {
     },
   });
 
-  // Log audit event
-  try {
-    await db.createRow("app", "audit_logs", "unique()", {
-      actor_id: ctx.userId,
-      action: "product_approved",
-      resource_id: productId,
-      resource_type: "webshop_products",
-      payload: JSON.stringify({ status: STATUS_PUBLISHED }),
-    });
-  } catch (e) {
-    console.error("Failed to create audit log:", e);
-  }
+  void logAuditEvent(ctx, "product_approved", { resourceId: productId, resourceType: "webshop_products", payload: { status: STATUS_PUBLISHED } });
 
   revalidatePath("/shop/approval-queue");
   revalidatePath("/shop/products");
@@ -184,18 +174,7 @@ export async function rejectProduct(
     },
   });
 
-  // Log audit event
-  try {
-    await db.createRow("app", "audit_logs", "unique()", {
-      actor_id: ctx.userId,
-      action: "product_rejected",
-      resource_id: productId,
-      resource_type: "webshop_products",
-      payload: JSON.stringify({ reason, previousStatus: STATUS_PENDING }),
-    });
-  } catch (e) {
-    console.error("Failed to create audit log:", e);
-  }
+  void logAuditEvent(ctx, "product_rejected", { resourceId: productId, resourceType: "webshop_products", payload: { reason, previousStatus: STATUS_PENDING } });
 
   revalidatePath("/shop/approval-queue");
   revalidatePath("/shop/products");
