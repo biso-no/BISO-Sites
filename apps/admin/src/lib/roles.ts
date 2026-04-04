@@ -61,6 +61,19 @@ export const NAV_ACCESS = {
   benefits: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   benefitsPartners: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   benefitsAnalytics: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  // New admin portal (/admin/*) nav keys
+  "portal.dashboard": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.pages": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.departments": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.shop": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.news": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.activity": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.settings": [ROLES.GLOBAL_ADMIN],
 } as const;
 
 export type NavKey = keyof typeof NAV_ACCESS;

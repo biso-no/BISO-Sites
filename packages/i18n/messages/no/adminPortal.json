@@ -1,0 +1,448 @@
+{
+  "nav": {
+    "overview": "Oversikt",
+    "pages": "Sider",
+    "departments": "Avdelinger",
+    "jobs": "Stillinger",
+    "events": "Arrangementer",
+    "shop": "Produkter",
+    "benefits": "Fordeler",
+    "news": "Nyheter",
+    "settings": "Innstillinger",
+    "activity": "Aktivitet",
+    "drafts": "Gjennomgå utkast"
+  },
+  "common": {
+    "save": "Lagre",
+    "discard": "Forkast",
+    "publish": "Publiser",
+    "unpublish": "Avpubliser",
+    "saveDraft": "Lagre utkast",
+    "cancel": "Avbryt",
+    "delete": "Slett",
+    "edit": "Rediger",
+    "create": "Opprett",
+    "search": "Søk",
+    "filter": "Filtrer",
+    "back": "Tilbake",
+    "loading": "Laster...",
+    "empty": "Ingen resultater",
+    "error": "Noe gikk galt",
+    "success": "Vellykket",
+    "confirmDelete": "Er du sikker på at du vil slette dette elementet? Denne handlingen kan ikke angres.",
+    "noImage": "Ingen bilde",
+    "viewAll": "Se alle",
+    "status": {
+      "draft": "Utkast",
+      "published": "Publisert",
+      "archived": "Arkivert",
+      "review": "Til gjennomgang",
+      "closed": "Lukket",
+      "cancelled": "Avlyst",
+      "pending": "Venter",
+      "pending_approval": "Venter på godkjenning"
+    },
+    "actions": "Handlinger",
+    "new": "Ny",
+    "all": "Alle",
+    "title": "Tittel",
+    "description": "Beskrivelse",
+    "campus": "Campus",
+    "department": "Avdeling",
+    "slug": "URL-slug",
+    "date": "Dato",
+    "author": "Forfatter",
+    "category": "Kategori",
+    "image": "Bilde",
+    "price": "Pris",
+    "stock": "Lager",
+    "lastUpdated": "Sist oppdatert",
+    "createdAt": "Opprettet",
+    "noDescription": "Ingen beskrivelse tilgjengelig",
+    "locale": {
+      "no": "Norsk",
+      "en": "Engelsk"
+    }
+  },
+  "dashboard": {
+    "greeting": "God dag",
+    "subtitle": "Her er hva som skjer i BISO i dag.",
+    "stats": {
+      "jobs": "Åpne stillinger",
+      "events": "Kommende arrangementer",
+      "news": "Publiserte artikler",
+      "drafts": "Ventende utkast"
+    },
+    "recentActivity": "Nylig aktivitet",
+    "viewAllActivity": "Se all aktivitet",
+    "reviewDrafts": "Gjennomgå utkast",
+    "createPage": "Opprett side",
+    "noActivity": "Ingen nylig aktivitet"
+  },
+  "jobs": {
+    "title": "Stillinger",
+    "description": "Administrer stillingsannonser på alle campuser.",
+    "create": "Utlys stilling",
+    "empty": "Ingen stillingsannonser ennå",
+    "emptyDescription": "Opprett din første stillingsannonse for å tiltrekke kandidater.",
+    "fields": {
+      "title": "Stillingstittel",
+      "company": "Bedrift",
+      "employmentType": "Ansettelsestype",
+      "descriptionNo": "Beskrivelse (norsk)",
+      "descriptionEn": "Beskrivelse (engelsk)",
+      "campus": "Campus",
+      "department": "Avdeling",
+      "slug": "URL-slug",
+      "status": "Status",
+      "applications": "Søknader",
+      "views": "Visninger"
+    },
+    "employmentTypes": {
+      "full_time": "Heltid",
+      "part_time": "Deltid",
+      "internship": "Praktikant",
+      "freelance": "Frilanser",
+      "volunteer": "Frivillig"
+    },
+    "filters": {
+      "all": "Alle",
+      "published": "Publisert",
+      "draft": "Utkast",
+      "closed": "Lukket"
+    },
+    "actions": {
+      "edit": "Rediger stilling",
+      "delete": "Slett stilling",
+      "viewApplications": "Se søknader",
+      "close": "Lukk annonse",
+      "reopen": "Åpne igjen"
+    },
+    "preview": "Forhåndsvisning",
+    "saveSuccess": "Stilling lagret",
+    "saveError": "Kunne ikke lagre stilling",
+    "deleteSuccess": "Stilling slettet",
+    "deleteError": "Kunne ikke slette stilling",
+    "publishSuccess": "Stilling publisert",
+    "publishError": "Kunne ikke publisere stilling"
+  },
+  "events": {
+    "title": "Arrangementer",
+    "description": "Administrer campus-arrangementer og påmeldinger.",
+    "create": "Nytt arrangement",
+    "empty": "Ingen arrangementer ennå",
+    "emptyDescription": "Opprett ditt første arrangement for å komme i gang.",
+    "fields": {
+      "title": "Arrangementstitel",
+      "startDate": "Startdato",
+      "endDate": "Sluttdato",
+      "location": "Sted",
+      "description": "Beskrivelse",
+      "coverImage": "Forsidebilde-URL",
+      "ticketPrice": "Billettpris (NOK)",
+      "capacity": "Kapasitet",
+      "status": "Status",
+      "memberOnly": "Kun for medlemmer",
+      "ticketUrl": "Billettlenke",
+      "attendees": "Deltakere",
+      "revenue": "Inntekt"
+    },
+    "filters": {
+      "all": "Alle",
+      "published": "Publisert",
+      "draft": "Utkast",
+      "cancelled": "Avlyst"
+    },
+    "actions": {
+      "edit": "Rediger arrangement",
+      "delete": "Slett arrangement",
+      "cancel": "Avlys arrangement",
+      "duplicate": "Dupliser"
+    },
+    "preview": "Forhåndsvisning",
+    "saveSuccess": "Arrangement lagret",
+    "saveError": "Kunne ikke lagre arrangement",
+    "deleteSuccess": "Arrangement slettet",
+    "deleteError": "Kunne ikke slette arrangement",
+    "publishSuccess": "Arrangement publisert",
+    "publishError": "Kunne ikke publisere arrangement"
+  },
+  "news": {
+    "title": "Nyheter",
+    "description": "Skriv og publiser artikler for ditt fellesskap.",
+    "create": "Skriv artikkel",
+    "empty": "Ingen artikler ennå",
+    "emptyDescription": "Begynn å skrive for å holde fellesskapet ditt informert.",
+    "fields": {
+      "title": "Overskrift",
+      "author": "Forfatter",
+      "category": "Kategori",
+      "coverImage": "Forsidebilde-URL",
+      "body": "Artikkelinnhold",
+      "locale": "Språk",
+      "status": "Status",
+      "reads": "Lesninger",
+      "sticky": "Fest øverst"
+    },
+    "categories": {
+      "general": "Generelt",
+      "announcement": "Kunngjøring",
+      "press": "Presse",
+      "event": "Arrangementsreferat"
+    },
+    "filters": {
+      "all": "Alle",
+      "published": "Publisert",
+      "draft": "Utkast"
+    },
+    "actions": {
+      "edit": "Rediger artikkel",
+      "delete": "Slett artikkel",
+      "duplicate": "Dupliser"
+    },
+    "preview": "Forhåndsvisning",
+    "saveSuccess": "Artikkel lagret",
+    "saveError": "Kunne ikke lagre artikkel",
+    "deleteSuccess": "Artikkel slettet",
+    "deleteError": "Kunne ikke slette artikkel",
+    "publishSuccess": "Artikkel publisert",
+    "publishError": "Kunne ikke publisere artikkel"
+  },
+  "shop": {
+    "title": "Produkter",
+    "description": "Administrer nettbutikkens varebeholdning.",
+    "create": "Legg til produkt",
+    "empty": "Ingen produkter ennå",
+    "emptyDescription": "Legg til ditt første produkt i butikken.",
+    "fields": {
+      "name": "Produktnavn",
+      "category": "Kategori",
+      "price": "Ordinær pris (NOK)",
+      "memberPrice": "Medlemspris (NOK)",
+      "description": "Beskrivelse",
+      "image": "Bilde-URL",
+      "stock": "Lagerbeholdning",
+      "status": "Status",
+      "memberOnly": "Kun for medlemmer",
+      "sales": "Salg",
+      "lowStock": "Lav beholdning"
+    },
+    "filters": {
+      "all": "Alle",
+      "published": "Publisert",
+      "draft": "Utkast",
+      "pending": "Venter på godkjenning",
+      "archived": "Arkivert"
+    },
+    "actions": {
+      "edit": "Rediger produkt",
+      "delete": "Slett produkt",
+      "duplicate": "Dupliser"
+    },
+    "preview": "Butikkvisning",
+    "saveSuccess": "Produkt lagret",
+    "saveError": "Kunne ikke lagre produkt",
+    "deleteSuccess": "Produkt slettet",
+    "deleteError": "Kunne ikke slette produkt",
+    "publishSuccess": "Produkt publisert",
+    "publishError": "Kunne ikke publisere produkt"
+  },
+  "benefits": {
+    "title": "Fordeler",
+    "description": "Administrer medlemsfordeler og partnerfordeler.",
+    "create": "Opprett fordel",
+    "empty": "Ingen fordeler ennå",
+    "emptyDescription": "Legg til din første medlemsfordel.",
+    "partners": {
+      "title": "Partnere",
+      "description": "Administrer fordelspartnere og API-tilgang.",
+      "invite": "Inviter partner",
+      "empty": "Ingen partnere ennå",
+      "fields": {
+        "name": "Partnernavn",
+        "status": "Status",
+        "apiStatus": "API-status",
+        "benefitsLive": "Aktive fordeler",
+        "totalClaims": "Totale innløsninger",
+        "lastSync": "Sist synkronisert"
+      }
+    },
+    "fields": {
+      "titleNo": "Tittel (norsk)",
+      "titleEn": "Tittel (engelsk)",
+      "descriptionNo": "Beskrivelse (norsk)",
+      "descriptionEn": "Beskrivelse (engelsk)",
+      "kind": "Fordeltype",
+      "redemptionType": "Innløsningstype",
+      "category": "Kategori",
+      "campus": "Campus",
+      "imageUrl": "Forsidebilde-URL",
+      "status": "Status",
+      "partnerName": "Partnernavn",
+      "redemptionValue": "Innløsningskode / URL",
+      "isFeatured": "Fremhevet",
+      "isMemberOnly": "Kun for medlemmer",
+      "publishStart": "Publiser fra",
+      "publishEnd": "Publiser til",
+      "claims": "Innløsninger"
+    },
+    "kinds": {
+      "offer": "Tilbud",
+      "perk": "Fordel",
+      "service": "Tjeneste"
+    },
+    "redemptionTypes": {
+      "none": "Ingen",
+      "code": "Rabattkode",
+      "link": "Lenke",
+      "qr": "QR-kode",
+      "onsite": "På stedet"
+    },
+    "actions": {
+      "edit": "Konfigurer fordel",
+      "delete": "Slett fordel",
+      "viewPartners": "Se partnere"
+    },
+    "preview": "Telefonforhåndsvisning",
+    "saveSuccess": "Fordel lagret",
+    "saveError": "Kunne ikke lagre fordel",
+    "deleteSuccess": "Fordel slettet",
+    "deleteError": "Kunne ikke slette fordel",
+    "publishSuccess": "Fordel publisert",
+    "publishError": "Kunne ikke publisere fordel"
+  },
+  "departments": {
+    "title": "Avdelinger",
+    "description": "Se og administrer avdelinger på alle campuser.",
+    "sync": "Synkroniser fra katalog",
+    "empty": "Ingen avdelinger funnet",
+    "emptyDescription": "Avdelinger synkroniseres fra katalogen.",
+    "fields": {
+      "name": "Navn",
+      "campus": "Campus",
+      "type": "Type",
+      "members": "Medlemmer",
+      "slug": "Slug",
+      "lastSynced": "Sist synkronisert",
+      "active": "Aktiv"
+    },
+    "actions": {
+      "editPage": "Rediger side",
+      "admins": "Administratorer",
+      "initialize": "Initialiser side"
+    }
+  },
+  "pages": {
+    "title": "Sider",
+    "description": "Administrer nettsider og innhold.",
+    "create": "Opprett side",
+    "empty": "Ingen sider ennå",
+    "emptyDescription": "Opprett din første side for å komme i gang.",
+    "fields": {
+      "title": "Tittel",
+      "slug": "Slug",
+      "status": "Status",
+      "campus": "Campus",
+      "visibility": "Synlighet",
+      "lastEdited": "Sist redigert"
+    },
+    "filters": {
+      "all": "Alle",
+      "published": "Publisert",
+      "draft": "Utkast",
+      "archived": "Arkivert"
+    },
+    "actions": {
+      "edit": "Rediger side",
+      "delete": "Slett side",
+      "preview": "Forhåndsvis"
+    }
+  },
+  "activity": {
+    "title": "Aktivitetslogg",
+    "description": "Full revisjonsspor for adminhandlinger.",
+    "empty": "Ingen aktivitet registrert",
+    "fields": {
+      "actor": "Aktør",
+      "action": "Handling",
+      "resource": "Ressurs",
+      "time": "Tidspunkt"
+    },
+    "filters": {
+      "all": "Alle",
+      "date": "Dato",
+      "type": "Type"
+    }
+  },
+  "drafts": {
+    "title": "Gjennomgå utkast",
+    "description": "Gjennomgå og godkjenn innhold som venter på publisering.",
+    "empty": "Ingen ventende utkast",
+    "emptyDescription": "Alt innhold er gjennomgått.",
+    "pending": "{count} ventende",
+    "actions": {
+      "approve": "Godkjenn",
+      "reject": "Avvis",
+      "preview": "Forhåndsvis"
+    },
+    "approveSuccess": "Utkast godkjent og publisert",
+    "approveError": "Kunne ikke godkjenne utkast",
+    "rejectSuccess": "Utkast avvist",
+    "rejectError": "Kunne ikke avvise utkast",
+    "types": {
+      "job": "Stilling",
+      "event": "Arrangement",
+      "news": "Artikkel",
+      "product": "Produkt",
+      "benefit": "Fordel",
+      "page": "Side"
+    }
+  },
+  "settings": {
+    "title": "Innstillinger",
+    "description": "Konfigurer adminpreferansene dine.",
+    "save": "Lagre innstillinger",
+    "sections": {
+      "general": "Generelt",
+      "brand": "Merkevare",
+      "team": "Team",
+      "aiLocalization": "AI-lokalisering",
+      "security": "Sikkerhet",
+      "integrations": "Integrasjoner",
+      "notifications": "Varsler"
+    },
+    "general": {
+      "title": "Generelle innstillinger",
+      "locale": "Standardspråk",
+      "timezone": "Tidssone"
+    },
+    "notifications": {
+      "title": "Varselpreferanser",
+      "newApplications": "Nye jobbsøknader",
+      "newDrafts": "Nye utkastinnleveringer",
+      "systemAlerts": "Systemvarsler"
+    },
+    "integrations": {
+      "title": "Integrasjoner",
+      "appwrite": "Appwrite",
+      "stripe": "Stripe",
+      "slack": "Slack",
+      "connected": "Tilkoblet",
+      "notConnected": "Ikke tilkoblet",
+      "comingSoon": "Kommer snart"
+    },
+    "security": {
+      "title": "Sikkerhet",
+      "twoFactor": "To-faktor-autentisering",
+      "sessions": "Aktive sesjoner",
+      "restricted": "Sikkerhetsinnstillinger er begrenset til nasjonale administratorer."
+    },
+    "team": {
+      "title": "Teammedlemmer",
+      "role": "Rolle",
+      "invite": "Inviter medlem"
+    },
+    "saveSuccess": "Innstillinger lagret",
+    "saveError": "Kunne ikke lagre innstillinger"
+  }
+}

@@ -1,0 +1,188 @@
+"use client";
+
+import { useForm } from "@tanstack/react-form";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { createProduct, updateProduct } from "../../../_actions/shop";
+import { ProductFormValues, productSchema } from "../../../_actions/schemas";
+import { EditorHeader } from "../../../_components/editor-header";
+import { PreviewPanel } from "../../../_components/preview-panel";
+import { PortalField, PortalInput, PortalSelect, PortalTextarea } from "../../../_components/portal-fields";
+import { PortalButton } from "../../../_components/portal-button";
+import type { WebshopProducts, ContentTranslations, Campus } from "@repo/api/types/appwrite";
+
+type ProductWithTranslations = WebshopProducts & { translation_refs: ContentTranslations[] };
+
+type ShopEditorClientProps = {
+  product: ProductWithTranslations | null;
+  campuses: Campus[];
+  isNew: boolean;
+  labels: Record<string, string>;
+};
+
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "pending_approval", label: "Pending Approval" },
+  { value: "published", label: "Published" },
+  { value: "archived", label: "Archived" },
+];
+
+const CATEGORY_OPTIONS = [
+  { value: "", label: "— Category —" },
+  { value: "clothing", label: "Clothing" },
+  { value: "accessories", label: "Accessories" },
+  { value: "digital", label: "Digital" },
+  { value: "other", label: "Other" },
+];
+
+function generateSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
+}
+
+export function ShopEditorClient({ product, campuses, isNew, labels }: ShopEditorClientProps) {
+  const router = useRouter();
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const translation = product?.translation_refs[0];
+
+  // Preview state
+  const [previewName, setPreviewName] = useState(translation?.title ?? "");
+  const [previewPrice, setPreviewPrice] = useState(product?.regular_price ?? 0);
+  const [previewImage, setPreviewImage] = useState(product?.image ?? "");
+  const [previewStock, setPreviewStock] = useState<number | null>(product?.stock ?? null);
+
+  const form = useForm({
+    defaultValues: {
+      name: translation?.title ?? "",
+      description: translation?.description ?? null,
+      campus_id: product?.campus_id ?? (campuses[0]?.$id ?? ""),
+      department_id: product?.departmentId ?? null,
+      slug: product?.slug ?? "",
+      status: (product?.status as ProductFormValues["status"]) ?? "draft",
+      category: product?.category ?? null,
+      regular_price: product?.regular_price ?? 0,
+      member_price: product?.member_price ?? null,
+      member_only: product?.member_only ?? false,
+      image: product?.image ?? null,
+      stock: product?.stock ?? null,
+    },
+    onSubmit: async ({ value }) => {
+      const validated = productSchema.safeParse(value);
+      if (!validated.success) { toast.error(labels.saveError); return; }
+      const result = isNew ? await createProduct(validated.data) : await updateProduct(product!.$id, validated.data);
+      if (result.error) { toast.error(labels.saveError); return; }
+      toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
+      if (isNew && result.data) router.push(`/admin/shop/${result.data}`);
+    },
+  });
+
+  const campusOptions = [{ value: "", label: "— Select campus —" }, ...campuses.map((c) => ({ value: c.$id, label: c.name }))];
+
+  return (
+    <div className="pb-12">
+      <EditorHeader backHref="/admin/shop" backLabel={labels.back} title={isNew ? "New Product" : (translation?.title ?? "Edit Product")} status={isNew ? undefined : product?.status}>
+        <PortalButton variant="ghost" size="sm" onClick={() => router.push("/admin/shop")}>{labels.discard}</PortalButton>
+        <PortalButton variant="secondary" size="sm" loading={isSaving} onClick={() => { setIsSaving(true); form.setFieldValue("status", "draft"); form.handleSubmit().finally(() => setIsSaving(false)); }}>{labels.saveDraft}</PortalButton>
+        <PortalButton variant="primary" size="sm" loading={isPublishing} onClick={() => { setIsPublishing(true); form.setFieldValue("status", "published"); form.handleSubmit().finally(() => setIsPublishing(false)); }}>{labels.publish}</PortalButton>
+      </EditorHeader>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+        <div className="space-y-5">
+          <form.Field name="name">
+            {(field) => (
+              <PortalField label={labels.name} required>
+                <PortalInput value={field.state.value} onBlur={() => { field.handleBlur(); if (isNew && !form.getFieldValue("slug")) form.setFieldValue("slug", generateSlug(field.state.value)); }} onChange={(e) => { field.handleChange(e.target.value); setPreviewName(e.target.value); }} placeholder="Product name..." />
+              </PortalField>
+            )}
+          </form.Field>
+
+          <form.Field name="description">
+            {(field) => (
+              <PortalField label={labels.description}>
+                <PortalTextarea rows={4} value={field.state.value ?? ""} onChange={(e) => field.handleChange(e.target.value || null)} placeholder="Product description..." />
+              </PortalField>
+            )}
+          </form.Field>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <form.Field name="regular_price">
+              {(field) => (
+                <PortalField label={labels.price} required>
+                  <PortalInput type="number" min="0" value={field.state.value} onChange={(e) => { field.handleChange(Number(e.target.value)); setPreviewPrice(Number(e.target.value)); }} />
+                </PortalField>
+              )}
+            </form.Field>
+            <form.Field name="member_price">
+              {(field) => (
+                <PortalField label={labels.memberPrice}>
+                  <PortalInput type="number" min="0" value={field.state.value ?? ""} onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : null)} placeholder="Optional" />
+                </PortalField>
+              )}
+            </form.Field>
+            <form.Field name="stock">
+              {(field) => (
+                <PortalField label={labels.stock}>
+                  <PortalInput type="number" min="0" value={field.state.value ?? ""} onChange={(e) => { field.handleChange(e.target.value ? Number(e.target.value) : null); setPreviewStock(e.target.value ? Number(e.target.value) : null); }} placeholder="∞" />
+                </PortalField>
+              )}
+            </form.Field>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form.Field name="category">
+              {(field) => (
+                <PortalField label={labels.category}>
+                  <PortalSelect value={field.state.value ?? ""} onChange={(e) => field.handleChange(e.target.value || null)} options={CATEGORY_OPTIONS} />
+                </PortalField>
+              )}
+            </form.Field>
+            <form.Field name="image">
+              {(field) => (
+                <PortalField label={labels.image}>
+                  <PortalInput value={field.state.value ?? ""} onChange={(e) => { field.handleChange(e.target.value || null); setPreviewImage(e.target.value); }} placeholder="https://..." />
+                </PortalField>
+              )}
+            </form.Field>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form.Field name="campus_id">
+              {(field) => (
+                <PortalField label={labels.campus} required>
+                  <PortalSelect value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} options={campusOptions} />
+                </PortalField>
+              )}
+            </form.Field>
+            <form.Field name="status">
+              {(field) => (
+                <PortalField label={labels.status}>
+                  <PortalSelect value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ProductFormValues["status"])} options={STATUS_OPTIONS} />
+                </PortalField>
+              )}
+            </form.Field>
+          </div>
+        </div>
+
+        <div className="lg:sticky lg:top-32 self-start">
+          <PreviewPanel title={labels.preview}>
+            <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="h-40 overflow-hidden" style={{ background: "rgba(255,255,255,0.03)" }}>
+                {previewImage ? <img src={previewImage} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">🛍️</div>}
+              </div>
+              <div className="p-4">
+                <p className="font-medium text-sm" style={{ color: "#fff" }}>{previewName || "Product Name"}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="font-mono text-sm font-bold" style={{ color: "#3DA9E0" }}>{previewPrice} NOK</p>
+                  {previewStock !== null && <p className="text-xs" style={{ color: "rgba(255,255,255,0.40)" }}>Stock: {previewStock}</p>}
+                </div>
+                <button type="button" className="w-full mt-3 py-2 rounded-xl text-xs font-medium" style={{ background: "#3DA9E0", color: "#001731" }}>Add to Cart</button>
+              </div>
+            </div>
+          </PreviewPanel>
+        </div>
+      </div>
+    </div>
+  );
+}

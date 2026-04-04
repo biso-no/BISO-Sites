@@ -48,7 +48,7 @@ export function ProductPreviewPane({
         {imageUrl ? (
           <Image src={imageUrl} alt={title} fill className="object-cover" sizes="800px" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-100 to-slate-200">
             <Package className="h-16 w-16 text-slate-300" />
           </div>
         )}

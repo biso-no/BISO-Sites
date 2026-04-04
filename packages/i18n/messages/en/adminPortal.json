@@ -1,0 +1,448 @@
+{
+  "nav": {
+    "overview": "Overview",
+    "pages": "Pages",
+    "departments": "Departments",
+    "jobs": "Jobs",
+    "events": "Events",
+    "shop": "Products",
+    "benefits": "Benefits",
+    "news": "News",
+    "settings": "Settings",
+    "activity": "Activity",
+    "drafts": "Review Drafts"
+  },
+  "common": {
+    "save": "Save",
+    "discard": "Discard",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "saveDraft": "Save Draft",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "back": "Back",
+    "loading": "Loading...",
+    "empty": "No results found",
+    "error": "Something went wrong",
+    "success": "Success",
+    "confirmDelete": "Are you sure you want to delete this item? This action cannot be undone.",
+    "noImage": "No image",
+    "viewAll": "View all",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived",
+      "review": "In Review",
+      "closed": "Closed",
+      "cancelled": "Cancelled",
+      "pending": "Pending",
+      "pending_approval": "Pending Approval"
+    },
+    "actions": "Actions",
+    "new": "New",
+    "all": "All",
+    "title": "Title",
+    "description": "Description",
+    "campus": "Campus",
+    "department": "Department",
+    "slug": "Slug",
+    "date": "Date",
+    "author": "Author",
+    "category": "Category",
+    "image": "Image",
+    "price": "Price",
+    "stock": "Stock",
+    "lastUpdated": "Last updated",
+    "createdAt": "Created",
+    "noDescription": "No description available",
+    "locale": {
+      "no": "Norwegian",
+      "en": "English"
+    }
+  },
+  "dashboard": {
+    "greeting": "Good day",
+    "subtitle": "Here is what is happening across BISO today.",
+    "stats": {
+      "jobs": "Open Jobs",
+      "events": "Upcoming Events",
+      "news": "Published Articles",
+      "drafts": "Pending Drafts"
+    },
+    "recentActivity": "Recent Activity",
+    "viewAllActivity": "View all activity",
+    "reviewDrafts": "Review Drafts",
+    "createPage": "Create Page",
+    "noActivity": "No recent activity"
+  },
+  "jobs": {
+    "title": "Jobs",
+    "description": "Manage job postings across all campuses.",
+    "create": "Post Job",
+    "empty": "No job postings yet",
+    "emptyDescription": "Create your first job posting to attract candidates.",
+    "fields": {
+      "title": "Job Title",
+      "company": "Company",
+      "employmentType": "Employment Type",
+      "descriptionNo": "Description (Norwegian)",
+      "descriptionEn": "Description (English)",
+      "campus": "Campus",
+      "department": "Department",
+      "slug": "URL Slug",
+      "status": "Status",
+      "applications": "Applications",
+      "views": "Views"
+    },
+    "employmentTypes": {
+      "full_time": "Full-time",
+      "part_time": "Part-time",
+      "internship": "Internship",
+      "freelance": "Freelance",
+      "volunteer": "Volunteer"
+    },
+    "filters": {
+      "all": "All",
+      "published": "Published",
+      "draft": "Draft",
+      "closed": "Closed"
+    },
+    "actions": {
+      "edit": "Edit job",
+      "delete": "Delete job",
+      "viewApplications": "View applications",
+      "close": "Close posting",
+      "reopen": "Reopen"
+    },
+    "preview": "Live Preview",
+    "saveSuccess": "Job saved successfully",
+    "saveError": "Failed to save job",
+    "deleteSuccess": "Job deleted",
+    "deleteError": "Failed to delete job",
+    "publishSuccess": "Job published",
+    "publishError": "Failed to publish job"
+  },
+  "events": {
+    "title": "Events",
+    "description": "Manage campus events and registrations.",
+    "create": "New Event",
+    "empty": "No events yet",
+    "emptyDescription": "Create your first event to get started.",
+    "fields": {
+      "title": "Event Title",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "location": "Location",
+      "description": "Description",
+      "coverImage": "Cover Image URL",
+      "ticketPrice": "Ticket Price (NOK)",
+      "capacity": "Capacity",
+      "status": "Status",
+      "memberOnly": "Members only",
+      "ticketUrl": "Ticket URL",
+      "attendees": "Attendees",
+      "revenue": "Revenue"
+    },
+    "filters": {
+      "all": "All",
+      "published": "Published",
+      "draft": "Draft",
+      "cancelled": "Cancelled"
+    },
+    "actions": {
+      "edit": "Edit event",
+      "delete": "Delete event",
+      "cancel": "Cancel event",
+      "duplicate": "Duplicate"
+    },
+    "preview": "Event Preview",
+    "saveSuccess": "Event saved",
+    "saveError": "Failed to save event",
+    "deleteSuccess": "Event deleted",
+    "deleteError": "Failed to delete event",
+    "publishSuccess": "Event published",
+    "publishError": "Failed to publish event"
+  },
+  "news": {
+    "title": "News",
+    "description": "Write and publish articles for your community.",
+    "create": "Write Article",
+    "empty": "No articles yet",
+    "emptyDescription": "Start writing to keep your community informed.",
+    "fields": {
+      "title": "Headline",
+      "author": "Author",
+      "category": "Category",
+      "coverImage": "Cover Image URL",
+      "body": "Article Body",
+      "locale": "Language",
+      "status": "Status",
+      "reads": "Reads",
+      "sticky": "Pin to top"
+    },
+    "categories": {
+      "general": "General",
+      "announcement": "Announcement",
+      "press": "Press",
+      "event": "Event Recap"
+    },
+    "filters": {
+      "all": "All",
+      "published": "Published",
+      "draft": "Draft"
+    },
+    "actions": {
+      "edit": "Edit article",
+      "delete": "Delete article",
+      "duplicate": "Duplicate"
+    },
+    "preview": "Editorial Preview",
+    "saveSuccess": "Article saved",
+    "saveError": "Failed to save article",
+    "deleteSuccess": "Article deleted",
+    "deleteError": "Failed to delete article",
+    "publishSuccess": "Article published",
+    "publishError": "Failed to publish article"
+  },
+  "shop": {
+    "title": "Products",
+    "description": "Manage your webshop inventory.",
+    "create": "Add Product",
+    "empty": "No products yet",
+    "emptyDescription": "Add your first product to the shop.",
+    "fields": {
+      "name": "Product Name",
+      "category": "Category",
+      "price": "Regular Price (NOK)",
+      "memberPrice": "Member Price (NOK)",
+      "description": "Description",
+      "image": "Image URL",
+      "stock": "Stock",
+      "status": "Status",
+      "memberOnly": "Members only",
+      "sales": "Sales",
+      "lowStock": "Low stock"
+    },
+    "filters": {
+      "all": "All",
+      "published": "Published",
+      "draft": "Draft",
+      "pending": "Pending Approval",
+      "archived": "Archived"
+    },
+    "actions": {
+      "edit": "Edit product",
+      "delete": "Delete product",
+      "duplicate": "Duplicate"
+    },
+    "preview": "Storefront Preview",
+    "saveSuccess": "Product saved",
+    "saveError": "Failed to save product",
+    "deleteSuccess": "Product deleted",
+    "deleteError": "Failed to delete product",
+    "publishSuccess": "Product published",
+    "publishError": "Failed to publish product"
+  },
+  "benefits": {
+    "title": "Benefits",
+    "description": "Manage member benefits and partner offers.",
+    "create": "Create Benefit",
+    "empty": "No benefits yet",
+    "emptyDescription": "Add your first member benefit.",
+    "partners": {
+      "title": "Partners",
+      "description": "Manage benefit partners and API access.",
+      "invite": "Invite Partner",
+      "empty": "No partners yet",
+      "fields": {
+        "name": "Partner Name",
+        "status": "Status",
+        "apiStatus": "API Status",
+        "benefitsLive": "Live Benefits",
+        "totalClaims": "Total Claims",
+        "lastSync": "Last Sync"
+      }
+    },
+    "fields": {
+      "titleNo": "Title (Norwegian)",
+      "titleEn": "Title (English)",
+      "descriptionNo": "Description (Norwegian)",
+      "descriptionEn": "Description (English)",
+      "kind": "Benefit Type",
+      "redemptionType": "Redemption Type",
+      "category": "Category",
+      "campus": "Campus",
+      "imageUrl": "Cover Image URL",
+      "status": "Status",
+      "partnerName": "Partner Name",
+      "redemptionValue": "Redemption Code / URL",
+      "isFeatured": "Featured",
+      "isMemberOnly": "Members only",
+      "publishStart": "Publish From",
+      "publishEnd": "Publish Until",
+      "claims": "Claims"
+    },
+    "kinds": {
+      "offer": "Offer",
+      "perk": "Perk",
+      "service": "Service"
+    },
+    "redemptionTypes": {
+      "none": "None",
+      "code": "Promo Code",
+      "link": "Link",
+      "qr": "QR Code",
+      "onsite": "On-site"
+    },
+    "actions": {
+      "edit": "Configure benefit",
+      "delete": "Delete benefit",
+      "viewPartners": "View Partners"
+    },
+    "preview": "Phone Preview",
+    "saveSuccess": "Benefit saved",
+    "saveError": "Failed to save benefit",
+    "deleteSuccess": "Benefit deleted",
+    "deleteError": "Failed to delete benefit",
+    "publishSuccess": "Benefit published",
+    "publishError": "Failed to publish benefit"
+  },
+  "departments": {
+    "title": "Departments",
+    "description": "View and manage departments across all campuses.",
+    "sync": "Sync from Directory",
+    "empty": "No departments found",
+    "emptyDescription": "Departments are synced from the directory.",
+    "fields": {
+      "name": "Name",
+      "campus": "Campus",
+      "type": "Type",
+      "members": "Members",
+      "slug": "Slug",
+      "lastSynced": "Last Synced",
+      "active": "Active"
+    },
+    "actions": {
+      "editPage": "Edit Page",
+      "admins": "Admins",
+      "initialize": "Initialize Page"
+    }
+  },
+  "pages": {
+    "title": "Pages",
+    "description": "Manage site pages and their content.",
+    "create": "Create Page",
+    "empty": "No pages yet",
+    "emptyDescription": "Create your first page to get started.",
+    "fields": {
+      "title": "Title",
+      "slug": "Slug",
+      "status": "Status",
+      "campus": "Campus",
+      "visibility": "Visibility",
+      "lastEdited": "Last edited"
+    },
+    "filters": {
+      "all": "All",
+      "published": "Published",
+      "draft": "Draft",
+      "archived": "Archived"
+    },
+    "actions": {
+      "edit": "Edit page",
+      "delete": "Delete page",
+      "preview": "Preview"
+    }
+  },
+  "activity": {
+    "title": "Activity Log",
+    "description": "A full audit trail of admin actions.",
+    "empty": "No activity recorded",
+    "fields": {
+      "actor": "Actor",
+      "action": "Action",
+      "resource": "Resource",
+      "time": "Time"
+    },
+    "filters": {
+      "all": "All",
+      "date": "Date",
+      "type": "Type"
+    }
+  },
+  "drafts": {
+    "title": "Review Drafts",
+    "description": "Review and approve content waiting for publication.",
+    "empty": "No pending drafts",
+    "emptyDescription": "All content has been reviewed.",
+    "pending": "{count} pending",
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "preview": "Preview"
+    },
+    "approveSuccess": "Draft approved and published",
+    "approveError": "Failed to approve draft",
+    "rejectSuccess": "Draft rejected",
+    "rejectError": "Failed to reject draft",
+    "types": {
+      "job": "Job",
+      "event": "Event",
+      "news": "Article",
+      "product": "Product",
+      "benefit": "Benefit",
+      "page": "Page"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Configure your admin preferences.",
+    "save": "Save Preferences",
+    "sections": {
+      "general": "General",
+      "brand": "Brand",
+      "team": "Team",
+      "aiLocalization": "AI Localization",
+      "security": "Security",
+      "integrations": "Integrations",
+      "notifications": "Notifications"
+    },
+    "general": {
+      "title": "General Settings",
+      "locale": "Default Locale",
+      "timezone": "Timezone"
+    },
+    "notifications": {
+      "title": "Notification Preferences",
+      "newApplications": "New job applications",
+      "newDrafts": "New draft submissions",
+      "systemAlerts": "System alerts"
+    },
+    "integrations": {
+      "title": "Integrations",
+      "appwrite": "Appwrite",
+      "stripe": "Stripe",
+      "slack": "Slack",
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "comingSoon": "Coming soon"
+    },
+    "security": {
+      "title": "Security",
+      "twoFactor": "Two-factor authentication",
+      "sessions": "Active sessions",
+      "restricted": "Security settings are restricted to national administrators."
+    },
+    "team": {
+      "title": "Team Members",
+      "role": "Role",
+      "invite": "Invite Member"
+    },
+    "saveSuccess": "Settings saved",
+    "saveError": "Failed to save settings"
+  }
+}

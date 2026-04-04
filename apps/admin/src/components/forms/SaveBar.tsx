@@ -64,7 +64,7 @@ export function SaveBar({
     <div
       className={cn(
         "fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/95 backdrop-blur-sm",
-        "supports-[backdrop-filter]:bg-background/80",
+        "supports-backdrop-filter:bg-background/80",
       )}
     >
       <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-3">
