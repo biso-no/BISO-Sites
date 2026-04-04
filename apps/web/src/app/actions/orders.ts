@@ -567,8 +567,8 @@ export async function createCartCheckoutSession(
   }
 }
 
-export function getOrder(id: string) {
-  return _getOrder(id);
+export async function getOrder(id: string) {
+  return await _getOrder(id);
 }
 
 export async function verifyOrder(orderId: string) {

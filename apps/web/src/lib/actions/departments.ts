@@ -4,7 +4,8 @@ import {
   type ContentTranslations,
   ContentType,
   type News,
-  Status,
+  NewsStatus,
+  WebshopProductStatus,
   type WebshopProducts,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
@@ -104,7 +105,7 @@ export async function getDepartmentById(
 
     const newsResults = await db.listRows<News>("app", "news", [
       Query.equal("department_id", id),
-      Query.equal("status", Status.PUBLISHED),
+      Query.equal("status", NewsStatus.PUBLISHED),
       Query.equal("translation_refs.locale", locale),
       Query.select([
         "$id",
@@ -139,7 +140,7 @@ export async function getDepartmentById(
       "webshop_products",
       [
         Query.equal("departmentId", id),
-        Query.equal("status", Status.PUBLISHED),
+        Query.equal("status", WebshopProductStatus.PUBLISHED),
         Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",

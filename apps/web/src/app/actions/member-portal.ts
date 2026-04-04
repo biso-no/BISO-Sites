@@ -2,16 +2,13 @@
 import { ID, Permission, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
-  BenefitInteraction,
+  BenefitInteractions,
   BenefitReveals,
-  CampusBenefit,
+  CampusBenefits,
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
-import {
-  BenefitInteractionAction,
-  BenefitStatus,
-} from "@repo/api/types/appwrite";
+import { Action, CampusBenefitStatus } from "@repo/api/types/appwrite";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { checkMembership } from "@/lib/profile";
 
@@ -61,16 +58,16 @@ async function createOrUpdatePublicProfile(
  */
 export async function getMemberPortalBenefits(
   campusId?: string | null
-): Promise<CampusBenefit[]> {
+): Promise<CampusBenefits[]> {
   try {
     const campusIds = resolveBenefitCampusIds(campusId);
     const { db } = await createAdminClient();
-    const response = await db.listRows<CampusBenefit>(
+    const response = await db.listRows<CampusBenefits>(
       "app",
       "campus_benefits",
       [
         Query.equal("campus_id", campusIds),
-        Query.equal("status", BenefitStatus.PUBLISHED),
+        Query.equal("status", CampusBenefitStatus.PUBLISHED),
         Query.orderAsc("sort_order"),
         Query.orderDesc("is_featured"),
         Query.limit(100),
@@ -88,16 +85,16 @@ export async function getMemberPortalBenefits(
  */
 export async function getFeaturedBenefits(
   campusId?: string | null
-): Promise<CampusBenefit[]> {
+): Promise<CampusBenefits[]> {
   try {
     const campusIds = resolveBenefitCampusIds(campusId);
     const { db } = await createAdminClient();
-    const response = await db.listRows<CampusBenefit>(
+    const response = await db.listRows<CampusBenefits>(
       "app",
       "campus_benefits",
       [
         Query.equal("campus_id", campusIds),
-        Query.equal("status", BenefitStatus.PUBLISHED),
+        Query.equal("status", CampusBenefitStatus.PUBLISHED),
         Query.equal("is_featured", true),
         Query.orderAsc("sort_order"),
         Query.limit(6),
@@ -113,7 +110,7 @@ export async function getFeaturedBenefits(
 /**
  * @deprecated Use getMemberPortalBenefits instead. Kept for backward compat.
  */
-async function _getMemberBenefits(): Promise<CampusBenefit[]> {
+async function _getMemberBenefits(): Promise<CampusBenefits[]> {
   return await getMemberPortalBenefits();
 }
 
@@ -214,7 +211,7 @@ export async function revealBenefit(
 
     // Fetch the benefit (works because campus_benefits has read("any") on published)
     const adminClient = await createAdminClient();
-    const benefit = await adminClient.db.getRow<CampusBenefit>(
+    const benefit = await adminClient.db.getRow<CampusBenefits>(
       "app",
       "campus_benefits",
       benefitId
@@ -237,14 +234,14 @@ export async function revealBenefit(
     });
 
     // Record interaction event (fire and forget, don't block response)
-    db.createRow<BenefitInteraction>(
+    db.createRow<BenefitInteractions>(
       "app",
       "benefit_interactions",
       ID.unique(),
       {
         user_id: user.$id,
         benefit_id: benefitId,
-        action: BenefitInteractionAction.REVEAL,
+        action: Action.REVEAL,
         campus_id: benefit.campus_id ?? null,
         metadata: null,
         $permissions: [Permission.read(`user:${user.$id}`)],
