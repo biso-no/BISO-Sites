@@ -23,7 +23,7 @@ jobs:
           APPWRITE_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: |
           appwrite sites create-vcs-deployment \
-            --siteId ${{ vars.WEB_SITE_ID }} \
+            --site-id ${{ vars.WEB_SITE_ID }} \
             --type commit \
             --reference ${{ github.sha }} \
             --activate true
