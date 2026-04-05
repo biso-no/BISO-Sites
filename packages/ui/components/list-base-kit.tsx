@@ -4,7 +4,7 @@ import { KEYS } from 'platejs';
 import { BaseIndentKit } from '@repo/ui/components/indent-base-kit';
 import { BlockListStatic } from '@repo/ui/components/ui/block-list-static';
 
-export const BaseListKit = [
+export const BaseListKit: any[] = [
   ...BaseIndentKit,
   BaseListPlugin.configure({
     inject: {

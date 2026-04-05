@@ -17,8 +17,10 @@
     "./woocommerce": "./src/woocommerce/index.ts"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
-    "openapi-typescript": "catalog:"
+    "openapi-typescript": "catalog:",
+    "typescript": "catalog:"
   },
   "dependencies": {
     "@azure/identity": "catalog:",

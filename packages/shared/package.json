@@ -14,7 +14,8 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   },
   "dependencies": {
     "@repo/api": "workspace:*",

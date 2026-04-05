@@ -45,7 +45,7 @@ import { BaseIndentKit } from './indent-base-kit';
 
 const lowlight = createLowlight(all);
 
-export const PortalEditorKit = [
+export const PortalEditorKit: any[] = [
   BaseParagraphPlugin.withComponent(ParagraphElement),
   BaseH1Plugin.withComponent(H1Element),
   BaseH2Plugin.withComponent(H2Element),

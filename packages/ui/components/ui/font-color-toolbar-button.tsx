@@ -1,8 +1,6 @@
 'use client';
 /* eslint-disable react-hooks/refs -- Ref usage for color picker component refs */
 
-import React from 'react';
-
 import type {
   DropdownMenuItemProps,
   DropdownMenuProps,
@@ -33,6 +31,7 @@ import {
 import { cn } from '@repo/ui/lib/utils';
 
 import { ToolbarButton, ToolbarMenuGroup } from './toolbar';
+import { Children, cloneElement, ComponentProps, ComponentPropsWithoutRef, memo, ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const MAX_CUSTOM_COLORS = 19;
 const HEX_COLOR_RE = /^#[\da-f]{6}$/i;
@@ -92,12 +91,12 @@ export function FontColorToolbarButton({
     [nodeType]
   );
 
-  const [selectedColor, setSelectedColor] = React.useState<string>();
-  const [updatedColor, setUpdatedColor] = React.useState<string>();
-  const [open, setOpen] = React.useState(false);
-  const [colorsQueue, setColorsQueue] = React.useState<string[]>([]);
+  const [selectedColor, setSelectedColor] = useState<string>();
+  const [updatedColor, setUpdatedColor] = useState<string>();
+  const [open, setOpen] = useState(false);
+  const [colorsQueue, setColorsQueue] = useState<string[]>([]);
 
-  const recordColorUsage = React.useCallback((color: string) => {
+  const recordColorUsage = useCallback((color: string) => {
     const normalized = normalizeColor(color);
 
     if (!isValidHexColor(normalized)) return;
@@ -113,7 +112,7 @@ export function FontColorToolbarButton({
     });
   }, []);
 
-  const appendColors = React.useCallback((colors: string[]) => {
+  const appendColors = useCallback((colors: string[]) => {
     setColorsQueue((prev) => {
       const normalized = colors.map(normalizeColor).filter(isValidHexColor);
       const existingSet = new Set(prev);
@@ -127,7 +126,7 @@ export function FontColorToolbarButton({
     });
   }, []);
 
-  const onToggle = React.useCallback(
+  const onToggle = useCallback(
     (value = !open) => {
       setOpen(value);
 
@@ -152,7 +151,7 @@ export function FontColorToolbarButton({
     [open, editor, nodeType, appendColors, selectedColor, recordColorUsage]
   );
 
-  const updateColor = React.useCallback(
+  const updateColor = useCallback(
     (value: string) => {
       if (editor.selection) {
         setSelectedColor(value);
@@ -165,7 +164,7 @@ export function FontColorToolbarButton({
     [editor, nodeType]
   );
 
-  const updateColorAndClose = React.useCallback(
+  const updateColorAndClose = useCallback(
     (value: string) => {
       updateColor(value);
       onToggle();
@@ -173,7 +172,7 @@ export function FontColorToolbarButton({
     [onToggle, updateColor]
   );
 
-  const clearColor = React.useCallback(() => {
+  const clearColor = useCallback(() => {
     if (editor.selection) {
       editor.tf.select(editor.selection);
       editor.tf.removeMarks(nodeType);
@@ -181,7 +180,7 @@ export function FontColorToolbarButton({
     }
   }, [editor, onToggle, nodeType]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (selectionDefined) {
       setSelectedColor(color);
     }
@@ -224,7 +223,7 @@ function PureColorPicker({
   updateCustomColor,
   updatedColor,
   ...props
-}: React.ComponentProps<'div'> & {
+}: ComponentProps<'div'> & {
   colors: TColor[];
   colorsQueue: string[];
   customColors: TColor[];
@@ -270,7 +269,7 @@ function PureColorPicker({
   );
 }
 
-const ColorPicker = React.memo(
+const ColorPicker = memo(
   PureColorPicker,
   (prev, next) =>
     prev.color === next.color &&
@@ -300,10 +299,10 @@ function ColorCustom({
   updateCustomColor: (color: string) => void;
   color?: string;
   updatedColor?: string;
-} & React.ComponentPropsWithoutRef<'div'>) {
-  const [value, setValue] = React.useState<string>(color || '#000000');
+} & ComponentPropsWithoutRef<'div'>) {
+  const [value, setValue] = useState<string>(color || '#000000');
 
-  const fullCustomColors = React.useMemo(
+  const fullCustomColors = useMemo(
     () =>
       colorsQueue
         .filter((c) => normalizeColor(c) !== normalizeColor(updatedColor || ''))
@@ -331,7 +330,7 @@ function ColorCustom({
     [colorsQueue, customColors, updatedColor]
   );
 
-  const isColorInCollections = React.useCallback(
+  const isColorInCollections = useCallback(
     (targetColor: string) =>
       colors.some(
         (c) => normalizeColor(c.value) === normalizeColor(targetColor)
@@ -345,9 +344,9 @@ function ColorCustom({
     [colors, customColors, fullCustomColors]
   );
 
-  const [customColor, setCustomColor] = React.useState<string | null>(null);
+  const [customColor, setCustomColor] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!updatedColor || isColorInCollections(updatedColor)) {
       setCustomColor(null);
 
@@ -357,7 +356,7 @@ function ColorCustom({
     setCustomColor(updatedColor);
   }, [isColorInCollections, updatedColor]);
 
-  const computedColors = React.useMemo(
+  const computedColors = useMemo(
     () =>
       customColor
         ? [
@@ -374,7 +373,7 @@ function ColorCustom({
   );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const updateCustomColorDebounced = React.useCallback(
+  const updateCustomColorDebounced = useCallback(
     debounce(updateCustomColor, 100),
     [updateCustomColor]
   );
@@ -423,16 +422,16 @@ function ColorInput({
   className,
   value = '#000000',
   ...props
-}: React.ComponentProps<'input'> & { className?: string }) {
-  const inputRef = React.useRef<HTMLInputElement | null>(null);
+}: ComponentProps<'input'> & { className?: string }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <div className={cn('flex flex-col items-center', className)}>
-      {React.Children.map(children, (child) => {
+      {Children.map(children, (child) => {
         if (!child) return child;
 
-        return React.cloneElement(
-          child as React.ReactElement<{
+        return cloneElement(
+          child as ReactElement<{
             onClick: () => void;
           }>,
           {
@@ -514,7 +513,7 @@ export function ColorDropdownMenuItems({
   colors: TColor[];
   updateColor: (color: string) => void;
   color?: string;
-} & React.ComponentProps<'div'>) {
+} & ComponentProps<'div'>) {
   return (
     <div
       className={cn(

@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 
 import type { TListElement } from 'platejs';
 
@@ -17,12 +16,13 @@ import {
 
 import { Checkbox } from './checkbox';
 import { cn } from '@repo/ui/lib/utils';
+import { FC } from 'react';
 
 const config: Record<
   string,
   {
-    Li: React.FC<PlateElementProps>;
-    Marker: React.FC<PlateElementProps>;
+    Li: FC<PlateElementProps>;
+    Marker: FC<PlateElementProps>;
   }
 > = {
   todo: {

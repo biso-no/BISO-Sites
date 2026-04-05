@@ -83,6 +83,7 @@
     "@radix-ui/react-toggle-group": "catalog:",
     "@radix-ui/react-toolbar": "catalog:",
     "@radix-ui/react-tooltip": "catalog:",
+    "@types/lodash": "^4.17.24",
     "@udecode/cn": "catalog:",
     "ai": "catalog:",
     "class-variance-authority": "catalog:",

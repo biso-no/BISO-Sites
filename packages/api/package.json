@@ -17,7 +17,9 @@
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {
-    "ts-node": "catalog:"
+    "@repo/typescript-config": "workspace:*",
+    "ts-node": "catalog:",
+    "typescript": "catalog:"
   },
   "dependencies": {
     "@types/node": "catalog:",

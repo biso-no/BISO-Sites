@@ -12,7 +12,10 @@
     "./vipps": "./src/vipps/index.ts",
     "./stripe": "./src/stripe/index.ts"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "catalog:"
+  },
   "dependencies": {
     "@repo/shared": "workspace:*",
     "@types/node": "catalog:",

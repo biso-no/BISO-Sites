@@ -46,10 +46,12 @@
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@types/react": "catalog:",
     "@types/turndown": "catalog:",
     "@types/xml2js": "catalog:",
-    "react-hook-form": "catalog:"
+    "react-hook-form": "catalog:",
+    "typescript": "catalog:"
   },
   "dependencies": {
     "@ai-sdk/openai": "catalog:",
