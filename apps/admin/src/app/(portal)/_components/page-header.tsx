@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
+import type { ReactNode } from "react";
+
 interface PageHeaderProps {
   children?: ReactNode;
   description?: string;
@@ -25,7 +26,7 @@ export function PageHeader({ title, description, children }: PageHeaderProps) {
           </p>
         )}
       </div>
-      <Link href="/api/units/sync" className="text-sm text-[#3DA9E0]">
+      <Link className="text-[#3DA9E0] text-sm" href="/api/units/sync">
         Sync units
       </Link>
       {children && (

@@ -1,6 +1,6 @@
+import { docs } from "collections/server";
 import { type InferPageType, loader } from "fumadocs-core/source";
 import { lucideIconsPlugin } from "fumadocs-core/source/lucide-icons";
-import { docs } from "@/.source";
 
 // Create a single loader for all documentation
 // Root folders (marked with "root": true in meta.json) will automatically create sidebar tabs

@@ -264,9 +264,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
             <span
               className="relative z-10 font-medium text-sm"
               style={{
-                color: isActive("/drafts")
-                  ? "#fff"
-                  : "rgba(255,255,255,0.50)",
+                color: isActive("/drafts") ? "#fff" : "rgba(255,255,255,0.50)",
               }}
             >
               {t("drafts")}

@@ -3,6 +3,7 @@ import type { Departments } from "@repo/api/types/appwrite";
 import { getDepartments } from "@repo/connectors/24sevenoffice";
 import { type NextRequest, NextResponse } from "next/server";
 import { getAuthStatus } from "@/lib/auth-utils";
+
 function getCampusId(deptNum: number): string {
   if (deptNum >= 1 && deptNum <= 299) {
     return "1";
@@ -26,7 +27,6 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { db } = await createAdminClient();
-    
 
     const departments = await getDepartments();
 

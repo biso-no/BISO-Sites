@@ -1,14 +1,24 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 import path from "path";
+
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const baseConfig: NextConfig = {
-    transpilePackages: ["@repo/api", "@repo/i18n", "@repo/ui", "@repo/connectors", "@repo/shared", "@repo/ai", "@repo/payment", "@repo/typescript-config"],
+  transpilePackages: [
+    "@repo/api",
+    "@repo/i18n",
+    "@repo/ui",
+    "@repo/connectors",
+    "@repo/shared",
+    "@repo/ai",
+    "@repo/payment",
+    "@repo/typescript-config",
+  ],
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   output: "standalone",
   images: {
     remotePatterns: [

@@ -1,3 +1,37 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
+
+/* In your globals.css */
+.mermaid-container svg {
+  max-width: 100%;
+  height: auto;
+  padding: 1rem;
+  background: transparent;
+  border-radius: 0.75rem;
+}
+
+/* Make nodes look like modern cards */
+.mermaid-container .node rect,
+.mermaid-container .node circle,
+.mermaid-container .node polygon {
+  stroke-width: 1.5px !important;
+  transition: all 0.2s ease;
+}
+
+.mermaid-container .node:hover rect {
+  filter: brightness(1.1);
+  stroke-width: 2px !important;
+}
+
+/* Style the text */
+.mermaid-container .nodeLabel {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Subtle shadows for subgraphs */
+.mermaid-container .cluster rect {
+  rx: 12px; /* Rounded subgraphs */
+  stroke-dasharray: 5, 5; /* Dashed border for logical groups */
+}

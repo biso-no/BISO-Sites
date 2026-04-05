@@ -1,8 +1,19 @@
 {
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
-    "moduleResolution": "nodenext",
-    "module": "nodenext",
+    "target": "ESNext",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": false,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "declaration": false,
+    "moduleResolution": "Bundler",
+    "module": "ESNext",
     "plugins": [
       {
         "name": "next"
@@ -11,10 +22,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@/.source": [".source"],
+      "collections/*": ["./.source/*"],
       "@repo/*": ["../../packages/*"]
     },
-    "declaration": false,
     "declarationMap": false,
     "strictNullChecks": true
   },
@@ -24,7 +34,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "next.config.source.ts"
+    "next.config.source.ts",
+    "next.config.mjs"
   ],
   "exclude": ["node_modules"]
 }
