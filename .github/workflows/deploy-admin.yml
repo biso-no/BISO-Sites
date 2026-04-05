@@ -14,17 +14,51 @@ jobs:
     runs-on: ubuntu-latest
     environment: Production
     steps:
-      - name: Install Appwrite CLI
-        run: npm install -g appwrite-cli
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Appwrite Node SDK
+        # Initializes a quick package.json to cleanly install the SDK in the runner
+        run: npm init -y && npm install node-appwrite
 
       - name: Trigger Appwrite VCS Deployment
         env:
           APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT: ${{ vars.APPWRITE_PROJECT_ID }}
           APPWRITE_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          ADMIN_SITE_ID: ${{ vars.ADMIN_SITE_ID }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          appwrite sites create-vcs-deployment \
-            --site-id ${{ vars.ADMIN_SITE_ID }} \
-            --type commit \
-            --reference ${{ github.sha }} \
-            --activate true
+          # Write the deployment script to a file
+          cat << 'EOF' > trigger-deploy.js
+          const sdk = require('node-appwrite');
+
+          const client = new sdk.Client()
+              .setEndpoint(process.env.APPWRITE_ENDPOINT)
+              .setProject(process.env.APPWRITE_PROJECT)
+              .setKey(process.env.APPWRITE_KEY);
+
+          const sites = new sdk.Sites(client);
+
+          async function deploy() {
+              try {
+                  const result = await sites.createVcsDeployment({
+                      siteId: process.env.ADMIN_SITE_ID,
+                      type: 'commit',
+                      reference: process.env.COMMIT_SHA,
+                      activate: true
+                  });
+                  console.log('✅ Deployment triggered successfully!');
+                  console.log(`Deployment ID: ${result.$id}`);
+              } catch (error) {
+                  console.error('❌ Failed to trigger deployment:');
+                  console.error(error);
+                  process.exit(1); // Fails the GitHub Action if the deployment fails
+              }
+          }
+
+          deploy();
+          EOF
+          
+          # Execute the script
+          node trigger-deploy.js
