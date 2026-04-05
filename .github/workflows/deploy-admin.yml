@@ -1,4 +1,4 @@
-name: Deploy App 1
+name: Deploy Admin
 
 on:
   push:
