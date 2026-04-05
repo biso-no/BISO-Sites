@@ -8,6 +8,7 @@ export enum NotificationStatus {
   UNREAD = "unread",
 }
 
+
 export enum ExpenseStatus {
   DRAFT = "draft",
   PENDING = "pending",
