@@ -42,24 +42,28 @@ function MermaidContent({ chart }: { chart: string }) {
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "loose",
-    fontFamily: "var(--font-geist-sans), ui-sans-serif, system-ui",
+    fontFamily: "var(--font-inter), ui-sans-serif, system-ui",
     theme: "base",
     themeVariables: {
-      primaryColor: resolvedTheme === "dark" ? "#3b82f6" : "#2563eb",
-      primaryTextColor: resolvedTheme === "dark" ? "#fff" : "#000",
-      primaryBorderColor: resolvedTheme === "dark" ? "#3b82f6" : "#2563eb",
-      lineColor: resolvedTheme === "dark" ? "#6366f1" : "#4f46e5",
-      secondaryColor: resolvedTheme === "dark" ? "#1e293b" : "#f1f5f9",
-      tertiaryColor: resolvedTheme === "dark" ? "#0f172a" : "#ffffff",
-      mainBkg: resolvedTheme === "dark" ? "#1e293b" : "#ffffff",
-      nodeBorder: resolvedTheme === "dark" ? "#334155" : "#e2e8f0",
+      /* BISO brand palette: blue #3DA9E0, navy #001731, yellow #F7D64A */
+      primaryColor: resolvedTheme === "dark" ? "#1a3a5c" : "#dbeeff",
+      primaryTextColor: resolvedTheme === "dark" ? "#e0f2fe" : "#001731",
+      primaryBorderColor: resolvedTheme === "dark" ? "#3DA9E0" : "#3DA9E0",
+      lineColor: resolvedTheme === "dark" ? "#3DA9E0" : "#0077b6",
+      secondaryColor: resolvedTheme === "dark" ? "#0d2235" : "#f0f9ff",
+      tertiaryColor: resolvedTheme === "dark" ? "#001731" : "#ffffff",
+      mainBkg: resolvedTheme === "dark" ? "#0d2235" : "#ffffff",
+      nodeBorder: resolvedTheme === "dark" ? "#3DA9E0" : "#93c5fd",
       clusterBkg:
         resolvedTheme === "dark"
-          ? "rgba(30, 41, 59, 0.5)"
-          : "rgba(241, 245, 249, 0.5)",
-      clusterBorder: resolvedTheme === "dark" ? "#475569" : "#cbd5e1",
-      titleColor: resolvedTheme === "dark" ? "#94a3b8" : "#64748b",
-      edgeLabelBackground: resolvedTheme === "dark" ? "#0f172a" : "#ffffff",
+          ? "rgba(0, 23, 49, 0.6)"
+          : "rgba(219, 238, 255, 0.5)",
+      clusterBorder: resolvedTheme === "dark" ? "#3DA9E0" : "#93c5fd",
+      titleColor: resolvedTheme === "dark" ? "#7dd3fc" : "#0077b6",
+      edgeLabelBackground: resolvedTheme === "dark" ? "#001731" : "#f0f9ff",
+      /* Accent nodes use BISO yellow */
+      tertiaryTextColor: resolvedTheme === "dark" ? "#F7D64A" : "#92620d",
+      tertiaryBorderColor: resolvedTheme === "dark" ? "#F7D64A" : "#f7d64a",
     },
   });
 

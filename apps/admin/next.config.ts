@@ -18,7 +18,7 @@ const baseConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: true,
   output: "standalone",
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   productionBrowserSourceMaps: false,
   images: {
     remotePatterns: [

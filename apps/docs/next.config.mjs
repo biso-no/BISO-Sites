@@ -10,7 +10,7 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
-    transpilePackages: [
+  transpilePackages: [
     "@repo/api",
     "@repo/i18n",
     "@repo/ui",

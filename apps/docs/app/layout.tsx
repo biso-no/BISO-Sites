@@ -1,11 +1,7 @@
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
 import "./global.css";
-import { Inter } from "next/font/google";
-
-const inter = Inter({
-  subsets: ["latin"],
-});
+import { inter, museoSans } from "./fonts";
 
 export const metadata: Metadata = {
   title: "BISO Docs",
@@ -18,7 +14,11 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html className={inter.className} lang="en" suppressHydrationWarning>
+    <html
+      className={`${museoSans.variable} ${inter.variable}`}
+      lang="en"
+      suppressHydrationWarning
+    >
       <body className="flex min-h-screen flex-col">
         <RootProvider>{children}</RootProvider>
       </body>

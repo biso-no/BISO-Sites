@@ -46,8 +46,8 @@ export function baseOptions(): BaseLayoutProps {
 export const logo = (
   <>
     <Image
-      alt="Fumadocs"
-      aria-label="Fumadocs"
+      alt="BISO"
+      aria-label="BISO logo"
       className="in-[.uwu]:block hidden w-22"
       sizes="100px"
       src={Logo}
