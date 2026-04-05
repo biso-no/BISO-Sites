@@ -64,7 +64,7 @@ export const PortalEditorKit = [
     inject: {
       targetPlugins: [...KEYS.heading, KEYS.p, KEYS.blockquote, KEYS.codeBlock],
     },
-    render: { belowNodes: BlockList },
+    render: { belowNodes: BlockList as any },
   }),
   BoldPlugin,
   ItalicPlugin,

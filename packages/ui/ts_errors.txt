@@ -1,0 +1,8 @@
+components/portal-editor-kit.tsx(67,15): error TS2322: Type '(props: any) => ((childrenProps: PlateElementProps) => React.JSX.Element) | undefined' is not assignable to type 'RenderStaticNodeWrapper<WithAnyKey<PluginConfig<"list", Partial<{ getSiblingListOptions?: GetSiblingListOptions<TElement, Editor> | undefined; getListStyleType?: ((element: HTMLElement) => ListStyleType) | undefined; }>, {}, {}, {}>>>'.
+  Type '((childrenProps: PlateElementProps) => Element) | undefined' is not assignable to type 'RenderStaticNodeWrapperFunction'.
+    Type '(childrenProps: PlateElementProps) => React.JSX.Element' is not assignable to type 'RenderStaticNodeWrapperFunction'.
+      Types of parameters 'childrenProps' and 'hocProps' are incompatible.
+        Type 'SlateRenderElementProps<TElement, PluginConfig<any, {}, {}, {}, {}>>' is not assignable to type 'PlateElementProps'.
+          Type 'SlateRenderElementProps<TElement, PluginConfig<any, {}, {}, {}, {}>>' is not assignable to type '{ editor: PlateEditor; plugin: EditorPlatePlugin<PluginConfig>; }'.
+            Types of property 'plugin' are incompatible.
+              Property 'useOptionsStore' is missing in type 'EditorPlugin<PluginConfig<any, {}, {}, {}, {}>>' but required in type 'EditorPlatePlugin<PluginConfig>'.

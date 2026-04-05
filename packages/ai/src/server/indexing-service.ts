@@ -206,7 +206,7 @@ export class IndexingService {
   }
 
   startIndexing(options: IndexingOptions): Promise<string> {
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
     const job: IndexingJob = {
       id: jobId,
@@ -617,7 +617,7 @@ export class IndexingService {
       const classification = documentClassifier.classifyDocument(
         document.name,
         document.folderPath || "/",
-        processed.content.substring(0, 5000)
+        processed.content.slice(0, 5000)
       );
 
       // Generate document viewer URL
@@ -740,7 +740,7 @@ export class IndexingService {
 
     // Check for duplicate content (suggests processing loop)
     const uniqueContents = new Set(
-      processed.chunks.map((chunk) => chunk.content.substring(0, 100))
+      processed.chunks.map((chunk) => chunk.content.slice(0, 100))
     );
     if (uniqueContents.size < processed.chunks.length * 0.5) {
       return {
@@ -1000,7 +1000,7 @@ export class IndexingService {
         ];
 
         const textMatch = searchTerms.some((term) => text.includes(term));
-        const metadataMatch = metadata.sectionNumber
+        const metadataMatch = (metadata.sectionNumber as string)
           ?.toLowerCase()
           .includes(numberOnly);
 
