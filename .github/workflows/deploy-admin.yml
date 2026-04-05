@@ -1,0 +1,29 @@
+name: Deploy App 1
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/admin/**'
+      - 'packages/**'
+      - 'package.json'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Appwrite CLI
+        run: npm install -g appwrite-cli
+
+      - name: Trigger Appwrite VCS Deployment
+        env:
+          APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT: ${{ vars.APPWRITE_PROJECT_ID }}
+          APPWRITE_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: |
+          appwrite sites create-vcs-deployment \
+            --siteId ${{ vars.ADMIN_SITE_ID }} \
+            --type commit \
+            --reference ${{ github.sha }} \
+            --activate true

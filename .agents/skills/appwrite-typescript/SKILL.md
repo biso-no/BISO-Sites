@@ -42,7 +42,7 @@ import { Client, Users, TablesDB, Storage, Functions, ID, Query } from 'node-app
 
 const client = new Client()
     .setEndpoint('https://<REGION>.cloud.appwrite.io/v1')
-    .setProject(process.env.APPWRITE_PROJECT_ID)
+    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT)
     .setKey(process.env.APPWRITE_API_KEY);
 ```
 
