@@ -9,10 +9,10 @@ import {
 } from "./departments-filters-client";
 import { DepartmentsGrid } from "./departments-grid";
 
-type DepartmentsListClientProps = {
-  departments: ContentTranslations[];
+interface DepartmentsListClientProps {
   availableTypes: string[];
-};
+  departments: ContentTranslations[];
+}
 
 const stripHtml = (html?: string | null) => {
   if (!html) {

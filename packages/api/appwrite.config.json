@@ -1,5 +1,5 @@
 {
-  "projectId": "biso",
+  "projectId": "dev",
   "tablesDB": [
     {
       "$id": "app",
@@ -335,8 +335,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -354,7 +354,6 @@
           "required": true,
           "array": false,
           "size": 30,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -374,7 +373,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -383,15 +381,13 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
           "key": "subscribed",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "subscriber_id",
@@ -399,7 +395,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -451,7 +446,6 @@
           "required": true,
           "array": false,
           "size": 10,
-          "default": null,
           "encrypt": false
         },
         {
@@ -460,7 +454,6 @@
           "required": true,
           "array": false,
           "size": 20,
-          "default": null,
           "encrypt": false
         },
         {
@@ -469,7 +462,6 @@
           "required": true,
           "array": false,
           "size": 15,
-          "default": null,
           "encrypt": false
         },
         {
@@ -498,17 +490,16 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "prepayment_amount",
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -525,8 +516,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -547,7 +538,6 @@
           "required": true,
           "array": false,
           "size": 20,
-          "default": null,
           "encrypt": false
         },
         {
@@ -622,7 +612,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -630,19 +619,11 @@
     },
     {
       "$id": "departments",
-      "$permissions": [
-        "read(\"users\")",
-        "read(\"guests\")",
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"users\")", "read(\"guests\")", "read(\"any\")"],
       "databaseId": "app",
       "name": "Departments",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "Id",
@@ -650,7 +631,6 @@
           "required": true,
           "array": false,
           "size": 10,
-          "default": null,
           "encrypt": false
         },
         {
@@ -659,7 +639,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -692,7 +671,6 @@
           "required": true,
           "array": false,
           "size": 2,
-          "default": null,
           "encrypt": false
         },
         {
@@ -844,7 +822,6 @@
           "required": true,
           "array": false,
           "size": 8,
-          "default": null,
           "encrypt": false
         },
         {
@@ -926,7 +903,6 @@
           "required": true,
           "array": false,
           "size": 10,
-          "default": null,
           "encrypt": false
         },
         {
@@ -1076,13 +1052,11 @@
     {
       "$id": "orders",
       "$permissions": [
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:finance\")",
-        "read(\"team:finance\")",
-        "update(\"team:finance\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")",
+        "create(\"any\")"
       ],
       "databaseId": "app",
       "name": "Orders",
@@ -1146,8 +1120,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "max": 10000000000000000000
         },
         {
           "key": "discount_total",
@@ -1155,7 +1128,7 @@
           "required": false,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
+          "max": 10000000000000000000,
           "default": null
         },
         {
@@ -1164,8 +1137,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "max": 10000000000000000000
         },
         {
           "key": "currency",
@@ -1173,8 +1145,7 @@
           "required": true,
           "array": false,
           "elements": ["NOK"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "items_json",
@@ -1202,38 +1173,56 @@
           "default": null
         },
         {
-          "key": "vipps_session_id",
+          "key": "payment_provider",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 128,
+          "size": 50,
           "default": null,
           "encrypt": false
         },
         {
-          "key": "vipps_order_id",
+          "key": "payment_session_id",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 128,
+          "size": 100,
           "default": null,
           "encrypt": false
         },
         {
-          "key": "vipps_payment_link",
+          "key": "payment_intent_id",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 512,
+          "size": 100,
           "default": null,
           "encrypt": false
         },
         {
-          "key": "vipps_receipt_url",
+          "key": "receipt_link",
           "type": "string",
           "required": false,
           "array": false,
-          "size": 512,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "payment_link",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "payment_receipt_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
           "default": null,
           "encrypt": false
         },
@@ -1271,7 +1260,6 @@
           "required": true,
           "array": false,
           "size": 5,
-          "default": null,
           "encrypt": false
         },
         {
@@ -1292,7 +1280,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -1312,9 +1299,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "category",
@@ -1329,8 +1315,7 @@
           "key": "status",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "expiryDate",
@@ -1338,15 +1323,13 @@
           "required": true,
           "array": false,
           "size": 30,
-          "default": null,
           "encrypt": false
         },
         {
           "key": "canPurchase",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "startDate",
@@ -1354,7 +1337,6 @@
           "required": true,
           "array": false,
           "size": 30,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -1374,7 +1356,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -1382,9 +1363,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "description",
@@ -1430,8 +1410,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -1481,7 +1461,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -1519,7 +1498,6 @@
           "required": true,
           "array": false,
           "size": 30,
-          "default": null,
           "encrypt": false
         },
         {
@@ -1559,9 +1537,8 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "title",
@@ -1569,7 +1546,6 @@
           "required": true,
           "array": false,
           "size": 200,
-          "default": null,
           "encrypt": false
         },
         {
@@ -1986,7 +1962,6 @@
           "required": true,
           "array": false,
           "size": 20,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -2022,15 +1997,13 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
           "key": "enabled",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "description",
@@ -2047,7 +2020,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -2073,7 +2045,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2082,7 +2053,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2117,16 +2087,14 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "isActive",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "locale",
@@ -2134,8 +2102,7 @@
           "required": true,
           "array": false,
           "elements": ["norwegian", "english"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         }
       ],
       "indexes": []
@@ -2154,7 +2121,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2163,7 +2129,6 @@
           "required": true,
           "array": false,
           "size": 128,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2172,7 +2137,6 @@
           "required": true,
           "array": false,
           "size": 2000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2180,39 +2144,34 @@
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "endDate",
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "isActive",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "heroOverrideEnabled",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "priority",
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "primaryColorHex",
@@ -2355,7 +2314,6 @@
           "required": true,
           "array": false,
           "size": 32,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2364,7 +2322,6 @@
           "required": true,
           "array": false,
           "size": 256,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2381,8 +2338,7 @@
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "endTime",
@@ -2422,8 +2378,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         }
       ],
@@ -2457,7 +2413,6 @@
           "required": true,
           "array": false,
           "size": 128,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2466,7 +2421,6 @@
           "required": true,
           "array": false,
           "size": 4096,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2475,8 +2429,7 @@
           "required": true,
           "array": false,
           "min": 0,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "max": 10000000000000000000
         },
         {
           "key": "currency",
@@ -2484,7 +2437,6 @@
           "required": true,
           "array": false,
           "size": 8,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2493,7 +2445,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2502,7 +2453,6 @@
           "required": true,
           "array": false,
           "size": 128,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2519,7 +2469,6 @@
           "required": true,
           "array": false,
           "size": 32,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2528,7 +2477,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2546,8 +2494,7 @@
           "required": true,
           "array": false,
           "elements": ["new", "like_new", "good", "fair", "poor"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "status",
@@ -2555,8 +2502,7 @@
           "required": true,
           "array": false,
           "elements": ["available", "sold", "reserved", "inactive"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "is_negotiable",
@@ -2589,7 +2535,7 @@
           "required": false,
           "array": false,
           "min": 0,
-          "max": 9223372036854775807,
+          "max": 9223372036854776000,
           "default": 0
         },
         {
@@ -2598,7 +2544,7 @@
           "required": false,
           "array": false,
           "min": 0,
-          "max": 9223372036854775807,
+          "max": 9223372036854776000,
           "default": 0
         },
         {
@@ -2675,7 +2621,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2707,7 +2652,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2725,8 +2669,7 @@
           "required": true,
           "array": false,
           "elements": ["direct", "group", "team", "department"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "participants",
@@ -2734,7 +2677,6 @@
           "required": true,
           "array": true,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2775,7 +2717,7 @@
           "required": false,
           "array": false,
           "min": 0,
-          "max": 9223372036854775807,
+          "max": 9223372036854776000,
           "default": 0
         },
         {
@@ -2803,7 +2745,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2812,7 +2753,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2821,7 +2761,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2830,7 +2769,6 @@
           "required": true,
           "array": false,
           "size": 10000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2839,8 +2777,7 @@
           "required": true,
           "array": false,
           "elements": ["text", "image", "file", "system", "product"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "attachments",
@@ -2896,7 +2833,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2905,7 +2841,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2914,23 +2849,20 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
           "key": "is_typing",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "expires_at",
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         }
       ],
       "indexes": []
@@ -2954,7 +2886,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -2963,7 +2894,7 @@
           "required": false,
           "array": false,
           "min": 0,
-          "max": 9223372036854775807,
+          "max": 9223372036854776000,
           "default": 0
         },
         {
@@ -2972,7 +2903,6 @@
           "required": true,
           "array": true,
           "size": 255,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -2992,7 +2922,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3001,7 +2930,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3093,7 +3021,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3102,7 +3029,6 @@
           "required": true,
           "array": false,
           "size": 8,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3211,7 +3137,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3220,7 +3145,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3343,7 +3267,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3352,7 +3275,6 @@
           "required": true,
           "array": false,
           "size": 200,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3360,8 +3282,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "format": "email",
-          "default": null
+          "format": "email"
         },
         {
           "key": "applicant_phone",
@@ -3393,23 +3314,20 @@
             "accepted",
             "rejected"
           ],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "gdpr_consent",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "consent_date",
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "data_processing_purpose",
@@ -3417,7 +3335,6 @@
           "required": true,
           "array": false,
           "size": 500,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3425,8 +3342,7 @@
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "resume_file_id",
@@ -3450,16 +3366,11 @@
     },
     {
       "$id": "content_translations",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "Content Translations",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "content_id",
@@ -3467,7 +3378,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3476,8 +3386,7 @@
           "required": true,
           "array": false,
           "elements": ["en", "no"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "title",
@@ -3485,7 +3394,6 @@
           "required": true,
           "array": false,
           "size": 500,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3493,8 +3401,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "size": 8000,
-          "default": null,
+          "size": 50000,
           "encrypt": false
         },
         {
@@ -3568,8 +3475,7 @@
             "memberBenefit",
             "page"
           ],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "short_description",
@@ -3597,7 +3503,7 @@
           "type": "relationship",
           "required": false,
           "array": false,
-          "relatedTable": "member_benefit",
+          "relatedTable": "campus_benefits",
           "relationType": "manyToOne",
           "twoWay": true,
           "twoWayKey": "contentTranslations",
@@ -3638,16 +3544,11 @@
     },
     {
       "$id": "jobs",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "Jobs",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "slug",
@@ -3655,7 +3556,6 @@
           "required": true,
           "array": false,
           "size": 200,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3664,8 +3564,7 @@
           "required": true,
           "array": false,
           "elements": ["draft", "published", "closed"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "campus_id",
@@ -3673,7 +3572,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3743,20 +3641,30 @@
           "side": "parent"
         }
       ],
-      "indexes": []
+      "indexes": [
+        {
+          "key": "idx_status_campus",
+          "type": "key",
+          "status": "available",
+          "columns": ["status", "campus_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_department_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["department_id"],
+          "orders": []
+        }
+      ]
     },
     {
       "$id": "events",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "Events",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "slug",
@@ -3773,8 +3681,7 @@
           "required": true,
           "array": false,
           "elements": ["draft", "published", "cancelled"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "campus_id",
@@ -3782,7 +3689,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -3857,8 +3763,8 @@
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -3924,20 +3830,30 @@
           "side": "parent"
         }
       ],
-      "indexes": []
+      "indexes": [
+        {
+          "key": "idx_status_campus",
+          "type": "key",
+          "status": "available",
+          "columns": ["status", "campus_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_department_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["department_id"],
+          "orders": []
+        }
+      ]
     },
     {
       "$id": "news",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "News",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "slug",
@@ -3954,8 +3870,7 @@
           "required": true,
           "array": false,
           "elements": ["draft", "published"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "campus_id",
@@ -3963,7 +3878,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4062,21 +3976,23 @@
           "status": "available",
           "columns": ["status", "campus_id"],
           "orders": []
+        },
+        {
+          "key": "idx_department_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["department_id"],
+          "orders": []
         }
       ]
     },
     {
       "$id": "webshop_products",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "Webshop Products",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "slug",
@@ -4084,7 +4000,6 @@
           "required": true,
           "array": false,
           "size": 200,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4093,8 +4008,7 @@
           "required": true,
           "array": false,
           "elements": ["draft", "pending_approval", "published", "archived"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "campus_id",
@@ -4102,7 +4016,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4152,17 +4065,16 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "member_price",
           "type": "double",
           "required": false,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -4195,8 +4107,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -4218,6 +4130,13 @@
           "type": "key",
           "status": "available",
           "columns": ["status", "campus_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_department_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["departmentId"],
           "orders": []
         }
       ]
@@ -4242,7 +4161,6 @@
           "required": true,
           "array": false,
           "size": 10,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4251,7 +4169,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4259,16 +4176,15 @@
           "type": "string",
           "required": true,
           "array": false,
-          "format": "email",
-          "default": null
+          "format": "email"
         },
         {
           "key": "sort_order",
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": 0
         },
         {
@@ -4303,7 +4219,6 @@
           "required": true,
           "array": false,
           "size": 128,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4320,8 +4235,7 @@
           "required": true,
           "array": false,
           "elements": ["national", "campus"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "campus",
@@ -4340,8 +4254,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "format": "url",
-          "default": null
+          "format": "url"
         },
         {
           "key": "campus_id",
@@ -4349,7 +4262,6 @@
           "required": true,
           "array": false,
           "size": 2,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -4414,7 +4326,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4494,16 +4405,11 @@
     },
     {
       "$id": "pages",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "Pages",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "slug",
@@ -4593,20 +4499,30 @@
           "side": "parent"
         }
       ],
-      "indexes": []
+      "indexes": [
+        {
+          "key": "idx_campus_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_department_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["department_id"],
+          "orders": []
+        }
+      ]
     },
     {
       "$id": "page_translations",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
       "name": "Page translations",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "page_id",
@@ -4614,7 +4530,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4632,7 +4547,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4721,7 +4635,6 @@
           "required": true,
           "array": false,
           "size": 80,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4730,7 +4643,6 @@
           "required": true,
           "array": false,
           "size": 120,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4739,8 +4651,7 @@
           "required": true,
           "array": false,
           "elements": ["page", "policy", "article"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "description",
@@ -4808,7 +4719,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4816,9 +4726,8 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "status",
@@ -4835,7 +4744,6 @@
           "required": true,
           "array": false,
           "size": 100000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4844,7 +4752,6 @@
           "required": true,
           "array": false,
           "size": 50000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4853,7 +4760,6 @@
           "required": true,
           "array": false,
           "size": 50000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -4905,8 +4811,7 @@
           "required": true,
           "array": false,
           "elements": ["page", "policy", "article"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "path",
@@ -4923,8 +4828,7 @@
           "required": true,
           "array": false,
           "elements": ["draft", "published", "archived"],
-          "format": "enum",
-          "default": "draft"
+          "format": "enum"
         },
         {
           "key": "visibility",
@@ -4932,8 +4836,7 @@
           "required": true,
           "array": false,
           "elements": ["public", "authenticated"],
-          "format": "enum",
-          "default": "public"
+          "format": "enum"
         },
         {
           "key": "scope",
@@ -4941,8 +4844,7 @@
           "required": true,
           "array": false,
           "elements": ["global", "campus", "department"],
-          "format": "enum",
-          "default": "global"
+          "format": "enum"
         },
         {
           "key": "source_locale",
@@ -4950,8 +4852,7 @@
           "required": true,
           "array": false,
           "elements": ["no", "en"],
-          "format": "enum",
-          "default": "no"
+          "format": "enum"
         },
         {
           "key": "template_id",
@@ -4959,7 +4860,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5011,7 +4911,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5020,8 +4919,7 @@
           "required": true,
           "array": false,
           "elements": ["no", "en"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "title",
@@ -5029,7 +4927,6 @@
           "required": true,
           "array": false,
           "size": 200,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5065,8 +4962,7 @@
           "required": true,
           "array": false,
           "elements": ["source", "manual", "ai", "stale"],
-          "format": "enum",
-          "default": "manual"
+          "format": "enum"
         },
         {
           "key": "translated_from_locale",
@@ -5111,7 +5007,6 @@
           "required": true,
           "array": false,
           "size": 128,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5160,7 +5055,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5169,7 +5063,6 @@
           "required": true,
           "array": false,
           "size": 128,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5177,9 +5070,8 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "active",
@@ -5223,7 +5115,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5270,7 +5161,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5279,7 +5169,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5288,16 +5177,14 @@
           "required": true,
           "array": false,
           "min": 1,
-          "max": 9223372036854775807,
-          "default": null
+          "max": 9223372036854776000
         },
         {
           "key": "expires_at",
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         }
       ],
       "indexes": [
@@ -5338,7 +5225,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5402,7 +5288,6 @@
           "required": true,
           "array": false,
           "size": 128,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5411,7 +5296,6 @@
           "required": true,
           "array": false,
           "size": 65535,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5420,7 +5304,6 @@
           "required": true,
           "array": false,
           "size": 16,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5428,8 +5311,7 @@
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         }
       ],
       "indexes": [
@@ -5443,36 +5325,330 @@
       ]
     },
     {
-      "$id": "member_benefit",
-      "$permissions": [
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
-      ],
+      "$id": "campus_benefits",
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
-      "name": "Member Benefit",
+      "name": "Campus Benefits",
       "enabled": true,
       "rowSecurity": true,
       "columns": [
         {
-          "key": "contentTranslations",
-          "type": "relationship",
+          "key": "campus_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 5,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["draft", "published", "archived"],
+          "format": "enum"
+        },
+        {
+          "key": "kind",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["offer", "perk", "service"],
+          "format": "enum"
+        },
+        {
+          "key": "redemption_type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["none", "code", "link", "qr", "onsite"],
+          "format": "enum"
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "encrypt": false
+        },
+        {
+          "key": "partner_id",
+          "type": "string",
           "required": false,
           "array": false,
-          "relatedTable": "content_translations",
-          "relationType": "manyToOne",
-          "twoWay": true,
-          "twoWayKey": "memberBenefit",
-          "onDelete": "cascade",
-          "side": "child"
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "partner_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "partner_logo_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "title_nb",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "encrypt": false
+        },
+        {
+          "key": "title_en",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "encrypt": false
+        },
+        {
+          "key": "description_nb",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 2000,
+          "encrypt": false
+        },
+        {
+          "key": "description_en",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 2000,
+          "encrypt": false
+        },
+        {
+          "key": "teaser_nb",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 300,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "teaser_en",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 300,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "terms_nb",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "terms_en",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "redemption_value",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "image_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "is_featured",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "is_member_only",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "publish_start",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "publish_end",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "sort_order",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 9999,
+          "default": 0
+        },
+        {
+          "key": "created_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "updated_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        {
+          "key": "idx_campus_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id", "status"],
+          "orders": ["ASC", "ASC"]
+        },
+        {
+          "key": "idx_category",
+          "type": "key",
+          "status": "available",
+          "columns": ["category"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_featured",
+          "type": "key",
+          "status": "available",
+          "columns": ["is_featured", "status"],
+          "orders": ["DESC", "ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "benefit_partners",
+      "$permissions": ["read(\"any\")"],
+      "databaseId": "app",
+      "name": "Benefit Partners",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "encrypt": false
+        },
+        {
+          "key": "website_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "logo_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description_nb",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description_en",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "is_active",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_campus",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id"],
+          "orders": ["ASC"]
+        }
+      ]
     },
     {
       "$id": "benefit_reveals",
-      "$permissions": ["create(\"team:biso_members\")"],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Benefit Reveals",
       "enabled": true,
@@ -5483,7 +5659,49 @@
           "type": "string",
           "required": true,
           "array": false,
-          "size": 255,
+          "size": 36,
+          "encrypt": false
+        },
+        {
+          "key": "benefit_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "encrypt": false
+        },
+        {
+          "key": "revealed_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_user_benefit",
+          "type": "unique",
+          "status": "available",
+          "columns": ["user_id", "benefit_id"],
+          "orders": ["ASC", "ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "benefit_interactions",
+      "$permissions": ["create(\"users\")"],
+      "databaseId": "app",
+      "name": "Benefit Interactions",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
           "default": null,
           "encrypt": false
         },
@@ -5492,20 +5710,52 @@
           "type": "string",
           "required": true,
           "array": false,
-          "size": 255,
+          "size": 36,
+          "encrypt": false
+        },
+        {
+          "key": "action",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["view", "save", "reveal", "click", "redeem"],
+          "format": "enum"
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 5,
           "default": null,
           "encrypt": false
         },
         {
-          "key": "revealed_at",
-          "type": "datetime",
-          "required": true,
+          "key": "metadata",
+          "type": "string",
+          "required": false,
           "array": false,
-          "format": "",
-          "default": null
+          "size": 500,
+          "default": null,
+          "encrypt": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        {
+          "key": "idx_benefit_action",
+          "type": "key",
+          "status": "available",
+          "columns": ["benefit_id", "action"],
+          "orders": ["ASC", "ASC"]
+        },
+        {
+          "key": "idx_campus",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id"],
+          "orders": ["ASC"]
+        }
+      ]
     },
     {
       "$id": "departments",
@@ -5521,7 +5771,6 @@
           "required": true,
           "array": false,
           "size": 10,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5530,7 +5779,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5559,7 +5807,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -5585,7 +5832,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5594,7 +5840,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5674,7 +5919,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5683,7 +5927,6 @@
           "required": true,
           "array": false,
           "size": 10000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5712,7 +5955,6 @@
           "required": true,
           "array": false,
           "size": 64,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5721,7 +5963,6 @@
           "required": true,
           "array": false,
           "size": 8,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5826,7 +6067,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5921,7 +6161,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5930,8 +6169,7 @@
           "required": true,
           "array": false,
           "elements": ["en", "no"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "title",
@@ -5939,7 +6177,6 @@
           "required": true,
           "array": false,
           "size": 200,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5984,7 +6221,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -5993,7 +6229,6 @@
           "required": true,
           "array": false,
           "size": 5000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6002,7 +6237,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6010,8 +6244,7 @@
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "endDate",
@@ -6027,7 +6260,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6035,39 +6267,34 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "maxAttendees",
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "online",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "registrationRequired",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "featured",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "image",
@@ -6084,7 +6311,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6147,7 +6373,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6156,7 +6381,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6174,7 +6398,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6183,7 +6406,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6192,7 +6414,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6210,7 +6431,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6219,7 +6439,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6228,7 +6447,6 @@
           "required": true,
           "array": false,
           "size": 5000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6236,30 +6454,26 @@
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "applicationDeadline",
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "featured",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "alumni",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "responsibilities",
@@ -6267,7 +6481,6 @@
           "required": true,
           "array": true,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6276,7 +6489,6 @@
           "required": true,
           "array": true,
           "size": 255,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -6344,7 +6556,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6362,7 +6573,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6371,7 +6581,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6380,7 +6589,6 @@
           "required": true,
           "array": true,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6389,7 +6597,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6397,9 +6604,8 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "education",
@@ -6407,7 +6613,6 @@
           "required": true,
           "array": false,
           "size": 1000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6416,7 +6621,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6425,7 +6629,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6433,18 +6636,16 @@
           "type": "double",
           "required": true,
           "array": false,
-          "min": -1.7976931348623157e308,
-          "max": 1.7976931348623157e308,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "reviewCount",
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "bio",
@@ -6452,15 +6653,13 @@
           "required": true,
           "array": false,
           "size": 5000,
-          "default": null,
           "encrypt": false
         },
         {
           "key": "featured",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "graduationYear",
@@ -6468,7 +6667,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6485,8 +6683,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -6494,8 +6692,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -6543,8 +6741,7 @@
           "required": true,
           "array": false,
           "elements": ["pending", "approved", "rejected"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         }
       ],
       "indexes": [
@@ -6611,7 +6808,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6629,7 +6825,6 @@
           "required": true,
           "array": false,
           "size": 320,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6647,7 +6842,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6656,7 +6850,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6674,7 +6867,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6727,8 +6919,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -6737,7 +6929,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6812,7 +7003,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6821,7 +7011,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6839,7 +7028,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6855,8 +7043,7 @@
           "key": "current",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "description",
@@ -6873,7 +7060,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6939,7 +7125,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6948,7 +7133,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6966,7 +7150,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6975,7 +7158,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -6993,7 +7175,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7068,7 +7249,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7077,7 +7257,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7086,7 +7265,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7113,7 +7291,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7172,7 +7349,6 @@
           "required": true,
           "array": true,
           "size": 1000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7180,9 +7356,8 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "lastMessageId",
@@ -7227,7 +7402,6 @@
           "required": true,
           "array": false,
           "size": 5000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7236,15 +7410,13 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
           "key": "read",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "conversationId",
@@ -7252,7 +7424,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7289,7 +7460,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7298,7 +7468,6 @@
           "required": true,
           "array": false,
           "size": 5000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7307,7 +7476,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7316,7 +7484,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7325,7 +7492,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7334,7 +7500,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7343,7 +7508,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7377,8 +7541,7 @@
           "key": "featured",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "downloadUrl",
@@ -7474,7 +7637,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7483,7 +7645,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7492,7 +7653,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7529,7 +7689,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7538,7 +7697,6 @@
           "required": true,
           "array": false,
           "size": 1024,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7547,7 +7705,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7582,36 +7739,31 @@
           "key": "showEmail",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "showPhone",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "showSocial",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "allowMessages",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "allowMentoring",
           "type": "boolean",
           "required": true,
-          "array": false,
-          "default": null
+          "array": false
         },
         {
           "key": "userId",
@@ -7619,7 +7771,6 @@
           "required": true,
           "array": false,
           "size": 36,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7688,7 +7839,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7697,7 +7847,6 @@
           "required": true,
           "array": false,
           "size": 5000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7706,7 +7855,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7750,8 +7898,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -7759,8 +7907,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         },
         {
@@ -7775,8 +7923,7 @@
           "type": "string",
           "required": true,
           "array": false,
-          "format": "url",
-          "default": null
+          "format": "url"
         },
         {
           "key": "status",
@@ -7784,8 +7931,7 @@
           "required": true,
           "array": false,
           "elements": ["active", "inactive"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         }
       ],
       "indexes": []
@@ -7866,17 +8012,15 @@
           "required": true,
           "array": false,
           "elements": ["alumni", "events", "mentorships", "jobs"],
-          "format": "enum",
-          "default": null
+          "format": "enum"
         },
         {
           "key": "count",
           "type": "integer",
           "required": true,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
-          "default": null
+          "min": -9223372036854776000,
+          "max": 9223372036854776000
         },
         {
           "key": "date",
@@ -7884,7 +8028,6 @@
           "required": true,
           "array": false,
           "size": 20,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7893,7 +8036,6 @@
           "required": true,
           "array": false,
           "size": 20,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -7913,7 +8055,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7922,7 +8063,6 @@
           "required": true,
           "array": false,
           "size": 500,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7931,7 +8071,6 @@
           "required": true,
           "array": false,
           "size": 5000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7940,7 +8079,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7949,7 +8087,6 @@
           "required": true,
           "array": false,
           "size": 50,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7958,7 +8095,6 @@
           "required": true,
           "array": false,
           "size": 580,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7967,7 +8103,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -7991,8 +8126,8 @@
           "type": "integer",
           "required": false,
           "array": false,
-          "min": -9223372036854775808,
-          "max": 9223372036854775807,
+          "min": -9223372036854776000,
+          "max": 9223372036854776000,
           "default": null
         }
       ],
@@ -8027,7 +8162,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -8052,7 +8186,6 @@
           "required": true,
           "array": false,
           "size": 1,
-          "default": null,
           "encrypt": false
         }
       ],
@@ -8080,7 +8213,6 @@
           "required": true,
           "array": false,
           "size": 255,
-          "default": null,
           "encrypt": false
         },
         {
@@ -8097,8 +8229,7 @@
           "type": "datetime",
           "required": true,
           "array": false,
-          "format": "",
-          "default": null
+          "format": ""
         },
         {
           "key": "estimatedCalls",
@@ -8134,7 +8265,6 @@
           "required": true,
           "array": false,
           "size": 100,
-          "default": null,
           "encrypt": false
         },
         {
@@ -8143,7 +8273,6 @@
           "required": true,
           "array": false,
           "size": 1000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -8152,7 +8281,6 @@
           "required": true,
           "array": false,
           "size": 50000,
-          "default": null,
           "encrypt": false
         },
         {
@@ -8161,11 +8289,75 @@
           "required": true,
           "array": false,
           "size": 50000,
-          "default": null,
           "encrypt": false
         }
       ],
       "indexes": []
+    }
+  ],
+  "projectName": "BISO",
+  "settings": {
+    "services": {
+      "account": true,
+      "avatars": true,
+      "databases": true,
+      "locale": true,
+      "health": true,
+      "storage": true,
+      "teams": true,
+      "users": true,
+      "sites": true,
+      "functions": true,
+      "graphql": true,
+      "messaging": true
+    },
+    "auth": {
+      "methods": {
+        "jwt": true,
+        "phone": true,
+        "invites": true,
+        "anonymous": true,
+        "email-otp": true,
+        "magic-url": true,
+        "email-password": true
+      },
+      "security": {
+        "duration": 31536000,
+        "limit": 0,
+        "sessionsLimit": 10,
+        "passwordHistory": 0,
+        "passwordDictionary": false,
+        "personalDataCheck": false,
+        "sessionAlerts": false,
+        "mockNumbers": []
+      }
+    }
+  },
+  "buckets": [
+    {
+      "$id": "media",
+      "name": "Media",
+      "enabled": true,
+      "fileSecurity": false,
+      "permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "maximumFileSize": 10485760,
+      "allowedFileExtensions": [
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "webp",
+        "svg",
+        "pdf"
+      ],
+      "compression": "none",
+      "encryption": false,
+      "antivirus": false
     }
   ]
 }

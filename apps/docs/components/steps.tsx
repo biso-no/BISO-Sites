@@ -1,17 +1,17 @@
 import type { ReactNode } from "react";
 
-type StepsProps = {
+interface StepsProps {
   children: ReactNode;
-};
+}
 
 export function Steps({ children }: StepsProps) {
   return <div className="my-6 space-y-6 [counter-reset:step]">{children}</div>;
 }
 
-type StepProps = {
+interface StepProps {
   children: ReactNode;
   title?: string;
-};
+}
 
 export function Step({ children, title }: StepProps) {
   return (

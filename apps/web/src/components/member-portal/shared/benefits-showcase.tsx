@@ -1,5 +1,6 @@
 "use client";
 
+import type { CampusBenefit } from "@repo/api/types/appwrite";
 import {
   Carousel,
   CarouselContent,
@@ -8,51 +9,11 @@ import {
   CarouselPrevious,
 } from "@repo/ui/components/ui/carousel";
 import { motion } from "motion/react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { BenefitPreviewCard } from "./benefit-preview-card";
 
-// Sample benefit categories to showcase to non-members
-const PREVIEW_BENEFITS = [
-  {
-    category: "Food & Drink",
-    partnerName: "Popular Restaurant Partner",
-    discountText: "20% off",
-  },
-  {
-    category: "Entertainment",
-    partnerName: "Cinema & Events",
-    discountText: "15% off",
-  },
-  {
-    category: "Career",
-    partnerName: "Professional Development",
-    discountText: "Member Exclusive",
-  },
-  {
-    category: "Health & Fitness",
-    partnerName: "Gym & Wellness",
-    discountText: "25% off",
-  },
-  {
-    category: "Software",
-    partnerName: "Tech & Tools",
-    discountText: "50% off",
-  },
-  {
-    category: "Travel",
-    partnerName: "Student Discounts",
-    discountText: "Up to 30% off",
-  },
-];
-
-export function BenefitsShowcase() {
+export function BenefitsShowcase({ benefits }: { benefits: CampusBenefit[] }) {
   const t = useTranslations("memberPortal");
-  const router = useRouter();
-
-  const handleJoinClick = () => {
-    router.push("/membership");
-  };
 
   return (
     <section className="py-12">
@@ -80,17 +41,16 @@ export function BenefitsShowcase() {
           }}
         >
           <CarouselContent className="-ml-4">
-            {PREVIEW_BENEFITS.map((benefit, index) => (
+            {benefits.slice(0, 10).map((benefit, index) => (
               <CarouselItem
                 className="basis-full pl-4 sm:basis-1/2 lg:basis-1/3"
-                key={index}
+                key={benefit.$id || index}
               >
                 <BenefitPreviewCard
                   category={benefit.category}
-                  discountText={benefit.discountText}
+                  discountText={benefit.teaser_en || benefit.title_en}
                   index={index}
-                  onJoinClick={handleJoinClick}
-                  partnerName={benefit.partnerName}
+                  partnerName={benefit.partner_name || "Partner"}
                 />
               </CarouselItem>
             ))}
@@ -100,8 +60,8 @@ export function BenefitsShowcase() {
         </Carousel>
 
         {/* Gradient fade edges */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent md:w-12" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent md:w-12" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-linear-to-r from-background to-transparent md:w-12" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-linear-to-l from-background to-transparent md:w-12" />
       </div>
 
       {/* Stats Section */}
@@ -111,19 +71,19 @@ export function BenefitsShowcase() {
         initial={{ opacity: 0 }}
         transition={{ delay: 0.5 }}
       >
-        <div className="rounded-xl bg-gradient-to-br from-brand-muted to-brand-muted-strong p-6">
+        <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">50+</div>
           <div className="text-muted-foreground">
             {t("showcase.stats.partners")}
           </div>
         </div>
-        <div className="rounded-xl bg-gradient-to-br from-brand-muted to-brand-muted-strong p-6">
+        <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">~3,000 NOK</div>
           <div className="text-muted-foreground">
             {t("showcase.stats.savings")}
           </div>
         </div>
-        <div className="rounded-xl bg-gradient-to-br from-brand-muted to-brand-muted-strong p-6">
+        <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">10,000+</div>
           <div className="text-muted-foreground">
             {t("showcase.stats.members")}

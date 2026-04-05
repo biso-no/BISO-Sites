@@ -63,10 +63,10 @@ graph TB
     end
     
     subgraph "Shared Packages"
-        API[@repo/api]
-        UI[@repo/ui]
-        EDITOR[@repo/editor]
-        PAYMENT[@repo/payment]
+        API["@repo/api"]
+        UI["@repo/ui"]
+        EDITOR["@repo/editor"]
+        PAYMENT["@repo/payment"]
     end
     
     subgraph "Backend"
@@ -190,7 +190,7 @@ sequenceDiagram
     participant User
     participant NextJS
     participant ServerAction
-    participant API
+    participant RepoApi as "@repo/api"
     participant Appwrite
     
     User->>NextJS: Visit page
@@ -200,10 +200,10 @@ sequenceDiagram
     
     User->>NextJS: Submit form
     NextJS->>ServerAction: Call server action
-    ServerAction->>API: Use @repo/api
-    API->>Appwrite: Database operation
-    Appwrite-->>API: Success
-    API-->>ServerAction: Return result
+    ServerAction->>RepoApi: Session client
+    RepoApi->>Appwrite: Database operation
+    Appwrite-->>RepoApi: Success
+    RepoApi-->>ServerAction: Return result
     ServerAction-->>NextJS: Revalidate
     NextJS-->>User: Updated UI
 `} />

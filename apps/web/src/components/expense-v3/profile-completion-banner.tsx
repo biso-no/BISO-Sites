@@ -17,20 +17,20 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateProfile } from "@/lib/actions/user";
 
-type RequiredProfileFields = {
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-  bank_account: string | null;
+interface RequiredProfileFields {
   address: string | null;
-  zip: string | null;
+  bank_account: string | null;
   city: string | null;
-};
+  email: string | null;
+  name: string | null;
+  phone: string | null;
+  zip: string | null;
+}
 
-type ProfileCompletionBannerProps = {
-  userProfile: Partial<Users>;
+interface ProfileCompletionBannerProps {
   onProfileUpdate: (profile: Partial<Users>) => void;
-};
+  userProfile: Partial<Users>;
+}
 
 const REQUIRED_FIELDS: (keyof RequiredProfileFields)[] = [
   "name",

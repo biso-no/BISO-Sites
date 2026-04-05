@@ -11,13 +11,16 @@ import { cn } from "@repo/ui/lib/utils";
 import Link from "next/link";
 import { Fragment } from "react";
 
-type BreadcrumbEntry = { label: string; href?: string };
+interface BreadcrumbEntry {
+  href?: string;
+  label: string;
+}
 
-type PublicPageHeaderProps = {
-  title: string;
-  subtitle?: string;
+interface PublicPageHeaderProps {
   breadcrumbs: BreadcrumbEntry[];
-};
+  subtitle?: string;
+  title: string;
+}
 
 export function PublicPageHeader({
   title,

@@ -7,23 +7,23 @@ import { redirect } from "next/navigation";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-type DashboardCard = {
+interface DashboardCard {
+  groupId: string | null;
   id: string;
   title: string;
-  groupId: string | null;
-};
+}
 
-type Group = {
+interface Group {
   id: string;
   name: string;
-};
+}
 
-type DashboardConfig = {
-  layout: DashboardCard[];
+interface DashboardConfig {
   groups: Group[];
-};
+  layout: DashboardCard[];
+}
 
-export async function signInWithAzure() {
+async function _signInWithAzure() {
   const { account } = await createSessionClient();
 
   const origin = (await headers()).get("origin");

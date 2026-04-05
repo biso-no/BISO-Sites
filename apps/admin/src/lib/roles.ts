@@ -2,84 +2,78 @@
  * Role constants and navigation access rules.
  * Single source of truth for authorization across the admin application.
  *
- * Roles are derived from Azure AD Security Groups with naming pattern:
- * - SG-App-Role-GlobalAdmin → "globaladmin"
- * - SG-App-Role-Controller → "controller"
- * - SG-App-Role-Finance → "finance"
- * - SG-App-Role-HR → "hr"
- * - SG-App-Role-PR → "pr"
+ * Roles are derived entirely from Azure AD Security Group combinations:
+ * - SG-App-Campus-National + SG-App-Dept-OperationsUnit → "globaladmin"
+ * - SG-App-Campus-{City} + SG-App-Dept-Ledelsen{City}  → "campusadmin"
  *
  * Special pseudo-role:
  * - "department" → User belongs to at least one SG-App-Dept-* group
+ *
+ * SG-App-Role-* groups (finance, hr, pr, controller) are no longer used.
+ * All access is derived from campus + department team membership.
  */
 
-// Standardized role names (derived from Azure AD SG-App-Role-* or computed from team combinations)
+// Roles computed from campus + department team combinations
 export const ROLES = {
-  GLOBAL_ADMIN: "globaladmin",
-  CAMPUS_ADMIN: "campusadmin", // Derived from Ledelsen{City} + Campus-{City}
-  CONTROLLER: "controller",
-  FINANCE: "finance",
-  HR: "hr",
-  PR: "pr",
+  GLOBAL_ADMIN: "globaladmin", // National + OperationsUnit
+  CAMPUS_ADMIN: "campusadmin", // Ledelsen{City} + Campus-{City}
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
-// Pseudo-role for department members
+// Pseudo-role for any user with at least one SG-App-Dept-* membership
 export const DEPARTMENT_ROLE = "department" as const;
 
 // All valid role values including pseudo-roles
-export type RoleOrDepartment = Role | typeof DEPARTMENT_ROLE;
+type RoleOrDepartment = Role | typeof DEPARTMENT_ROLE;
 
 /**
- * Navigation access rules.
- * Each key maps to an array of roles that can access that navigation section.
- * "department" means any user with department team membership can access.
+ * Navigation access rules based on campus + department membership.
+ *
+ * - globaladmin: full access everywhere
+ * - campusadmin: full access within their campus
+ * - department: any department member (scoped by applyScopeQueries at data layer)
  */
 export const NAV_ACCESS = {
   dashboard: [ROLES.GLOBAL_ADMIN],
-  content: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
-  pages: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
-  posts: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
-  shop: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE, ROLES.CONTROLLER],
-  shopOrders: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
-  shopProducts: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
-  shopApprovalQueue: [ROLES.GLOBAL_ADMIN, ROLES.CONTROLLER, ROLES.FINANCE],
-  shopCustomers: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
+  content: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  pages: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  posts: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  shop: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  shopOrders: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  shopProducts: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  shopApprovalQueue: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  shopCustomers: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   shopSettings: [ROLES.GLOBAL_ADMIN],
-  expenses: [ROLES.GLOBAL_ADMIN, ROLES.FINANCE],
-  jobs: [
-    ROLES.GLOBAL_ADMIN,
-    ROLES.CAMPUS_ADMIN,
-    ROLES.HR,
-    ROLES.PR,
-    DEPARTMENT_ROLE,
-  ],
-  jobsApplications: [
-    ROLES.GLOBAL_ADMIN,
-    ROLES.CAMPUS_ADMIN,
-    ROLES.HR,
-    ROLES.PR,
-  ],
-  events: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.PR, DEPARTMENT_ROLE],
-  eventsNew: [
-    ROLES.GLOBAL_ADMIN,
-    ROLES.CAMPUS_ADMIN,
-    ROLES.PR,
-    DEPARTMENT_ROLE,
-  ],
-  units: [
-    ROLES.GLOBAL_ADMIN,
-    ROLES.CAMPUS_ADMIN,
-    ROLES.HR,
-    ROLES.FINANCE,
-    ROLES.PR,
-  ],
-  users: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, ROLES.HR, ROLES.FINANCE],
+  expenses: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  jobs: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  jobsApplications: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  events: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  eventsNew: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  units: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  users: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   varsling: [ROLES.GLOBAL_ADMIN],
   settings: [ROLES.GLOBAL_ADMIN],
   settingsProfile: [ROLES.GLOBAL_ADMIN],
   settingsSecurity: [ROLES.GLOBAL_ADMIN],
+  // Membership & Benefits
+  membership: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  benefits: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  benefitsPartners: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  benefitsAnalytics: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  // New admin portal (/admin/*) nav keys
+  "portal.dashboard": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.pages": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.departments": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.shop": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.news": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.activity": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.settings": [ROLES.GLOBAL_ADMIN],
 } as const;
 
 export type NavKey = keyof typeof NAV_ACCESS;
@@ -105,28 +99,4 @@ export function hasNavAccess(
   }
 
   return false;
-}
-
-/**
- * Legacy role mapping for backwards compatibility during migration.
- * Maps old role names to new standardized names.
- */
-export const LEGACY_ROLE_MAP: Record<string, Role> = {
-  Admin: ROLES.GLOBAL_ADMIN,
-  admin: ROLES.GLOBAL_ADMIN,
-  "Control Committee": ROLES.CONTROLLER,
-  controller: ROLES.CONTROLLER,
-  finance: ROLES.FINANCE,
-  Finance: ROLES.FINANCE,
-  hr: ROLES.HR,
-  HR: ROLES.HR,
-  pr: ROLES.PR,
-  PR: ROLES.PR,
-};
-
-/**
- * Convert legacy role names to standardized roles.
- */
-export function normalizeLegacyRole(role: string): string {
-  return LEGACY_ROLE_MAP[role] || role.toLowerCase();
 }

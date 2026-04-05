@@ -29,20 +29,20 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-type ProfileFormProps = {
-  initialData: Models.Document | null | any;
+interface ProfileFormProps {
   email: string;
-};
+  initialData: Models.Document | null;
+}
 
-type FieldConfig = {
-  name: keyof ProfileFormValues;
-  label: string;
-  placeholder: string;
-  type?: string;
-  required?: boolean;
+interface FieldConfig {
   disabled?: boolean;
   gridClassName?: string;
-};
+  label: string;
+  name: keyof ProfileFormValues;
+  placeholder: string;
+  required?: boolean;
+  type?: string;
+}
 
 export function ProfileForm({ initialData, email }: ProfileFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -237,7 +237,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
               <>
                 <svg
                   aria-label="Saving"
-                  className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
+                  className="mr-2 -ml-1 h-4 w-4 animate-spin text-white"
                   fill="none"
                   role="img"
                   viewBox="0 0 24 24"

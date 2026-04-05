@@ -8,18 +8,18 @@ import type {
   NotificationType,
 } from "./notifications-dropdown";
 
-type NotificationsState = {
-  notifications: Notification[];
-  unreadCount: number;
+interface NotificationsState {
   addNotification: (
     notification: Omit<Notification, "id" | "timestamp" | "read">
   ) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  deleteNotification: (id: string) => void;
   clearAll: () => void;
+  deleteNotification: (id: string) => void;
+  markAllAsRead: () => void;
+  markAsRead: (id: string) => void;
+  notifications: Notification[];
   setNotifications: (notifications: Notification[]) => void;
-};
+  unreadCount: number;
+}
 
 export const useNotifications = create<NotificationsState>()(
   persist(
@@ -31,7 +31,7 @@ export const useNotifications = create<NotificationsState>()(
         set((state) => {
           const newNotification: Notification = {
             ...notification,
-            id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
             timestamp: new Date().toISOString(),
             read: false,
           };
@@ -92,7 +92,7 @@ export const useNotifications = create<NotificationsState>()(
 );
 
 // Helper function to create notifications
-const createNotification = {
+const _createNotification = {
   success: (
     title: string,
     message: string,

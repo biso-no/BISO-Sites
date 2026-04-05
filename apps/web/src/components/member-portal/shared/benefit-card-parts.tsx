@@ -34,14 +34,14 @@ export function ConfettiAnimation() {
   );
 }
 
-type CodeRevealProps = {
-  value: string;
-  showConfetti: boolean;
+interface CodeRevealProps {
   copiedCode: boolean;
-  onCopy: () => void;
-  copyLabel: string;
   copiedLabel: string;
-};
+  copyLabel: string;
+  onCopy: () => void;
+  showConfetti: boolean;
+  value: string;
+}
 
 /**
  * Revealed code display with copy functionality
@@ -85,9 +85,9 @@ export function CodeReveal({
   );
 }
 
-type QrRevealProps = {
+interface QrRevealProps {
   value: string;
-};
+}
 
 /**
  * QR code display
@@ -102,11 +102,11 @@ export function QrReveal({ value: _value }: QrRevealProps) {
   );
 }
 
-type LinkRevealProps = {
-  value: string;
+interface LinkRevealProps {
   gradient: string;
   label: string;
-};
+  value: string;
+}
 
 /**
  * Link activation button
@@ -114,7 +114,7 @@ type LinkRevealProps = {
 export function LinkReveal({ value, gradient, label }: LinkRevealProps) {
   return (
     <Button
-      className={`w-full bg-gradient-to-r ${gradient} text-white hover:opacity-90`}
+      className={`w-full bg-linear-to-r ${gradient} text-white hover:opacity-90`}
       onClick={() => window.open(value, "_blank")}
     >
       <ExternalLink className="mr-2 h-4 w-4" />
@@ -123,13 +123,13 @@ export function LinkReveal({ value, gradient, label }: LinkRevealProps) {
   );
 }
 
-type RevealButtonProps = {
-  isRevealing: boolean;
+interface RevealButtonProps {
   gradient: string;
+  isRevealing: boolean;
   onReveal: () => void;
-  revealLabel: string;
   revealingLabel: string;
-};
+  revealLabel: string;
+}
 
 /**
  * Button to reveal a benefit
@@ -149,7 +149,7 @@ export function RevealButton({
       key="reveal-button"
     >
       <Button
-        className={`w-full bg-gradient-to-r ${gradient} text-white hover:opacity-90`}
+        className={`w-full bg-linear-to-r ${gradient} text-white hover:opacity-90`}
         disabled={isRevealing}
         onClick={onReveal}
       >

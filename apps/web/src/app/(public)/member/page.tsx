@@ -14,7 +14,7 @@ export default async function MemberPortalPage() {
   const userData = await getLoggedInUser();
 
   let hasBIIdentity = false;
-  let membershipStatus: any = {
+  let membershipStatus: Record<string, unknown> = {
     active: false,
     membership: null,
     studentId: null,
@@ -25,7 +25,8 @@ export default async function MemberPortalPage() {
     const identitiesResp = await listIdentities();
     const identities = identitiesResp?.identities || [];
     hasBIIdentity = identities.some(
-      (i: any) => String(i?.provider || "").toLowerCase() === "oidc"
+      (i: { provider?: string }) =>
+        String(i?.provider || "").toLowerCase() === "oidc"
     );
 
     // Verify membership status (only if BI identity linked)

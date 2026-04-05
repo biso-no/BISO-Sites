@@ -2,11 +2,11 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Package } from "lucide-react";
 import { motion } from "motion/react";
 
-type StockStatusCardProps = {
-  isLoading: boolean;
+interface StockStatusCardProps {
   availableStock: number | null;
+  isLoading: boolean;
   totalStock: number | null;
-};
+}
 
 // This component is wrapped by AddToCartClient to be part of the client bundle
 export function StockStatusCard({

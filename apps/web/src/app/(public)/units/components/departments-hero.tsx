@@ -1,13 +1,13 @@
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Building2 } from "lucide-react";
 
-type DepartmentsHeroProps = {
+interface DepartmentsHeroProps {
   stats: {
     totalDepartments: number;
     totalMembers: number;
     totalCampuses: number;
   };
-};
+}
 
 export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
   const statsData = [

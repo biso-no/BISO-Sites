@@ -1,8 +1,10 @@
 /**
- * 24SevenOffice Connector
+ * 24SevenOffice / Finago Connector
  *
  * SOAP API integration for 24SevenOffice CRM.
  * Used to sync membership purchases with customer records.
+ *
+ * REST API integration (Finago REST API) lives in ./rest.
  */
 
 // Authentication (lower-level, usually not needed directly)
@@ -26,14 +28,12 @@ export {
   searchCustomerByStudentId,
 } from "./company";
 export type { InvoiceOrder, InvoiceRow } from "./invoice";
-
 // Invoice management
 export {
   CAMPUS_DEPARTMENT_IDS,
   CAMPUS_NAMES,
   createMembershipInvoice,
 } from "./invoice";
-
 // Membership product sync (admin)
 export {
   isActiveByDate,
@@ -44,6 +44,12 @@ export {
 } from "./membership-sync";
 // Products management
 export { getMembershipProducts, getProducts } from "./products";
+// Finago REST API
+export {
+  DEPARTMENT_DIMENSION_TYPE,
+  type DimensionElement,
+  getDepartments,
+} from "./rest";
 // Customer sync function
 export { hasMembershipProduct, syncMembershipTo24SO } from "./sync";
 // Types

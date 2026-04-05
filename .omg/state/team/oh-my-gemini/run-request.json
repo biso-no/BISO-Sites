@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "teamName": "oh-my-gemini",
+  "task": "Review and systematically fix all ultracite errors.",
+  "backend": "tmux",
+  "workers": 3,
+  "maxFixLoop": 3,
+  "cwd": "C:\\Dev\\folder\\BISO-Sites",
+  "updatedAt": "2026-04-04T19:35:02.844Z"
+}

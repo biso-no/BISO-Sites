@@ -4,16 +4,16 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { ProductMetadata } from "@/lib/types/webshop";
 
-type PurchaseLimitResult = {
+interface PurchaseLimitResult {
   allowed: boolean;
-  reason?: string;
   currentPurchases?: number;
   limit?: number;
-};
+  reason?: string;
+}
 
-type OrderRow = {
+interface OrderRow {
   items_json?: string;
-};
+}
 
 const ORDER_STATUS_FILTER = Query.or([
   Query.equal("status", "authorized"),

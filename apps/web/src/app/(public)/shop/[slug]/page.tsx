@@ -1,3 +1,4 @@
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -83,8 +84,16 @@ export async function generateMetadata({
     };
   }
 
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+
   return {
-    title: `${product.title} | BISO Shop`,
-    description: product.short_description || product.description,
+    title: `${translation?.title ?? "Product"} | BISO Shop`,
+    description:
+      translation?.short_description || translation?.description || "",
   };
 }

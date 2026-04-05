@@ -84,7 +84,7 @@ export default function WhatIsBisoPage() {
                 viewport={{ once: true }}
                 whileInView={{ opacity: 1, y: 0 }}
               >
-                <Card className="hover:-translate-y-1 h-full p-6 transition-all duration-300 hover:shadow-lg">
+                <Card className="h-full p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                   <div
                     className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br ${item.gradient} shadow-md`}
                   >

@@ -2,31 +2,23 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  type ContentTranslations,
-  ContentType,
-  type Locale,
-} from "@repo/api/types/appwrite";
+import type { Locale, WebshopProducts } from "@repo/api/types/appwrite";
 
-type ListProductsParams = {
-  limit?: number;
-  status?: string;
+interface ListProductsParams {
   campus?: string;
   category?: string;
+  limit?: number;
   locale?: "en" | "no";
   memberOnly?: boolean;
-};
+  status?: string;
+}
 
-type CreateProductData = {
-  slug: string;
-  status: "draft" | "published" | "closed";
+interface CreateProductData {
   campus_id: string;
   category: string;
-  regular_price: number;
-  member_price?: number;
-  member_only?: boolean;
   image?: string;
-  stock?: number;
+  member_only?: boolean;
+  member_price?: number;
   metadata?: {
     product_options?: Array<{
       type: "select" | "input";
@@ -36,6 +28,10 @@ type CreateProductData = {
       placeholder?: string;
     }>;
   };
+  regular_price: number;
+  slug: string;
+  status: "draft" | "published" | "closed";
+  stock?: number;
   translations: {
     en?: {
       title: string;
@@ -48,11 +44,11 @@ type CreateProductData = {
       short_description?: string;
     };
   };
-};
+}
 
 export async function listProducts(
   params: ListProductsParams = {}
-): Promise<ContentTranslations[]> {
+): Promise<WebshopProducts[]> {
   const {
     limit = 50,
     status = "published",
@@ -66,40 +62,63 @@ export async function listProducts(
     const { db } = await createSessionClient();
 
     const queries = [
-      Query.equal("content_type", ContentType.PRODUCT),
       Query.select([
-        "content_id",
         "$id",
-        "locale",
-        "title",
-        "description",
-        "short_description",
-        "product_ref.*",
+        "$createdAt",
+        "$updatedAt",
+        "slug",
+        "status",
+        "campus_id",
+        "category",
+        "regular_price",
+        "member_price",
+        "member_only",
+        "image",
+        "stock",
+        "metadata",
+        "departmentId",
+        "campus.$id",
+        "campus.name",
+        "department.$id",
+        "department.Name",
+        "translation_refs.$id",
+        "translation_refs.$createdAt",
+        "translation_refs.$updatedAt",
+        "translation_refs.content_id",
+        "translation_refs.content_type",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.description",
+        "translation_refs.short_description",
+        "translation_refs.additional_fields",
       ]),
-      Query.equal("locale", locale as Locale),
       Query.limit(limit),
       Query.orderDesc("$createdAt"),
     ];
 
+    if (locale) {
+      queries.push(Query.equal("translation_refs.locale", locale as Locale));
+    }
+
     if (status !== "all") {
-      queries.push(Query.equal("product_ref.status", status));
+      queries.push(Query.equal("status", status));
     }
 
     if (campus && campus !== "all") {
-      queries.push(Query.equal("product_ref.campus_id", campus));
+      queries.push(Query.equal("campus_id", campus));
     }
 
     if (category && category !== "all") {
-      queries.push(Query.equal("product_ref.category", category));
+      queries.push(Query.equal("category", category));
     }
 
     if (memberOnly !== undefined) {
-      queries.push(Query.equal("product_ref.member_only", memberOnly));
+      queries.push(Query.equal("member_only", memberOnly));
     }
 
-    const productsResponse = await db.listRows<ContentTranslations>(
+    const productsResponse = await db.listRows<WebshopProducts>(
       "app",
-      "content_translations",
+      "webshop_products",
       queries
     );
     const products = productsResponse.rows;
@@ -114,35 +133,51 @@ export async function listProducts(
 export async function getProductBySlug(
   slug: string,
   locale: "en" | "no"
-): Promise<ContentTranslations | null> {
+): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
 
-    const translationsResponse = await db.listRows<ContentTranslations>(
+    const response = await db.listRows<WebshopProducts>(
       "app",
-      "content_translations",
+      "webshop_products",
       [
-        Query.equal("content_type", ContentType.PRODUCT),
-        Query.equal("locale", locale as Locale),
-        Query.equal("product_ref.slug", slug),
+        Query.equal("slug", slug),
+        Query.equal("translation_refs.locale", locale as Locale),
         Query.select([
-          "content_id",
           "$id",
-          "locale",
-          "title",
-          "description",
-          "short_description",
-          "product_ref.*",
+          "$createdAt",
+          "$updatedAt",
+          "slug",
+          "status",
+          "campus_id",
+          "category",
+          "regular_price",
+          "member_price",
+          "member_only",
+          "image",
+          "stock",
+          "metadata",
+          "departmentId",
+          "campus.$id",
+          "campus.name",
+          "department.$id",
+          "department.Name",
+          "translation_refs.$id",
+          "translation_refs.$createdAt",
+          "translation_refs.$updatedAt",
+          "translation_refs.content_id",
+          "translation_refs.content_type",
+          "translation_refs.locale",
+          "translation_refs.title",
+          "translation_refs.description",
+          "translation_refs.short_description",
+          "translation_refs.additional_fields",
         ]),
         Query.limit(1),
       ]
     );
 
-    if (translationsResponse.rows.length === 0) {
-      return null;
-    }
-
-    return translationsResponse.rows[0] ?? null;
+    return response.rows[0] ?? null;
   } catch (error) {
     console.error("Error fetching product by slug:", error);
     return null;

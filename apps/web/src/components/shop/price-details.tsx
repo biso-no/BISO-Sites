@@ -1,14 +1,14 @@
 import { Separator } from "@repo/ui/components/ui/separator";
 import { formatPrice } from "@/lib/types/webshop";
 
-type PriceDetailsProps = {
-  isMember: boolean;
-  regularPrice: number;
-  memberPrice?: number | null;
+interface PriceDetailsProps {
   displayPrice: number;
   hasDiscount: boolean;
+  isMember: boolean;
+  memberPrice?: number | null;
+  regularPrice: number;
   savings: number;
-};
+}
 
 export function PriceDetails({
   isMember,

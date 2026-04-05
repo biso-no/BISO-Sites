@@ -19,15 +19,15 @@ const bulkTurnoverSchema = z.object({
   dryRunAll: z.boolean().default(false),
 });
 
-type TurnoverResult = {
-  index: number;
-  success: boolean;
-  roleMailboxUpn: string;
-  incomingUserUpn: string;
+interface TurnoverResult {
   dryRun: boolean;
-  webhookResponse?: unknown;
   error?: string;
-};
+  incomingUserUpn: string;
+  index: number;
+  roleMailboxUpn: string;
+  success: boolean;
+  webhookResponse?: unknown;
+}
 
 /**
  * POST /api/admin/account-turnover/bulk
@@ -108,8 +108,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           const errorText = await webhookResponse.text();
           result.error = `Webhook failed: ${webhookResponse.status} - ${errorText}`;
         }
-      } catch (error: any) {
-        result.error = error.message || "Unknown error";
+      } catch (error) {
+        result.error = error instanceof Error ? error.message : "Unknown error";
       }
 
       results.push(result);
@@ -134,10 +134,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       totalFailed: results.filter((r) => !r.success).length,
       results,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in bulk account turnover:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to process bulk turnover" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to process bulk turnover",
+      },
       { status: 500 }
     );
   }

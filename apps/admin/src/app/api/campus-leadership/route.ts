@@ -4,8 +4,15 @@ import { NextResponse } from "next/server";
 const FUNCTION_ID =
   process.env.APPWRITE_CAMPUS_BOARD_FUNCTION_ID || "get_board_members";
 
+interface ExecutionLike {
+  response?: string;
+  result?: string;
+  status?: string;
+  stdout?: string;
+}
+
 export async function POST(request: Request) {
-  let payload: any;
+  let payload: Record<string, unknown>;
 
   try {
     payload = await request.json();
@@ -33,23 +40,20 @@ export async function POST(request: Request) {
       JSON.stringify({ campus, departmentId })
     );
 
-    const raw =
-      (execution as any)?.response ||
-      (execution as any)?.stdout ||
-      (execution as any)?.result ||
-      null;
+    const exec = execution as unknown as ExecutionLike;
+    const raw = exec?.response ?? exec?.stdout ?? exec?.result ?? null;
 
-    let parsed: any = null;
+    let parsed: Record<string, unknown> | null = null;
     if (raw && typeof raw === "string") {
       try {
-        parsed = JSON.parse(raw);
+        parsed = JSON.parse(raw) as Record<string, unknown>;
       } catch (_error) {
         parsed = null;
       }
     }
 
     const data = parsed ?? {
-      success: (execution as any)?.status === "completed",
+      success: exec?.status === "completed",
       response: raw,
     };
 

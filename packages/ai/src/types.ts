@@ -10,53 +10,53 @@ export type AssistantMessage = UIMessage & {
 /**
  * Tool definition for the assistant
  */
-export type AssistantTool = {
-  name: string;
+export interface AssistantTool {
   description: string;
-  parameters: Record<string, unknown>;
   execute: (params: Record<string, unknown>) => Promise<unknown>;
-};
+  name: string;
+  parameters: Record<string, unknown>;
+}
 
 /**
  * Navigation action - redirects user to a specific page
  */
-export type NavigationAction = {
-  type: "navigation";
-  path: string;
+export interface NavigationAction {
   description?: string;
-};
+  path: string;
+  type: "navigation";
+}
 
 /**
  * Form field action - streams data into a form field
  */
-export type FormFieldAction = {
-  type: "form-field";
+export interface FormFieldAction {
   fieldId: string;
   fieldName: string;
-  value: string;
   streaming?: boolean;
-};
+  type: "form-field";
+  value: string;
+}
 
 /**
  * Toast/notification action
  */
-export type ToastAction = {
-  type: "toast";
-  title: string;
+export interface ToastAction {
   description?: string;
+  title: string;
+  type: "toast";
   variant?: "default" | "destructive";
-};
+}
 
 /**
  * Confirmation action - asks user to confirm before proceeding
  */
-export type ConfirmAction = {
-  type: "confirm";
-  title: string;
-  description: string;
-  confirmLabel?: string;
+export interface ConfirmAction {
   cancelLabel?: string;
-};
+  confirmLabel?: string;
+  description: string;
+  title: string;
+  type: "confirm";
+}
 
 /**
  * Union of all possible assistant actions
@@ -70,62 +70,62 @@ export type AssistantAction =
 /**
  * Context for admin assistant - what the assistant knows about the current state
  */
-export type AdminAssistantContext = {
-  currentPath: string;
-  currentPage?: string;
+export interface AdminAssistantContext {
   availableRoutes: RouteInfo[];
+  currentPage?: string;
+  currentPath: string;
   formContext?: FormContext;
   userRoles: string[];
-};
+}
 
 /**
  * Route information for navigation
  */
-export type RouteInfo = {
-  path: string;
-  label: string;
+export interface RouteInfo {
   description?: string;
+  label: string;
+  path: string;
   requiredRoles?: string[];
-};
+}
 
 /**
  * Form context for form-filling capabilities
  */
-export type FormContext = {
+export interface FormContext {
+  fields: FormFieldInfo[];
   formId: string;
   formName: string;
-  fields: FormFieldInfo[];
-};
+}
 
 /**
  * Individual form field information
  */
-export type FormFieldInfo = {
-  id: string;
-  name: string;
-  type: "text" | "textarea" | "number" | "date" | "select" | "checkbox";
-  label: string;
-  required?: boolean;
-  options?: { value: string; label: string }[];
+export interface FormFieldInfo {
   currentValue?: unknown;
-};
+  id: string;
+  label: string;
+  name: string;
+  options?: { value: string; label: string }[];
+  required?: boolean;
+  type: "text" | "textarea" | "number" | "date" | "select" | "checkbox";
+}
 
 /**
  * Streaming form update event
  */
-export type FormStreamEvent = {
-  fieldId: string;
+export interface FormStreamEvent {
   chunk: string;
   done: boolean;
-};
+  fieldId: string;
+}
 
 /**
  * Assistant state for UI
  */
-export type AssistantState = {
-  isOpen: boolean;
+export interface AssistantState {
+  context: AdminAssistantContext | null;
   isLoading: boolean;
+  isOpen: boolean;
   messages: AssistantMessage[];
   pendingActions: AssistantAction[];
-  context: AdminAssistantContext | null;
-};
+}

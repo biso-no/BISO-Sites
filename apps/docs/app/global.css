@@ -1,3 +1,190 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
+@import "../../../packages/ui/styles/globals.css";
+
+@source "../../../../packages/ui/**/*.{ts,tsx}";
+@source "../**/*.{ts,tsx}";
+@source "../components/**/*.{ts,tsx}";
+
+/* App-specific color values - Light mode */
+:root {
+  --radius: 0.5rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --input-background: oklch(1 0 0);
+  --switch-background: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  /* Section backgrounds */
+  --section: oklch(0.985 0 0);
+  --section-foreground: oklch(0.145 0 0);
+
+  /* Inverted section (dark hero, footer overlays) */
+  --inverted: oklch(0.145 0 0);
+  --inverted-foreground: oklch(0.985 0 0);
+  --inverted-muted: oklch(0.4 0 0);
+
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Brand colors — BISO blue (#3DA9E0) and BISO dark (#001731) */
+  --brand: oklch(0.68 0.14 220);
+  --brand-dark: oklch(0.15 0.05 250);
+  --brand-foreground: oklch(1 0 0);
+  --brand-muted: oklch(0.68 0.14 220 / 10%);
+  --brand-muted-strong: oklch(0.68 0.14 220 / 20%);
+  --brand-border: oklch(0.68 0.14 220 / 20%);
+  --brand-border-strong: oklch(0.68 0.14 220 / 40%);
+
+  /* Gradient stops */
+  --brand-gradient-from: oklch(0.68 0.14 220);
+  --brand-gradient-to: oklch(0.15 0.05 250);
+  --brand-gradient-via: oklch(0.68 0.14 220 / 70%);
+
+  /* Overlay gradients */
+  --brand-overlay-from: oklch(0.15 0.05 250 / 95%);
+  --brand-overlay-via: oklch(0.68 0.14 220 / 70%);
+  --brand-overlay-to: oklch(0.15 0.05 250 / 90%);
+
+  /* Brand accent — BISO yellow (#F7D64A) */
+  --brand-accent: oklch(0.88 0.17 95);
+  --brand-accent-muted: oklch(0.88 0.17 95 / 10%);
+
+  /* Navigation — always dark navy */
+  --nav-background: oklch(0.15 0.05 250 / 95%);
+  --nav-foreground: oklch(1 0 0);
+}
+
+/* Dark mode overrides */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --input-background: oklch(0.205 0 0);
+  --switch-background: oklch(0.269 0 0);
+  --ring: oklch(0.556 0 0);
+
+  --section: oklch(0.18 0 0);
+  --section-foreground: oklch(0.985 0 0);
+  --inverted: oklch(0.12 0 0);
+  --inverted-foreground: oklch(0.985 0 0);
+  --inverted-muted: oklch(0.6 0 0);
+
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+
+  /* Brand colors — adapted for dark mode */
+  --brand: oklch(0.68 0.14 220);
+  --brand-dark: oklch(0.68 0.14 220);
+  --brand-foreground: oklch(1 0 0);
+  --brand-muted: oklch(0.68 0.14 220 / 20%);
+  --brand-muted-strong: oklch(0.68 0.14 220 / 30%);
+  --brand-border: oklch(0.68 0.14 220 / 40%);
+  --brand-border-strong: oklch(0.68 0.14 220 / 60%);
+
+  --brand-gradient-from: oklch(0.72 0.14 220);
+  --brand-gradient-to: oklch(0.55 0.12 220);
+  --brand-gradient-via: oklch(0.68 0.14 220 / 80%);
+
+  --brand-overlay-from: oklch(0.12 0.02 250 / 95%);
+  --brand-overlay-via: oklch(0.68 0.14 220 / 60%);
+  --brand-overlay-to: oklch(0.12 0.02 250 / 90%);
+
+  --brand-accent: oklch(0.88 0.17 95);
+  --brand-accent-muted: oklch(0.88 0.17 95 / 5%);
+
+  /* Navigation — same dark navy in both themes */
+  --nav-background: oklch(0.15 0.05 250 / 95%);
+  --nav-foreground: oklch(1 0 0);
+}
+
+/* Fumadocs-specific overrides: wire Fumadocs CSS variables to BISO brand tokens */
+:root {
+  --color-fd-primary: var(--brand);
+  --fd-primary: var(--brand);
+}
+
+/* Mermaid diagram container */
+.mermaid-container svg {
+  max-width: 100%;
+  height: auto;
+  padding: 1rem;
+  background: transparent;
+  border-radius: 0.75rem;
+}
+
+.mermaid-container .node rect,
+.mermaid-container .node circle,
+.mermaid-container .node polygon {
+  stroke-width: 1.5px !important;
+  transition: all 0.2s ease;
+}
+
+.mermaid-container .node:hover rect {
+  filter: brightness(1.1);
+  stroke-width: 2px !important;
+}
+
+.mermaid-container .nodeLabel {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mermaid-container .cluster rect {
+  rx: 12px;
+  stroke-dasharray: 5, 5;
+}

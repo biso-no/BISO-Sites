@@ -11,20 +11,20 @@ import {
 /**
  * Options for registering entity context with the copilot
  */
-type UseEntityContextOptions = {
-  /** The type of entity */
-  type: EntityType;
-  /** The entity ID */
-  id: string;
-  /** Human-readable title */
-  title: string;
+interface UseEntityContextOptions {
   /** The full entity data - AI can read this */
   data: Record<string, unknown>;
+  /** The entity ID */
+  id: string;
   /** Optional locale */
   locale?: string;
   /** Optional metadata */
   metadata?: EntityContext["metadata"];
-};
+  /** Human-readable title */
+  title: string;
+  /** The type of entity */
+  type: EntityType;
+}
 
 /**
  * Hook to register entity context with the AI copilot
@@ -77,18 +77,18 @@ export function useEntityContext(options: UseEntityContextOptions | null) {
 /**
  * Options for registering page context with the copilot
  */
-type UsePageContextOptions = {
-  /** What section of admin we're in */
-  section: PageContext["section"];
-  /** Is this a list view, detail view, or editor? */
-  viewType: PageContext["viewType"];
+interface UsePageContextOptions {
   /** Breadcrumb path */
   breadcrumb?: string[];
   /** Any filters/search applied */
   filters?: Record<string, unknown>;
   /** Summary of list items (for list views) */
   listSummary?: PageContext["listSummary"];
-};
+  /** What section of admin we're in */
+  section: PageContext["section"];
+  /** Is this a list view, detail view, or editor? */
+  viewType: PageContext["viewType"];
+}
 
 /**
  * Hook to register page context with the AI copilot

@@ -4,18 +4,18 @@ import { Card } from "@repo/ui/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
-type Step = {
+interface Step {
+  description: string;
   id: number;
   title: string;
-  description: string;
-};
+}
 
-type ExpenseWizardProps = {
-  steps: Step[];
+interface ExpenseWizardProps {
+  children: React.ReactNode;
   currentStep: number;
   onStepChange: (step: number) => void;
-  children: React.ReactNode;
-};
+  steps: Step[];
+}
 
 export function ExpenseWizard({
   steps,
@@ -23,7 +23,7 @@ export function ExpenseWizard({
   children,
 }: ExpenseWizardProps) {
   return (
-    <div className="-mt-8 relative z-10 mx-auto max-w-4xl px-4">
+    <div className="relative z-10 mx-auto -mt-8 max-w-4xl px-4">
       <Card className="border-0 p-6 shadow-xl">
         <div className="mb-2 flex items-center justify-between">
           {steps.map((step, index) => (
@@ -79,10 +79,10 @@ export function ExpenseWizard({
   );
 }
 
-type StepContainerProps = {
-  stepId: number;
+interface StepContainerProps {
   children: React.ReactNode;
-};
+  stepId: number;
+}
 
 export function StepContainer({ stepId, children }: StepContainerProps) {
   return (

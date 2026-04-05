@@ -1,4 +1,4 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { format } from "date-fns";
@@ -11,9 +11,9 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-type EventHeroProps = {
-  event: ContentTranslations;
-};
+interface EventHeroProps {
+  event: Events;
+}
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",
@@ -25,7 +25,14 @@ const categoryColors: Record<EventCategory, string> = {
 
 export function EventHero({ event }: EventHeroProps) {
   const t = useTranslations("events");
-  const eventData = event.event_ref;
+  const eventData = event;
+  const translation = Array.isArray(event.translation_refs)
+    ? event.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
   const metadata = parseEventMetadata(eventData?.metadata);
   const category = getEventCategory(metadata);
 
@@ -55,7 +62,7 @@ export function EventHero({ event }: EventHeroProps) {
   return (
     <div className="relative h-[50vh] overflow-hidden">
       <ImageWithFallback
-        alt={event.title}
+        alt={title}
         className="object-cover"
         fill
         priority
@@ -78,7 +85,7 @@ export function EventHero({ event }: EventHeroProps) {
               {t(`filters.${category}`)}
             </Badge>
             <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
-              {event.title}
+              {title}
             </h1>
 
             <div className="mt-6 flex flex-wrap items-center gap-4">

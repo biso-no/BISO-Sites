@@ -125,7 +125,7 @@ export async function getExpenseById(expenseId: string) {
 /**
  * Create a new expense
  */
-export async function createExpense(data: {
+async function _createExpense(data: {
   campus: string;
   department: string;
   bank_account: string;
@@ -216,7 +216,7 @@ export async function uploadExpenseAttachment(formData: FormData) {
 /**
  * Create an expense attachment record in the database
  */
-export async function createExpenseAttachment(data: {
+async function _createExpenseAttachment(data: {
   date: string;
   url: string;
   amount: number;

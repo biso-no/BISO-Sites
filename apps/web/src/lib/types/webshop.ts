@@ -1,17 +1,17 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 
-export type ProductOption = {
-  type: "select" | "input";
+export interface ProductOption {
   label: string;
-  required: boolean;
   options?: string[];
   placeholder?: string;
-};
+  required: boolean;
+  type: "select" | "input";
+}
 
-export type ProductMetadata = {
+export interface ProductMetadata {
   product_options?: ProductOption[];
   [key: string]: unknown;
-};
+}
 
 interface ProductWithTranslation extends ContentTranslations {
   product_ref: NonNullable<ContentTranslations["product_ref"]>;

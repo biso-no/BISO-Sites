@@ -122,21 +122,12 @@ export async function removeIdentity(identityId: string) {
     return { success: true };
   } catch (error) {
     console.error("Failed to remove identity", error);
-    return { success: false, error: String((error as any)?.message || error) };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
-
-type ProfileDetails = {
-  department?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  zip?: string;
-  bank_account?: string;
-  swift?: string;
-};
 
 export async function updateProfile(profile: Partial<Users>) {
   try {
@@ -173,7 +164,7 @@ export async function updateProfile(profile: Partial<Users>) {
 
 async function _createProfile(profile: Partial<Users>, userId: string) {
   try {
-    const { account, db } = await createSessionClient();
+    const { db } = await createSessionClient();
 
     const existingProfile = await db.getRow("app", "user", userId);
 
@@ -187,7 +178,7 @@ async function _createProfile(profile: Partial<Users>, userId: string) {
   }
 }
 
-export async function getUserPreferences(
+async function _getUserPreferences(
   _userId: string
 ): Promise<Models.Preferences | null> {
   const { account } = await createSessionClient();
@@ -203,9 +194,9 @@ export async function getUserPreferences(
 
 async function _updateUserPreferences(
   _userId: string,
-  prefs: Record<string, any>
+  prefs: Record<string, unknown>
 ): Promise<Models.Preferences | null> {
-  const { account, db } = await createSessionClient();
+  const { account } = await createSessionClient();
   const user = await account.get();
 
   if (!user) {

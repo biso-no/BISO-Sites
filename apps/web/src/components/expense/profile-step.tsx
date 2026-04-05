@@ -12,29 +12,29 @@ import { useState } from "react";
 
 const IBAN_REGEX = /^[A-Z]{2}/;
 
-type ProfileStepProps = {
-  profile: Partial<Users>;
+interface ProfileStepProps {
   onNext: (profile: Partial<Users>) => void;
   onUpdateProfile?: (profile: Partial<Users>) => Promise<void>;
-};
+  profile: Partial<Users>;
+}
 
-type EditableFieldProps = {
-  label: string;
-  value?: string | null;
-  placeholder?: string;
-  required?: boolean;
+interface EditableFieldProps {
+  className?: string;
   helperText?: string;
   inputType?: string;
-  showInput: boolean;
+  label: string;
   onChange: (value: string) => void;
-  className?: string;
-};
+  placeholder?: string;
+  required?: boolean;
+  showInput: boolean;
+  value?: string | null;
+}
 
-type ReadonlyFieldProps = {
+interface ReadonlyFieldProps {
+  helperText?: string;
   label: string;
   value?: string | null;
-  helperText?: string;
-};
+}
 
 const ReadonlyField = ({ label, value, helperText }: ReadonlyFieldProps) => (
   <div>

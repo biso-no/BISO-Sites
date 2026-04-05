@@ -5,27 +5,26 @@ import type { FieldValues, Path, UseFormReturn } from "react-hook-form";
 import { type PageCapability, useCopilotStore } from "../stores/copilot-store";
 import type { FormFieldInfo } from "../types";
 
-type UseCopilotFormOptions<T extends FieldValues> = {
-  /**
-   * The react-hook-form instance
-   */
-  form: UseFormReturn<T>;
-
+interface UseCopilotFormOptions<T extends FieldValues> {
   /**
    * The capability this form provides (e.g., "create-event", "edit-job")
    */
   capability: PageCapability;
 
   /**
-   * Form field definitions for the AI to understand
-   */
-  fields: FormFieldInfo[];
-
-  /**
    * Whether the copilot integration is enabled (default: true)
    */
   enabled?: boolean;
-};
+
+  /**
+   * Form field definitions for the AI to understand
+   */
+  fields: FormFieldInfo[];
+  /**
+   * The react-hook-form instance
+   */
+  form: UseFormReturn<T>;
+}
 
 /**
  * Hook to connect a react-hook-form to the AI copilot

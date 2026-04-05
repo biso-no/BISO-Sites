@@ -1,9 +1,9 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { DepartmentCard } from "./department-card";
 
-type DepartmentsGridProps = {
+interface DepartmentsGridProps {
   departments: ContentTranslations[];
-};
+}
 
 export function DepartmentsGrid({ departments }: DepartmentsGridProps) {
   if (departments.length === 0) {

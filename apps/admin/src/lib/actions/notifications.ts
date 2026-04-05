@@ -96,7 +96,7 @@ export async function createNotification(data: {
 /**
  * Mark a notification as inactive (soft delete)
  */
-async function dismissNotification(
+async function _dismissNotification(
   notificationId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -122,7 +122,7 @@ async function dismissNotification(
 /**
  * Update notification priority
  */
-async function updateNotificationPriority(
+async function _updateNotificationPriority(
   notificationId: string,
   priority: number
 ): Promise<{ success: boolean; error?: string }> {
@@ -201,7 +201,7 @@ function mapPriorityToLevel(
 /**
  * Get notification statistics
  */
-async function getNotificationStats(): Promise<{
+async function _getNotificationStats(): Promise<{
   total: number;
   active: number;
   byType: Record<NotificationType, number>;

@@ -6,11 +6,11 @@ import { Briefcase, CheckCircle, ExternalLink, Globe } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type PartnersTabProps = {
+interface PartnersTabProps {
   campusData: CampusData | null;
   campusName: string | null;
   locale: Locale;
-};
+}
 
 const partnerCopy = {
   en: {

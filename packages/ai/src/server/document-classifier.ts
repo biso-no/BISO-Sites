@@ -2,8 +2,19 @@
  * Document classifier for language detection, version parsing, and authority ranking
  */
 
-export type DocumentClassification = {
+export interface DocumentClassification {
+  authority: {
+    isAuthoritative: boolean;
+    isLatest: boolean;
+    isTranslation: boolean;
+    priority: number; // Higher = more authoritative
+  };
   language: "norwegian" | "english" | "mixed" | "unknown";
+  path: {
+    isInLanguageFolder: boolean;
+    languageFolder?: "norwegian" | "english";
+    category?: string; // 'statutes', 'local-laws', etc.
+  };
   version: {
     detected: boolean;
     version: string;
@@ -11,18 +22,7 @@ export type DocumentClassification = {
     minor?: number;
     patch?: number;
   };
-  authority: {
-    isAuthoritative: boolean;
-    isLatest: boolean;
-    isTranslation: boolean;
-    priority: number; // Higher = more authoritative
-  };
-  path: {
-    isInLanguageFolder: boolean;
-    languageFolder?: "norwegian" | "english";
-    category?: string; // 'statutes', 'local-laws', etc.
-  };
-};
+}
 
 const REG_EXP_VERSION = /v(\d+)\.(\d+)\.(\d+)/i;
 const REG_EXP_VERSION_MAJOR = /version\s*(\d+)\.(\d+)\.(\d+)/i;

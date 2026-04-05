@@ -13,14 +13,14 @@ import { Check, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useCampus } from "./context/campus";
 
-type SelectCampusProps = {
+interface SelectCampusProps {
   campuses: Campus[]; // kept for API compatibility; context campuses take precedence
-  placeholder?: string;
   className?: string;
-  variant?: "default" | "ghost" | "outline";
-  size?: "sm" | "default" | "lg";
+  placeholder?: string;
   showText?: boolean;
-};
+  size?: "sm" | "default" | "lg";
+  variant?: "default" | "ghost" | "outline";
+}
 
 export const SelectCampus = ({
   campuses: campusesProp,

@@ -7,6 +7,15 @@
   "publish": "Publiser",
   "unpublish": "Avpubliser",
   "search": "Søk i innlegg...",
+  "breadcrumb": {
+    "posts": "Innlegg",
+    "newPost": "Nytt innlegg",
+    "editPost": "Rediger innlegg"
+  },
+  "editor": {
+    "newPost": "Opprett nytt innlegg",
+    "editPost": "Rediger innlegg"
+  },
   "filters": {
     "all": "Alle innlegg",
     "published": "Publisert",

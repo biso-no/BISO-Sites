@@ -15,14 +15,14 @@ type MembershipContextValue = MembershipStatus & {
 
 const MembershipContext = createContext<MembershipContextValue | null>(null);
 
-type MembershipProviderProps = {
+interface MembershipProviderProps {
   children: React.ReactNode;
   /**
    * Initial membership status from server-side.
    * If provided, skips the initial fetch.
    */
   initialStatus?: MembershipStatus;
-};
+}
 
 export const MembershipProvider = ({
   children,
@@ -86,7 +86,7 @@ export const MembershipProvider = ({
  * return <NonMemberContent />;
  * ```
  */
-export const useUserMembership = () => {
+const _useUserMembership = () => {
   const context = useContext(MembershipContext);
   if (!context) {
     throw new Error(

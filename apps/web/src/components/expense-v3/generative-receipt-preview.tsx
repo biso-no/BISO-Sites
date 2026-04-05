@@ -20,11 +20,11 @@ import { v4 as uuid } from "uuid";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import type { Receipt } from "./store";
 
-type GenerativeReceiptPreviewProps = {
-  receipt: Receipt;
-  onUpdate: (updates: Partial<Receipt>) => void;
+interface GenerativeReceiptPreviewProps {
   onInsert?: (afterId: string, receipt: Receipt) => void;
-};
+  onUpdate: (updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+}
 
 export function GenerativeReceiptPreview({
   receipt,
@@ -86,7 +86,7 @@ export function GenerativeReceiptPreview({
       } else {
         toast.error("Upload failed");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Upload failed");
     } finally {
       setIsUploadingStatement(false);
@@ -223,13 +223,13 @@ function ReceiptPreview({
   );
 }
 
-type ForeignCurrencyWarningProps = {
-  receipt: Receipt;
+interface ForeignCurrencyWarningProps {
   isProcessing: boolean;
   isUploadingStatement: boolean;
-  onUploadClick: () => void;
   onRemoveStatement: () => void;
-};
+  onUploadClick: () => void;
+  receipt: Receipt;
+}
 
 function ForeignCurrencyWarning({
   receipt,
@@ -299,12 +299,12 @@ function ForeignCurrencyWarning({
   );
 }
 
-type AmountFieldsProps = {
-  receipt: Receipt;
-  isProcessing: boolean;
+interface AmountFieldsProps {
   isForeign: boolean;
+  isProcessing: boolean;
   onUpdate: (updates: Partial<Receipt>) => void;
-};
+  receipt: Receipt;
+}
 
 function AmountFields({
   receipt,
@@ -350,11 +350,11 @@ function AmountFields({
   );
 }
 
-type DescriptionFieldProps = {
-  receipt: Receipt;
+interface DescriptionFieldProps {
   isProcessing: boolean;
   onUpdate: (updates: Partial<Receipt>) => void;
-};
+  receipt: Receipt;
+}
 
 function DescriptionField({
   receipt,

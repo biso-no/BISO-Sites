@@ -1,32 +1,32 @@
 import type { Models } from "@repo/api";
 
 export interface CampusData extends Models.Row {
-  name?: string | null;
-  name_nb?: string | null;
-  name_en?: string | null;
-  description?: string | null;
-  description_nb?: string | null;
-  description_en?: string | null;
   businessBenefits?: string[];
-  businessBenefits_nb?: string[];
   businessBenefits_en?: string[];
-  studentBenefits?: string[];
-  studentBenefits_nb?: string[];
-  studentBenefits_en?: string[];
+  businessBenefits_nb?: string[];
   careerAdvantages?: string[];
-  careerAdvantages_nb?: string[];
   careerAdvantages_en?: string[];
-  socialNetwork?: string[];
-  socialNetwork_nb?: string[];
-  socialNetwork_en?: string[];
-  safety?: string[];
-  safety_nb?: string[];
-  safety_en?: string[];
-  location?: string | null;
+  careerAdvantages_nb?: string[];
   departmentBoard?: Array<{
     name?: string;
     imageUrl?: string;
     role?: string;
     [key: string]: unknown;
   }>;
+  description?: string | null;
+  description_en?: string | null;
+  description_nb?: string | null;
+  location?: string | null;
+  name?: string | null;
+  name_en?: string | null;
+  name_nb?: string | null;
+  safety?: string[];
+  safety_en?: string[];
+  safety_nb?: string[];
+  socialNetwork?: string[];
+  socialNetwork_en?: string[];
+  socialNetwork_nb?: string[];
+  studentBenefits?: string[];
+  studentBenefits_en?: string[];
+  studentBenefits_nb?: string[];
 }

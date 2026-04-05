@@ -3,10 +3,15 @@ title: Data Flow
 description: How data flows through the BISO Sites monorepo - from user interaction to database and back.
 ---
 
+import Link from 'next/link';
 import { Callout } from 'components/callout';
 import { Mermaid } from 'components/mdx/mermaid';
 
 # Data Flow
+
+<Callout type="info" title="Big picture first">
+  For diagrams of the whole system and layer boundaries, start with <Link href="/docs/architecture/overview">Architecture overview</Link>. This page goes deeper on **how requests and mutations move through Next.js, packages, and Appwrite**.
+</Callout>
 
 Understanding how data moves through the system is crucial for building features and debugging issues. This document explains the various data flow patterns used in BISO SItes.
 

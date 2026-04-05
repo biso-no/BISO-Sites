@@ -22,7 +22,6 @@ async function EventsList({ locale }: { locale: "en" | "no" }) {
     limit: 50,
     campus: userPrefs?.campusId ?? "all",
   });
-  console.log("Events: ", events);
 
   return <EventsListClient events={events} />;
 }

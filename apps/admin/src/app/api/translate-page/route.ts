@@ -8,19 +8,19 @@ export const maxDuration = 120;
 const UUID_PATTERN = /^[a-f0-9-]{36}$/i;
 const PURE_NUMBER_PATTERN = /^\d+$/;
 
-type TranslationItem = {
+interface TranslationItem {
   path: string;
   value: string;
-};
+}
 
-type RequestBody = {
+interface RequestBody {
+  description?: string;
   pageData: unknown;
+  slug: string;
   sourceLocale: "no" | "en";
   targetLocale: "no" | "en";
   title: string;
-  description?: string;
-  slug: string;
-};
+}
 
 /**
  * Recursively extract translatable text fields from page data

@@ -1,7 +1,6 @@
 "use client";
 
 import { Currency } from "@repo/api/types/appwrite";
-import { initiateVippsCheckout } from "@repo/payment/actions";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -9,12 +8,13 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { CreditCard, Package, Sparkles, Tag } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 import { useCart } from "@/lib/contexts/cart-context";
 
-type CartSummaryProps = {
+interface CartSummaryProps {
   isMember: boolean;
   userId: string | null;
-};
+}
 
 export function CartSummary({ isMember, userId }: CartSummaryProps) {
   const router = useRouter();
@@ -36,7 +36,7 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
         return sum + price * item.quantity;
       }, 0);
 
-  const handleCheckout = () => {
+  const _handleCheckout = () => {
     startTransition(async () => {
       await initiateVippsCheckout({
         // TODO: Generate a unique reference ID
@@ -142,7 +142,7 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
           <Button
             className="mb-3 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90 disabled:opacity-70"
             disabled={isPending}
-            onClick={handleCheckout}
+            onClick={() => router.push("/shop/checkout")}
           >
             <CreditCard className="mr-2 h-4 w-4" />
             {isPending ? "Processing..." : "Proceed to Checkout"}

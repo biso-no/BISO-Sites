@@ -9,13 +9,13 @@ import type { JSX } from "react";
 import { useEffect, useState } from "react";
 import { TeamMemberCard } from "./team-member-card";
 
-type TeamTabProps = {
-  fallbackTeam: DepartmentBoard[];
+interface TeamTabProps {
   campusId: string | null;
   campusName: string | null;
-  locale: Locale;
   departmentId?: string | null;
-};
+  fallbackTeam: DepartmentBoard[];
+  locale: Locale;
+}
 
 // Maps campusId to the management department ID
 const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
@@ -26,16 +26,16 @@ const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
   "5": "1002", // National
 };
 
-type CampusLeader = {
-  name: string;
+interface CampusLeader {
   email?: string;
-  phone?: string;
-  role?: string;
+  name: string;
   officeLocation?: string;
+  phone?: string;
   profilePhotoUrl?: string;
-};
+  role?: string;
+}
 
-function mapToLeader(entry: any): CampusLeader {
+function mapToLeader(entry: Record<string, unknown>): CampusLeader {
   return {
     name: entry?.name ?? entry?.displayName ?? "",
     email: entry?.email ?? entry?.mail ?? undefined,

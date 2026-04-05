@@ -1,5 +1,7 @@
 /* packages/ui/styles/globals.css */
 
+@plugin "tailwind-scrollbar-hide";
+
 /* Custom variant for dark mode - used by both apps */
 @custom-variant dark (&:is(.dark *));
 
@@ -8,6 +10,7 @@
   --font-size: 16px;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
+  --highlight: oklch(0.852 0.199 91.936);
 }
 
 /* 
@@ -94,6 +97,7 @@
   /* Animation tokens */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --color-highlight: var(--highlight);
 
   @keyframes accordion-down {
     from {
@@ -180,4 +184,8 @@
 
 html {
   font-size: var(--font-size);
+}
+
+.dark {
+  --highlight: oklch(0.852 0.199 91.936);
 }

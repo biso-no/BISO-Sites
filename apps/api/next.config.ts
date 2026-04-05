@@ -2,10 +2,20 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const baseConfig: NextConfig = {
+  transpilePackages: [
+    "@repo/api",
+    "@repo/i18n",
+    "@repo/ui",
+    "@repo/connectors",
+    "@repo/shared",
+    "@repo/ai",
+    "@repo/payment",
+    "@repo/typescript-config",
+  ],
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
   output: "standalone",
-  outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   productionBrowserSourceMaps: false,
   serverExternalPackages: ["tesseract.js"],
   experimental: {

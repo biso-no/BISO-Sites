@@ -1,6 +1,9 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Filter, Loader2, Search, ShoppingBag, X } from "lucide-react";
@@ -12,10 +15,10 @@ import { listProducts } from "@/app/actions/webshop";
 import { useCampus } from "@/components/context/campus";
 import { ProductCard } from "./product-card";
 
-type ShopListClientProps = {
-  products: ContentTranslations[];
+interface ShopListClientProps {
   isMember?: boolean;
-};
+  products: WebshopProducts[];
+}
 
 const categories = ["All", "Merch", "Trips", "Lockers", "Membership"];
 
@@ -28,8 +31,7 @@ export function ShopListClient({
   const locale = useLocale() as "en" | "no";
   const { activeCampusId } = useCampus();
 
-  const [products, setProducts] =
-    useState<ContentTranslations[]>(initialProducts);
+  const [products, setProducts] = useState<WebshopProducts[]>(initialProducts);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +60,16 @@ export function ShopListClient({
 
   // Filter products based on search and category
   const filteredProducts = products.filter((product) => {
-    const productData = product.product_ref;
+    const productData = product;
+    const translation = Array.isArray(product.translation_refs)
+      ? product.translation_refs.find(
+          (item): item is ContentTranslations =>
+            typeof item === "object" && item !== null && "title" in item
+        )
+      : null;
+    const title = translation?.title ?? "";
+    const description = translation?.description ?? "";
+    const shortDescription = translation?.short_description ?? "";
 
     // Filter out member-only products if user is not a member
     if (productData?.member_only && !isMember) {
@@ -68,17 +79,15 @@ export function ShopListClient({
     const matchesCategory =
       selectedCategory === "All" || productData?.category === selectedCategory;
     const matchesSearch =
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.short_description || "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shortDescription.toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesCategory && matchesSearch;
   });
 
-  const handleViewDetails = (product: ContentTranslations) => {
-    const slug = product.product_ref?.slug || product.content_id;
+  const handleViewDetails = (product: WebshopProducts) => {
+    const slug = product.slug || product.$id;
     router.push(`/shop/${slug}`);
   };
 
@@ -90,7 +99,7 @@ export function ShopListClient({
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             {/* Search */}
             <div className="relative w-full md:w-96">
-              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -100,7 +109,7 @@ export function ShopListClient({
               />
               {searchQuery && (
                 <button
-                  className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground hover:text-muted-foreground"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   onClick={() => setSearchQuery("")}
                   type="button"
                 >

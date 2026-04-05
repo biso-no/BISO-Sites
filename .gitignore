@@ -11,7 +11,7 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
-
+.codex/
 # Testing
 coverage
 
@@ -39,3 +39,4 @@ yarn-error.log*
 memory/critical_issues.md
 memory/MEMORY.md
 memory/project_overview.md
+.omx/

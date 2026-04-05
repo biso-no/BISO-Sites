@@ -3,5 +3,13 @@
   "description": "System design, data flow, and dependency patterns",
   "root": true,
   "icon": "Share2",
-  "pages": ["overview", "apps", "packages", "data-flow", "dependency-injection"]
+  "pages": [
+    "overview",
+    "design-decisions",
+    "quality",
+    "apps",
+    "packages",
+    "data-flow",
+    "dependency-injection"
+  ]
 }

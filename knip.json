@@ -1,34 +1,50 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "ignoreExportsUsedInFile": true,
   "ignore": [
-    "**/.eslintrc.js",
-    "**/tailwind.config.js",
-    "**/next.config.js",
-
-    "**/messages/**",
+    "**/public/**",
+    "**/*-temp.*",
     "**/i18n/**",
 
-    "**/public/**",
+    "apps/admin/src/app/actions/migration/**",
+    "apps/admin/src/lib/types/**",
+    "apps/admin/src/app/(admin)/**/shared/**",
 
-    "**/*-temp.*"
+    "apps/web/src/components/expense/**",
+    "apps/web/src/components/expense-v2/**",
+    "apps/web/src/components/shop/product/**",
+    "apps/web/src/components/member-portal/**",
+    "apps/web/src/lib/types/**",
+
+    "packages/editor/src/fields/**"
   ],
   "ignoreDependencies": [
-    "@repo/eslint-config",
-    "eslint",
-    "typescript",
+    "classnames",
 
-    "next-intl",
+    "@repo/shared",
+    "@repo/hooks",
+    "postcss",
+    "@tailwindcss/postcss",
+    "react-day-picker",
+    "node-appwrite",
+    "@json-render/core",
+    "@ai-sdk/gateway",
+    "zod",
+    "next",
 
-    "next-themes",
-    "tailwind-merge",
-    "clsx",
-    "classnames"
+    "@/registry/components/editor/use-chat",
+    "@/registry/components/editor/editor-base-kit",
+    "@/registry/lib/markdown-joiner-transform",
+    "@/lib/types/user"
   ],
-  "ignoreExportsUsedInFile": true,
-  "entry": [
-    "apps/*/src/app/**/*.tsx",
-    "apps/*/src/app/**/*.ts",
-    "packages/*/src/**/*.ts",
-    "packages/*/src/**/*.tsx"
-  ]
+  "workspaces": {
+    "apps/admin": { "next": {} },
+    "apps/web": { "next": {} },
+    "apps/api": { "next": {} },
+    "apps/docs": { "next": {} },
+    "packages/ui": {
+      "entry": ["components/**/*.tsx", "lib/**/*.ts", "app/api/**/*.ts"]
+    },
+    "packages/*": {}
+  }
 }

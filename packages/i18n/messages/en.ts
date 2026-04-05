@@ -4,6 +4,7 @@ import admin from "./en/admin.json";
 import adminEvents from "./en/adminEvents.json";
 import adminExpenses from "./en/adminExpenses.json";
 import adminJobs from "./en/adminJobs.json";
+import adminPortal from "./en/adminPortal.json";
 import adminPosts from "./en/adminPosts.json";
 import adminSettings from "./en/adminSettings.json";
 import adminShop from "./en/adminShop.json";
@@ -68,4 +69,5 @@ export default {
   adminUnits,
   adminSettings,
   adminPosts,
+  adminPortal,
 };

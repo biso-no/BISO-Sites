@@ -9,93 +9,93 @@ type ReceiptStatus =
   | "error"
   | "editing";
 
-export type Receipt = {
-  id: string;
-  fileId: string;
-  fileUrl: string;
-  fileName: string;
-  fileType: string;
-  status: ReceiptStatus;
-  progress: number;
-  description: string;
+export interface Receipt {
   amount: number;
-  date: string;
-  confidence: number;
-  currency: string;
-  error?: string;
-  vendor?: string; // Explicitly track vendor
-  category?: string; // Potential AI category
-
-  // Multi-currency support
-  originalAmount?: number;
-  exchangeRate?: number;
   bankStatementId?: string;
   bankStatementName?: string;
   bankStatementType?: string;
+  category?: string; // Potential AI category
+  confidence: number;
+  currency: string;
+  date: string;
+  description: string;
+  error?: string;
+  exchangeRate?: number;
+  fileId: string;
+  fileName: string;
+  fileType: string;
+  fileUrl: string;
+  id: string;
+
+  // Multi-currency support
+  originalAmount?: number;
   parentId?: string; // For grouping (e.g. bank statement attached to receipt)
-};
+  progress: number;
+  status: ReceiptStatus;
+  vendor?: string; // Explicitly track vendor
+}
 
 type ExpensePhase = "draft" | "submitting" | "complete";
 
-type ExpenseStore = {
-  // Phase management
-  phase: ExpensePhase;
-  setPhase: (phase: ExpensePhase) => void;
-
-  // Receipts
-  receipts: Receipt[];
+interface ExpenseStore {
   addReceipt: (receipt: Receipt) => void;
-  insertReceiptAfter: (afterId: string, receipt: Receipt) => void;
-  updateReceipt: (id: string, updates: Partial<Receipt>) => void;
-  removeReceipt: (id: string) => void;
-  clearReceipts: () => void;
-
-  // Selection
-  selectedReceiptId: string | null;
-  setSelectedReceiptId: (id: string | null) => void;
 
   // AI-generated summary
   aiSummary: string;
-  setAiSummary: (summary: string) => void;
-  isGeneratingSummary: boolean;
-  setIsGeneratingSummary: (generating: boolean) => void;
+  allReceiptsReady: () => boolean;
+
+  // Campuses (for selection)
+  campuses: Campus[];
+  clearReceipts: () => void;
 
   // Assignment
   description: string;
-  setDescription: (description: string) => void;
+  expenseId: string | null;
+  insertReceiptAfter: (afterId: string, receipt: Receipt) => void;
+  isGeneratingSummary: boolean;
+  isReadyToSubmit: () => boolean;
+  // Phase management
+  phase: ExpensePhase;
+
+  // User profile
+  profile: Partial<Users>;
+
+  // Receipts
+  receipts: Receipt[];
+  removeReceipt: (id: string) => void;
+
+  // Reset
+  reset: () => void;
   selectedCampusId: string;
   selectedCampusName: string;
   selectedDepartmentId: string;
   selectedDepartmentName: string;
+
+  // Selection
+  selectedReceiptId: string | null;
+  setAiSummary: (summary: string) => void;
   setAssignment: (data: {
     campusId: string;
     campusName: string;
     departmentId: string;
     departmentName: string;
   }) => void;
-
-  // User profile
-  profile: Partial<Users>;
-  setProfile: (profile: Partial<Users>) => void;
-
-  // Campuses (for selection)
-  campuses: Campus[];
   setCampuses: (campuses: Campus[]) => void;
-
-  // Computed values
-  totalAmount: () => number;
-  isReadyToSubmit: () => boolean;
-  allReceiptsReady: () => boolean;
+  setDescription: (description: string) => void;
+  setExpenseId: (id: string | null) => void;
+  setIsGeneratingSummary: (generating: boolean) => void;
+  setPhase: (phase: ExpensePhase) => void;
+  setProfile: (profile: Partial<Users>) => void;
+  setSelectedReceiptId: (id: string | null) => void;
+  setSubmissionError: (error: string | null) => void;
 
   // Submission
   submissionError: string | null;
-  setSubmissionError: (error: string | null) => void;
-  expenseId: string | null;
-  setExpenseId: (id: string | null) => void;
 
-  // Reset
-  reset: () => void;
-};
+  // Computed values
+  totalAmount: () => number;
+  updateReceipt: (id: string, updates: Partial<Receipt>) => void;
+}
 
 const initialState = {
   phase: "draft" as ExpensePhase,

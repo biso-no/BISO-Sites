@@ -7,11 +7,11 @@ import { Building2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type DepartmentsGridProps = {
+interface DepartmentsGridProps {
+  activeCampusId?: string | null;
   departments: ContentTranslations[];
   locale: Locale;
-  activeCampusId?: string | null;
-};
+}
 
 export function DepartmentsGrid({
   departments,

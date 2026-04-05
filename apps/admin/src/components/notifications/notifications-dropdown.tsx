@@ -30,17 +30,17 @@ import { useNotifications } from "./use-notifications";
 export type NotificationType = "success" | "error" | "warning" | "info";
 export type NotificationPriority = "low" | "medium" | "high";
 
-export type Notification = {
-  id: string;
-  type: NotificationType;
-  priority: NotificationPriority;
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
+export interface Notification {
   actionUrl?: string;
+  id: string;
+  message: string;
   metadata?: Record<string, unknown>;
-};
+  priority: NotificationPriority;
+  read: boolean;
+  timestamp: string;
+  title: string;
+  type: NotificationType;
+}
 
 const typeConfig: Record<
   NotificationType,
@@ -73,13 +73,8 @@ const typeConfig: Record<
 };
 
 export function NotificationsDropdown() {
-  const {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-  } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications();
   const [open, setOpen] = useState(false);
 
   const handleNotificationClick = (notification: Notification) => {

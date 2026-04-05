@@ -1,4 +1,7 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { ArrowLeft, Tag, Users } from "lucide-react";
@@ -16,13 +19,19 @@ const categoryColors: Record<string, string> = {
   Membership: "bg-orange-100 text-orange-700 border-orange-200",
 };
 
-type ProductHeroProps = {
-  product: ContentTranslations;
+interface ProductHeroProps {
   isMember: boolean;
-};
+  product: WebshopProducts;
+}
 
 export function ProductHero({ product, isMember }: ProductHeroProps) {
-  const productRef = product.product_ref;
+  const productRef = product;
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
 
   const displayPrice = getDisplayPrice(
     productRef?.regular_price ?? 0,
@@ -47,7 +56,7 @@ export function ProductHero({ product, isMember }: ProductHeroProps) {
   return (
     <div className="relative h-[60vh] overflow-hidden">
       <ImageWithFallback
-        alt={product.title}
+        alt={translation?.title ?? "Product"}
         className="object-cover"
         fill
         priority
@@ -85,7 +94,7 @@ export function ProductHero({ product, isMember }: ProductHeroProps) {
             </div>
 
             <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
-              {product.title}
+              {translation?.title ?? "Untitled Product"}
             </h1>
 
             <div className="flex items-baseline gap-3">

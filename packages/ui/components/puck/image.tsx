@@ -42,7 +42,7 @@ export function Image({
   const aspectClasses = {
     video: "aspect-video",
     square: "aspect-square",
-    portrait: "aspect-[3/4]",
+    portrait: "aspect-3/4",
   } as const;
 
   const wrapperClassName = cn(

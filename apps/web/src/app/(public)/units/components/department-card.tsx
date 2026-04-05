@@ -16,10 +16,10 @@ import {
 import { motion } from "motion/react";
 import Link from "next/link";
 
-type DepartmentCardProps = {
+interface DepartmentCardProps {
   department: ContentTranslations;
   index: number;
-};
+}
 
 const typeColors: Record<string, string> = {
   committee: "bg-brand-muted text-brand border-brand-border-strong",
@@ -27,7 +27,7 @@ const typeColors: Record<string, string> = {
   service: "bg-green-100 text-green-700 border-green-200",
 };
 
-const typeIcons: Record<string, any> = {
+const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   committee: Target,
   team: Users,
   service: Heart,
@@ -65,8 +65,8 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
         {/* Card Header */}
         <div className="relative h-32 bg-linear-to-br from-brand-gradient-from to-brand-gradient-to p-6">
           <div className="absolute inset-0 opacity-10">
-            <div className="-translate-y-1/2 absolute top-0 right-0 h-32 w-32 translate-x-1/2 rounded-full bg-background" />
-            <div className="-translate-x-1/2 absolute bottom-0 left-0 h-24 w-24 translate-y-1/2 rounded-full bg-background" />
+            <div className="absolute top-0 right-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-background" />
+            <div className="absolute bottom-0 left-0 h-24 w-24 -translate-x-1/2 translate-y-1/2 rounded-full bg-background" />
           </div>
 
           <div className="relative flex items-start justify-between">
@@ -121,7 +121,7 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
               <Sparkles className="h-4 w-4 text-primary" />
               <span>
                 Aktiv på {socialsCount} plattform
-                {socialsCount !== 1 ? "er" : ""}
+                {socialsCount === 1 ? "" : "er"}
               </span>
             </div>
           )}

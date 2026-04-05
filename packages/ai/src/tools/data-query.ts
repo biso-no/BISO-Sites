@@ -31,10 +31,9 @@ export type QueryParams = z.infer<typeof querySchema>;
 /**
  * Result type for query operations
  */
-export type QueryResult = {
-  success: boolean;
-  entityType: string;
+export interface QueryResult {
   count: number;
+  entityType: string;
   items: Array<{
     id: string;
     title: string;
@@ -44,7 +43,8 @@ export type QueryResult = {
     summary?: string;
   }>;
   message?: string;
-};
+  success: boolean;
+}
 
 /**
  * Query handler type - implement this in your app to connect to your database
@@ -104,12 +104,12 @@ export type GetEntityParams = z.infer<typeof getEntitySchema>;
 /**
  * Result type for get entity operations
  */
-export type GetEntityResult = {
-  success: boolean;
-  entityType: string;
+export interface GetEntityResult {
   entity: Record<string, unknown> | null;
+  entityType: string;
   message?: string;
-};
+  success: boolean;
+}
 
 /**
  * Get entity handler type
@@ -163,8 +163,13 @@ export type DashboardStatsParams = z.infer<typeof dashboardStatsSchema>;
 /**
  * Dashboard stats result
  */
-export type DashboardStatsResult = {
-  success: boolean;
+export interface DashboardStatsResult {
+  message?: string;
+  recent?: {
+    events: Array<{ id: string; title: string; date?: string }>;
+    jobs: Array<{ id: string; title: string; deadline?: string }>;
+    pages: Array<{ id: string; title: string }>;
+  };
   stats: {
     events: { total: number; published: number; draft: number };
     jobs: { total: number; active: number; closed: number };
@@ -172,13 +177,8 @@ export type DashboardStatsResult = {
     products: { total: number; inStock: number; outOfStock: number };
     posts: { total: number; published: number; draft: number };
   };
-  recent?: {
-    events: Array<{ id: string; title: string; date?: string }>;
-    jobs: Array<{ id: string; title: string; deadline?: string }>;
-    pages: Array<{ id: string; title: string }>;
-  };
-  message?: string;
-};
+  success: boolean;
+}
 
 /**
  * Dashboard stats handler type

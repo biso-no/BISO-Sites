@@ -3,12 +3,12 @@ import { Card } from "@repo/ui/components/ui/card";
 import { QrCode } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-type MembershipCardProps = {
-  userName: string;
-  studentId: string;
-  membershipType: string;
+interface MembershipCardProps {
   expiryDate: string;
-};
+  membershipType: string;
+  studentId: string;
+  userName: string;
+}
 
 export function MembershipCard({
   userName,

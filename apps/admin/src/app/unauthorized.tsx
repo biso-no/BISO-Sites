@@ -94,8 +94,8 @@ export default function Unauthorized() {
 
       {/* Subtle floating shapes */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="-top-24 absolute left-1/4 h-48 w-48 rounded-full bg-white/5 blur-3xl" />
-        <div className="-bottom-24 absolute right-1/3 h-64 w-64 rounded-full bg-gold-default/5 blur-3xl" />
+        <div className="absolute -top-24 left-1/4 h-48 w-48 rounded-full bg-white/5 blur-3xl" />
+        <div className="absolute right-1/3 -bottom-24 h-64 w-64 rounded-full bg-gold-default/5 blur-3xl" />
       </div>
     </main>
   );

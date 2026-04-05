@@ -5,16 +5,16 @@
  * with proper error handling and state management.
  */
 
-export type StreamingState = {
-  isLoading: boolean;
+export interface StreamingState {
   error: Error | null;
-};
+  isLoading: boolean;
+}
 
-export type StreamingCallbacks = {
+export interface StreamingCallbacks {
   onChunk: (fullText: string) => void;
   onComplete?: (fullText: string) => void;
   onError?: (error: Error) => void;
-};
+}
 
 /**
  * Stream a response from an API endpoint

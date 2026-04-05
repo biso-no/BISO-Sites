@@ -18,12 +18,12 @@ import Image from "next/image";
 import { useState } from "react";
 import type { Receipt, ReceiptStatus } from "./store";
 
-type ReceiptCardProps = {
-  receipt: Receipt;
-  onUpdate: (updates: Partial<Receipt>) => void;
-  onRemove: () => void;
+interface ReceiptCardProps {
   index: number;
-};
+  onRemove: () => void;
+  onUpdate: (updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+}
 
 function StatusIndicator({ status }: { status: ReceiptStatus }) {
   const configs: Record<
@@ -241,7 +241,7 @@ export function ReceiptCard({
             <motion.div
               animate={{ opacity: 1, scale: 1 }}
               className={cn(
-                "-right-1 -top-1 absolute flex h-6 w-6 items-center justify-center rounded-full font-bold text-[10px] text-white shadow",
+                "absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full font-bold text-[10px] text-white shadow",
                 getConfidenceBadgeColor(receipt.confidence)
               )}
               initial={{ opacity: 0, scale: 0 }}

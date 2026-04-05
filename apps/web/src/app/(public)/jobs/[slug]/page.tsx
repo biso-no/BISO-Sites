@@ -1,3 +1,4 @@
+import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -5,11 +6,11 @@ import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobDetailsClient } from "@/components/jobs/job-details-client";
 
-type JobPageProps = {
+interface JobPageProps {
   params: {
     slug: string;
   };
-};
+}
 
 async function JobDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
@@ -67,8 +68,15 @@ export async function generateMetadata({ params }: JobPageProps) {
     };
   }
 
+  const translation = Array.isArray(job.translation_refs)
+    ? job.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+
   return {
-    title: `${job.title} | BISO Careers`,
-    description: job.description,
+    title: `${translation?.title ?? "Position"} | BISO Careers`,
+    description: translation?.description ?? "",
   };
 }

@@ -21,22 +21,22 @@ const pickByLocale = <T,>(
 ): T | undefined =>
   locale === "en" ? (enValue ?? nbValue) : (nbValue ?? enValue);
 
-type ProgramContent = {
-  title: string;
-  intro: string;
-  grantPoints: string[];
-  eligibility: string[];
-  steps: string[];
-  contact: string;
-  documents: Array<{ label: string; url: string }>;
-  faqs: Array<{ question: string; answer: string }>;
+interface ProgramContent {
   applicationUrl?: string | null;
-  heroImage?: string | null;
-  status?: string | null;
-  templateUrl?: string | null;
-  contactName?: string | null;
+  contact: string;
   contactEmail?: string | null;
-};
+  contactName?: string | null;
+  documents: Array<{ label: string; url: string }>;
+  eligibility: string[];
+  faqs: Array<{ question: string; answer: string }>;
+  grantPoints: string[];
+  heroImage?: string | null;
+  intro: string;
+  status?: string | null;
+  steps: string[];
+  templateUrl?: string | null;
+  title: string;
+}
 
 const buildProgramContent = (
   program: Awaited<ReturnType<typeof getFundingProgramBySlug>>,

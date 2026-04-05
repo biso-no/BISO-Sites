@@ -2,34 +2,33 @@
 
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
-import { Gift, Settings, Shield, Sparkles, User } from "lucide-react";
+import { Gift, Shield, Sparkles, User, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-type TabNavigationProps = {
-  defaultTab?: string;
+interface TabNavigationProps {
   benefitsCount: number;
-  isMember: boolean;
+  children: React.ReactNode;
+  defaultTab?: string;
   hasBIIdentity: boolean;
   isGuest?: boolean;
-  children: React.ReactNode;
-};
+  isMember: boolean;
+}
 
 const tabs = [
-  { id: "overview", icon: Sparkles },
-  { id: "profile", icon: User },
-  { id: "membership", icon: Shield, memberOnly: true },
+  { id: "home", icon: Sparkles },
   { id: "benefits", icon: Gift, memberOnly: true, showCount: true },
-  { id: "settings", icon: Settings },
+  { id: "campus", icon: Shield },
+  { id: "opportunities", icon: Zap },
+  { id: "membership", icon: Shield, memberOnly: true },
+  { id: "profile", icon: User },
 ];
 
 export function TabNavigation({
-  defaultTab = "overview",
+  defaultTab = "home",
   benefitsCount,
   isMember,
-  _hasBIIdentity,
-  _isGuest = false,
   children,
 }: TabNavigationProps) {
   const t = useTranslations("memberPortal.tabs");
@@ -40,9 +39,14 @@ export function TabNavigation({
     const hash = window.location.hash.slice(1);
     if (
       hash &&
-      ["overview", "profile", "membership", "benefits", "settings"].includes(
-        hash
-      )
+      [
+        "home",
+        "benefits",
+        "campus",
+        "opportunities",
+        "membership",
+        "profile",
+      ].includes(hash)
     ) {
       setActiveTab(hash);
     }
@@ -52,9 +56,14 @@ export function TabNavigation({
       const newHash = window.location.hash.slice(1);
       if (
         newHash &&
-        ["overview", "profile", "membership", "benefits", "settings"].includes(
-          newHash
-        )
+        [
+          "home",
+          "benefits",
+          "campus",
+          "opportunities",
+          "membership",
+          "profile",
+        ].includes(newHash)
       ) {
         setActiveTab(newHash);
       } else if (!newHash) {
@@ -77,7 +86,7 @@ export function TabNavigation({
         <TabsList className="inline-flex h-auto w-full min-w-max gap-2 rounded-2xl bg-section p-2 sm:w-auto dark:bg-inverted">
           {tabs.map((tab) => (
             <TabsTrigger
-              className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-muted-foreground transition-all duration-300 hover:text-foreground data-[state=active]:bg-gradient-to-r data-[state=active]:from-brand-gradient-from data-[state=active]:to-brand-gradient-to data-[state=active]:text-white data-[state=active]:shadow-lg dark:data-[state=active]:shadow-brand/30"
+              className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-muted-foreground transition-all duration-300 hover:text-foreground data-[state=active]:bg-linear-to-r data-[state=active]:from-brand-gradient-from data-[state=active]:to-brand-gradient-to data-[state=active]:text-white data-[state=active]:shadow-lg dark:data-[state=active]:shadow-brand/30"
               key={tab.id}
               value={tab.id}
             >

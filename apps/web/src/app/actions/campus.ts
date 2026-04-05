@@ -114,7 +114,7 @@ export async function getCampuses({
 /**
  * Get a single campus with its departments
  */
-async function getCampusWithDepartments(campusId: string) {
+async function _getCampusWithDepartments(campusId: string) {
   try {
     const { db } = await createSessionClient();
 

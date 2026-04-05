@@ -1,6 +1,5 @@
 "use client";
 
-import { initiateVippsCheckout } from "@repo/payment/actions";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -8,6 +7,7 @@ import { Check, CreditCard, Sparkles, Users, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 
 type MembershipDuration = "semester" | "year" | "three-year";
 
@@ -79,8 +79,8 @@ export function MembershipCtaSection() {
     <section className="relative overflow-hidden py-16">
       {/* Background decorations */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="-left-20 absolute top-20 h-72 w-72 rounded-full bg-brand opacity-10 blur-3xl" />
-        <div className="-right-20 absolute bottom-20 h-96 w-96 rounded-full bg-cyan-300 opacity-10 blur-3xl" />
+        <div className="absolute top-20 -left-20 h-72 w-72 rounded-full bg-brand opacity-10 blur-3xl" />
+        <div className="absolute -right-20 bottom-20 h-96 w-96 rounded-full bg-cyan-300 opacity-10 blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -115,8 +115,8 @@ export function MembershipCtaSection() {
               transition={{ delay: index * 0.1 }}
             >
               {option.popular && (
-                <div className="-top-4 -translate-x-1/2 absolute left-1/2 z-10">
-                  <Badge className="border-0 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to px-4 py-1.5 text-white shadow-lg">
+                <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+                  <Badge className="border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to px-4 py-1.5 text-white shadow-lg">
                     <Zap className="mr-1.5 h-3.5 w-3.5" />
                     {t("cta.popular")}
                   </Badge>
@@ -168,7 +168,7 @@ export function MembershipCtaSection() {
           <div className="grid gap-3 sm:grid-cols-2">
             {MEMBERSHIP_BENEFITS.map((benefit, index) => (
               <div className="flex items-center gap-3" key={index}>
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-gradient-from to-brand-gradient-to">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
                   <Check className="h-3.5 w-3.5 text-white" />
                 </div>
                 <span className="text-muted-foreground text-sm dark:text-muted-foreground">
@@ -187,7 +187,7 @@ export function MembershipCtaSection() {
           transition={{ delay: 0.5 }}
         >
           <Button
-            className="h-14 bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to px-10 text-lg text-white shadow-brand/30 shadow-xl hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+            className="h-14 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to px-10 text-lg text-white shadow-brand/30 shadow-xl hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
             disabled={isPending}
             onClick={handlePurchase}
             size="lg"

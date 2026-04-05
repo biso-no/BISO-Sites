@@ -67,9 +67,9 @@ export function Login() {
   return (
     <div className="relative w-full max-w-md overflow-hidden rounded-2xl shadow-xl">
       {/* Background decoration */}
-      <div className="-z-10 absolute inset-0 overflow-hidden">
-        <div className="-top-10 -right-10 absolute h-120 w-120 rounded-full bg-blue-accent/5 blur-3xl" />
-        <div className="-bottom-20 -left-10 absolute h-100 w-100 rounded-full bg-secondary-100/5 blur-3xl" />
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-10 -right-10 h-120 w-120 rounded-full bg-blue-accent/5 blur-3xl" />
+        <div className="absolute -bottom-20 -left-10 h-100 w-100 rounded-full bg-secondary-100/5 blur-3xl" />
       </div>
 
       <div className="glass-dark rounded-2xl border border-white/5 p-8">
@@ -112,7 +112,7 @@ export function Login() {
           </div>
 
           <button
-            className="hover:-translate-y-0.5 group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-blue-accent to-secondary-100 py-3 font-medium text-white shadow-glow-blue transition-all duration-300 hover:shadow-glow"
+            className="group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-blue-accent to-secondary-100 py-3 font-medium text-white shadow-glow-blue transition-all duration-300 hover:-translate-y-0.5 hover:shadow-glow"
             disabled={isLoading}
             type="submit"
           >
@@ -120,7 +120,7 @@ export function Login() {
               <span className="flex items-center justify-center">
                 <svg
                   aria-label="Loading"
-                  className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
+                  className="mr-2 -ml-1 h-4 w-4 animate-spin text-white"
                   fill="none"
                   role="img"
                   viewBox="0 0 24 24"

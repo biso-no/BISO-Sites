@@ -1,14 +1,14 @@
 import { createSessionClient } from "@repo/api/server";
-import { verifyOrderStatus } from "@repo/payment/vipps";
+import { getVippsSession } from "@repo/payment/vipps";
+import { updateOrderStatus } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
 
 /**
  * Checkout Return Endpoint
  *
- * This is where users are redirected after completing (or cancelling) payment with Vipps.
- * We verify the order status with Vipps to ensure it's up-to-date before showing the result.
- *
- * This handles race conditions where the webhook might not have been processed yet.
+ * Redirects here after completing (or cancelling) payment with Vipps.
+ * Verifies order status with Vipps to ensure it's up-to-date before showing result.
+ * Handles race conditions where the webhook might not have been processed yet.
  */
 export async function GET(request: Request) {
   try {
@@ -24,11 +24,8 @@ export async function GET(request: Request) {
 
     console.log(`[Checkout Return] Verifying order status for: ${orderId}`);
 
-    // Get database client from user session
     const { db } = await createSessionClient();
-
-    // Verify and update order status with Vipps
-    const order = await verifyOrderStatus(orderId, db);
+    const order = await db.getRow("app", "orders", orderId);
 
     if (!order) {
       console.error(`[Checkout Return] Order not found: ${orderId}`);
@@ -37,13 +34,28 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(`[Checkout Return] Order ${orderId} status: ${order.status}`);
+    if (order.payment_session_id && order.payment_provider === "vipps") {
+      try {
+        const { paymentState, sessionData } = await getVippsSession(
+          order.payment_session_id
+        );
+        await updateOrderStatus(orderId, paymentState, sessionData, db);
+      } catch (err) {
+        console.error(
+          "[Checkout Return] Vipps session verification failed:",
+          err
+        );
+      }
+    }
 
-    // Redirect based on order status
-    switch (order.status) {
+    const updatedOrder = await db.getRow("app", "orders", orderId);
+    const status = updatedOrder?.status ?? order.status;
+
+    console.log(`[Checkout Return] Order ${orderId} status: ${status}`);
+
+    switch (status) {
       case "paid":
       case "authorized":
-        // Success - redirect to success page
         return NextResponse.redirect(
           new URL(
             `/shop/order/${orderId}?success=true`,
@@ -51,12 +63,10 @@ export async function GET(request: Request) {
           )
         );
       case "cancelled":
-        // User cancelled - redirect back to cart
         return NextResponse.redirect(
           new URL("/shop/cart?cancelled=true", process.env.NEXT_PUBLIC_BASE_URL)
         );
       case "failed":
-        // Payment failed - redirect with error
         return NextResponse.redirect(
           new URL(
             "/shop/cart?error=payment_failed",
@@ -64,7 +74,6 @@ export async function GET(request: Request) {
           )
         );
       default:
-        // Still pending or unknown - redirect to order page
         return NextResponse.redirect(
           new URL(`/shop/order/${orderId}`, process.env.NEXT_PUBLIC_BASE_URL)
         );

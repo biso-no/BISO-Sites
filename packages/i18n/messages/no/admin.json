@@ -29,6 +29,7 @@
     "units": "Enheter",
     "users": "Brukere",
     "membership": "Medlemskap",
+    "benefits": "Fordeler",
     "varsling": "Varsling",
     "settings": "Innstillinger"
   },
@@ -49,6 +50,12 @@
   },
   "alumniSubItems": {
     "mentorApprovals": "Mentorgodkjenninger"
+  },
+  "benefitsSubItems": {
+    "allBenefits": "Alle fordeler",
+    "createBenefit": "Opprett fordel",
+    "partners": "Partnere",
+    "analytics": "Analyse"
   },
   "settingsSubItems": {
     "navigation": "Navigasjon",
@@ -103,7 +110,9 @@
       "admin": "Admin",
       "pr": "PR og kommunikasjon",
       "finance": "Økonomi",
-      "hr": "HR"
+      "hr": "HR",
+      "campusAdmin": "Campus administrator",
+      "department": "Avdelings administrator"
     },
     "hero": {
       "badge": "BISO Admin",

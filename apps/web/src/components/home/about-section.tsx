@@ -11,11 +11,11 @@ import {
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
-type AboutClientProps = {
+interface AboutClientProps {
+  departmentsCount: number;
   eventCount: number;
   jobCount: number;
-  departmentsCount: number;
-};
+}
 
 export function AboutSection({
   eventCount,
@@ -127,7 +127,7 @@ export function AboutSection({
                 />
               </video>
             </div>
-            <div className="-bottom-6 -right-6 absolute h-32 w-32 rounded-2xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to opacity-20 blur-2xl" />
+            <div className="absolute -right-6 -bottom-6 h-32 w-32 rounded-2xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to opacity-20 blur-2xl" />
           </motion.div>
         </div>
 
@@ -141,7 +141,7 @@ export function AboutSection({
               viewport={{ once: true }}
               whileInView={{ opacity: 1, y: 0 }}
             >
-              <Card className="hover:-translate-y-2 border-0 p-8 shadow-lg transition-all duration-300 hover:shadow-xl">
+              <Card className="border-0 p-8 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
                 <div
                   className={`mb-6 h-16 w-16 rounded-2xl bg-linear-to-br ${value.gradient} flex items-center justify-center shadow-lg`}
                 >

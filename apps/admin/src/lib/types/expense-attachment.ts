@@ -1,9 +1,9 @@
 import type { Models } from "@repo/api";
 
 export interface ExpenseAttachment extends Models.Row {
-  date: Date;
-  url: string;
   amount: number;
+  date: Date;
   description: string;
   type: string;
+  url: string;
 }

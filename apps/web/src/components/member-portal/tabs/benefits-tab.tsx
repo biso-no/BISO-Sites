@@ -1,6 +1,6 @@
 "use client";
 
-import type { MemberBenefit } from "@repo/api/types/appwrite";
+import type { CampusBenefit } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
@@ -23,12 +23,13 @@ import { BenefitCard } from "../shared/benefit-card";
 import { BenefitPreviewCard } from "../shared/benefit-preview-card";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 
-type BenefitsTabProps = {
-  benefits: MemberBenefit[];
-  revealedBenefits: Set<string>;
-  isMember: boolean;
+interface BenefitsTabProps {
+  benefits: CampusBenefit[];
+  featuredBenefits?: CampusBenefit[];
   hasBIIdentity: boolean;
-};
+  isMember: boolean;
+  revealedBenefits: Set<string>;
+}
 
 const categories = [
   { id: "all", icon: Sparkles, label: "All" },
@@ -41,55 +42,11 @@ const categories = [
   { id: "Education", icon: GraduationCap, label: "Education" },
 ];
 
-// Preview benefits for non-members
-const PREVIEW_BENEFITS = [
-  {
-    category: "Food & Drink",
-    partnerName: "Restaurant Partner",
-    discountText: "20% off",
-  },
-  {
-    category: "Entertainment",
-    partnerName: "Cinema & Events",
-    discountText: "15% off",
-  },
-  {
-    category: "Career",
-    partnerName: "Professional Development",
-    discountText: "Member Only",
-  },
-  {
-    category: "Health & Fitness",
-    partnerName: "Gym & Wellness",
-    discountText: "25% off",
-  },
-  {
-    category: "Software",
-    partnerName: "Tech & Tools",
-    discountText: "50% off",
-  },
-  {
-    category: "Travel",
-    partnerName: "Student Travel",
-    discountText: "Up to 30% off",
-  },
-  {
-    category: "Food & Drink",
-    partnerName: "Coffee Shop",
-    discountText: "Free upgrade",
-  },
-  {
-    category: "Entertainment",
-    partnerName: "Streaming Service",
-    discountText: "3 months free",
-  },
-];
-
 function MemberBenefitsView({
   benefits,
   revealedBenefits,
 }: {
-  benefits: MemberBenefit[];
+  benefits: CampusBenefit[];
   revealedBenefits: Set<string>;
 }) {
   const t = useTranslations("memberPortal.benefits");
@@ -100,9 +57,12 @@ function MemberBenefitsView({
     const matchesCategory =
       selectedCategory === "all" || benefit.category === selectedCategory;
     const matchesSearch =
-      benefit.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      benefit.partner?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      benefit.description.toLowerCase().includes(searchQuery.toLowerCase());
+      benefit.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      benefit.title_nb.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (benefit.partner_name ?? "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      benefit.description_en.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -149,7 +109,7 @@ function MemberBenefitsView({
       >
         {/* Search bar */}
         <div className="relative">
-          <Search className="-translate-y-1/2 absolute top-1/2 left-4 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="h-12 pl-12 text-base"
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -168,7 +128,7 @@ function MemberBenefitsView({
               <Button
                 className={`h-auto rounded-full px-4 py-2 transition-all ${
                   isActive
-                    ? "bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
+                    ? "bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
                     : "bg-section text-muted-foreground hover:bg-brand-muted hover:text-brand dark:bg-inverted"
                 }`}
                 key={category.id}
@@ -201,13 +161,13 @@ function MemberBenefitsView({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               initial={{ opacity: 0, scale: 0.95 }}
-              key={benefit.id}
+              key={benefit.$id}
               layout
               transition={{ duration: 0.2, delay: index * 0.05 }}
             >
               <BenefitCard
                 benefit={benefit}
-                isRevealed={revealedBenefits.has(benefit.id)}
+                isRevealed={revealedBenefits.has(benefit.$id)}
               />
             </motion.div>
           ))}
@@ -246,14 +206,14 @@ function MemberBenefitsView({
   );
 }
 
-function NonMemberBenefitsView() {
+function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefit[] }) {
   const t = useTranslations("memberPortal.benefits");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   const filteredBenefits =
     selectedCategory === "all"
-      ? PREVIEW_BENEFITS
-      : PREVIEW_BENEFITS.filter((b) => b.category === selectedCategory);
+      ? benefits.slice(0, 8)
+      : benefits.filter((b) => b.category === selectedCategory).slice(0, 8);
 
   return (
     <>
@@ -291,7 +251,7 @@ function NonMemberBenefitsView() {
             <Button
               className={`h-auto rounded-full px-4 py-2 transition-all ${
                 isActive
-                  ? "bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
+                  ? "bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
                   : "bg-section text-muted-foreground hover:bg-brand-muted hover:text-brand dark:bg-inverted"
               }`}
               key={category.id}
@@ -319,9 +279,9 @@ function NonMemberBenefitsView() {
             >
               <BenefitPreviewCard
                 category={benefit.category}
-                discountText={benefit.discountText}
+                discountText={benefit.teaser_en || benefit.title_en}
                 index={index}
-                partnerName={benefit.partnerName}
+                partnerName={benefit.partner_name || "Partner"}
               />
             </motion.div>
           ))}
@@ -336,9 +296,10 @@ function NonMemberBenefitsView() {
 
 export function BenefitsTab({
   benefits,
+  featuredBenefits: _featuredBenefits = [],
   revealedBenefits,
   isMember,
-  _hasBIIdentity,
+  hasBIIdentity: _hasBIIdentity,
 }: BenefitsTabProps) {
   return (
     <TabsContent className="space-y-8" value="benefits">
@@ -348,7 +309,7 @@ export function BenefitsTab({
           revealedBenefits={revealedBenefits}
         />
       ) : (
-        <NonMemberBenefitsView />
+        <NonMemberBenefitsView benefits={benefits} />
       )}
     </TabsContent>
   );

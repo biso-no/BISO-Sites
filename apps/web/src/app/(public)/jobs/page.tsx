@@ -48,13 +48,13 @@ async function JobsList({
 
   // Calculate stats for hero
   const paidPositions = jobs.filter((job) => {
-    const jobMetadata = job.job_ref?.metadata as Record<string, any>;
+    const jobMetadata = job.metadata as Record<string, unknown>;
     return jobMetadata.paid === true;
   }).length;
 
   const departmentCount =
-    new Set(jobs.map((job) => job.job_ref?.department_id).filter(Boolean))
-      .size || jobCategories.length;
+    new Set(jobs.map((job) => job.department_id).filter(Boolean)).size ||
+    jobCategories.length;
 
   return (
     <>

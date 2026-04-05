@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -23,11 +23,11 @@ import {
   parseEventMetadata,
 } from "@/lib/types/event";
 
-type EventDetailModalProps = {
-  event: ContentTranslations;
+interface EventDetailModalProps {
+  event: Events;
   isMember?: boolean;
   onClose: () => void;
-};
+}
 
 const categoryColors: Record<EventCategory, string> = {
   Social: "bg-purple-100 text-purple-700 border-purple-200",
@@ -101,7 +101,15 @@ export function EventDetailModal({
   onClose,
 }: EventDetailModalProps) {
   const t = useTranslations("events");
-  const eventData = event.event_ref;
+  const eventData = event;
+  const translation = Array.isArray(event.translation_refs)
+    ? event.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
+  const description = translation?.description ?? "";
 
   // Parse metadata if available
   const metadata = parseEventMetadata(eventData?.metadata);
@@ -162,7 +170,7 @@ export function EventDetailModal({
           {/* Header Image */}
           <div className="relative h-80 overflow-hidden rounded-t-2xl">
             <ImageWithFallback
-              alt={event.title}
+              alt={title}
               className="object-cover"
               fill
               src={imageUrl}
@@ -198,7 +206,7 @@ export function EventDetailModal({
               <div className="flex items-end justify-between">
                 <div className="flex-1">
                   <h2 className="mb-2 font-bold text-4xl text-white">
-                    {event.title}
+                    {title}
                   </h2>
                 </div>
                 <div className="ml-4">
@@ -286,7 +294,7 @@ export function EventDetailModal({
               </h3>
               <div className="prose prose-gray max-w-none">
                 <p className="whitespace-pre-line text-muted-foreground">
-                  {event.description}
+                  {description}
                 </p>
               </div>
             </div>

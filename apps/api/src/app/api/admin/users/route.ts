@@ -223,7 +223,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Create user document in Appwrite
-    const appwriteUser = await adminDb.createRow("app", "user", graphUser.id, {
+    const _appwriteUser = await adminDb.createRow("app", "user", graphUser.id, {
       name: displayName,
       email: upn,
       campus_id: input.campusId,
@@ -260,10 +260,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       temporaryPassword: password,
       groupsAssigned: groupsToAssign,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create user" },
+      {
+        error: error instanceof Error ? error.message : "Failed to create user",
+      },
       { status: 500 }
     );
   }

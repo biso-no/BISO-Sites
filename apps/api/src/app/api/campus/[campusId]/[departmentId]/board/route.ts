@@ -7,14 +7,14 @@ import { NextResponse } from "next/server";
 const MANAGER_ROLE_REGEX = /manager|president/i;
 
 // --- Types ---
-type DepartmentMember = {
-  name: string;
+interface DepartmentMember {
   email: string;
-  phone: string;
-  role: string;
+  name: string;
   officeLocation: string;
+  phone: string;
   profilePhotoUrl?: string;
-};
+  role: string;
+}
 
 const CAMPUS_MAPPINGS = [
   {
@@ -86,7 +86,7 @@ export async function GET(
       try {
         const department = await db.getRow("app", "departments", departmentId);
         departmentName = department.Name || departmentId;
-      } catch (error) {
+      } catch (_error) {
         return NextResponse.json(
           { success: false, message: `Department ${departmentId} not found` },
           { status: 404 }
@@ -135,13 +135,15 @@ export async function GET(
     console.log("[DEBUG] Users returned from Graph:", matchedUsers.length);
     console.log("[DEBUG] @odata.count:", response["@odata.count"]);
 
-    const members: DepartmentMember[] = matchedUsers.map((user: any) => ({
-      name: user.displayName || "",
-      email: user.mail || "",
-      phone: user.businessPhones?.[0] || user.mobilePhone || "",
-      role: user.jobTitle || "",
-      officeLocation: user.officeLocation || campusInfo.officeFilter,
-    }));
+    const members: DepartmentMember[] = matchedUsers.map(
+      (user: Record<string, unknown>) => ({
+        name: user.displayName || "",
+        email: user.mail || "",
+        phone: user.businessPhones?.[0] || user.mobilePhone || "",
+        role: user.jobTitle || "",
+        officeLocation: user.officeLocation || campusInfo.officeFilter,
+      })
+    );
 
     // Sort: Managers/Presidents first
     members.sort((a, b) => {
@@ -174,7 +176,7 @@ export async function GET(
 
           const base64 = Buffer.from(photoStream).toString("base64");
           member.profilePhotoUrl = `data:image/jpeg;base64,${base64}`;
-        } catch (e) {
+        } catch (_e) {
           // No photo found, skip silently
         }
       })
@@ -187,12 +189,13 @@ export async function GET(
       departmentName,
       campus: campusInfo.name,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Internal Server Error",
+        message:
+          error instanceof Error ? error.message : "Internal Server Error",
       },
       { status: 500 }
     );

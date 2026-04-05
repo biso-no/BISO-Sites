@@ -12,14 +12,14 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import type { ElementType } from "react";
 
-type Param = {
+interface Param {
   slug?: string[];
-};
+}
 
 interface MDX extends PageData {
   body: ElementType;
-  toc: TOCItemType[];
   full: boolean;
+  toc: TOCItemType[];
 }
 
 export default async function Page(props: { params: Promise<Param> }) {

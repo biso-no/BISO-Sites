@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 
 type CalloutType = "info" | "warning" | "danger" | "success" | "note" | "tip";
 
-type CalloutProps = {
-  type?: CalloutType;
-  title?: string;
+interface CalloutProps {
   children: ReactNode;
-};
+  title?: string;
+  type?: CalloutType;
+}
 
 const calloutStyles: Record<
   CalloutType,

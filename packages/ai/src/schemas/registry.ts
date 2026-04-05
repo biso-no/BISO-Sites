@@ -5,16 +5,16 @@ import type { FormFieldInfo } from "../types";
 /**
  * Schema definition for an admin capability
  */
-export type CapabilitySchema = {
+export interface CapabilitySchema {
+  description: string;
+  formFields: FormFieldInfo[];
   id: PageCapability;
   label: string;
-  description: string;
   path: string;
   pathPattern?: RegExp;
-  formFields: FormFieldInfo[];
-  zodSchema: z.ZodObject<z.ZodRawShape>;
   requiredRoles?: string[];
-};
+  zodSchema: z.ZodObject<z.ZodRawShape>;
+}
 
 /**
  * Event form schema

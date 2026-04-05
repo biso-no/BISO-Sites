@@ -1,30 +1,14 @@
 "use server";
 
 import { ID, type Models, OAuthProvider } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-type DashboardCard = {
-  id: string;
-  title: string;
-  groupId: string | null;
-};
-
-type Group = {
-  id: string;
-  name: string;
-};
-
-type DashboardConfig = {
-  layout: DashboardCard[];
-  groups: Group[];
-};
-
 export async function signInWithAzure() {
-  const { account } = await createSessionClient();
+  const { account } = await createAdminClient();
 
   const origin = (await headers()).get("origin");
 
@@ -78,13 +62,13 @@ async function _createMagicLinkSession(userId: string, secret: string) {
 type Team = Models.Team;
 type Teams = Models.TeamList<Models.Preferences>;
 async function _getTeams(query: string[]): Promise<Teams> {
-  const { account, teams } = await createSessionClient();
+  const { teams } = await createSessionClient();
 
   return teams.list(query);
 }
 
 async function _getTeam(teamId: string): Promise<Team> {
-  const { account, teams } = await createSessionClient();
+  const { teams } = await createSessionClient();
 
   return teams.get(teamId);
 }

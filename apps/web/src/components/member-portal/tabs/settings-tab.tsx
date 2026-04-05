@@ -20,9 +20,9 @@ import {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-type SettingsTabProps = {
+interface SettingsTabProps {
   bankAccount?: string;
-};
+}
 
 export function SettingsTab({
   bankAccount: initialBankAccount,

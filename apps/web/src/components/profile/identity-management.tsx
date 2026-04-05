@@ -15,11 +15,11 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { removeIdentity } from "@/lib/actions/user";
 
-type Identity = {
+interface Identity {
   $id: string;
   provider: string;
   providerUid?: string;
-};
+}
 
 export function IdentityManagement({
   initialIdentities,

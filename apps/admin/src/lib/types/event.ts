@@ -1,27 +1,23 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import type { TranslationMap } from "@/lib/utils/content-translations";
 
-export type EventMetadata = {
-  start_date?: string;
-  end_date?: string;
-  start_time?: string;
-  end_time?: string;
-  location?: string;
-  price?: number;
-  ticket_url?: string;
-  image?: string;
-  units?: string[];
-  department_id?: string;
-  category?: string;
-  attendees?: number;
-  member_price?: number;
-  highlights?: string[];
+export interface EventMetadata {
   agenda?: { time: string; activity: string }[];
+  attendees?: number;
+  category?: string;
+  department_id?: string;
+  end_date?: string;
+  end_time?: string;
+  highlights?: string[];
+  image?: string;
+  location?: string;
+  member_price?: number;
+  price?: number;
+  start_date?: string;
+  start_time?: string;
+  ticket_url?: string;
+  units?: string[];
   [key: string]: unknown;
-};
-
-interface EventWithTranslation extends ContentTranslations {
-  event_ref: NonNullable<ContentTranslations["event_ref"]>;
 }
 
 export const eventCategories = [
@@ -36,9 +32,9 @@ export type EventCategory = (typeof eventCategories)[number];
 export type CollectionPricing = "bundle" | "individual";
 
 export interface AdminEvent extends Events {
+  metadata_parsed: EventMetadata;
   translation_refs: ContentTranslations[];
   translations: TranslationMap;
-  metadata_parsed: EventMetadata;
 }
 
 function _parseEventMetadata(

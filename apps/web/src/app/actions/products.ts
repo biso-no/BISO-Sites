@@ -2,43 +2,56 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  type ContentTranslations,
-  ContentType,
-} from "@repo/api/types/appwrite";
+import type { Locale, WebshopProducts } from "@repo/api/types/appwrite";
 
 export async function getProduct(
   id: string,
   locale: "en" | "no"
-): Promise<ContentTranslations | null> {
+): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
 
-    // Query content_translations by content_id and locale
-    const translationsResponse = await db.listRows<ContentTranslations>(
+    const response = await db.listRows<WebshopProducts>(
       "app",
-      "content_translations",
+      "webshop_products",
       [
-        Query.equal("content_type", ContentType.PRODUCT),
-        Query.equal("content_id", id),
-        Query.equal("locale", locale),
+        Query.equal("$id", id),
+        Query.equal("translation_refs.locale", locale as Locale),
         Query.select([
-          "content_id",
           "$id",
-          "locale",
-          "title",
-          "description",
-          "product_ref.*",
+          "$createdAt",
+          "$updatedAt",
+          "slug",
+          "status",
+          "campus_id",
+          "category",
+          "regular_price",
+          "member_price",
+          "member_only",
+          "image",
+          "stock",
+          "metadata",
+          "departmentId",
+          "campus.$id",
+          "campus.name",
+          "department.$id",
+          "department.Name",
+          "translation_refs.$id",
+          "translation_refs.$createdAt",
+          "translation_refs.$updatedAt",
+          "translation_refs.content_id",
+          "translation_refs.content_type",
+          "translation_refs.locale",
+          "translation_refs.title",
+          "translation_refs.description",
+          "translation_refs.short_description",
+          "translation_refs.additional_fields",
         ]),
         Query.limit(1),
       ]
     );
 
-    if (translationsResponse.rows.length === 0) {
-      return null;
-    }
-
-    return translationsResponse.rows[0] ?? null;
+    return response.rows[0] ?? null;
   } catch (error) {
     console.error("Error getting product:", error);
     return null;

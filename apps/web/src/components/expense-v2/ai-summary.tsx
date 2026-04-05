@@ -6,14 +6,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 
-type AiSummaryProps = {
-  summary: string;
+interface AiSummaryProps {
   isGenerating: boolean;
   onGenerate: () => void;
   onUpdate: (summary: string) => void;
-  totalAmount: number;
   receiptCount: number;
-};
+  summary: string;
+  totalAmount: number;
+}
 
 export function AiSummary({
   summary,
@@ -66,7 +66,7 @@ export function AiSummary({
             <div>
               <h3 className="font-semibold">AI Summary</h3>
               <p className="text-muted-foreground text-sm">
-                {receiptCount} receipt{receiptCount !== 1 ? "s" : ""} •{" "}
+                {receiptCount} receipt{receiptCount === 1 ? "" : "s"} •{" "}
                 {totalAmount.toLocaleString("nb-NO")} NOK
               </p>
             </div>

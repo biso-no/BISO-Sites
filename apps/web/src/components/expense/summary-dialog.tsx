@@ -12,9 +12,7 @@ import {
 import { Separator } from "@repo/ui/components/ui/separator";
 import { Building2 } from "lucide-react";
 
-type SummaryDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface SummaryDialogProps {
   data: {
     profile: {
       name?: string | null;
@@ -36,9 +34,11 @@ type SummaryDialogProps = {
     description: string;
     total: number;
   };
-  onSubmit: () => void;
   isSubmitting?: boolean;
-};
+  onOpenChange: (open: boolean) => void;
+  onSubmit: () => void;
+  open: boolean;
+}
 
 export function SummaryDialog({
   open,

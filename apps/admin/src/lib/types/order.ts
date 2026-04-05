@@ -1,5 +1,3 @@
-import type { Models } from "@repo/api";
-
 export type OrderStatus =
   | "pending"
   | "authorized"
@@ -8,36 +6,15 @@ export type OrderStatus =
   | "failed"
   | "refunded";
 
-export type OrderItem = {
+export interface OrderItem {
+  custom_field_responses?: Record<string, string>;
+  custom_fields?: { id: string; label: string; value: string }[];
   product_id: string;
   product_slug?: string;
+  quantity: number;
   title?: string;
   unit_price: number;
-  quantity: number;
   variation_id?: string;
   variation_name?: string;
   variation_price?: number;
-  custom_field_responses?: Record<string, string>;
-  custom_fields?: { id: string; label: string; value: string }[];
-};
-
-interface Order extends Models.Row {
-  status: OrderStatus;
-  userId?: string;
-  buyer_name?: string;
-  buyer_email?: string;
-  buyer_phone?: string;
-  currency: "NOK";
-  subtotal: number;
-  discount_total?: number;
-  total: number;
-  items?: OrderItem[];
-  items_json?: string;
-  campus_id?: string;
-  membership_applied?: boolean;
-  member_discount_percent?: number;
-  vipps_session_id?: string;
-  vipps_order_id?: string;
-  vipps_payment_link?: string;
-  vipps_receipt_url?: string;
 }

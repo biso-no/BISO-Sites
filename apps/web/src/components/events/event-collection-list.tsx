@@ -1,4 +1,4 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
@@ -8,13 +8,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { formatEventPrice } from "@/lib/types/event";
 
-type EventCollectionListProps = {
-  currentEventId: string;
-  collectionEvents: ContentTranslations[];
-  isCollectionParent: boolean;
+interface EventCollectionListProps {
+  collectionEvents: Events[];
   collectionPricing: string | null;
+  currentEventId: string;
+  isCollectionParent: boolean;
   priceDisplay: string;
-};
+}
 
 export function EventCollectionList({
   currentEventId,
@@ -72,7 +72,13 @@ export function EventCollectionList({
         {collectionEvents
           .filter((e) => e.$id !== currentEventId)
           .map((collectionEvent) => {
-            const colEventData = collectionEvent.event_ref;
+            const colEventData = collectionEvent;
+            const translation = Array.isArray(collectionEvent.translation_refs)
+              ? collectionEvent.translation_refs.find(
+                  (item): item is ContentTranslations =>
+                    typeof item === "object" && item !== null && "title" in item
+                )
+              : null;
             const colStartDate = colEventData?.start_date
               ? format(new Date(colEventData.start_date), "MMMM d, yyyy")
               : t("card.tba");
@@ -93,14 +99,14 @@ export function EventCollectionList({
 
             return (
               <Link
-                href={`/events/${collectionEvent.content_id}`}
+                href={`/events/${collectionEvent.$id}`}
                 key={collectionEvent.$id}
               >
                 <Card className="cursor-pointer p-4 transition-shadow hover:shadow-md">
                   <div className="flex items-start gap-4">
                     <div className="relative h-20 w-20 shrink-0">
                       <ImageWithFallback
-                        alt={collectionEvent.title}
+                        alt={translation?.title ?? "Event"}
                         className="rounded-lg object-cover"
                         fill
                         src={colImage}
@@ -109,7 +115,7 @@ export function EventCollectionList({
                     <div className="min-w-0 flex-1">
                       <div className="mb-2 flex items-start justify-between gap-2">
                         <h3 className="font-semibold text-foreground">
-                          {collectionEvent.title}
+                          {translation?.title ?? "Untitled"}
                         </h3>
                         {collectionPricing === "individual" && (
                           <span className="whitespace-nowrap font-medium text-brand text-sm">

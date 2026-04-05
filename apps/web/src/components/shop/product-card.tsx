@@ -1,6 +1,9 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -14,12 +17,12 @@ import {
   getDisplayPrice,
 } from "@/lib/types/webshop";
 
-type ProductCardProps = {
-  product: ContentTranslations;
+interface ProductCardProps {
   index: number;
   isMember?: boolean;
-  onViewDetails: (product: ContentTranslations) => void;
-};
+  onViewDetails: (product: WebshopProducts) => void;
+  product: WebshopProducts;
+}
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",
@@ -35,11 +38,16 @@ export function ProductCard({
   onViewDetails,
 }: ProductCardProps) {
   const t = useTranslations("shop");
-  const productData = product.product_ref;
-
-  if (!productData) {
-    return null;
-  }
+  const productData = product;
+  const translation = Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled Product";
+  const description = translation?.description ?? "";
+  const shortDescriptionText = translation?.short_description ?? "";
 
   const displayPrice = getDisplayPrice(
     productData.regular_price,
@@ -56,10 +64,10 @@ export function ProductCard({
   );
 
   const shortDescription =
-    product.short_description ||
-    (product.description.length > 100
-      ? `${product.description.substring(0, 100)}...`
-      : product.description);
+    shortDescriptionText ||
+    (description.length > 100
+      ? `${description.slice(0, 100)}...`
+      : description);
 
   const imageUrl = productData.image || "/images/logo-home.png";
 
@@ -73,7 +81,7 @@ export function ProductCard({
         {/* Image */}
         <div className="relative h-64 overflow-hidden">
           <ImageWithFallback
-            alt={product.title}
+            alt={title}
             className="object-cover transition-transform duration-500 group-hover:scale-110"
             fill
             sizes="(max-width: 768px) 100vw, 400px"
@@ -123,7 +131,7 @@ export function ProductCard({
         {/* Content */}
         <div className="flex grow flex-col p-6">
           <h3 className="mb-3 font-semibold text-foreground text-xl">
-            {product.title}
+            {title}
           </h3>
           <p className="mb-4 line-clamp-2 grow text-muted-foreground text-sm">
             {shortDescription}

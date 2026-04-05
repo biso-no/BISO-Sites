@@ -8,9 +8,9 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Linkedin, Mail } from "lucide-react";
 
-type TeamMemberCardProps = {
+interface TeamMemberCardProps {
   member: DepartmentBoard;
-};
+}
 
 function getInitials(name: string): string {
   return name

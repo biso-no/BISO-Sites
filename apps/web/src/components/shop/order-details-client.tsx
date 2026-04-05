@@ -124,7 +124,7 @@ export function OrderActionsClient({
 
   // Render the buttons that use 'motion' for animation
   return (
-    <motion.div {...motionProps} className={type !== "receipt" ? "w-full" : ""}>
+    <motion.div {...motionProps} className={type === "receipt" ? "" : "w-full"}>
       <Button
         className={buttonClass}
         onClick={onClick}

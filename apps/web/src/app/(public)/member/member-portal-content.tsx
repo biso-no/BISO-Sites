@@ -1,18 +1,19 @@
 import { getTranslations } from "next-intl/server";
 import {
   getBenefitReveals,
-  getMemberBenefits,
+  getFeaturedBenefits,
+  getMemberPortalBenefits,
   getPublicProfile,
   getUserProfile,
 } from "@/app/actions/member-portal";
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
 
-type MemberPortalContentProps = {
-  user: any;
-  membership: any;
+interface MemberPortalContentProps {
   hasBIIdentity: boolean;
-};
+  membership: Record<string, unknown>;
+  user: Record<string, unknown> | null;
+}
 
 const calculateEstimatedSavings = (_userId: string) => {
   // TODO: Implement estimated savings calculation
@@ -31,16 +32,23 @@ export async function MemberPortalContent({
     ? await Promise.all([getUserProfile(), getPublicProfile(user.user.$id)])
     : [null, null];
 
-  // Only fetch member-specific data if they're an active member AND have a user
+  // Resolve the user's campus id from their profile for campus-scoped benefits
+  const campusId: string | null =
+    profile?.campus_id || user?.profile?.campus_id || null;
+
+  // Fetch benefits for the member portal (all users see published benefits;
+  // non-members see teasers, members see the redemption value after reveal)
+  const [benefits, featuredBenefits, revealedBenefits, estimatedSavings] =
+    await Promise.all([
+      getMemberPortalBenefits(campusId),
+      getFeaturedBenefits(campusId),
+      user
+        ? getBenefitReveals(user.user.$id)
+        : Promise.resolve(new Set<string>()),
+      user?.user?.$id ? calculateEstimatedSavings(user.user.$id) : 0,
+    ]);
+
   const isMember = membership.active;
-  const [benefits, revealedBenefits, estimatedSavings] =
-    user && isMember
-      ? await Promise.all([
-          getMemberBenefits(user.user.$id),
-          getBenefitReveals(user.user.$id),
-          calculateEstimatedSavings(user.user.$id),
-        ])
-      : [[], new Set<string>(), 0];
 
   // Calculate membership info
   const membershipType = membership.membership?.name || "Year";
@@ -74,7 +82,7 @@ export async function MemberPortalContent({
   const biEmail = `${studentId}@bi.no`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-section to-background dark:from-background dark:via-card dark:to-background">
+    <div className="min-h-screen bg-linear-to-b from-background via-section to-background dark:from-background dark:via-card dark:to-background">
       <MemberPortalHeader
         benefitsCount={benefits.length}
         campus={campus}
@@ -94,6 +102,7 @@ export async function MemberPortalContent({
           daysRemaining={daysRemaining}
           estimatedSavings={estimatedSavings}
           expiryDate={expiryDate}
+          featuredBenefits={featuredBenefits}
           hasBIIdentity={hasBIIdentity}
           isMember={isMember}
           membershipType={membershipType}

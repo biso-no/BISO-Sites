@@ -8,21 +8,21 @@ export type ReceiptStatus =
   | "error"
   | "editing";
 
-export type Receipt = {
-  id: string;
-  fileId: string;
-  fileUrl: string;
-  fileName: string;
-  fileType: string;
-  status: ReceiptStatus;
-  progress: number;
-  description: string;
+export interface Receipt {
   amount: number;
-  date: string;
   confidence: number;
   currency: string;
+  date: string;
+  description: string;
   error?: string;
-};
+  fileId: string;
+  fileName: string;
+  fileType: string;
+  fileUrl: string;
+  id: string;
+  progress: number;
+  status: ReceiptStatus;
+}
 
 export type ExpensePhase =
   | "upload" // Initial state - drop receipts
@@ -32,58 +32,58 @@ export type ExpensePhase =
   | "submitting" // Submitting to server
   | "complete"; // Success state
 
-export type ExpenseStore = {
-  // Phase management
-  phase: ExpensePhase;
-  setPhase: (phase: ExpensePhase) => void;
-
-  // Receipts
-  receipts: Receipt[];
+export interface ExpenseStore {
   addReceipt: (receipt: Receipt) => void;
-  updateReceipt: (id: string, updates: Partial<Receipt>) => void;
-  removeReceipt: (id: string) => void;
-  clearReceipts: () => void;
 
   // AI-generated summary
   aiSummary: string;
-  setAiSummary: (summary: string) => void;
+  allReceiptsReady: () => boolean;
+
+  // Campuses (for selection)
+  campuses: Campus[];
+  clearReceipts: () => void;
+  expenseId: string | null;
   isGeneratingSummary: boolean;
-  setIsGeneratingSummary: (generating: boolean) => void;
+  isReadyToSubmit: () => boolean;
+  // Phase management
+  phase: ExpensePhase;
+
+  // User profile
+  profile: Partial<Users>;
+
+  // Receipts
+  receipts: Receipt[];
+  removeReceipt: (id: string) => void;
+
+  // Reset
+  reset: () => void;
 
   // Assignment
   selectedCampusId: string;
   selectedCampusName: string;
   selectedDepartmentId: string;
   selectedDepartmentName: string;
+  setAiSummary: (summary: string) => void;
   setAssignment: (data: {
     campusId: string;
     campusName: string;
     departmentId: string;
     departmentName: string;
   }) => void;
-
-  // User profile
-  profile: Partial<Users>;
-  setProfile: (profile: Partial<Users>) => void;
-
-  // Campuses (for selection)
-  campuses: Campus[];
   setCampuses: (campuses: Campus[]) => void;
-
-  // Computed values
-  totalAmount: () => number;
-  isReadyToSubmit: () => boolean;
-  allReceiptsReady: () => boolean;
+  setExpenseId: (id: string | null) => void;
+  setIsGeneratingSummary: (generating: boolean) => void;
+  setPhase: (phase: ExpensePhase) => void;
+  setProfile: (profile: Partial<Users>) => void;
+  setSubmissionError: (error: string | null) => void;
 
   // Submission
   submissionError: string | null;
-  setSubmissionError: (error: string | null) => void;
-  expenseId: string | null;
-  setExpenseId: (id: string | null) => void;
 
-  // Reset
-  reset: () => void;
-};
+  // Computed values
+  totalAmount: () => number;
+  updateReceipt: (id: string, updates: Partial<Receipt>) => void;
+}
 
 const initialState = {
   phase: "upload" as ExpensePhase,

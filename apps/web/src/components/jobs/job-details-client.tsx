@@ -1,7 +1,8 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -20,9 +21,9 @@ import {
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 
-type JobDetailsClientProps = {
-  job: ContentTranslations;
-};
+interface JobDetailsClientProps {
+  job: Jobs;
+}
 
 const getJobCategory = (metadata: Record<string, any>) =>
   metadata.category || "General";
@@ -51,8 +52,16 @@ const categoryImages: Record<string, string> = {
 
 export function JobDetailsClient({ job }: JobDetailsClientProps) {
   const router = useRouter();
-  const jobData = job.job_ref;
-  const metadata = jobData?.metadata as Record<string, any>;
+  const jobData = job;
+  const translation = Array.isArray(job.translation_refs)
+    ? job.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      )
+    : null;
+  const title = translation?.title ?? "Untitled";
+  const description = translation?.description ?? "";
+  const metadata = jobData?.metadata as unknown as Record<string, any>;
   const category = getJobCategory(metadata);
 
   // Extract data
@@ -130,7 +139,7 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 {category}
               </Badge>
               <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
-                {job.title}
+                {title}
               </h1>
               <p className="text-white/90 text-xl">{department}</p>
 
@@ -172,9 +181,10 @@ export function JobDetailsClient({ job }: JobDetailsClientProps) {
                 <h2 className="mb-4 font-bold text-2xl text-foreground">
                   Position Overview
                 </h2>
-                <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-                  {job.description}
-                </p>
+                <PlateContentRenderer
+                  className="text-muted-foreground"
+                  value={description}
+                />
               </Card>
             </motion.div>
 

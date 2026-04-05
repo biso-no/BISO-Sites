@@ -1,11 +1,10 @@
 "use server";
-import { ID, type Models, OAuthProvider } from "@repo/api";
+import type { Models } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;
@@ -69,8 +68,7 @@ export async function removeIdentity(identityId: string) {
     await account.deleteIdentity(identityId);
     return { success: true };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
     console.error("Failed to remove identity", error);
     return { success: false, error: message };
   }

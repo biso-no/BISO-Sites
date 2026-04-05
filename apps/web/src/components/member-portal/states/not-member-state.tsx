@@ -1,6 +1,5 @@
 "use client";
 
-import { initiateVippsCheckout } from "@repo/payment/actions";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -9,6 +8,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 
 type MembershipDuration = "semester" | "year" | "three-year";
 
@@ -18,9 +18,9 @@ const MEMBERSHIP_PRICES = {
   "three-year": 1400,
 };
 
-type NotMemberStateProps = {
+interface NotMemberStateProps {
   benefitsCount?: number;
-};
+}
 
 export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
   const t = useTranslations("memberPortal");

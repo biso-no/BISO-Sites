@@ -25,24 +25,24 @@ type MembershipCheckResult =
     }
   | { ok: false; error: string };
 
-type MembershipPayload = {
-  membership?: { status?: string };
+interface MembershipPayload {
   active?: boolean;
-  studentId?: number;
   categories?: number[];
   error?: string;
-};
+  membership?: { status?: string };
+  studentId?: number;
+}
 
-type StatusVisuals = {
+interface StatusVisuals {
   actionLabel: string;
   badgeClassName: string;
   badgeLabel: string;
   badgeVariant: "secondary" | "destructive";
+  IconComponent: LucideIcon;
   iconBackgroundClassName: string;
   iconClassName: string;
-  IconComponent: LucideIcon;
   showPulse: boolean;
-};
+}
 
 const MEMBERSHIP_ROUTE = "/membership";
 
@@ -217,8 +217,8 @@ function MembershipStatusCard({
       <h2 className="sr-only">BI Student Membership</h2>
       {/* Background flair */}
       <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="-top-24 -right-24 absolute h-64 w-64 rounded-full bg-secondary-30 blur-3xl" />
-        <div className="-bottom-28 -left-28 absolute h-64 w-64 rounded-full bg-blue-accent/30 blur-3xl" />
+        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-secondary-30 blur-3xl" />
+        <div className="absolute -bottom-28 -left-28 h-64 w-64 rounded-full bg-blue-accent/30 blur-3xl" />
       </div>
       <CardContent className="relative z-10 flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between">
         {/* Left: logos + title */}

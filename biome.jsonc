@@ -1,18 +1,16 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["ultracite/core", "ultracite/react"],
-
+  "extends": ["ultracite/core", "ultracite/react", "ultracite/biome/core"],
   "files": {
     "maxSize": 5242880,
     "includes": [
-      "**",
       "!!**/pdf.worker.min.js",
       "!!apps/admin/src/app/(admin)/admin/expenses/expense-table.tsx",
       "!!packages/ui/*",
-      "!!apps/api/public/expense-template.html"
+      "!!apps/api/public/expense-template.html",
+      "!!.omc"
     ]
   },
-
   "linter": {
     "rules": {
       "performance": {

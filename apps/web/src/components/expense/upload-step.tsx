@@ -16,19 +16,20 @@ import {
   processReceipt,
 } from "@/lib/actions/expense-ocr";
 
-type Attachment = {
-  id: string;
+interface Attachment {
+  amount: number;
+  date: string;
+  description: string;
+  file: File;
   fileId: string;
   fileUrl: string;
-  file: File;
+  id: string;
   preview?: string;
-  description: string;
-  date: string;
-  amount: number;
   processing: boolean;
-};
+}
 
-type UploadStepProps = {
+interface UploadStepProps {
+  onBack: () => void;
   onNext: (data: {
     attachments: Array<{
       id: string;
@@ -39,8 +40,7 @@ type UploadStepProps = {
     description: string;
     total: number;
   }) => void;
-  onBack: () => void;
-};
+}
 
 export function UploadStep({ onNext, onBack }: UploadStepProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);

@@ -14,13 +14,13 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import type { ProductOption } from "@/lib/types/webshop";
 
-type ProductOptionsClientProps = {
+interface ProductOptionsClientProps {
   productOptions: ProductOption[];
   productRefId: string; // Used as a key/identifier if needed
   // Note: We don't need 'useProductActions' here, as option state is local
   // The selected options are passed to the AddToCartClient (or a shared state/context)
   // For simplicity, this example component is for rendering/local state only.
-};
+}
 
 export function ProductOptionsClient({
   productOptions,

@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import {
   Briefcase,
@@ -15,16 +14,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
 
-type BenefitPreviewCardProps = {
+interface BenefitPreviewCardProps {
   category: string;
-  partnerName: string;
-  partnerLogo?: string | null;
   discountText: string;
   index?: number;
-  onJoinClick?: () => void;
-};
+  partnerLogo?: string | null;
+  partnerName: string;
+}
 
 const getCategoryIcon = (category: string) => {
   const icons: Record<string, typeof Coffee> = {
@@ -39,17 +36,8 @@ const getCategoryIcon = (category: string) => {
   return icons[category] || Sparkles;
 };
 
-const getCategoryGradient = (category: string) => {
-  const gradients: Record<string, string> = {
-    "Food & Drink": "from-orange-500 to-red-500",
-    Entertainment: "from-purple-500 to-pink-500",
-    Career: "from-blue-500 to-cyan-500",
-    "Health & Fitness": "from-green-500 to-emerald-500",
-    Software: "from-pink-500 to-rose-500",
-    Travel: "from-indigo-500 to-violet-500",
-    Education: "from-yellow-500 to-amber-500",
-  };
-  return gradients[category] || "from-brand-gradient-from to-brand-gradient-to";
+const getCategoryGradient = (_category: string) => {
+  return "from-brand-gradient-from to-brand-gradient-to";
 };
 
 export function BenefitPreviewCard({
@@ -57,9 +45,7 @@ export function BenefitPreviewCard({
   partnerName,
   discountText,
   index = 0,
-  onJoinClick,
 }: BenefitPreviewCardProps) {
-  const t = useTranslations("memberPortal");
   const Icon = getCategoryIcon(category);
   const gradient = getCategoryGradient(category);
 
@@ -72,16 +58,16 @@ export function BenefitPreviewCard({
     >
       <Card className="relative overflow-hidden border-0 bg-background p-0 shadow-lg transition-all duration-300 hover:shadow-2xl dark:bg-inverted/50">
         {/* Animated gradient border effect */}
-        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-brand/20 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        <div className="absolute inset-0 rounded-xl bg-linear-to-r from-transparent via-brand/20 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
         {/* Category gradient header */}
         <div
-          className={`bg-gradient-to-r ${gradient} relative h-24 overflow-hidden p-4`}
+          className={`bg-linear-to-r ${gradient} relative h-24 overflow-hidden p-4`}
         >
           {/* Background pattern */}
           <div className="absolute inset-0 opacity-20">
-            <div className="-right-4 -top-4 absolute h-24 w-24 rounded-full bg-white/20" />
-            <div className="-bottom-2 -left-2 absolute h-16 w-16 rounded-full bg-white/10" />
+            <div className="absolute -top-4 -right-4 h-24 w-24 rounded-full bg-white/20" />
+            <div className="absolute -bottom-2 -left-2 h-16 w-16 rounded-full bg-white/10" />
           </div>
 
           {/* Category icon */}
@@ -103,7 +89,7 @@ export function BenefitPreviewCard({
         <div className="p-5">
           {/* Category badge */}
           <Badge
-            className={`mb-3 bg-gradient-to-r ${gradient} border-0 text-white`}
+            className={`mb-3 bg-linear-to-r ${gradient} border-0 text-white`}
           >
             {category}
           </Badge>
@@ -114,24 +100,9 @@ export function BenefitPreviewCard({
           </h3>
 
           {/* Discount text */}
-          <div className="mb-4">
+          <div>
             <span className="font-bold text-brand text-xl">{discountText}</span>
           </div>
-
-          {/* Teaser text */}
-          <p className="mb-4 text-muted-foreground text-sm dark:text-muted-foreground">
-            {t("preview.unlockDescription")}
-          </p>
-
-          {/* CTA Button */}
-          <Button
-            className="w-full bg-gradient-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
-            onClick={onJoinClick}
-            size="sm"
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            {t("preview.unlockBenefit")}
-          </Button>
         </div>
 
         {/* Hover glow effect */}

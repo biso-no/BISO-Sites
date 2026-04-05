@@ -12,13 +12,13 @@ import {
 } from "react";
 import { getCampuses, setActiveCampus } from "@/app/actions/campus";
 
-type CampusContextValue = {
-  campuses: Campus[];
-  activeCampusId: string | null;
+interface CampusContextValue {
   activeCampus?: Campus;
+  activeCampusId: string | null;
+  campuses: Campus[];
   loading: boolean;
   selectCampus: (campusId: string | null) => void;
-};
+}
 
 const CampusContext = createContext<CampusContextValue | undefined>(undefined);
 

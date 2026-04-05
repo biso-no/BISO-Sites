@@ -3,9 +3,9 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-type AnalyticsTrackerProps = {
+interface AnalyticsTrackerProps {
   locale: string;
-};
+}
 
 export function AnalyticsTracker({ locale }: AnalyticsTrackerProps) {
   const pathname = usePathname();

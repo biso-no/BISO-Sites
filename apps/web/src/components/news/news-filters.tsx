@@ -6,11 +6,11 @@ import { Filter, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 
-type NewsFiltersProps = {
+interface NewsFiltersProps {
   categories: string[];
-  selectedCategory: string;
   searchQuery: string;
-};
+  selectedCategory: string;
+}
 
 export function NewsFilters({
   categories,
@@ -69,7 +69,7 @@ export function NewsFilters({
             className="relative w-full md:w-96"
             onSubmit={handleSearchSubmit}
           >
-            <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
               disabled={isPending}
@@ -80,7 +80,7 @@ export function NewsFilters({
             />
             {localSearch && (
               <button
-                className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground transition-colors hover:text-muted-foreground"
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-muted-foreground"
                 disabled={isPending}
                 onClick={clearSearch}
                 type="button"

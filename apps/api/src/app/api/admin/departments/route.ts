@@ -63,10 +63,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }));
 
     return NextResponse.json({ departments: mapped });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching departments:", error);
 
-    if (error.code === 404) {
+    if ((error as { code?: number }).code === 404) {
       return NextResponse.json({ error: "Campus not found" }, { status: 404 });
     }
 

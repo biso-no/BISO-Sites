@@ -1,37 +1,30 @@
 "use server";
 
 import { createSessionClient } from "@repo/api/server";
-
-/**
- * Campus names for team identification
- */
-const CAMPUS_NAMES = [
-  "National",
-  "Oslo",
-  "Bergen",
-  "Stavanger",
-  "Trondheim",
-] as const;
-type CampusName = (typeof CAMPUS_NAMES)[number];
+import { CAMPUS_NAME_TO_ID } from "./campus-constants";
 
 /**
  * User authorization context containing their teams and roles parsed from
- * Azure AD Security Groups (SG-App-Campus-*, SG-App-Dept-*, SG-App-Role-*)
+ * Azure AD Security Groups (SG-App-Campus-*, SG-App-Dept-*)
  */
-export type UserAuthContext = {
-  userId: string;
-  campusTeamIds: string[]; // Azure GUIDs for SG-App-Campus-* teams
+export interface UserAuthContext {
   campusNames: string[]; // Parsed campus names (e.g., "National", "Oslo")
-  departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
+  campusTeamIds: string[]; // Azure GUIDs for SG-App-Campus-* teams
   departmentNames: string[]; // Parsed department names (e.g., "OperationsUnit", "LedelsenOslo")
-  roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin", "controller")
-  labels: string[]; // Appwrite user labels
+  departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
+  email: string | null;
+  labels: string[]; // Appwrite user labels (legacy, kept for read-only checks)
   managedCampuses: string[]; // Campus names this user manages (for campus admins)
-};
+  managedCampusIds: string[]; // Numeric campus_id values for managedCampuses
+  resolvedCampusIds: string[]; // Numeric campus_id values for ALL campuses user belongs to
+  roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
+  userId: string;
+}
 
 /**
  * Determine if a user is a global admin based on their team memberships.
- * National campus + OperationsUnit department = Global Admin
+ * National campus + Operations Unit department = Global Admin
+ * Department name is now expanded from camelCase: "OperationsUnit" -> "Operations Unit"
  */
 function isNationalOperations(
   campusNames: string[],
@@ -39,13 +32,14 @@ function isNationalOperations(
 ): boolean {
   return (
     campusNames.includes("National") &&
-    departmentNames.includes("OperationsUnit")
+    departmentNames.includes("Operations Unit")
   );
 }
 
 /**
  * Determine which campuses a user manages based on their memberships.
- * Being in Ledelsen{City} + Campus-{City} = Campus admin for that city
+ * Being in "Ledelsen {City}" dept + Campus "{City}" = Campus admin for that city.
+ * Department name is now expanded from camelCase: "LedelsenOslo" -> "Ledelsen Oslo"
  */
 function getManagedCampuses(
   campusNames: string[],
@@ -56,7 +50,7 @@ function getManagedCampuses(
 
   for (const city of cityNames) {
     const hasCampus = campusNames.includes(city);
-    const hasManagement = departmentNames.includes(`Ledelsen${city}`);
+    const hasManagement = departmentNames.includes(`Ledelsen ${city}`);
 
     if (hasCampus && hasManagement) {
       managedCampuses.push(city);
@@ -66,16 +60,19 @@ function getManagedCampuses(
   return managedCampuses;
 }
 
-type TeamParseResult = {
-  campusTeamIds: string[];
+interface TeamParseResult {
   campusNames: string[];
-  departmentTeamIds: string[];
+  campusTeamIds: string[];
   departmentNames: string[];
+  departmentTeamIds: string[];
   roles: string[];
-};
+}
 
 /**
- * Parse team memberships into categorized arrays
+ * Parse team memberships into categorized arrays.
+ * Teams now use clean names (e.g. "Oslo", "Operations Unit") rather than the
+ * SG-App-* prefixed Azure displayNames. Campus teams are identified by matching
+ * the team name against the known campus list (CAMPUS_NAME_TO_ID keys).
  */
 function parseTeamMemberships(
   teams: Array<{ $id: string; name: string }>
@@ -89,20 +86,12 @@ function parseTeamMemberships(
   };
 
   for (const team of teams) {
-    const name = team.name;
-
-    if (name.startsWith("SG-App-Campus-")) {
-      result.campusTeamIds.push(team.$id);
-      result.campusNames.push(name.replace("SG-App-Campus-", ""));
-    } else if (name.startsWith("SG-App-Dept-")) {
+    if (CAMPUS_NAME_TO_ID[team.name] === undefined) {
       result.departmentTeamIds.push(team.$id);
-      result.departmentNames.push(name.replace("SG-App-Dept-", ""));
-    } else if (name.startsWith("SG-App-Role-")) {
-      const roleName = name
-        .replace("SG-App-Role-", "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-      result.roles.push(roleName);
+      result.departmentNames.push(team.name);
+    } else {
+      result.campusTeamIds.push(team.$id);
+      result.campusNames.push(team.name);
     }
   }
 
@@ -110,22 +99,21 @@ function parseTeamMemberships(
 }
 
 /**
- * Derive additional roles from team memberships and labels
+ * Derive additional roles from team memberships.
+ * Labels are no longer used for role derivation — only SG-App team membership matters.
  */
-function deriveRoles(
-  parsed: TeamParseResult,
-  labels: string[]
-): { roles: string[]; managedCampuses: string[] } {
+function deriveRoles(parsed: TeamParseResult): {
+  roles: string[];
+  managedCampuses: string[];
+} {
   const roles = [...parsed.roles];
 
-  const hasGlobalAdminLabel =
-    labels.includes("admin") || labels.includes("globaladmin");
   const isNatOps = isNationalOperations(
     parsed.campusNames,
     parsed.departmentNames
   );
 
-  if ((hasGlobalAdminLabel || isNatOps) && !roles.includes("globaladmin")) {
+  if (isNatOps && !roles.includes("globaladmin")) {
     roles.push("globaladmin");
   }
 
@@ -145,10 +133,10 @@ function deriveRoles(
  * Teams are created during M365 OAuth sync with Azure AD group GUIDs as IDs.
  *
  * Role derivation logic:
- * - SG-App-Role-* groups → direct roles (e.g., "finance", "hr")
  * - National + OperationsUnit → "globaladmin" role
  * - Ledelsen{City} + Campus-{City} → "campusadmin" role with managed campus
- * - Appwrite labels "admin" or "globaladmin" → "globaladmin" role
+ *
+ * Authorization is team-based only. Labels are stored but not used for role checks.
  */
 export async function getUserAuthContext(): Promise<UserAuthContext | null> {
   try {
@@ -158,10 +146,19 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
 
     const parsed = parseTeamMemberships(teamMemberships.teams);
     const labels = user.labels || [];
-    const { roles, managedCampuses } = deriveRoles(parsed, labels);
+    const { roles, managedCampuses } = deriveRoles(parsed);
+
+    const managedCampusIds = managedCampuses
+      .map((n) => CAMPUS_NAME_TO_ID[n])
+      .filter((id): id is string => Boolean(id));
+
+    const resolvedCampusIds = parsed.campusNames
+      .map((n) => CAMPUS_NAME_TO_ID[n])
+      .filter((id): id is string => Boolean(id));
 
     return {
       userId: user.$id,
+      email: user.email ?? null,
       campusTeamIds: parsed.campusTeamIds,
       campusNames: parsed.campusNames,
       departmentTeamIds: parsed.departmentTeamIds,
@@ -169,6 +166,8 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
       roles,
       labels,
       managedCampuses,
+      managedCampusIds,
+      resolvedCampusIds,
     };
   } catch (error) {
     console.error("Failed to get user auth context:", error);
@@ -179,53 +178,45 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
 /**
  * Check if user has a specific role
  */
-export async function hasRole(role: string): Promise<boolean> {
+async function _hasRole(role: string): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
   }
-  return (
-    ctx.roles.includes(role.toLowerCase()) ||
-    ctx.labels.includes(role.toLowerCase())
-  );
+  return ctx.roles.includes(role.toLowerCase());
 }
 
 /**
- * Check if user is a global admin
+ * Check if user is a global admin (National + OperationsUnit team membership)
  */
 export async function isGlobalAdmin(): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
   }
-  return (
-    ctx.roles.includes("globaladmin") ||
-    ctx.labels.includes("globaladmin") ||
-    ctx.labels.includes("admin")
-  );
+  return ctx.roles.includes("globaladmin");
 }
 
 /**
- * Check if user is a controller (campus-level financial controller)
+ * Check if user is a campus admin (manages at least one campus).
  */
-export async function isController(): Promise<boolean> {
+async function _isCampusAdmin(): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
   }
-  return ctx.roles.includes("controller") || ctx.roles.includes("finance");
+  return ctx.managedCampuses.length > 0;
 }
 
 /**
  * Check if user belongs to a specific campus team
  */
-export async function belongsToCampus(campusTeamId: string): Promise<boolean> {
+async function _belongsToCampus(campusTeamId: string): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
   }
-  // Global admins have access to all campuses
-  if (ctx.roles.includes("globaladmin") || ctx.labels.includes("globaladmin")) {
+  if (ctx.roles.includes("globaladmin")) {
     return true;
   }
   return ctx.campusTeamIds.includes(campusTeamId);
@@ -234,15 +225,14 @@ export async function belongsToCampus(campusTeamId: string): Promise<boolean> {
 /**
  * Check if user belongs to a specific department team
  */
-export async function belongsToDepartment(
+async function _belongsToDepartment(
   departmentTeamId: string
 ): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
   }
-  // Global admins have access to all departments
-  if (ctx.roles.includes("globaladmin") || ctx.labels.includes("globaladmin")) {
+  if (ctx.roles.includes("globaladmin")) {
     return true;
   }
   return ctx.departmentTeamIds.includes(departmentTeamId);
@@ -269,7 +259,8 @@ function parsePermission(
 }
 
 /**
- * Check if a permission target matches the user's context
+ * Check if a permission target matches the user's context.
+ * Only team-based and user-based targets are checked — label targets are ignored.
  */
 function targetMatchesContext(target: string, ctx: UserAuthContext): boolean {
   if (target.startsWith("team:")) {
@@ -278,11 +269,6 @@ function targetMatchesContext(target: string, ctx: UserAuthContext): boolean {
       ctx.campusTeamIds.includes(teamId) ||
       ctx.departmentTeamIds.includes(teamId)
     );
-  }
-
-  if (target.startsWith("label:")) {
-    const label = target.replace("label:", "");
-    return ctx.labels.includes(label) || ctx.roles.includes(label);
   }
 
   if (target.startsWith("user:")) {
@@ -294,12 +280,10 @@ function targetMatchesContext(target: string, ctx: UserAuthContext): boolean {
 }
 
 /**
- * Check if user is a global admin based on context
+ * Check if user is a global admin based on context (team membership only)
  */
 function isGlobalAdminContext(ctx: UserAuthContext): boolean {
-  return (
-    ctx.roles.includes("globaladmin") || ctx.labels.includes("globaladmin")
-  );
+  return ctx.roles.includes("globaladmin");
 }
 
 /**
@@ -335,7 +319,7 @@ export async function canWriteDocument(
 /**
  * Check if user has read access based on $permissions array
  */
-export async function canReadDocument(permissions: string[]): Promise<boolean> {
+async function _canReadDocument(permissions: string[]): Promise<boolean> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return false;
@@ -355,8 +339,7 @@ export async function canReadDocument(permissions: string[]): Promise<boolean> {
       continue;
     }
 
-    // "users" grants read to all authenticated users
-    if (parsed.target === "users") {
+    if (parsed.target === "users" || parsed.target === "any") {
       return true;
     }
 
@@ -378,15 +361,15 @@ import { hasNavAccess, type NavKey, ROLES } from "./roles";
  * User role info for client-side navigation rendering and data scoping.
  * Includes campus and department context for proper access control.
  */
-export type UserRolesForClient = {
-  roles: string[];
+export interface UserRolesForClient {
+  campusNames: string[];
+  departmentNames: string[];
   hasDepartmentMembership: boolean;
-  campusNames: string[]; // All campuses user belongs to (e.g., ["Oslo"])
-  departmentNames: string[]; // All departments user belongs to (e.g., ["Marketing"])
-  managedCampuses: string[]; // Campuses user manages (campusadmin only)
-  isGlobalAdmin: boolean; // National + OperationsUnit
-  isCampusAdmin: boolean; // Ledelsen{City} + Campus-{City}
-};
+  isCampusAdmin: boolean;
+  isGlobalAdmin: boolean;
+  managedCampuses: string[];
+  roles: string[];
+}
 
 /**
  * Get user roles formatted for client-side navigation and data filtering.
@@ -427,8 +410,7 @@ export async function checkNavAccess(navKey: NavKey): Promise<boolean> {
     return false;
   }
 
-  // Global admins have access to everything
-  if (ctx.roles.includes(ROLES.GLOBAL_ADMIN) || ctx.labels.includes("admin")) {
+  if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
     return true;
   }
 

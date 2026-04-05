@@ -15,7 +15,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <>
             {logo}
             <span className="in-[.uwu]:hidden font-medium in-[header]:text-[15px]">
-              BISO Sites
+              BISO Docs
             </span>
           </>
         ),

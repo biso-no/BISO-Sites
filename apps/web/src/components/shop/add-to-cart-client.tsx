@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { WebshopProducts } from "@repo/api/types/appwrite";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -14,17 +14,17 @@ import { PriceDetails } from "./price-details";
 import { StockStatusCard } from "./stock-status-card";
 import { useProductActions } from "./use-product-actions";
 
-type AddToCartClientProps = {
-  product: ContentTranslations;
-  isMember: boolean;
-  userId: string | null;
-  regularPrice: number;
-  memberPrice?: number | null;
+interface AddToCartClientProps {
   displayPrice: number;
   hasDiscount: boolean;
+  isMember: boolean;
+  memberPrice?: number | null;
+  product: WebshopProducts;
+  regularPrice: number;
   savings: number;
   stock: number | null;
-};
+  userId: string | null;
+}
 
 // This component encapsulates all interactive sidebar elements
 export function AddToCartClient({

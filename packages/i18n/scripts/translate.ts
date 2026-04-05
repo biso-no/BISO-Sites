@@ -21,8 +21,8 @@ import { OpenAI } from "openai";
 // Configuration
 const SOURCE_LANG = "en";
 const TARGET_LANG = "no";
-const SOURCE_DIR = join(__dirname, "../messages", SOURCE_LANG);
-const TARGET_DIR = join(__dirname, "../messages", TARGET_LANG);
+const SOURCE_DIR = join(import.meta.dirname, "../messages", SOURCE_LANG);
+const TARGET_DIR = join(import.meta.dirname, "../messages", TARGET_LANG);
 
 // Check for required API key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -43,12 +43,12 @@ const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
-type TranslationStats = {
+interface TranslationStats {
+  errors: number;
   filesProcessed: number;
   keysTranslated: number;
-  errors: number;
   startTime: number;
-};
+}
 
 const stats: TranslationStats = {
   filesProcessed: 0,

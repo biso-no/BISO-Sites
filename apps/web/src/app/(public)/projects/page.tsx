@@ -124,7 +124,7 @@ export default async function ProjectsPage() {
         <div className="grid gap-6 md:grid-cols-2">
           {featuredProjects.map((project) => (
             <Card
-              className="hover:-translate-y-1 overflow-hidden border-primary/10 shadow-lg transition hover:shadow-xl"
+              className="overflow-hidden border-primary/10 shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
               key={project.slug}
             >
               <div

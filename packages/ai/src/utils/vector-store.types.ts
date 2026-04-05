@@ -1,36 +1,36 @@
-export type VectorDocument = {
-  id: string;
+export interface VectorDocument {
   content: string;
-  metadata: Record<string, any>;
   embedding?: number[];
-};
-
-export type SearchResult = {
   id: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface SearchResult {
   content: string;
-  metadata: Record<string, any>;
-  score: number;
   distance: number;
-};
+  id: string;
+  metadata: Record<string, unknown>;
+  score: number;
+}
 
-export type SearchOptions = {
-  query: string;
-  k?: number;
-  filter?: Record<string, any>;
+export interface SearchOptions {
+  filter?: Record<string, unknown>;
   includeMetadata?: boolean;
-};
+  k?: number;
+  query: string;
+}
 
-export type IVectorStore = {
-  initialize(): Promise<void>;
+export interface IVectorStore {
   addDocuments(documents: VectorDocument[]): Promise<void>;
+  clearCollection(): Promise<void>;
+  deleteDocuments(ids: string[]): Promise<void>;
+  getCollectionStats(): Promise<{ count: number }>;
+  initialize(): Promise<void>;
   search(options: SearchOptions): Promise<SearchResult[]>;
   searchBroad?(query: string, limit: number): Promise<SearchResult[]>; // Optional method for broad search
-  deleteDocuments(ids: string[]): Promise<void>;
   updateDocument(
     id: string,
     content: string,
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
   ): Promise<void>;
-  getCollectionStats(): Promise<{ count: number }>;
-  clearCollection(): Promise<void>;
-};
+}

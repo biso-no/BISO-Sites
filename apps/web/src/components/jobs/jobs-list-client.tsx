@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import {
@@ -20,9 +20,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { JobCard } from "./job-card";
 
-type JobsListClientProps = {
-  jobs: ContentTranslations[];
-};
+interface JobsListClientProps {
+  jobs: Jobs[];
+}
 
 const getJobCategory = (metadata: Record<string, any>) =>
   metadata.category || "General";
@@ -73,29 +73,35 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
 
   // Filter jobs based on search, category, and paid status
   const filteredJobs = jobs.filter((job) => {
-    const jobData = job.job_ref;
+    const translation = Array.isArray(job.translation_refs)
+      ? job.translation_refs.find(
+          (item): item is ContentTranslations =>
+            typeof item === "object" && item !== null && "title" in item
+        )
+      : null;
+    const title = translation?.title ?? "";
+    const description = translation?.description ?? "";
+    const shortDescription = translation?.short_description ?? "";
+    const jobData = job;
     const metadata = jobData?.metadata as Record<string, any>;
     const category = getJobCategory(metadata);
-    const paid = metadata.paid ?? false;
-    const department = jobData?.department?.Name || "";
+    const paid = Boolean(metadata?.paid);
+    const department = jobData.department?.Name || "";
 
     const matchesCategory =
       selectedCategory === "All" || category === selectedCategory;
     const matchesSearch =
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (job.short_description || "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shortDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
       department.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPaid = !showPaidOnly || paid;
 
     return matchesCategory && matchesSearch && matchesPaid;
   });
 
-  const handleViewDetails = (job: ContentTranslations) => {
-    // Use slug if available, otherwise fall back to content_id
-    const slug = job.job_ref?.slug || job.content_id;
+  const handleViewDetails = (job: Jobs) => {
+    const slug = job.slug || job.$id;
     router.push(`/jobs/${slug}`);
   };
 
@@ -107,7 +113,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
           <div className="flex flex-col gap-4">
             {/* Search */}
             <div className="relative w-full">
-              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -117,7 +123,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
               />
               {searchQuery && (
                 <button
-                  className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground hover:text-muted-foreground"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   onClick={() => setSearchQuery("")}
                   type="button"
                 >

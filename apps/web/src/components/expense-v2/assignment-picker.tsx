@@ -15,17 +15,17 @@ import {
 import { useEffect, useState } from "react";
 import { getCampusWithDepartments } from "@/app/actions/campus";
 
-type AssignmentPickerProps = {
+interface AssignmentPickerProps {
   campuses: Campus[];
+  initialCampusId?: string;
+  initialDepartmentId?: string;
   onComplete: (data: {
     campusId: string;
     campusName: string;
     departmentId: string;
     departmentName: string;
   }) => void;
-  initialCampusId?: string;
-  initialDepartmentId?: string;
-};
+}
 
 type SelectionState = "campus" | "department" | "complete";
 

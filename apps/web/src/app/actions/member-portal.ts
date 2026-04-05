@@ -1,12 +1,15 @@
 "use server";
 import { ID, Permission, Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
+  BenefitInteractions,
   BenefitReveals,
-  MemberBenefit,
+  CampusBenefits,
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
+import { Action, CampusBenefitStatus } from "@repo/api/types/appwrite";
+import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { checkMembership } from "@/lib/profile";
 
 async function createOrUpdatePublicProfile(
@@ -47,20 +50,68 @@ async function createOrUpdatePublicProfile(
   );
 }
 
-export async function getMemberBenefits(
-  userId: string
-): Promise<MemberBenefit[]> {
+/**
+ * Fetch published benefits for the member portal, campus-scoped.
+ * Uses the new campus_benefits table (replaces the old member_benefit stub).
+ *
+ * @param campusId - The currently selected campus_id (or null for National only)
+ */
+export async function getMemberPortalBenefits(
+  campusId?: string | null
+): Promise<CampusBenefits[]> {
   try {
-    const { db } = await createSessionClient();
-    const response = await db.listRows<MemberBenefit>("app", "member_benefit", [
-      Query.equal("user_id", userId),
-      Query.orderDesc("$createdAt"),
-    ]);
-    return response.rows || [];
+    const campusIds = resolveBenefitCampusIds(campusId);
+    const { db } = await createAdminClient();
+    const response = await db.listRows<CampusBenefits>(
+      "app",
+      "campus_benefits",
+      [
+        Query.equal("campus_id", campusIds),
+        Query.equal("status", CampusBenefitStatus.PUBLISHED),
+        Query.orderAsc("sort_order"),
+        Query.orderDesc("is_featured"),
+        Query.limit(100),
+      ]
+    );
+    return response.rows ?? [];
   } catch (error) {
-    console.error("Error fetching member benefits:", error);
+    console.error("Error fetching member portal benefits:", error);
     return [];
   }
+}
+
+/**
+ * Fetch featured benefits for the home tab hero section.
+ */
+export async function getFeaturedBenefits(
+  campusId?: string | null
+): Promise<CampusBenefits[]> {
+  try {
+    const campusIds = resolveBenefitCampusIds(campusId);
+    const { db } = await createAdminClient();
+    const response = await db.listRows<CampusBenefits>(
+      "app",
+      "campus_benefits",
+      [
+        Query.equal("campus_id", campusIds),
+        Query.equal("status", CampusBenefitStatus.PUBLISHED),
+        Query.equal("is_featured", true),
+        Query.orderAsc("sort_order"),
+        Query.limit(6),
+      ]
+    );
+    return response.rows ?? [];
+  } catch (error) {
+    console.error("Error fetching featured benefits:", error);
+    return [];
+  }
+}
+
+/**
+ * @deprecated Use getMemberPortalBenefits instead. Kept for backward compat.
+ */
+async function _getMemberBenefits(): Promise<CampusBenefits[]> {
+  return await getMemberPortalBenefits();
 }
 
 export async function verifyMembershipStatus() {
@@ -151,21 +202,24 @@ export async function revealBenefit(
     const { account, db } = await createSessionClient();
     const user = await account.get();
 
-    // Check if already revealed
+    // Check if already revealed (idempotent)
     const existing = await db.listRows("app", "benefit_reveals", [
       Query.equal("user_id", user.$id),
       Query.equal("benefit_id", benefitId),
       Query.limit(1),
     ]);
 
+    // Fetch the benefit (works because campus_benefits has read("any") on published)
+    const adminClient = await createAdminClient();
+    const benefit = await adminClient.db.getRow<CampusBenefits>(
+      "app",
+      "campus_benefits",
+      benefitId
+    );
+
     if (existing.rows && existing.rows.length > 0) {
-      // Already revealed, fetch the benefit value
-      const benefit = await db.getRow<MemberBenefit>(
-        "app",
-        "member_benefit",
-        benefitId
-      );
-      return { success: true, value: benefit.value };
+      // Already revealed — return idempotently
+      return { success: true, value: benefit.redemption_value ?? undefined };
     }
 
     // Create reveal record
@@ -175,17 +229,28 @@ export async function revealBenefit(
       revealed_at: new Date().toISOString(),
       $permissions: [
         Permission.read(`user:${user.$id}`),
-        Permission.write(`user:${user.$id}`),
+        Permission.update(`user:${user.$id}`),
       ],
     });
 
-    // Fetch and return benefit value
-    const benefit = await db.getRow<MemberBenefit>(
+    // Record interaction event (fire and forget, don't block response)
+    db.createRow<BenefitInteractions>(
       "app",
-      "member_benefit",
-      benefitId
-    );
-    return { success: true, value: benefit.value };
+      "benefit_interactions",
+      ID.unique(),
+      {
+        user_id: user.$id,
+        benefit_id: benefitId,
+        action: Action.REVEAL,
+        campus_id: benefit.campus_id ?? null,
+        metadata: null,
+        $permissions: [Permission.read(`user:${user.$id}`)],
+      }
+    ).catch(() => {
+      /* non-critical */
+    });
+
+    return { success: true, value: benefit.redemption_value ?? undefined };
   } catch (error) {
     console.error("Error revealing benefit:", error);
     return null;

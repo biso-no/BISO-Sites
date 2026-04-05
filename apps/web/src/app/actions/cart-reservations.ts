@@ -208,7 +208,7 @@ async function _getUserReservation(
  * Returns active (non-expired) reservations only
  * RLS automatically filters to current user
  */
-async function getUserCartReservations(): Promise<any[]> {
+async function getUserCartReservations(): Promise<Record<string, unknown>[]> {
   try {
     const { db } = await createSessionClient();
 
@@ -229,14 +229,30 @@ async function getUserCartReservations(): Promise<any[]> {
  * Get cart items with full product details
  * Returns enriched cart data ready for display
  */
+interface CartItem {
+  category: unknown;
+  expiresAt: unknown;
+  image: unknown;
+  memberOnly: unknown;
+  memberPrice: unknown;
+  metadata: unknown;
+  name: string;
+  productId: string;
+  quantity: unknown;
+  regularPrice: unknown;
+  reservationId: string;
+  slug: string;
+  stock: unknown;
+}
+
 export async function getCartItemsWithDetails(
   locale: "en" | "no" = "en"
-): Promise<any[]> {
+): Promise<CartItem[]> {
   try {
     const reservations = await getUserCartReservations();
     const { db } = await createSessionClient();
 
-    const cartItems: any[] = [];
+    const cartItems: CartItem[] = [];
 
     for (const reservation of reservations) {
       try {
@@ -244,16 +260,27 @@ export async function getCartItemsWithDetails(
         const product = await db.getRow(
           "app",
           "webshop_products",
-          reservation.product_id
+          reservation.product_id,
+          [
+            Query.select([
+              "$id",
+              "slug",
+              "category",
+              "image",
+              "regular_price",
+              "member_price",
+              "member_only",
+              "stock",
+              "metadata",
+              "translation_refs.locale",
+              "translation_refs.title",
+            ]),
+          ]
         );
 
-        // Get translation for the specified locale
-        const translations = await db.listRows("app", "content_translations", [
-          Query.equal("content_id", product.$id),
-          Query.equal("locale", locale),
-        ]);
-
-        const translation = translations.rows[0];
+        const translation = Array.isArray(product.translation_refs)
+          ? product.translation_refs.find((item) => item.locale === locale)
+          : null;
 
         cartItems.push({
           reservationId: reservation.$id,

@@ -21,12 +21,12 @@ import { useCampus } from "@/components/context/campus";
 import { SelectCampus } from "@/components/select-campus";
 import { LocaleSwitcher } from "../locale-switcher";
 
-type NavigationProps = {
+interface NavigationProps {
+  onApplyClick?: () => void;
   onEventsClick?: () => void;
   onNewsClick?: () => void;
-  onApplyClick?: () => void;
   onShopClick?: () => void;
-};
+}
 
 export function Navigation({
   onEventsClick,
@@ -95,60 +95,83 @@ export function Navigation({
       initial={{ y: -100 }}
     >
       <div className="mx-auto w-full max-w-[min(1400px,100%)] px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 flex-wrap items-center justify-between gap-4">
-          {/* Logo */}
+        <div className="flex h-20 flex-nowrap items-center justify-between gap-3 sm:gap-4">
+          {/* Keep logo box constrained so nav has enough room on desktop */}
           <motion.div
-            className="flex items-center gap-3"
-            whileHover={{ scale: 1.05 }}
+            className="shrink-0"
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            whileHover={{ scale: 1.02 }}
           >
-            <Link href="/">
+            <Link
+              className="relative block h-11 w-[clamp(148px,15vw,240px)]"
+              href="/"
+            >
               <ImageWithFallback
                 alt="BISO logo"
-                className="h-10 w-auto"
-                height={40} // pick the intrinsic pixel width
-                sizes="(max-width: 768px) 120px, 140px" // and height that matches your asset ratio
-                src="/images/home-logo.png" // above-the-fold
-                width={140} // control display size via CSS
+                className="object-contain object-left"
+                fill
+                priority
+                sizes="(max-width: 640px) 42vw, (max-width: 1024px) 22vw, 240px"
+                src="/images/home-logo.png"
               />
             </Link>
           </motion.div>
 
           {/* Desktop Navigation */}
-          <div className="hidden flex-1 flex-wrap items-center justify-end gap-6 md:flex">
-            {navItems.map((item) => (
-              <Link
-                className={`flex cursor-pointer items-center gap-2 transition-colors duration-300 hover:text-brand ${
-                  isActive(item.href)
-                    ? "rounded-lg border border-brand-border-strong bg-linear-to-r from-brand-muted-strong to-brand-muted-strong px-4 py-2 hover:from-brand-muted-strong hover:to-brand-muted-strong"
-                    : ""
-                } ${isScrolled ? "text-white" : "text-white"}`}
-                href={item.href}
-                key={item.label}
-                onClick={(e) => {
-                  if (item.onClick) {
-                    e.preventDefault();
-                    item.onClick();
-                  }
-                }}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            ))}
-            <SelectCampus campuses={campuses} className="text-white" />
-            <ModeToggle className="text-white" />
-            <LocaleSwitcher className="text-white" size="sm" variant="ghost" />
-            <Link className="text-white hover:text-brand" href="/business">
-              {t("partner")}
-            </Link>
-            <Button
-              className="border-brand bg-transparent text-white hover:bg-brand hover:text-white"
-              onClick={() => router.push("/member")}
-              size="sm"
-              variant="outline"
-            >
-              {t("memberPortal")}
-            </Button>
+          <div className="hidden min-w-0 flex-1 md:block">
+            <div className="flex flex-nowrap items-center justify-end gap-x-1.5 gap-y-0 text-sm lg:gap-x-2 lg:text-[0.95rem]">
+              {navItems.map((item) => (
+                <Link
+                  className={`flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg py-2 transition-colors duration-300 hover:text-brand ${
+                    isActive(item.href)
+                      ? "border border-brand-border-strong bg-linear-to-r from-brand-muted-strong to-brand-muted-strong px-3 hover:from-brand-muted-strong hover:to-brand-muted-strong"
+                      : "px-1.5"
+                  } ${isScrolled ? "text-white" : "text-white"}`}
+                  href={item.href}
+                  key={item.label}
+                  onClick={(e) => {
+                    if (item.onClick) {
+                      e.preventDefault();
+                      item.onClick();
+                    }
+                  }}
+                >
+                  <item.icon
+                    aria-hidden
+                    className="h-4 w-4 shrink-0 opacity-90 lg:h-4.5 lg:w-4.5"
+                  />
+                  {item.label}
+                </Link>
+              ))}
+              <div className="mx-1 flex shrink-0 items-center gap-1.5 border-white/15 border-l pl-2 lg:mx-1.5 lg:gap-2 lg:pl-3">
+                <SelectCampus
+                  campuses={campuses}
+                  className="text-white"
+                  size="sm"
+                  variant="ghost"
+                />
+                <ModeToggle className="text-white" />
+                <LocaleSwitcher
+                  className="text-white"
+                  size="sm"
+                  variant="ghost"
+                />
+                <Link
+                  className="shrink-0 whitespace-nowrap text-white hover:text-brand"
+                  href="/business"
+                >
+                  {t("partner")}
+                </Link>
+                <Button
+                  className="shrink-0 border-brand bg-transparent text-white hover:bg-brand hover:text-white"
+                  onClick={() => router.push("/member")}
+                  size="sm"
+                  variant="outline"
+                >
+                  {t("memberPortal")}
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}

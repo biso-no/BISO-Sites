@@ -57,7 +57,7 @@ export function StrategyCards() {
               viewport={{ once: true }}
               whileInView={{ opacity: 1, y: 0 }}
             >
-              <Card className="hover:-translate-y-2 group h-full border-0 p-8 shadow-lg transition-all duration-300 hover:shadow-xl">
+              <Card className="group h-full border-0 p-8 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
                 <div
                   className={`mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br ${item.gradient} shadow-lg transition-transform duration-300 group-hover:scale-110`}
                 >

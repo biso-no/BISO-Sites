@@ -6,7 +6,7 @@ import { useProductPurchase } from "./product-purchase-provider";
 
 export function StockStatus() {
   const { availableStock, isLoadingStock, product } = useProductPurchase();
-  const totalStock = product.product_ref?.stock ?? null;
+  const totalStock = product.stock ?? null;
 
   if (totalStock === null) {
     return null; // Infinite stock or hidden

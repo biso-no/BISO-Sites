@@ -30,13 +30,13 @@ const LANGUAGE_CONFIG = {
   },
 } as const;
 
-type LocaleSwitcherProps = {
-  variant?: "default" | "ghost" | "outline";
-  size?: "sm" | "default" | "lg";
+interface LocaleSwitcherProps {
+  className?: string;
   showFlag?: boolean;
   showText?: boolean;
-  className?: string;
-};
+  size?: "sm" | "default" | "lg";
+  variant?: "default" | "ghost" | "outline";
+}
 
 export function LocaleSwitcher({
   variant = "ghost",

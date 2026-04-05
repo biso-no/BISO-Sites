@@ -23,7 +23,6 @@
     "./tools/page-creator": "./src/tools/page-creator.ts",
     "./tools/puck-generator": "./src/tools/puck-generator.ts",
     "./tools/data-query": "./src/tools/data-query.ts",
-    "./lib/streaming-json-parser": "./src/lib/streaming-json-parser.ts",
     "./prompts": "./src/prompts.ts",
     "./utils": "./src/utils/index.ts",
     "./utils/document-utils": "./src/utils/document-utils.ts",
@@ -46,7 +45,6 @@
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*",
     "@types/react": "^19.2.7",
     "@types/turndown": "^5.0.5",
     "@types/xml2js": "^0.4.14",
@@ -54,13 +52,10 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.74",
-    "@azure/msal-node": "^3.7.3",
     "@json-render/react": "^0.2.0",
-    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@pinecone-database/pinecone": "^6.1.3",
     "@puckeditor/core": "^0.21.0",
     "@repo/connectors": "workspace:*",
-    "@repo/editor": "workspace:*",
     "ai": "^5.0.104",
     "gpt-tokenizer": "^3.0.1",
     "jszip": "^3.10.1",
@@ -75,7 +70,7 @@
     "zustand": "^5.0.3"
   },
   "peerDependencies": {
-    "next": ">=16.0.7",
+    "next": ">=16.2.2",
     "react": ">=19.0.0",
     "react-hook-form": ">=7.0.0"
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Calendar, Filter, Search, X } from "lucide-react";
@@ -15,10 +15,25 @@ import {
 import { EventCard } from "./event-card";
 import { EventDetailModal } from "./event-detail-modal";
 
-type EventsListClientProps = {
-  events: ContentTranslations[];
+interface EventsListClientProps {
+  events: Events[];
   isMember?: boolean;
-};
+}
+
+function getEventTranslation(event: Events) {
+  if (!Array.isArray(event.translation_refs)) {
+    return null;
+  }
+
+  return (
+    event.translation_refs.find(
+      (translation): translation is ContentTranslations =>
+        typeof translation === "object" &&
+        translation !== null &&
+        "title" in translation
+    ) ?? null
+  );
+}
 
 const categories = ["All", ...eventCategories] as const;
 
@@ -29,13 +44,15 @@ export function EventsListClient({
   const t = useTranslations("events");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEvent, setSelectedEvent] =
-    useState<ContentTranslations | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Events | null>(null);
 
   // Filter events based on search and category
   // Only show main events (collections or standalone, not collection items)
   const filteredEvents = events.filter((event) => {
-    const eventData = event.event_ref;
+    const eventData = event;
+    const translation = getEventTranslation(event);
+    const title = translation?.title ?? "";
+    const description = translation?.description ?? "";
 
     // Filter out member-only events if user is not a member
     if (eventData?.member_only && !isMember) {
@@ -54,8 +71,8 @@ export function EventsListClient({
     const matchesCategory =
       selectedCategory === "All" || category === selectedCategory;
     const matchesSearch =
-      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchQuery.toLowerCase());
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      description.toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesCategory && matchesSearch;
   });
@@ -68,7 +85,7 @@ export function EventsListClient({
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             {/* Search */}
             <div className="relative w-full md:w-96">
-              <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -78,7 +95,7 @@ export function EventsListClient({
               />
               {searchQuery && (
                 <button
-                  className="-translate-y-1/2 absolute top-1/2 right-3 text-muted-foreground hover:text-muted-foreground"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   onClick={() => setSearchQuery("")}
                   type="button"
                 >

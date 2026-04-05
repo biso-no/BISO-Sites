@@ -5,11 +5,11 @@ import { ChevronDown, Heart } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
-type JobsHeroProps = {
-  totalPositions: number;
-  paidPositions: number;
+interface JobsHeroProps {
   departmentCount: number;
-};
+  paidPositions: number;
+  totalPositions: number;
+}
 
 export function JobsHero({
   totalPositions,
@@ -87,7 +87,7 @@ export function JobsHero({
 
       <motion.div
         animate={{ y: [0, 10, 0] }}
-        className="-translate-x-1/2 absolute bottom-8 left-1/2"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2"
         transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
       >
         <ChevronDown className="h-8 w-8 text-white/70" />

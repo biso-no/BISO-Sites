@@ -1,12 +1,12 @@
 "use client";
 
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import type { News } from "@repo/api/types/appwrite";
 import { motion } from "motion/react";
 import { ArticleCard } from "./article-card";
 
-type FeaturedArticlesProps = {
-  articles: ContentTranslations[];
-};
+interface FeaturedArticlesProps {
+  articles: News[];
+}
 
 export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
   if (!articles || articles.length === 0) {
@@ -38,7 +38,7 @@ export function FeaturedArticles({ articles }: FeaturedArticlesProps) {
           <ArticleCard
             article={article}
             index={index}
-            key={article.news_ref?.$id || article.$id}
+            key={article.$id}
             variant="featured"
           />
         ))}

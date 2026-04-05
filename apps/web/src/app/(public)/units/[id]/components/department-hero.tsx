@@ -5,9 +5,9 @@ import { ArrowLeft, Building2, MapPin } from "lucide-react";
 import Link from "next/link";
 import { SocialLinks } from "./social-links";
 
-type DepartmentHeroProps = {
+interface DepartmentHeroProps {
   department: ContentTranslations;
-};
+}
 
 export function DepartmentHero({ department }: DepartmentHeroProps) {
   const dept = department.department_ref;
@@ -15,7 +15,8 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
   // Use custom hero image if available, otherwise use default
   const DEFAULT_HERO_URL =
     "https://appwrite.biso.no/v1/storage/buckets/content/files/hero_bg/view?project=biso";
-  const heroImageUrl = (dept as any)?.hero || DEFAULT_HERO_URL;
+  const heroImageUrl =
+    ((dept as Record<string, unknown>)?.hero as string) || DEFAULT_HERO_URL;
 
   return (
     <div className="relative h-[60vh] overflow-hidden">

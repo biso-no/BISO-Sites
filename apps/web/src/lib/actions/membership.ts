@@ -10,26 +10,26 @@ import { cookies } from "next/headers";
 const MEMBERSHIP_COOKIE_NAME = "biso_membership";
 const COOKIE_TTL_SECONDS = 10 * 60; // 10 minutes
 
-export type MembershipInfo = {
+export interface MembershipInfo {
+  category: string | null;
+  expiryDate: string;
   id: string;
   name: string;
-  category: string | null;
   startDate: string;
-  expiryDate: string;
-};
+}
 
-export type MembershipStatus = {
+export interface MembershipStatus {
+  checkedAt: number;
+  finagoCategoryIds: number[];
   isMember: boolean;
   memberships: MembershipInfo[];
-  finagoCategoryIds: number[];
   reason?: string;
-  checkedAt: number;
-};
+}
 
-type CachedMembershipData = {
-  status: MembershipStatus;
+interface CachedMembershipData {
   expiresAt: number;
-};
+  status: MembershipStatus;
+}
 
 /**
  * Get membership status for the current user.
@@ -79,7 +79,7 @@ export async function refreshMembershipStatus(): Promise<MembershipStatus> {
  * Clear the membership cache.
  * Call this on logout or when you want to force a fresh check.
  */
-export async function clearMembershipCache(): Promise<void> {
+async function _clearMembershipCache(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(MEMBERSHIP_COOKIE_NAME);
   console.log("[Membership] Cache cleared");

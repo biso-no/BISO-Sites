@@ -5,11 +5,11 @@ import { Card } from "@repo/ui/components/ui/card";
 import { ExternalLink, Share2, Ticket } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-type EventActionsProps = {
+interface EventActionsProps {
+  description: string;
   ticketUrl?: string | null;
   title: string;
-  description: string;
-};
+}
 
 export function EventActions({
   ticketUrl,

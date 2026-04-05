@@ -5,11 +5,11 @@ import { createSessionClient } from "@repo/api/server";
 import type { LargeEvent } from "@repo/api/types/appwrite";
 import type { LargeEventItem, ParsedLargeEvent } from "@/lib/types/large-event";
 
-type ListParams = {
-  limit?: number;
+interface ListParams {
   activeOnly?: boolean;
+  limit?: number;
   showcaseTypes?: string[];
-};
+}
 
 const parseJsonSafely = <T>(
   value?: string | string[] | null
