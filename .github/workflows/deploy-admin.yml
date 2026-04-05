@@ -8,61 +8,65 @@ on:
       - 'apps/admin/**'
       - 'packages/**'
       - 'package.json'
+      - 'bun.lock'
+
+concurrency:
+  group: deploy-admin
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: Production
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
 
-      - name: Trigger Appwrite VCS Deployment
+    steps:
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Trigger Appwrite deployment
         env:
           APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
-          APPWRITE_PROJECT: ${{ vars.APPWRITE_PROJECT_ID }}
-          APPWRITE_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_PROJECT_ID: ${{ vars.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
           ADMIN_SITE_ID: ${{ vars.ADMIN_SITE_ID }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          # 1. Create an isolated folder so npm doesn't fight with your Bun setup
-          mkdir .appwrite-deployer
-          cd .appwrite-deployer
-          
-          # 2. Silently install the SDK in this isolated folder
-          npm init -y > /dev/null
-          npm install node-appwrite --silent
+          bun -e '
+            const endpoint = process.env.APPWRITE_ENDPOINT?.replace(/\/$/, "");
+            const projectId = process.env.APPWRITE_PROJECT_ID;
+            const apiKey = process.env.APPWRITE_API_KEY;
+            const siteId = process.env.ADMIN_SITE_ID;
+            const commitSha = process.env.COMMIT_SHA;
 
-          # 3. Write the deployment script
-          cat << 'EOF' > trigger-deploy.js
-          const sdk = require('node-appwrite');
+            if (!endpoint || !projectId || !apiKey || !siteId || !commitSha) {
+              console.error("Missing required environment variables.");
+              process.exit(1);
+            }
 
-          const client = new sdk.Client()
-              .setEndpoint(process.env.APPWRITE_ENDPOINT)
-              .setProject(process.env.APPWRITE_PROJECT)
-              .setKey(process.env.APPWRITE_KEY);
+            const res = await fetch(`${endpoint}/sites/${siteId}/deployments/vcs`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Appwrite-Project": projectId,
+                "X-Appwrite-Key": apiKey,
+                "X-Appwrite-Response-Format": "1.8.0"
+              },
+              body: JSON.stringify({
+                type: "commit",
+                reference: commitSha,
+                activate: true
+              })
+            });
 
-          const sites = new sdk.Sites(client);
+            const text = await res.text();
 
-          async function deploy() {
-              try {
-                  const result = await sites.createVcsDeployment({
-                      siteId: process.env.ADMIN_SITE_ID,
-                      type: 'commit',
-                      reference: process.env.COMMIT_SHA,
-                      activate: true
-                  });
-                  console.log('✅ Deployment triggered successfully!');
-                  console.log(`Deployment ID: ${result.$id}`);
-              } catch (error) {
-                  console.error('❌ Failed to trigger deployment:');
-                  console.error(error);
-                  process.exit(1); 
-              }
-          }
+            if (!res.ok) {
+              console.error("Failed to trigger deployment");
+              console.error(`HTTP ${res.status}: ${text}`);
+              process.exit(1);
+            }
 
-          deploy();
-          EOF
-          
-          # 4. Execute the script
-          node trigger-deploy.js
+            const data = JSON.parse(text);
+            console.log("Deployment triggered successfully");
+            console.log(`Deployment ID: ${data.$id}`);
+          '
