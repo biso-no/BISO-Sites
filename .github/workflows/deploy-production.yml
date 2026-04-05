@@ -1,0 +1,128 @@
+name: Deploy affected apps
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.affected.outputs.apps }}
+      count: ${{ steps.affected.outputs.count }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Find affected apps
+        id: affected
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE_SHA="${{ github.event.before }}"
+          HEAD_SHA="${{ github.sha }}"
+
+          echo "Comparing $BASE_SHA..$HEAD_SHA"
+
+          result=$(bunx turbo query affected \
+            --base="$BASE_SHA" \
+            --head="$HEAD_SHA" \
+            --packages)
+
+          echo "$result"
+
+          apps=$(echo "$result" | jq -c '
+            [
+              .data.affectedPackages.items[]
+              | select(.path | startswith("apps/"))
+              | .name
+            ]
+          ')
+
+          count=$(echo "$apps" | jq 'length')
+
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    runs-on: ubuntu-latest
+    environment: Production
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.discover.outputs.apps) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Resolve Appwrite site ID
+        id: site
+        shell: bash
+        env:
+          ADMIN_SITE_ID: ${{ vars.ADMIN_SITE_ID }}
+          API_SITE_ID: ${{ vars.API_SITE_ID }}
+          DOCS_SITE_ID: ${{ vars.DOCS_SITE_ID }}
+          WEB_SITE_ID: ${{ vars.WEB_SITE_ID }}
+        run: |
+          set -euo pipefail
+
+          case "${{ matrix.app }}" in
+            admin) echo "site_id=${ADMIN_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
+            api)   echo "site_id=${API_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
+            docs)  echo "site_id=${DOCS_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
+            web)   echo "site_id=${WEB_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "Unknown app: ${{ matrix.app }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Create source archive
+        run: |
+          tar \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude='**/node_modules' \
+            --exclude=.next \
+            --exclude='**/.next' \
+            --exclude=dist \
+            --exclude='**/dist' \
+            --exclude=.turbo \
+            --exclude='**/.turbo' \
+            --exclude=.vercel \
+            --exclude='**/.vercel' \
+            -czf /tmp/repo.tar.gz .
+
+      - name: Upload deployment to Appwrite
+        env:
+          APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ vars.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          SITE_ID: ${{ steps.site.outputs.site_id }}
+        run: |
+          curl --fail-with-body \
+            -X POST "${APPWRITE_ENDPOINT%/}/sites/${SITE_ID}/deployments" \
+            -H "X-Appwrite-Project: ${APPWRITE_PROJECT_ID}" \
+            -H "X-Appwrite-Key: ${APPWRITE_API_KEY}" \
+            -F "code=@/tmp/repo.tar.gz;type=application/gzip" \
+            -F "activate=true"
