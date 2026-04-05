@@ -12,6 +12,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - name: Install Appwrite CLI
         run: npm install -g appwrite-cli
