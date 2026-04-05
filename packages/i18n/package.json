@@ -18,12 +18,12 @@
     "lint": "biome lint ."
   },
   "dependencies": {
-    "@parvineyvazov/json-translator": "^4.1.0",
-    "next-intl": "^4.9.0",
-    "openai": "^6.9.0"
+    "@parvineyvazov/json-translator": "catalog:",
+    "next-intl": "catalog:",
+    "openai": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "typescript": "^5.9.3"
+    "typescript": "catalog:"
   }
 }

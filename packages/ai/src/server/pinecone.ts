@@ -85,7 +85,7 @@ export class PineconeVectorStore implements IVectorStore {
   private readonly client: Pinecone;
   private readonly indexName: string;
   private readonly namespace: string;
-  private readonly embeddingModel: EmbeddingModel<string>;
+  private readonly embeddingModel: EmbeddingModel;
   private readonly modelConfig: (typeof EMBEDDING_MODELS)[EmbeddingModelName];
   private isInitialized = false;
   private readonly stats: ModelStats;

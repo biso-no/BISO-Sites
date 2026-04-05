@@ -1,0 +1,461 @@
+{
+  "@ai-sdk/openai": [
+    "^2.0.30",
+    "^2.0.74"
+  ],
+  "@ai-sdk/react": [
+    "^2.0.104",
+    "3"
+  ],
+  "@hookform/resolvers": [
+    "^5.2.2"
+  ],
+  "@json-render/core": [
+    "^0.2.0"
+  ],
+  "@tailwindcss/postcss": [
+    "^4.1.17",
+    "^4.1.16"
+  ],
+  "@tanstack/react-form": [
+    "^1.28.6"
+  ],
+  "@tiptap/extension-code-block-lowlight": [
+    "^3.10.7"
+  ],
+  "@tiptap/extension-image": [
+    "^3.10.7"
+  ],
+  "@tiptap/extension-link": [
+    "^3.11.0"
+  ],
+  "@tiptap/extension-placeholder": [
+    "^3.10.7"
+  ],
+  "@tiptap/extension-text-align": [
+    "^3.10.7"
+  ],
+  "@tiptap/extension-underline": [
+    "^3.11.0"
+  ],
+  "@tiptap/react": [
+    "^3.10.7"
+  ],
+  "@tiptap/starter-kit": [
+    "^3.10.7"
+  ],
+  "@vippsmobilepay/sdk": [
+    "^2.4.2"
+  ],
+  "ai": [
+    "^5.0.44",
+    "^5.0.104",
+    "6"
+  ],
+  "classnames": [
+    "^2.5.1"
+  ],
+  "clsx": [
+    "^2.1.1"
+  ],
+  "date-fns": [
+    "^4.1.0"
+  ],
+  "framer-motion": [
+    "^11.18.0"
+  ],
+  "jodit-react": [
+    "^5.2.38"
+  ],
+  "lowlight": [
+    "^3.3.0"
+  ],
+  "lucide-react": [
+    "^0.544.0",
+    "^0.552.0",
+    "^0.563.0"
+  ],
+  "motion": [
+    "^12.23.24",
+    "^11.18.0"
+  ],
+  "next": [
+    "16.2.2"
+  ],
+  "next-intl": [
+    "^4.9.0"
+  ],
+  "next-themes": [
+    "^0.4.6"
+  ],
+  "react": [
+    "19.2.1",
+    "^19.2.1"
+  ],
+  "react-dom": [
+    "19.2.1",
+    "^19.2.1"
+  ],
+  "react-hook-form": [
+    "^7.67.0"
+  ],
+  "recharts": [
+    "^3.4.1",
+    "2.15.4"
+  ],
+  "sonner": [
+    "^2.0.7"
+  ],
+  "tailwind-merge": [
+    "^3.3.1"
+  ],
+  "tailwindcss-animate": [
+    "^1.0.7"
+  ],
+  "tiptap-markdown": [
+    "^0.9.0"
+  ],
+  "tw-animate-css": [
+    "^1.4.0"
+  ],
+  "use-debounce": [
+    "^10.1.0"
+  ],
+  "uuid": [
+    "^13.0.0"
+  ],
+  "zod": [
+    "^4.1.13",
+    "^3.22.4"
+  ],
+  "zustand": [
+    "^5.0.3"
+  ],
+  "@tailwindcss/typography": [
+    "^0.5.19"
+  ],
+  "@types/node": [
+    "^17.0.45",
+    "24.9.1",
+    "^24.10.0",
+    "^24.9.2",
+    "^22.0.0",
+    "^22.10.7",
+    "^22.15.3"
+  ],
+  "@types/react": [
+    "19.2.7",
+    "^19.2.7"
+  ],
+  "@types/react-dom": [
+    "19.2.3"
+  ],
+  "tailwindcss": [
+    "^4.1.17",
+    "^4.1.16"
+  ],
+  "typescript": [
+    "^5.9.3",
+    "5.9.2"
+  ],
+  "@microsoft/microsoft-graph-client": [
+    "^3.0.7"
+  ],
+  "@react-pdf/renderer": [
+    "^4.3.1"
+  ],
+  "server-only": [
+    "^0.0.1"
+  ],
+  "vitest": [
+    "^4.0.3"
+  ],
+  "fumadocs-core": [
+    "16.7.10"
+  ],
+  "fumadocs-mdx": [
+    "14.2.11"
+  ],
+  "fumadocs-ui": [
+    "16.7.10"
+  ],
+  "mermaid": [
+    "^11.12.1"
+  ],
+  "@types/mdx": [
+    "^2.0.13"
+  ],
+  "postcss": [
+    "^8.5.6"
+  ],
+  "embla-carousel-autoplay": [
+    "^8.6.0"
+  ],
+  "@json-render/react": [
+    "^0.2.0"
+  ],
+  "@pinecone-database/pinecone": [
+    "^6.1.3"
+  ],
+  "@puckeditor/core": [
+    "^0.21.0"
+  ],
+  "gpt-tokenizer": [
+    "^3.0.1"
+  ],
+  "jszip": [
+    "^3.10.1"
+  ],
+  "mammoth": [
+    "^1.10.0"
+  ],
+  "pdfjs-dist": [
+    "^5.4.149"
+  ],
+  "turndown": [
+    "^7.2.2"
+  ],
+  "xlsx": [
+    "^0.18.5"
+  ],
+  "xml2js": [
+    "^0.6.2"
+  ],
+  "@types/turndown": [
+    "^5.0.5"
+  ],
+  "@types/xml2js": [
+    "^0.4.14"
+  ],
+  "appwrite": [
+    "^24.1.1"
+  ],
+  "node-appwrite": [
+    "^23.1.0"
+  ],
+  "ts-node": [
+    "^10.9.2"
+  ],
+  "@azure/identity": [
+    "^4.13.0"
+  ],
+  "@azure/msal-node": [
+    "^3.7.3"
+  ],
+  "openapi-fetch": [
+    "^0.17.0"
+  ],
+  "soap": [
+    "^1.1.7"
+  ],
+  "woocommerce-rest-ts-api": [
+    "^7.1.2"
+  ],
+  "openapi-typescript": [
+    "^7.13.0"
+  ],
+  "@parvineyvazov/json-translator": [
+    "^4.1.0"
+  ],
+  "openai": [
+    "^6.9.0"
+  ],
+  "stripe": [
+    "^22.0.0"
+  ],
+  "@ariakit/react": [
+    "^0.4.24"
+  ],
+  "@emoji-mart/data": [
+    "1.2.1"
+  ],
+  "@faker-js/faker": [
+    "^10.4.0"
+  ],
+  "@platejs/ai": [
+    "^52.3.22"
+  ],
+  "@platejs/basic-nodes": [
+    "^52.3.10"
+  ],
+  "@platejs/basic-styles": [
+    "^52.3.10"
+  ],
+  "@platejs/callout": [
+    "^52.3.10"
+  ],
+  "@platejs/caption": [
+    "^52.3.10"
+  ],
+  "@platejs/code-block": [
+    "^52.3.16"
+  ],
+  "@platejs/code-drawing": [
+    "^52.3.10"
+  ],
+  "@platejs/combobox": [
+    "^52.3.10"
+  ],
+  "@platejs/comment": [
+    "^52.3.10"
+  ],
+  "@platejs/date": [
+    "^52.3.10"
+  ],
+  "@platejs/dnd": [
+    "^52.3.16"
+  ],
+  "@platejs/emoji": [
+    "^52.3.10"
+  ],
+  "@platejs/indent": [
+    "^52.3.10"
+  ],
+  "@platejs/layout": [
+    "^52.3.10"
+  ],
+  "@platejs/link": [
+    "^52.3.17"
+  ],
+  "@platejs/list": [
+    "^52.3.10"
+  ],
+  "@platejs/markdown": [
+    "^52.3.22"
+  ],
+  "@platejs/math": [
+    "^52.3.10"
+  ],
+  "@platejs/media": [
+    "^52.3.10"
+  ],
+  "@platejs/mention": [
+    "^52.3.10"
+  ],
+  "@platejs/resizable": [
+    "^52.3.10"
+  ],
+  "@platejs/selection": [
+    "^52.3.10"
+  ],
+  "@platejs/suggestion": [
+    "^52.3.10"
+  ],
+  "@platejs/table": [
+    "^52.3.20"
+  ],
+  "@platejs/toc": [
+    "^52.3.10"
+  ],
+  "@platejs/toggle": [
+    "^52.3.10"
+  ],
+  "@radix-ui/react-accordion": [
+    "^1.2.12"
+  ],
+  "@radix-ui/react-alert-dialog": [
+    "^1.1.15"
+  ],
+  "@radix-ui/react-avatar": [
+    "^1.1.10"
+  ],
+  "@radix-ui/react-checkbox": [
+    "^1.3.3"
+  ],
+  "@radix-ui/react-dialog": [
+    "^1.1.15"
+  ],
+  "@radix-ui/react-dropdown-menu": [
+    "^2.1.16"
+  ],
+  "@radix-ui/react-icons": [
+    "^1.3.2"
+  ],
+  "@radix-ui/react-label": [
+    "^2.1.7"
+  ],
+  "@radix-ui/react-popover": [
+    "^1.1.15"
+  ],
+  "@radix-ui/react-progress": [
+    "^1.1.7"
+  ],
+  "@radix-ui/react-radio-group": [
+    "^1.3.8"
+  ],
+  "@radix-ui/react-scroll-area": [
+    "^1.2.10"
+  ],
+  "@radix-ui/react-select": [
+    "^2.2.6"
+  ],
+  "@radix-ui/react-separator": [
+    "^1.1.7"
+  ],
+  "@radix-ui/react-slot": [
+    "^1.2.3"
+  ],
+  "@radix-ui/react-switch": [
+    "^1.2.6"
+  ],
+  "@radix-ui/react-tabs": [
+    "^1.1.13"
+  ],
+  "@radix-ui/react-toggle": [
+    "^1.1.10"
+  ],
+  "@radix-ui/react-toggle-group": [
+    "^1.1.11"
+  ],
+  "@radix-ui/react-toolbar": [
+    "^1.1.11"
+  ],
+  "@radix-ui/react-tooltip": [
+    "^1.2.8"
+  ],
+  "@udecode/cn": [
+    "^52.3.4"
+  ],
+  "class-variance-authority": [
+    "^0.7.1"
+  ],
+  "cmdk": [
+    "^1.1.1"
+  ],
+  "embla-carousel-react": [
+    "^8.6.0"
+  ],
+  "lodash": [
+    "^4.18.1"
+  ],
+  "platejs": [
+    "^52.3.21"
+  ],
+  "react-day-picker": [
+    "^9.14.0"
+  ],
+  "react-lite-youtube-embed": [
+    "^3.5.1"
+  ],
+  "react-player": [
+    "3.3.1"
+  ],
+  "react-resizable-panels": [
+    "^3.0.6"
+  ],
+  "react-textarea-autosize": [
+    "^8.5.9"
+  ],
+  "remark-gfm": [
+    "^4.0.1"
+  ],
+  "remark-math": [
+    "^6.0.0"
+  ],
+  "tailwind-scrollbar-hide": [
+    "^4.0.0"
+  ],
+  "@types/bun": [
+    "^1.3.11"
+  ]
+}
