@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
+  "scripts": {
+    "build": "echo 'typescript-config: no build step (JSON configs only)'",
+    "lint": "echo 'typescript-config: no lint step (JSON configs only)'",
+    "check-types": "echo 'typescript-config: no check-types step (JSON configs only)'"
+  },
   "publishConfig": {
     "access": "public"
   }

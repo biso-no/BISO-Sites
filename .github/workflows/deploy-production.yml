@@ -1,5 +1,13 @@
 name: Deploy affected apps
 
+# Deploy model: source-deploy with build-on-platform.
+# Appwrite builds the uploaded source archive on its infrastructure using the
+# install and build commands configured per site. CI is responsible for:
+#   1. Detecting which apps changed using Turbo's affected-package graph, and
+#   2. Uploading the full monorepo source for those apps to Appwrite.
+# Appwrite then runs `bun install` + the app's build command on its side.
+# This model is intentional: we do NOT run `turbo run build` in CI here.
+
 on:
   push:
     branches:
@@ -25,6 +33,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Install dependencies
+        # Required so Turbo can resolve the workspace graph for affected detection.
+        run: bun install --frozen-lockfile
+
       - name: Find affected apps
         id: affected
         shell: bash
@@ -33,6 +45,13 @@ jobs:
 
           BASE_SHA="${{ github.event.before }}"
           HEAD_SHA="${{ github.sha }}"
+
+          # On an initial push or force-push the before SHA is the null SHA.
+          # Fall back to the previous commit so we get a non-empty diff.
+          NULL_SHA="0000000000000000000000000000000000000000"
+          if [ "$BASE_SHA" = "$NULL_SHA" ] || [ -z "$BASE_SHA" ]; then
+            BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "$HEAD_SHA")"
+          fi
 
           echo "Comparing $BASE_SHA..$HEAD_SHA"
 
@@ -98,6 +117,9 @@ jobs:
           esac
 
       - name: Create source archive
+        # The full monorepo source is uploaded so Appwrite can resolve workspace
+        # packages during its on-platform bun install + build step.
+        # .git, node_modules, build artifacts, and Turbo caches are excluded.
         run: |
           tar \
             --exclude=.git \

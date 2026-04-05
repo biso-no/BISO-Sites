@@ -7,9 +7,11 @@
     "deploy:build": "bun run build && bun run deploy:prep",
     "deploy:prep": "set -x && echo '=== Flattening standalone ===' && cp .next/standalone/apps/api/server.js .next/standalone/ && cp -r .next/standalone/apps/api/.next/* .next/standalone/.next/ 2>/dev/null || mkdir -p .next/standalone/.next && cp -r .next/standalone/apps/api/.next/* .next/standalone/.next/ && echo '=== Copying to monorepo root ===' && cp -r .next ../../ && echo '=== Final structure ===' && ls -la ../../.next/standalone/",
     "start": "next start",
+    "lint": "biome lint .",
     "analyze": "ANALYZE=true npm run build",
     "test": "NODE_ENV=test vitest run",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "check-types": "tsc --noEmit --emitDeclarationOnly false",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {

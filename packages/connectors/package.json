@@ -3,8 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "build": "tsc --noEmit",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "lint": "biome lint .",
+    "check-types": "tsc --noEmit",
     "generate:finago": "openapi-typescript https://rest-api.developer.24sevenoffice.com/doc/v1.json -o src/24sevenoffice/rest/schema.d.ts"
   },
   "exports": {
@@ -22,7 +24,7 @@
     "@azure/identity": "^4.13.0",
     "@azure/msal-node": "^3.7.3",
     "@microsoft/microsoft-graph-client": "^3.0.7",
-    "@repo/api": "*",
+    "@repo/api": "workspace:*",
     "openapi-fetch": "^0.17.0",
     "server-only": "^0.0.1",
     "soap": "^1.1.7",

@@ -6,17 +6,18 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "biome lint ."
+    "lint": "biome lint .",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",
     "@hookform/resolvers": "^5.2.2",
-    "@repo/ai": "*",
-    "@repo/api": "*",
-    "@repo/connectors": "*",
-    "@repo/i18n": "*",
-    "@repo/payment": "*",
-    "@repo/ui": "*",
+    "@repo/ai": "workspace:*",
+    "@repo/api": "workspace:*",
+    "@repo/connectors": "workspace:*",
+    "@repo/i18n": "workspace:*",
+    "@repo/payment": "workspace:*",
+    "@repo/ui": "workspace:*",
     "@tailwindcss/postcss": "^4.1.17",
     "@vippsmobilepay/sdk": "^2.4.2",
     "ai": "^5.0.44",
@@ -39,7 +40,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*",
+    "@repo/typescript-config": "workspace:*",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^17.0.45",
     "@types/react": "19.2.7",

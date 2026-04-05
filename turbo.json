@@ -1,6 +1,11 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
+  "globalEnv": [],
+  "globalPassThroughEnv": [],
+  "remoteCache": {
+    "enabled": false
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -18,17 +23,23 @@
         "VIPPS_MERCHANT_SERIAL_NUMBER",
         "AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL"
       ],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": ["**/.next/**", "!**/.next/cache/**", "**/dist/**"]
     },
+    "_transit": {
+      "dependsOn": ["^_transit"]
+    },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": [],
+      "outputs": []
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["_transit"],
+      "outputs": []
     },
     "fix": {
-      "dependsOn": ["^fix"]
+      "dependsOn": [],
+      "outputs": []
     },
     "dev": {
       "cache": false,

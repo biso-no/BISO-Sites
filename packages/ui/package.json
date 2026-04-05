@@ -16,6 +16,7 @@
     "./components/table-picker": "./components/table-picker.tsx"
   },
   "scripts": {
+    "build": "tsc --noEmit",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate:component": "turbo gen react-component",
     "check-types": "tsc --noEmit",
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
-    "@repo/typescript-config": "*",
+    "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",

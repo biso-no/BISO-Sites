@@ -7,7 +7,10 @@
     "./types/*": "./types/*.ts"
   },
   "scripts": {
-    "clean": "rm -rf dist node_modules .turbo"
+    "build": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules .turbo",
+    "lint": "biome lint .",
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
@@ -16,7 +19,7 @@
   "dependencies": {
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
-    "node-appwrite": "^14.1.0",
+    "node-appwrite": "^23.1.0",
     "@vippsmobilepay/sdk": "^2.4.2",
     "zod": "^3.22.4"
   }
