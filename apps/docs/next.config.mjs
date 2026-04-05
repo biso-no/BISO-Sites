@@ -10,6 +10,16 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+    transpilePackages: [
+    "@repo/api",
+    "@repo/i18n",
+    "@repo/ui",
+    "@repo/connectors",
+    "@repo/shared",
+    "@repo/ai",
+    "@repo/payment",
+    "@repo/typescript-config",
+  ],
   standalone: true,
   outputFileTracingRoot: path.join(__dirname, "../../"),
 };
