@@ -10,6 +10,7 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  standalone: true,
   outputFileTracingRoot: path.join(__dirname, "../../"),
 };
 
