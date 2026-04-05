@@ -37,7 +37,7 @@ jobs:
             --exclude='**/.turbo' \
             --exclude=.vercel \
             --exclude='**/.vercel' \
-            -czf repo.tar.gz .
+            -czf /tmp/repo.tar.gz .
 
       - name: Upload deployment to Appwrite
         env:
@@ -50,5 +50,5 @@ jobs:
             -X POST "${APPWRITE_ENDPOINT%/}/sites/${ADMIN_SITE_ID}/deployments" \
             -H "X-Appwrite-Project: ${APPWRITE_PROJECT_ID}" \
             -H "X-Appwrite-Key: ${APPWRITE_API_KEY}" \
-            -F "code=@repo.tar.gz;type=application/gzip" \
+            -F "code=@/tmp/repo.tar.gz;type=application/gzip" \
             -F "activate=true"
