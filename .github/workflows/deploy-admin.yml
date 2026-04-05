@@ -20,53 +20,35 @@ jobs:
     environment: Production
 
     steps:
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Trigger Appwrite deployment
+      - name: Create source archive
+        run: |
+          tar \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude='**/node_modules' \
+            --exclude=.next \
+            --exclude='**/.next' \
+            --exclude=dist \
+            --exclude='**/dist' \
+            --exclude=.turbo \
+            --exclude='**/.turbo' \
+            --exclude=.vercel \
+            --exclude='**/.vercel' \
+            -czf repo.tar.gz .
+
+      - name: Upload deployment to Appwrite
         env:
           APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ vars.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
           ADMIN_SITE_ID: ${{ vars.ADMIN_SITE_ID }}
-          COMMIT_SHA: ${{ github.sha }}
         run: |
-          bun -e '
-            const endpoint = process.env.APPWRITE_ENDPOINT?.replace(/\/$/, "");
-            const projectId = process.env.APPWRITE_PROJECT_ID;
-            const apiKey = process.env.APPWRITE_API_KEY;
-            const siteId = process.env.ADMIN_SITE_ID;
-            const commitSha = process.env.COMMIT_SHA;
-
-            if (!endpoint || !projectId || !apiKey || !siteId || !commitSha) {
-              console.error("Missing required environment variables.");
-              process.exit(1);
-            }
-
-            const res = await fetch(`${endpoint}/sites/${siteId}/deployments/vcs`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Appwrite-Project": projectId,
-                "X-Appwrite-Key": apiKey,
-                "X-Appwrite-Response-Format": "1.8.0"
-              },
-              body: JSON.stringify({
-                type: "commit",
-                reference: commitSha,
-                activate: true
-              })
-            });
-
-            const text = await res.text();
-
-            if (!res.ok) {
-              console.error("Failed to trigger deployment");
-              console.error(`HTTP ${res.status}: ${text}`);
-              process.exit(1);
-            }
-
-            const data = JSON.parse(text);
-            console.log("Deployment triggered successfully");
-            console.log(`Deployment ID: ${data.$id}`);
-          '
+          curl --fail-with-body \
+            -X POST "${APPWRITE_ENDPOINT%/}/sites/${ADMIN_SITE_ID}/deployments" \
+            -H "X-Appwrite-Project: ${APPWRITE_PROJECT_ID}" \
+            -H "X-Appwrite-Key: ${APPWRITE_API_KEY}" \
+            -F "code=@repo.tar.gz;type=application/gzip" \
+            -F "activate=true"
