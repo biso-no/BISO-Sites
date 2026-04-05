@@ -17,10 +17,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Appwrite Node SDK
-        # Initializes a quick package.json to cleanly install the SDK in the runner
-        run: npm init -y && npm install node-appwrite
-
       - name: Trigger Appwrite VCS Deployment
         env:
           APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
@@ -29,7 +25,15 @@ jobs:
           ADMIN_SITE_ID: ${{ vars.ADMIN_SITE_ID }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          # Write the deployment script to a file
+          # 1. Create an isolated folder so npm doesn't fight with your Bun setup
+          mkdir .appwrite-deployer
+          cd .appwrite-deployer
+          
+          # 2. Silently install the SDK in this isolated folder
+          npm init -y > /dev/null
+          npm install node-appwrite --silent
+
+          # 3. Write the deployment script
           cat << 'EOF' > trigger-deploy.js
           const sdk = require('node-appwrite');
 
@@ -53,12 +57,12 @@ jobs:
               } catch (error) {
                   console.error('❌ Failed to trigger deployment:');
                   console.error(error);
-                  process.exit(1); // Fails the GitHub Action if the deployment fails
+                  process.exit(1); 
               }
           }
 
           deploy();
           EOF
           
-          # Execute the script
+          # 4. Execute the script
           node trigger-deploy.js
