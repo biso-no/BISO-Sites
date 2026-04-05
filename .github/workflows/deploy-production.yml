@@ -79,7 +79,9 @@ jobs:
     needs: discover
     if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-latest
-    environment: Production
+    environment:
+      name: Production (${{ matrix.app }})
+      url: https://${{ matrix.app }}.biso.no
     strategy:
       fail-fast: false
       matrix:
