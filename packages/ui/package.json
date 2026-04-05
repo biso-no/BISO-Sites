@@ -22,7 +22,6 @@
     "lint": "biome lint ."
   },
   "devDependencies": {
-    "@repo/api": "*",
     "@tailwindcss/postcss": "^4.1.17",
     "@repo/typescript-config": "*",
     "@types/node": "^22.15.3",

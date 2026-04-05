@@ -1,4 +1,6 @@
-import type { Currency } from "@repo/api/types/appwrite";
+export enum Currency {
+  NOK = "NOK",
+}
 
 export type CheckoutSessionParams = {
   userId: string;
