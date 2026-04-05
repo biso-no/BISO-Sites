@@ -20,7 +20,7 @@ const config = {
     "@repo/payment",
     "@repo/typescript-config",
   ],
-  standalone: true,
+  output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
 };
 
