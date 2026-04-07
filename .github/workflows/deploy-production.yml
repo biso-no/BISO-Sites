@@ -80,7 +80,7 @@ jobs:
     if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-latest
     environment:
-      name: Production (${{ matrix.app }})
+      name: Production
       url: https://${{ matrix.app }}.biso.no
     strategy:
       fail-fast: false
