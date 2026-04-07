@@ -18,6 +18,7 @@ export {
 const APPWRITE_PROJECT = "biso";
 const NEXT_PUBLIC_APPWRITE_ENDPOINT = "https://appwrite.biso.no/v1";
 
+
 export const clientSideClient = new Client()
   .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
   .setProject(APPWRITE_PROJECT);
