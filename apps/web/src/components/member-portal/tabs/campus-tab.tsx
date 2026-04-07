@@ -7,7 +7,7 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
 export function CampusTab() {
-  const _t = useTranslations("memberPortal.campus"); // Assuming we have or will add this
+  const t = useTranslations("memberPortal.campus");
 
   return (
     <TabsContent className="space-y-8" value="campus">
@@ -17,37 +17,35 @@ export function CampusTab() {
         initial={{ opacity: 0, y: 20 }}
       >
         <h2 className="mb-4 font-bold text-3xl text-foreground dark:text-foreground">
-          Your Campus Hub
+          {t("title")}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground dark:text-muted-foreground">
-          Discover resources, perks, and local management details specific to
-          your campus.
+          {t("description")}
         </p>
       </motion.div>
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
           <BookOpen className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">Local Resources</h3>
+          <h3 className="mb-2 font-bold text-xl">{t("localResources.title")}</h3>
           <p className="text-muted-foreground text-sm">
-            Access study rooms, campus maps, and facility information dedicated
-            to BISO members.
+            {t("localResources.description")}
           </p>
         </Card>
 
         <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
           <Users className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">Campus Management</h3>
+          <h3 className="mb-2 font-bold text-xl">{t("campusManagement.title")}</h3>
           <p className="text-muted-foreground text-sm">
-            Connect with your local BISO representatives and student groups.
+            {t("campusManagement.description")}
           </p>
         </Card>
 
         <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
           <MapPin className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">Campus Events</h3>
+          <h3 className="mb-2 font-bold text-xl">{t("campusEvents.title")}</h3>
           <p className="text-muted-foreground text-sm">
-            Stay updated with the latest events happening right on your campus.
+            {t("campusEvents.description")}
           </p>
         </Card>
       </div>

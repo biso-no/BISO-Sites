@@ -43,9 +43,12 @@
   },
   "tabs": {
     "overview": "Overview",
+    "home": "Home",
     "profile": "Profile",
     "membership": "Membership",
     "benefits": "Benefits",
+    "campus": "Campus",
+    "opportunities": "Opportunities",
     "settings": "Settings"
   },
   "overview": {
@@ -226,6 +229,38 @@
       "active": "Active",
       "inactive": "Inactive",
       "expired": "Expired"
+    }
+  },
+  "campus": {
+    "title": "Your Campus Hub",
+    "description": "Discover resources, perks, and local management details specific to your campus.",
+    "localResources": {
+      "title": "Local Resources",
+      "description": "Access study rooms, campus maps, and facility information dedicated to BISO members."
+    },
+    "campusManagement": {
+      "title": "Campus Management",
+      "description": "Connect with your local BISO representatives and student groups."
+    },
+    "campusEvents": {
+      "title": "Campus Events",
+      "description": "Stay updated with the latest events happening right on your campus."
+    }
+  },
+  "opportunities": {
+    "title": "Opportunities & Growth",
+    "description": "Boost your career and social life with exclusive BISO member opportunities.",
+    "careerPortal": {
+      "title": "Career Portal",
+      "description": "Find job listings, internships, and networking events aimed at BI students."
+    },
+    "socialEvents": {
+      "title": "Social Events",
+      "description": "Join social gatherings, parties, and networking sessions arranged by BISO."
+    },
+    "skillDevelopment": {
+      "title": "Skill Development",
+      "description": "Participate in workshops and courses to build your resume and skills."
     }
   }
 }

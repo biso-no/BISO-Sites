@@ -43,9 +43,12 @@
   },
   "tabs": {
     "overview": "Oversikt",
+    "home": "Hjem",
     "profile": "Profil",
     "membership": "Medlemskap",
     "benefits": "Fordeler",
+    "campus": "Campus",
+    "opportunities": "Muligheter",
     "settings": "Innstillinger"
   },
   "overview": {
@@ -226,6 +229,38 @@
       "active": "Aktiv",
       "inactive": "Inaktiv",
       "expired": "Utløpt"
+    }
+  },
+  "campus": {
+    "title": "Din campus-hub",
+    "description": "Oppdag ressurser, fordeler og lokal informasjon spesifikt for din campus.",
+    "localResources": {
+      "title": "Lokale ressurser",
+      "description": "Få tilgang til studierom, campuskart og fasiliteter dedikert til BISO-medlemmer."
+    },
+    "campusManagement": {
+      "title": "Campusledelse",
+      "description": "Koble til med dine lokale BISO-representanter og studentgrupper."
+    },
+    "campusEvents": {
+      "title": "Campus-arrangementer",
+      "description": "Hold deg oppdatert med de siste arrangementene på din campus."
+    }
+  },
+  "opportunities": {
+    "title": "Muligheter og vekst",
+    "description": "Styrk karrieren din og sosiale liv med eksklusive BISO-muligheter.",
+    "careerPortal": {
+      "title": "Karriereportal",
+      "description": "Finn jobbannonser, praksisplasser og nettverksarrangementer for BI-studenter."
+    },
+    "socialEvents": {
+      "title": "Sosiale arrangementer",
+      "description": "Delta på sosiale sammenkomster, fester og nettverkssesjoner arrangert av BISO."
+    },
+    "skillDevelopment": {
+      "title": "Kompetanseutvikling",
+      "description": "Delta på workshops og kurs for å bygge CV-en din og utvikle ferdighetene dine."
     }
   }
 }

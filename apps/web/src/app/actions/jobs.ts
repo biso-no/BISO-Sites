@@ -4,6 +4,25 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Jobs, Locale } from "@repo/api/types/appwrite";
 
+function filterTranslationRefs<T extends { translation_refs?: unknown }>(
+  item: T,
+  locale: string | undefined
+): T {
+  if (!locale || !Array.isArray(item.translation_refs)) {
+    return item;
+  }
+  return {
+    ...item,
+    translation_refs: item.translation_refs.filter(
+      (ref) =>
+        typeof ref === "object" &&
+        ref !== null &&
+        "locale" in ref &&
+        (ref as Record<string, unknown>).locale === locale
+    ),
+  };
+}
+
 interface ListJobsParams {
   campus?: string;
   limit?: number;
@@ -66,7 +85,7 @@ export async function listJobs(params: ListJobsParams = {}): Promise<Jobs[]> {
 
     const jobsResponse = await db.listRows<Jobs>("app", "jobs", queries);
 
-    return jobsResponse.rows;
+    return jobsResponse.rows.map((item) => filterTranslationRefs(item, locale));
   } catch (error) {
     console.error("Error fetching jobs:", error);
     return [];
@@ -111,7 +130,8 @@ export async function getJobBySlug(
       Query.limit(1),
     ]);
 
-    return response.rows[0] ?? null;
+    const item = response.rows[0];
+    return item ? filterTranslationRefs(item, locale) : null;
   } catch (error) {
     console.error("Error fetching job by slug:", error);
     return null;

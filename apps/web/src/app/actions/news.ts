@@ -4,6 +4,25 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Locale, News } from "@repo/api/types/appwrite";
 
+function filterTranslationRefs<T extends { translation_refs?: unknown }>(
+  item: T,
+  locale: string | undefined
+): T {
+  if (!locale || !Array.isArray(item.translation_refs)) {
+    return item;
+  }
+  return {
+    ...item,
+    translation_refs: item.translation_refs.filter(
+      (ref) =>
+        typeof ref === "object" &&
+        ref !== null &&
+        "locale" in ref &&
+        (ref as Record<string, unknown>).locale === locale
+    ),
+  };
+}
+
 interface ListNewsParams {
   campus?: string;
   limit?: number;
@@ -68,9 +87,8 @@ export async function listNews(params: ListNewsParams = {}): Promise<News[]> {
     }
 
     const newsResponse = await db.listRows<News>("app", "news", queries);
-    const newsItems = newsResponse.rows;
 
-    return newsItems;
+    return newsResponse.rows.map((item) => filterTranslationRefs(item, locale));
   } catch (error) {
     console.error("Error fetching news:", error);
     return [];
@@ -118,7 +136,8 @@ async function _getNewsItem(
       Query.limit(1),
     ]);
 
-    return response.rows[0] ?? null;
+    const item = response.rows[0];
+    return item ? filterTranslationRefs(item, locale) : null;
   } catch (error) {
     console.error("Error fetching news item:", error);
     return null;
@@ -166,7 +185,8 @@ export async function getNewsBySlug(
       Query.limit(1),
     ]);
 
-    return response.rows[0] ?? null;
+    const item = response.rows[0];
+    return item ? filterTranslationRefs(item, locale) : null;
   } catch (error) {
     console.error("Error fetching news item by slug:", error);
     return null;

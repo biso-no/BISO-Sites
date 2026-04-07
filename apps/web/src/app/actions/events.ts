@@ -9,6 +9,25 @@ import type {
   Locale,
 } from "@repo/api/types/appwrite";
 
+function filterTranslationRefs<T extends { translation_refs?: unknown }>(
+  item: T,
+  locale: string | undefined
+): T {
+  if (!locale || !Array.isArray(item.translation_refs)) {
+    return item;
+  }
+  return {
+    ...item,
+    translation_refs: item.translation_refs.filter(
+      (ref) =>
+        typeof ref === "object" &&
+        ref !== null &&
+        "locale" in ref &&
+        (ref as Record<string, unknown>).locale === locale
+    ),
+  };
+}
+
 interface ListEventsParams {
   campus?: string;
   limit?: number;
@@ -83,7 +102,9 @@ export async function listEvents(
 
     const eventsResponse = await db.listRows<Events>("app", "events", queries);
 
-    return eventsResponse.rows;
+    return eventsResponse.rows.map((event) =>
+      filterTranslationRefs(event, locale)
+    );
   } catch (error) {
     console.error("Error fetching events:", error);
     return [];
@@ -143,7 +164,7 @@ async function _getEvent(
       return null;
     }
 
-    return event;
+    return filterTranslationRefs(event, locale);
   } catch (error) {
     console.error("Error fetching event:", error);
     return null;
@@ -197,7 +218,8 @@ export async function getEventBySlug(
       Query.limit(1),
     ]);
 
-    return response.rows[0] ?? null;
+    const event = response.rows[0];
+    return event ? filterTranslationRefs(event, locale) : null;
   } catch (error) {
     console.error("Error fetching event by slug:", error);
     return null;
@@ -292,7 +314,7 @@ export async function getCollectionEvents(
       Query.orderAsc("start_date"),
     ]);
 
-    return response.rows;
+    return response.rows.map((event) => filterTranslationRefs(event, locale));
   } catch (error) {
     console.error("Error fetching collection events:", error);
     return [];
