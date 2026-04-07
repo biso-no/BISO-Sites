@@ -1,4 +1,5 @@
 "use client";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type {
   ContentTranslations,
   Events,
@@ -106,7 +107,7 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
           sizes="100vw"
           src={
             imageUrl ||
-            "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"
+            PLACEHOLDER_IMAGE
           }
         />
         <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />

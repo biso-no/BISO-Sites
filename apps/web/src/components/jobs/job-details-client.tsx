@@ -1,5 +1,6 @@
 "use client";
 
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
@@ -41,13 +42,10 @@ const categoryColors: Record<string, string> = {
 };
 
 const categoryImages: Record<string, string> = {
-  "Academic Associations":
-    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1080",
-  Societies:
-    "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1080",
-  "Staff Functions":
-    "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1080",
-  Projects: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1080",
+  "Academic Associations": PLACEHOLDER_IMAGE,
+  Societies: PLACEHOLDER_IMAGE,
+  "Staff Functions": PLACEHOLDER_IMAGE,
+  Projects: PLACEHOLDER_IMAGE,
 };
 
 export function JobDetailsClient({ job }: JobDetailsClientProps) {

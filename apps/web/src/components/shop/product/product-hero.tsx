@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -51,7 +52,7 @@ export function ProductHero({ product, isMember }: ProductHeroProps) {
 
   const imageUrl =
     productRef?.image ||
-    "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080";
+    PLACEHOLDER_IMAGE;
 
   return (
     <div className="relative h-[60vh] overflow-hidden">

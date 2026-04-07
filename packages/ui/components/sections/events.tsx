@@ -1,4 +1,5 @@
 "use client";
+import { PLACEHOLDER_IMAGE } from "../../lib/placeholder-images";
 import { ArrowRight, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -98,7 +99,7 @@ function EventCard({
               fill
               src={
                 event.image ||
-                "https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080"
+                PLACEHOLDER_IMAGE
               }
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />

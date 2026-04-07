@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -60,7 +61,7 @@ export function ProductDetailsServer({
 
   const imageUrl =
     productRef.image ||
-    "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080";
+    PLACEHOLDER_IMAGE;
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">

@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Building2 } from "lucide-react";
 
@@ -31,7 +32,7 @@ export function DepartmentsHero({ stats }: DepartmentsHeroProps) {
         alt="BISO Enheter"
         className="h-full w-full object-cover"
         fill
-        src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwd29ya2luZ3xlbnwxfHx8fDE3NjIxNjUxNDV8MA&ixlib=rb-4.1.0&q=80&w=1080"
+        src={PLACEHOLDER_IMAGE}
       />
       <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
 

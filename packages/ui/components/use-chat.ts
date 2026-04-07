@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 
+import { PLACEHOLDER_IMAGE } from '../lib/placeholder-images';
+
 import { type UseChatHelpers, useChat as useBaseChat } from '@ai-sdk/react';
 import { faker } from '@faker-js/faker';
 import {
@@ -551,7 +553,7 @@ const markdownChunks = [
     {
       delay,
       texts:
-        'text](https://images.unsplash.com/photo-1712688930249-98e1963af7bd?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)\n\n',
+        `text](${PLACEHOLDER_IMAGE})\n\n`,
     },
     {
       delay,
@@ -818,7 +820,7 @@ const mdxChunks = [
     {
       delay,
       texts:
-        '![](https://images.unsplash.com/photo-1712688930249-98e1963af7bd?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)\n\n',
+        `![](${PLACEHOLDER_IMAGE})\n\n`,
     },
     {
       delay,

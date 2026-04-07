@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
@@ -81,7 +82,7 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
                       fill
                       src={
                         event.image ||
-                        "https://images.unsplash.com/photo-1511578314322-379afb476865?w=1080"
+                        PLACEHOLDER_IMAGE
                       }
                     />
                     {event.member_only && (

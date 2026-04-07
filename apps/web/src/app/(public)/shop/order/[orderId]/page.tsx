@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { Orders } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -242,7 +243,7 @@ async function OrderDetails({
           alt="Order Confirmation"
           className="object-cover"
           fill
-          src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?w=1080"
+          src={PLACEHOLDER_IMAGE}
         />
         <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
 

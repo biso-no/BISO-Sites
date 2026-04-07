@@ -1,5 +1,6 @@
 "use client";
 
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
 import Link from "next/link";
@@ -15,7 +16,7 @@ export function CartHero() {
         alt="Shopping Cart"
         className="h-full w-full object-cover"
         fill
-        src="https://images.unsplash.com/photo-1472851294608-062f824d29cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9wcGluZyUyMGNhcnR8ZW58MXx8fHwxNzYyMTY1MTQ1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+        src={PLACEHOLDER_IMAGE}
       />
       <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -62,7 +63,7 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
   const categoryColor = categoryColors.default;
   const imageUrl =
     article.image ||
-    "https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080";
+    PLACEHOLDER_IMAGE;
   const articleLink = `/news/${article.$id}`;
   const relativeTime = getRelativeTime(article.$createdAt);
 

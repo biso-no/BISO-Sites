@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
@@ -69,7 +70,7 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
                         fill
                         src={
                           article.image ||
-                          "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400"
+                          PLACEHOLDER_IMAGE
                         }
                       />
                     </div>

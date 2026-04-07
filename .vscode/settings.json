@@ -50,5 +50,11 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.biome": "explicit",
     "source.organizeImports.biome": "explicit"
-  }
+  },
+  "i18n-ally.localesPaths": [
+    "packages/i18n",
+    "packages/i18n/messages",
+    "apps/admin/src/i18n",
+    "apps/web/src/i18n"
+  ]
 }

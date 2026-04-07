@@ -1,4 +1,5 @@
 "use client";
+import { PLACEHOLDER_IMAGE } from "../../lib/placeholder-images";
 import {
   Calendar,
   ChevronDown,
@@ -205,7 +206,7 @@ export function Hero({ featuredContent, labels }: HeroProps) {
             sizes="100vw"
             src={
               currentItem?.imageUrl ||
-              "https://images.unsplash.com/photo-1758270704113-9fb2ac81788f?w=2400"
+              PLACEHOLDER_IMAGE
             }
           />
           <div className="absolute inset-0 bg-linear-to-br from-[#001731]/95 via-[#3DA9E0]/60 to-[#001731]/85" />

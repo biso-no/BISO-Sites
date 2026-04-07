@@ -1,5 +1,6 @@
 "use client";
 
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -180,7 +181,7 @@ export function EventCard({
   // Get image URL
   const imageUrl =
     eventData?.image ||
-    "https://images.unsplash.com/photo-1758270705657-f28eec1a5694";
+    PLACEHOLDER_IMAGE;
 
   return (
     <motion.div

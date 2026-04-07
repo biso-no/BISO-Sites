@@ -1,5 +1,6 @@
 "use client";
 
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -133,7 +134,7 @@ export function CartItem({
             fill
             src={
               item.image ||
-              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080"
+              PLACEHOLDER_IMAGE
             }
           />
           <Badge

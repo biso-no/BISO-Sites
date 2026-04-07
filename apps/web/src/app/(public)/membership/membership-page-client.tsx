@@ -1,6 +1,7 @@
 "use client";
 
 import type { Locale } from "@repo/i18n/config";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import {
   Accordion,
@@ -465,7 +466,7 @@ export function MembershipPageClient({
           className="h-full w-full object-cover"
           fill
           priority
-          src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50cyUyMGNlbGVicmF0aW5nfGVufDF8fHx8MTc2MjE2NTE0NXww&ixlib=rb-4.1.0&q=80&w=1920"
+          src={PLACEHOLDER_IMAGE}
         />
         <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
         <div className="absolute inset-0 bg-linear-to-t from-brand-overlay-from/70 via-transparent to-transparent" />

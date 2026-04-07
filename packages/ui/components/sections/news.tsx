@@ -1,4 +1,5 @@
 "use client";
+import { PLACEHOLDER_IMAGE } from "../../lib/placeholder-images";
 import { ArrowRight, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -110,7 +111,7 @@ export function News({ news, labels }: NewsProps) {
                     fill
                     src={
                       featuredNews.image ||
-                      "https://images.unsplash.com/photo-1745272749509-5d212d97cbd4?w=1080"
+                      PLACEHOLDER_IMAGE
                     }
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
@@ -158,7 +159,7 @@ export function News({ news, labels }: NewsProps) {
                       fill
                       src={
                         item.image ||
-                        "https://images.unsplash.com/photo-1758270705657-f28eec1a5694?w=1080"
+                        PLACEHOLDER_IMAGE
                       }
                     />
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
