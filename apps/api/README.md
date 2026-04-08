@@ -1,93 +1,39 @@
-## BISO Sites Web App (`apps/web`)
+## BISO Sites API App (`apps/api`)
 
-The **Web App** is the public-facing website for students, members, and visitors. It powers membership onboarding, events, e‑commerce, units/departments, jobs, and public content pages.
+This app hosts the repository's server-side API routes and integration endpoints. It is a Next.js App Router application used for operational APIs, admin-facing endpoints, payment/webhook flows, and background-facing integration handlers.
 
-For a deep dive, see `/docs/applications/web-app` in the docs app.
+For shared setup, architecture, and environment details, use the root documentation in `/docs` and the workspace `README.md`.
 
-### Features
+### What lives here
 
-- **Public information hub** – about pages, policies, contact, press.
-- **Membership** – registration flows, benefits overview, member dashboard.
-- **Events** – listing, filtering, registration and attendance tracking.
-- **E‑commerce** – product catalog, cart, Vipps checkout, orders.
-- **Units & departments** – department pages with products, news, and teams.
-- **Jobs & news** – job board and news/press content.
+- `src/app/api/health` – health/readiness endpoint
+- `src/app/api/events` and `src/app/api/jobs` – public-facing data endpoints
+- `src/app/api/admin/*` – admin operations for users, campuses, departments, and account turnover
+- `src/app/api/expenses/*` – expense submission, OCR, and summary flows
+- `src/app/api/wc-products` – webshop/product integration endpoint
+- `src/app/api/cleanup-anon-users` – maintenance endpoint
 
-### Tech Stack
-
-- Next.js 15 (App Router) with React 19 and Server Components.
-- TypeScript with strict settings via `@repo/typescript-config`.
-- Tailwind CSS + design system components from `@repo/ui`.
-- Appwrite (database, auth, storage) via `@repo/api`.
-- Vipps MobilePay payments via `@repo/payment`.
-- `next-intl` for Norwegian/English localization.
-
-### Local Development
+### Local development
 
 From the monorepo root:
 
 ```bash
-# Install dependencies (once)
-bun install
-
-# Run only the web app (port 3000)
-bun run dev --filter=web
+bun run dev --filter=api
 ```
 
-The app will be available at `http://localhost:3000` (with `/no` and `/en` locale prefixes).
+The API app runs on `http://localhost:3003`.
 
-Environment variables and Appwrite/Vipps setup are documented in `/docs/operations` and the **Installation** guide under `/docs/repository/installation`.
+### Useful commands
 
-### Directory Structure
-
-```text
-apps/web/
-├── src/
-│  ├── app/
-│  │  ├── (public)/       # Public routes (home, about, events, shop, units, membership, contact, ...)
-│  │  ├── (protected)/    # Authenticated routes (profile, expenses, etc.)
-│  │  ├── (auth)/         # Auth routes
-│  │  ├── actions/        # Server actions
-│  │  ├── api/            # Route handlers (webhooks, integrations)
-│  │  └── ...
-│  ├── components/        # UI and feature components
-│  ├── lib/               # Utilities, Appwrite helpers, misc logic
-│  ├── i18n/              # next-intl configuration
-│  └── proxy.ts           # Proxy/middleware helpers
-├── messages/             # `en`/`no` translation JSON files
-├── public/               # Static assets (images, fonts, pdf.worker, etc.)
-├── next.config.ts
-├── tailwind.config.cjs
-├── tsconfig.json
-└── package.json
-```
-
-See `/docs/applications/web-app/routing` for a full route map and `/docs/applications/web-app/components` for component-level guidance.
-
-### Shared Packages
-
-The web app relies heavily on shared packages:
-
-- `@repo/api` – Appwrite clients (`createSessionClient`, storage helpers, generated types).
-- `@repo/payment` – Vipps checkout flows used in cart/checkout server actions.
-- `@repo/ui` – design system primitives and patterns.
-- `@repo/editor` – rendering content created in the admin Puck editor.
-
-### Scripts
-
-Defined in `apps/web/package.json`:
+From the monorepo root:
 
 ```bash
-bun run dev      # next dev -p 3000
-bun run build    # next build
-bun run start    # next start
-bun run lint     # next lint
+bun run lint --filter=api
+bun run check-types --filter=api
+bun run build --filter=api
 ```
 
-Use the root-level commands (`bun run dev`, `bun run build`, etc.) when working across multiple apps.
+### Notes
 
-### Further Reading
-
-- Web app overview: `/docs/applications/web-app`
-- Feature guides (membership, events, e‑commerce, units): `/docs/applications/web-app/features/*`
-- Server actions and routes: `/docs/applications/web-app/server-actions` and `/docs/applications/web-app/api-routes`
+- This app depends on shared workspace packages such as `@repo/api`, `@repo/connectors`, `@repo/payment`, and `@repo/ai`.
+- Environment variables and deployment details should stay documented centrally in `/docs/operations`.

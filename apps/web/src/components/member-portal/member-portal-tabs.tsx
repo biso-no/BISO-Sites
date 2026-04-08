@@ -1,7 +1,8 @@
 "use client";
 
+import type { Models } from "@repo/api";
 import type {
-  CampusBenefit,
+  CampusBenefits,
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
@@ -15,16 +16,18 @@ import { ProfileTab } from "./tabs/profile-tab";
 
 interface MemberPortalTabsProps {
   bankAccount?: string;
-  benefits: CampusBenefit[];
+  benefits: CampusBenefits[];
   benefitsCount: number;
   biEmail: string;
   daysRemaining: number;
-  estimatedSavings: number;
+  estimatedSavings: number | null;
   expiryDate: string;
-  featuredBenefits?: CampusBenefit[];
+  featuredBenefits?: CampusBenefits[];
   hasBIIdentity: boolean;
+  isGuest: boolean;
   isMember: boolean;
   membershipType: string;
+  profileAccount: Models.User<Models.Preferences> | null;
   profile: Users | null;
   publicProfile: PublicProfiles | null;
   revealedBenefits: Set<string>;
@@ -43,9 +46,11 @@ export function MemberPortalTabs({
   benefits,
   featuredBenefits = [],
   revealedBenefits,
+  isGuest,
   isMember,
   hasBIIdentity,
   profile,
+  profileAccount,
   publicProfile,
   biEmail,
   userName,
@@ -63,7 +68,7 @@ export function MemberPortalTabs({
       benefitsCount={benefitsCount}
       defaultTab="home"
       hasBIIdentity={hasBIIdentity}
-      isGuest={!profile}
+      isGuest={isGuest}
       isMember={isMember}
     >
       <HomeTab
@@ -104,6 +109,7 @@ export function MemberPortalTabs({
       />
 
       <ProfileTab
+        accountUser={profileAccount}
         biEmail={biEmail}
         publicProfile={publicProfile}
         user={profile}

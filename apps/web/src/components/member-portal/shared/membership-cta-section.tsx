@@ -5,11 +5,13 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Check, CreditCard, Sparkles, Users, Zap } from "lucide-react";
 import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
-import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
-
-type MembershipDuration = "semester" | "year" | "three-year";
+import {
+  type MembershipDuration,
+  getMembershipShopHref,
+} from "@/lib/member-portal-utils";
 
 const MEMBERSHIP_OPTIONS: {
   type: MembershipDuration;
@@ -51,6 +53,7 @@ const MEMBERSHIP_BENEFITS = [
 
 export function MembershipCtaSection() {
   const t = useTranslations("memberPortal");
+  const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
   const [isPending, startTransition] = useTransition();
 
@@ -60,18 +63,8 @@ export function MembershipCtaSection() {
       return;
     }
 
-    startTransition(async () => {
-      try {
-        await initiateVippsCheckout({
-          reference: `membership-${Date.now()}`,
-          amount: option.price * 100,
-          description: `BISO Membership - ${t(`cta.plans.${selectedPlan}`)}`,
-          returnUrl: `${window.location.origin}/member?purchase=success`,
-          customerInfo: {},
-        });
-      } catch (error) {
-        console.error("Failed to initiate checkout:", error);
-      }
+    startTransition(() => {
+      router.push(getMembershipShopHref(option.type));
     });
   };
 

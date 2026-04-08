@@ -4,6 +4,17 @@ import { MemberPortalSkeleton } from "@/components/member-portal/shared/member-p
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { MemberPortalContent } from "./member-portal-content";
 
+interface MembershipStatus {
+  active: boolean;
+  categories?: number[];
+  error?: string;
+  membership?: {
+    expiryDate?: string;
+    name?: string;
+  } | null;
+  studentId?: number;
+}
+
 export const metadata = {
   title: "Member Portal | BISO",
   description: "Access your BISO membership, benefits, and profile settings",
@@ -14,10 +25,11 @@ export default async function MemberPortalPage() {
   const userData = await getLoggedInUser();
 
   let hasBIIdentity = false;
-  let membershipStatus: Record<string, unknown> = {
+  let membershipStatus: MembershipStatus = {
     active: false,
+    categories: undefined,
     membership: null,
-    studentId: null,
+    studentId: undefined,
   };
 
   if (userData) {

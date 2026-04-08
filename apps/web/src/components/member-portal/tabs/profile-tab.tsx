@@ -1,5 +1,6 @@
 "use client";
 
+import type { Models } from "@repo/api";
 import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
 import {
   Avatar,
@@ -21,22 +22,29 @@ import { useState, useTransition } from "react";
 import { updatePublicProfile, uploadAvatar } from "@/app/actions/member-portal";
 
 interface ProfileTabProps {
+  accountUser: Models.User<Models.Preferences> | null;
   biEmail: string;
   publicProfile: PublicProfiles | null;
   user: Users | null;
 }
 
-export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
+export function ProfileTab({
+  user,
+  accountUser,
+  publicProfile,
+  biEmail,
+}: ProfileTabProps) {
   const t = useTranslations("memberPortal.profile");
   const [isPending, startTransition] = useTransition();
+  const effectiveName = user?.name || accountUser?.name || "";
   const [formData, setFormData] = useState({
-    name: user?.name || "",
+    name: effectiveName,
     isPublic: publicProfile?.email_visible || publicProfile?.phone_visible,
     emailVisible: publicProfile?.email_visible,
     phoneVisible: publicProfile?.phone_visible,
   });
 
-  if (!user) {
+  if (!(user || accountUser)) {
     return (
       <TabsContent className="space-y-8" value="profile">
         <Card className="flex flex-col items-center justify-center p-12 text-center shadow-lg dark:bg-inverted/50 dark:backdrop-blur-sm">
@@ -55,7 +63,7 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
     );
   }
 
-  const initials = (user.name || "U")
+  const initials = (effectiveName || "U")
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -99,8 +107,8 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
 
         <div className="mb-8 flex items-center gap-6">
           <Avatar className="h-24 w-24 border-4 border-brand-border">
-            {user.avatar && (
-              <AvatarImage alt={user.name || ""} src={user.avatar} />
+            {user?.avatar && (
+              <AvatarImage alt={effectiveName} src={user.avatar} />
             )}
             <AvatarFallback className="bg-linear-to-br from-brand-gradient-from to-brand-gradient-to text-2xl text-white">
               {initials}
@@ -139,11 +147,15 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
           </div>
           <div>
             <Label>{t("campus")}</Label>
-            <Input className="mt-2" disabled value={user.campus?.name || ""} />
+            <Input className="mt-2" disabled value={user?.campus?.name || ""} />
           </div>
           <div>
             <Label>{t("email")}</Label>
-            <Input className="mt-2" disabled value={user.email || ""} />
+            <Input
+              className="mt-2"
+              disabled
+              value={user?.email || accountUser?.email || ""}
+            />
           </div>
           <div>
             <Label>{t("biEmail")}</Label>
@@ -157,7 +169,7 @@ export function ProfileTab({ user, publicProfile, biEmail }: ProfileTabProps) {
           </div>
           <div>
             <Label>{t("studentId")}</Label>
-            <Input className="mt-2" disabled value={user.student_id || ""} />
+            <Input className="mt-2" disabled value={user?.student_id || ""} />
           </div>
         </div>
 

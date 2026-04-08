@@ -26,6 +26,7 @@ interface NavigationProps {
   onEventsClick?: () => void;
   onNewsClick?: () => void;
   onShopClick?: () => void;
+  isMember?: boolean;
 }
 
 export function Navigation({
@@ -33,6 +34,7 @@ export function Navigation({
   onNewsClick,
   onApplyClick,
   onShopClick,
+  isMember
 }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -231,6 +233,7 @@ export function Navigation({
                 size="sm"
                 variant="ghost"
               />
+              {isMember && (
               <Button
                 className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
                 onClick={() => router.push("/member")}
@@ -238,6 +241,16 @@ export function Navigation({
               >
                 {t("memberPortal")}
               </Button>
+              )}
+              {!isMember && (
+                <Button
+                  className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
+                  onClick={() => router.push("/member")}
+                  variant="outline"
+                >
+                  {t("becomeMember")}
+                </Button>
+              )}
             </div>
           </motion.div>
         )}

@@ -1,3 +1,5 @@
+import type { Models } from "@repo/api";
+import type { Users } from "@repo/api/types/appwrite";
 import { getTranslations } from "next-intl/server";
 import {
   getBenefitReveals,
@@ -9,16 +11,29 @@ import {
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
 
-interface MemberPortalContentProps {
-  hasBIIdentity: boolean;
-  membership: Record<string, unknown>;
-  user: Record<string, unknown> | null;
+interface MembershipInfo {
+  expiryDate?: string;
+  name?: string;
 }
 
-const calculateEstimatedSavings = (_userId: string) => {
-  // TODO: Implement estimated savings calculation
-  return 0;
-};
+interface MembershipStatus {
+  active: boolean;
+  categories?: number[];
+  error?: string;
+  membership?: MembershipInfo | null;
+  studentId?: number | null;
+}
+
+interface LoggedInUser {
+  profile: Users | null;
+  user: Models.User<Models.Preferences>;
+}
+
+interface MemberPortalContentProps {
+  hasBIIdentity: boolean;
+  membership: MembershipStatus;
+  user: LoggedInUser | null;
+}
 
 export async function MemberPortalContent({
   user,
@@ -38,15 +53,13 @@ export async function MemberPortalContent({
 
   // Fetch benefits for the member portal (all users see published benefits;
   // non-members see teasers, members see the redemption value after reveal)
-  const [benefits, featuredBenefits, revealedBenefits, estimatedSavings] =
-    await Promise.all([
-      getMemberPortalBenefits(campusId),
-      getFeaturedBenefits(campusId),
-      user
-        ? getBenefitReveals(user.user.$id)
-        : Promise.resolve(new Set<string>()),
-      user?.user?.$id ? calculateEstimatedSavings(user.user.$id) : 0,
-    ]);
+  const [benefits, featuredBenefits, revealedBenefits] = await Promise.all([
+    getMemberPortalBenefits(campusId),
+    getFeaturedBenefits(campusId),
+    user
+      ? getBenefitReveals(user.user.$id)
+      : Promise.resolve(new Set<string>()),
+  ]);
 
   const isMember = membership.active;
 
@@ -95,18 +108,22 @@ export async function MemberPortalContent({
 
       <div className="mx-auto max-w-7xl px-4 py-8">
         <MemberPortalTabs
-          bankAccount={profile?.bank_account || user?.profile?.bank_account}
+          bankAccount={
+            profile?.bank_account ?? user?.profile?.bank_account ?? undefined
+          }
           benefits={benefits}
           benefitsCount={benefits.length}
           biEmail={biEmail}
           daysRemaining={daysRemaining}
-          estimatedSavings={estimatedSavings}
+          estimatedSavings={null}
           expiryDate={expiryDate}
           featuredBenefits={featuredBenefits}
           hasBIIdentity={hasBIIdentity}
+          isGuest={!user}
           isMember={isMember}
           membershipType={membershipType}
-          profile={profile || user?.profile || user?.user || null}
+          profileAccount={user?.user ?? null}
+          profile={profile || user?.profile || null}
           publicProfile={publicProfile}
           revealedBenefits={revealedBenefits}
           startDate={startDate}

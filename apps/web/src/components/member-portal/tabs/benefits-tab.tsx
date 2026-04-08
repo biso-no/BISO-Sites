@@ -1,6 +1,6 @@
 "use client";
 
-import type { CampusBenefit } from "@repo/api/types/appwrite";
+import type { CampusBenefits } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
@@ -24,8 +24,8 @@ import { BenefitPreviewCard } from "../shared/benefit-preview-card";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 
 interface BenefitsTabProps {
-  benefits: CampusBenefit[];
-  featuredBenefits?: CampusBenefit[];
+  benefits: CampusBenefits[];
+  featuredBenefits?: CampusBenefits[];
   hasBIIdentity: boolean;
   isMember: boolean;
   revealedBenefits: Set<string>;
@@ -46,7 +46,7 @@ function MemberBenefitsView({
   benefits,
   revealedBenefits,
 }: {
-  benefits: CampusBenefit[];
+  benefits: CampusBenefits[];
   revealedBenefits: Set<string>;
 }) {
   const t = useTranslations("memberPortal.benefits");
@@ -206,7 +206,7 @@ function MemberBenefitsView({
   );
 }
 
-function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefit[] }) {
+function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
   const t = useTranslations("memberPortal.benefits");
   const [selectedCategory, setSelectedCategory] = useState("all");
 

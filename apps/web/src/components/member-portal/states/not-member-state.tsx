@@ -6,11 +6,13 @@ import { Card } from "@repo/ui/components/ui/card";
 import { ArrowLeft, Award, CheckCircle, CreditCard } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
-import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
-
-type MembershipDuration = "semester" | "year" | "three-year";
+import {
+  type MembershipDuration,
+  getMembershipShopHref,
+} from "@/lib/member-portal-utils";
 
 const MEMBERSHIP_PRICES = {
   semester: 350,
@@ -24,24 +26,13 @@ interface NotMemberStateProps {
 
 export function NotMemberState({ benefitsCount = 6 }: NotMemberStateProps) {
   const t = useTranslations("memberPortal");
+  const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
   const [isPending, startTransition] = useTransition();
 
   const handlePurchase = () => {
-    startTransition(async () => {
-      try {
-        await initiateVippsCheckout({
-          reference: `membership-${Date.now()}`,
-          amount: MEMBERSHIP_PRICES[selectedPlan] * 100, // Convert to øre
-          description: `BISO Membership - ${t(`states.notMember.pricing.${selectedPlan}`)}`,
-          returnUrl: `${window.location.origin}/member?purchase=success`,
-          customerInfo: {
-            // Will be filled by Vipps from session
-          },
-        });
-      } catch (error) {
-        console.error("Failed to initiate checkout:", error);
-      }
+    startTransition(() => {
+      router.push(getMembershipShopHref(selectedPlan));
     });
   };
 

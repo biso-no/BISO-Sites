@@ -14,16 +14,18 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
-import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
+import {
+  type MembershipDuration,
+  getMembershipShopHref,
+} from "@/lib/member-portal-utils";
 
 interface LockedContentOverlayProps {
   children: React.ReactNode;
   hasBIIdentity: boolean;
 }
-
-type MembershipDuration = "semester" | "year" | "three-year";
 
 const MEMBERSHIP_OPTIONS: {
   type: MembershipDuration;
@@ -47,6 +49,7 @@ export function LockedContentOverlay({
   children,
 }: LockedContentOverlayProps) {
   const t = useTranslations("memberPortal");
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
 
@@ -60,18 +63,8 @@ export function LockedContentOverlay({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        await initiateVippsCheckout({
-          reference: `membership-${Date.now()}`,
-          total: option.price * 100,
-          description: `BISO Membership - ${selectedPlan}`,
-          returnUrl: `${window.location.origin}/member?purchase=success`,
-          customerInfo: {},
-        });
-      } catch (error) {
-        console.error("Failed to initiate checkout:", error);
-      }
+    startTransition(() => {
+      router.push(getMembershipShopHref(option.type));
     });
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CampusBenefit } from "@repo/api/types/appwrite";
+import type { CampusBenefits } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { Clock, Copy, ExternalLink, QrCode, Store, Ticket } from "lucide-react";
@@ -17,7 +17,7 @@ import {
 } from "./benefit-card-parts";
 
 interface BenefitCardProps {
-  benefit: CampusBenefit;
+  benefit: CampusBenefits;
   isRevealed: boolean;
 }
 

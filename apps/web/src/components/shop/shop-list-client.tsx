@@ -8,11 +8,16 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Filter, Loader2, Search, ShoppingBag, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { listProducts } from "@/app/actions/webshop";
 import { useCampus } from "@/components/context/campus";
+import {
+  type ShopCategory,
+  SHOP_CATEGORIES,
+  getInitialShopCategory,
+} from "@/lib/member-portal-utils";
 import { ProductCard } from "./product-card";
 
 interface ShopListClientProps {
@@ -20,21 +25,26 @@ interface ShopListClientProps {
   products: WebshopProducts[];
 }
 
-const categories = ["All", "Merch", "Trips", "Lockers", "Membership"];
-
 export function ShopListClient({
   products: initialProducts,
   isMember = false,
 }: ShopListClientProps) {
   const t = useTranslations("shop");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const locale = useLocale() as "en" | "no";
   const { activeCampusId } = useCampus();
 
   const [products, setProducts] = useState<WebshopProducts[]>(initialProducts);
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedCategory, setSelectedCategory] = useState<ShopCategory>(() =>
+    getInitialShopCategory(searchParams.get("category"))
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setSelectedCategory(getInitialShopCategory(searchParams.get("category")));
+  }, [searchParams]);
 
   // Re-fetch products when campus or locale changes
   useEffect(() => {
@@ -121,7 +131,7 @@ export function ShopListClient({
             {/* Category Filter */}
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Filter className="h-5 w-5 text-brand-dark" />
-              {categories.map((category) => (
+              {SHOP_CATEGORIES.map((category) => (
                 <Button
                   className={
                     selectedCategory === category

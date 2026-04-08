@@ -1,6 +1,6 @@
 "use client";
 
-import type { CampusBenefit } from "@repo/api/types/appwrite";
+import type { CampusBenefits } from "@repo/api/types/appwrite";
 import {
   Carousel,
   CarouselContent,
@@ -12,7 +12,7 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { BenefitPreviewCard } from "./benefit-preview-card";
 
-export function BenefitsShowcase({ benefits }: { benefits: CampusBenefit[] }) {
+export function BenefitsShowcase({ benefits }: { benefits: CampusBenefits[] }) {
   const t = useTranslations("memberPortal");
 
   return (
@@ -67,7 +67,7 @@ export function BenefitsShowcase({ benefits }: { benefits: CampusBenefit[] }) {
       {/* Stats Section */}
       <motion.div
         animate={{ opacity: 1 }}
-        className="mt-12 grid gap-6 text-center sm:grid-cols-3"
+        className="mt-12 grid gap-6 text-center sm:grid-cols-2"
         initial={{ opacity: 0 }}
         transition={{ delay: 0.5 }}
       >
@@ -75,12 +75,6 @@ export function BenefitsShowcase({ benefits }: { benefits: CampusBenefit[] }) {
           <div className="mb-2 font-bold text-3xl text-brand">50+</div>
           <div className="text-muted-foreground">
             {t("showcase.stats.partners")}
-          </div>
-        </div>
-        <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
-          <div className="mb-2 font-bold text-3xl text-brand">~3,000 NOK</div>
-          <div className="text-muted-foreground">
-            {t("showcase.stats.savings")}
           </div>
         </div>
         <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">

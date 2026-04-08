@@ -1,6 +1,6 @@
 "use client";
 
-import type { CampusBenefit } from "@repo/api/types/appwrite";
+import type { CampusBenefits } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -18,15 +18,16 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { shouldShowEstimatedSavings } from "@/lib/member-portal-utils";
 import { BenefitCard } from "../shared/benefit-card";
 import { BenefitsShowcase } from "../shared/benefits-showcase";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 
 interface HomeTabProps {
-  benefits: CampusBenefit[];
+  benefits: CampusBenefits[];
   benefitsCount: number;
   daysRemaining: number;
-  estimatedSavings: number;
+  estimatedSavings: number | null;
   expiryDate: string;
   hasBIIdentity: boolean;
   isMember: boolean;
@@ -144,29 +145,30 @@ function MemberOverview({
           </div>
         </Card>
 
-        {/* Estimated Savings */}
-        <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
-          <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
-              <TrendingUp className="h-6 w-6 text-white" />
+        {shouldShowEstimatedSavings(estimatedSavings) ? (
+          <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
+            <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
+            <div className="relative">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
+                {t("stats.estimatedSavings")}
+              </p>
+              <p className="font-bold text-3xl text-foreground dark:text-foreground">
+                <AnimatedCounter
+                  prefix="~"
+                  suffix=" NOK"
+                  value={estimatedSavings}
+                />
+              </p>
+              <p className="mt-1 text-green-600 text-sm dark:text-green-400">
+                <TrendingUp className="mr-1 inline h-3 w-3" />
+                {t("stats.potential")}
+              </p>
             </div>
-            <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
-              {t("stats.estimatedSavings")}
-            </p>
-            <p className="font-bold text-3xl text-foreground dark:text-foreground">
-              <AnimatedCounter
-                prefix="~"
-                suffix=" NOK"
-                value={estimatedSavings}
-              />
-            </p>
-            <p className="mt-1 text-green-600 text-sm dark:text-green-400">
-              <TrendingUp className="mr-1 inline h-3 w-3" />
-              {t("stats.potential")}
-            </p>
-          </div>
-        </Card>
+          </Card>
+        ) : null}
       </motion.div>
 
       {/* Featured Benefits */}
@@ -314,7 +316,7 @@ function MemberOverview({
   );
 }
 
-function NonMemberOverview({ benefits }: { benefits: CampusBenefit[] }) {
+function NonMemberOverview({ benefits }: { benefits: CampusBenefits[] }) {
   return (
     <>
       {/* Welcome section for non-members */}
