@@ -339,6 +339,17 @@ export class SharePointService {
     };
   }
 
+  async listDrivesForSite(
+    siteId: string
+  ): Promise<Array<{ id: string; name: string }>> {
+    const client = await this.getAuthenticatedClient();
+    const response = await client.api(`/sites/${siteId}/drives`).get();
+    return (response.value ?? []).map((d: any) => ({
+      id: d.id as string,
+      name: d.name as string,
+    }));
+  }
+
   async getSiteById(siteId: string): Promise<SharePointSite> {
     const client = await this.getAuthenticatedClient();
     const site = await client.api(`/sites/${siteId}`).get();

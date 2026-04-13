@@ -2,20 +2,24 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  type Campus,
+import type {
+  Campus,
   DocumentCategory,
-  type Documents,
   DocumentScope,
   DocumentStatus,
+  Documents,
 } from "@repo/api/types/appwrite";
 import {
-  SharePointService,
   getSharePointConfig,
+  SharePointService,
 } from "@repo/connectors/sharepoint";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import {
+  resolveDocumentsDriveId,
+  resolveFolderPath,
+} from "@/lib/documents/sharepoint-mapping";
 import {
   applyScopeQueries,
   assertWriteAccess,
@@ -23,10 +27,10 @@ import {
 import { logAuditEvent } from "./audit-log";
 import {
   DOCUMENTS_PAGE_SIZE,
-  type DocumentMetadataFormValues,
   type DocumentCreateFormValues,
-  documentMetadataSchema,
+  type DocumentMetadataFormValues,
   documentCreateSchema,
+  documentMetadataSchema,
 } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
@@ -86,12 +90,14 @@ export async function createDocument(
     return { error: "Invalid form data", sharePointError: false };
   }
 
-  const { sharepoint_drive_id, sharepoint_folder_path, campus_id, scope } =
-    validated.data;
+  const { campus_id, scope, category, language } = validated.data;
 
   // National documents can only be created by global admins
   if (scope === "national" && !ctx.roles.includes("globaladmin")) {
-    return { error: "Only global admins can create national documents", sharePointError: false };
+    return {
+      error: "Only global admins can create national documents",
+      sharePointError: false,
+    };
   }
 
   assertWriteAccess(ctx, campus_id ?? null);
@@ -109,18 +115,45 @@ export async function createDocument(
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  let spResult: Awaited<ReturnType<SharePointService["uploadNewFile"]>>;
+  // Resolve campus name for subfolder path (used by campus-bylaws)
+  let campusName: string | null = null;
+  if (scope === "campus" && campus_id) {
+    const { db: dbForCampus } = await createSessionClient();
+    const campusRows = await dbForCampus.listRows<Campus>("app", "campus", [
+      Query.equal("$id", campus_id),
+      Query.limit(1),
+    ]);
+    campusName = campusRows.rows[0]?.name ?? null;
+  }
+
+  // Auto-resolve SharePoint drive ID and folder path
+  const sp = getSharePointService();
+  let driveId: string;
   try {
-    const sp = getSharePointService();
-    spResult = await sp.uploadNewFile(
-      sharepoint_drive_id,
-      sharepoint_folder_path,
-      file.name,
-      buffer
-    );
+    driveId = await resolveDocumentsDriveId(sp);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { error: `SharePoint upload failed: ${message}`, sharePointError: true };
+    return {
+      error: `Could not resolve SharePoint drive: ${message}`,
+      sharePointError: true,
+    };
+  }
+
+  const folderPath = resolveFolderPath(
+    category as DocumentCategory,
+    language,
+    campusName
+  );
+
+  let spResult: Awaited<ReturnType<SharePointService["uploadNewFile"]>>;
+  try {
+    spResult = await sp.uploadNewFile(driveId, folderPath, file.name, buffer);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      error: `SharePoint upload failed: ${message}`,
+      sharePointError: true,
+    };
   }
 
   const { db } = await createSessionClient();
@@ -130,6 +163,7 @@ export async function createDocument(
     category: validated.data.category as DocumentCategory,
     scope: validated.data.scope as DocumentScope,
     campus_id: campus_id ?? null,
+    language,
     version: validated.data.version ?? null,
     version_number: validated.data.version_number,
     sharepoint_item_id: spResult.itemId,
@@ -169,7 +203,10 @@ export async function updateDocumentMetadata(
     return { error: "Document not found" };
   }
 
-  if (validated.data.scope === "national" && !ctx.roles.includes("globaladmin")) {
+  if (
+    validated.data.scope === "national" &&
+    !ctx.roles.includes("globaladmin")
+  ) {
     return { error: "Only global admins can manage national documents" };
   }
 
@@ -181,6 +218,7 @@ export async function updateDocumentMetadata(
     category: validated.data.category as DocumentCategory,
     scope: validated.data.scope as DocumentScope,
     campus_id: validated.data.campus_id ?? null,
+    language: validated.data.language,
     version: validated.data.version ?? null,
     status: validated.data.status as DocumentStatus,
     sort_order: validated.data.sort_order,
@@ -200,7 +238,12 @@ export async function uploadNewVersion(
   id: string,
   formData: FormData
 ): Promise<
-  | { data: string; newVersionNumber: number; error?: never; sharePointError?: never }
+  | {
+      data: string;
+      newVersionNumber: number;
+      error?: never;
+      sharePointError?: never;
+    }
   | { error: string; sharePointError: boolean; data?: never }
 > {
   const ctx = await requireAuth();
@@ -240,7 +283,10 @@ export async function uploadNewVersion(
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { error: `SharePoint upload failed: ${message}`, sharePointError: true };
+    return {
+      error: `SharePoint upload failed: ${message}`,
+      sharePointError: true,
+    };
   }
 
   const newVersionNumber = doc.version_number + 1;
@@ -288,42 +334,6 @@ export async function deleteDocument(
   });
   revalidatePath("/documents");
   return { data: true };
-}
-
-export async function listSharePointDrives(): Promise<
-  Array<{ siteId: string; siteName: string; driveId: string; driveName: string }>
-> {
-  const ctx = await requireAuth();
-  if (!ctx.roles.includes("globaladmin")) {
-    return [];
-  }
-
-  try {
-    const sp = getSharePointService();
-    const sites = await sp.listSites();
-    const drives: Array<{
-      siteId: string;
-      siteName: string;
-      driveId: string;
-      driveName: string;
-    }> = [];
-
-    // We can't call Graph directly here without the authenticated client,
-    // so we'll return the sites and let the client use the site IDs.
-    // For the drive picker, we list sites and pair them with a placeholder
-    // driveId that the user can fill in, or we return site-level info.
-    for (const site of sites) {
-      drives.push({
-        siteId: site.id,
-        siteName: site.displayName || site.name,
-        driveId: site.id, // Will be used to resolve drives on SP side
-        driveName: site.displayName || site.name,
-      });
-    }
-    return drives;
-  } catch {
-    return [];
-  }
 }
 
 export async function listCampusesForDocuments() {

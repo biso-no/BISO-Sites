@@ -20,9 +20,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 function formatBytes(bytes: number | null): string {
-  if (!bytes) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (!bytes) {
+    return "—";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -64,13 +70,14 @@ export function DocumentsListClient({
       !search ||
       doc.title.toLowerCase().includes(search.toLowerCase()) ||
       (doc.description ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchesFilter =
-      activeFilter === "all" || doc.status === activeFilter;
+    const matchesFilter = activeFilter === "all" || doc.status === activeFilter;
     return matchesSearch && matchesFilter;
   });
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) return;
+    if (!confirm(labels.deleteConfirm)) {
+      return;
+    }
     startTransition(async () => {
       const result = await deleteDocument(id);
       if ("error" in result) {
@@ -109,7 +116,10 @@ export function DocumentsListClient({
         placeholder={labels.searchPlaceholder}
       />
       {filtered.length === 0 ? (
-        <EmptyState icon={<FileText size={28} />} title="No matching documents" />
+        <EmptyState
+          icon={<FileText size={28} />}
+          title="No matching documents"
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((doc) => (

@@ -411,22 +411,27 @@
       "category": "Category",
       "scope": "Scope",
       "campus": "Campus",
+      "language": "Language",
       "version": "Version Label",
       "versionNumber": "Version Number",
       "status": "Status",
       "sortOrder": "Sort Order",
       "file": "PDF File",
-      "sharepointDriveId": "SharePoint Drive ID",
-      "sharepointFolderPath": "Folder Path",
       "fileSize": "File Size",
       "lastUpdated": "Last Updated"
+    },
+    "languages": {
+      "no": "Norwegian",
+      "en": "English"
     },
     "categories": {
       "national-statutes": "National Statutes",
       "campus-bylaws": "Campus Bylaws",
       "code-of-conduct": "Code of Conduct",
       "business-regulations": "Business Regulations",
-      "communication-guidelines": "Communication Guidelines"
+      "communication-guidelines": "Communication Guidelines",
+      "authorization-matrix": "Authorization Matrix",
+      "target-documents": "Target Documents"
     },
     "scopes": {
       "national": "National",
@@ -445,8 +450,7 @@
     "sharepointError": "SharePoint upload failed",
     "deleteSuccess": "Document deleted",
     "deleteError": "Failed to delete document",
-    "versionUploadHint": "Uploading a new version will replace the file in SharePoint. SharePoint's native version history will track the previous version.",
-    "sharepointHint": "Enter the SharePoint Drive ID and folder path where this document should be stored."
+    "versionUploadHint": "Uploading a new version will replace the file in SharePoint. SharePoint's native version history will track the previous version."
   },
   "settings": {
     "title": "Settings",

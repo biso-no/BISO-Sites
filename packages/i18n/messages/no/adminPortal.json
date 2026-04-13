@@ -411,22 +411,27 @@
       "category": "Kategori",
       "scope": "Omfang",
       "campus": "Campus",
+      "language": "Språk",
       "version": "Versjonsetikett",
       "versionNumber": "Versjonsnummer",
       "status": "Status",
       "sortOrder": "Sorteringsrekkefølge",
       "file": "PDF-fil",
-      "sharepointDriveId": "SharePoint Drive-ID",
-      "sharepointFolderPath": "Mappesti",
       "fileSize": "Filstørrelse",
       "lastUpdated": "Sist oppdatert"
+    },
+    "languages": {
+      "no": "Norsk",
+      "en": "Engelsk"
     },
     "categories": {
       "national-statutes": "Nasjonale vedtekter",
       "campus-bylaws": "Lokale vedtekter",
       "code-of-conduct": "Adferdskodeks",
       "business-regulations": "Forretningsregler",
-      "communication-guidelines": "Kommunikasjonsretningslinjer"
+      "communication-guidelines": "Kommunikasjonsretningslinjer",
+      "authorization-matrix": "Fullmaktsmatrise",
+      "target-documents": "Måldokumenter"
     },
     "scopes": {
       "national": "Nasjonal",
@@ -445,8 +450,7 @@
     "sharepointError": "SharePoint-opplasting mislyktes",
     "deleteSuccess": "Dokument slettet",
     "deleteError": "Kunne ikke slette dokumentet",
-    "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon.",
-    "sharepointHint": "Angi SharePoint Drive-ID og mappesti for lagring av dokumentet."
+    "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon."
   },
   "settings": {
     "title": "Innstillinger",

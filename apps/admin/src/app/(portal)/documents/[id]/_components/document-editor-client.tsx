@@ -3,11 +3,11 @@
 import type { Campus, Documents } from "@repo/api/types/appwrite";
 import { useForm } from "@tanstack/react-form";
 import { ExternalLink, FileText, Loader2, Upload } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
+  DOCUMENT_FORM_CATEGORIES,
   type DocumentMetadataFormValues,
   documentMetadataSchema,
 } from "@/app/(portal)/_actions/schemas";
@@ -26,28 +26,12 @@ import {
   PortalTextarea,
 } from "../../../_components/portal-fields";
 
-interface Drive {
-  siteId: string;
-  siteName: string;
-  driveId: string;
-  driveName: string;
-}
-
 interface DocumentEditorClientProps {
   campuses: Campus[];
   document: Documents | null;
-  drives: Drive[];
   isNew: boolean;
   labels: Record<string, string>;
 }
-
-const CATEGORY_OPTIONS = [
-  { value: "national-statutes", label: "National Statutes" },
-  { value: "campus-bylaws", label: "Campus Bylaws" },
-  { value: "code-of-conduct", label: "Code of Conduct" },
-  { value: "business-regulations", label: "Business Regulations" },
-  { value: "communication-guidelines", label: "Communication Guidelines" },
-];
 
 const SCOPE_OPTIONS = [
   { value: "national", label: "National (shown to all campuses)" },
@@ -60,17 +44,21 @@ const STATUS_OPTIONS = [
 ];
 
 function formatBytes(bytes: number | null): string {
-  if (!bytes) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (!bytes) {
+    return "—";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: form manages multi-section state including SP upload
 export function DocumentEditorClient({
   campuses,
   document,
-  drives,
   isNew,
   labels,
 }: DocumentEditorClientProps) {
@@ -79,27 +67,40 @@ export function DocumentEditorClient({
 
   // File state for new document creation
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [sharepointDriveId, setSharepointDriveId] = useState(
-    document?.sharepoint_drive_id ?? ""
-  );
-  const [sharepointFolderPath, setSharepointFolderPath] = useState("/Documents");
 
   // Version upload state (for existing documents)
   const [versionFile, setVersionFile] = useState<File | null>(null);
   const [isVersionUploading, startVersionTransition] = useTransition();
 
+  const categoryOptions = DOCUMENT_FORM_CATEGORIES.map((value) => ({
+    value,
+    label: labels[`category_${value}`] ?? value,
+  }));
+
+  const languageOptions = [
+    { value: "no", label: labels.languageNo },
+    { value: "en", label: labels.languageEn },
+  ];
+
   const form = useForm({
     defaultValues: {
       title: document?.title ?? "",
       description: document?.description ?? "",
-      category: (document?.category as DocumentMetadataFormValues["category"]) ?? "national-statutes",
-      scope: (document?.scope as DocumentMetadataFormValues["scope"]) ?? "national",
+      category:
+        (document?.category as DocumentMetadataFormValues["category"]) ??
+        "national-statutes",
+      scope:
+        (document?.scope as DocumentMetadataFormValues["scope"]) ?? "national",
       campus_id: document?.campus_id ?? "",
+      language: (document?.language ??
+        "no") as DocumentMetadataFormValues["language"],
       version: document?.version ?? "",
       version_number: document?.version_number ?? 1,
-      status: (document?.status as DocumentMetadataFormValues["status"]) ?? "draft",
+      status:
+        (document?.status as DocumentMetadataFormValues["status"]) ?? "draft",
       sort_order: document?.sort_order ?? 0,
     },
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: form submit handles new/edit + SP error paths
     onSubmit: async ({ value }) => {
       const validated = documentMetadataSchema.safeParse(value);
       if (!validated.success) {
@@ -114,14 +115,6 @@ export function DocumentEditorClient({
             toast.error("A PDF file is required");
             return;
           }
-          if (!sharepointDriveId.trim()) {
-            toast.error("SharePoint Drive ID is required");
-            return;
-          }
-          if (!sharepointFolderPath.trim()) {
-            toast.error("Folder path is required");
-            return;
-          }
 
           const formData = new FormData();
           formData.append("file", selectedFile);
@@ -129,9 +122,10 @@ export function DocumentEditorClient({
           const result = await createDocument(
             {
               ...validated.data,
-              campus_id: validated.data.scope === "national" ? null : (validated.data.campus_id || null),
-              sharepoint_drive_id: sharepointDriveId.trim(),
-              sharepoint_folder_path: sharepointFolderPath.trim(),
+              campus_id:
+                validated.data.scope === "national"
+                  ? null
+                  : validated.data.campus_id || null,
             },
             formData
           );
@@ -151,7 +145,10 @@ export function DocumentEditorClient({
         } else {
           const result = await updateDocumentMetadata(document!.$id, {
             ...validated.data,
-            campus_id: validated.data.scope === "national" ? null : (validated.data.campus_id || null),
+            campus_id:
+              validated.data.scope === "national"
+                ? null
+                : validated.data.campus_id || null,
           });
           if ("error" in result) {
             toast.error(result.error);
@@ -166,7 +163,9 @@ export function DocumentEditorClient({
   });
 
   function handleVersionUpload() {
-    if (!versionFile || !document) return;
+    if (!(versionFile && document)) {
+      return;
+    }
     startVersionTransition(async () => {
       const formData = new FormData();
       formData.append("file", versionFile);
@@ -192,17 +191,6 @@ export function DocumentEditorClient({
     { value: "", label: "— Select campus —" },
     ...campuses.map((c) => ({ value: c.$id, label: c.name })),
   ];
-
-  const driveOptions =
-    drives.length > 0
-      ? [
-          { value: "", label: "— Select site —" },
-          ...drives.map((d) => ({
-            value: d.driveId,
-            label: d.siteName,
-          })),
-        ]
-      : [];
 
   return (
     <div className="pb-12">
@@ -234,22 +222,29 @@ export function DocumentEditorClient({
       </EditorHeader>
 
       <div className="mx-auto max-w-2xl space-y-6 px-6 pt-8">
-        {/* Metadata */}
+        {/* Document details */}
         <section
-          className="rounded-2xl p-6 space-y-5"
+          className="space-y-5 rounded-2xl p-6"
           style={{
             background: "rgba(255,255,255,0.02)",
             border: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          <h2 className="font-semibold text-sm" style={{ color: "rgba(255,255,255,0.60)" }}>
+          <h2
+            className="font-semibold text-sm"
+            style={{ color: "rgba(255,255,255,0.60)" }}
+          >
             Document details
           </h2>
 
           <form.Field name="title">
             {(field) => (
               <PortalField
-                error={field.state.meta.errors[0] ? String(field.state.meta.errors[0]) : undefined}
+                error={
+                  field.state.meta.errors[0]
+                    ? String(field.state.meta.errors[0])
+                    : undefined
+                }
                 label={labels.title}
                 required
               >
@@ -288,13 +283,32 @@ export function DocumentEditorClient({
                         e.target.value as DocumentMetadataFormValues["category"]
                       )
                     }
-                    options={CATEGORY_OPTIONS}
+                    options={categoryOptions}
                     value={field.state.value}
                   />
                 </PortalField>
               )}
             </form.Field>
 
+            <form.Field name="language">
+              {(field) => (
+                <PortalField label={labels.language} required>
+                  <PortalSelect
+                    onBlur={field.handleBlur}
+                    onChange={(e) =>
+                      field.handleChange(
+                        e.target.value as DocumentMetadataFormValues["language"]
+                      )
+                    }
+                    options={languageOptions}
+                    value={field.state.value}
+                  />
+                </PortalField>
+              )}
+            </form.Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <form.Field name="scope">
               {(field) => (
                 <PortalField label={labels.scope} required>
@@ -311,31 +325,31 @@ export function DocumentEditorClient({
                 </PortalField>
               )}
             </form.Field>
-          </div>
 
-          <form.Subscribe selector={(state) => state.values.scope}>
-            {(scope) =>
-              scope === "campus" ? (
-                <form.Field name="campus_id">
-                  {(field) => (
-                    <PortalField label={labels.campus} required>
-                      <PortalSelect
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        options={campusOptions}
-                        value={field.state.value ?? ""}
-                      />
-                    </PortalField>
-                  )}
-                </form.Field>
-              ) : null
-            }
-          </form.Subscribe>
+            <form.Subscribe selector={(state) => state.values.scope}>
+              {(scope) =>
+                scope === "campus" ? (
+                  <form.Field name="campus_id">
+                    {(field) => (
+                      <PortalField label={labels.campus} required>
+                        <PortalSelect
+                          onBlur={field.handleBlur}
+                          onChange={(e) => field.handleChange(e.target.value)}
+                          options={campusOptions}
+                          value={field.state.value ?? ""}
+                        />
+                      </PortalField>
+                    )}
+                  </form.Field>
+                ) : null
+              }
+            </form.Subscribe>
+          </div>
 
           <div className="grid grid-cols-3 gap-4">
             <form.Field name="version">
               {(field) => (
-                <PortalField label={labels.version} hint='e.g. "v2.1"'>
+                <PortalField hint='e.g. "v2.1"' label={labels.version}>
                   <PortalInput
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -369,9 +383,7 @@ export function DocumentEditorClient({
                   <PortalInput
                     min={0}
                     onBlur={field.handleBlur}
-                    onChange={(e) =>
-                      field.handleChange(Number(e.target.value))
-                    }
+                    onChange={(e) => field.handleChange(Number(e.target.value))}
                     type="number"
                     value={field.state.value}
                   />
@@ -381,72 +393,30 @@ export function DocumentEditorClient({
           </div>
         </section>
 
-        {/* File / SharePoint section */}
+        {/* File section */}
         {isNew ? (
           <section
-            className="rounded-2xl p-6 space-y-5"
+            className="space-y-5 rounded-2xl p-6"
             style={{
               background: "rgba(255,255,255,0.02)",
               border: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <div>
-              <h2
-                className="font-semibold text-sm"
-                style={{ color: "rgba(255,255,255,0.60)" }}
-              >
-                File & SharePoint
-              </h2>
-              <p
-                className="mt-1 text-xs"
-                style={{ color: "rgba(255,255,255,0.30)" }}
-              >
-                {labels.sharepointHint}
-              </p>
-            </div>
+            <h2
+              className="font-semibold text-sm"
+              style={{ color: "rgba(255,255,255,0.60)" }}
+            >
+              File
+            </h2>
 
             <PortalField label={labels.file} required>
               <PdfUploadField onChange={setSelectedFile} value={selectedFile} />
-            </PortalField>
-
-            {driveOptions.length > 0 ? (
-              <PortalField label={labels.sharepointDriveId} required>
-                <PortalSelect
-                  onChange={(e) => setSharepointDriveId(e.target.value)}
-                  options={driveOptions}
-                  value={sharepointDriveId}
-                />
-              </PortalField>
-            ) : (
-              <PortalField
-                hint="Enter the SharePoint drive ID from the Graph API (e.g. b!abc123...)"
-                label={labels.sharepointDriveId}
-                required
-              >
-                <PortalInput
-                  onChange={(e) => setSharepointDriveId(e.target.value)}
-                  placeholder="b!abc123..."
-                  value={sharepointDriveId}
-                />
-              </PortalField>
-            )}
-
-            <PortalField
-              hint='Path within the drive, starting with /. E.g. "/Documents/National"'
-              label={labels.sharepointFolderPath}
-              required
-            >
-              <PortalInput
-                onChange={(e) => setSharepointFolderPath(e.target.value)}
-                placeholder="/Documents"
-                value={sharepointFolderPath}
-              />
             </PortalField>
           </section>
         ) : (
           document && (
             <section
-              className="rounded-2xl p-6 space-y-5"
+              className="space-y-5 rounded-2xl p-6"
               style={{
                 background: "rgba(255,255,255,0.02)",
                 border: "1px solid rgba(255,255,255,0.06)",
@@ -468,12 +438,18 @@ export function DocumentEditorClient({
                 }}
               >
                 <FileText size={18} style={{ color: "#3DA9E0" }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm" style={{ color: "rgba(255,255,255,0.70)" }}>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-sm"
+                    style={{ color: "rgba(255,255,255,0.70)" }}
+                  >
                     Version {document.version_number}
                     {document.version ? ` — ${document.version}` : ""}
                   </p>
-                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.30)" }}>
+                  <p
+                    className="text-xs"
+                    style={{ color: "rgba(255,255,255,0.30)" }}
+                  >
                     {formatBytes(document.file_size)} · Last updated{" "}
                     {new Date(document.$updatedAt).toLocaleDateString()}
                   </p>

@@ -1245,6 +1245,8 @@ export enum DocumentCategory {
   CODE_OF_CONDUCT = "code-of-conduct",
   BUSINESS_REGULATIONS = "business-regulations",
   COMMUNICATION_GUIDELINES = "communication-guidelines",
+  AUTHORIZATION_MATRIX = "authorization-matrix",
+  TARGET_DOCUMENTS = "target-documents",
 }
 
 export enum DocumentScope {
@@ -1272,4 +1274,5 @@ export type Documents = Models.Row & {
   status: DocumentStatus;
   sort_order: number;
   updated_by: string | null;
+  language: string | null;
 };

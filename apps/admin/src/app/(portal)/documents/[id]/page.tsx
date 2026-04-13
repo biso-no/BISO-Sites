@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 import {
   getDocument,
   listCampusesForDocuments,
-  listSharePointDrives,
 } from "../../_actions/documents";
 import { DocumentEditorClient } from "./_components/document-editor-client";
 
@@ -17,10 +16,9 @@ export default async function DocumentEditorPage({ params }: Props) {
   const tc = await getTranslations("adminPortal.common");
 
   const isNew = id === "new";
-  const [document, campuses, drives] = await Promise.all([
+  const [document, campuses] = await Promise.all([
     isNew ? null : getDocument(id),
     listCampusesForDocuments(),
-    isNew ? listSharePointDrives() : Promise.resolve([]),
   ]);
 
   if (!(isNew || document)) {
@@ -31,7 +29,6 @@ export default async function DocumentEditorPage({ params }: Props) {
     <DocumentEditorClient
       campuses={campuses}
       document={document}
-      drives={drives}
       isNew={isNew}
       labels={{
         back: t("title"),
@@ -40,13 +37,17 @@ export default async function DocumentEditorPage({ params }: Props) {
         category: t("fields.category"),
         scope: t("fields.scope"),
         campus: t("fields.campus"),
+        language: t("fields.language"),
+        "category_national-statutes": t("categories.national-statutes"),
+        "category_campus-bylaws": t("categories.campus-bylaws"),
+        "category_code-of-conduct": t("categories.code-of-conduct"),
+        "category_authorization-matrix": t("categories.authorization-matrix"),
+        "category_target-documents": t("categories.target-documents"),
         version: t("fields.version"),
         versionNumber: t("fields.versionNumber"),
         status: t("fields.status"),
         sortOrder: t("fields.sortOrder"),
         file: t("fields.file"),
-        sharepointDriveId: t("fields.sharepointDriveId"),
-        sharepointFolderPath: t("fields.sharepointFolderPath"),
         fileSize: t("fields.fileSize"),
         lastUpdated: t("fields.lastUpdated"),
         discard: tc("discard"),
@@ -60,7 +61,8 @@ export default async function DocumentEditorPage({ params }: Props) {
         uploadVersion: t("actions.uploadVersion"),
         viewOnSharePoint: t("actions.viewOnSharePoint"),
         versionUploadHint: t("versionUploadHint"),
-        sharepointHint: t("sharepointHint"),
+        languageNo: t("languages.no"),
+        languageEn: t("languages.en"),
       }}
     />
   );

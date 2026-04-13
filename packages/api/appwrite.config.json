@@ -6379,7 +6379,9 @@
                         "campus-bylaws",
                         "code-of-conduct",
                         "business-regulations",
-                        "communication-guidelines"
+                        "communication-guidelines",
+                        "authorization-matrix",
+                        "target-documents"
                     ]
                 },
                 {
@@ -6482,6 +6484,18 @@
                     "size": 50,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "language",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "no",
+                        "en"
+                    ]
                 }
             ],
             "indexes": [

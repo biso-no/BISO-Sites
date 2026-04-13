@@ -108,6 +108,22 @@ export const MEDIA_BUCKET_ID = "media";
 
 export const DOCUMENTS_PAGE_SIZE = 25;
 
+/**
+ * Categories available for selection in the create/edit form.
+ * business-regulations and communication-guidelines exist in Appwrite for
+ * backward compatibility but are managed on different SharePoint sites, so
+ * they are not offered as new-document options here.
+ */
+export const DOCUMENT_FORM_CATEGORIES = [
+  "national-statutes",
+  "campus-bylaws",
+  "code-of-conduct",
+  "authorization-matrix",
+  "target-documents",
+] as const;
+
+export type DocumentFormCategory = (typeof DOCUMENT_FORM_CATEGORIES)[number];
+
 export const documentMetadataSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional().nullable(),
@@ -117,9 +133,12 @@ export const documentMetadataSchema = z.object({
     "code-of-conduct",
     "business-regulations",
     "communication-guidelines",
+    "authorization-matrix",
+    "target-documents",
   ]),
   scope: z.enum(["national", "campus"]),
   campus_id: z.string().optional().nullable(),
+  language: z.enum(["no", "en"]),
   version: z.string().optional().nullable(),
   version_number: z.coerce.number().int().positive().default(1),
   status: z.enum(["draft", "published"]),
@@ -128,9 +147,8 @@ export const documentMetadataSchema = z.object({
 
 export type DocumentMetadataFormValues = z.infer<typeof documentMetadataSchema>;
 
-export const documentCreateSchema = documentMetadataSchema.extend({
-  sharepoint_drive_id: z.string().min(1, "Drive ID is required"),
-  sharepoint_folder_path: z.string().min(1, "Folder path is required"),
-});
+// Create uses the same schema — SharePoint drive ID and folder path are
+// now resolved automatically on the server based on category + language.
+export const documentCreateSchema = documentMetadataSchema;
 
 export type DocumentCreateFormValues = z.infer<typeof documentCreateSchema>;
