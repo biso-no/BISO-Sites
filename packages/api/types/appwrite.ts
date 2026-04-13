@@ -1238,3 +1238,38 @@ export type LegacyPages = Models.Row & {
   content: string;
   zones: string;
 };
+
+export enum DocumentCategory {
+  NATIONAL_STATUTES = "national-statutes",
+  CAMPUS_BYLAWS = "campus-bylaws",
+  CODE_OF_CONDUCT = "code-of-conduct",
+  BUSINESS_REGULATIONS = "business-regulations",
+  COMMUNICATION_GUIDELINES = "communication-guidelines",
+}
+
+export enum DocumentScope {
+  NATIONAL = "national",
+  CAMPUS = "campus",
+}
+
+export enum DocumentStatus {
+  DRAFT = "draft",
+  PUBLISHED = "published",
+}
+
+export type Documents = Models.Row & {
+  title: string;
+  description: string | null;
+  category: DocumentCategory;
+  scope: DocumentScope;
+  campus_id: string | null;
+  version: string | null;
+  version_number: number;
+  sharepoint_item_id: string;
+  sharepoint_drive_id: string;
+  sharepoint_web_url: string;
+  file_size: number | null;
+  status: DocumentStatus;
+  sort_order: number;
+  updated_by: string | null;
+};

@@ -105,3 +105,32 @@ const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;
 
 export const MEDIA_BUCKET_ID = "media";
+
+export const DOCUMENTS_PAGE_SIZE = 25;
+
+export const documentMetadataSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().nullable(),
+  category: z.enum([
+    "national-statutes",
+    "campus-bylaws",
+    "code-of-conduct",
+    "business-regulations",
+    "communication-guidelines",
+  ]),
+  scope: z.enum(["national", "campus"]),
+  campus_id: z.string().optional().nullable(),
+  version: z.string().optional().nullable(),
+  version_number: z.coerce.number().int().positive().default(1),
+  status: z.enum(["draft", "published"]),
+  sort_order: z.coerce.number().int().nonnegative().default(0),
+});
+
+export type DocumentMetadataFormValues = z.infer<typeof documentMetadataSchema>;
+
+export const documentCreateSchema = documentMetadataSchema.extend({
+  sharepoint_drive_id: z.string().min(1, "Drive ID is required"),
+  sharepoint_folder_path: z.string().min(1, "Folder path is required"),
+});
+
+export type DocumentCreateFormValues = z.infer<typeof documentCreateSchema>;
