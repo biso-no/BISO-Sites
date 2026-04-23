@@ -20,7 +20,7 @@ export function GET() {
         features: {
           departures: true,
           expenses: false,
-          marketplace: true,
+          marketplace: false,
         },
       },
       { status: 200 }

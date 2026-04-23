@@ -25,10 +25,10 @@ function toBoolean(value: FormDataEntryValue | null): boolean {
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ jobId: string }> }
+  context: { params: Promise<{ slug: string }> }
 ): Promise<NextResponse> {
   try {
-    const { jobId } = await context.params;
+    const { slug: jobId } = await context.params;
     const { account } = await createAuthenticatedClient(request);
     const user = await account.get();
 
