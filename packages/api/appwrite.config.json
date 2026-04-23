@@ -6569,6 +6569,20 @@
             "compression": "none",
             "encryption": false,
             "antivirus": false
+        },
+        {
+            "$id": "recruitment_resumes",
+            "name": "Recruitment Resumes",
+            "enabled": true,
+            "fileSecurity": true,
+            "permissions": [],
+            "maximumFileSize": 5242880,
+            "allowedFileExtensions": [
+                "pdf"
+            ],
+            "compression": "none",
+            "encryption": true,
+            "antivirus": true
         }
     ]
 }

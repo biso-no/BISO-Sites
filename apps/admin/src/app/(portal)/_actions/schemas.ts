@@ -1,3 +1,7 @@
+import {
+  type RecruitmentVacancyUpsertInput,
+  recruitmentVacancyUpsertSchema,
+} from "@repo/shared/types/recruitment";
 import { z } from "zod";
 
 export const benefitSchema = z.object({
@@ -47,23 +51,9 @@ export const eventSchema = z.object({
 export const EVENTS_PAGE_SIZE = 20;
 export type EventFormValues = z.infer<typeof eventSchema>;
 
-export const jobSchema = z.object({
-  title_no: z.string().min(1, "Title (NO) is required"),
-  title_en: z.string().min(1, "Title (EN) is required"),
-  description_no: z.string().min(1, "Description (NO) is required"),
-  description_en: z.string().min(1, "Description (EN) is required"),
-  campus_id: z.string().min(1, "Campus is required"),
-  department_id: z.string().optional().nullable(),
-  slug: z
-    .string()
-    .min(1, "Slug is required")
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-  status: z.enum(["draft", "published", "closed"]),
-  employment_type: z.string().optional().nullable(),
-  company: z.string().optional().nullable(),
-});
+export const jobSchema = recruitmentVacancyUpsertSchema;
 export const JOBS_PAGE_SIZE = 20;
-export type JobFormValues = z.infer<typeof jobSchema>;
+export type JobFormValues = RecruitmentVacancyUpsertInput;
 
 export const newsSchema = z.object({
   title: z.string().min(1, "Title is required"),

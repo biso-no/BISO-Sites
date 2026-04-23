@@ -1,10 +1,10 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobDetailsClient } from "@/components/jobs/job-details-client";
+import { getLoggedInUser } from "@/lib/actions/user";
 
 interface JobPageProps {
   params: {
@@ -14,15 +14,22 @@ interface JobPageProps {
 
 async function JobDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
+  const user = await getLoggedInUser();
 
-  // Fetch the job
   const job = await getJobBySlug(slug, locale);
 
   if (!job) {
     notFound();
   }
 
-  return <JobDetailsClient job={job} />;
+  return (
+    <JobDetailsClient
+      applicantEmail={user?.user.email ?? ""}
+      applicantName={user?.user.name ?? ""}
+      isAuthenticated={Boolean(user)}
+      job={job}
+    />
+  );
 }
 
 function JobDetailsSkeleton() {
@@ -68,12 +75,7 @@ export async function generateMetadata({ params }: JobPageProps) {
     };
   }
 
-  const translation = Array.isArray(job.translation_refs)
-    ? job.translation_refs.find(
-        (item): item is ContentTranslations =>
-          typeof item === "object" && item !== null && "title" in item
-      )
-    : null;
+  const translation = job.translation_refs[0];
 
   return {
     title: `${translation?.title ?? "Position"} | BISO Careers`,

@@ -1,19 +1,9 @@
 "use client";
 
-import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
-import {
-  BookOpen,
-  Briefcase,
-  Cog,
-  DollarSign,
-  Filter,
-  PartyPopper,
-  Rocket,
-  Search,
-  X,
-} from "lucide-react";
+import { DollarSign, Search, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -21,156 +11,75 @@ import { useState } from "react";
 import { JobCard } from "./job-card";
 
 interface JobsListClientProps {
-  jobs: Jobs[];
+  jobs: RecruitmentVacancy[];
 }
-
-const getJobCategory = (metadata: Record<string, any>) =>
-  metadata.category || "General";
-
-const _parseJobMetadata = (metadata: Record<string, any>) => metadata || {};
-
-const getCategoriesWithTranslations = (t: (key: string) => string) => [
-  {
-    name: "All",
-    label: t("filters.all"),
-    icon: Briefcase,
-    color: "from-brand-gradient-from to-brand-gradient-to",
-  },
-  {
-    name: "Academic Associations",
-    label: t("filters.academicAssociations"),
-    icon: BookOpen,
-    color: "from-blue-500 to-indigo-600",
-  },
-  {
-    name: "Societies",
-    label: t("filters.societies"),
-    icon: PartyPopper,
-    color: "from-brand-gradient-from to-cyan-500",
-  },
-  {
-    name: "Staff Functions",
-    label: t("filters.staffFunctions"),
-    icon: Cog,
-    color: "from-brand-gradient-to to-slate-700",
-  },
-  {
-    name: "Projects",
-    label: t("filters.projects"),
-    icon: Rocket,
-    color: "from-purple-500 to-pink-500",
-  },
-];
 
 export function JobsListClient({ jobs }: JobsListClientProps) {
   const t = useTranslations("jobs");
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPaidOnly, setShowPaidOnly] = useState(false);
 
-  const categories = getCategoriesWithTranslations(t);
-
-  // Filter jobs based on search, category, and paid status
   const filteredJobs = jobs.filter((job) => {
-    const translation = Array.isArray(job.translation_refs)
-      ? job.translation_refs.find(
-          (item): item is ContentTranslations =>
-            typeof item === "object" && item !== null && "title" in item
-        )
-      : null;
+    const translation = job.translation_refs[0];
     const title = translation?.title ?? "";
     const description = translation?.description ?? "";
-    const shortDescription = translation?.short_description ?? "";
-    const jobData = job;
-    const metadata = jobData?.metadata as Record<string, any>;
-    const category = getJobCategory(metadata);
-    const paid = Boolean(metadata?.paid);
-    const department = jobData.department?.Name || "";
-
-    const matchesCategory =
-      selectedCategory === "All" || category === selectedCategory;
+    const shortDescription =
+      job.metadata.short_description || translation?.short_description || "";
+    const department = job.department?.Name || "";
+    const company = job.metadata.company || "";
     const matchesSearch =
       title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shortDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      department.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPaid = !showPaidOnly || paid;
+      department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      company.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesCategory && matchesSearch && matchesPaid;
+    return matchesSearch && (!showPaidOnly || Boolean(job.metadata.paid));
   });
 
-  const handleViewDetails = (job: Jobs) => {
-    const slug = job.slug || job.$id;
-    router.push(`/jobs/${slug}`);
-  };
+  function handleViewDetails(job: RecruitmentVacancy) {
+    router.push(`/jobs/${job.slug || job.$id}`);
+  }
 
   return (
     <>
-      {/* Filters & Search */}
       <div className="sticky top-20 z-40 border-border border-b bg-background/95 shadow-lg backdrop-blur-lg">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4">
-            {/* Search */}
             <div className="relative w-full">
               <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t("filters.searchPlaceholder")}
                 type="text"
                 value={searchQuery}
               />
-              {searchQuery && (
+              {searchQuery ? (
                 <button
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground"
                   onClick={() => setSearchQuery("")}
                   type="button"
                 >
                   <X className="h-4 w-4" />
                 </button>
-              )}
+              ) : null}
             </div>
 
-            {/* Category Filter */}
-            <div className="flex flex-wrap items-center gap-3">
-              <Filter className="h-5 w-5 text-brand-dark" />
-              {categories.map((category) => {
-                const Icon = category.icon;
-                return (
-                  <Button
-                    className={
-                      selectedCategory === category.name
-                        ? `bg-linear-to-r ${category.color} border-0 text-white`
-                        : "border-brand-border text-brand-dark hover:bg-brand-muted"
-                    }
-                    key={category.name}
-                    onClick={() => setSelectedCategory(category.name)}
-                    variant={
-                      selectedCategory === category.name ? "default" : "outline"
-                    }
-                  >
-                    <Icon className="mr-2 h-4 w-4" />
-                    {category.label}
-                  </Button>
-                );
-              })}
-
-              {/* Paid Filter */}
-              <div className="ml-auto flex items-center gap-2">
-                <Button
-                  className={
-                    showPaidOnly
-                      ? "border-0 bg-linear-to-r from-green-500 to-emerald-600 text-white"
-                      : "border-green-500/20 text-green-700 hover:bg-green-50"
-                  }
-                  onClick={() => setShowPaidOnly(!showPaidOnly)}
-                  variant={showPaidOnly ? "default" : "outline"}
-                >
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  {t("filters.paidOnly")}
-                </Button>
-              </div>
+            <div className="flex items-center justify-end">
+              <Button
+                className={
+                  showPaidOnly
+                    ? "border-0 bg-linear-to-r from-green-500 to-emerald-600 text-white"
+                    : "border-green-500/20 text-green-700 hover:bg-green-50"
+                }
+                onClick={() => setShowPaidOnly((value) => !value)}
+                variant={showPaidOnly ? "default" : "outline"}
+              >
+                <DollarSign className="mr-2 h-4 w-4" />
+                {t("filters.paidOnly")}
+              </Button>
             </div>
 
             <div className="text-center text-muted-foreground text-sm">
@@ -180,7 +89,6 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
         </div>
       </div>
 
-      {/* Positions Grid */}
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
           <motion.div
@@ -188,7 +96,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             className="grid gap-8 md:grid-cols-2"
             exit={{ opacity: 0, y: -20 }}
             initial={{ opacity: 0, y: 20 }}
-            key={selectedCategory + searchQuery + showPaidOnly}
+            key={`${searchQuery}-${showPaidOnly}`}
           >
             {filteredJobs.map((job, index) => (
               <JobCard
@@ -201,14 +109,12 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
           </motion.div>
         </AnimatePresence>
 
-        {/* No Results */}
-        {filteredJobs.length === 0 && (
+        {filteredJobs.length === 0 ? (
           <motion.div
             animate={{ opacity: 1 }}
             className="py-20 text-center"
             initial={{ opacity: 0 }}
           >
-            <Briefcase className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
             <h3 className="mb-2 font-bold text-2xl text-foreground">
               {t("emptyState.title")}
             </h3>
@@ -218,7 +124,6 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
             <Button
               className="border-brand text-brand-dark hover:bg-brand-muted"
               onClick={() => {
-                setSelectedCategory("All");
                 setSearchQuery("");
                 setShowPaidOnly(false);
               }}
@@ -227,22 +132,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
               {t("emptyState.clearFilters")}
             </Button>
           </motion.div>
-        )}
-      </div>
-
-      {/* CTA Section */}
-      <div className="bg-linear-to-r from-brand-gradient-to to-brand-gradient-from py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center">
-          <h2 className="mb-4 font-bold text-3xl text-white">
-            {t("cta.title")}
-          </h2>
-          <p className="mb-8 text-lg text-white/90">{t("cta.description")}</p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button className="bg-background text-brand-dark hover:bg-background/90">
-              {t("cta.contactButton")}
-            </Button>
-          </div>
-        </div>
+        ) : null}
       </div>
     </>
   );

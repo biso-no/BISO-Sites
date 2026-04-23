@@ -2,24 +2,24 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
+import type { Campus, Departments } from "@repo/api/types/appwrite";
 import type {
-  Campus,
-  ContentTranslations,
-  Departments,
-  JobStatus,
-  Jobs,
-} from "@repo/api/types/appwrite";
+  RecruitmentApplicationRecord,
+  RecruitmentApplicationStatusUpdateInput,
+  RecruitmentVacancy,
+  RecruitmentVacancyUpsertInput,
+} from "@repo/shared/types/recruitment";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-import {
-  applyScopeQueries,
-  assertWriteAccess,
-} from "@/lib/utils/authorization";
-import { logAuditEvent } from "./audit-log";
-import { JOBS_PAGE_SIZE, type JobFormValues, jobSchema } from "./schemas";
+import { createJWT } from "@/lib/actions/user";
+import { getUserAuthContext } from "@/lib/authorization";
 
-async function requireAuth(): Promise<UserAuthContext> {
+const API_BASE_URL =
+  process.env.API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://localhost:3003";
+
+async function requireAuth() {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     redirect("/auth/login");
@@ -27,250 +27,196 @@ async function requireAuth(): Promise<UserAuthContext> {
   return ctx;
 }
 
+async function fetchRecruitmentApi<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  const jwt = await createJWT();
+  if (!jwt) {
+    throw new Error("Unauthorized");
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      ...(init?.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  const payload = (await response.json().catch(() => null)) as {
+    error?: string;
+  } | null;
+
+  if (!response.ok) {
+    throw new Error(
+      payload?.error || `Recruitment API error: ${response.status}`
+    );
+  }
+
+  return payload as T;
+}
+
 export async function listJobs(opts?: {
-  campusId?: string;
   status?: string;
   search?: string;
   page?: number;
 }) {
-  const ctx = await requireAuth();
-  const { db } = await createSessionClient();
-  const page = Math.max(1, opts?.page ?? 1);
+  await requireAuth();
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(opts?.page ?? 1));
 
-  const queries: string[] = [
-    Query.orderDesc("$updatedAt"),
-    Query.limit(JOBS_PAGE_SIZE),
-    Query.offset((page - 1) * JOBS_PAGE_SIZE),
-    ...applyScopeQueries(ctx),
-  ];
-
-  if (opts?.status && opts.status !== "all") {
-    queries.push(Query.equal("status", opts.status));
+  if (opts?.status) {
+    searchParams.set("status", opts.status);
   }
 
-  if (opts?.campusId) {
-    queries.push(Query.equal("campus_id", opts.campusId));
+  if (opts?.search?.trim()) {
+    searchParams.set("search", opts.search.trim());
   }
 
-  const jobsResponse = await db.listRows<Jobs>("app", "jobs", queries);
-  const total = jobsResponse.total;
-
-  const jobIds = jobsResponse.rows.map((j) => j.$id);
-
-  const translations: ContentTranslations[] = [];
-  if (jobIds.length > 0) {
-    const chunkSize = 25;
-    for (let i = 0; i < jobIds.length; i += chunkSize) {
-      const chunk = jobIds.slice(i, i + chunkSize);
-      const res = await db.listRows<ContentTranslations>(
-        "app",
-        "content_translations",
-        [
-          Query.equal("content_type", "job"),
-          Query.equal("content_id", chunk),
-          Query.limit(chunk.length * 2),
-        ]
-      );
-      translations.push(...res.rows);
-    }
-  }
-
-  const rows = jobsResponse.rows.map((job) => {
-    const jobTranslations = translations.filter(
-      (t) => t.content_id === job.$id
-    );
-    return { ...job, translation_refs: jobTranslations };
-  });
-
-  return { rows, total };
+  return fetchRecruitmentApi<{
+    page: number;
+    pageSize: number;
+    rows: RecruitmentVacancy[];
+    total: number;
+  }>(`/api/admin/recruitment/vacancies?${searchParams.toString()}`);
 }
 
 export async function getJob(id: string) {
-  const _ctx = await requireAuth();
-  const { db } = await createSessionClient();
-
-  const jobsResponse = await db.listRows<Jobs>("app", "jobs", [
-    Query.equal("$id", id),
-    Query.limit(1),
-  ]);
-
-  const job = jobsResponse.rows[0];
-  if (!job) {
-    return null;
-  }
-
-  const translationsResponse = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "job"),
-      Query.equal("content_id", id),
-      Query.limit(10),
-    ]
+  await requireAuth();
+  const response = await fetchRecruitmentApi<{ row: RecruitmentVacancy }>(
+    `/api/admin/recruitment/vacancies/${id}`
   );
-
-  return { ...job, translation_refs: translationsResponse.rows };
+  return response.row;
 }
 
-export async function createJob(values: JobFormValues) {
-  const ctx = await requireAuth();
-  const validated = jobSchema.safeParse(values);
-  if (!validated.success) {
-    return { error: validated.error.flatten().fieldErrors };
-  }
+export async function createJob(values: RecruitmentVacancyUpsertInput) {
+  await requireAuth();
 
-  assertWriteAccess(ctx, validated.data.campus_id);
-
-  const { db } = await createSessionClient();
-
-  const job = await db.createRow("app", "jobs", "unique()", {
-    slug: validated.data.slug,
-    status: "draft" as JobStatus,
-    campus_id: validated.data.campus_id,
-    department_id: validated.data.department_id ?? null,
-    metadata: null,
-  });
-
-  for (const locale of ["no", "en"] as const) {
-    await db.createRow("app", "content_translations", "unique()", {
-      content_id: job.$id,
-      content_type: "job",
-      locale,
-      title:
-        locale === "no" ? validated.data.title_no : validated.data.title_en,
-      description:
-        locale === "no"
-          ? validated.data.description_no
-          : validated.data.description_en,
-      additional_fields: JSON.stringify({
-        employment_type: validated.data.employment_type,
-        company: validated.data.company,
-      }),
-    });
-  }
-
-  await logAuditEvent(ctx, "job_created", {
-    resourceId: job.$id,
-    resourceType: "job",
-  });
-  revalidatePath("/jobs");
-  return { data: job.$id };
-}
-
-export async function updateJob(id: string, values: JobFormValues) {
-  const ctx = await requireAuth();
-  const validated = jobSchema.safeParse(values);
-  if (!validated.success) {
-    return { error: validated.error.flatten().fieldErrors };
-  }
-
-  const { db } = await createSessionClient();
-
-  const existing = await db.listRows<Jobs>("app", "jobs", [
-    Query.equal("$id", id),
-    Query.limit(1),
-  ]);
-  const job = existing.rows[0];
-  if (!job) {
-    return { error: "Job not found" };
-  }
-
-  assertWriteAccess(ctx, job.campus_id, job.department_id);
-
-  await db.updateRow("app", "jobs", id, {
-    slug: validated.data.slug,
-    status: validated.data.status as JobStatus,
-    campus_id: validated.data.campus_id,
-    department_id: validated.data.department_id ?? null,
-  });
-
-  for (const locale of ["no", "en"] as const) {
-    const existingTranslation = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", "job"),
-        Query.equal("content_id", id),
-        Query.equal("locale", locale),
-        Query.limit(1),
-      ]
+  try {
+    const response = await fetchRecruitmentApi<{ data: { $id: string } }>(
+      "/api/admin/recruitment/vacancies",
+      {
+        body: JSON.stringify(values),
+        method: "POST",
+      }
     );
 
-    const translationData = {
-      content_id: id,
-      content_type: "job",
-      locale,
-      title:
-        locale === "no" ? validated.data.title_no : validated.data.title_en,
-      description:
-        locale === "no"
-          ? validated.data.description_no
-          : validated.data.description_en,
-      additional_fields: JSON.stringify({
-        employment_type: validated.data.employment_type,
-        company: validated.data.company,
-      }),
+    revalidatePath("/jobs");
+    revalidatePath("/");
+    return { data: response.data.$id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to create job",
     };
-
-    if (existingTranslation.rows[0]) {
-      await db.updateRow(
-        "app",
-        "content_translations",
-        existingTranslation.rows[0].$id,
-        translationData
-      );
-    } else {
-      await db.createRow(
-        "app",
-        "content_translations",
-        "unique()",
-        translationData
-      );
-    }
   }
+}
 
-  await logAuditEvent(ctx, "job_updated", {
-    resourceId: id,
-    resourceType: "job",
-    payload: { status: validated.data.status },
-  });
-  revalidatePath("/jobs");
-  revalidatePath(`/admin/jobs/${id}`);
-  return { data: id };
+export async function updateJob(
+  id: string,
+  values: RecruitmentVacancyUpsertInput
+) {
+  await requireAuth();
+
+  try {
+    const response = await fetchRecruitmentApi<{ data: { $id: string } }>(
+      `/api/admin/recruitment/vacancies/${id}`,
+      {
+        body: JSON.stringify(values),
+        method: "PATCH",
+      }
+    );
+
+    revalidatePath("/jobs");
+    revalidatePath(`/jobs/${id}`);
+    return { data: response.data.$id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to update job",
+    };
+  }
 }
 
 export async function deleteJob(id: string) {
-  const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  await requireAuth();
 
-  const existing = await db.listRows<Jobs>("app", "jobs", [
-    Query.equal("$id", id),
-    Query.limit(1),
-  ]);
-  const job = existing.rows[0];
-  if (!job) {
-    return { error: "Job not found" };
+  try {
+    await fetchRecruitmentApi(`/api/admin/recruitment/vacancies/${id}`, {
+      method: "DELETE",
+    });
+    revalidatePath("/jobs");
+    return { data: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to delete job",
+    };
+  }
+}
+
+export async function listJobApplications(opts?: {
+  jobId?: string;
+  page?: number;
+  search?: string;
+  status?: string;
+}) {
+  await requireAuth();
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(opts?.page ?? 1));
+
+  if (opts?.jobId) {
+    searchParams.set("jobId", opts.jobId);
   }
 
-  assertWriteAccess(ctx, job.campus_id, job.department_id);
+  if (opts?.status) {
+    searchParams.set("status", opts.status);
+  }
 
-  const translations = await db.listRows("app", "content_translations", [
-    Query.equal("content_type", "job"),
-    Query.equal("content_id", id),
-  ]);
-  await Promise.all(
-    translations.rows.map((t) =>
-      db.deleteRow("app", "content_translations", t.$id)
-    )
-  );
-  await db.deleteRow("app", "jobs", id);
+  if (opts?.search?.trim()) {
+    searchParams.set("search", opts.search.trim());
+  }
 
-  await logAuditEvent(ctx, "job_deleted", {
-    resourceId: id,
-    resourceType: "job",
-  });
-  revalidatePath("/jobs");
-  return { data: true };
+  return fetchRecruitmentApi<{
+    page: number;
+    pageSize: number;
+    rows: RecruitmentApplicationRecord[];
+    total: number;
+  }>(`/api/admin/recruitment/applications?${searchParams.toString()}`);
+}
+
+export async function getJobApplication(id: string) {
+  await requireAuth();
+  const response = await fetchRecruitmentApi<{
+    row: RecruitmentApplicationRecord;
+  }>(`/api/admin/recruitment/applications/${id}`);
+  return response.row;
+}
+
+export async function updateJobApplicationStatus(
+  id: string,
+  values: RecruitmentApplicationStatusUpdateInput
+) {
+  await requireAuth();
+
+  try {
+    const response = await fetchRecruitmentApi<{
+      data: { $id: string; status: string };
+    }>(`/api/admin/recruitment/applications/${id}`, {
+      body: JSON.stringify(values),
+      method: "PATCH",
+    });
+
+    revalidatePath("/jobs/applications");
+    return { data: response.data };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to update application",
+    };
+  }
 }
 
 export async function listCampuses() {
