@@ -1,0 +1,12 @@
+{
+  "content": {
+    "events_source": "wordpress",
+    "jobs_source": "wordpress",
+    "products_source": "woocommerce"
+  },
+  "features": {
+    "departures": true,
+    "expenses": false,
+    "marketplace": true
+  }
+}
