@@ -59,7 +59,7 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
         className="portal-scrollbar relative z-10 h-screen flex-1 overflow-y-auto"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <div className="mx-auto min-h-full max-w-[1600px] p-8 md:p-12">
+        <div className="mx-auto min-h-full max-w-400 p-8 md:p-12">
           {children}
         </div>
       </main>

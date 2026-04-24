@@ -1,3 +1,7 @@
+import {
+  type RecruitmentVacancyUpsertInput,
+  recruitmentVacancyUpsertSchema,
+} from "@repo/shared/types/recruitment";
 import { z } from "zod";
 
 export const benefitSchema = z.object({
@@ -47,23 +51,9 @@ export const eventSchema = z.object({
 export const EVENTS_PAGE_SIZE = 20;
 export type EventFormValues = z.infer<typeof eventSchema>;
 
-export const jobSchema = z.object({
-  title_no: z.string().min(1, "Title (NO) is required"),
-  title_en: z.string().min(1, "Title (EN) is required"),
-  description_no: z.string().min(1, "Description (NO) is required"),
-  description_en: z.string().min(1, "Description (EN) is required"),
-  campus_id: z.string().min(1, "Campus is required"),
-  department_id: z.string().optional().nullable(),
-  slug: z
-    .string()
-    .min(1, "Slug is required")
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-  status: z.enum(["draft", "published", "closed"]),
-  employment_type: z.string().optional().nullable(),
-  company: z.string().optional().nullable(),
-});
+export const jobSchema = recruitmentVacancyUpsertSchema;
 export const JOBS_PAGE_SIZE = 20;
-export type JobFormValues = z.infer<typeof jobSchema>;
+export type JobFormValues = RecruitmentVacancyUpsertInput;
 
 export const newsSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -105,3 +95,50 @@ const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;
 
 export const MEDIA_BUCKET_ID = "media";
+
+export const DOCUMENTS_PAGE_SIZE = 25;
+
+/**
+ * Categories available for selection in the create/edit form.
+ * business-regulations and communication-guidelines exist in Appwrite for
+ * backward compatibility but are managed on different SharePoint sites, so
+ * they are not offered as new-document options here.
+ */
+export const DOCUMENT_FORM_CATEGORIES = [
+  "national-statutes",
+  "campus-bylaws",
+  "code-of-conduct",
+  "authorization-matrix",
+  "target-documents",
+] as const;
+
+export type DocumentFormCategory = (typeof DOCUMENT_FORM_CATEGORIES)[number];
+
+export const documentMetadataSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().nullable(),
+  category: z.enum([
+    "national-statutes",
+    "campus-bylaws",
+    "code-of-conduct",
+    "business-regulations",
+    "communication-guidelines",
+    "authorization-matrix",
+    "target-documents",
+  ]),
+  scope: z.enum(["national", "campus"]),
+  campus_id: z.string().optional().nullable(),
+  language: z.enum(["no", "en"]),
+  version: z.string().optional().nullable(),
+  version_number: z.coerce.number().int().positive().default(1),
+  status: z.enum(["draft", "published"]),
+  sort_order: z.coerce.number().int().nonnegative().default(0),
+});
+
+export type DocumentMetadataFormValues = z.infer<typeof documentMetadataSchema>;
+
+// Create uses the same schema — SharePoint drive ID and folder path are
+// now resolved automatically on the server based on category + language.
+export const documentCreateSchema = documentMetadataSchema;
+
+export type DocumentCreateFormValues = z.infer<typeof documentCreateSchema>;

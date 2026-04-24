@@ -44,6 +44,15 @@ export interface SharePointSite {
   webUrl: string;
 }
 
+export interface SharePointUploadResult {
+  driveId: string;
+  itemId: string;
+  webUrl: string;
+  size: number;
+  name: string;
+  lastModified: string;
+}
+
 export class SharePointService {
   private readonly msalClient: ConfidentialClientApplication;
   private readonly config: SharePointConfig;
@@ -330,6 +339,17 @@ export class SharePointService {
     };
   }
 
+  async listDrivesForSite(
+    siteId: string
+  ): Promise<Array<{ id: string; name: string }>> {
+    const client = await this.getAuthenticatedClient();
+    const response = await client.api(`/sites/${siteId}/drives`).get();
+    return (response.value ?? []).map((d: any) => ({
+      id: d.id as string,
+      name: d.name as string,
+    }));
+  }
+
   async getSiteById(siteId: string): Promise<SharePointSite> {
     const client = await this.getAuthenticatedClient();
     const site = await client.api(`/sites/${siteId}`).get();
@@ -344,6 +364,49 @@ export class SharePointService {
   async getSiteDetailsRaw(siteId: string): Promise<any> {
     const client = await this.getAuthenticatedClient();
     return await client.api(`/sites/${siteId}`).get();
+  }
+
+  async uploadNewFile(
+    driveId: string,
+    folderPath: string,
+    fileName: string,
+    buffer: Buffer
+  ): Promise<SharePointUploadResult> {
+    const client = await this.getAuthenticatedClient();
+    const cleanFolder = folderPath.replace(TRAILING_SLASHES_REGEX, "");
+    const apiPath = `${cleanFolder.length > 0 ? `/drives/${driveId}/root:${cleanFolder}/${fileName}:/content` : `/drives/${driveId}/root:/${fileName}:/content`}`;
+    const response = await client
+      .api(apiPath)
+      .header("Content-Type", "application/octet-stream")
+      .put(buffer);
+    return {
+      driveId: response.parentReference?.driveId ?? driveId,
+      itemId: response.id,
+      webUrl: response.webUrl,
+      size: response.size,
+      name: response.name,
+      lastModified: response.lastModifiedDateTime,
+    };
+  }
+
+  async replaceFileInPlace(
+    driveId: string,
+    itemId: string,
+    buffer: Buffer
+  ): Promise<SharePointUploadResult> {
+    const client = await this.getAuthenticatedClient();
+    const response = await client
+      .api(`/drives/${driveId}/items/${itemId}/content`)
+      .header("Content-Type", "application/octet-stream")
+      .put(buffer);
+    return {
+      driveId: response.parentReference?.driveId ?? driveId,
+      itemId: response.id,
+      webUrl: response.webUrl,
+      size: response.size,
+      name: response.name,
+      lastModified: response.lastModifiedDateTime,
+    };
   }
 
   private async getSiteByUrl(client: Client, siteUrl: string): Promise<any> {

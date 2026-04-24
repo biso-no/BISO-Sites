@@ -7,6 +7,7 @@
     "events": "Events",
     "shop": "Products",
     "benefits": "Benefits",
+    "documents": "Documents",
     "news": "News",
     "settings": "Settings",
     "activity": "Activity",
@@ -397,6 +398,59 @@
       "benefit": "Benefit",
       "page": "Page"
     }
+  },
+  "documents": {
+    "title": "Documents",
+    "description": "Manage official BISO documents published on SharePoint.",
+    "create": "New Document",
+    "empty": "No documents yet",
+    "emptyDescription": "Upload your first document to get started.",
+    "fields": {
+      "title": "Title",
+      "description": "Description",
+      "category": "Category",
+      "scope": "Scope",
+      "campus": "Campus",
+      "language": "Language",
+      "version": "Version Label",
+      "versionNumber": "Version Number",
+      "status": "Status",
+      "sortOrder": "Sort Order",
+      "file": "PDF File",
+      "fileSize": "File Size",
+      "lastUpdated": "Last Updated"
+    },
+    "languages": {
+      "no": "Norwegian",
+      "en": "English"
+    },
+    "categories": {
+      "national-statutes": "National Statutes",
+      "campus-bylaws": "Campus Bylaws",
+      "code-of-conduct": "Code of Conduct",
+      "business-regulations": "Business Regulations",
+      "communication-guidelines": "Communication Guidelines",
+      "authorization-matrix": "Authorization Matrix",
+      "target-documents": "Target Documents"
+    },
+    "scopes": {
+      "national": "National",
+      "campus": "Campus"
+    },
+    "actions": {
+      "edit": "Edit document",
+      "delete": "Delete document",
+      "uploadVersion": "Upload New Version",
+      "viewOnSharePoint": "View on SharePoint"
+    },
+    "saveSuccess": "Document saved",
+    "saveError": "Failed to save document",
+    "uploadSuccess": "New version uploaded",
+    "uploadError": "Upload failed",
+    "sharepointError": "SharePoint upload failed",
+    "deleteSuccess": "Document deleted",
+    "deleteError": "Failed to delete document",
+    "versionUploadHint": "Uploading a new version will replace the file in SharePoint. SharePoint's native version history will track the previous version."
   },
   "settings": {
     "title": "Settings",

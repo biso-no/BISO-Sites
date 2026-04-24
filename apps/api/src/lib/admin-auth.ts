@@ -3,6 +3,43 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import type { NextRequest } from "next/server";
 
+const KNOWN_CAMPUSES = new Set([
+  "National",
+  "Oslo",
+  "Bergen",
+  "Stavanger",
+  "Trondheim",
+]);
+
+function expandDepartmentName(name: string): string {
+  return name.replace(/([a-z])([A-Z])/g, "$1 $2").trim();
+}
+
+function normalizeTeamName(name: string): {
+  kind: "campus" | "department";
+  value: string;
+} | null {
+  if (name.startsWith("SG-App-Campus-")) {
+    return {
+      kind: "campus",
+      value: name.replace("SG-App-Campus-", "").trim(),
+    };
+  }
+
+  if (name.startsWith("SG-App-Dept-")) {
+    return {
+      kind: "department",
+      value: expandDepartmentName(name.replace("SG-App-Dept-", "")),
+    };
+  }
+
+  if (KNOWN_CAMPUSES.has(name)) {
+    return { kind: "campus", value: name };
+  }
+
+  return { kind: "department", value: name.trim() };
+}
+
 // Helper to reduce complexity
 function computeManagedCampusNames(
   isGlobal: boolean,
@@ -28,7 +65,9 @@ function computeManagedCampuses(
 
   for (const city of cityNames) {
     const hasCampus = campusNames.includes(city);
-    const hasManagement = departmentNames.includes(`Ledelsen${city}`);
+    const hasManagement =
+      departmentNames.includes(`Ledelsen${city}`) ||
+      departmentNames.includes(`Ledelsen ${city}`);
     if (hasCampus && hasManagement) {
       managedCampuses.push(city);
     }
@@ -70,17 +109,23 @@ export async function getAdminScope(
 
     // Parse team memberships
     for (const team of teamMemberships.teams) {
-      const name = team.name;
-      if (name.startsWith("SG-App-Campus-")) {
-        campusNames.push(name.replace("SG-App-Campus-", ""));
-      } else if (name.startsWith("SG-App-Dept-")) {
-        departmentNames.push(name.replace("SG-App-Dept-", ""));
+      const normalized = normalizeTeamName(team.name);
+      if (!normalized) {
+        continue;
+      }
+
+      if (normalized.kind === "campus") {
+        campusNames.push(normalized.value);
+      } else {
+        departmentNames.push(normalized.value);
       }
     }
 
     // Check for global admin (National + OperationsUnit OR admin label)
     const hasNational = campusNames.includes("National");
-    const hasOperationsUnit = departmentNames.includes("OperationsUnit");
+    const hasOperationsUnit =
+      departmentNames.includes("OperationsUnit") ||
+      departmentNames.includes("Operations Unit");
     const hasAdminLabel =
       labels.includes("admin") || labels.includes("globaladmin");
     const isGlobalAdmin = (hasNational && hasOperationsUnit) || hasAdminLabel;

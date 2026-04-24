@@ -70,7 +70,7 @@ Appwrite is the backend-as-a-service that powers BISO Sites. This guide covers s
     In the Appwrite console, create the `app` database and note its ID. Use the `database.json` files in `apps/web` and `apps/admin` as your schema reference.
   </Step>
   <Step title="Import collections & storage buckets">
-    Manually create collections and buckets (`events`, `product-images`, `documents`) with the permissions outlined below. Double-check indexes for orders, events, and translations.
+    Manually create collections and buckets (`events`, `product-images`, `documents`, `recruitment_resumes`) with the permissions outlined below. Double-check indexes for orders, events, translations, and recruitment submissions.
   </Step>
   <Step title="Configure auth providers">
     Enable Magic Link for the web app and Microsoft OAuth (BISO tenant) for the admin app. Test each flow once.
@@ -112,10 +112,13 @@ Both web and admin apps include `database.json` files with collection schemas:
    - `events` - Event images
    - `product-images` - Product images
    - `documents` - File uploads
+   - `recruitment_resumes` - Private PDF CV uploads for job applications
 
 2. Configure permissions:
    - Read: `any` (public access)
    - Write: `users` (authenticated only)
+
+For `recruitment_resumes`, do not grant public read access. Enable file security, allow only `pdf`, and keep the maximum file size at `5 MB`.
 
 ### 2. Configure Authentication
 
@@ -298,4 +301,3 @@ docker exec appwrite restore-database backup.sql
 - [Deployment Overview](/docs/operations/overview)
 - [Environment Variables](/docs/operations/environment-variables)
 - [@repo/api Package](/docs/packages/api/overview)
-

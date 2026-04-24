@@ -22,6 +22,7 @@
     "@repo/connectors": "workspace:*",
     "@repo/payment": "workspace:*",
     "@repo/ai": "workspace:*",
+    "@repo/shared": "workspace:*",
     "ai": "catalog:",
     "next": "catalog:",
     "react": "catalog:",

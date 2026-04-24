@@ -6,6 +6,7 @@ import {
   Building2,
   Calendar,
   Command,
+  FileText,
   FileStack,
   Gift,
   Layers,
@@ -90,6 +91,12 @@ const NAV_ITEMS: Array<{
     navKey: "portal.benefits",
   },
   {
+    path: "/documents",
+    labelKey: "documents",
+    icon: FileText,
+    navKey: "portal.documents",
+  },
+  {
     path: "/news",
     labelKey: "news",
     icon: Newspaper,
@@ -154,21 +161,15 @@ export function Sidebar({ user, roles }: SidebarProps) {
       }}
     >
       {/* Brand */}
-      <div className="flex items-center justify-between p-8">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-full shadow-[0_0_15px_rgba(61,169,224,0.4)]"
-            style={{
-              background: "linear-gradient(135deg,#3DA9E0,#001731)",
-            }}
-          >
-            <span className="font-bold text-white text-xs tracking-tighter">
-              BI
-            </span>
-          </div>
-          <span className="font-semibold text-lg text-white tracking-wide">
-            SO OS
-          </span>
+      <div className="flex items-center justify-between p-6">
+        <div className="flex items-center gap-5">
+          <Image
+            alt="BISO Logo"
+            height={40}
+            width={220}
+            src="/images/biso-dare-to-be-more-dark.png"
+            loading="eager"
+          />
         </div>
         <div
           className="flex items-center gap-1 rounded-md px-2 py-1 font-mono text-xs"

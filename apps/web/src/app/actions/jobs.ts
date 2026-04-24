@@ -1,139 +1,146 @@
 "use server";
 
-import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
-import type { Jobs, Locale } from "@repo/api/types/appwrite";
+import { Locale } from "@repo/api/types/appwrite";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import { createJWT, getLoggedInUser } from "@/lib/actions/user";
 
-function filterTranslationRefs<T extends { translation_refs?: unknown }>(
-  item: T,
-  locale: string | undefined
-): T {
-  if (!locale || !Array.isArray(item.translation_refs)) {
-    return item;
+const API_BASE_URL =
+  process.env.API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://localhost:3003";
+
+async function fetchRecruitmentJson<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Recruitment API error: ${response.status}`);
   }
-  return {
-    ...item,
-    translation_refs: item.translation_refs.filter(
-      (ref) =>
-        typeof ref === "object" &&
-        ref !== null &&
-        "locale" in ref &&
-        (ref as Record<string, unknown>).locale === locale
-    ),
-  };
+
+  return response.json() as Promise<T>;
 }
 
 interface ListJobsParams {
   campus?: string;
   limit?: number;
-  locale?: "en" | "no";
+  locale?: Locale | "en" | "no";
   search?: string;
   status?: string;
 }
 
-export async function listJobs(params: ListJobsParams = {}): Promise<Jobs[]> {
-  const { limit = 25, status = "published", campus, locale, search } = params;
+export async function listJobs(
+  params: ListJobsParams = {}
+): Promise<RecruitmentVacancy[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("limit", String(params.limit ?? 25));
+  searchParams.set("locale", String(params.locale ?? Locale.EN));
+
+  if (params.campus) {
+    searchParams.set("campus", params.campus);
+  }
+
+  if (params.search?.trim()) {
+    searchParams.set("search", params.search.trim());
+  }
 
   try {
-    const { db } = await createSessionClient();
+    const response = await fetchRecruitmentJson<{
+      rows: RecruitmentVacancy[];
+      total: number;
+    }>(`/api/recruitment/vacancies?${searchParams.toString()}`);
 
-    const queries = [
-      Query.select([
-        "$id",
-        "$createdAt",
-        "$updatedAt",
-        "slug",
-        "status",
-        "campus_id",
-        "department_id",
-        "metadata",
-        "campus.$id",
-        "campus.name",
-        "department.$id",
-        "department.Name",
-        "department.campus_id",
-        "translation_refs.$id",
-        "translation_refs.$createdAt",
-        "translation_refs.$updatedAt",
-        "translation_refs.content_id",
-        "translation_refs.content_type",
-        "translation_refs.locale",
-        "translation_refs.title",
-        "translation_refs.description",
-        "translation_refs.short_description",
-        "translation_refs.additional_fields",
-      ]),
-      Query.limit(limit),
-      Query.orderDesc("$createdAt"),
-    ];
-
-    if (locale) {
-      queries.push(Query.equal("translation_refs.locale", locale as Locale));
-    }
-
-    if (status !== "all") {
-      queries.push(Query.equal("status", status));
-    }
-
-    if (campus && campus !== "all") {
-      queries.push(Query.equal("campus_id", campus));
-    }
-
-    if (search?.trim()) {
-      queries.push(Query.search("translation_refs.title", search.trim()));
-    }
-
-    const jobsResponse = await db.listRows<Jobs>("app", "jobs", queries);
-
-    return jobsResponse.rows.map((item) => filterTranslationRefs(item, locale));
+    return response.rows;
   } catch (error) {
-    console.error("Error fetching jobs:", error);
+    console.error("Error fetching recruitment vacancies:", error);
     return [];
   }
 }
 
 export async function getJobBySlug(
   slug: string,
-  locale: "en" | "no"
-): Promise<Jobs | null> {
+  locale: Locale | "en" | "no"
+): Promise<RecruitmentVacancy | null> {
   try {
-    const { db } = await createSessionClient();
+    const response = await fetchRecruitmentJson<{
+      row: RecruitmentVacancy;
+    }>(`/api/recruitment/vacancies/${slug}?locale=${locale}`);
 
-    const response = await db.listRows<Jobs>("app", "jobs", [
-      Query.equal("slug", slug),
-      Query.equal("translation_refs.locale", locale as Locale),
-      Query.select([
-        "$id",
-        "$createdAt",
-        "$updatedAt",
-        "slug",
-        "status",
-        "campus_id",
-        "department_id",
-        "metadata",
-        "campus.$id",
-        "campus.name",
-        "department.$id",
-        "department.Name",
-        "department.campus_id",
-        "translation_refs.$id",
-        "translation_refs.$createdAt",
-        "translation_refs.$updatedAt",
-        "translation_refs.content_id",
-        "translation_refs.content_type",
-        "translation_refs.locale",
-        "translation_refs.title",
-        "translation_refs.description",
-        "translation_refs.short_description",
-        "translation_refs.additional_fields",
-      ]),
-      Query.limit(1),
-    ]);
-
-    const item = response.rows[0];
-    return item ? filterTranslationRefs(item, locale) : null;
+    return response.row;
   } catch (error) {
-    console.error("Error fetching job by slug:", error);
+    console.error("Error fetching recruitment vacancy by slug:", error);
     return null;
+  }
+}
+
+export async function submitJobApplication(
+  jobId: string,
+  formData: FormData
+): Promise<
+  { success: true; applicationId: string } | { success: false; error: string }
+> {
+  try {
+    const loggedInUser = await getLoggedInUser();
+    if (!loggedInUser?.user.email) {
+      return {
+        success: false,
+        error: "You must sign in with a verified account before applying.",
+      };
+    }
+
+    const jwt = await createJWT();
+    if (!jwt) {
+      return {
+        success: false,
+        error: "Could not authenticate your application request.",
+      };
+    }
+
+    formData.set("applicant_email", loggedInUser.user.email);
+    if (!formData.get("applicant_name") && loggedInUser.user.name) {
+      formData.set("applicant_name", loggedInUser.user.name);
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/recruitment/vacancies/${jobId}/applications`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: formData,
+        cache: "no-store",
+      }
+    );
+
+    const payload = (await response.json().catch(() => null)) as {
+      data?: { $id: string };
+      error?: string;
+    } | null;
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: payload?.error ?? "Failed to submit application.",
+      };
+    }
+
+    return {
+      success: true,
+      applicationId: payload?.data?.$id ?? "",
+    };
+  } catch (error) {
+    console.error("Error submitting recruitment application:", error);
+    return {
+      success: false,
+      error: "Failed to submit application.",
+    };
   }
 }

@@ -97,7 +97,7 @@ type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   error?: boolean;
 };
 
-function _PortalTextarea({
+export function PortalTextarea({
   error,
   className = "",
   style,

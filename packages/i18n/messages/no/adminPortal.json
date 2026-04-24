@@ -7,6 +7,7 @@
     "events": "Arrangementer",
     "shop": "Produkter",
     "benefits": "Fordeler",
+    "documents": "Dokumenter",
     "news": "Nyheter",
     "settings": "Innstillinger",
     "activity": "Aktivitet",
@@ -397,6 +398,59 @@
       "benefit": "Fordel",
       "page": "Side"
     }
+  },
+  "documents": {
+    "title": "Dokumenter",
+    "description": "Administrer offisielle BISO-dokumenter publisert på SharePoint.",
+    "create": "Nytt dokument",
+    "empty": "Ingen dokumenter ennå",
+    "emptyDescription": "Last opp ditt første dokument for å komme i gang.",
+    "fields": {
+      "title": "Tittel",
+      "description": "Beskrivelse",
+      "category": "Kategori",
+      "scope": "Omfang",
+      "campus": "Campus",
+      "language": "Språk",
+      "version": "Versjonsetikett",
+      "versionNumber": "Versjonsnummer",
+      "status": "Status",
+      "sortOrder": "Sorteringsrekkefølge",
+      "file": "PDF-fil",
+      "fileSize": "Filstørrelse",
+      "lastUpdated": "Sist oppdatert"
+    },
+    "languages": {
+      "no": "Norsk",
+      "en": "Engelsk"
+    },
+    "categories": {
+      "national-statutes": "Nasjonale vedtekter",
+      "campus-bylaws": "Lokale vedtekter",
+      "code-of-conduct": "Adferdskodeks",
+      "business-regulations": "Forretningsregler",
+      "communication-guidelines": "Kommunikasjonsretningslinjer",
+      "authorization-matrix": "Fullmaktsmatrise",
+      "target-documents": "Måldokumenter"
+    },
+    "scopes": {
+      "national": "Nasjonal",
+      "campus": "Campus"
+    },
+    "actions": {
+      "edit": "Rediger dokument",
+      "delete": "Slett dokument",
+      "uploadVersion": "Last opp ny versjon",
+      "viewOnSharePoint": "Vis på SharePoint"
+    },
+    "saveSuccess": "Dokument lagret",
+    "saveError": "Kunne ikke lagre dokumentet",
+    "uploadSuccess": "Ny versjon lastet opp",
+    "uploadError": "Opplasting mislyktes",
+    "sharepointError": "SharePoint-opplasting mislyktes",
+    "deleteSuccess": "Dokument slettet",
+    "deleteError": "Kunne ikke slette dokumentet",
+    "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon."
   },
   "settings": {
     "title": "Innstillinger",

@@ -74,6 +74,7 @@ export const NAV_ACCESS = {
   "portal.activity": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.settings": [ROLES.GLOBAL_ADMIN],
+  "portal.documents": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
 } as const;
 
 export type NavKey = keyof typeof NAV_ACCESS;

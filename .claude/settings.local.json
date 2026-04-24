@@ -9,7 +9,9 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in {**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}.items\\(\\) if '@repo' in k or 'stripe' in k or 'vipps' in k}, indent=2\\)\\)\")",
       "Bash(node -e ':*)",
       "Bash(grep -E \"\\\\.tsx?$\")",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(ls:*)",
+      "Bash(grep -r \"export\" /Users/heien/Documents/Dev/BISO-Sites/packages/ui/lib/*.ts)"
     ]
   }
 }
