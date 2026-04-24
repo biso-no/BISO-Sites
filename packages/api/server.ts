@@ -41,8 +41,13 @@ function plainDb(db: TablesDB): TablesDB {
 }
 
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
-const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
+const APPWRITE_PROJECT =
+  process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
+  process.env.APPWRITE_PROJECT_ID ||
+  "biso";
 const NEXT_PUBLIC_APPWRITE_ENDPOINT =
+  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+  process.env.APPWRITE_ENDPOINT ||
   process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   "https://appwrite.biso.no/v1";
 

@@ -14,7 +14,7 @@ The first recruitment foundation extends the existing jobs feature instead of in
 - `apps/admin`
   Vacancy management stays under `/jobs`, with internal application review at `/jobs/applications` and `/jobs/[id]/applications`.
 - `apps/api`
-  Recruitment validation, persistence, authorization, and resume download all run through dedicated API routes.
+  Public vacancy reads and candidate submissions run through API routes for web/native clients.
 - `packages/shared`
   Shared schemas and business rules define vacancy metadata, application payload validation, and status transitions.
 
@@ -25,12 +25,7 @@ Public routes:
 - `GET /api/recruitment/vacancies/[slug]`
 - `POST /api/recruitment/vacancies/[jobId]/applications`
 
-Admin routes:
-- `GET/POST /api/admin/recruitment/vacancies`
-- `GET/PATCH/DELETE /api/admin/recruitment/vacancies/[id]`
-- `GET /api/admin/recruitment/applications`
-- `GET/PATCH /api/admin/recruitment/applications/[id]`
-- `GET /api/admin/recruitment/applications/[id]/resume`
+Admin management is handled by `apps/admin` server actions using `@repo/api/server` directly, not by calling `apps/api`.
 
 ## Data Model
 

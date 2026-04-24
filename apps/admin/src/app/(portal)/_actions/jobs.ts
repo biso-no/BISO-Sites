@@ -1,25 +1,46 @@
 "use server";
 
-import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
-import type { Campus, Departments } from "@repo/api/types/appwrite";
+import { ID, Query } from "@repo/api";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
-  RecruitmentApplicationRecord,
-  RecruitmentApplicationStatusUpdateInput,
-  RecruitmentVacancy,
-  RecruitmentVacancyUpsertInput,
+  Campus,
+  ContentTranslations,
+  Departments,
+  JobApplications,
+} from "@repo/api/types/appwrite";
+import {
+  assertRecruitmentApplicationTransition,
+  buildRecruitmentVacancyMetadata,
+  type RecruitmentApplicationRecord,
+  type RecruitmentApplicationStatusUpdateInput,
+  type RecruitmentVacancyUpsertInput,
+  recruitmentApplicationStatusUpdateSchema,
+  recruitmentVacancyUpsertSchema,
+  serializeRecruitmentVacancyMetadata,
 } from "@repo/shared/types/recruitment";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createJWT } from "@/lib/actions/user";
-import { getUserAuthContext } from "@/lib/authorization";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import {
+  assertRecruitmentApplicationReviewAccess,
+  assertRecruitmentVacancyWriteAccess,
+  buildRecruitmentApplicationRecord,
+  canManageRecruitmentVacancy,
+  canReviewRecruitmentVacancy,
+  fetchRecruitmentJobsByIds,
+  fetchRecruitmentListRows,
+  getRecruitmentJobById,
+  loadRecruitmentLookups,
+  toRecruitmentAdminScope,
+} from "@/lib/recruitment";
+import { logAuditEvent } from "./audit-log";
 
-const API_BASE_URL =
-  process.env.API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:3003";
+const JOBS_PAGE_SIZE = 20;
+const APPLICATIONS_PAGE_SIZE = 20;
 
-async function requireAuth() {
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     redirect("/auth/login");
@@ -27,38 +48,48 @@ async function requireAuth() {
   return ctx;
 }
 
-async function fetchRecruitmentApi<T>(
-  path: string,
-  init?: RequestInit
-): Promise<T> {
-  const jwt = await createJWT();
-  if (!jwt) {
-    throw new Error("Unauthorized");
+async function upsertTranslation(
+  db: AdminDb,
+  jobId: string,
+  locale: "no" | "en",
+  payload: {
+    description: string;
+    shortDescription: string | null;
+    title: string;
   }
+): Promise<void> {
+  const existing = await db.listRows<ContentTranslations>(
+    "app",
+    "content_translations",
+    [
+      Query.equal("content_type", "job"),
+      Query.equal("content_id", jobId),
+      Query.equal("locale", locale),
+      Query.limit(1),
+    ]
+  );
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-      ...(init?.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
-      ...(init?.headers ?? {}),
-    },
-  });
+  const data = {
+    additional_fields: null,
+    content_id: jobId,
+    content_type: "job",
+    description: payload.description,
+    locale,
+    short_description: payload.shortDescription,
+    title: payload.title,
+  };
 
-  const payload = (await response.json().catch(() => null)) as {
-    error?: string;
-  } | null;
-
-  if (!response.ok) {
-    throw new Error(
-      payload?.error || `Recruitment API error: ${response.status}`
+  if (existing.rows[0]) {
+    await db.updateRow(
+      "app",
+      "content_translations",
+      existing.rows[0].$id,
+      data
     );
+    return;
   }
 
-  return payload as T;
+  await db.createRow("app", "content_translations", ID.unique(), data);
 }
 
 export async function listJobs(opts?: {
@@ -66,49 +97,119 @@ export async function listJobs(opts?: {
   search?: string;
   page?: number;
 }) {
-  await requireAuth();
-  const searchParams = new URLSearchParams();
-  searchParams.set("page", String(opts?.page ?? 1));
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+  const page = Math.max(1, opts?.page ?? 1);
+  const search = opts?.search?.trim().toLowerCase() ?? "";
 
-  if (opts?.status) {
-    searchParams.set("status", opts.status);
-  }
+  const vacancies = await fetchRecruitmentListRows(db, [
+    Query.orderDesc("$updatedAt"),
+    Query.limit(200),
+  ]);
 
-  if (opts?.search?.trim()) {
-    searchParams.set("search", opts.search.trim());
-  }
+  const filtered = vacancies
+    .filter((vacancy) => canManageRecruitmentVacancy(scope, lookups, vacancy))
+    .filter((vacancy) =>
+      opts?.status && opts.status !== "all"
+        ? vacancy.status === opts.status
+        : true
+    )
+    .filter((vacancy) => {
+      if (!search) {
+        return true;
+      }
 
-  return fetchRecruitmentApi<{
-    page: number;
-    pageSize: number;
-    rows: RecruitmentVacancy[];
-    total: number;
-  }>(`/api/admin/recruitment/vacancies?${searchParams.toString()}`);
+      const title =
+        vacancy.translation_refs
+          .find((translation) => translation.locale === "no")
+          ?.title.toLowerCase() ?? "";
+      const company = vacancy.metadata.company?.toLowerCase() ?? "";
+
+      return title.includes(search) || company.includes(search);
+    });
+
+  const start = (page - 1) * JOBS_PAGE_SIZE;
+
+  return {
+    page,
+    pageSize: JOBS_PAGE_SIZE,
+    rows: filtered.slice(start, start + JOBS_PAGE_SIZE),
+    total: filtered.length,
+  };
 }
 
 export async function getJob(id: string) {
-  await requireAuth();
-  const response = await fetchRecruitmentApi<{ row: RecruitmentVacancy }>(
-    `/api/admin/recruitment/vacancies/${id}`
-  );
-  return response.row;
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+  const vacancy = await getRecruitmentJobById(db, id);
+
+  if (!vacancy) {
+    return null;
+  }
+
+  assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
+  return vacancy;
 }
 
 export async function createJob(values: RecruitmentVacancyUpsertInput) {
-  await requireAuth();
+  const ctx = await requireAuth();
+  const validated = recruitmentVacancyUpsertSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid vacancy payload" };
+  }
 
   try {
-    const response = await fetchRecruitmentApi<{ data: { $id: string } }>(
-      "/api/admin/recruitment/vacancies",
-      {
-        body: JSON.stringify(values),
-        method: "POST",
-      }
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+
+    assertRecruitmentVacancyWriteAccess(scope, lookups, {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+    });
+
+    const metadata = serializeRecruitmentVacancyMetadata(
+      buildRecruitmentVacancyMetadata(validated.data)
     );
+
+    const job = await db.createRow("app", "jobs", ID.unique(), {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+      metadata,
+      slug: validated.data.slug,
+      status: validated.data.status,
+    });
+
+    await Promise.all([
+      upsertTranslation(db, job.$id, "no", {
+        description: validated.data.description_no,
+        shortDescription: validated.data.short_description ?? null,
+        title: validated.data.title_no,
+      }),
+      upsertTranslation(db, job.$id, "en", {
+        description: validated.data.description_en,
+        shortDescription: validated.data.short_description ?? null,
+        title: validated.data.title_en,
+      }),
+    ]);
+
+    await logAuditEvent(ctx, "recruitment.vacancy.create", {
+      payload: {
+        campus_id: validated.data.campus_id,
+        department_id: validated.data.department_id ?? null,
+        status: validated.data.status,
+      },
+      resourceId: job.$id,
+      resourceType: "job",
+    });
 
     revalidatePath("/jobs");
     revalidatePath("/");
-    return { data: response.data.$id };
+    return { data: job.$id };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to create job",
@@ -120,20 +221,75 @@ export async function updateJob(
   id: string,
   values: RecruitmentVacancyUpsertInput
 ) {
-  await requireAuth();
+  const ctx = await requireAuth();
+  const validated = recruitmentVacancyUpsertSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid vacancy payload" };
+  }
 
   try {
-    const response = await fetchRecruitmentApi<{ data: { $id: string } }>(
-      `/api/admin/recruitment/vacancies/${id}`,
-      {
-        body: JSON.stringify(values),
-        method: "PATCH",
-      }
-    );
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+    const vacancy = await getRecruitmentJobById(db, id);
+
+    if (!vacancy) {
+      return { error: "Vacancy not found" };
+    }
+
+    assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
+    assertRecruitmentVacancyWriteAccess(scope, lookups, {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+    });
+
+    const metadata = serializeRecruitmentVacancyMetadata({
+      ...vacancy.metadata,
+      application_deadline: validated.data.application_deadline ?? null,
+      company: validated.data.company ?? null,
+      contact_email: validated.data.contact_email ?? null,
+      contact_name: validated.data.contact_name ?? null,
+      cv_required: validated.data.cv_required,
+      employment_type: validated.data.employment_type ?? null,
+      location: validated.data.location ?? null,
+      paid: validated.data.paid,
+      short_description: validated.data.short_description ?? null,
+    });
+
+    await db.updateRow("app", "jobs", id, {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+      metadata,
+      slug: validated.data.slug,
+      status: validated.data.status,
+    });
+
+    await Promise.all([
+      upsertTranslation(db, id, "no", {
+        description: validated.data.description_no,
+        shortDescription: validated.data.short_description ?? null,
+        title: validated.data.title_no,
+      }),
+      upsertTranslation(db, id, "en", {
+        description: validated.data.description_en,
+        shortDescription: validated.data.short_description ?? null,
+        title: validated.data.title_en,
+      }),
+    ]);
+
+    await logAuditEvent(ctx, "recruitment.vacancy.update", {
+      payload: {
+        campus_id: validated.data.campus_id,
+        department_id: validated.data.department_id ?? null,
+        status: validated.data.status,
+      },
+      resourceId: id,
+      resourceType: "job",
+    });
 
     revalidatePath("/jobs");
     revalidatePath(`/jobs/${id}`);
-    return { data: response.data.$id };
+    return { data: id };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to update job",
@@ -142,12 +298,51 @@ export async function updateJob(
 }
 
 export async function deleteJob(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
 
   try {
-    await fetchRecruitmentApi(`/api/admin/recruitment/vacancies/${id}`, {
-      method: "DELETE",
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+    const vacancy = await getRecruitmentJobById(db, id);
+
+    if (!vacancy) {
+      return { error: "Vacancy not found" };
+    }
+
+    assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
+
+    const applications = await db.listRows("app", "job_applications", [
+      Query.equal("job_id", id),
+      Query.limit(1),
+    ]);
+
+    if (applications.total > 0) {
+      return { error: "Vacancies with applications cannot be deleted" };
+    }
+
+    const translations = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "job"),
+        Query.equal("content_id", id),
+        Query.limit(10),
+      ]
+    );
+
+    await Promise.all(
+      translations.rows.map((translation) =>
+        db.deleteRow("app", "content_translations", translation.$id)
+      )
+    );
+    await db.deleteRow("app", "jobs", id);
+
+    await logAuditEvent(ctx, "recruitment.vacancy.delete", {
+      resourceId: id,
+      resourceType: "job",
     });
+
     revalidatePath("/jobs");
     return { data: true };
   } catch (error) {
@@ -163,54 +358,161 @@ export async function listJobApplications(opts?: {
   search?: string;
   status?: string;
 }) {
-  await requireAuth();
-  const searchParams = new URLSearchParams();
-  searchParams.set("page", String(opts?.page ?? 1));
-
-  if (opts?.jobId) {
-    searchParams.set("jobId", opts.jobId);
+  const ctx = await requireAuth();
+  const scope = toRecruitmentAdminScope(ctx);
+  if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+    throw new Error("Forbidden");
   }
 
-  if (opts?.status) {
-    searchParams.set("status", opts.status);
+  const { db } = await createAdminClient();
+  const lookups = await loadRecruitmentLookups(db);
+  const page = Math.max(1, opts?.page ?? 1);
+  const search = opts?.search?.trim().toLowerCase() ?? "";
+
+  const accessibleVacancies = (
+    await fetchRecruitmentListRows(db, [
+      Query.orderDesc("$updatedAt"),
+      Query.limit(300),
+    ])
+  ).filter((vacancy) => canReviewRecruitmentVacancy(scope, lookups, vacancy));
+
+  const accessibleJobIds = accessibleVacancies.map((vacancy) => vacancy.$id);
+  if (accessibleJobIds.length === 0) {
+    return { page, pageSize: APPLICATIONS_PAGE_SIZE, rows: [], total: 0 };
   }
 
-  if (opts?.search?.trim()) {
-    searchParams.set("search", opts.search.trim());
+  if (opts?.jobId && !accessibleJobIds.includes(opts.jobId)) {
+    throw new Error("Forbidden");
   }
 
-  return fetchRecruitmentApi<{
-    page: number;
-    pageSize: number;
-    rows: RecruitmentApplicationRecord[];
-    total: number;
-  }>(`/api/admin/recruitment/applications?${searchParams.toString()}`);
+  const jobsById = new Map(
+    accessibleVacancies.map((vacancy) => [vacancy.$id, vacancy])
+  );
+  const applicationQueries = [
+    Query.orderDesc("$createdAt"),
+    Query.equal("job_id", opts?.jobId ? [opts.jobId] : accessibleJobIds),
+    ...(opts?.status && opts.status !== "all"
+      ? [Query.equal("status", opts.status)]
+      : []),
+    ...(search
+      ? [Query.limit(300)]
+      : [
+          Query.limit(APPLICATIONS_PAGE_SIZE),
+          Query.offset((page - 1) * APPLICATIONS_PAGE_SIZE),
+        ]),
+  ];
+
+  const applicationsResponse = await db.listRows<JobApplications>(
+    "app",
+    "job_applications",
+    applicationQueries
+  );
+
+  let rows: RecruitmentApplicationRecord[] = applicationsResponse.rows.map(
+    (application) => buildRecruitmentApplicationRecord(application, jobsById)
+  );
+
+  if (search) {
+    rows = rows.filter((application) => {
+      const title = application.job?.title.toLowerCase() ?? "";
+      return (
+        application.applicant_name.toLowerCase().includes(search) ||
+        application.applicant_email.toLowerCase().includes(search) ||
+        title.includes(search)
+      );
+    });
+  }
+
+  return {
+    page,
+    pageSize: APPLICATIONS_PAGE_SIZE,
+    rows: search
+      ? rows.slice(
+          (page - 1) * APPLICATIONS_PAGE_SIZE,
+          page * APPLICATIONS_PAGE_SIZE
+        )
+      : rows,
+    total: search ? rows.length : applicationsResponse.total,
+  };
 }
 
 export async function getJobApplication(id: string) {
-  await requireAuth();
-  const response = await fetchRecruitmentApi<{
-    row: RecruitmentApplicationRecord;
-  }>(`/api/admin/recruitment/applications/${id}`);
-  return response.row;
+  const ctx = await requireAuth();
+  const scope = toRecruitmentAdminScope(ctx);
+  if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+    throw new Error("Forbidden");
+  }
+
+  const { db } = await createAdminClient();
+  const lookups = await loadRecruitmentLookups(db);
+  const application = await db.getRow<JobApplications>(
+    "app",
+    "job_applications",
+    id
+  );
+  const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
+  const job = jobsById.get(application.job_id);
+
+  if (!job) {
+    throw new Error("Vacancy not found");
+  }
+
+  assertRecruitmentApplicationReviewAccess(scope, lookups, job);
+  return buildRecruitmentApplicationRecord(application, jobsById);
 }
 
 export async function updateJobApplicationStatus(
   id: string,
   values: RecruitmentApplicationStatusUpdateInput
 ) {
-  await requireAuth();
+  const ctx = await requireAuth();
+  const validated = recruitmentApplicationStatusUpdateSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid application status payload" };
+  }
 
   try {
-    const response = await fetchRecruitmentApi<{
-      data: { $id: string; status: string };
-    }>(`/api/admin/recruitment/applications/${id}`, {
-      body: JSON.stringify(values),
-      method: "PATCH",
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+      throw new Error("Forbidden");
+    }
+
+    const lookups = await loadRecruitmentLookups(db);
+    const application = await db.getRow<JobApplications>(
+      "app",
+      "job_applications",
+      id
+    );
+    const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
+    const job = jobsById.get(application.job_id);
+
+    if (!job) {
+      throw new Error("Vacancy not found");
+    }
+
+    assertRecruitmentApplicationReviewAccess(scope, lookups, job);
+    assertRecruitmentApplicationTransition(
+      application.status,
+      validated.data.status
+    );
+
+    await db.updateRow("app", "job_applications", id, {
+      status: validated.data.status,
+    });
+
+    await logAuditEvent(ctx, "recruitment.application.status_update", {
+      payload: {
+        from: application.status,
+        to: validated.data.status,
+      },
+      resourceId: id,
+      resourceType: "job_application",
     });
 
     revalidatePath("/jobs/applications");
-    return { data: response.data };
+    revalidatePath(`/jobs/${application.job_id}/applications`);
+    return { data: { $id: id, status: validated.data.status } };
   } catch (error) {
     return {
       error:

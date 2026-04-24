@@ -1,73 +1,77 @@
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
+import type { JobApplications } from "@repo/api/types/appwrite";
+import { RECRUITMENT_RESUME_BUCKET_ID } from "@repo/shared/types/recruitment";
 import { NextResponse } from "next/server";
-
-const API_BASE_URL =
-  process.env.API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:3003";
+import { getUserAuthContext } from "@/lib/authorization";
+import {
+  assertRecruitmentApplicationReviewAccess,
+  fetchRecruitmentJobsByIds,
+  loadRecruitmentLookups,
+  toRecruitmentAdminScope,
+} from "@/lib/recruitment";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await context.params;
-    const { account } = await createSessionClient();
-    const jwt = await account.createJWT();
+    const ctx = await getUserAuthContext();
+    if (!ctx) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const response = await fetch(
-      `${API_BASE_URL}/api/admin/recruitment/applications/${id}/resume`,
-      {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${jwt.jwt}`,
-        },
-      }
+    const scope = toRecruitmentAdminScope(ctx);
+    if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id } = await context.params;
+    const { db, storage } = await createAdminClient();
+    const lookups = await loadRecruitmentLookups(db);
+    const application = await db.getRow<JobApplications>(
+      "app",
+      "job_applications",
+      id
     );
 
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-
-      return NextResponse.json(
-        { error: payload?.error ?? "Failed to download resume" },
-        { status: response.status }
-      );
+    if (!application.resume_file_id) {
+      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
     }
 
-    if (!response.body) {
-      return NextResponse.json(
-        { error: "Resume response was empty" },
-        { status: 502 }
-      );
+    const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
+    const job = jobsById.get(application.job_id);
+    if (!job) {
+      return NextResponse.json({ error: "Vacancy not found" }, { status: 404 });
     }
 
-    const headers = new Headers();
-    const contentDisposition = response.headers.get("content-disposition");
-    const contentType = response.headers.get("content-type");
+    assertRecruitmentApplicationReviewAccess(scope, lookups, job);
 
-    if (contentDisposition) {
-      headers.set("Content-Disposition", contentDisposition);
-    }
-    if (contentType) {
-      headers.set("Content-Type", contentType);
-    }
-    headers.set("Cache-Control", "no-store");
+    const [file, buffer] = await Promise.all([
+      storage.getFile(RECRUITMENT_RESUME_BUCKET_ID, application.resume_file_id),
+      storage.getFileDownload(
+        RECRUITMENT_RESUME_BUCKET_ID,
+        application.resume_file_id
+      ),
+    ]);
 
-    return new NextResponse(response.body, {
-      headers,
+    return new NextResponse(buffer, {
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Disposition": `attachment; filename="${file.name}"`,
+        "Content-Type": file.mimeType || "application/pdf",
+      },
       status: 200,
     });
   } catch (error) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to proxy resume download",
+          error instanceof Error ? error.message : "Failed to download resume",
       },
-      { status: 500 }
+      {
+        status:
+          error instanceof Error && error.message === "Forbidden" ? 403 : 500,
+      }
     );
   }
 }
