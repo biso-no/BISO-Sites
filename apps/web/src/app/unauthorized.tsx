@@ -4,12 +4,14 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Home, LogIn, ShieldAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 export default function Unauthorized() {
   const [mounted, setMounted] = useState(false);
   const { resolvedTheme } = useTheme();
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
@@ -78,7 +80,7 @@ export default function Unauthorized() {
             className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg hover:opacity-90"
             size="lg"
           >
-            <Link href="/auth/login">
+            <Link href={`/auth/login?redirectTo=${encodeURIComponent(pathname)}`}>
               <LogIn className="mr-2 h-5 w-5" />
               Logg inn
             </Link>

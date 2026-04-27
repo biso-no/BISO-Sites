@@ -6,6 +6,11 @@ import { createAuthenticatedClient } from "@/lib/auth";
 
 // Response schema for AI extraction
 const ExpenseDataSchema = z.object({
+  documentType: z
+    .enum(["receipt", "bank-statement"])
+    .describe(
+      "Type of document: 'receipt' for purchase receipts/invoices, 'bank-statement' for bank transaction records showing account debits/credits"
+    ),
   description: z
     .string()
     .nullable()
@@ -21,12 +26,55 @@ const ExpenseDataSchema = z.object({
   date: z.string().nullable().describe("Date of purchase in YYYY-MM-DD format"),
   vendor: z.string().nullable().describe("Name of the store or vendor"),
 });
+async function getNorgesBankRate(
+  date: string,
+  currency: string
+): Promise<number | null> {
+  // Use a 7-day lookback window to handle weekends and Norwegian public holidays
+  const lookback = new Date(date);
+  lookback.setDate(lookback.getDate() - 7);
+  const startPeriod = lookback.toISOString().split("T")[0];
+
+  const response = await fetch(
+    `https://data.norges-bank.no/api/data/EXR/B.${currency}.NOK.SP00.A?format=sdmx-json&startPeriod=${startPeriod}&endPeriod=${date}&locale=en`
+  );
+
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  const series = data?.dataSets?.[0]?.series as
+    | Record<string, { observations: Record<string, number[]> }>
+    | undefined;
+  if (!series) return null;
+
+  const seriesKey = Object.keys(series)[0];
+  if (!seriesKey) return null;
+
+  const observations = series[seriesKey]?.observations;
+  if (!observations) return null;
+
+  // Take the observation with the highest index (most recent within the window)
+  const obsKeys = Object.keys(observations).sort((a, b) => Number(b) - Number(a));
+  if (obsKeys.length === 0) return null;
+
+  const rate = observations[obsKeys[0]]?.[0];
+  return typeof rate === "number" && rate > 0 ? rate : null;
+}
+
 async function getHistoricalRate(
   date: string,
   currency: string
 ): Promise<number | null> {
   if (currency === "NOK") {
     return 1;
+  }
+
+  try {
+    // Norges Bank publishes direct NOK rates — more accurate than ECB cross-rates
+    const nbRate = await getNorgesBankRate(date, currency);
+    if (nbRate) return nbRate;
+  } catch {
+    // fall through to Frankfurter
   }
 
   try {
@@ -97,13 +145,14 @@ async function validateAndPrepareFile(
 }
 
 function parseExpenseData(
-  preparedFile: Extract<FileValidationResult, { ok: true }>
+  preparedFile: Extract<FileValidationResult, { ok: true }>,
+  purpose: Purpose
 ): Promise<ExpenseData> {
   if (preparedFile.isPdf) {
-    return extractExpenseDataFromPdf(preparedFile.buffer);
+    return extractExpenseDataFromPdf(preparedFile.buffer, purpose);
   }
 
-  return extractExpenseDataFromImage(preparedFile.buffer);
+  return extractExpenseDataFromImage(preparedFile.buffer, purpose);
 }
 
 async function convertAmountToNok(expenseData: ExpenseData) {
@@ -134,11 +183,48 @@ async function convertAmountToNok(expenseData: ExpenseData) {
   return { amountInNok, exchangeRate };
 }
 
+// Used when the caller knows the file is a purchase receipt
+const RECEIPT_PROMPT = `Extract expense information from this receipt/invoice.
+If a field cannot be determined, return null for that field.
+For dates, convert to YYYY-MM-DD format.
+For descriptions, summarize the main purchase(s) in one brief line.
+For amounts, find the total/sum ("Totalt", "Sum", "Total", etc.).
+For currency, default to NOK if it appears to be a Norwegian receipt.
+Set documentType to "receipt".`;
+
+// Used when the caller explicitly knows the file is a bank statement
+const BANK_STATEMENT_PROMPT = `This is a bank statement. Extract the single debit/charge transaction amount.
+If a field cannot be determined, return null for that field.
+For dates, find the transaction date and convert to YYYY-MM-DD format.
+For amounts, find the NOK debit charge amount (the money that was withdrawn).
+Currency should almost always be NOK on a Norwegian bank statement.
+For description, use the merchant/payee name from the transaction.
+Ignore account totals, running balances, and unrelated transactions.
+Set documentType to "bank-statement".`;
+
+// Used when the document type is unknown — AI classifies freely
+const AUTO_PROMPT = `Extract expense information from this document.
+First determine the document type: set documentType to "bank-statement" if this is a bank account statement or transaction record, or "receipt" if it is a purchase receipt or invoice.
+If a field cannot be determined, return null for that field.
+For dates, convert to YYYY-MM-DD format.
+For amounts: if a receipt, find the purchase total ("Totalt", "Sum", "Total", etc.); if a bank statement, find the debit/charge amount (money withdrawn).
+For currency, default to NOK if it appears to be Norwegian.
+For vendor, use the merchant or payee name.`;
+
+type Purpose = "receipt" | "bank-statement" | "auto";
+
+function purposeToPrompt(purpose: Purpose): string {
+  if (purpose === "bank-statement") return BANK_STATEMENT_PROMPT;
+  if (purpose === "receipt") return RECEIPT_PROMPT;
+  return AUTO_PROMPT;
+}
+
 /**
  * Use OpenAI Vision to extract structured expense data directly from image
  */
 async function extractExpenseDataFromImage(
-  imageBuffer: Buffer
+  imageBuffer: Buffer,
+  purpose: Purpose
 ): Promise<ExpenseData> {
   const { object } = await generateObject({
     model: openai("gpt-5-nano"),
@@ -147,19 +233,8 @@ async function extractExpenseDataFromImage(
       {
         role: "user",
         content: [
-          {
-            type: "text",
-            text: `Extract expense information from this receipt/invoice image.
-If a field cannot be determined, return null for that field.
-For dates, convert to YYYY-MM-DD format.
-For descriptions, summarize the main purchase(s) in one brief line.
-For amounts, find the total/sum ("Totalt", "Sum", "Total", etc.).
-For currency, default to NOK if it appears to be a Norwegian receipt.`,
-          },
-          {
-            type: "image",
-            image: imageBuffer,
-          },
+          { type: "text", text: purposeToPrompt(purpose) },
+          { type: "image", image: imageBuffer },
         ],
       },
     ],
@@ -171,7 +246,10 @@ For currency, default to NOK if it appears to be a Norwegian receipt.`,
 /**
  * Extract text from PDF and use AI to parse it
  */
-async function extractExpenseDataFromPdf(buffer: Buffer): Promise<ExpenseData> {
+async function extractExpenseDataFromPdf(
+  buffer: Buffer,
+  purpose: Purpose
+): Promise<ExpenseData> {
   const { object } = await generateObject({
     model: openai("gpt-5-nano"),
     schema: ExpenseDataSchema,
@@ -179,21 +257,8 @@ async function extractExpenseDataFromPdf(buffer: Buffer): Promise<ExpenseData> {
       {
         role: "user",
         content: [
-          {
-            type: "text",
-            text: `Extract expense information from this receipt/invoice text.
-If a field cannot be determined, return null for that field.
-For dates, convert to YYYY-MM-DD format.
-For descriptions, summarize the main purchase(s) in one brief line.
-For amounts, find the total/sum.
-For currency, default to NOK if it appears to be Norwegian.
-`,
-          },
-          {
-            type: "file",
-            data: buffer,
-            mediaType: "application/pdf",
-          },
+          { type: "text", text: purposeToPrompt(purpose) },
+          { type: "file", data: buffer, mediaType: "application/pdf" },
         ],
       },
     ],
@@ -212,6 +277,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    const purposeParam = searchParams.get("purpose");
+    const purpose: Purpose =
+      purposeParam === "bank-statement"
+        ? "bank-statement"
+        : purposeParam === "receipt"
+          ? "receipt"
+          : "auto";
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
@@ -221,7 +295,7 @@ export async function POST(req: NextRequest) {
       return preparedFile.response;
     }
 
-    const expenseData = await parseExpenseData(preparedFile);
+    const expenseData = await parseExpenseData(preparedFile, purpose);
     const { amountInNok, exchangeRate } = await convertAmountToNok(expenseData);
 
     return NextResponse.json({
