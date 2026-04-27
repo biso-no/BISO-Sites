@@ -9,6 +9,7 @@ import {
   Check,
   DollarSign,
   Globe,
+  Loader2,
   Sparkles,
   Store,
   Upload,
@@ -17,6 +18,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
+import { apiClient } from "@/lib/api-client";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import type { Receipt } from "./store";
 
@@ -37,7 +39,9 @@ export function GenerativeReceiptPreview({
   const isForeign = Boolean(receipt.currency && receipt.currency !== "NOK");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingStatement, setIsUploadingStatement] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<
+    "uploading" | "analyzing" | null
+  >(null);
 
   const handleBankStatementUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -47,7 +51,7 @@ export function GenerativeReceiptPreview({
       return;
     }
 
-    setIsUploadingStatement(true);
+    setUploadPhase("uploading");
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -62,6 +66,33 @@ export function GenerativeReceiptPreview({
           bankStatementName: file.name,
           bankStatementType: file.type,
         });
+
+        // Switch to analyzing phase — file is uploaded, OCR is the slow part
+        setUploadPhase("analyzing");
+        try {
+          const ocrFormData = new FormData();
+          ocrFormData.append("file", file);
+          const ocrResult = await apiClient.fetchFormData<{
+            success: boolean;
+            data?: { amount?: number; amountInNok?: number; currency?: string };
+          }>("/api/expenses/ocr?purpose=bank-statement", {
+            method: "POST",
+            body: ocrFormData,
+          });
+
+          if (ocrResult.success && ocrResult.data) {
+            const { amount, amountInNok, currency } = ocrResult.data;
+            const nokAmount =
+              !currency || currency === "NOK"
+                ? amount
+                : (amountInNok ?? amount);
+            if (nokAmount) {
+              onUpdate({ amount: Math.abs(nokAmount) });
+            }
+          }
+        } catch {
+          // OCR failure is non-fatal
+        }
 
         if (onInsert) {
           const statementReceipt: Receipt = {
@@ -89,7 +120,7 @@ export function GenerativeReceiptPreview({
     } catch (_error) {
       toast.error("Upload failed");
     } finally {
-      setIsUploadingStatement(false);
+      setUploadPhase(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -113,7 +144,6 @@ export function GenerativeReceiptPreview({
           <ReceiptPreview isProcessing={isProcessing} receipt={receipt} />
           <ForeignCurrencyWarning
             isProcessing={isProcessing}
-            isUploadingStatement={isUploadingStatement}
             onRemoveStatement={() =>
               onUpdate({
                 bankStatementId: undefined,
@@ -122,6 +152,7 @@ export function GenerativeReceiptPreview({
             }
             onUploadClick={() => fileInputRef.current?.click()}
             receipt={receipt}
+            uploadPhase={uploadPhase}
           />
         </div>
 
@@ -225,16 +256,16 @@ function ReceiptPreview({
 
 interface ForeignCurrencyWarningProps {
   isProcessing: boolean;
-  isUploadingStatement: boolean;
   onRemoveStatement: () => void;
   onUploadClick: () => void;
   receipt: Receipt;
+  uploadPhase: "uploading" | "analyzing" | null;
 }
 
 function ForeignCurrencyWarning({
   receipt,
   isProcessing,
-  isUploadingStatement,
+  uploadPhase,
   onUploadClick,
   onRemoveStatement,
 }: ForeignCurrencyWarningProps) {
@@ -280,17 +311,23 @@ function ForeignCurrencyWarning({
           ) : (
             <Button
               className="w-full gap-2 border-amber-200 bg-background text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
-              disabled={isUploadingStatement}
+              disabled={uploadPhase !== null}
               onClick={onUploadClick}
               size="sm"
               variant="outline"
             >
-              {isUploadingStatement ? (
+              {uploadPhase === "analyzing" ? (
                 <Sparkles className="h-3 w-3 animate-spin" />
+              ) : uploadPhase === "uploading" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
                 <Upload className="h-3 w-3" />
               )}
-              {isUploadingStatement ? "Uploading..." : "Upload Bank Statement"}
+              {uploadPhase === "analyzing"
+                ? "Analyzing statement…"
+                : uploadPhase === "uploading"
+                  ? "Uploading…"
+                  : "Upload Bank Statement"}
             </Button>
           )}
         </div>

@@ -23,6 +23,7 @@ import {
   CreditCard,
   FileText,
   Loader2,
+  Sparkles,
   Upload,
   User,
 } from "lucide-react";
@@ -30,9 +31,12 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { v4 as uuid } from "uuid";
+import { apiClient } from "@/lib/api-client";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { ProfileCompletionBanner } from "./profile-completion-banner";
 import type { Receipt } from "./store";
+
+type UploadState = { id: string; phase: "uploading" | "analyzing" } | null;
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -40,8 +44,8 @@ interface ReceiptRowProps {
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
   receipt: Receipt;
   selectedId: string | null;
-  setUploadingId: (id: string | null) => void;
-  uploadingId: string | null;
+  setUploadState: (state: UploadState) => void;
+  uploadState: UploadState;
 }
 
 function ReceiptRow({
@@ -49,11 +53,13 @@ function ReceiptRow({
   selectedId,
   onSelect,
   onUpdate,
-  uploadingId,
-  setUploadingId,
+  uploadState,
+  setUploadState,
   fileInputRef,
 }: ReceiptRowProps) {
   const isForeign = receipt.currency && receipt.currency !== "NOK";
+  const isAnalyzing =
+    uploadState?.id === receipt.id && uploadState.phase === "analyzing";
 
   return (
     <motion.tr
@@ -104,8 +110,19 @@ function ReceiptRow({
           <div className="hidden flex-1 px-4 text-muted-foreground md:block">
             {receipt.date || "-"}
           </div>
-          <div className="w-[150px] px-4 text-right font-medium font-mono text-foreground md:px-8 dark:text-white">
-            {receipt.amount ? `${receipt.amount.toLocaleString()} NOK` : "-"}
+          <div className="w-[150px] px-4 text-right font-medium font-mono md:px-8">
+            {isAnalyzing ? (
+              <span className="flex items-center justify-end gap-1.5 text-muted-foreground text-xs">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Verifying…
+              </span>
+            ) : receipt.amount ? (
+              <span className="text-foreground dark:text-white">
+                {receipt.amount.toLocaleString()} NOK
+              </span>
+            ) : (
+              "-"
+            )}
           </div>
         </div>
 
@@ -115,8 +132,8 @@ function ReceiptRow({
             fileInputRef={fileInputRef}
             onUpdate={onUpdate}
             receipt={receipt}
-            setUploadingId={setUploadingId}
-            uploadingId={uploadingId}
+            setUploadState={setUploadState}
+            uploadState={uploadState}
           />
         )}
       </td>
@@ -128,17 +145,20 @@ interface ForeignCurrencyWarningProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
   receipt: Receipt;
-  setUploadingId: (id: string | null) => void;
-  uploadingId: string | null;
+  setUploadState: (state: UploadState) => void;
+  uploadState: UploadState;
 }
 
 function ForeignCurrencyWarning({
   receipt,
   onUpdate,
-  uploadingId,
-  setUploadingId,
+  uploadState,
+  setUploadState,
   fileInputRef,
 }: ForeignCurrencyWarningProps) {
+  const phase =
+    uploadState?.id === receipt.id ? uploadState.phase : null;
+
   if (receipt.bankStatementId) {
     return (
       <div className="bg-amber-50/50 px-4 py-3 md:px-8 dark:bg-amber-900/10">
@@ -146,7 +166,7 @@ function ForeignCurrencyWarning({
           <div className="flex items-center gap-2 text-amber-700 text-xs dark:text-amber-400">
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>
-              Estimated from {receipt.currency} ({receipt.exchangeRate})
+              Verified via bank statement
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-600 text-xs">
@@ -183,21 +203,27 @@ function ForeignCurrencyWarning({
         </div>
         <Button
           className="h-7 gap-1 border-amber-200 bg-background text-amber-700 text-xs hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
-          disabled={uploadingId === receipt.id}
+          disabled={phase !== null}
           onClick={(e) => {
             e.stopPropagation();
-            setUploadingId(receipt.id);
+            setUploadState({ id: receipt.id, phase: "uploading" });
             fileInputRef.current?.click();
           }}
           size="sm"
           variant="outline"
         >
-          {uploadingId === receipt.id ? (
+          {phase === "analyzing" ? (
+            <Sparkles className="h-3 w-3 animate-spin" />
+          ) : phase === "uploading" ? (
             <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
             <Upload className="h-3 w-3" />
           )}
-          Upload Statement
+          {phase === "analyzing"
+            ? "Analyzing…"
+            : phase === "uploading"
+              ? "Uploading…"
+              : "Upload Statement"}
         </Button>
       </div>
     </div>
@@ -253,7 +279,7 @@ export function ExpenseReport({
   const departments = selectedCampus?.departments || [];
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>(null);
 
   const handleBankStatementUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -264,7 +290,7 @@ export function ExpenseReport({
       return;
     }
 
-    setUploadingId(receiptId);
+    setUploadState({ id: receiptId, phase: "uploading" });
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -282,7 +308,34 @@ export function ExpenseReport({
           bankStatementType: file.type,
         });
 
-        // 2. Insert new receipt for the statement
+        // 2. Run OCR — switch to "analyzing" phase so UI reflects the long step
+        setUploadState({ id: receiptId, phase: "analyzing" });
+        try {
+          const ocrFormData = new FormData();
+          ocrFormData.append("file", file);
+          const ocrResult = await apiClient.fetchFormData<{
+            success: boolean;
+            data?: { amount?: number; amountInNok?: number; currency?: string };
+          }>("/api/expenses/ocr?purpose=bank-statement", {
+            method: "POST",
+            body: ocrFormData,
+          });
+
+          if (ocrResult.success && ocrResult.data) {
+            const { amount, amountInNok, currency } = ocrResult.data;
+            const nokAmount =
+              !currency || currency === "NOK"
+                ? amount
+                : (amountInNok ?? amount);
+            if (nokAmount) {
+              onUpdate(receiptId, { amount: Math.abs(nokAmount) });
+            }
+          }
+        } catch {
+          // OCR failure is non-fatal
+        }
+
+        // 3. Insert new receipt for the statement
         const statementReceipt: Receipt = {
           id: uuid(),
           fileId,
@@ -307,7 +360,7 @@ export function ExpenseReport({
     } catch (_error) {
       toast.error("Upload failed");
     } finally {
-      setUploadingId(null);
+      setUploadState(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -321,7 +374,7 @@ export function ExpenseReport({
           accept="application/pdf,image/*"
           className="hidden"
           onChange={(e) =>
-            uploadingId && handleBankStatementUpload(e, uploadingId)
+            uploadState && handleBankStatementUpload(e, uploadState.id)
           }
           ref={fileInputRef}
           type="file"
@@ -485,8 +538,8 @@ export function ExpenseReport({
                       onUpdate={onUpdate}
                       receipt={receipt}
                       selectedId={selectedId}
-                      setUploadingId={setUploadingId}
-                      uploadingId={uploadingId}
+                      setUploadState={setUploadState}
+                      uploadState={uploadState}
                     />
                   ))
                 )}

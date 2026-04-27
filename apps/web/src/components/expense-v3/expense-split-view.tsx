@@ -21,8 +21,35 @@ interface OcrData {
   currency?: string;
   date?: string;
   description?: string;
+  documentType?: "receipt" | "bank-statement";
   exchangeRate?: number;
   vendor?: string;
+}
+
+function normalizeVendor(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+}
+
+function vendorsOverlap(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const na = normalizeVendor(a);
+  const nb = normalizeVendor(b);
+  if (!na || !nb) return false;
+
+  // Exact or full-string substring match
+  if (na === nb || na.includes(nb) || nb.includes(na)) return true;
+
+  // Word-level prefix match — handles plurals/possessives like "kungsan" vs "kungsans"
+  const wordsA = na.split(" ").filter((w) => w.length > 2);
+  const wordsB = nb.split(" ").filter((w) => w.length > 2);
+  if (wordsA.length === 0 || wordsB.length === 0) return false;
+
+  const matched = wordsA.filter((wa) =>
+    wordsB.some((wb) => wa.startsWith(wb) || wb.startsWith(wa))
+  );
+
+  // Require at least half the words from the shorter name to match
+  return matched.length >= Math.max(1, Math.ceil(Math.min(wordsA.length, wordsB.length) / 2));
 }
 
 function buildReceiptFromOcr(
@@ -119,8 +146,8 @@ export function ExpenseSplitView({
 
   // Process File Logic
   const processFile = useCallback(
-    async (file: File) => {
-      const tempId = uuid();
+    async (file: File, presetId?: string): Promise<{ id: string; ocrData: OcrData } | null> => {
+      const tempId = presetId ?? uuid();
       const receipt: Receipt = {
         id: tempId,
         fileId: "",
@@ -192,6 +219,7 @@ export function ExpenseSplitView({
 
         const receiptUpdates = buildReceiptFromOcr(ocrResult.data, file.name);
         store.updateReceipt(tempId, receiptUpdates);
+        return { id: tempId, ocrData: ocrResult.data };
       } catch (error) {
         console.error(error);
         store.updateReceipt(tempId, {
@@ -199,6 +227,57 @@ export function ExpenseSplitView({
           error: "Failed to process receipt",
         });
         toast.error("Failed to process receipt");
+        return null;
+      }
+    },
+    [store]
+  );
+
+  const reconcileBatch = useCallback(
+    (results: Array<{ id: string; ocrData: OcrData } | null>) => {
+      const valid = results.filter(
+        (r): r is { id: string; ocrData: OcrData } => r !== null
+      );
+
+      const statements = valid.filter(
+        (r) => r.ocrData.documentType === "bank-statement"
+      );
+      const receipts = valid.filter(
+        (r) => r.ocrData.documentType !== "bank-statement"
+      );
+
+      if (statements.length === 0 || receipts.length === 0) return;
+
+      const currentReceipts = useExpenseStore.getState().receipts;
+
+      for (const stmt of statements) {
+        const match = receipts.find((r) =>
+          vendorsOverlap(r.ocrData.vendor ?? "", stmt.ocrData.vendor ?? "")
+        );
+        if (!match) continue;
+
+        const stmtReceipt = currentReceipts.find((r) => r.id === stmt.id);
+        const parentReceipt = currentReceipts.find((r) => r.id === match.id);
+        if (!stmtReceipt || !parentReceipt) continue;
+
+        const nokAmount = Math.abs(stmtReceipt.amount);
+
+        store.updateReceipt(match.id, {
+          bankStatementId: stmtReceipt.fileId,
+          bankStatementName: stmtReceipt.fileName,
+          bankStatementType: stmtReceipt.fileType,
+          ...(nokAmount > 0 && { amount: nokAmount }),
+        });
+
+        store.updateReceipt(stmt.id, {
+          parentId: match.id,
+          amount: 0,
+          description: `Bank Statement for: ${parentReceipt.vendor || parentReceipt.description || "Receipt"}`,
+        });
+
+        toast.success(
+          `Bank statement linked to ${parentReceipt.vendor || "receipt"}`
+        );
       }
     },
     [store]
@@ -206,9 +285,17 @@ export function ExpenseSplitView({
 
   const handleUpload = useCallback(
     (files: File[]) => {
-      files.forEach(processFile);
+      if (files.length === 1) {
+        processFile(files[0]);
+        return;
+      }
+      // Multi-file: assign IDs upfront so reconciliation can reference them
+      const batchIds = files.map(() => uuid());
+      Promise.all(files.map((file, i) => processFile(file, batchIds[i]))).then(
+        reconcileBatch
+      );
     },
-    [processFile]
+    [processFile, reconcileBatch]
   );
 
   const handleSubmit = async () => {

@@ -201,7 +201,19 @@ export async function uploadExpenseAttachment(formData: FormData) {
 
     return {
       success: true,
-      file: result,
+      file: {
+        $id: result.$id,
+        bucketId: result.bucketId,
+        $createdAt: result.$createdAt,
+        $updatedAt: result.$updatedAt,
+        $permissions: result.$permissions,
+        name: result.name,
+        signature: result.signature,
+        mimeType: result.mimeType,
+        sizeOriginal: result.sizeOriginal,
+        chunksTotal: result.chunksTotal,
+        chunksUploaded: result.chunksUploaded,
+      },
     };
   } catch (error) {
     console.error("Error uploading attachment:", error);
