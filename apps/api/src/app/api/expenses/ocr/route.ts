@@ -3,9 +3,31 @@ import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAuthenticatedClient } from "@/lib/auth";
+import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 
 // Response schema for AI extraction
 const ExpenseDataSchema = z.object({
+  address: z
+    .string()
+    .nullable()
+    .describe("Full street address or visible location text, if present"),
+  category: z
+    .enum([
+      "meal",
+      "travel",
+      "accommodation",
+      "supplies",
+      "event-materials",
+      "fee",
+      "other",
+    ])
+    .nullable()
+    .describe("Accounting-friendly expense category"),
+  city: z.string().nullable().describe("City visible or strongly implied"),
+  country: z
+    .string()
+    .nullable()
+    .describe("Country visible or strongly implied"),
   documentType: z
     .enum(["receipt", "bank-statement"])
     .describe(
@@ -24,6 +46,12 @@ const ExpenseDataSchema = z.object({
     .nullable()
     .describe("Currency code (NOK, USD, EUR, etc.)"),
   date: z.string().nullable().describe("Date of purchase in YYYY-MM-DD format"),
+  purchaseContext: z
+    .string()
+    .nullable()
+    .describe(
+      "Short accounting-friendly context such as 'Lunch receipt, Stockholm' or 'Office supplies'"
+    ),
   vendor: z.string().nullable().describe("Name of the store or vendor"),
 });
 async function getNorgesBankRate(
@@ -39,23 +67,35 @@ async function getNorgesBankRate(
     `https://data.norges-bank.no/api/data/EXR/B.${currency}.NOK.SP00.A?format=sdmx-json&startPeriod=${startPeriod}&endPeriod=${date}&locale=en`
   );
 
-  if (!response.ok) return null;
+  if (!response.ok) {
+    return null;
+  }
 
   const data = await response.json();
   const series = data?.dataSets?.[0]?.series as
     | Record<string, { observations: Record<string, number[]> }>
     | undefined;
-  if (!series) return null;
+  if (!series) {
+    return null;
+  }
 
   const seriesKey = Object.keys(series)[0];
-  if (!seriesKey) return null;
+  if (!seriesKey) {
+    return null;
+  }
 
   const observations = series[seriesKey]?.observations;
-  if (!observations) return null;
+  if (!observations) {
+    return null;
+  }
 
   // Take the observation with the highest index (most recent within the window)
-  const obsKeys = Object.keys(observations).sort((a, b) => Number(b) - Number(a));
-  if (obsKeys.length === 0) return null;
+  const obsKeys = Object.keys(observations).sort(
+    (a, b) => Number(b) - Number(a)
+  );
+  if (obsKeys.length === 0) {
+    return null;
+  }
 
   const rate = observations[obsKeys[0]]?.[0];
   return typeof rate === "number" && rate > 0 ? rate : null;
@@ -72,7 +112,9 @@ async function getHistoricalRate(
   try {
     // Norges Bank publishes direct NOK rates — more accurate than ECB cross-rates
     const nbRate = await getNorgesBankRate(date, currency);
-    if (nbRate) return nbRate;
+    if (nbRate) {
+      return nbRate;
+    }
   } catch {
     // fall through to Frankfurter
   }
@@ -99,8 +141,12 @@ const ALLOWED_TYPES = [
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-const buildErrorResponse = (message: string, status = 400) =>
-  NextResponse.json({ error: message }, { status });
+const buildErrorResponse = (
+  message: string,
+  status = 400,
+  origin: string | null = null
+) =>
+  applyCorsHeaders(NextResponse.json({ error: message }, { status }), origin);
 
 type FileValidationResult =
   | {
@@ -187,9 +233,12 @@ async function convertAmountToNok(expenseData: ExpenseData) {
 const RECEIPT_PROMPT = `Extract expense information from this receipt/invoice.
 If a field cannot be determined, return null for that field.
 For dates, convert to YYYY-MM-DD format.
-For descriptions, summarize the main purchase(s) in one brief line.
+For descriptions, summarize the main purchase(s) in one brief accounting-friendly line.
 For amounts, find the total/sum ("Totalt", "Sum", "Total", etc.).
 For currency, default to NOK if it appears to be a Norwegian receipt.
+For location fields, extract visible address, city, and country when present. Use explicit evidence only.
+For category, choose one of: meal, travel, accommodation, supplies, event-materials, fee, other.
+For purchaseContext, prefer purpose-like text over vendor names. Examples: "Lunch receipt, Stockholm", "Train ticket", "Event supplies".
 Set documentType to "receipt".`;
 
 // Used when the caller explicitly knows the file is a bank statement
@@ -199,6 +248,9 @@ For dates, find the transaction date and convert to YYYY-MM-DD format.
 For amounts, find the NOK debit charge amount (the money that was withdrawn).
 Currency should almost always be NOK on a Norwegian bank statement.
 For description, use the merchant/payee name from the transaction.
+For location fields, extract visible city/country only when present.
+For category, use the most likely category if obvious, otherwise other.
+For purchaseContext, summarize the transaction purpose if clear, otherwise use the merchant/payee name.
 Ignore account totals, running balances, and unrelated transactions.
 Set documentType to "bank-statement".`;
 
@@ -209,14 +261,31 @@ If a field cannot be determined, return null for that field.
 For dates, convert to YYYY-MM-DD format.
 For amounts: if a receipt, find the purchase total ("Totalt", "Sum", "Total", etc.); if a bank statement, find the debit/charge amount (money withdrawn).
 For currency, default to NOK if it appears to be Norwegian.
-For vendor, use the merchant or payee name.`;
+For vendor, use the merchant or payee name.
+For location fields, extract visible address, city, and country when present. Use explicit evidence only.
+For category, choose one of: meal, travel, accommodation, supplies, event-materials, fee, other.
+For purchaseContext, prefer purpose-like text over vendor names. Examples: "Lunch receipt, Stockholm", "Train ticket", "Event supplies".`;
 
 type Purpose = "receipt" | "bank-statement" | "auto";
 
 function purposeToPrompt(purpose: Purpose): string {
-  if (purpose === "bank-statement") return BANK_STATEMENT_PROMPT;
-  if (purpose === "receipt") return RECEIPT_PROMPT;
+  if (purpose === "bank-statement") {
+    return BANK_STATEMENT_PROMPT;
+  }
+  if (purpose === "receipt") {
+    return RECEIPT_PROMPT;
+  }
   return AUTO_PROMPT;
+}
+
+function purposeFromSearchParam(value: string | null): Purpose {
+  if (value === "bank-statement") {
+    return "bank-statement";
+  }
+  if (value === "receipt") {
+    return "receipt";
+  }
+  return "auto";
 }
 
 /**
@@ -268,23 +337,19 @@ async function extractExpenseDataFromPdf(
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
   // Auth check - supports both JWT (Authorization header) and session cookie
   const { account } = await createAuthenticatedClient(req);
   const user = await account.get();
 
   if (!user) {
-    return buildErrorResponse("Unauthorized", 401);
+    return buildErrorResponse("Unauthorized", 401, origin);
   }
 
   try {
     const { searchParams } = new URL(req.url);
     const purposeParam = searchParams.get("purpose");
-    const purpose: Purpose =
-      purposeParam === "bank-statement"
-        ? "bank-statement"
-        : purposeParam === "receipt"
-          ? "receipt"
-          : "auto";
+    const purpose = purposeFromSearchParam(purposeParam);
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -292,23 +357,30 @@ export async function POST(req: NextRequest) {
     const preparedFile = await validateAndPrepareFile(file);
 
     if (!preparedFile.ok) {
-      return preparedFile.response;
+      return applyCorsHeaders(preparedFile.response, origin);
     }
 
     const expenseData = await parseExpenseData(preparedFile, purpose);
     const { amountInNok, exchangeRate } = await convertAmountToNok(expenseData);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...expenseData,
-        amountInNok,
-        exchangeRate,
-      },
-      method: preparedFile.isPdf ? "pdf" : "vision",
-    });
+    return applyCorsHeaders(
+      NextResponse.json({
+        success: true,
+        data: {
+          ...expenseData,
+          amountInNok,
+          exchangeRate,
+        },
+        method: preparedFile.isPdf ? "pdf" : "vision",
+      }),
+      origin
+    );
   } catch (error) {
     console.error("OCR Processing Error:", error);
-    return buildErrorResponse("Failed to process document", 500);
+    return buildErrorResponse("Failed to process document", 500, origin);
   }
+}
+
+export function OPTIONS(req: NextRequest) {
+  return corsPreflightResponse(req.headers.get("origin"));
 }

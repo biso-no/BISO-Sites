@@ -2,8 +2,16 @@
 
 import type { Campus, Users } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
+import { Combobox } from "@repo/ui/components/ui/combobox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
 import { cn } from "@repo/ui/lib/utils";
-import { FileText, Wallet } from "lucide-react";
+import { ArrowRight, Building2, Check, FileText, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -16,40 +24,93 @@ import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
 
 interface OcrData {
-  amount?: number;
-  amountInNok?: number;
-  currency?: string;
-  date?: string;
-  description?: string;
-  documentType?: "receipt" | "bank-statement";
-  exchangeRate?: number;
-  vendor?: string;
+  address?: null | string;
+  amount?: null | number;
+  amountInNok?: null | number;
+  category?:
+    | "meal"
+    | "travel"
+    | "accommodation"
+    | "supplies"
+    | "event-materials"
+    | "fee"
+    | "other"
+    | null;
+  city?: null | string;
+  country?: null | string;
+  currency?: null | string;
+  date?: null | string;
+  description?: null | string;
+  documentType?: "receipt" | "bank-statement" | null;
+  exchangeRate?: null | number;
+  purchaseContext?: null | string;
+  vendor?: null | string;
 }
 
 function normalizeVendor(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .trim();
 }
 
 function vendorsOverlap(a: string, b: string): boolean {
-  if (!a || !b) return false;
+  if (!(a && b)) {
+    return false;
+  }
   const na = normalizeVendor(a);
   const nb = normalizeVendor(b);
-  if (!na || !nb) return false;
+  if (!(na && nb)) {
+    return false;
+  }
 
   // Exact or full-string substring match
-  if (na === nb || na.includes(nb) || nb.includes(na)) return true;
+  if (na === nb || na.includes(nb) || nb.includes(na)) {
+    return true;
+  }
 
   // Word-level prefix match — handles plurals/possessives like "kungsan" vs "kungsans"
   const wordsA = na.split(" ").filter((w) => w.length > 2);
   const wordsB = nb.split(" ").filter((w) => w.length > 2);
-  if (wordsA.length === 0 || wordsB.length === 0) return false;
+  if (wordsA.length === 0 || wordsB.length === 0) {
+    return false;
+  }
 
   const matched = wordsA.filter((wa) =>
     wordsB.some((wb) => wa.startsWith(wb) || wb.startsWith(wa))
   );
 
   // Require at least half the words from the shorter name to match
-  return matched.length >= Math.max(1, Math.ceil(Math.min(wordsA.length, wordsB.length) / 2));
+  return (
+    matched.length >=
+    Math.max(1, Math.ceil(Math.min(wordsA.length, wordsB.length) / 2))
+  );
+}
+
+function formatCategory(category?: string): string {
+  if (!category) {
+    return "Receipt";
+  }
+  return category
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function buildAccountingDescription(data: OcrData, fileName: string): string {
+  if (data.purchaseContext) {
+    return data.purchaseContext;
+  }
+
+  if (data.category && data.city) {
+    return `${formatCategory(data.category)} receipt, ${data.city}`;
+  }
+
+  if (data.category) {
+    return `${formatCategory(data.category)} receipt`;
+  }
+
+  return data.description || data.vendor || `Receipt from ${fileName}`;
 }
 
 function buildReceiptFromOcr(
@@ -64,14 +125,122 @@ function buildReceiptFromOcr(
   return {
     status: "ready",
     progress: 100,
-    description: data.description || data.vendor || `Receipt from ${fileName}`,
+    description: buildAccountingDescription(data, fileName),
     amount,
     originalAmount: data.amount ?? 0,
-    exchangeRate: data.exchangeRate,
+    exchangeRate: data.exchangeRate ?? undefined,
     date: data.date || new Date().toISOString().split("T")[0],
     vendor: data.vendor || "",
     currency: data.currency || "NOK",
+    documentType: data.documentType ?? undefined,
+    location: data.address ?? undefined,
+    city: data.city ?? undefined,
+    country: data.country ?? undefined,
+    category: data.category ?? undefined,
+    purchaseContext: data.purchaseContext ?? undefined,
   };
+}
+
+interface AssignmentGateProps {
+  campuses: Campus[];
+  selectedCampusId: string;
+  selectedDepartmentId: string;
+  onAssign: (campusId: string, departmentId: string) => void;
+  onContinue: () => void;
+}
+
+function AssignmentGate({
+  campuses,
+  selectedCampusId,
+  selectedDepartmentId,
+  onAssign,
+  onContinue,
+}: AssignmentGateProps) {
+  const selectedCampus = campuses.find(
+    (campus) => campus.$id === selectedCampusId
+  );
+  const departments = (selectedCampus?.departments ?? []).filter(
+    (department) => department.active !== false
+  );
+  const canContinue = Boolean(selectedCampusId && selectedDepartmentId);
+
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-muted/50 p-4 dark:bg-inverted">
+      <div className="w-full max-w-xl rounded-xl border bg-card p-6 shadow-xl dark:bg-card">
+        <div className="mb-6 flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="font-semibold text-2xl text-foreground tracking-tight dark:text-white">
+              Choose cost allocation
+            </h1>
+            <p className="mt-1 text-muted-foreground text-sm">
+              Select campus and department before uploading receipts so AI can
+              write a clearer accounting description.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <Select
+            onValueChange={(campusId) => onAssign(campusId, "")}
+            value={selectedCampusId}
+          >
+            <SelectTrigger className="h-11">
+              <SelectValue placeholder="Select campus" />
+            </SelectTrigger>
+            <SelectContent>
+              {campuses.map((campus) => (
+                <SelectItem key={campus.$id} value={campus.$id}>
+                  {campus.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Combobox
+            defaultValue={selectedDepartmentId}
+            disabled={!selectedCampusId}
+            items={departments.map((department) => ({
+              value: department.$id,
+              label: department.Name,
+            }))}
+            name="department"
+            onValueChange={(departmentId) =>
+              onAssign(selectedCampusId, departmentId)
+            }
+          />
+        </div>
+
+        {canContinue && (
+          <div className="mt-5 flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-emerald-700 text-sm dark:text-emerald-300">
+            <Check className="h-4 w-4" />
+            <span>
+              {selectedCampus?.name} -{" "}
+              {
+                departments.find(
+                  (department) => department.$id === selectedDepartmentId
+                )?.Name
+              }
+            </span>
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end">
+          <Button
+            className="gap-2"
+            disabled={!canContinue}
+            onClick={onContinue}
+            size="lg"
+          >
+            Continue to upload
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface ExpenseSplitViewProps {
@@ -89,29 +258,86 @@ export function ExpenseSplitView({
   const [lastSummarizedReceipts, setLastSummarizedReceipts] =
     useState<string>("");
 
+  const handleAssign = useCallback(
+    (campusId: string, departmentId: string) => {
+      const campus = store.campuses.find((item) => item.$id === campusId);
+      const department = campus?.departments?.find(
+        (item) => item.$id === departmentId
+      );
+
+      store.setAssignment({
+        campusId,
+        departmentId,
+        campusName: campus?.name ?? "",
+        departmentName: department?.Name ?? "",
+      });
+    },
+    [store]
+  );
+
   // Auto-generate summary when receipts are ready
   useEffect(() => {
     const allReady = store.allReceiptsReady();
     const currentIds = store.receipts
-      .map((r) => r.id)
-      .sort()
-      .join(",");
+      .map((receipt) => ({
+        amount: receipt.amount,
+        category: receipt.category,
+        city: receipt.city,
+        country: receipt.country,
+        currency: receipt.currency,
+        date: receipt.date,
+        description: receipt.description,
+        documentType: receipt.documentType,
+        id: receipt.id,
+        purchaseContext: receipt.purchaseContext,
+        vendor: receipt.vendor,
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    const summaryKey = JSON.stringify({
+      assignment: {
+        campusId: store.selectedCampusId,
+        campusName: store.selectedCampusName,
+        departmentId: store.selectedDepartmentId,
+        departmentName: store.selectedDepartmentName,
+      },
+      receipts: currentIds,
+    });
 
     if (
       allReady &&
       store.receipts.length > 0 &&
-      currentIds !== lastSummarizedReceipts
+      store.selectedCampusId &&
+      store.selectedDepartmentId &&
+      summaryKey !== lastSummarizedReceipts
     ) {
       const generate = async () => {
         store.setIsGeneratingSummary(true);
         try {
-          const descriptions = store.receipts.map((r) => r.description);
           const data = await apiClient.fetch<{
             success: boolean;
             summary: string;
           }>("/api/expenses/summary", {
             method: "POST",
-            body: { descriptions },
+            body: {
+              assignment: {
+                campusId: store.selectedCampusId,
+                campusName: store.selectedCampusName,
+                departmentId: store.selectedDepartmentId,
+                departmentName: store.selectedDepartmentName,
+              },
+              receipts: store.receipts.map((receipt) => ({
+                amount: receipt.amount,
+                category: receipt.category,
+                city: receipt.city,
+                country: receipt.country,
+                currency: receipt.currency,
+                date: receipt.date,
+                description: receipt.description,
+                documentType: receipt.documentType,
+                purchaseContext: receipt.purchaseContext,
+                vendor: receipt.vendor,
+              })),
+            },
           });
           if (data.success) {
             store.setDescription(data.summary);
@@ -120,13 +346,17 @@ export function ExpenseSplitView({
           console.error("Failed to generate summary", e);
         } finally {
           store.setIsGeneratingSummary(false);
-          setLastSummarizedReceipts(currentIds);
+          setLastSummarizedReceipts(summaryKey);
         }
       };
       generate();
     }
   }, [
     store.receipts,
+    store.selectedCampusId,
+    store.selectedCampusName,
+    store.selectedDepartmentId,
+    store.selectedDepartmentName,
     lastSummarizedReceipts,
     store.allReceiptsReady,
     store.setDescription,
@@ -146,7 +376,10 @@ export function ExpenseSplitView({
 
   // Process File Logic
   const processFile = useCallback(
-    async (file: File, presetId?: string): Promise<{ id: string; ocrData: OcrData } | null> => {
+    async (
+      file: File,
+      presetId?: string
+    ): Promise<{ id: string; ocrData: OcrData } | null> => {
       const tempId = presetId ?? uuid();
       const receipt: Receipt = {
         id: tempId,
@@ -181,7 +414,9 @@ export function ExpenseSplitView({
         }
 
         const fileId = uploadResult.file.$id;
-        const fileUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
+        const fileUrl =
+          uploadResult.file.viewUrl ||
+          `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
 
         store.updateReceipt(tempId, {
           fileId,
@@ -246,7 +481,9 @@ export function ExpenseSplitView({
         (r) => r.ocrData.documentType !== "bank-statement"
       );
 
-      if (statements.length === 0 || receipts.length === 0) return;
+      if (statements.length === 0 || receipts.length === 0) {
+        return;
+      }
 
       const currentReceipts = useExpenseStore.getState().receipts;
 
@@ -254,11 +491,15 @@ export function ExpenseSplitView({
         const match = receipts.find((r) =>
           vendorsOverlap(r.ocrData.vendor ?? "", stmt.ocrData.vendor ?? "")
         );
-        if (!match) continue;
+        if (!match) {
+          continue;
+        }
 
         const stmtReceipt = currentReceipts.find((r) => r.id === stmt.id);
         const parentReceipt = currentReceipts.find((r) => r.id === match.id);
-        if (!stmtReceipt || !parentReceipt) continue;
+        if (!(stmtReceipt && parentReceipt)) {
+          continue;
+        }
 
         const nokAmount = Math.abs(stmtReceipt.amount);
 
@@ -285,6 +526,11 @@ export function ExpenseSplitView({
 
   const handleUpload = useCallback(
     (files: File[]) => {
+      if (!(store.selectedCampusId && store.selectedDepartmentId)) {
+        toast.error("Select campus and department before uploading receipts");
+        return;
+      }
+
       if (files.length === 1) {
         processFile(files[0]);
         return;
@@ -295,7 +541,12 @@ export function ExpenseSplitView({
         reconcileBatch
       );
     },
-    [processFile, reconcileBatch]
+    [
+      processFile,
+      reconcileBatch,
+      store.selectedCampusId,
+      store.selectedDepartmentId,
+    ]
   );
 
   const handleSubmit = async () => {
@@ -347,6 +598,22 @@ export function ExpenseSplitView({
       store.setPhase("draft");
     }
   };
+
+  const hasAssignment = Boolean(
+    store.selectedCampusId && store.selectedDepartmentId
+  );
+
+  if (!hasAssignment) {
+    return (
+      <AssignmentGate
+        campuses={store.campuses}
+        onAssign={handleAssign}
+        onContinue={() => setMobileView("wallet")}
+        selectedCampusId={store.selectedCampusId}
+        selectedDepartmentId={store.selectedDepartmentId}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-background md:h-dvh md:flex-row md:overflow-hidden">
@@ -433,14 +700,7 @@ export function ExpenseSplitView({
             description={store.description}
             isGeneratingSummary={store.isGeneratingSummary}
             isSubmitting={store.phase === "submitting"}
-            onAssign={(c, d) =>
-              store.setAssignment({
-                campusId: c,
-                departmentId: d,
-                campusName: "",
-                departmentName: "",
-              })
-            }
+            onAssign={handleAssign}
             onDescriptionChange={store.setDescription}
             onInsert={(afterId, receipt) =>
               store.insertReceiptAfter(afterId, receipt)

@@ -6,7 +6,7 @@
     "build": "next build",
     "deploy:build": "bun run build && bun run deploy:prep",
     "deploy:prep": "set -x && echo '=== Flattening standalone ===' && cp .next/standalone/apps/api/server.js .next/standalone/ && cp -r .next/standalone/apps/api/.next/* .next/standalone/.next/ 2>/dev/null || mkdir -p .next/standalone/.next && cp -r .next/standalone/apps/api/.next/* .next/standalone/.next/ && echo '=== Copying to monorepo root ===' && cp -r .next ../../ && echo '=== Final structure ===' && ls -la ../../.next/standalone/",
-    "start": "next start",
+    "start": "next start -p 3003",
     "lint": "biome lint .",
     "analyze": "ANALYZE=true npm run build",
     "test": "NODE_ENV=test vitest run",

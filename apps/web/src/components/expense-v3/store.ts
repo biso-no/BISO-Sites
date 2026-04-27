@@ -19,6 +19,7 @@ export interface Receipt {
   currency: string;
   date: string;
   description: string;
+  documentType?: "receipt" | "bank-statement";
   error?: string;
   exchangeRate?: number;
   fileId: string;
@@ -26,11 +27,15 @@ export interface Receipt {
   fileType: string;
   fileUrl: string;
   id: string;
+  location?: string;
+  city?: string;
+  country?: string;
 
   // Multi-currency support
   originalAmount?: number;
   parentId?: string; // For grouping (e.g. bank statement attached to receipt)
   progress: number;
+  purchaseContext?: string;
   status: ReceiptStatus;
   vendor?: string; // Explicitly track vendor
 }

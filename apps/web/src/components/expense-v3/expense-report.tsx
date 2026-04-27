@@ -81,7 +81,7 @@ function ReceiptRow({
     >
       <td className="p-0" colSpan={3}>
         <div className="flex w-full items-center border-border border-b px-0 py-4 dark:border-border/50">
-          <div className="w-full max-w-[200px] px-4 md:max-w-[300px] md:px-8">
+          <div className="w-full max-w-50 px-4 md:max-w-75 md:px-8">
             <div className="flex items-center gap-3">
               <div
                 className={cn(
@@ -156,8 +156,7 @@ function ForeignCurrencyWarning({
   setUploadState,
   fileInputRef,
 }: ForeignCurrencyWarningProps) {
-  const phase =
-    uploadState?.id === receipt.id ? uploadState.phase : null;
+  const phase = uploadState?.id === receipt.id ? uploadState.phase : null;
 
   if (receipt.bankStatementId) {
     return (
@@ -165,9 +164,7 @@ function ForeignCurrencyWarning({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-amber-700 text-xs dark:text-amber-400">
             <AlertTriangle className="h-3.5 w-3.5" />
-            <span>
-              Verified via bank statement
-            </span>
+            <span>Verified via bank statement</span>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-600 text-xs">
             <Check className="h-3 w-3" />
@@ -299,7 +296,9 @@ export function ExpenseReport({
       if (result.success && result.file) {
         const parentReceipt = receipts.find((r) => r.id === receiptId);
         const fileId = result.file.$id;
-        const fileUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
+        const fileUrl =
+          result.file.viewUrl ||
+          `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
 
         // 1. Mark parent as verified
         onUpdate(receiptId, {

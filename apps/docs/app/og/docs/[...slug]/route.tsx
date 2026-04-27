@@ -1,4 +1,4 @@
-import { getPageImage, source } from "lib/source";
+import { getPageImage, source } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
 
@@ -13,6 +13,9 @@ export async function GET(
   if (!page) {
     notFound();
   }
+
+  const title = page.data.title ?? "Untitled";
+  const titleFontSize = title.length > 40 ? 52 : 64;
 
   return new ImageResponse(
     <div
@@ -104,13 +107,13 @@ export async function GET(
         <div
           style={{
             color: "#ffffff",
-            fontSize: page.data.title.length > 40 ? 52 : 64,
+            fontSize: titleFontSize,
             fontWeight: 700,
             lineHeight: 1.1,
             letterSpacing: "-0.02em",
           }}
         >
-          {page.data.title}
+          {title}
         </div>
         {page.data.description && (
           <div

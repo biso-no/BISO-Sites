@@ -59,7 +59,9 @@ export function GenerativeReceiptPreview({
       const result = await uploadExpenseAttachment(formData);
       if (result.success && result.file) {
         const fileId = result.file.$id;
-        const fileUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
+        const fileUrl =
+          result.file.viewUrl ||
+          `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
 
         onUpdate({
           bankStatementId: fileId,
@@ -231,7 +233,9 @@ function ReceiptPreview({
           alt="Receipt Preview"
           className="h-full w-full object-contain"
           fill
+          sizes="(max-width: 768px) 100vw, 50vw"
           src={receipt.fileUrl}
+          unoptimized
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-muted-foreground">

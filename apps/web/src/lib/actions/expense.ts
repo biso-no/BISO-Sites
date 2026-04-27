@@ -9,14 +9,20 @@ import {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+const APPWRITE_PROJECT =
+  process.env.NEXT_PUBLIC_APPWRITE_PROJECT || process.env.APPWRITE_PROJECT_ID;
+
 // Type for creating an expense - omits relational fields that are populated by the database
 type CreateExpenseInput = Omit<
   Expenses,
   | keyof import("@repo/api").Models.Row
   | "user"
+  | "campusRel"
   | "departmentRel"
   | "expenseAttachments"
 > & {
+  campusRel: string;
   expenseAttachments: string[];
 };
 
@@ -198,6 +204,10 @@ export async function uploadExpenseAttachment(formData: FormData) {
       ID.unique(),
       file
     );
+    const viewUrl =
+      APPWRITE_ENDPOINT && APPWRITE_PROJECT
+        ? `${APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${result.$id}/view?project=${APPWRITE_PROJECT}`
+        : "";
 
     return {
       success: true,
@@ -213,6 +223,7 @@ export async function uploadExpenseAttachment(formData: FormData) {
         sizeOriginal: result.sizeOriginal,
         chunksTotal: result.chunksTotal,
         chunksUploaded: result.chunksUploaded,
+        viewUrl,
       },
     };
   } catch (error) {

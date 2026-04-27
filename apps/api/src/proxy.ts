@@ -6,6 +6,7 @@ const ALLOWED_ORIGINS = [
   "http://localhost:3001",
   "http://localhost:3002",
   "https://admin.biso.no",
+  "https://web.biso.no",
   "https://public.biso.no",
   "https://biso.no",
 ];

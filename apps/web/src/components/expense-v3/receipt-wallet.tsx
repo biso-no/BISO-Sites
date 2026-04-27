@@ -236,6 +236,7 @@ function ReceiptItem({
               className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
               height={64}
               src={receipt.fileUrl}
+              unoptimized
               width={64}
             />
           ) : (

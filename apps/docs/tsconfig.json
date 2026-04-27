@@ -19,10 +19,13 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
+      "components/*": ["./components/*"],
       "collections/*": ["./.source/*"],
+      "lib/*": ["./lib/*"],
+      "mdx-components": ["./mdx-components.tsx"],
+      "public/*": ["./public/*"],
       "@repo/*": ["../../packages/*"]
     },
     "declarationMap": false,
