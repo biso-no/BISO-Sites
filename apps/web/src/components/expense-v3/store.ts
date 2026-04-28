@@ -15,7 +15,9 @@ export interface Receipt {
   bankStatementName?: string;
   bankStatementType?: string;
   category?: string; // Potential AI category
+  city?: string;
   confidence: number;
+  country?: string;
   currency: string;
   date: string;
   description: string;
@@ -28,8 +30,6 @@ export interface Receipt {
   fileUrl: string;
   id: string;
   location?: string;
-  city?: string;
-  country?: string;
 
   // Multi-currency support
   originalAmount?: number;
@@ -40,7 +40,7 @@ export interface Receipt {
   vendor?: string; // Explicitly track vendor
 }
 
-type ExpensePhase = "draft" | "submitting" | "complete";
+type ExpensePhase = "draft" | "saving" | "submitting" | "complete";
 
 interface ExpenseStore {
   addReceipt: (receipt: Receipt) => void;

@@ -1,6 +1,11 @@
 "use client";
 
-import type { Campus, Users } from "@repo/api/types/appwrite";
+import type {
+  Campus,
+  ExpenseAttachments,
+  Expenses,
+  Users,
+} from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Combobox } from "@repo/ui/components/ui/combobox";
 import {
@@ -13,7 +18,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowRight, Building2, Check, FileText, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
@@ -143,10 +148,10 @@ function buildReceiptFromOcr(
 
 interface AssignmentGateProps {
   campuses: Campus[];
-  selectedCampusId: string;
-  selectedDepartmentId: string;
   onAssign: (campusId: string, departmentId: string) => void;
   onContinue: () => void;
+  selectedCampusId: string;
+  selectedDepartmentId: string;
 }
 
 function AssignmentGate({
@@ -245,11 +250,62 @@ function AssignmentGate({
 
 interface ExpenseSplitViewProps {
   campuses: Campus[];
+  initialDraft?: InitialExpenseDraft | null;
   initialProfile: Partial<Users>;
+}
+
+type InitialExpenseDraft = Pick<
+  Expenses,
+  | "$id"
+  | "bank_account"
+  | "campus"
+  | "department"
+  | "description"
+  | "expenseAttachments"
+  | "total"
+>;
+
+function buildStorageViewUrl(fileId: string): string {
+  const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+  const project =
+    process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
+    process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+
+  if (!(endpoint && project)) {
+    return "";
+  }
+
+  return `${endpoint}/storage/buckets/expenses/files/${fileId}/view?project=${project}`;
+}
+
+function buildReceiptFromAttachment(
+  attachment: ExpenseAttachments
+): Receipt | null {
+  if (!attachment.url) {
+    return null;
+  }
+
+  return {
+    id: attachment.$id,
+    fileId: attachment.url,
+    fileUrl: buildStorageViewUrl(attachment.url),
+    fileName: attachment.description || "Receipt",
+    fileType: attachment.type,
+    status: "ready",
+    progress: 100,
+    description: attachment.description || "",
+    amount: attachment.amount ?? 0,
+    date: attachment.date
+      ? new Date(attachment.date).toISOString().split("T")[0]
+      : "",
+    confidence: 1,
+    currency: "NOK",
+  };
 }
 
 export function ExpenseSplitView({
   campuses,
+  initialDraft,
   initialProfile,
 }: ExpenseSplitViewProps) {
   const router = useRouter();
@@ -257,6 +313,7 @@ export function ExpenseSplitView({
   const [mobileView, setMobileView] = useState<"wallet" | "report">("wallet");
   const [lastSummarizedReceipts, setLastSummarizedReceipts] =
     useState<string>("");
+  const skipNextSummaryRef = useRef(Boolean(initialDraft));
 
   const handleAssign = useCallback(
     (campusId: string, departmentId: string) => {
@@ -310,6 +367,12 @@ export function ExpenseSplitView({
       store.selectedDepartmentId &&
       summaryKey !== lastSummarizedReceipts
     ) {
+      if (skipNextSummaryRef.current) {
+        skipNextSummaryRef.current = false;
+        setLastSummarizedReceipts(summaryKey);
+        return;
+      }
+
       const generate = async () => {
         store.setIsGeneratingSummary(true);
         try {
@@ -363,16 +426,50 @@ export function ExpenseSplitView({
     store.setIsGeneratingSummary,
   ]);
 
-  // Reset store on mount to clear stale receipts/state from previous sessions
+  // Initialize store and hydrate draft data when the user continues a saved draft.
   useEffect(() => {
     store.reset();
-  }, [store.reset]);
-
-  // Initialize store
-  useEffect(() => {
     store.setCampuses(campuses);
     store.setProfile(initialProfile);
-  }, [campuses, initialProfile, store.setCampuses, store.setProfile]);
+
+    if (!initialDraft) {
+      skipNextSummaryRef.current = false;
+      return;
+    }
+
+    skipNextSummaryRef.current = true;
+
+    const campus = campuses.find((item) => item.$id === initialDraft.campus);
+    const department = campus?.departments?.find(
+      (item) => item.$id === initialDraft.department
+    );
+
+    store.setExpenseId(initialDraft.$id);
+    store.setAssignment({
+      campusId: initialDraft.campus,
+      campusName: campus?.name ?? "",
+      departmentId: initialDraft.department,
+      departmentName: department?.Name ?? "",
+    });
+    store.setDescription(initialDraft.description ?? "");
+
+    for (const receipt of initialDraft.expenseAttachments
+      .map(buildReceiptFromAttachment)
+      .filter((receipt): receipt is Receipt => receipt !== null)) {
+      store.addReceipt(receipt);
+    }
+  }, [
+    campuses,
+    initialDraft,
+    initialProfile,
+    store.addReceipt,
+    store.reset,
+    store.setAssignment,
+    store.setCampuses,
+    store.setDescription,
+    store.setExpenseId,
+    store.setProfile,
+  ]);
 
   // Process File Logic
   const processFile = useCallback(
@@ -549,40 +646,90 @@ export function ExpenseSplitView({
     ]
   );
 
+  const hasReceiptsInProgress = () =>
+    store.receipts.some((receipt) => receipt.status !== "ready");
+
+  const buildExpensePayload = () => ({
+    ...(store.expenseId ? { expenseId: store.expenseId } : {}),
+    campus: store.selectedCampusId,
+    department: store.selectedDepartmentId,
+    bank_account: store.profile.bank_account || "",
+    description: store.description,
+    total: store.totalAmount(),
+    prepayment_amount: 0,
+    eventName: "",
+    expenseAttachments: store.receipts.map((receipt) => ({
+      date: receipt.date,
+      url: receipt.fileId,
+      amount: receipt.amount,
+      description: receipt.description,
+      type: receipt.fileType,
+    })),
+  });
+
+  const handleSaveDraft = async () => {
+    if (!(store.selectedCampusId && store.selectedDepartmentId)) {
+      toast.error("Select campus and department before saving a draft");
+      return;
+    }
+
+    if (!store.profile.bank_account) {
+      toast.error("Add a bank account before saving a draft");
+      return;
+    }
+
+    if (hasReceiptsInProgress()) {
+      toast.error("Wait for receipt processing to finish before saving");
+      return;
+    }
+
+    store.setPhase("saving");
+
+    try {
+      const result = await apiClient.fetch<{
+        success: boolean;
+        draft?: { $id: string };
+        error?: string;
+      }>("/api/expenses/draft", {
+        method: "POST",
+        body: buildExpensePayload(),
+      });
+
+      if (result.success && result.draft) {
+        store.setExpenseId(result.draft.$id);
+        toast.success("Draft saved");
+      } else {
+        throw new Error(result.error || "Failed to save draft");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save draft");
+    } finally {
+      store.setPhase("draft");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!store.isReadyToSubmit()) {
       toast.error("Please fill in all required fields");
       return;
     }
 
+    if (hasReceiptsInProgress()) {
+      toast.error("Wait for receipt processing to finish before submitting");
+      return;
+    }
+
     store.setPhase("submitting");
 
     try {
-      // Prepare payload for API
-      const payload = {
-        campus: store.selectedCampusId,
-        department: store.selectedDepartmentId,
-        bank_account: store.profile.bank_account || "",
-        description: store.description,
-        total: store.totalAmount(),
-        prepayment_amount: 0,
-        eventName: "",
-        expenseAttachments: store.receipts.map((receipt) => ({
-          date: receipt.date,
-          url: receipt.fileId,
-          amount: receipt.amount,
-          description: receipt.description,
-          type: receipt.fileType,
-        })),
-      };
-
       const result = await apiClient.fetch<{
         success: boolean;
         fetchedExpense?: { $id: string };
         error?: string;
       }>("/api/expenses/submit", {
         method: "POST",
-        body: payload,
+        body: buildExpensePayload(),
       });
 
       if (result.success && result.fetchedExpense) {
@@ -699,6 +846,7 @@ export function ExpenseSplitView({
             campuses={store.campuses}
             description={store.description}
             isGeneratingSummary={store.isGeneratingSummary}
+            isSavingDraft={store.phase === "saving"}
             isSubmitting={store.phase === "submitting"}
             onAssign={handleAssign}
             onDescriptionChange={store.setDescription}
@@ -706,6 +854,7 @@ export function ExpenseSplitView({
               store.insertReceiptAfter(afterId, receipt)
             }
             onProfileUpdate={store.setProfile}
+            onSaveDraft={handleSaveDraft}
             onSelect={store.setSelectedReceiptId}
             onSubmit={handleSubmit}
             onUpdate={(id, updates) => store.updateReceipt(id, updates)}

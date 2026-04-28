@@ -4,41 +4,101 @@ import type { Users } from "@repo/api/types/appwrite";
 import { ExpenseStatus, type Expenses } from "@repo/api/types/appwrite";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
+import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import {
+  buildExpenseRowInput,
+  type ExpenseRowInput,
+  parseExpensePayload,
+} from "@/lib/expense-payload";
 import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
 
-interface CreateAttachmentData {
-  amount: number;
-  date: string;
-  description: string;
-  type: string;
-  url: string;
+export type CreateExpenseData = Models.Row &
+  ExpenseRowInput & {
+    invoice_id?: number | null;
+  };
+
+type ExpenseOwnershipResult =
+  | { ok: true }
+  | { error: string; ok: false; status: number };
+
+type ExpenseOwnershipError = Extract<ExpenseOwnershipResult, { ok: false }>;
+
+function isExpenseOwnershipError(
+  result: CreateExpenseData | ExpenseOwnershipError
+): result is ExpenseOwnershipError {
+  return "ok" in result && !result.ok;
 }
 
-export type CreateExpenseData = Models.Row & {
-  campus: string;
-  department: string;
-  bank_account: string;
-  description: string;
-  total: number;
-  prepayment_amount: number;
-  eventName: string;
-  expenseAttachments: CreateAttachmentData[];
-  campusRel: string;
-  departmentRel: string;
-  status: ExpenseStatus;
-  userId: string;
-  user: string;
-  $sequence: number;
-};
+async function checkDraftOwnership(
+  db: Awaited<ReturnType<typeof createAuthenticatedClient>>["db"],
+  expenseId: string,
+  userId: string
+): Promise<ExpenseOwnershipResult> {
+  const existingExpense = await db.getRow<Expenses>(
+    "app",
+    "expense",
+    expenseId,
+    [Query.select(["$id", "status", "userId"])]
+  );
+
+  if (existingExpense.userId !== userId) {
+    return {
+      ok: false,
+      error: "Unauthorized access",
+      status: 403,
+    };
+  }
+
+  if (existingExpense.status !== ExpenseStatus.DRAFT) {
+    return {
+      ok: false,
+      error: "Only draft expenses can be submitted",
+      status: 409,
+    };
+  }
+
+  return { ok: true };
+}
+
+async function saveDraftBeforeSubmission(
+  db: Awaited<ReturnType<typeof createAuthenticatedClient>>["db"],
+  expenseId: string | undefined,
+  userId: string,
+  expenseBody: ExpenseRowInput
+): Promise<CreateExpenseData | ExpenseOwnershipError> {
+  if (!expenseId) {
+    return db.createRow<CreateExpenseData>(
+      "app",
+      "expense",
+      ID.unique(),
+      expenseBody
+    );
+  }
+
+  const ownership = await checkDraftOwnership(db, expenseId, userId);
+
+  if (!ownership.ok) {
+    return ownership;
+  }
+
+  return db.updateRow<CreateExpenseData>(
+    "app",
+    "expense",
+    expenseId,
+    expenseBody
+  );
+}
+
+type ExpenseStatusUpdateRow = Models.Row & { status: ExpenseStatus };
 
 /**
  * Generates a 5-digit reimbursement number from the sequence.
  * Base is 10000, sequence is added to the last digits.
  * E.g., sequence 80 -> 10080, sequence 150 -> 10150
  */
-function generateReimbursementNumber(sequence: number): string {
+function generateReimbursementNumber(sequence: number | string): string {
   const base = 10_000;
-  return String(base + sequence).padStart(5, "0");
+  return String(base + Number(sequence || 0)).padStart(5, "0");
 }
 
 /**
@@ -53,44 +113,61 @@ function formatDate(date: Date): string {
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
+
   try {
     const { db, account } = await createAuthenticatedClient(req);
     const { messaging, storage: adminStorage } = await createAdminClient();
     const user = await account.get();
     const profile = await db.getRow<Users>("app", "user", user.$id);
 
-    const expenseData = await req.json();
+    const expenseData = parseExpensePayload(await req.json());
 
-    if (!expenseData?.bank_account) {
-      return NextResponse.json({
-        success: false,
-        error: "Bank account is required",
-      });
+    if (!expenseData) {
+      return applyCorsHeaders(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Invalid expense payload",
+          },
+          { status: 400 }
+        ),
+        origin
+      );
     }
 
-    const expenseBody = {
-      campus: expenseData.campus,
-      department: expenseData.department,
-      bank_account: expenseData.bank_account,
-      description: expenseData.description,
-      total: expenseData.total,
-      prepayment_amount: expenseData.prepayment_amount,
-      status: ExpenseStatus.DRAFT,
-      userId: user.$id,
-      user: user.$id,
-      eventName: expenseData.eventName || null,
-      expenseAttachments: expenseData.expenseAttachments,
-      campusRel: expenseData.campus,
-      departmentRel: expenseData.department,
-      $sequence: 10_000,
-    };
+    if (!expenseData?.bank_account) {
+      return applyCorsHeaders(
+        NextResponse.json({
+          success: false,
+          error: "Bank account is required",
+        }),
+        origin
+      );
+    }
 
-    const expense = await db.createRow<CreateExpenseData>(
-      "app",
-      "expense",
-      ID.unique(),
+    const expenseBody = buildExpenseRowInput(
+      expenseData,
+      user.$id,
+      ExpenseStatus.DRAFT
+    );
+
+    const expense = await saveDraftBeforeSubmission(
+      db,
+      expenseData.expenseId,
+      user.$id,
       expenseBody
     );
+
+    if (isExpenseOwnershipError(expense)) {
+      return applyCorsHeaders(
+        NextResponse.json(
+          { success: false, error: expense.error },
+          { status: expense.status }
+        ),
+        origin
+      );
+    }
 
     const fetchedExpense = await db.getRow<Expenses>(
       "app",
@@ -145,11 +222,14 @@ export async function POST(req: NextRequest) {
       if (!profile.bank_account) {
         missingFields.push("bank_account");
       }
-      return NextResponse.json({
-        success: false,
-        error: "Missing required fields: ",
-        missingFields: missingFields.join(", "),
-      });
+      return applyCorsHeaders(
+        NextResponse.json({
+          success: false,
+          error: "Missing required fields: ",
+          missingFields: missingFields.join(", "),
+        }),
+        origin
+      );
     }
 
     // Generate the PDF cover sheet
@@ -227,17 +307,27 @@ export async function POST(req: NextRequest) {
       attachmentsIdsArray
     );
 
-    await db.updateRow<CreateExpenseData>("app", "expense", expense.$id, {
+    await db.updateRow<ExpenseStatusUpdateRow>("app", "expense", expense.$id, {
       status: ExpenseStatus.PENDING,
     });
 
-    return NextResponse.json({
-      success: true,
-      fetchedExpense,
-      reimbursementNumber,
-    });
+    return applyCorsHeaders(
+      NextResponse.json({
+        success: true,
+        fetchedExpense,
+        reimbursementNumber,
+      }),
+      origin
+    );
   } catch (error) {
     console.error("Error creating expense:", error);
-    return NextResponse.json({ success: false, error });
+    return applyCorsHeaders(
+      NextResponse.json({ success: false, error }),
+      origin
+    );
   }
+}
+
+export function OPTIONS(req: NextRequest) {
+  return corsPreflightResponse(req.headers.get("origin"));
 }

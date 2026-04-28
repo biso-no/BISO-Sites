@@ -1,6 +1,9 @@
 "use client";
 
-import { ExpenseStatus } from "@repo/api/types/appwrite";
+import {
+  type ExpenseAttachments,
+  ExpenseStatus,
+} from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -11,6 +14,7 @@ import {
   Clock,
   Eye,
   Paperclip,
+  Pencil,
   XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -25,7 +29,7 @@ interface ExpenseCardProps {
     campus: string;
     department: string;
     $createdAt: string;
-    expenseAttachments?: any[];
+    expenseAttachments?: ExpenseAttachments[];
   };
   index?: number;
 }
@@ -70,6 +74,12 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
       day: "numeric",
     }
   );
+  const isDraft = expense.status === ExpenseStatus.DRAFT;
+  const actionHref = isDraft
+    ? `/fs/new?draftId=${expense.$id}`
+    : `/fs/${expense.$id}`;
+  const actionLabel = isDraft ? "Continue Draft" : "View Details";
+  const ActionIcon = isDraft ? Pencil : Eye;
 
   return (
     <motion.div
@@ -99,7 +109,9 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-brand" />
-                <span>Submitted {submittedDate}</span>
+                <span>
+                  {isDraft ? "Saved" : "Submitted"} {submittedDate}
+                </span>
               </div>
               {attachmentCount > 0 && (
                 <div className="flex items-center gap-2">
@@ -120,14 +132,14 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
           </div>
         </div>
 
-        <Link href={`/fs/${expense.$id}`}>
+        <Link href={actionHref}>
           <Button
             className="border-brand-border text-brand hover:bg-brand-muted"
             size="sm"
             variant="outline"
           >
-            <Eye className="mr-2 h-4 w-4" />
-            View Details
+            <ActionIcon className="mr-2 h-4 w-4" />
+            {actionLabel}
           </Button>
         </Link>
       </Card>

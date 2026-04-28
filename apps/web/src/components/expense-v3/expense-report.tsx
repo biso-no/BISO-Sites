@@ -1,6 +1,6 @@
 "use client";
 
-import type { Users } from "@repo/api/types/appwrite";
+import type { Campus, Users } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Combobox } from "@repo/ui/components/ui/combobox";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
@@ -23,6 +23,7 @@ import {
   CreditCard,
   FileText,
   Loader2,
+  Save,
   Sparkles,
   Upload,
   User,
@@ -31,12 +32,13 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { v4 as uuid } from "uuid";
-import { apiClient } from "@/lib/api-client";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
+import { apiClient } from "@/lib/api-client";
 import { ProfileCompletionBanner } from "./profile-completion-banner";
 import type { Receipt } from "./store";
 
 type UploadState = { id: string; phase: "uploading" | "analyzing" } | null;
+type UploadPhase = NonNullable<UploadState>["phase"];
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -60,6 +62,7 @@ function ReceiptRow({
   const isForeign = receipt.currency && receipt.currency !== "NOK";
   const isAnalyzing =
     uploadState?.id === receipt.id && uploadState.phase === "analyzing";
+  const amountContent = getReceiptAmountContent(receipt, isAnalyzing);
 
   return (
     <motion.tr
@@ -111,18 +114,7 @@ function ReceiptRow({
             {receipt.date || "-"}
           </div>
           <div className="w-[150px] px-4 text-right font-medium font-mono md:px-8">
-            {isAnalyzing ? (
-              <span className="flex items-center justify-end gap-1.5 text-muted-foreground text-xs">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Verifying…
-              </span>
-            ) : receipt.amount ? (
-              <span className="text-foreground dark:text-white">
-                {receipt.amount.toLocaleString()} NOK
-              </span>
-            ) : (
-              "-"
-            )}
+            {amountContent}
           </div>
         </div>
 
@@ -139,6 +131,27 @@ function ReceiptRow({
       </td>
     </motion.tr>
   );
+}
+
+function getReceiptAmountContent(receipt: Receipt, isAnalyzing: boolean) {
+  if (isAnalyzing) {
+    return (
+      <span className="flex items-center justify-end gap-1.5 text-muted-foreground text-xs">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Verifying…
+      </span>
+    );
+  }
+
+  if (receipt.amount) {
+    return (
+      <span className="text-foreground dark:text-white">
+        {receipt.amount.toLocaleString()} NOK
+      </span>
+    );
+  }
+
+  return "-";
 }
 
 interface ForeignCurrencyWarningProps {
@@ -189,6 +202,9 @@ function ForeignCurrencyWarning({
     );
   }
 
+  const uploadIcon = getStatementUploadIcon(phase);
+  const uploadLabel = getStatementUploadLabel(phase);
+
   return (
     <div className="bg-amber-50/50 px-4 py-3 md:px-8 dark:bg-amber-900/10">
       <div className="flex items-center justify-between gap-4">
@@ -209,33 +225,49 @@ function ForeignCurrencyWarning({
           size="sm"
           variant="outline"
         >
-          {phase === "analyzing" ? (
-            <Sparkles className="h-3 w-3 animate-spin" />
-          ) : phase === "uploading" ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Upload className="h-3 w-3" />
-          )}
-          {phase === "analyzing"
-            ? "Analyzing…"
-            : phase === "uploading"
-              ? "Uploading…"
-              : "Upload Statement"}
+          {uploadIcon}
+          {uploadLabel}
         </Button>
       </div>
     </div>
   );
 }
 
+function getStatementUploadIcon(phase: UploadPhase | null) {
+  if (phase === "analyzing") {
+    return <Sparkles className="h-3 w-3 animate-spin" />;
+  }
+
+  if (phase === "uploading") {
+    return <Loader2 className="h-3 w-3 animate-spin" />;
+  }
+
+  return <Upload className="h-3 w-3" />;
+}
+
+function getStatementUploadLabel(phase: UploadPhase | null) {
+  if (phase === "analyzing") {
+    return "Analyzing…";
+  }
+
+  if (phase === "uploading") {
+    return "Uploading…";
+  }
+
+  return "Upload Statement";
+}
+
 interface ExpenseReportProps {
-  campuses: any[];
+  campuses: Campus[];
   description: string;
   isGeneratingSummary: boolean;
+  isSavingDraft: boolean;
   isSubmitting: boolean;
   onAssign: (campusId: string, departmentId: string) => void;
   onDescriptionChange: (description: string) => void;
   onInsert: (afterId: string, receipt: Receipt) => void;
   onProfileUpdate: (profile: Partial<Users>) => void;
+  onSaveDraft: () => void;
   onSelect: (id: string) => void;
   onSubmit: () => void;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
@@ -254,6 +286,8 @@ export function ExpenseReport({
   onUpdate,
   onInsert,
   onSubmit,
+  onSaveDraft,
+  isSavingDraft,
   isSubmitting,
   totalAmount,
   campuses,
@@ -274,9 +308,87 @@ export function ExpenseReport({
   // Find departments for selected campus
   const selectedCampus = campuses.find((c) => c.$id === selectedCampusId);
   const departments = selectedCampus?.departments || [];
+  const hasReceiptsInProgress = receipts.some(
+    (receipt) => receipt.status !== "ready"
+  );
+  const canSaveDraft =
+    Boolean(
+      selectedCampusId && selectedDepartmentId && userProfile.bank_account
+    ) && !hasReceiptsInProgress;
+  const canSubmit = canSaveDraft && receipts.length > 0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadState, setUploadState] = useState<UploadState>(null);
+
+  const uploadBankStatementFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const result = await uploadExpenseAttachment(formData);
+    if (!(result.success && result.file)) {
+      throw new Error("Upload failed");
+    }
+
+    const fileId = result.file.$id;
+    const fileUrl =
+      result.file.viewUrl ||
+      `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
+
+    return { fileId, fileUrl };
+  };
+
+  const applyBankStatementOcr = async (file: File, receiptId: string) => {
+    try {
+      const ocrFormData = new FormData();
+      ocrFormData.append("file", file);
+      const ocrResult = await apiClient.fetchFormData<{
+        success: boolean;
+        data?: { amount?: number; amountInNok?: number; currency?: string };
+      }>("/api/expenses/ocr?purpose=bank-statement", {
+        method: "POST",
+        body: ocrFormData,
+      });
+
+      if (!(ocrResult.success && ocrResult.data)) {
+        return;
+      }
+
+      const { amount, amountInNok, currency } = ocrResult.data;
+      const nokAmount =
+        !currency || currency === "NOK" ? amount : (amountInNok ?? amount);
+
+      if (nokAmount) {
+        onUpdate(receiptId, { amount: Math.abs(nokAmount) });
+      }
+    } catch {
+      // OCR failure is non-fatal
+    }
+  };
+
+  const addBankStatementReceipt = (
+    receiptId: string,
+    file: File,
+    fileId: string,
+    fileUrl: string
+  ) => {
+    const parentReceipt = receipts.find((r) => r.id === receiptId);
+    const statementReceipt: Receipt = {
+      id: uuid(),
+      fileId,
+      fileUrl,
+      fileName: file.name,
+      fileType: file.type,
+      status: "ready",
+      progress: 100,
+      description: `Bank Statement for: ${parentReceipt?.vendor || parentReceipt?.description || "Receipt"}`,
+      amount: 0,
+      date: parentReceipt?.date || new Date().toISOString().split("T")[0],
+      confidence: 1,
+      currency: "NOK",
+    };
+
+    onInsert(receiptId, statementReceipt);
+  };
 
   const handleBankStatementUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -289,73 +401,19 @@ export function ExpenseReport({
 
     setUploadState({ id: receiptId, phase: "uploading" });
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const { fileId, fileUrl } = await uploadBankStatementFile(file);
 
-      const result = await uploadExpenseAttachment(formData);
-      if (result.success && result.file) {
-        const parentReceipt = receipts.find((r) => r.id === receiptId);
-        const fileId = result.file.$id;
-        const fileUrl =
-          result.file.viewUrl ||
-          `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
+      onUpdate(receiptId, {
+        bankStatementId: fileId,
+        bankStatementName: file.name,
+        bankStatementType: file.type,
+      });
 
-        // 1. Mark parent as verified
-        onUpdate(receiptId, {
-          bankStatementId: fileId,
-          bankStatementName: file.name,
-          bankStatementType: file.type,
-        });
+      setUploadState({ id: receiptId, phase: "analyzing" });
+      await applyBankStatementOcr(file, receiptId);
+      addBankStatementReceipt(receiptId, file, fileId, fileUrl);
 
-        // 2. Run OCR — switch to "analyzing" phase so UI reflects the long step
-        setUploadState({ id: receiptId, phase: "analyzing" });
-        try {
-          const ocrFormData = new FormData();
-          ocrFormData.append("file", file);
-          const ocrResult = await apiClient.fetchFormData<{
-            success: boolean;
-            data?: { amount?: number; amountInNok?: number; currency?: string };
-          }>("/api/expenses/ocr?purpose=bank-statement", {
-            method: "POST",
-            body: ocrFormData,
-          });
-
-          if (ocrResult.success && ocrResult.data) {
-            const { amount, amountInNok, currency } = ocrResult.data;
-            const nokAmount =
-              !currency || currency === "NOK"
-                ? amount
-                : (amountInNok ?? amount);
-            if (nokAmount) {
-              onUpdate(receiptId, { amount: Math.abs(nokAmount) });
-            }
-          }
-        } catch {
-          // OCR failure is non-fatal
-        }
-
-        // 3. Insert new receipt for the statement
-        const statementReceipt: Receipt = {
-          id: uuid(),
-          fileId,
-          fileUrl,
-          fileName: file.name,
-          fileType: file.type,
-          status: "ready",
-          progress: 100,
-          description: `Bank Statement for: ${parentReceipt?.vendor || parentReceipt?.description || "Receipt"}`,
-          amount: 0,
-          date: parentReceipt?.date || new Date().toISOString().split("T")[0],
-          confidence: 1,
-          currency: "NOK",
-        };
-
-        onInsert(receiptId, statementReceipt);
-
-        toast.success("Bank statement uploaded and added to list");
-      } else {
-        toast.error("Upload failed");
-      }
+      toast.success("Bank statement uploaded and added to list");
     } catch (_error) {
       toast.error("Upload failed");
     } finally {
@@ -455,7 +513,7 @@ export function ExpenseReport({
                   <Combobox
                     defaultValue={selectedDepartmentId}
                     disabled={!selectedCampusId}
-                    items={departments.map((dept: any) => ({
+                    items={departments.map((dept) => ({
                       value: dept.$id,
                       label: dept.Name,
                     }))}
@@ -566,15 +624,29 @@ export function ExpenseReport({
               </div>
             </div>
 
-            <div className="mt-8 flex justify-end">
+            <div className="mt-8 flex flex-col-reverse gap-3 md:flex-row md:justify-end">
+              <Button
+                className="w-full gap-2 md:w-auto md:min-w-[160px]"
+                disabled={isSavingDraft || isSubmitting || !canSaveDraft}
+                onClick={onSaveDraft}
+                size="lg"
+                variant="outline"
+              >
+                {isSavingDraft ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Draft
+                  </>
+                )}
+              </Button>
               <Button
                 className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 md:w-auto md:min-w-[200px] dark:bg-background dark:text-brand-dark dark:hover:bg-background/90"
-                disabled={
-                  isSubmitting ||
-                  receipts.length === 0 ||
-                  !selectedCampusId ||
-                  !selectedDepartmentId
-                }
+                disabled={isSavingDraft || isSubmitting || !canSubmit}
                 onClick={onSubmit}
                 size="lg"
               >
