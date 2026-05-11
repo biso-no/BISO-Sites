@@ -9,6 +9,7 @@ import {
   FileText,
   FileStack,
   Gift,
+  HardDrive,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -101,6 +102,12 @@ const NAV_ITEMS: Array<{
     labelKey: "news",
     icon: Newspaper,
     navKey: "portal.news",
+  },
+  {
+    path: "/it",
+    labelKey: "it",
+    icon: HardDrive,
+    navKey: "portal.it",
   },
 ];
 
