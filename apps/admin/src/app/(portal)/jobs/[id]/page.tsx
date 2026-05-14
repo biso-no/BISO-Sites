@@ -5,7 +5,7 @@ import {
   listCampuses,
   listDepartmentsForCampus,
 } from "../../_actions/jobs";
-import { JobEditorClient } from "./_components/job-editor-client";
+import { JobStudioEditor } from "./_components/job-studio-editor";
 
 interface JobEditorPageProps {
   params: Promise<{ id: string }>;
@@ -33,37 +33,18 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
     : [];
 
   return (
-    <JobEditorClient
+    <JobStudioEditor
       campuses={campuses}
       initialDepartments={departments}
       isNew={isNew}
       job={job}
       labels={{
-        applicationDeadline: "Application deadline",
         back: t("title"),
-        titlePlaceholder: t("fields.title"),
-        company: t("fields.company"),
-        contactEmail: "Contact email",
-        contactName: "Contact name",
-        cvRequired: "CV required",
-        employmentType: t("fields.employmentType"),
-        descriptionNo: t("fields.descriptionNo"),
-        descriptionEn: t("fields.descriptionEn"),
-        campus: t("fields.campus"),
-        department: t("fields.department"),
-        location: "Location",
-        paid: "Paid vacancy",
-        slug: t("fields.slug"),
-        status: t("fields.status"),
-        shortDescription: "Short description",
-        discard: "Discard",
         saveDraft: "Save Draft",
         publish: "Publish",
-        preview: t("preview"),
         saveSuccess: t("saveSuccess"),
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
-        publishError: t("publishError"),
       }}
     />
   );

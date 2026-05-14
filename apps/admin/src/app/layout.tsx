@@ -24,9 +24,9 @@ export default async function RootLayout({
   const messages = await getMessages();
   return (
     // suppressHydrationWarning added here 👇
-    <html 
-      className={`${museoSans.variable} ${inter.variable}`} 
-      lang={locale} 
+    <html
+      className={`${museoSans.variable} ${inter.variable}`}
+      lang={locale}
       suppressHydrationWarning
     >
       <body>

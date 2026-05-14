@@ -256,36 +256,100 @@
   },
   "events": {
     "title": "Arrangementer",
-    "description": "Administrer campus-arrangementer og påmeldinger.",
-    "create": "Nytt arrangement",
+    "description": "Lag og publiser arrangementer for ditt campus.",
+    "create": "Lag nytt arrangement",
     "empty": "Ingen arrangementer ennå",
-    "emptyDescription": "Opprett ditt første arrangement for å komme i gang.",
-    "fields": {
-      "title": "Arrangementstitel",
-      "startDate": "Startdato",
-      "endDate": "Sluttdato",
-      "location": "Sted",
+    "emptyDescription": "Trykk «Lag nytt arrangement» for å komme i gang.",
+    "steps": {
+      "essentials": "Grunnleggende",
       "description": "Beskrivelse",
-      "coverImage": "Forsidebilde-URL",
-      "ticketPrice": "Billettpris (NOK)",
+      "schedule": "Tid og sted",
+      "tickets": "Billetter og publikum",
+      "review": "Gjennomgang"
+    },
+    "fields": {
+      "title": "Arrangementstittel",
+      "titleEn": "Arrangementstittel (EN)",
+      "titleNo": "Arrangementstittel (NO)",
+      "slug": "URL-slug",
+      "category": "Kategori",
+      "hostedBy": "Arrangert av",
+      "teaser": "Kort beskrivelse",
+      "tags": "Emneknagger",
+      "startDate": "Start",
+      "endDate": "Slutt",
+      "registrationDeadline": "Påmelding stenger",
+      "locationMode": "Hvor holdes det",
+      "location": "Venue-adresse",
+      "onlineUrl": "Lenke til digitalt møte",
       "capacity": "Kapasitet",
-      "status": "Status",
-      "memberOnly": "Kun for medlemmer",
+      "waitlist": "Venteliste",
+      "coverArtwork": "Forsidegrafikk",
+      "pricingMode": "Billettpris",
+      "price": "Ordinær pris",
+      "memberPrice": "Medlemspris",
+      "memberOnly": "Publikum",
+      "isCollection": "Del av en serie",
+      "notifyPush": "Push-varsling",
+      "publishMode": "Publiseringstidspunkt",
+      "scheduledPublishAt": "Publiser kl.",
+      "contactName": "Navn",
+      "contactRole": "Rolle",
+      "contactEmail": "E-post",
+      "description": "Beskrivelse",
+      "coverImage": "Forsidebilde",
+      "ticketPrice": "Billettpris (NOK)",
       "ticketUrl": "Billettlenke",
       "attendees": "Deltakere",
-      "revenue": "Inntekt"
+      "revenue": "Inntekt",
+      "status": "Status"
+    },
+    "locationModes": {
+      "physical": "På campus",
+      "online": "Digitalt",
+      "hybrid": "Hybrid"
+    },
+    "pricingModes": {
+      "free": "Gratis",
+      "paid": "Betalt billett"
+    },
+    "publishModes": {
+      "now": "Publiser nå",
+      "scheduled": "Planlegg for…"
+    },
+    "categories": {
+      "social": "Sosialt",
+      "career": "Karriere",
+      "workshop": "Workshop",
+      "talk": "Foredrag",
+      "party": "Fest",
+      "sport": "Sport",
+      "academic": "Faglig",
+      "trip": "Tur"
     },
     "filters": {
       "all": "Alle",
+      "upcoming": "Kommende",
+      "drafts": "Utkast",
+      "past": "Tidligere",
       "published": "Publisert",
       "draft": "Utkast",
       "cancelled": "Avlyst"
     },
     "actions": {
-      "edit": "Rediger arrangement",
-      "delete": "Slett arrangement",
-      "cancel": "Avlys arrangement",
-      "duplicate": "Dupliser"
+      "edit": "Rediger",
+      "delete": "Slett",
+      "cancel": "Avlys",
+      "duplicate": "Dupliser",
+      "saveDraft": "Lagre som utkast",
+      "publish": "Publiser arrangement",
+      "continue": "Fortsett"
+    },
+    "kpi": {
+      "upcoming": "Kommende arrangementer",
+      "registrants": "Totalt påmeldte",
+      "fillRate": "Gj.snitt fyllgrad",
+      "soldOut": "Utsolgt neste 7 dager"
     },
     "preview": "Forhåndsvisning",
     "saveSuccess": "Arrangement lagret",
@@ -293,7 +357,8 @@
     "deleteSuccess": "Arrangement slettet",
     "deleteError": "Kunne ikke slette arrangement",
     "publishSuccess": "Arrangement publisert",
-    "publishError": "Kunne ikke publisere arrangement"
+    "publishError": "Kunne ikke publisere arrangement",
+    "draftResumed": "Utkast gjenopptatt"
   },
   "news": {
     "title": "Nyheter",

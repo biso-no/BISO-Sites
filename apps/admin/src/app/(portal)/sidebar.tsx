@@ -6,8 +6,8 @@ import {
   Building2,
   Calendar,
   Command,
-  FileText,
   FileStack,
+  FileText,
   Gift,
   HardDrive,
   Layers,
@@ -173,9 +173,9 @@ export function Sidebar({ user, roles }: SidebarProps) {
           <Image
             alt="BISO Logo"
             height={40}
-            width={220}
-            src="/images/biso-dare-to-be-more-dark.png"
             loading="eager"
+            src="/images/biso-dare-to-be-more-dark.png"
+            width={220}
           />
         </div>
         <div

@@ -8,7 +8,6 @@ export enum NotificationStatus {
   UNREAD = "unread",
 }
 
-
 export enum ExpenseStatus {
   DRAFT = "draft",
   PENDING = "pending",
@@ -109,6 +108,42 @@ export enum EventStatus {
 export enum CollectionPricing {
   BUNDLE = "bundle",
   INDIVIDUAL = "individual",
+}
+
+export enum EventCategory {
+  SOCIAL = "social",
+  CAREER = "career",
+  WORKSHOP = "workshop",
+  TALK = "talk",
+  PARTY = "party",
+  SPORT = "sport",
+  ACADEMIC = "academic",
+  TRIP = "trip",
+}
+
+export enum EventLocationMode {
+  PHYSICAL = "physical",
+  ONLINE = "online",
+  HYBRID = "hybrid",
+}
+
+export enum EventCoverPattern {
+  DOTTED = "dotted",
+  LINEAR = "linear",
+  CONCENTRIC = "concentric",
+  WAVE = "wave",
+  GRID = "grid",
+  CUSTOM = "custom",
+}
+
+export enum EventPricingMode {
+  FREE = "free",
+  PAID = "paid",
+}
+
+export enum EventPublishMode {
+  NOW = "now",
+  SCHEDULED = "scheduled",
 }
 
 export enum NewsStatus {
@@ -656,6 +691,7 @@ export type JobApplications = Models.Row & {
   data_processing_purpose: string;
   data_retention_until: string;
   resume_file_id: string | null;
+  review_metadata: string | null;
 };
 
 export type ContentTranslations = Models.Row & {
@@ -705,6 +741,22 @@ export type Events = Models.Row & {
   location: string | null;
   department_id: string | null;
   department: Departments;
+  registration_deadline: string | null;
+  location_mode: EventLocationMode;
+  online_url: string | null;
+  capacity: number;
+  waitlist: boolean;
+  cover_pattern: EventCoverPattern;
+  pricing_mode: EventPricingMode;
+  member_price: number | null;
+  publish_mode: EventPublishMode;
+  scheduled_publish_at: string | null;
+  notify_push: boolean;
+  tags: string[];
+  category: EventCategory | null;
+  contact_name: string | null;
+  contact_role: string | null;
+  contact_email: string | null;
 };
 
 export type News = Models.Row & {

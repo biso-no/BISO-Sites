@@ -89,6 +89,10 @@ function toDateTimeInput(value: string | null | undefined): string {
   return value ? value.slice(0, 16) : "";
 }
 
+function fallback<T>(value: T | null | undefined, fallbackValue: T): T {
+  return value ?? fallbackValue;
+}
+
 function buildDefaultValues(job: RecruitmentVacancy | null): JobFormValues {
   const no = job?.translation_refs.find(
     (translation) => translation.locale === "no"
@@ -96,25 +100,40 @@ function buildDefaultValues(job: RecruitmentVacancy | null): JobFormValues {
   const en = job?.translation_refs.find(
     (translation) => translation.locale === "en"
   );
+  const metadata = job?.metadata;
 
   return {
-    application_deadline: job?.metadata.application_deadline ?? null,
-    campus_id: job?.campus_id ?? "",
-    company: job?.metadata.company ?? null,
-    contact_email: job?.metadata.contact_email ?? null,
-    contact_name: job?.metadata.contact_name ?? null,
-    cv_required: Boolean(job?.metadata.cv_required),
-    department_id: job?.department_id ?? null,
-    description_en: en?.description ?? "",
-    description_no: no?.description ?? "",
-    employment_type: job?.metadata.employment_type ?? null,
-    location: job?.metadata.location ?? null,
-    paid: Boolean(job?.metadata.paid),
-    short_description: job?.metadata.short_description ?? null,
-    slug: job?.slug ?? "",
-    status: job?.status ?? JobStatus.DRAFT,
-    title_en: en?.title ?? "",
-    title_no: no?.title ?? "",
+    application_deadline: fallback(metadata?.application_deadline, null),
+    audience: fallback(metadata?.audience, "members"),
+    auto_translate: Boolean(metadata?.auto_translate),
+    campus_id: fallback(job?.campus_id, ""),
+    commitment: fallback(metadata?.commitment, null),
+    company: fallback(metadata?.company, null),
+    contact_email: fallback(metadata?.contact_email, null),
+    contact_name: fallback(metadata?.contact_name, null),
+    contact_role: fallback(metadata?.contact_role, null),
+    cover_image_file_id: fallback(metadata?.cover_image_file_id, null),
+    cover_image_url: fallback(metadata?.cover_image_url, null),
+    cover_pattern: fallback(metadata?.cover_pattern, null),
+    cv_required: Boolean(metadata?.cv_required),
+    department_id: fallback(job?.department_id, null),
+    description_en: fallback(en?.description, ""),
+    description_no: fallback(no?.description, ""),
+    employment_type: fallback(metadata?.employment_type, null),
+    location: fallback(metadata?.location, null),
+    newsletter: Boolean(metadata?.newsletter),
+    paid: Boolean(metadata?.paid),
+    publication_mode: fallback(metadata?.publication_mode, "now"),
+    push_to_inboxes: Boolean(metadata?.push_to_inboxes),
+    scheduled_publish_at: fallback(metadata?.scheduled_publish_at, null),
+    short_description: fallback(metadata?.short_description, null),
+    slug: fallback(job?.slug, ""),
+    start_date: fallback(metadata?.start_date, null),
+    status: fallback(job?.status, JobStatus.DRAFT),
+    tags: fallback(metadata?.tags, []),
+    term: fallback(metadata?.term, null),
+    title_en: fallback(en?.title, ""),
+    title_no: fallback(no?.title, ""),
   };
 }
 

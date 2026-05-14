@@ -28,6 +28,7 @@ export function JobApplicationForm({
   const [name, setName] = useState(applicantName);
   const [phone, setPhone] = useState("");
   const [coverLetter, setCoverLetter] = useState("");
+  const [availability, setAvailability] = useState("");
   const [consent, setConsent] = useState(false);
   const [resume, setResume] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export function JobApplicationForm({
       const formData = new FormData();
       formData.set("applicant_name", name);
       formData.set("applicant_phone", phone);
+      formData.set("availability", availability);
       formData.set("cover_letter", coverLetter);
       formData.set("gdpr_consent", String(consent));
 
@@ -76,6 +78,7 @@ export function JobApplicationForm({
 
       if (result.success) {
         setPhone("");
+        setAvailability("");
         setCoverLetter("");
         setResume(null);
         setConsent(false);
@@ -133,6 +136,20 @@ export function JobApplicationForm({
             rows={6}
             value={coverLetter}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="availability">Interview availability</Label>
+          <Textarea
+            id="availability"
+            onChange={(event) => setAvailability(event.target.value)}
+            placeholder="Add times that usually work for interviews, one per line."
+            rows={4}
+            value={availability}
+          />
+          <p className="text-muted-foreground text-xs">
+            This helps HR suggest interview times without long email threads.
+          </p>
         </div>
 
         <div className="space-y-2">

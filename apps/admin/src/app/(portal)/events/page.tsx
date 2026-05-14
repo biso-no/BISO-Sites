@@ -1,9 +1,7 @@
-import { Plus } from "lucide-react";
-import Link from "next/link";
+import type { EventRecord } from "@repo/shared/types/events";
 import { getTranslations } from "next-intl/server";
 import { listEvents } from "../_actions/events";
-import { PageHeader } from "../_components/page-header";
-import { EventsListClient } from "./_components/events-list-client";
+import { EventStudioDashboard } from "./_components/event-studio-dashboard";
 
 interface EventsPageProps {
   searchParams: Promise<{ page?: string }>;
@@ -18,35 +16,22 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const events = await listEvents({ page });
 
   return (
-    <div className="pb-12">
-      <PageHeader description={t("description")} title={t("title")}>
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
-          href="/events/new"
-          style={{
-            background: "#3DA9E0",
-            color: "#001731",
-            boxShadow: "0 0 20px rgba(61,169,224,0.25)",
-          }}
-        >
-          <Plus size={15} />
-          {t("create")}
-        </Link>
-      </PageHeader>
-
-      <EventsListClient
-        initialEvents={events.rows}
+    <div>
+      <EventStudioDashboard
+        initialEvents={events.rows as unknown as EventRecord[]}
         labels={{
-          empty: t("empty"),
-          emptyDescription: t("emptyDescription"),
-          searchPlaceholder: tc("search"),
-          all: tc("all"),
-          published: tc("status.published"),
-          draft: tc("status.draft"),
-          cancelled: tc("status.cancelled"),
-          edit: t("actions.edit"),
+          all: t("filters.all"),
+          cancelled: t("filters.cancelled"),
+          compose: t("create"),
           delete: t("actions.delete"),
           deleteConfirm: tc("confirmDelete"),
+          drafts: t("filters.drafts"),
+          edit: t("actions.edit"),
+          empty: t("empty"),
+          emptyDescription: t("emptyDescription"),
+          past: t("filters.past"),
+          searchPlaceholder: tc("search"),
+          upcoming: t("filters.upcoming"),
         }}
         page={page}
         total={events.total}

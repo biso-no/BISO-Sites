@@ -10,6 +10,7 @@ import type {
 import { Locale } from "@repo/api/types/appwrite";
 import {
   buildRecruitmentVacancyMetadata,
+  parseRecruitmentApplicationReviewMetadata,
   parseRecruitmentVacancyMetadata,
   type RecruitmentApplicationJobSummary,
   type RecruitmentApplicationRecord,
@@ -156,17 +157,21 @@ export function canManageRecruitmentVacancy(
 export function canReviewRecruitmentVacancy(
   scope: AdminScope,
   lookups: RecruitmentLookups,
-  job: Pick<Jobs, "campus_id">
+  job: Pick<Jobs, "campus_id" | "department_id">
 ): boolean {
   if (scope.canManageAnyCampus) {
     return true;
   }
 
-  if (!scope.isCampusAdmin) {
-    return false;
+  const managedCampusIds = getManagedCampusIds(scope, lookups);
+  if (scope.isCampusAdmin && managedCampusIds.includes(job.campus_id)) {
+    return true;
   }
 
-  return getManagedCampusIds(scope, lookups).includes(job.campus_id);
+  return Boolean(
+    job.department_id &&
+      getManagedDepartmentIds(scope, lookups).includes(job.department_id)
+  );
 }
 
 export function assertRecruitmentVacancyWriteAccess(
@@ -182,7 +187,7 @@ export function assertRecruitmentVacancyWriteAccess(
 export function assertRecruitmentApplicationReviewAccess(
   scope: AdminScope,
   lookups: RecruitmentLookups,
-  job: Pick<Jobs, "campus_id">
+  job: Pick<Jobs, "campus_id" | "department_id">
 ): void {
   if (!canReviewRecruitmentVacancy(scope, lookups, job)) {
     throw new Error("Forbidden");
@@ -366,6 +371,9 @@ export function buildRecruitmentApplicationRecord(
     gdpr_consent: application.gdpr_consent,
     job: jobSummary,
     job_id: application.job_id,
+    review_metadata: parseRecruitmentApplicationReviewMetadata(
+      application.review_metadata
+    ),
     resume_file_id: application.resume_file_id ?? null,
     status: application.status,
   };

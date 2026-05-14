@@ -256,44 +256,109 @@
   },
   "events": {
     "title": "Events",
-    "description": "Manage campus events and registrations.",
-    "create": "New Event",
+    "description": "Compose and publish events for your campus.",
+    "create": "Compose new event",
     "empty": "No events yet",
-    "emptyDescription": "Create your first event to get started.",
-    "fields": {
-      "title": "Event Title",
-      "startDate": "Start Date",
-      "endDate": "End Date",
-      "location": "Location",
+    "emptyDescription": "Hit \"Compose new event\" to get started.",
+    "steps": {
+      "essentials": "Essentials",
       "description": "Description",
-      "coverImage": "Cover Image URL",
-      "ticketPrice": "Ticket Price (NOK)",
+      "schedule": "Schedule & venue",
+      "tickets": "Tickets & audience",
+      "review": "Review"
+    },
+    "fields": {
+      "title": "Event title",
+      "titleEn": "Event title (EN)",
+      "titleNo": "Event title (NO)",
+      "slug": "URL slug",
+      "category": "Category",
+      "hostedBy": "Hosted by",
+      "teaser": "One-line teaser",
+      "tags": "Tags",
+      "startDate": "Start",
+      "endDate": "End",
+      "registrationDeadline": "Registration closes",
+      "locationMode": "Where is it",
+      "location": "Venue address",
+      "onlineUrl": "Online link",
       "capacity": "Capacity",
-      "status": "Status",
-      "memberOnly": "Members only",
+      "waitlist": "Waitlist",
+      "coverArtwork": "Cover artwork",
+      "pricingMode": "Pricing",
+      "price": "Regular price",
+      "memberPrice": "Member price",
+      "memberOnly": "Audience",
+      "isCollection": "Part of a series",
+      "notifyPush": "Push notification",
+      "publishMode": "Publish schedule",
+      "scheduledPublishAt": "Publish at",
+      "contactName": "Name",
+      "contactRole": "Role",
+      "contactEmail": "Email",
+      "description": "Description",
+      "coverImage": "Cover image",
+      "ticketPrice": "Ticket price (NOK)",
       "ticketUrl": "Ticket URL",
       "attendees": "Attendees",
-      "revenue": "Revenue"
+      "revenue": "Revenue",
+      "status": "Status"
+    },
+    "locationModes": {
+      "physical": "On campus",
+      "online": "Online",
+      "hybrid": "Hybrid"
+    },
+    "pricingModes": {
+      "free": "Free",
+      "paid": "Paid ticket"
+    },
+    "publishModes": {
+      "now": "Publish now",
+      "scheduled": "Schedule for…"
+    },
+    "categories": {
+      "social": "Social",
+      "career": "Career",
+      "workshop": "Workshop",
+      "talk": "Talk",
+      "party": "Party",
+      "sport": "Sport",
+      "academic": "Academic",
+      "trip": "Trip"
     },
     "filters": {
       "all": "All",
+      "upcoming": "Upcoming",
+      "drafts": "Drafts",
+      "past": "Past",
       "published": "Published",
       "draft": "Draft",
       "cancelled": "Cancelled"
     },
     "actions": {
-      "edit": "Edit event",
-      "delete": "Delete event",
-      "cancel": "Cancel event",
-      "duplicate": "Duplicate"
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "duplicate": "Duplicate",
+      "saveDraft": "Save as draft",
+      "publish": "Publish event",
+      "continue": "Continue"
     },
-    "preview": "Event Preview",
+    "kpi": {
+      "upcoming": "Upcoming events",
+      "registrants": "Total registrants",
+      "fillRate": "Avg. fill rate",
+      "soldOut": "Sold out next 7 days"
+    },
+    "preview": "Event preview",
     "saveSuccess": "Event saved",
     "saveError": "Failed to save event",
     "deleteSuccess": "Event deleted",
     "deleteError": "Failed to delete event",
     "publishSuccess": "Event published",
-    "publishError": "Failed to publish event"
+    "publishError": "Failed to publish event",
+    "draftResumed": "Draft resumed"
   },
   "news": {
     "title": "News",

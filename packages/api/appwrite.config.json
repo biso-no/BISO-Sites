@@ -941,7 +941,7 @@
                     "type": "string",
                     "required": false,
                     "array": false,
-                    "size": 4,
+                    "size": 50,
                     "default": null,
                     "encrypt": false
                 },
@@ -956,6 +956,144 @@
                     "twoWayKey": "events",
                     "onDelete": "cascade",
                     "side": "parent"
+                },
+                {
+                    "key": "registration_deadline",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "location_mode",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "physical",
+                    "format": "enum",
+                    "elements": ["physical", "online", "hybrid"]
+                },
+                {
+                    "key": "online_url",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "capacity",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9999
+                },
+                {
+                    "key": "waitlist",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "cover_pattern",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "dotted",
+                    "format": "enum",
+                    "elements": ["dotted", "linear", "concentric", "wave", "grid", "custom"]
+                },
+                {
+                    "key": "pricing_mode",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "free",
+                    "format": "enum",
+                    "elements": ["free", "paid"]
+                },
+                {
+                    "key": "member_price",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 0,
+                    "max": 99999
+                },
+                {
+                    "key": "publish_mode",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "now",
+                    "format": "enum",
+                    "elements": ["now", "scheduled"]
+                },
+                {
+                    "key": "scheduled_publish_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "notify_push",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "tags",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 60,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "category",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": ["social", "career", "workshop", "talk", "party", "sport", "academic", "trip"]
+                },
+                {
+                    "key": "contact_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "contact_role",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "contact_email",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -977,6 +1115,15 @@
                         "department_id"
                     ],
                     "orders": []
+                },
+                {
+                    "key": "idx_start_date",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "start_date"
+                    ],
+                    "orders": ["ASC"]
                 }
             ]
         },
@@ -2961,6 +3108,15 @@
                     "required": false,
                     "array": false,
                     "size": 100,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "review_metadata",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 16000,
                     "default": null,
                     "encrypt": false
                 }

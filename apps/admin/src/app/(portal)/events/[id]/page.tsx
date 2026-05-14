@@ -1,8 +1,9 @@
+import type { EventRecord } from "@repo/shared/types/events";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getEvent } from "../../_actions/events";
-import { listCampuses } from "../../_actions/jobs";
-import { EventEditorClient } from "./_components/event-editor-client";
+import { getEvent, listDepartmentsForCampus } from "../../_actions/events";
+import { listCampuses } from "../../_actions/lookups";
+import { EventStudioEditor } from "./_components/event-studio-editor";
 
 interface EventEditorPageProps {
   params: Promise<{ id: string }>;
@@ -15,6 +16,7 @@ export default async function EventEditorPage({
   const t = await getTranslations("adminPortal.events");
 
   const isNew = id === "new";
+
   const [event, campuses] = await Promise.all([
     isNew ? null : getEvent(id),
     listCampuses(),
@@ -24,34 +26,25 @@ export default async function EventEditorPage({
     notFound();
   }
 
+  const defaultCampusId = campuses[0]?.$id ?? "";
+  const campusIdForDepts = event?.campus_id ?? defaultCampusId;
+  const departments = campusIdForDepts
+    ? await listDepartmentsForCampus(campusIdForDepts)
+    : [];
+
   return (
-    <EventEditorClient
+    <EventStudioEditor
       campuses={campuses}
-      event={event}
+      event={event as unknown as EventRecord | null}
+      initialDepartments={departments}
       isNew={isNew}
       labels={{
         back: t("title"),
-        titleNo: `${t("fields.title")} (NO)`,
-        titleEn: `${t("fields.title")} (EN)`,
-        descriptionNo: `${t("fields.description")} (NO)`,
-        descriptionEn: `${t("fields.description")} (EN)`,
-        startDate: t("fields.startDate"),
-        endDate: t("fields.endDate"),
-        location: t("fields.location"),
-        coverImage: t("fields.coverImage"),
-        ticketPrice: t("fields.ticketPrice"),
-        ticketUrl: t("fields.ticketUrl"),
-        memberOnly: t("fields.memberOnly"),
-        campus: "Campus",
-        slug: "Slug",
-        status: t("fields.status"),
-        discard: "Discard",
-        saveDraft: "Save Draft",
-        publish: "Publish",
-        preview: t("preview"),
-        saveSuccess: t("saveSuccess"),
-        saveError: t("saveError"),
+        publish: t("actions.publish"),
         publishSuccess: t("publishSuccess"),
+        saveDraft: t("actions.saveDraft"),
+        saveError: t("saveError"),
+        saveSuccess: t("saveSuccess"),
       }}
     />
   );
