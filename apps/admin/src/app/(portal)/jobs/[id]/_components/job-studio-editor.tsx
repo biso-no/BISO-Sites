@@ -21,6 +21,7 @@ import {
   Newspaper,
   Pencil,
   Pilcrow,
+  Plus,
   Save,
   Send,
   Sparkles,
@@ -61,11 +62,18 @@ interface JobStudioEditorProps {
 const BRAND = {
   accent: "#3DA9E0",
   blue: "#001731",
+  claret: "#6b1e1e",
   gold: "#F7D64A",
   green: "#4ade80",
+  ink: "#1a1814",
+  ink2: "#3a342a",
+  ink3: "#6b6357",
+  ink4: "#9c9385",
   navy: "#000a16",
   paper: "#faf7f2",
   red: "#f87171",
+  rule: "#e5dcca",
+  rule2: "#d8cdb6",
 } as const;
 
 const STEPS = [
@@ -565,46 +573,98 @@ function DescriptionBlockRow({
 
   let placeholder = "Tell the story. What does a Tuesday afternoon look like?";
   if (block.type === "h") {
-    placeholder = "Section heading...";
+    placeholder = "Section heading…";
   } else if (block.type === "l") {
-    placeholder = "A responsibility, a perk, a requirement...";
+    placeholder = "A responsibility, a perk, a requirement…";
   }
 
-  let blockClass = "min-h-7 text-slate-700 text-sm leading-7 outline-none";
-  if (block.type === "h") {
-    blockClass =
-      "min-h-8 font-light text-3xl leading-tight outline-none empty:before:text-slate-300";
-  } else if (block.type === "l") {
-    blockClass =
-      "min-h-7 border-[#3DA9E0] border-l-2 pl-4 text-slate-700 text-sm leading-7 outline-none";
-  }
+  const contentStyle: React.CSSProperties = (() => {
+    if (block.type === "h") {
+      return {
+        color: BRAND.ink,
+        fontFamily: "'Instrument Serif', Georgia, serif",
+        fontSize: 26,
+        fontWeight: 400,
+        letterSpacing: "-0.012em",
+        lineHeight: 1.15,
+        minHeight: 28,
+        outline: "none",
+      };
+    }
+    if (block.type === "l") {
+      return {
+        color: BRAND.ink2,
+        fontSize: 15.5,
+        lineHeight: 1.6,
+        minHeight: 24,
+        outline: "none",
+      };
+    }
+    return {
+      color: BRAND.ink2,
+      fontSize: 15.5,
+      lineHeight: 1.55,
+      minHeight: 24,
+      outline: "none",
+    };
+  })();
 
   return (
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions lint/a11y/noStaticElementInteractions: The document editor row is a drop target while the editable text remains the semantic input.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: drop target wraps semantic editable text
+    // biome-ignore lint/a11y/noStaticElementInteractions: see above
     <div
-      className={`group flex gap-3 py-2 transition ${block.type === "h" ? "pt-4" : ""} ${dragging ? "opacity-35" : ""}`}
-      onDragOver={(event) => {
-        event.preventDefault();
-      }}
+      onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
         onDropBlock();
       }}
+      style={{
+        display: "flex",
+        gap: 12,
+        opacity: dragging ? 0.35 : 1,
+        padding: block.type === "h" ? "16px 0 8px" : "8px 0",
+        position: "relative",
+        transition: "opacity .15s",
+      }}
     >
       <button
         aria-label="Drag block"
-        className="flex w-6 shrink-0 cursor-grab justify-center pt-2 opacity-0 transition active:cursor-grabbing group-hover:opacity-100"
         draggable
         onDragStart={onStartDrag}
+        style={{
+          alignItems: "flex-start",
+          background: "transparent",
+          border: 0,
+          color: BRAND.ink4,
+          cursor: "grab",
+          display: "flex",
+          flexShrink: 0,
+          justifyContent: "center",
+          opacity: dragging ? 1 : undefined,
+          paddingTop: 8,
+          width: 24,
+        }}
         type="button"
       >
-        <GripVertical className="text-slate-300" size={15} />
+        <GripVertical size={13} />
       </button>
-      <div className="relative min-w-0 flex-1">
-        {/* biome-ignore lint/a11y/useSemanticElements: contentEditable keeps the prototype's document-style editing behavior. */}
+      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+        {block.type === "l" && (
+          <span
+            aria-hidden
+            style={{
+              background: BRAND.claret,
+              height: 1,
+              left: 0,
+              position: "absolute",
+              top: 16,
+              width: 8,
+            }}
+          />
+        )}
+        {/* biome-ignore lint/a11y/useSemanticElements: contentEditable maintains the document editing UX */}
         <div
           aria-label={placeholder}
-          className={blockClass}
           contentEditable
           data-placeholder={placeholder}
           onInput={(event) => onChange(event.currentTarget.innerText)}
@@ -621,41 +681,99 @@ function DescriptionBlockRow({
           }}
           ref={ref}
           role="textbox"
+          style={{ ...contentStyle, paddingLeft: block.type === "l" ? 20 : 0 }}
           suppressContentEditableWarning
           tabIndex={0}
         />
         {showSlashMenu && (
-          <div className="absolute top-full left-0 z-30 mt-1 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-slate-900/10 shadow-xl">
+          <div
+            style={{
+              background: "white",
+              border: `0.5px solid ${BRAND.rule2}`,
+              borderRadius: 12,
+              boxShadow: "0 12px 24px rgba(0,0,0,.10)",
+              left: 0,
+              marginTop: 4,
+              overflow: "hidden",
+              padding: "4px 0",
+              position: "absolute",
+              top: "100%",
+              width: 220,
+              zIndex: 30,
+            }}
+          >
             {[
-              { icon: Heading1, label: "Heading", type: "h" },
-              { icon: Pilcrow, label: "Paragraph", type: "p" },
-              { icon: List, label: "Bullet", type: "l" },
+              { icon: Heading1, label: "Heading", type: "h" as const },
+              { icon: Pilcrow, label: "Paragraph", type: "p" as const },
+              { icon: List, label: "Bullet", type: "l" as const },
             ].map(({ icon: Icon, label, type }) => (
               <button
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-slate-600 text-sm transition hover:bg-slate-50 hover:text-[#001731]"
                 key={type}
-                onClick={() => onChangeType(type as DescriptionBlockType)}
+                onClick={() => onChangeType(type)}
+                style={{
+                  alignItems: "center",
+                  background: "transparent",
+                  border: 0,
+                  color: BRAND.ink2,
+                  cursor: "pointer",
+                  display: "flex",
+                  fontSize: 13,
+                  gap: 8,
+                  padding: "8px 12px",
+                  textAlign: "left",
+                  width: "100%",
+                }}
                 type="button"
               >
-                <Icon size={14} />
+                <Icon size={13} />
                 {label}
               </button>
             ))}
-            <div className="my-1 h-px bg-slate-100" />
+            <div
+              style={{
+                background: BRAND.rule,
+                height: 1,
+                margin: "4px 0",
+              }}
+            />
             <button
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-slate-600 text-sm transition hover:bg-slate-50 hover:text-[#001731]"
               onClick={() => onInsertBelow("p")}
+              style={{
+                alignItems: "center",
+                background: "transparent",
+                border: 0,
+                color: BRAND.ink2,
+                cursor: "pointer",
+                display: "flex",
+                fontSize: 13,
+                gap: 8,
+                padding: "8px 12px",
+                textAlign: "left",
+                width: "100%",
+              }}
               type="button"
             >
-              <Pilcrow size={14} />
+              <Plus size={13} />
               New paragraph below
             </button>
             <button
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-500 text-sm transition hover:bg-red-50"
               onClick={onDelete}
+              style={{
+                alignItems: "center",
+                background: "transparent",
+                border: 0,
+                color: BRAND.claret,
+                cursor: "pointer",
+                display: "flex",
+                fontSize: 13,
+                gap: 8,
+                padding: "8px 12px",
+                textAlign: "left",
+                width: "100%",
+              }}
               type="button"
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
               Delete block
             </button>
           </div>
@@ -663,11 +781,25 @@ function DescriptionBlockRow({
       </div>
       <button
         aria-label="Delete block"
-        className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-300 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
         onClick={onDelete}
+        style={{
+          alignItems: "center",
+          background: "transparent",
+          border: 0,
+          borderRadius: 6,
+          color: BRAND.ink4,
+          cursor: "pointer",
+          display: "grid",
+          flexShrink: 0,
+          height: 28,
+          justifyItems: "center",
+          marginTop: 4,
+          placeItems: "center",
+          width: 28,
+        }}
         type="button"
       >
-        <Trash2 size={14} />
+        <Trash2 size={13} />
       </button>
     </div>
   );
@@ -770,72 +902,84 @@ function DescriptionBlockEditor({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/60 p-4">
-      <div className="mb-2 flex items-center justify-between gap-3 border-slate-200 border-b pb-3">
-        <div>
-          <p className="font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
-            {locale === "en" ? "English" : "Norsk"} description
-          </p>
-          <p className="mt-1 text-slate-500 text-xs">
-            Press Enter for a new paragraph, drag blocks by the handle, or type
-            / for block options.
-          </p>
-        </div>
-      </div>
-      <div className="min-h-72">
-        {blocks.map((block) => (
-          <DescriptionBlockRow
-            block={block}
-            dragging={draggingBlockId === block.id}
-            key={block.id}
-            onChange={(text) => updateBlock(block.id, text)}
-            onChangeType={(type) => changeBlockType(block.id, type)}
-            onDelete={() => deleteBlock(block.id)}
-            onDropBlock={() => {
-              if (draggingBlockId) {
-                moveBlock(draggingBlockId, block.id);
-              }
-            }}
-            onEnter={() => insertBlock(block.id)}
-            onFocused={() => setFocusBlockId(null)}
-            onInsertBelow={(type) => insertBlock(block.id, type)}
-            onSlash={() => setSlashBlockId(block.id)}
-            onStartDrag={() => setDraggingBlockId(block.id)}
-            shouldFocus={focusBlockId === block.id}
-            showSlashMenu={slashBlockId === block.id}
-          />
-        ))}
-      </div>
-      <div className="mt-4 flex items-center gap-2 border-slate-200 border-t pt-4">
-        <div className="h-px flex-1 bg-slate-200" />
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {blocks.map((block) => (
+        <DescriptionBlockRow
+          block={block}
+          dragging={draggingBlockId === block.id}
+          key={block.id}
+          onChange={(text) => updateBlock(block.id, text)}
+          onChangeType={(type) => changeBlockType(block.id, type)}
+          onDelete={() => deleteBlock(block.id)}
+          onDropBlock={() => {
+            if (draggingBlockId) {
+              moveBlock(draggingBlockId, block.id);
+            }
+          }}
+          onEnter={() => insertBlock(block.id)}
+          onFocused={() => setFocusBlockId(null)}
+          onInsertBelow={(type) => insertBlock(block.id, type)}
+          onSlash={() => setSlashBlockId(block.id)}
+          onStartDrag={() => setDraggingBlockId(block.id)}
+          shouldFocus={focusBlockId === block.id}
+          showSlashMenu={slashBlockId === block.id}
+        />
+      ))}
+      <div
+        style={{
+          alignItems: "center",
+          display: "flex",
+          gap: 8,
+          margin: "14px 0 0",
+          opacity: 0.85,
+          padding: "6px 0",
+        }}
+      >
+        <div style={{ background: BRAND.rule, flex: 1, height: 0.5 }} />
         <button
-          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-500 text-xs transition hover:text-[#001731]"
           onClick={() => addBlock("h")}
+          style={descAddBtnStyle()}
           type="button"
         >
-          <Heading1 size={13} />
+          <Heading1 size={11} />
           Heading
         </button>
         <button
-          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-500 text-xs transition hover:text-[#001731]"
           onClick={() => addBlock("p")}
+          style={descAddBtnStyle()}
           type="button"
         >
-          <Pilcrow size={13} />
+          <Pilcrow size={11} />
           Paragraph
         </button>
         <button
-          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-500 text-xs transition hover:text-[#001731]"
           onClick={() => addBlock("l")}
+          style={descAddBtnStyle()}
           type="button"
         >
-          <List size={13} />
+          <List size={11} />
           Bullet
         </button>
-        <div className="h-px flex-1 bg-slate-200" />
+        <div style={{ background: BRAND.rule, flex: 1, height: 0.5 }} />
       </div>
     </div>
   );
+}
+
+function descAddBtnStyle(): React.CSSProperties {
+  return {
+    alignItems: "center",
+    background: "rgba(255,255,255,.6)",
+    border: `0.5px solid ${BRAND.rule2}`,
+    borderRadius: 999,
+    color: BRAND.ink3,
+    cursor: "pointer",
+    display: "flex",
+    fontSize: 11.5,
+    gap: 5,
+    height: 26,
+    padding: "0 10px",
+  };
 }
 
 function PhonePreview({
