@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
-import { listCampuses } from "../../_actions/jobs";
+import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { getProduct } from "../../_actions/shop";
-import { ShopEditorClient } from "./_components/shop-editor-client";
+import { ShopStudioEditor } from "./_components/shop-studio-editor";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -10,9 +9,8 @@ interface Props {
 
 export default async function ShopEditorPage({ params }: Props) {
   const { id } = await params;
-  const t = await getTranslations("adminPortal.shop");
-
   const isNew = id === "new";
+
   const [product, campuses] = await Promise.all([
     isNew ? null : getProduct(id),
     listCampuses(),
@@ -22,29 +20,17 @@ export default async function ShopEditorPage({ params }: Props) {
     notFound();
   }
 
+  const defaultCampusId = campuses[0]?.$id ?? "";
+  const campusIdForDepts = product?.campus_id ?? defaultCampusId;
+  const departments = campusIdForDepts
+    ? await listDepartmentsForCampus(campusIdForDepts)
+    : [];
+
   return (
-    <ShopEditorClient
+    <ShopStudioEditor
       campuses={campuses}
+      departments={departments}
       isNew={isNew}
-      labels={{
-        back: t("title"),
-        name: t("fields.name"),
-        category: t("fields.category"),
-        price: t("fields.price"),
-        memberPrice: t("fields.memberPrice"),
-        description: t("fields.description"),
-        image: t("fields.image"),
-        stock: t("fields.stock"),
-        status: t("fields.status"),
-        campus: "Campus",
-        discard: "Discard",
-        saveDraft: "Save Draft",
-        publish: "Publish",
-        preview: t("preview"),
-        saveSuccess: t("saveSuccess"),
-        saveError: t("saveError"),
-        publishSuccess: t("publishSuccess"),
-      }}
       product={product}
     />
   );

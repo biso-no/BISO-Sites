@@ -3834,6 +3834,60 @@
                     "default": null,
                     "min": -9223372036854775808,
                     "max": 9223372036854775807
+                },
+                {
+                    "key": "variants_json",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 8192,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "tags",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 60,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "images",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "cover_pattern",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "dotted",
+                    "format": "enum",
+                    "elements": ["dotted", "linear", "concentric", "wave", "grid"]
+                },
+                {
+                    "key": "linked_event_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "inventory_mode",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "unlimited",
+                    "format": "enum",
+                    "elements": ["tracked", "unlimited"]
                 }
             ],
             "indexes": [

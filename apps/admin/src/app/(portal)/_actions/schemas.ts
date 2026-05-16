@@ -61,7 +61,9 @@ export type NewsFormValues = z.infer<typeof newsSchema>;
 
 export const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  name_en: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
+  description_en: z.string().optional().nullable(),
   campus_id: z.string().min(1, "Campus is required"),
   department_id: z.string().optional().nullable(),
   slug: z
@@ -75,6 +77,16 @@ export const productSchema = z.object({
   member_only: z.boolean().default(false),
   image: z.string().url().optional().nullable().or(z.literal("")),
   stock: z.coerce.number().int().nonnegative().optional().nullable(),
+  variants_json: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional().nullable(),
+  images: z.array(z.string()).optional().nullable(),
+  cover_pattern: z
+    .enum(["dotted", "linear", "concentric", "wave", "grid"])
+    .optional()
+    .nullable(),
+  linked_event_id: z.string().optional().nullable(),
+  inventory_mode: z.enum(["tracked", "unlimited"]).default("unlimited"),
+  short_description: z.string().optional().nullable(),
 });
 const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;

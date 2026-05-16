@@ -4,6 +4,7 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
+  Orders,
   WebshopProductStatus,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
@@ -22,6 +23,47 @@ async function requireAuth(): Promise<UserAuthContext> {
     redirect("/auth/login");
   }
   return ctx;
+}
+
+interface TranslationData {
+  content_id: string;
+  content_type: string;
+  description: string;
+  locale: string;
+  short_description: string | null;
+  title: string;
+}
+
+async function upsertTranslation(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  existing: ContentTranslations | undefined,
+  data: TranslationData
+) {
+  if (existing) {
+    await db.updateRow("app", "content_translations", existing.$id, data);
+  } else {
+    await db.createRow("app", "content_translations", "unique()", data);
+  }
+}
+
+function buildProductFields(data: ProductFormValues) {
+  return {
+    slug: data.slug,
+    campus_id: data.campus_id,
+    departmentId: data.department_id ?? null,
+    category: data.category ?? null,
+    regular_price: data.regular_price,
+    member_price: data.member_price ?? null,
+    member_only: data.member_only ?? false,
+    image: data.image || null,
+    stock: data.stock ?? null,
+    variants_json: data.variants_json ?? null,
+    tags: data.tags ?? null,
+    images: data.images ?? null,
+    cover_pattern: data.cover_pattern ?? "dotted",
+    linked_event_id: data.linked_event_id ?? null,
+    inventory_mode: data.inventory_mode ?? "unlimited",
+  };
 }
 
 export async function listProducts(opts?: {
@@ -117,16 +159,8 @@ export async function createProduct(values: ProductFormValues) {
   const { db } = await createSessionClient();
 
   const product = await db.createRow("app", "webshop_products", "unique()", {
-    slug: validated.data.slug,
+    ...buildProductFields(validated.data),
     status: "draft" as WebshopProductStatus,
-    campus_id: validated.data.campus_id,
-    departmentId: validated.data.department_id ?? null,
-    category: validated.data.category ?? null,
-    regular_price: validated.data.regular_price,
-    member_price: validated.data.member_price ?? null,
-    member_only: validated.data.member_only ?? false,
-    image: validated.data.image || null,
-    stock: validated.data.stock ?? null,
   });
 
   await db.createRow("app", "content_translations", "unique()", {
@@ -135,7 +169,20 @@ export async function createProduct(values: ProductFormValues) {
     locale: "no",
     title: validated.data.name,
     description: validated.data.description ?? "",
+    short_description: validated.data.short_description ?? null,
   });
+
+  if (validated.data.name_en || validated.data.description_en) {
+    await db.createRow("app", "content_translations", "unique()", {
+      content_id: product.$id,
+      content_type: "product",
+      locale: "en",
+      title: validated.data.name_en ?? validated.data.name,
+      description:
+        validated.data.description_en ?? validated.data.description ?? "",
+      short_description: validated.data.short_description ?? null,
+    });
+  }
 
   revalidatePath("/shop");
   return { data: product.$id };
@@ -163,54 +210,50 @@ export async function updateProduct(id: string, values: ProductFormValues) {
   assertWriteAccess(ctx, product.campus_id, product.departmentId);
 
   await db.updateRow("app", "webshop_products", id, {
-    slug: validated.data.slug,
+    ...buildProductFields(validated.data),
     status: validated.data.status as WebshopProductStatus,
-    campus_id: validated.data.campus_id,
-    departmentId: validated.data.department_id ?? null,
-    category: validated.data.category ?? null,
-    regular_price: validated.data.regular_price,
-    member_price: validated.data.member_price ?? null,
-    member_only: validated.data.member_only ?? false,
-    image: validated.data.image || null,
-    stock: validated.data.stock ?? null,
   });
 
-  const existingTranslation = await db.listRows<ContentTranslations>(
+  const existingTranslations = await db.listRows<ContentTranslations>(
     "app",
     "content_translations",
     [
       Query.equal("content_type", "product"),
       Query.equal("content_id", id),
-      Query.limit(1),
+      Query.limit(5),
     ]
   );
 
-  const translationData = {
+  const noTranslation = existingTranslations.rows.find(
+    (t) => t.locale === "no"
+  );
+  const enTranslation = existingTranslations.rows.find(
+    (t) => t.locale === "en"
+  );
+
+  await upsertTranslation(db, noTranslation, {
     content_id: id,
     content_type: "product",
     locale: "no",
     title: validated.data.name,
     description: validated.data.description ?? "",
-  };
+    short_description: validated.data.short_description ?? null,
+  });
 
-  if (existingTranslation.rows[0]) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      existingTranslation.rows[0].$id,
-      translationData
-    );
-  } else {
-    await db.createRow(
-      "app",
-      "content_translations",
-      "unique()",
-      translationData
-    );
+  if (validated.data.name_en || validated.data.description_en) {
+    await upsertTranslation(db, enTranslation, {
+      content_id: id,
+      content_type: "product",
+      locale: "en",
+      title: validated.data.name_en ?? validated.data.name,
+      description:
+        validated.data.description_en ?? validated.data.description ?? "",
+      short_description: validated.data.short_description ?? null,
+    });
   }
 
   revalidatePath("/shop");
-  revalidatePath(`/admin/shop/${id}`);
+  revalidatePath(`/shop/${id}`);
   return { data: id };
 }
 
@@ -243,4 +286,29 @@ export async function deleteProduct(id: string) {
 
   revalidatePath("/shop");
   return { data: true };
+}
+
+export async function listOrders(opts?: {
+  campusId?: string;
+  status?: string;
+}) {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+
+  const queries: string[] = [
+    Query.orderDesc("$createdAt"),
+    Query.limit(50),
+    ...applyScopeQueries(ctx),
+  ];
+
+  if (opts?.campusId) {
+    queries.push(Query.equal("campus_id", opts.campusId));
+  }
+
+  if (opts?.status && opts.status !== "all") {
+    queries.push(Query.equal("status", opts.status));
+  }
+
+  const response = await db.listRows<Orders>("app", "orders", queries);
+  return response.rows;
 }

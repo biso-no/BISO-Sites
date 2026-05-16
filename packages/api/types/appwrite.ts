@@ -158,6 +158,19 @@ export enum WebshopProductStatus {
   ARCHIVED = "archived",
 }
 
+export enum WebshopCoverPattern {
+  DOTTED = "dotted",
+  LINEAR = "linear",
+  CONCENTRIC = "concentric",
+  WAVE = "wave",
+  GRID = "grid",
+}
+
+export enum WebshopInventoryMode {
+  TRACKED = "tracked",
+  UNLIMITED = "unlimited",
+}
+
 export enum Level {
   NATIONAL = "national",
   CAMPUS = "campus",
@@ -789,6 +802,12 @@ export type WebshopProducts = Models.Row & {
   image: string | null;
   stock: number | null;
   department: Departments;
+  variants_json: string | null;
+  tags: string[] | null;
+  images: string[] | null;
+  cover_pattern: WebshopCoverPattern | null;
+  linked_event_id: string | null;
+  inventory_mode: WebshopInventoryMode | null;
 };
 
 export type VarslingSettings = Models.Row & {
