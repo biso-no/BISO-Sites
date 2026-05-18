@@ -29,6 +29,7 @@
     "clsx": "catalog:",
     "date-fns": "catalog:",
     "framer-motion": "catalog:",
+    "geist": "^1.7.0",
     "jodit-react": "catalog:",
     "lowlight": "catalog:",
     "lucide-react": "catalog:",

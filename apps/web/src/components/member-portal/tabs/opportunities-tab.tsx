@@ -43,7 +43,9 @@ export function OpportunitiesTab() {
 
         <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
           <Award className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">{t("skillDevelopment.title")}</h3>
+          <h3 className="mb-2 font-bold text-xl">
+            {t("skillDevelopment.title")}
+          </h3>
           <p className="text-muted-foreground text-sm">
             {t("skillDevelopment.description")}
           </p>

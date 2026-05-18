@@ -1,5 +1,4 @@
 "use client";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -9,6 +8,7 @@ import { ArrowRight, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Social: "bg-brand-muted text-brand-dark border-brand-border",
@@ -84,9 +84,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
   const timeString = formatTimeString(startDate, endDate);
   const category = getCategory(eventRef?.metadata);
   const attendees = getAttendees(eventRef?.metadata);
-  const imageUrl =
-    eventRef?.image ||
-    PLACEHOLDER_IMAGE;
+  const imageUrl = eventRef?.image || PLACEHOLDER_IMAGE;
 
   return (
     <motion.div

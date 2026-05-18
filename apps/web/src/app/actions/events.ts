@@ -13,7 +13,7 @@ function filterTranslationRefs<T extends { translation_refs?: unknown }>(
   item: T,
   locale: string | undefined
 ): T {
-  if (!locale || !Array.isArray(item.translation_refs)) {
+  if (!(locale && Array.isArray(item.translation_refs))) {
     return item;
   }
   return {

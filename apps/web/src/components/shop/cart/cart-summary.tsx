@@ -39,9 +39,8 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
   const _handleCheckout = () => {
     startTransition(async () => {
       await initiateVippsCheckout({
-        // TODO: Generate a unique reference ID
-        reference: "",
-        userId: userId || "guest", // TODO: Get from auth session
+        reference: crypto.randomUUID(),
+        userId: userId || "guest",
         items: items.map((item) => ({
           productId: item.productId,
           name: item.name,
@@ -58,7 +57,6 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
           isMember && totalSavings > 0
             ? Math.round((totalSavings / regularSubtotal) * 100)
             : undefined,
-        // TODO: Add customer info from user profile
       });
     });
   };

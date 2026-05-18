@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -7,6 +6,7 @@ import { format } from "date-fns";
 import { Calendar, Clock } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { formatEventPrice } from "@/lib/types/event";
 
 interface EventCollectionListProps {
@@ -94,9 +94,7 @@ export function EventCollectionList({
                 ? `${colStartTime} - ${colEndTime}`
                 : colStartTime || t("card.tba");
             const colPrice = formatEventPrice(colEventData?.price);
-            const colImage =
-              colEventData?.image ||
-              PLACEHOLDER_IMAGE;
+            const colImage = colEventData?.image || PLACEHOLDER_IMAGE;
 
             return (
               <Link

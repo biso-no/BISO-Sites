@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
-import { listCampuses } from "../../_actions/jobs";
+import { getUserAuthContext } from "@/lib/authorization";
+import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { getProduct } from "../../_actions/shop";
-import { ShopEditorClient } from "./_components/shop-editor-client";
+import { ShopStudioEditor } from "./_components/shop-studio-editor";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -10,41 +10,69 @@ interface Props {
 
 export default async function ShopEditorPage({ params }: Props) {
   const { id } = await params;
-  const t = await getTranslations("adminPortal.shop");
-
   const isNew = id === "new";
-  const [product, campuses] = await Promise.all([
+
+  const [product, campuses, ctx] = await Promise.all([
     isNew ? null : getProduct(id),
     listCampuses(),
+    getUserAuthContext(),
   ]);
 
   if (!(isNew || product)) {
     notFound();
   }
 
+  const isGlobalAdmin = ctx?.roles.includes("globaladmin") ?? false;
+  const isCampusAdmin = ctx?.roles.includes("campusadmin") ?? false;
+
+  const effectiveCampusId = (() => {
+    if (!ctx) {
+      return campuses[0]?.$id ?? "";
+    }
+    if (isGlobalAdmin) {
+      return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
+    }
+    if (isCampusAdmin) {
+      return ctx.managedCampusIds[0] ?? campuses[0]?.$id ?? "";
+    }
+    return ctx.resolvedCampusIds[0] ?? campuses[0]?.$id ?? "";
+  })();
+
+  const canChangeCampus = isGlobalAdmin;
+  const filteredCampuses = isGlobalAdmin
+    ? campuses
+    : campuses.filter((c) => {
+        const allowed = isCampusAdmin
+          ? (ctx?.managedCampusIds ?? [])
+          : (ctx?.resolvedCampusIds ?? []);
+        return allowed.includes(c.$id);
+      });
+
+  const campusIdForDepts = product?.campus_id ?? effectiveCampusId;
+  const departments = campusIdForDepts
+    ? await listDepartmentsForCampus(campusIdForDepts)
+    : [];
+
+  const isDepartmentUser = !(isGlobalAdmin || isCampusAdmin);
+  const allowedDepartmentIds =
+    isDepartmentUser && ctx?.departmentNames.length
+      ? departments
+          .filter((d) => ctx.departmentNames.includes(d.Name))
+          .map((d) => d.$id)
+      : undefined;
+
+  const filteredDepartments = allowedDepartmentIds
+    ? departments.filter((d) => allowedDepartmentIds.includes(d.$id))
+    : departments;
+
   return (
-    <ShopEditorClient
-      campuses={campuses}
+    <ShopStudioEditor
+      allowedDepartmentIds={allowedDepartmentIds}
+      campuses={filteredCampuses}
+      canChangeCampus={canChangeCampus}
+      defaultCampusId={effectiveCampusId}
+      departments={filteredDepartments}
       isNew={isNew}
-      labels={{
-        back: t("title"),
-        name: t("fields.name"),
-        category: t("fields.category"),
-        price: t("fields.price"),
-        memberPrice: t("fields.memberPrice"),
-        description: t("fields.description"),
-        image: t("fields.image"),
-        stock: t("fields.stock"),
-        status: t("fields.status"),
-        campus: "Campus",
-        discard: "Discard",
-        saveDraft: "Save Draft",
-        publish: "Publish",
-        preview: t("preview"),
-        saveSuccess: t("saveSuccess"),
-        saveError: t("saveError"),
-        publishSuccess: t("publishSuccess"),
-      }}
       product={product}
     />
   );

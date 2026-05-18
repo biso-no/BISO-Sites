@@ -21,6 +21,11 @@ import {
   PortalSelect,
 } from "../../../_components/portal-fields";
 import { PreviewPanel } from "../../../_components/preview-panel";
+import {
+  SERIF_STACK,
+  STUDIO,
+  studioSurface,
+} from "../../../_components/studio";
 
 interface BenefitEditorClientProps {
   benefit: CampusBenefits | null;
@@ -92,7 +97,7 @@ export function BenefitEditorClient({
     }
     toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
     if (isNew && result.data) {
-      router.push(`/admin/benefits/${result.data}`);
+      router.push(`/benefits/${result.data}`);
     }
   }
 
@@ -348,16 +353,12 @@ export function BenefitEditorClient({
           <PreviewPanel title={labels.preview}>
             <div
               className="mx-auto w-48 overflow-hidden rounded-3xl"
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
+              style={studioSurface}
             >
               <div
                 className="relative h-24 overflow-hidden"
                 style={{
-                  background:
-                    "linear-gradient(135deg, rgba(61,169,224,0.15), rgba(0,23,49,0.80))",
+                  background: STUDIO.paper2,
                 }}
               >
                 {previewImage && (
@@ -373,29 +374,29 @@ export function BenefitEditorClient({
                 {previewPartner && (
                   <p
                     className="text-[9px] uppercase tracking-widest"
-                    style={{ color: "#3DA9E0" }}
+                    style={{ color: STUDIO.claret }}
                   >
                     {previewPartner}
                   </p>
                 )}
                 <p
-                  className="mt-1 font-semibold text-xs leading-snug"
-                  style={{ color: "#fff" }}
+                  className="mt-1 text-lg leading-5"
+                  style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
                 >
                   {previewTitle || "Benefit Title"}
                 </p>
                 <div className="mt-2 flex items-center justify-between">
                   <span
                     className="text-[9px] uppercase tracking-wide"
-                    style={{ color: "rgba(255,255,255,0.40)" }}
+                    style={{ color: STUDIO.ink4 }}
                   >
                     {previewKind}
                   </span>
                   <span
                     className="rounded-full px-1.5 py-0.5 text-[9px]"
                     style={{
-                      background: "rgba(61,169,224,0.20)",
-                      color: "#3DA9E0",
+                      background: "rgba(107,30,30,0.10)",
+                      color: STUDIO.claret,
                     }}
                   >
                     {previewRedemption}

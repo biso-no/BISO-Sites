@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatusBadge } from "./status-badge";
+import { STUDIO } from "./studio";
 
 interface EditorHeaderProps {
   backHref: string;
@@ -27,10 +28,10 @@ export function EditorHeader({
     <div
       className="sticky top-0 z-30 mb-8 flex items-center gap-4 px-6 py-4"
       style={{
-        background: "rgba(0,10,22,0.85)",
-        backdropFilter: "blur(16px)",
+        background: "rgba(250,247,242,0.9)",
+        backdropFilter: "blur(14px)",
         WebkitBackdropFilter: "blur(16px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: `0.5px solid ${STUDIO.rule}`,
         marginLeft: "-3rem",
         marginRight: "-3rem",
       }}
@@ -40,9 +41,9 @@ export function EditorHeader({
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors"
         href={backHref}
         style={{
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          color: "rgba(255,255,255,0.60)",
+          background: "rgba(255,255,255,0.55)",
+          border: `0.5px solid ${STUDIO.rule2}`,
+          color: STUDIO.ink3,
         }}
       >
         <ArrowLeft size={15} />
@@ -51,7 +52,7 @@ export function EditorHeader({
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <h1
           className="truncate font-medium text-base"
-          style={{ color: "#fff" }}
+          style={{ color: STUDIO.ink }}
         >
           {title}
         </h1>

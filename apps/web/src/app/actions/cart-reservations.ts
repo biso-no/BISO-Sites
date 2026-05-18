@@ -125,7 +125,7 @@ export async function deleteReservation(
  * Delete all reservations for current session user
  * RLS automatically filters to current user
  */
-async function _deleteUserReservations(): Promise<void> {
+export async function deleteAllReservations(): Promise<void> {
   try {
     const { db } = await createSessionClient();
 

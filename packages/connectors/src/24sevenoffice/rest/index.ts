@@ -3,3 +3,7 @@ export {
   type DimensionElement,
   getDepartments,
 } from "./departments";
+export {
+  postShopTransaction,
+  type ShopTransactionParams,
+} from "./transactions";

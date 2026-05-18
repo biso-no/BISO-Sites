@@ -17,6 +17,7 @@ import {
   type DraftItem,
   rejectDraft,
 } from "../../_actions/drafts";
+import { SERIF_STACK, STUDIO } from "../../_components/studio";
 
 const TYPE_ICONS = {
   job: Briefcase,
@@ -25,9 +26,9 @@ const TYPE_ICONS = {
 } as const;
 
 const TYPE_COLORS = {
-  job: "#3DA9E0",
-  event: "#a78bfa",
-  news: "#4ade80",
+  event: STUDIO.claret,
+  job: STUDIO.sky,
+  news: STUDIO.leaf,
 } as const;
 
 const EDIT_PATHS = {
@@ -88,18 +89,17 @@ export function DraftsReviewClient({
 
         return (
           <div
-            className="flex flex-col overflow-hidden rounded-3xl"
+            className="flex flex-col overflow-hidden rounded-2xl border"
             key={`${draft.type}-${draft.id}`}
             style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.05)",
+              background: "rgba(255,255,255,0.46)",
+              borderColor: STUDIO.rule,
             }}
           >
-            {/* Hero */}
             <div
               className="relative flex h-28 items-center justify-center overflow-hidden"
               style={{
-                background: `linear-gradient(135deg, ${color}15, rgba(0,10,22,0.80))`,
+                background: STUDIO.paper2,
               }}
             >
               {draft.image ? (
@@ -116,7 +116,7 @@ export function DraftsReviewClient({
                 className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium text-[10px] uppercase"
                 style={{
                   background: `${color}20`,
-                  border: `1px solid ${color}40`,
+                  border: `0.5px solid ${color}40`,
                   color,
                 }}
               >
@@ -125,30 +125,25 @@ export function DraftsReviewClient({
               </div>
             </div>
 
-            {/* Content */}
             <div className="flex-1 p-4">
               <p
-                className="font-medium text-sm leading-snug"
-                style={{ color: "#fff" }}
+                className="text-2xl leading-7"
+                style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
               >
                 {draft.title}
               </p>
-              <p
-                className="mt-1 text-xs"
-                style={{ color: "rgba(255,255,255,0.35)" }}
-              >
+              <p className="mt-1 text-xs" style={{ color: STUDIO.ink4 }}>
                 {new Date(draft.updatedAt).toLocaleDateString()}
               </p>
             </div>
 
-            {/* Actions */}
             <div className="flex items-center gap-2 p-4 pt-0">
               <Link
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
                 href={editPath}
                 style={{
-                  background: "rgba(255,255,255,0.05)",
-                  color: "rgba(255,255,255,0.50)",
+                  background: STUDIO.paper2,
+                  color: STUDIO.ink3,
                 }}
                 title={labels.preview}
               >
@@ -158,9 +153,9 @@ export function DraftsReviewClient({
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 font-medium text-xs transition-all"
                 onClick={() => handleReject(draft.id, draft.type)}
                 style={{
-                  background: "rgba(248,113,113,0.08)",
-                  border: "1px solid rgba(248,113,113,0.20)",
-                  color: "#f87171",
+                  background: "rgba(107,30,30,0.08)",
+                  border: "0.5px solid rgba(107,30,30,0.2)",
+                  color: STUDIO.claret,
                 }}
                 type="button"
               >
@@ -171,9 +166,9 @@ export function DraftsReviewClient({
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 font-medium text-xs transition-all"
                 onClick={() => handleApprove(draft.id, draft.type)}
                 style={{
-                  background: "rgba(74,222,128,0.10)",
-                  border: "1px solid rgba(74,222,128,0.25)",
-                  color: "#4ade80",
+                  background: "rgba(47,93,58,0.08)",
+                  border: "0.5px solid rgba(47,93,58,0.22)",
+                  color: STUDIO.leaf,
                 }}
                 type="button"
               >

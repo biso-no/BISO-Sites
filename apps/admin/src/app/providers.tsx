@@ -4,7 +4,7 @@ import { TooltipProvider } from "@repo/ui/components/ui/tooltip";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider defaultTheme="light" enableSystem={true}>
+    <ThemeProvider defaultTheme="light" enableSystem={false}>
       <TooltipProvider>{children}</TooltipProvider>
     </ThemeProvider>
   );

@@ -18,8 +18,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import {
-  type MembershipDuration,
   getMembershipShopHref,
+  type MembershipDuration,
 } from "@/lib/member-portal-utils";
 
 interface LockedContentOverlayProps {

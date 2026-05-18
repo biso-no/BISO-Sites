@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
 
@@ -7,7 +8,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ redirectTo?: string; error?: string }>;
 }) {
-  // Check if user is already authenticated (not anonymous)
+  const t = await getTranslations("admin.auth");
   const authStatus = await getAuthStatus();
   const { error, redirectTo } = await searchParams;
   if (authStatus.isAuthenticated) {
@@ -30,9 +31,8 @@ export default async function Page({
       )}
       <Login />
 
-      {/* Footer text */}
       <div className="absolute bottom-4 w-full text-center text-gray-400 text-xs">
-        &copy; {new Date().getFullYear()} BISO. All rights reserved.
+        &copy; {new Date().getFullYear()} BISO. {t("copyright")}
       </div>
     </div>
   );

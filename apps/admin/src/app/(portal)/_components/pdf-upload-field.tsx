@@ -2,6 +2,7 @@
 
 import { FileText, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { STUDIO } from "./studio";
 
 interface PdfUploadFieldProps {
   onChange: (file: File | null) => void;
@@ -9,8 +10,12 @@ interface PdfUploadFieldProps {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -33,7 +38,7 @@ export function PdfUploadField({ value, onChange }: PdfUploadFieldProps) {
     e.target.value = "";
   }
 
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+  function handleDrop(e: React.DragEvent<HTMLButtonElement>) {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
@@ -42,7 +47,7 @@ export function PdfUploadField({ value, onChange }: PdfUploadFieldProps) {
     }
   }
 
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+  function handleDragOver(e: React.DragEvent<HTMLButtonElement>) {
     e.preventDefault();
     setIsDragging(true);
   }
@@ -64,52 +69,59 @@ export function PdfUploadField({ value, onChange }: PdfUploadFieldProps) {
       {value ? (
         <div
           className="flex items-center gap-3 rounded-xl px-4 py-3"
-          style={{ background: "rgba(61,169,224,0.08)", border: "1px solid rgba(61,169,224,0.25)" }}
+          style={{
+            background: "rgba(255,255,255,0.5)",
+            border: `0.5px solid ${STUDIO.rule2}`,
+          }}
         >
-          <FileText size={20} style={{ color: "#3DA9E0", flexShrink: 0 }} />
+          <FileText size={20} style={{ color: STUDIO.claret, flexShrink: 0 }} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium" style={{ color: "#fff" }}>
+            <p
+              className="truncate font-medium text-sm"
+              style={{ color: STUDIO.ink }}
+            >
               {value.name}
             </p>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.40)" }}>
+            <p className="text-xs" style={{ color: STUDIO.ink4 }}>
               {formatBytes(value.size)}
             </p>
           </div>
           <button
             className="shrink-0 rounded-lg p-1.5 transition-colors"
             onClick={() => onChange(null)}
-            style={{ background: "rgba(248,113,113,0.10)", color: "#f87171" }}
+            style={{ background: "rgba(107,30,30,0.10)", color: STUDIO.claret }}
             type="button"
           >
             <X size={14} />
           </button>
         </div>
       ) : (
-        <div
+        <button
           className="cursor-pointer rounded-xl px-4 py-6 text-center transition-all"
           onClick={() => inputRef.current?.click()}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          role="button"
           style={{
-            background: isDragging ? "rgba(61,169,224,0.08)" : "rgba(255,255,255,0.02)",
-            border: `1px dashed ${isDragging ? "rgba(61,169,224,0.50)" : "rgba(255,255,255,0.12)"}`,
+            background: isDragging
+              ? "rgba(107,30,30,0.06)"
+              : "rgba(255,255,255,0.42)",
+            border: `1px dashed ${isDragging ? STUDIO.claret : STUDIO.rule2}`,
           }}
-          tabIndex={0}
+          type="button"
         >
           <Upload
             className="mx-auto mb-2"
             size={22}
-            style={{ color: "rgba(255,255,255,0.25)" }}
+            style={{ color: STUDIO.ink4 }}
           />
-          <p className="text-sm" style={{ color: "rgba(255,255,255,0.50)" }}>
+          <p className="text-sm" style={{ color: STUDIO.ink3 }}>
             Click or drag a PDF file here
           </p>
-          <p className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+          <p className="mt-1 text-xs" style={{ color: STUDIO.ink4 }}>
             Max 50 MB
           </p>
-        </div>
+        </button>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Building2 } from "lucide-react";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface DepartmentsHeroProps {
   stats: {

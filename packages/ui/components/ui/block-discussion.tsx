@@ -335,7 +335,6 @@ const useResolvedDiscussion = (
 
       return;
     }
-    // TODO: fix throw error
     setOption('uniquePathMap', new Map(map).set(id, blockPath));
   });
 

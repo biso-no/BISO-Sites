@@ -1,18 +1,23 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getUserAuthContext, getUserRolesForClient } from "@/lib/authorization";
 import { AdminShell } from "./_components/admin-shell";
 
 type UserRoles = Awaited<ReturnType<typeof getUserRolesForClient>>;
 type AuthContext = NonNullable<Awaited<ReturnType<typeof getUserAuthContext>>>;
 
-function getRoleLabel(roles: UserRoles, ctx: AuthContext): string {
+async function getRoleLabel(
+  roles: UserRoles,
+  ctx: AuthContext
+): Promise<string> {
+  const t = await getTranslations("admin.roles");
   if (roles.isGlobalAdmin) {
-    return "Global Admin";
+    return t("globalAdmin");
   }
   if (roles.isCampusAdmin) {
-    return `Campus Admin · ${ctx.managedCampuses[0] ?? ""}`;
+    return `${t("campusAdmin")} · ${ctx.managedCampuses[0] ?? ""}`;
   }
-  return ctx.departmentNames[0] ?? "Member";
+  return ctx.departmentNames[0] ?? t("member");
 }
 
 export default async function PortalAdminLayout({
@@ -32,7 +37,7 @@ export default async function PortalAdminLayout({
     name: null as string | null,
     email: null as string | null,
     avatar: null as string | null,
-    roleLabel: getRoleLabel(roles, ctx),
+    roleLabel: await getRoleLabel(roles, ctx),
   };
 
   return (

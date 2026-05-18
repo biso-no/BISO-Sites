@@ -4,10 +4,12 @@ import { Button } from "@repo/ui/components/ui/button";
 import { ArrowRight, ExternalLink, Key, Mail, Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { signInWithAzure, signInWithMagicLink } from "@/lib/server";
 
 export function Login() {
+  const t = useTranslations("admin.auth");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -17,22 +19,20 @@ export function Login() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Handle the restrictedDomain parameter but immediately clear it
   useEffect(() => {
     if (searchParams.get("restrictedDomain")) {
       setMessage({
         type: "error",
-        text: "Please use your personal email address.",
+        text: t("errors.usePersonalEmail"),
       });
-      // Remove the parameter from URL
       router.replace("/auth/login", { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, t]);
 
   const handleUserLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      setMessage({ type: "error", text: "Please enter your email address." });
+      setMessage({ type: "error", text: t("errors.enterEmail") });
       return;
     }
 
@@ -48,12 +48,12 @@ export function Login() {
       await signInWithMagicLink(email);
       setMessage({
         type: "success",
-        text: "Login link sent! Please check your email.",
+        text: t("success.linkSent"),
       });
     } catch (_error) {
       setMessage({
         type: "error",
-        text: "Failed to send login link. Please try again.",
+        text: t("errors.sendFailed"),
       });
     } finally {
       setIsLoading(false);
@@ -84,11 +84,9 @@ export function Login() {
         </div>
 
         <h1 className="gradient-text mb-1 text-center font-bold text-2xl">
-          Welcome Back
+          {t("welcomeBack")}
         </h1>
-        <p className="mb-8 text-center text-gray-400">
-          Sign in to your BISO account
-        </p>
+        <p className="mb-8 text-center text-gray-400">{t("signInSubtitle")}</p>
 
         <form className="space-y-6" onSubmit={handleUserLogin}>
           <div className="space-y-2">
@@ -97,7 +95,7 @@ export function Login() {
               htmlFor="email"
             >
               <Mail className="h-4 w-4 text-blue-accent" />
-              Email Address
+              {t("emailLabel")}
             </label>
             <div className="relative">
               <input
@@ -119,14 +117,14 @@ export function Login() {
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <svg
-                  aria-label="Loading"
+                  aria-label={t("sending")}
                   className="mr-2 -ml-1 h-4 w-4 animate-spin text-white"
                   fill="none"
                   role="img"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <title>Loading</title>
+                  <title>{t("sending")}</title>
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -141,11 +139,11 @@ export function Login() {
                     fill="currentColor"
                   />
                 </svg>
-                Sending...
+                {t("sending")}
               </span>
             ) : (
               <span className="flex items-center justify-center">
-                Send Login Link
+                {t("sendLoginLink")}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </span>
             )}
@@ -157,7 +155,7 @@ export function Login() {
             <span className="w-full border-white/10 border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-primary-90 px-2 text-gray-400">Or</span>
+            <span className="bg-primary-90 px-2 text-gray-400">{t("or")}</span>
           </div>
         </div>
 
@@ -166,7 +164,7 @@ export function Login() {
           onClick={handleAdminLogin}
         >
           <Key className="mr-2 h-4 w-4 text-gold-default" />
-          Sign in with BISO account
+          {t("signInWithBISO")}
           <ExternalLink className="ml-2 h-3.5 w-3.5 text-gray-400 transition-transform group-hover:translate-x-0.5" />
         </Button>
 
@@ -217,30 +215,27 @@ export function Login() {
           <div className="flex items-start">
             <Shield className="mt-0.5 mr-2 h-4 w-4 shrink-0 text-blue-400" />
             <p className="text-gray-400 text-xs leading-relaxed">
-              By signing in, you agree to our{" "}
+              {t("privacyNoticeBefore")}{" "}
               <a
                 className="text-blue-400 hover:underline"
                 href="https://biso.no/privacy"
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                Privacy Policy
+                {t("privacyPolicy")}
               </a>{" "}
-              and consent to the processing of your personal data as described
-              therein. We comply with GDPR regulations and you can manage your
-              data preferences and request data deletion from your profile
-              settings.
+              {t("privacyNoticeAfter")}
             </p>
           </div>
         </div>
 
         <div className="mt-6 text-center text-gray-500 text-xs">
-          <p>Don&apos;t have an account yet?</p>
+          <p>{t("noAccount")}</p>
           <Link
             className="inline-flex items-center text-blue-accent hover:underline"
             href="/contact"
           >
-            Contact us for access
+            {t("contactForAccess")}
             <ArrowRight className="ml-1 h-3 w-3" />
           </Link>
         </div>

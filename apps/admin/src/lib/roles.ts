@@ -24,9 +24,6 @@ export type Role = (typeof ROLES)[keyof typeof ROLES];
 // Pseudo-role for any user with at least one SG-App-Dept-* membership
 export const DEPARTMENT_ROLE = "department" as const;
 
-// All valid role values including pseudo-roles
-type RoleOrDepartment = Role | typeof DEPARTMENT_ROLE;
-
 /**
  * Navigation access rules based on campus + department membership.
  *
@@ -47,7 +44,7 @@ export const NAV_ACCESS = {
   shopSettings: [ROLES.GLOBAL_ADMIN],
   expenses: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   jobs: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  jobsApplications: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  jobsApplications: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   events: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   eventsNew: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   units: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
@@ -75,6 +72,7 @@ export const NAV_ACCESS = {
   "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.settings": [ROLES.GLOBAL_ADMIN],
   "portal.documents": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.it": [ROLES.GLOBAL_ADMIN],
 } as const;
 
 export type NavKey = keyof typeof NAV_ACCESS;

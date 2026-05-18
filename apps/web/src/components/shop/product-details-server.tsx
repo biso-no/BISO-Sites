@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -8,6 +7,7 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { ArrowLeft, MapPin, Tag, Users } from "lucide-react";
 import Link from "next/link";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import {
   calculateSavings,
   formatPrice,
@@ -22,7 +22,6 @@ import { ProductOptionsClient } from "./product-options-client"; // New Client C
 interface ProductDetailsServerProps {
   isMember: boolean;
   product: WebshopProducts;
-  // TODO: Get actual userId from auth
   userId?: string | null;
 }
 
@@ -59,9 +58,7 @@ export function ProductDetailsServer({
     isMember && typeof memberPrice === "number" && memberPrice < regularPrice;
   const savings = calculateSavings(regularPrice, memberPrice);
 
-  const imageUrl =
-    productRef.image ||
-    PLACEHOLDER_IMAGE;
+  const imageUrl = productRef.image || PLACEHOLDER_IMAGE;
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">

@@ -1,5 +1,7 @@
 import { createSessionClient } from "@repo/api/server";
+import { postShopTransaction } from "@repo/connectors/24sevenoffice";
 import { getVippsSession } from "@repo/payment/vipps";
+import { parseOrderItems } from "@repo/shared/utils/order-parsing";
 import { updateOrderStatus } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
 
@@ -52,6 +54,52 @@ export async function GET(request: Request) {
     const status = updatedOrder?.status ?? order.status;
 
     console.log(`[Checkout Return] Order ${orderId} status: ${status}`);
+
+    if (
+      (status === "authorized" || status === "paid") &&
+      !updatedOrder?.finago_transaction_id
+    ) {
+      try {
+        const items = parseOrderItems(updatedOrder?.items_json ?? null);
+        const enrichedItems = await Promise.all(
+          items.map(async (item) => {
+            const product = await db
+              .getRow(
+                process.env.APPWRITE_DATABASE_ID!,
+                process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+                item.product_id
+              )
+              .catch(() => null);
+            return {
+              ...item,
+              finago_account_number:
+                (product as { finago_account_number?: number | null } | null)
+                  ?.finago_account_number ?? null,
+            };
+          })
+        );
+
+        const transactionId = await postShopTransaction({
+          orderId,
+          date: new Date().toISOString().slice(0, 10),
+          total: updatedOrder?.total ?? 0,
+          items: enrichedItems,
+          campusId: updatedOrder?.campus_id ?? null,
+        });
+
+        await db.updateRow("app", "orders", orderId, {
+          finago_transaction_id: transactionId,
+        });
+        console.log(
+          `[Finago] Posted transaction ${transactionId} for order ${orderId}`
+        );
+      } catch (err) {
+        console.error(
+          `[Finago] Failed to post transaction for order ${orderId}:`,
+          err
+        );
+      }
+    }
 
     switch (status) {
       case "paid":

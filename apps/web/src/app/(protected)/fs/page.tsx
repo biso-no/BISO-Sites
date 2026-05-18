@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -8,6 +7,7 @@ import { Suspense } from "react";
 import { ExpenseCard } from "@/components/expense/expense-card";
 import { ExpenseListSkeleton } from "@/components/expense/expense-skeleton";
 import { getExpenses } from "@/lib/actions/expense";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 async function ExpenseList() {
   const result = await getExpenses();

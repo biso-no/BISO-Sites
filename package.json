@@ -1,44 +1,11 @@
 {
   "name": "biso-sites",
-  "private": true,
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "build:admin": "turbo run build --filter=admin",
-    "build:admin:appwrite": "bun run build:admin && rm -rf .next && mkdir -p .next/standalone && cp -r apps/admin/.next/standalone/* .next/standalone/ && cp -r apps/admin/public .next/standalone/apps/admin/public && cp -r apps/admin/.next/static .next/standalone/apps/admin/.next/static && echo \"require('./apps/admin/server.js')\" > .next/standalone/server.js",
-    "build:web": "turbo run build --filter=web",
-    "build:web:appwrite": "bun run build:web && rm -rf .next && mkdir -p .next/standalone && cp -r apps/web/.next/standalone/* .next/standalone/ && cp -r apps/web/public .next/standalone/apps/web/public && cp -r apps/web/.next/static .next/standalone/apps/web/.next/static && echo \"require('./apps/web/server.js')\" > .next/standalone/server.js",
-    "build:api": "turbo run build --filter=api",
-    "build:api:appwrite": "bun run build:api && rm -rf .next && mkdir -p .next/standalone && cp -r apps/api/.next/standalone/* .next/standalone/ && cp -r apps/api/public .next/standalone/apps/api/public && cp -r apps/api/.next/static .next/standalone/apps/api/.next/static && echo \"require('./apps/api/server.js')\" > .next/standalone/server.js",
-    "build:docs": "turbo run build --filter=docs",
-    "build:docs:appwrite": "bun run build:docs && rm -rf .next && mkdir -p .next/standalone && cp -r apps/docs/.next/standalone/* .next/standalone/ && cp -r apps/docs/public .next/standalone/apps/docs/public && cp -r apps/docs/.next/static .next/standalone/apps/docs/.next/static && echo \"require('./apps/docs/server.js')\" > .next/standalone/server.js",
-    "lint": "turbo run lint",
-    "lint:ci": "biome lint --log-level=tracing --log-kind=json --log-file=tracing.json",
-    "format": "biome format --write .",
-    "check": "ultracite check",
-    "fix": "turbo run fix",
-    "check-types": "turbo run check-types"
-  },
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
     "lefthook": "^2.1.4",
     "turbo": "^2.9.3",
     "ultracite": "7.4.3"
   },
-  "engines": {
-    "node": ">=18"
-  },
-  "packageManager": "bun@1.3.1",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
-      "bun x ultracite fix"
-    ]
-  },
-  "dependencies": {},
   "catalog": {
     "@ai-sdk/openai": "^3.0.50",
     "@ai-sdk/react": "3.0.148",
@@ -177,5 +144,37 @@
     "remark-math": "^6.0.0",
     "tailwind-scrollbar-hide": "^4.0.0",
     "@types/bun": "^1.3.11"
-  }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
+      "bun x ultracite fix"
+    ]
+  },
+  "packageManager": "bun@1.3.1",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "build:admin": "turbo run build --filter=admin",
+    "build:admin:appwrite": "bun run build:admin && rm -rf .next && mkdir -p .next/standalone && cp -r apps/admin/.next/standalone/* .next/standalone/ && cp -r apps/admin/public .next/standalone/apps/admin/public && cp -r apps/admin/.next/static .next/standalone/apps/admin/.next/static && echo \"require('./apps/admin/server.js')\" > .next/standalone/server.js",
+    "build:web": "turbo run build --filter=web",
+    "build:web:appwrite": "bun run build:web && rm -rf .next && mkdir -p .next/standalone && cp -r apps/web/.next/standalone/* .next/standalone/ && cp -r apps/web/public .next/standalone/apps/web/public && cp -r apps/web/.next/static .next/standalone/apps/web/.next/static && echo \"require('./apps/web/server.js')\" > .next/standalone/server.js",
+    "build:api": "turbo run build --filter=api",
+    "build:api:appwrite": "bun run build:api && rm -rf .next && mkdir -p .next/standalone && cp -r apps/api/.next/standalone/* .next/standalone/ && cp -r apps/api/public .next/standalone/apps/api/public && cp -r apps/api/.next/static .next/standalone/apps/api/.next/static && echo \"require('./apps/api/server.js')\" > .next/standalone/server.js",
+    "build:docs": "turbo run build --filter=docs",
+    "build:docs:appwrite": "bun run build:docs && rm -rf .next && mkdir -p .next/standalone && cp -r apps/docs/.next/standalone/* .next/standalone/ && cp -r apps/docs/public .next/standalone/apps/docs/public && cp -r apps/docs/.next/static .next/standalone/apps/docs/.next/static && echo \"require('./apps/docs/server.js')\" > .next/standalone/server.js",
+    "lint": "turbo run lint",
+    "lint:ci": "biome lint --log-level=tracing --log-kind=json --log-file=tracing.json",
+    "format": "biome format --write .",
+    "check": "ultracite check",
+    "fix": "turbo run fix",
+    "check-types": "turbo run check-types"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

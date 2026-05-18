@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { listActivityLog } from "../_actions/activity";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
+import { STUDIO, StudioIconBox, StudioPanel } from "../_components/studio";
 
 export default async function ActivityPage() {
   const t = await getTranslations("adminPortal.activity");
@@ -16,49 +17,34 @@ export default async function ActivityPage() {
       {logs.length === 0 ? (
         <EmptyState icon={<Activity size={28} />} title={t("empty")} />
       ) : (
-        <div
-          className="space-y-0 rounded-3xl p-6"
-          style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
+        <StudioPanel className="p-6">
           {logs.map((log, idx) => (
             <div
               className="relative flex items-start gap-4 py-5"
               key={log.$id}
               style={
                 idx < logs.length - 1
-                  ? { borderBottom: "1px solid rgba(255,255,255,0.04)" }
+                  ? { borderBottom: `0.5px solid ${STUDIO.rule}` }
                   : undefined
               }
             >
-              {/* Timeline dot */}
-              <div className="relative mt-0.5 shrink-0">
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-full"
-                  style={{
-                    background: "rgba(61,169,224,0.10)",
-                    border: "1px solid rgba(61,169,224,0.25)",
-                  }}
-                >
-                  <Activity size={13} style={{ color: "#3DA9E0" }} />
-                </div>
-              </div>
+              <StudioIconBox color={STUDIO.claret}>
+                <Activity size={13} />
+              </StudioIconBox>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p
-                      className="text-sm"
-                      style={{ color: "rgba(255,255,255,0.80)" }}
-                    >
-                      <span className="font-medium" style={{ color: "#fff" }}>
+                    <p className="text-sm" style={{ color: STUDIO.ink2 }}>
+                      <span
+                        className="font-medium"
+                        style={{ color: STUDIO.ink }}
+                      >
                         {log.actor_email ?? "System"}
                       </span>{" "}
                       <span
                         className="font-mono text-xs"
-                        style={{ color: "#3DA9E0" }}
+                        style={{ color: STUDIO.claret }}
                       >
                         {log.action}
                       </span>
@@ -67,13 +53,13 @@ export default async function ActivityPage() {
                     {log.resource_type && (
                       <p
                         className="mt-0.5 text-xs"
-                        style={{ color: "rgba(255,255,255,0.35)" }}
+                        style={{ color: STUDIO.ink4 }}
                       >
                         {log.resource_type}
                         {log.resource_id && (
                           <span
                             className="ml-2 font-mono"
-                            style={{ color: "rgba(255,255,255,0.25)" }}
+                            style={{ color: STUDIO.ink4 }}
                           >
                             #{log.resource_id.slice(0, 8)}
                           </span>
@@ -85,7 +71,7 @@ export default async function ActivityPage() {
                   <time
                     className="shrink-0 text-xs"
                     dateTime={log.$createdAt}
-                    style={{ color: "rgba(255,255,255,0.30)" }}
+                    style={{ color: STUDIO.ink4 }}
                   >
                     {new Date(log.$createdAt).toLocaleString()}
                   </time>
@@ -93,7 +79,7 @@ export default async function ActivityPage() {
               </div>
             </div>
           ))}
-        </div>
+        </StudioPanel>
       )}
     </div>
   );

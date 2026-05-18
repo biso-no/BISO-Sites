@@ -11,7 +11,8 @@
       "Bash(grep -E \"\\\\.tsx?$\")",
       "Bash(bash:*)",
       "Bash(ls:*)",
-      "Bash(grep -r \"export\" /Users/heien/Documents/Dev/BISO-Sites/packages/ui/lib/*.ts)"
+      "Bash(grep -r \"export\" /Users/heien/Documents/Dev/BISO-Sites/packages/ui/lib/*.ts)",
+      "Bash(bun x *)"
     ]
   }
 }

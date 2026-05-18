@@ -1,11 +1,11 @@
 "use client";
 
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Minus, Plus, Trash2, Users } from "lucide-react";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { CartItem as CartItemType } from "@/lib/contexts/cart-context";
 
 interface CartItemProps {
@@ -132,10 +132,7 @@ export function CartItem({
             alt={item.name}
             className="object-cover"
             fill
-            src={
-              item.image ||
-              PLACEHOLDER_IMAGE
-            }
+            src={item.image || PLACEHOLDER_IMAGE}
           />
           <Badge
             className={`absolute top-2 left-2 ${categoryColors[item.category] || "bg-muted text-muted-foreground"}`}

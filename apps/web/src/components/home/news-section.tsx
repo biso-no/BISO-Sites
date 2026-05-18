@@ -1,5 +1,4 @@
 "use client";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Button } from "@repo/ui/components/ui/button";
@@ -8,6 +7,7 @@ import { ArrowRight, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface NewsClientProps {
   news: News[];
@@ -105,10 +105,7 @@ export function NewsSection({ news }: NewsClientProps) {
                         alt={translation?.title ?? "News"}
                         className="object-cover transition-transform duration-500 group-hover:scale-110"
                         fill
-                        src={
-                          featuredNews.image ||
-                          PLACEHOLDER_IMAGE
-                        }
+                        src={featuredNews.image || PLACEHOLDER_IMAGE}
                       />
                       <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                     </div>
@@ -159,10 +156,7 @@ export function NewsSection({ news }: NewsClientProps) {
                         alt={translation?.title ?? "News"}
                         className="object-cover transition-transform duration-500 group-hover:scale-110"
                         fill
-                        src={
-                          item.image ||
-                          PLACEHOLDER_IMAGE
-                        }
+                        src={item.image || PLACEHOLDER_IMAGE}
                       />
                       <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                     </div>

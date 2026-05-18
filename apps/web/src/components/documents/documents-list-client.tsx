@@ -20,8 +20,16 @@ const CATEGORIES = [
   { key: "national-statutes", label: "National Statutes", icon: Scale },
   { key: "campus-bylaws", label: "Campus Bylaws", icon: Building2 },
   { key: "code-of-conduct", label: "Code of Conduct", icon: Shield },
-  { key: "business-regulations", label: "Business Regulations", icon: Briefcase },
-  { key: "communication-guidelines", label: "Communication Guidelines", icon: MessageSquare },
+  {
+    key: "business-regulations",
+    label: "Business Regulations",
+    icon: Briefcase,
+  },
+  {
+    key: "communication-guidelines",
+    label: "Communication Guidelines",
+    icon: MessageSquare,
+  },
 ];
 
 interface DocumentsListClientProps {
@@ -54,17 +62,17 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
       >
         <div className="relative mx-auto max-w-2xl">
           <Search
-            className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2"
+            className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2"
             style={{ color: "rgba(255,255,255,0.40)" }}
           />
           <input
-            className="w-full rounded-2xl py-4 pl-12 pr-4 text-white outline-none transition-all"
+            className="w-full rounded-2xl py-4 pr-4 pl-12 text-white outline-none transition-all"
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "rgba(61,169,224,0.25)";
+            }}
             onChange={(e) => setSearch(e.target.value)}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "rgba(61,169,224,0.60)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "rgba(61,169,224,0.25)";
             }}
             placeholder="Search documents…"
             style={{
@@ -91,7 +99,7 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
             const Icon = cat.icon;
             return (
               <motion.button
-                className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-300"
+                className="flex items-center gap-2 rounded-xl px-5 py-2.5 font-medium text-sm transition-all duration-300"
                 key={cat.key}
                 onClick={() => setActiveCategory(cat.key)}
                 style={
@@ -150,7 +158,8 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
           className="mt-16 rounded-2xl p-8"
           initial={{ opacity: 0, y: 20 }}
           style={{
-            background: "linear-gradient(135deg, rgba(61,169,224,0.08) 0%, transparent 100%)",
+            background:
+              "linear-gradient(135deg, rgba(61,169,224,0.08) 0%, transparent 100%)",
             border: "1px solid rgba(61,169,224,0.25)",
             backdropFilter: "blur(12px)",
           }}
@@ -164,14 +173,17 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
               <BookOpen className="h-6 w-6" style={{ color: "#3DA9E0" }} />
             </div>
             <div>
-              <h3 className="mb-2 text-xl font-semibold text-white">
+              <h3 className="mb-2 font-semibold text-white text-xl">
                 Document Updates
               </h3>
-              <p className="leading-relaxed" style={{ color: "rgba(255,255,255,0.60)" }}>
-                These documents are regularly reviewed and updated to ensure they
-                reflect current policies and regulations. All documents are
-                synchronized directly from our SharePoint repository to ensure you
-                always have access to the latest versions.
+              <p
+                className="leading-relaxed"
+                style={{ color: "rgba(255,255,255,0.60)" }}
+              >
+                These documents are regularly reviewed and updated to ensure
+                they reflect current policies and regulations. All documents are
+                synchronized directly from our SharePoint repository to ensure
+                you always have access to the latest versions.
               </p>
             </div>
           </div>

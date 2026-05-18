@@ -18,8 +18,8 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
-import { apiClient } from "@/lib/api-client";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
+import { apiClient } from "@/lib/api-client";
 import type { Receipt } from "./store";
 
 interface GenerativeReceiptPreviewProps {

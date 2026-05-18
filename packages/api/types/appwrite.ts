@@ -8,7 +8,6 @@ export enum NotificationStatus {
   UNREAD = "unread",
 }
 
-
 export enum ExpenseStatus {
   DRAFT = "draft",
   PENDING = "pending",
@@ -111,6 +110,42 @@ export enum CollectionPricing {
   INDIVIDUAL = "individual",
 }
 
+export enum EventCategory {
+  SOCIAL = "social",
+  CAREER = "career",
+  WORKSHOP = "workshop",
+  TALK = "talk",
+  PARTY = "party",
+  SPORT = "sport",
+  ACADEMIC = "academic",
+  TRIP = "trip",
+}
+
+export enum EventLocationMode {
+  PHYSICAL = "physical",
+  ONLINE = "online",
+  HYBRID = "hybrid",
+}
+
+export enum EventCoverPattern {
+  DOTTED = "dotted",
+  LINEAR = "linear",
+  CONCENTRIC = "concentric",
+  WAVE = "wave",
+  GRID = "grid",
+  CUSTOM = "custom",
+}
+
+export enum EventPricingMode {
+  FREE = "free",
+  PAID = "paid",
+}
+
+export enum EventPublishMode {
+  NOW = "now",
+  SCHEDULED = "scheduled",
+}
+
 export enum NewsStatus {
   DRAFT = "draft",
   PUBLISHED = "published",
@@ -121,6 +156,19 @@ export enum WebshopProductStatus {
   PENDING_APPROVAL = "pending_approval",
   PUBLISHED = "published",
   ARCHIVED = "archived",
+}
+
+export enum WebshopCoverPattern {
+  DOTTED = "dotted",
+  LINEAR = "linear",
+  CONCENTRIC = "concentric",
+  WAVE = "wave",
+  GRID = "grid",
+}
+
+export enum WebshopInventoryMode {
+  TRACKED = "tracked",
+  UNLIMITED = "unlimited",
 }
 
 export enum Level {
@@ -392,6 +440,7 @@ export type Orders = Models.Row & {
   payment_link: string | null;
   payment_receipt_url: string | null;
   campus_id: string | null;
+  finago_transaction_id: string | null;
 };
 
 export type Memberships = Models.Row & {
@@ -656,6 +705,7 @@ export type JobApplications = Models.Row & {
   data_processing_purpose: string;
   data_retention_until: string;
   resume_file_id: string | null;
+  review_metadata: string | null;
 };
 
 export type ContentTranslations = Models.Row & {
@@ -705,6 +755,22 @@ export type Events = Models.Row & {
   location: string | null;
   department_id: string | null;
   department: Departments;
+  registration_deadline: string | null;
+  location_mode: EventLocationMode;
+  online_url: string | null;
+  capacity: number;
+  waitlist: boolean;
+  cover_pattern: EventCoverPattern;
+  pricing_mode: EventPricingMode;
+  member_price: number | null;
+  publish_mode: EventPublishMode;
+  scheduled_publish_at: string | null;
+  notify_push: boolean;
+  tags: string[];
+  category: EventCategory | null;
+  contact_name: string | null;
+  contact_role: string | null;
+  contact_email: string | null;
 };
 
 export type News = Models.Row & {
@@ -737,6 +803,13 @@ export type WebshopProducts = Models.Row & {
   image: string | null;
   stock: number | null;
   department: Departments;
+  variants_json: string | null;
+  tags: string[] | null;
+  images: string[] | null;
+  cover_pattern: WebshopCoverPattern | null;
+  linked_event_id: string | null;
+  inventory_mode: WebshopInventoryMode | null;
+  finago_account_number: number | null;
 };
 
 export type VarslingSettings = Models.Row & {

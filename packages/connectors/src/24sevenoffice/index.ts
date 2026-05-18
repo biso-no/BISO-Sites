@@ -49,6 +49,8 @@ export {
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   getDepartments,
+  postShopTransaction,
+  type ShopTransactionParams,
 } from "./rest";
 // Customer sync function
 export { hasMembershipProduct, syncMembershipTo24SO } from "./sync";

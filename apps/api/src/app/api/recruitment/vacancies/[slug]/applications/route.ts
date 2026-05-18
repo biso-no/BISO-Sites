@@ -2,10 +2,12 @@ import { ID, InputFile, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { JobApplicationStatus } from "@repo/api/types/appwrite";
 import {
+  buildRecruitmentApplicationReviewMetadata,
   computeRecruitmentRetentionUntil,
   isRecruitmentVacancyOpen,
   RECRUITMENT_RESUME_BUCKET_ID,
   recruitmentApplicationSubmitSchema,
+  serializeRecruitmentApplicationReviewMetadata,
   validateRecruitmentResumeFile,
 } from "@repo/shared/types/recruitment";
 import { type NextRequest, NextResponse } from "next/server";
@@ -15,12 +17,31 @@ import {
   isAuthenticatedAppwriteUser,
 } from "@/lib/recruitment";
 
+const AVAILABILITY_SPLIT_PATTERN = /\r?\n|,/;
+
 function toBoolean(value: FormDataEntryValue | null): boolean {
   if (typeof value !== "string") {
     return false;
   }
 
   return value === "true" || value === "on";
+}
+
+function readAvailabilitySlots(formData: FormData): string[] {
+  const repeatedSlots = formData
+    .getAll("candidate_availability")
+    .filter((value): value is string => typeof value === "string");
+  const textareaSlots =
+    typeof formData.get("availability") === "string"
+      ? String(formData.get("availability"))
+          .split(AVAILABILITY_SPLIT_PATTERN)
+          .map((slot) => slot.trim())
+      : [];
+
+  return [...repeatedSlots, ...textareaSlots]
+    .map((slot) => slot.trim())
+    .filter(Boolean)
+    .slice(0, 12);
 }
 
 export async function POST(
@@ -44,6 +65,7 @@ export async function POST(
       applicant_name: formData.get("applicant_name"),
       applicant_email: formData.get("applicant_email"),
       applicant_phone: formData.get("applicant_phone"),
+      candidate_availability: readAvailabilitySlots(formData),
       cover_letter: formData.get("cover_letter"),
       gdpr_consent: toBoolean(formData.get("gdpr_consent")),
     });
@@ -123,6 +145,11 @@ export async function POST(
         gdpr_consent: true,
         job_id: jobId,
         resume_file_id: resumeFileId,
+        review_metadata: serializeRecruitmentApplicationReviewMetadata(
+          buildRecruitmentApplicationReviewMetadata({
+            candidate_availability: parsed.data.candidate_availability,
+          })
+        ),
         status: JobApplicationStatus.SUBMITTED,
       }
     );

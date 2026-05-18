@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -6,6 +5,7 @@ import { format } from "date-fns";
 import { ArrowLeft, Calendar, Clock, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import {
   type EventCategory,
   getEventCategory,
@@ -56,9 +56,7 @@ export function EventHero({ event }: EventHeroProps) {
       : startTime || t("card.tba");
 
   const attendees = metadata.attendees || 0;
-  const imageUrl =
-    eventData?.image ||
-    PLACEHOLDER_IMAGE;
+  const imageUrl = eventData?.image || PLACEHOLDER_IMAGE;
 
   return (
     <div className="relative h-[50vh] overflow-hidden">

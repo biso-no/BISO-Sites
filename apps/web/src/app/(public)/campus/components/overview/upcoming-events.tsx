@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
@@ -8,6 +7,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Calendar, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface UpcomingEventsProps {
   events: Events[];
@@ -80,10 +80,7 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
                       alt={translation?.title ?? "Event"}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       fill
-                      src={
-                        event.image ||
-                        PLACEHOLDER_IMAGE
-                      }
+                      src={event.image || PLACEHOLDER_IMAGE}
                     />
                     {event.member_only && (
                       <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">

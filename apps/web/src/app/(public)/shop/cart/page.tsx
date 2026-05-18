@@ -1,3 +1,4 @@
+import { createSessionClient } from "@repo/api/server";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
 import { CartAlerts } from "@/components/shop/cart/cart-alerts";
@@ -34,7 +35,9 @@ function CartSkeleton() {
 
 export default async function CartPage() {
   const { isMember } = await getMembershipStatus();
-  const userId: string | null = null;
+  const { account } = await createSessionClient();
+  const user = await account.get().catch(() => null);
+  const userId = user?.$id ?? null;
 
   return (
     <Suspense fallback={<CartSkeleton />}>

@@ -1,3 +1,5 @@
+import { StudioStatusPill } from "./studio";
+
 interface StatusBadgeProps {
   size?: "sm" | "md";
   status: string;
@@ -89,25 +91,11 @@ const STATUS_STYLES: Record<
 
 export function StatusBadge({ status, size = "sm" }: StatusBadgeProps) {
   const style = STATUS_STYLES[status] ?? {
-    color: "rgba(255,255,255,0.50)",
-    bg: "rgba(255,255,255,0.05)",
-    border: "rgba(255,255,255,0.10)",
+    color: "",
+    bg: "",
+    border: "",
     label: status,
   };
 
-  const padding =
-    size === "sm" ? "px-2.5 py-0.5 text-[11px]" : "px-3 py-1 text-xs";
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full font-medium font-mono uppercase tracking-wide ${padding}`}
-      style={{
-        color: style.color,
-        background: style.bg,
-        border: `1px solid ${style.border}`,
-      }}
-    >
-      {style.label}
-    </span>
-  );
+  return <StudioStatusPill label={style.label} size={size} status={status} />;
 }

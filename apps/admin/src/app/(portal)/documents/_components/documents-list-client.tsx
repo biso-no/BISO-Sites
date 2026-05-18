@@ -10,6 +10,11 @@ import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
 import { StatusBadge } from "../../_components/status-badge";
+import {
+  STUDIO,
+  StudioCrest,
+  StudioLinkButton,
+} from "../../_components/studio";
 
 const CATEGORY_LABELS: Record<string, string> = {
   "national-statutes": "National Statutes",
@@ -57,6 +62,9 @@ export function DocumentsListClient({
 }: DocumentsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+    null
+  );
   const [, startTransition] = useTransition();
 
   const filters = [
@@ -75,7 +83,9 @@ export function DocumentsListClient({
   });
 
   function handleDelete(id: string) {
-    if (!confirm(labels.deleteConfirm)) {
+    if (confirmingDeleteId !== id) {
+      setConfirmingDeleteId(id);
+      toast.message(labels.deleteConfirm);
       return;
     }
     startTransition(async () => {
@@ -84,6 +94,7 @@ export function DocumentsListClient({
         toast.error(result.error);
       } else {
         toast.success("Document deleted");
+        setConfirmingDeleteId(null);
       }
     });
   }
@@ -95,13 +106,9 @@ export function DocumentsListClient({
         icon={<FileText size={28} />}
         title={labels.empty}
       >
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
-          href="/documents/new"
-          style={{ background: "#3DA9E0", color: "#001731" }}
-        >
+        <StudioLinkButton href="/documents/new" variant="primary">
           Upload first document
-        </Link>
+        </StudioLinkButton>
       </EmptyState>
     );
   }
@@ -122,106 +129,106 @@ export function DocumentsListClient({
         />
       ) : (
         <div className="space-y-3">
-          {filtered.map((doc) => (
-            <div
-              className="group flex items-center gap-4 rounded-2xl px-5 py-4 transition-all"
-              key={doc.$id}
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
+          {filtered.map((doc) => {
+            const isConfirmingDelete = confirmingDeleteId === doc.$id;
+            return (
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                style={{ background: "rgba(61,169,224,0.12)" }}
+                className="group flex items-center gap-4 rounded-2xl border px-5 py-4 transition hover:bg-white/70"
+                key={doc.$id}
+                style={{
+                  background: "rgba(255,255,255,0.46)",
+                  borderColor: STUDIO.rule,
+                }}
               >
-                <FileText size={18} style={{ color: "#3DA9E0" }} />
-              </div>
+                <StudioCrest icon={FileText} label={doc.title} />
 
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    className="truncate font-medium text-sm transition-colors hover:text-[#3DA9E0]"
-                    href={`/documents/${doc.$id}`}
-                    style={{ color: "#fff" }}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      className="truncate font-medium text-sm transition-colors hover:text-[#3DA9E0]"
+                      href={`/documents/${doc.$id}`}
+                      style={{ color: STUDIO.ink }}
+                    >
+                      {doc.title}
+                    </Link>
+                    <StatusBadge status={doc.status} />
+                    {doc.scope === "campus" && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                        style={{
+                          background: "rgba(42,74,122,0.08)",
+                          color: STUDIO.sky,
+                          border: "0.5px solid rgba(42,74,122,0.2)",
+                        }}
+                      >
+                        <Building2 size={10} />
+                        Campus
+                      </span>
+                    )}
+                    {doc.scope === "national" && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                        style={{
+                          background: STUDIO.paper2,
+                          color: STUDIO.ink3,
+                          border: `0.5px solid ${STUDIO.rule2}`,
+                        }}
+                      >
+                        <Globe size={10} />
+                        National
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="mt-1 flex flex-wrap items-center gap-3 text-xs"
+                    style={{ color: STUDIO.ink4 }}
                   >
-                    {doc.title}
-                  </Link>
-                  <StatusBadge status={doc.status} />
-                  {doc.scope === "campus" && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                      style={{
-                        background: "rgba(61,169,224,0.10)",
-                        color: "#3DA9E0",
-                        border: "1px solid rgba(61,169,224,0.20)",
-                      }}
-                    >
-                      <Building2 size={10} />
-                      Campus
-                    </span>
-                  )}
-                  {doc.scope === "national" && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                      style={{
-                        background: "rgba(255,255,255,0.05)",
-                        color: "rgba(255,255,255,0.50)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    >
-                      <Globe size={10} />
-                      National
-                    </span>
-                  )}
+                    <span>{CATEGORY_LABELS[doc.category] ?? doc.category}</span>
+                    <span>·</span>
+                    <span>v{doc.version_number}</span>
+                    {doc.version && (
+                      <>
+                        <span>·</span>
+                        <span>{doc.version}</span>
+                      </>
+                    )}
+                    <span>·</span>
+                    <span>{formatBytes(doc.file_size)}</span>
+                    <span>·</span>
+                    <span>{new Date(doc.$updatedAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
-                <div
-                  className="mt-1 flex flex-wrap items-center gap-3 text-xs"
-                  style={{ color: "rgba(255,255,255,0.35)" }}
-                >
-                  <span>{CATEGORY_LABELS[doc.category] ?? doc.category}</span>
-                  <span>·</span>
-                  <span>v{doc.version_number}</span>
-                  {doc.version && (
-                    <>
-                      <span>·</span>
-                      <span>{doc.version}</span>
-                    </>
-                  )}
-                  <span>·</span>
-                  <span>{formatBytes(doc.file_size)}</span>
-                  <span>·</span>
-                  <span>{new Date(doc.$updatedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                <Link
-                  className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  href={`/documents/${doc.$id}`}
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    color: "rgba(255,255,255,0.50)",
-                  }}
-                  title={labels.edit}
-                >
-                  <Pencil size={13} />
-                </Link>
-                <button
-                  className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  onClick={() => handleDelete(doc.$id)}
-                  style={{
-                    background: "rgba(248,113,113,0.08)",
-                    color: "#f87171",
-                  }}
-                  title={labels.delete}
-                  type="button"
-                >
-                  <Trash2 size={13} />
-                </button>
+                <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Link
+                    className="flex h-8 w-8 items-center justify-center rounded-lg"
+                    href={`/documents/${doc.$id}`}
+                    style={{
+                      background: STUDIO.paper2,
+                      color: STUDIO.ink3,
+                    }}
+                    title={labels.edit}
+                  >
+                    <Pencil size={13} />
+                  </Link>
+                  <button
+                    className="flex h-8 w-8 items-center justify-center rounded-lg"
+                    onClick={() => handleDelete(doc.$id)}
+                    style={{
+                      background: isConfirmingDelete
+                        ? STUDIO.claret
+                        : "rgba(107,30,30,0.08)",
+                      color: isConfirmingDelete ? STUDIO.paper : STUDIO.claret,
+                    }}
+                    title={labels.delete}
+                    type="button"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

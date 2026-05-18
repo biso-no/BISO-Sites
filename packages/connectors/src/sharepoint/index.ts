@@ -47,10 +47,10 @@ export interface SharePointSite {
 export interface SharePointUploadResult {
   driveId: string;
   itemId: string;
-  webUrl: string;
-  size: number;
-  name: string;
   lastModified: string;
+  name: string;
+  size: number;
+  webUrl: string;
 }
 
 export class SharePointService {

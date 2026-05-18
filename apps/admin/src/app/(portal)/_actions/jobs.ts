@@ -1,5 +1,6 @@
 "use server";
 
+import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
@@ -7,19 +8,26 @@ import type {
   ContentTranslations,
   Departments,
   JobApplications,
+  Users,
 } from "@repo/api/types/appwrite";
 import {
   assertRecruitmentApplicationTransition,
+  buildRecruitmentApplicationReviewMetadata,
   buildRecruitmentVacancyMetadata,
   type RecruitmentApplicationRecord,
+  type RecruitmentApplicationReviewUpdateInput,
   type RecruitmentApplicationStatusUpdateInput,
   type RecruitmentVacancyUpsertInput,
+  recruitmentApplicationReviewUpdateSchema,
   recruitmentApplicationStatusUpdateSchema,
   recruitmentVacancyUpsertSchema,
+  serializeRecruitmentApplicationReviewMetadata,
   serializeRecruitmentVacancyMetadata,
 } from "@repo/shared/types/recruitment";
+import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   assertRecruitmentApplicationReviewAccess,
@@ -37,6 +45,43 @@ import { logAuditEvent } from "./audit-log";
 
 const JOBS_PAGE_SIZE = 20;
 const APPLICATIONS_PAGE_SIZE = 20;
+
+const jobTranslationDraftSchema = z.object({
+  description_en: z.string().trim().min(1),
+  short_description: z.string().trim().nullable().optional(),
+  title_en: z.string().trim().min(1),
+});
+
+const jobTranslationResultSchema = z.object({
+  description_no: z
+    .string()
+    .describe("Natural Norwegian Bokmål HTML preserving p, h3, ul and li tags"),
+  short_description: z
+    .string()
+    .describe("Norwegian one-line teaser, maximum 280 characters"),
+  title_no: z.string().describe("Norwegian Bokmål job title"),
+});
+
+const jobSuggestionDraftSchema = z.object({
+  campus: z.string().trim().optional(),
+  commitment: z.string().trim().nullable().optional(),
+  department: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  locale: z.enum(["en", "no"]),
+  tags: z.array(z.string()).max(4).optional(),
+  title: z.string().trim().min(1),
+});
+
+const jobSuggestionResultSchema = z.object({
+  bullets: z.array(z.string()).min(2).max(4),
+  heading: z.string(),
+});
+
+export interface RecruitmentReviewerOption {
+  email: string | null;
+  id: string;
+  name: string;
+}
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
@@ -243,18 +288,9 @@ export async function updateJob(
       department_id: validated.data.department_id ?? null,
     });
 
-    const metadata = serializeRecruitmentVacancyMetadata({
-      ...vacancy.metadata,
-      application_deadline: validated.data.application_deadline ?? null,
-      company: validated.data.company ?? null,
-      contact_email: validated.data.contact_email ?? null,
-      contact_name: validated.data.contact_name ?? null,
-      cv_required: validated.data.cv_required,
-      employment_type: validated.data.employment_type ?? null,
-      location: validated.data.location ?? null,
-      paid: validated.data.paid,
-      short_description: validated.data.short_description ?? null,
-    });
+    const metadata = serializeRecruitmentVacancyMetadata(
+      buildRecruitmentVacancyMetadata(validated.data, vacancy.metadata)
+    );
 
     await db.updateRow("app", "jobs", id, {
       campus_id: validated.data.campus_id,
@@ -293,6 +329,94 @@ export async function updateJob(
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to update job",
+    };
+  }
+}
+
+export async function generateJobNorwegianDraft(values: {
+  description_en: string;
+  short_description?: string | null;
+  title_en: string;
+}) {
+  await requireAuth();
+  const validated = jobTranslationDraftSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Add an English title and description first." };
+  }
+
+  try {
+    const { object } = await generateObject({
+      model: openai("gpt-5-nano"),
+      schema: jobTranslationResultSchema,
+      prompt: `Translate this BISO recruitment vacancy from English to Norwegian Bokmål.
+Keep the tone warm, direct, and student-facing.
+Preserve the simple HTML structure in the description. Only use p, h3, ul and li tags.
+Do not add information that is not present in the source.
+
+Title:
+${validated.data.title_en}
+
+Teaser:
+${validated.data.short_description ?? ""}
+
+Description HTML:
+${validated.data.description_en}`,
+    });
+
+    return { data: object };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate Norwegian draft",
+    };
+  }
+}
+
+export async function suggestJobDescriptionSection(values: {
+  campus?: string;
+  commitment?: string | null;
+  department?: string;
+  description?: string;
+  locale: "en" | "no";
+  tags?: string[];
+  title: string;
+}) {
+  await requireAuth();
+  const validated = jobSuggestionDraftSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Add a title before asking for suggestions." };
+  }
+
+  const language =
+    validated.data.locale === "no" ? "Norwegian Bokmål" : "English";
+
+  try {
+    const { object } = await generateObject({
+      model: openai("gpt-5-nano"),
+      schema: jobSuggestionResultSchema,
+      prompt: `Suggest one useful description section for a student organization vacancy.
+Write in ${language}.
+Return one short heading and 2-4 concise bullets.
+Do not repeat information already present in the current description.
+
+Title: ${validated.data.title}
+Department: ${validated.data.department ?? "Any department"}
+Campus: ${validated.data.campus ?? "Any campus"}
+Commitment: ${validated.data.commitment ?? "Not specified"}
+Tags: ${(validated.data.tags ?? []).join(", ") || "None"}
+Current description:
+${validated.data.description ?? ""}`,
+    });
+
+    return { data: object };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to suggest a description section",
     };
   }
 }
@@ -360,7 +484,13 @@ export async function listJobApplications(opts?: {
 }) {
   const ctx = await requireAuth();
   const scope = toRecruitmentAdminScope(ctx);
-  if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+  if (
+    !(
+      scope.isGlobalAdmin ||
+      scope.isCampusAdmin ||
+      scope.managedDepartmentNames.length > 0
+    )
+  ) {
     throw new Error("Forbidden");
   }
 
@@ -439,7 +569,13 @@ export async function listJobApplications(opts?: {
 export async function getJobApplication(id: string) {
   const ctx = await requireAuth();
   const scope = toRecruitmentAdminScope(ctx);
-  if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+  if (
+    !(
+      scope.isGlobalAdmin ||
+      scope.isCampusAdmin ||
+      scope.managedDepartmentNames.length > 0
+    )
+  ) {
     throw new Error("Forbidden");
   }
 
@@ -461,6 +597,128 @@ export async function getJobApplication(id: string) {
   return buildRecruitmentApplicationRecord(application, jobsById);
 }
 
+export async function listRecruitmentReviewers(jobId?: string): Promise<
+  | {
+      data: RecruitmentReviewerOption[];
+      error?: never;
+    }
+  | {
+      data?: never;
+      error: string;
+    }
+> {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+
+  try {
+    const queries = [Query.equal("isActive", true), Query.limit(100)];
+
+    if (jobId) {
+      const vacancy = await getRecruitmentJobById(db, jobId);
+      if (!vacancy) {
+        return { error: "Vacancy not found" };
+      }
+      assertRecruitmentApplicationReviewAccess(scope, lookups, vacancy);
+
+      if (vacancy.department_id) {
+        queries.unshift(Query.equal("department_ids", vacancy.department_id));
+      } else {
+        queries.unshift(Query.equal("campus_id", vacancy.campus_id));
+      }
+    } else if (!scope.isGlobalAdmin) {
+      const managedCampusIds = scope.managedCampusNames
+        .map((name) => lookups.campusIdsByName.get(name))
+        .filter((value): value is string => Boolean(value));
+      const managedDepartmentIds = scope.managedDepartmentNames
+        .map((name) => lookups.departmentIdsByName.get(name))
+        .filter((value): value is string => Boolean(value));
+
+      if (managedDepartmentIds.length > 0) {
+        queries.unshift(Query.equal("department_ids", managedDepartmentIds));
+      } else if (managedCampusIds.length > 0) {
+        queries.unshift(Query.equal("campus_id", managedCampusIds));
+      }
+    }
+
+    const response = await db.listRows<Users>("app", "users", queries);
+    return {
+      data: response.rows.map((user) => ({
+        email: user.email ?? null,
+        id: user.$id,
+        name: user.name ?? user.email ?? "Unnamed HR member",
+      })),
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to load HR members",
+    };
+  }
+}
+
+export async function updateJobApplicationReview(
+  id: string,
+  values: RecruitmentApplicationReviewUpdateInput
+) {
+  const ctx = await requireAuth();
+  const validated = recruitmentApplicationReviewUpdateSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid review payload" };
+  }
+
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+    const application = await db.getRow<JobApplications>(
+      "app",
+      "job_applications",
+      id
+    );
+    const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
+    const job = jobsById.get(application.job_id);
+
+    if (!job) {
+      throw new Error("Vacancy not found");
+    }
+
+    assertRecruitmentApplicationReviewAccess(scope, lookups, job);
+
+    const metadata = buildRecruitmentApplicationReviewMetadata(
+      {
+        ...validated.data,
+        last_reviewed_at: new Date().toISOString(),
+        last_reviewed_by: ctx.email ?? ctx.userId,
+      },
+      application.review_metadata
+    );
+
+    await db.updateRow("app", "job_applications", id, {
+      review_metadata: serializeRecruitmentApplicationReviewMetadata(metadata),
+    });
+
+    await logAuditEvent(ctx, "recruitment.application.review_update", {
+      payload: {
+        assigned_hr_user_id: metadata.assigned_hr_user_id,
+        interview_status: metadata.interview_status,
+      },
+      resourceId: id,
+      resourceType: "job_application",
+    });
+
+    revalidatePath("/jobs/applications");
+    revalidatePath(`/jobs/${application.job_id}/applications`);
+    return { data: metadata };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to update review plan",
+    };
+  }
+}
+
 export async function updateJobApplicationStatus(
   id: string,
   values: RecruitmentApplicationStatusUpdateInput
@@ -474,7 +732,13 @@ export async function updateJobApplicationStatus(
   try {
     const { db } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
-    if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+    if (
+      !(
+        scope.isGlobalAdmin ||
+        scope.isCampusAdmin ||
+        scope.managedDepartmentNames.length > 0
+      )
+    ) {
       throw new Error("Forbidden");
     }
 

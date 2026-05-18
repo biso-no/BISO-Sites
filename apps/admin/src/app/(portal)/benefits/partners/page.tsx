@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { listPartners } from "../../_actions/benefits";
 import { EmptyState } from "../../_components/empty-state";
 import { PageHeader } from "../../_components/page-header";
+import { SERIF_STACK, STUDIO, StudioIconBox } from "../../_components/studio";
 
 export default async function BenefitPartnersPage() {
   const t = await getTranslations("adminPortal.benefits");
@@ -18,14 +19,14 @@ export default async function BenefitPartnersPage() {
           className="flex h-8 w-8 items-center justify-center rounded-full"
           href="/benefits"
           style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.10)",
-            color: "rgba(255,255,255,0.60)",
+            background: "rgba(255,255,255,0.55)",
+            border: `0.5px solid ${STUDIO.rule2}`,
+            color: STUDIO.ink3,
           }}
         >
           <ArrowLeft size={15} />
         </Link>
-        <span className="text-sm" style={{ color: "rgba(255,255,255,0.40)" }}>
+        <span className="text-sm" style={{ color: STUDIO.ink3 }}>
           {t("title")}
         </span>
       </div>
@@ -37,9 +38,9 @@ export default async function BenefitPartnersPage() {
         <span
           className="rounded-full px-2.5 py-1 font-mono text-xs"
           style={{
-            background: "rgba(61,169,224,0.10)",
-            color: "#3DA9E0",
-            border: "1px solid rgba(61,169,224,0.25)",
+            background: "rgba(176,138,62,0.09)",
+            color: "#6a5118",
+            border: "0.5px solid rgba(176,138,62,0.24)",
           }}
         >
           API Beta
@@ -56,11 +57,11 @@ export default async function BenefitPartnersPage() {
         <div className="space-y-3">
           {partners.map((partner) => (
             <div
-              className="flex items-center gap-4 rounded-2xl px-5 py-4"
+              className="flex items-center gap-4 rounded-2xl border px-5 py-4"
               key={partner.$id}
               style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.05)",
+                background: "rgba(255,255,255,0.46)",
+                borderColor: STUDIO.rule,
               }}
             >
               {partner.image_url ? (
@@ -72,31 +73,31 @@ export default async function BenefitPartnersPage() {
                   width={40}
                 />
               ) : (
-                <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: "rgba(61,169,224,0.10)" }}
-                >
-                  <Users size={16} style={{ color: "#3DA9E0" }} />
-                </div>
+                <StudioIconBox color={STUDIO.claret}>
+                  <Users size={16} />
+                </StudioIconBox>
               )}
 
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm" style={{ color: "#fff" }}>
+                <p
+                  className="text-2xl leading-7"
+                  style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
+                >
                   {partner.name}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
                   <span
                     className="font-mono text-xs"
-                    style={{ color: "rgba(255,255,255,0.35)" }}
+                    style={{ color: STUDIO.ink4 }}
                   >
                     {partner.level}
                   </span>
                   {partner.url && (
                     <a
-                      className="text-xs transition-colors hover:text-[#3DA9E0]"
+                      className="text-xs transition-colors"
                       href={partner.url}
                       rel="noopener noreferrer"
-                      style={{ color: "rgba(255,255,255,0.30)" }}
+                      style={{ color: STUDIO.claret }}
                       target="_blank"
                     >
                       {partner.url}
@@ -109,8 +110,8 @@ export default async function BenefitPartnersPage() {
                 <span
                   className="rounded px-2 py-0.5 font-mono text-xs"
                   style={{
-                    background: "rgba(255,255,255,0.05)",
-                    color: "rgba(255,255,255,0.40)",
+                    background: STUDIO.paper2,
+                    color: STUDIO.ink4,
                   }}
                 >
                   {partner.$id.slice(0, 8)}...

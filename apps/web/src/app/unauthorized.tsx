@@ -80,7 +80,9 @@ export default function Unauthorized() {
             className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg hover:opacity-90"
             size="lg"
           >
-            <Link href={`/auth/login?redirectTo=${encodeURIComponent(pathname)}`}>
+            <Link
+              href={`/auth/login?redirectTo=${encodeURIComponent(pathname)}`}
+            >
               <LogIn className="mr-2 h-5 w-5" />
               Logg inn
             </Link>

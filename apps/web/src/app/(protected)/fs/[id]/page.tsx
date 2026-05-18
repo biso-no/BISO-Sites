@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ExpenseStatus } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -18,6 +17,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ExpenseDetailSkeleton } from "@/components/expense/expense-skeleton";
 import { getExpenseById } from "@/lib/actions/expense";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 const statusConfig = {
   [ExpenseStatus.DRAFT]: {

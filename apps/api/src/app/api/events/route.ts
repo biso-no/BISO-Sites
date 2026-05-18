@@ -8,21 +8,30 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { campusId, per_page = 20, page = 1, include_past = false, search } =
-      body as {
-        campusId?: string;
-        per_page?: number;
-        page?: number;
-        include_past?: boolean;
-        search?: string;
-      };
+    const {
+      campusId,
+      per_page = 20,
+      page = 1,
+      include_past = false,
+      search,
+    } = body as {
+      campusId?: string;
+      per_page?: number;
+      page?: number;
+      include_past?: boolean;
+      search?: string;
+    };
 
     const url = new URL(WP_EVENTS_URL);
-    if (campusId) url.searchParams.set("campus_id", String(campusId));
+    if (campusId) {
+      url.searchParams.set("campus_id", String(campusId));
+    }
     url.searchParams.set("per_page", String(per_page));
     url.searchParams.set("page", String(page));
     url.searchParams.set("include_past", include_past ? "true" : "false");
-    if (search) url.searchParams.set("search", search);
+    if (search) {
+      url.searchParams.set("search", search);
+    }
 
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json", "User-Agent": "BisoApp/1.0" },
@@ -31,7 +40,10 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: `WordPress error: ${response.status}`, code: "UPSTREAM_ERROR" },
+        {
+          error: `WordPress error: ${response.status}`,
+          code: "UPSTREAM_ERROR",
+        },
         { status: 502 }
       );
     }

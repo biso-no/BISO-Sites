@@ -22,11 +22,11 @@ import { SelectCampus } from "@/components/select-campus";
 import { LocaleSwitcher } from "../locale-switcher";
 
 interface NavigationProps {
+  isMember?: boolean;
   onApplyClick?: () => void;
   onEventsClick?: () => void;
   onNewsClick?: () => void;
   onShopClick?: () => void;
-  isMember?: boolean;
 }
 
 export function Navigation({
@@ -34,7 +34,7 @@ export function Navigation({
   onNewsClick,
   onApplyClick,
   onShopClick,
-  isMember
+  isMember,
 }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -234,13 +234,13 @@ export function Navigation({
                 variant="ghost"
               />
               {isMember && (
-              <Button
-                className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
-                onClick={() => router.push("/member")}
-                variant="outline"
-              >
-                {t("memberPortal")}
-              </Button>
+                <Button
+                  className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
+                  onClick={() => router.push("/member")}
+                  variant="outline"
+                >
+                  {t("memberPortal")}
+                </Button>
               )}
               {!isMember && (
                 <Button

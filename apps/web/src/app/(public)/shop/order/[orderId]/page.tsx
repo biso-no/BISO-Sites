@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { Orders } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -19,6 +18,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getOrder, verifyOrder } from "@/app/actions/orders";
 import { OrderActionsClient } from "@/components/shop/order-details-client"; // New, smaller Client Component
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface OrderPageProps {
   params: {

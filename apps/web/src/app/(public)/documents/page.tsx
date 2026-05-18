@@ -17,7 +17,7 @@ async function DocumentsList({ campusId }: { campusId: string | null }) {
 
 function DocumentsListSkeleton() {
   return (
-    <div className="mx-auto max-w-7xl px-6 pb-20 space-y-4">
+    <div className="mx-auto max-w-7xl space-y-4 px-6 pb-20">
       {[...Array(5)].map((_, i) => (
         <div
           className="h-32 w-full animate-pulse rounded-2xl"
@@ -37,7 +37,8 @@ export default async function DocumentsPage() {
     <div
       className="min-h-screen"
       style={{
-        background: "linear-gradient(180deg, #001731 0%, #002147 50%, #001731 100%)",
+        background:
+          "linear-gradient(180deg, #001731 0%, #002147 50%, #001731 100%)",
       }}
     >
       <DocumentsHero />

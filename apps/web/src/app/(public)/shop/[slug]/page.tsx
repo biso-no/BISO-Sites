@@ -1,3 +1,4 @@
+import { createSessionClient } from "@repo/api/server";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
@@ -18,9 +19,20 @@ async function ProductDetails({ slug }: { slug: string }) {
     notFound();
   }
 
-  const { isMember } = await getMembershipStatus();
+  const [{ isMember }, sessionResult] = await Promise.all([
+    getMembershipStatus(),
+    createSessionClient().then(({ account }) =>
+      account.get().catch(() => null)
+    ),
+  ]);
 
-  return <ProductDetailsServer isMember={isMember} product={product} />;
+  return (
+    <ProductDetailsServer
+      isMember={isMember}
+      product={product}
+      userId={sessionResult?.$id ?? null}
+    />
+  );
 }
 
 // Skeleton loading state

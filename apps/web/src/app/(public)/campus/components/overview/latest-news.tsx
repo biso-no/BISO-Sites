@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
@@ -7,6 +6,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import { ChevronRight, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface LatestNewsProps {
   locale: Locale;
@@ -68,10 +68,7 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
                         alt={translation?.title ?? "News"}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                         fill
-                        src={
-                          article.image ||
-                          PLACEHOLDER_IMAGE
-                        }
+                        src={article.image || PLACEHOLDER_IMAGE}
                       />
                     </div>
                     <div className="grow">
