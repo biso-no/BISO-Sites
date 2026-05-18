@@ -40,12 +40,19 @@ interface JobStudioDashboardProps {
 const BRAND = {
   accent: "#3DA9E0",
   blue: "#001731",
-  gold: "#F7D64A",
-  green: "#4ade80",
+  gold: "#b08a3e",
+  green: "#2f5d3a",
   ink: "#07111f",
+  ink2: "#1a2d44",
+  ink3: "#4a6080",
+  ink4: "#7a90a8",
   navy: "#000a16",
   paper: "#faf7f2",
-  red: "#f87171",
+  paper2: "#f3eee5",
+  paper3: "#ede6d8",
+  red: "#9b2929",
+  rule: "#ddd9d0",
+  rule2: "#cdc9c0",
 } as const;
 
 const STATUS_LABELS: Record<string, string> = {
@@ -151,13 +158,19 @@ function KpiCard({
   value: string;
 }) {
   return (
-    <div className="border-white/10 border-r px-5 py-4 last:border-r-0">
-      <p className="font-medium text-[11px] text-white/45 uppercase tracking-[0.12em]">
+    <div
+      className="border-r px-5 py-4 last:border-r-0"
+      style={{ borderColor: BRAND.rule }}
+    >
+      <p
+        className="font-medium text-[11px] uppercase tracking-[0.12em]"
+        style={{ color: BRAND.ink4 }}
+      >
         {label}
       </p>
       <p
         className="mt-2 font-light text-4xl tracking-tight"
-        style={{ color: alert ? BRAND.gold : "#fff" }}
+        style={{ color: alert ? BRAND.gold : BRAND.blue }}
       >
         {value}
       </p>
@@ -305,15 +318,15 @@ function JobRow({
   const deadlineDays = daysUntil(job.metadata.application_deadline);
   return (
     <div
-      className="group grid items-center gap-4 border-white/10 border-t px-4 py-4 transition hover:bg-white/[0.04] md:grid-cols-[1.45fr_0.85fr_0.55fr_0.65fr_0.45fr]"
-      style={{ color: "#fff" }}
+      className="group grid items-center gap-4 border-t px-4 py-4 transition hover:bg-black/[0.02] md:grid-cols-[1.45fr_0.85fr_0.55fr_0.65fr_0.45fr]"
+      style={{ borderColor: BRAND.rule, color: BRAND.ink }}
     >
       <div className="flex min-w-0 items-center gap-3">
         <div
           className="grid h-12 w-10 shrink-0 place-items-center rounded-md border font-light text-xl"
           style={{
-            background: "rgba(250,247,242,0.95)",
-            borderColor: "rgba(61,169,224,0.18)",
+            background: BRAND.paper2,
+            borderColor: "rgba(61,169,224,0.25)",
             color: BRAND.blue,
           }}
         >
@@ -323,18 +336,25 @@ function JobRow({
           <Link
             className="block truncate font-medium text-sm transition hover:text-[#3DA9E0]"
             href={`/jobs/${job.$id}`}
+            style={{ color: BRAND.ink }}
           >
             {getTitle(job)}
           </Link>
-          <p className="mt-1 truncate text-white/40 text-xs">
-            <span className="rounded border border-white/10 px-1.5 py-0.5 font-mono text-[10px] text-white/35">
+          <p className="mt-1 truncate text-xs" style={{ color: BRAND.ink4 }}>
+            <span
+              className="rounded px-1.5 py-0.5 font-mono text-[10px]"
+              style={{
+                border: `0.5px solid ${BRAND.rule2}`,
+                color: BRAND.ink4,
+              }}
+            >
               NO
             </span>{" "}
             {getTitle(job, "no")} · {job.slug}
           </p>
         </div>
       </div>
-      <div className="text-sm text-white/65">
+      <div className="text-sm" style={{ color: BRAND.ink3 }}>
         <div className="flex items-center gap-2">
           <span
             className="h-2 w-2 rounded-full"
@@ -344,19 +364,19 @@ function JobRow({
             {job.department?.Name ?? "Any department"}
           </span>
         </div>
-        <p className="mt-1 text-white/35 text-xs">
+        <p className="mt-1 text-xs" style={{ color: BRAND.ink4 }}>
           {job.campus?.name ?? "Campus"}
         </p>
       </div>
       <StatusPill status={job.status} />
-      <div className="text-white/50 text-xs">
-        <p className="font-mono text-white/70">
+      <div className="text-xs" style={{ color: BRAND.ink4 }}>
+        <p className="font-mono" style={{ color: BRAND.ink3 }}>
           {formatDate(job.metadata.application_deadline)}
         </p>
         {deadlineDays != null && (
           <p
             style={{
-              color: deadlineDays <= 5 ? BRAND.gold : "rgba(255,255,255,0.35)",
+              color: deadlineDays <= 5 ? BRAND.gold : BRAND.ink4,
             }}
           >
             {deadlineDays >= 0 ? `${deadlineDays}d left` : "Past deadline"}
@@ -366,28 +386,43 @@ function JobRow({
       <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:transition md:group-hover:opacity-100">
         <Link
           aria-label={labels.applications}
-          className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-white/50 transition hover:bg-white/10 hover:text-white"
+          className="grid h-8 w-8 place-items-center rounded-lg transition"
           href={`/jobs/${job.$id}/applications`}
+          style={{
+            background: BRAND.paper2,
+            border: `0.5px solid ${BRAND.rule2}`,
+            color: BRAND.ink3,
+          }}
         >
           <Users size={14} />
         </Link>
         <Link
           aria-label={labels.edit}
-          className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-white/50 transition hover:bg-white/10 hover:text-white"
+          className="grid h-8 w-8 place-items-center rounded-lg transition"
           href={`/jobs/${job.$id}`}
+          style={{
+            background: BRAND.paper2,
+            border: `0.5px solid ${BRAND.rule2}`,
+            color: BRAND.ink3,
+          }}
         >
           <Pencil size={14} />
         </Link>
         <button
           aria-label="Duplicate"
-          className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-white/50 transition hover:bg-white/10 hover:text-white"
+          className="grid h-8 w-8 place-items-center rounded-lg transition"
+          style={{
+            background: BRAND.paper2,
+            border: `0.5px solid ${BRAND.rule2}`,
+            color: BRAND.ink3,
+          }}
           type="button"
         >
           <Copy size={14} />
         </button>
         <button
           aria-label={isConfirmingDelete ? "Confirm delete" : labels.delete}
-          className="grid h-8 w-8 place-items-center rounded-lg bg-red-400/10 text-red-300 transition hover:bg-red-400/15"
+          className="grid h-8 w-8 place-items-center rounded-lg transition"
           onBlur={onCancelDelete}
           onClick={() => {
             if (isConfirmingDelete) {
@@ -395,6 +430,11 @@ function JobRow({
               return;
             }
             onRequestDelete(job.$id);
+          }}
+          style={{
+            background: "rgba(155,41,41,0.08)",
+            border: "0.5px solid rgba(155,41,41,0.2)",
+            color: BRAND.red,
           }}
           title={isConfirmingDelete ? labels.deleteConfirm : labels.delete}
           type="button"
@@ -465,32 +505,54 @@ export function JobStudioDashboard({
 
   return (
     <div className="space-y-6 pb-12">
-      <header className="flex flex-col gap-5 border-white/10 border-b pb-6 lg:flex-row lg:items-end lg:justify-between">
+      <header
+        className="flex flex-col gap-5 border-b pb-6 lg:flex-row lg:items-end lg:justify-between"
+        style={{ borderColor: BRAND.rule }}
+      >
         <div>
-          <p className="font-medium text-[#3DA9E0] text-[11px] uppercase tracking-[0.16em]">
+          <p
+            className="font-medium text-[11px] uppercase tracking-[0.16em]"
+            style={{ color: BRAND.accent }}
+          >
             BISO recruitment studio
           </p>
-          <h1 className="mt-2 font-light text-5xl text-white tracking-tight md:text-6xl">
-            Jobs <span className="text-[#3DA9E0]">this term.</span>
+          <h1
+            className="mt-2 font-light text-5xl tracking-tight md:text-6xl"
+            style={{ color: BRAND.blue }}
+          >
+            Jobs <span style={{ color: BRAND.accent }}>this term.</span>
           </h1>
-          <p className="mt-3 max-w-2xl text-sm text-white/50 leading-6">
+          <p
+            className="mt-3 max-w-2xl text-sm leading-6"
+            style={{ color: BRAND.ink3 }}
+          >
             Create, review, and publish student-facing roles with the BISO
             visual system while keeping each posting tied to campus and
             department access.
           </p>
         </div>
         <Link
-          className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-5 py-3 font-medium text-[#001731] text-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+          className="inline-flex w-fit items-center gap-2 rounded-full px-5 py-3 font-medium text-sm transition hover:-translate-y-0.5 hover:shadow-lg"
           href="/jobs/new"
+          style={{ background: BRAND.blue, color: BRAND.paper }}
         >
-          <span className="grid h-6 w-6 place-items-center rounded-full bg-[#001731] text-white">
+          <span
+            className="grid h-6 w-6 place-items-center rounded-full"
+            style={{ background: BRAND.paper, color: BRAND.blue }}
+          >
             <Plus size={14} />
           </span>
           Compose new job
         </Link>
       </header>
 
-      <section className="grid overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] md:grid-cols-4">
+      <section
+        className="grid overflow-hidden rounded-2xl border md:grid-cols-4"
+        style={{
+          background: "rgba(255,255,255,0.6)",
+          borderColor: BRAND.rule,
+        }}
+      >
         <KpiCard
           helper={`${counts.published} live right now`}
           label="Open positions"
@@ -516,9 +578,21 @@ export function JobStudioDashboard({
 
       <FeaturedDraft jobs={initialJobs} />
 
-      <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]">
-        <div className="flex flex-col gap-3 border-white/10 border-b p-4 md:flex-row md:items-center">
-          <div className="flex overflow-x-auto rounded-xl border border-white/10 bg-white/[0.04] p-1">
+      <section
+        className="overflow-hidden rounded-2xl border"
+        style={{ background: "rgba(255,255,255,0.5)", borderColor: BRAND.rule }}
+      >
+        <div
+          className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-center"
+          style={{ borderColor: BRAND.rule }}
+        >
+          <div
+            className="flex overflow-x-auto rounded-xl p-1"
+            style={{
+              background: BRAND.paper2,
+              border: `0.5px solid ${BRAND.rule2}`,
+            }}
+          >
             {FILTERS.map((item) => (
               <button
                 className="whitespace-nowrap rounded-lg px-3 py-1.5 font-medium text-xs capitalize transition"
@@ -526,45 +600,78 @@ export function JobStudioDashboard({
                 onClick={() => setFilter(item)}
                 style={
                   filter === item
-                    ? { background: "#fff", color: BRAND.blue }
-                    : { color: "rgba(255,255,255,0.48)" }
+                    ? {
+                        background: "#fff",
+                        boxShadow: "0 1px 2px rgba(0,0,0,.06)",
+                        color: BRAND.blue,
+                      }
+                    : { color: BRAND.ink3 }
                 }
                 type="button"
               >
                 {item === "all" ? "All" : item}{" "}
-                <span className="font-mono opacity-60">{counts[item]}</span>
+                <span
+                  className="font-mono"
+                  style={{
+                    color: filter === item ? BRAND.ink4 : BRAND.ink4,
+                    opacity: 0.7,
+                  }}
+                >
+                  {counts[item]}
+                </span>
               </button>
             ))}
           </div>
           <div className="relative min-w-0 flex-1 md:max-w-sm">
             <Search
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-white/30"
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2"
               size={15}
+              style={{ color: BRAND.ink4 }}
             />
             <input
-              className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] pr-3 pl-9 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#3DA9E0]/60"
+              className="h-10 w-full rounded-xl pr-3 pl-9 text-sm outline-none transition"
               onChange={(event) => setQuery(event.target.value)}
               placeholder={labels.searchPlaceholder}
+              style={{
+                background: "rgba(255,255,255,0.85)",
+                border: `0.5px solid ${BRAND.rule2}`,
+                color: BRAND.ink,
+              }}
               value={query}
             />
           </div>
-          <div className="flex flex-wrap gap-2 text-white/45 text-xs">
+          <div
+            className="flex flex-wrap gap-2 text-xs"
+            style={{ color: BRAND.ink4 }}
+          >
             <button
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2"
+              style={{
+                background: "rgba(255,255,255,0.7)",
+                border: `0.5px solid ${BRAND.rule2}`,
+              }}
               type="button"
             >
               <Filter size={13} />
               Department
             </button>
             <button
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2"
+              style={{
+                background: "rgba(255,255,255,0.7)",
+                border: `0.5px solid ${BRAND.rule2}`,
+              }}
               type="button"
             >
               <MapPin size={13} />
               Campus
             </button>
             <button
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2"
+              style={{
+                background: "rgba(255,255,255,0.7)",
+                border: `0.5px solid ${BRAND.rule2}`,
+              }}
               type="button"
             >
               <CalendarClock size={13} />
@@ -575,19 +682,32 @@ export function JobStudioDashboard({
 
         {filteredJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/30">
+            <div
+              className="grid h-16 w-16 place-items-center rounded-2xl border"
+              style={{
+                background: BRAND.paper2,
+                borderColor: BRAND.rule2,
+                color: BRAND.ink4,
+              }}
+            >
               <Briefcase size={28} />
             </div>
-            <h2 className="mt-4 font-medium text-lg text-white">
+            <h2
+              className="mt-4 font-medium text-lg"
+              style={{ color: BRAND.ink }}
+            >
               {labels.empty}
             </h2>
-            <p className="mt-1 max-w-sm text-sm text-white/40">
+            <p className="mt-1 max-w-sm text-sm" style={{ color: BRAND.ink4 }}>
               {labels.emptyDescription}
             </p>
           </div>
         ) : (
           <>
-            <div className="hidden grid-cols-[1.45fr_0.85fr_0.55fr_0.65fr_0.45fr] gap-4 px-4 py-3 font-medium text-[11px] text-white/30 uppercase tracking-[0.12em] md:grid">
+            <div
+              className="hidden grid-cols-[1.45fr_0.85fr_0.55fr_0.65fr_0.45fr] gap-4 px-4 py-3 font-medium text-[11px] uppercase tracking-[0.12em] md:grid"
+              style={{ color: BRAND.ink4 }}
+            >
               <div>Position</div>
               <div>Department</div>
               <div>Status</div>

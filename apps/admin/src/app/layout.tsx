@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { inter, museoSans } from "./fonts";
+import { GeistSans } from 'geist/font/sans';
 import Providers from "./providers";
 import "@/app/styles.css";
 import { NextIntlClientProvider } from "next-intl";
@@ -25,7 +25,7 @@ export default async function RootLayout({
   return (
     // suppressHydrationWarning added here 👇
     <html
-      className={`${museoSans.variable} ${inter.variable}`}
+      className={GeistSans.variable}
       lang={locale}
       suppressHydrationWarning
     >
