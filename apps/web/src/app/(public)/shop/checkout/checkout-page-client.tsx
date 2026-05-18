@@ -36,6 +36,8 @@ type PaymentProvider = "vipps" | "stripe";
 
 interface CheckoutPageClientProps {
   isMember: boolean;
+  initialEmail?: string;
+  initialName?: string;
 }
 
 const providerCopy: Record<
@@ -87,7 +89,11 @@ function CheckoutSkeleton() {
   );
 }
 
-export function CheckoutPageClient({ isMember }: CheckoutPageClientProps) {
+export function CheckoutPageClient({
+  isMember,
+  initialEmail = "",
+  initialName = "",
+}: CheckoutPageClientProps) {
   const { items, isLoading, getSubtotal, getRegularSubtotal, getTotalSavings } =
     useCart();
   const subtotal = getSubtotal(isMember);
@@ -95,8 +101,8 @@ export function CheckoutPageClient({ isMember }: CheckoutPageClientProps) {
   const savings = getTotalSavings(isMember);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const [provider, setProvider] = useState<PaymentProvider>("vipps");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState("");
   const [isPending, startTransition] = useTransition();
 

@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   createOrUpdateReservation,
+  deleteAllReservations,
   deleteReservation,
   getCartItemsWithDetails,
 } from "@/app/actions/cart-reservations";
@@ -41,7 +42,7 @@ interface CartContextType {
   addItem: (
     item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
   ) => Promise<void>;
-  clearCart: () => void;
+  clearCart: () => Promise<void>;
   getEarliestExpiration: () => string | null;
   getItemCount: () => number;
   getRegularSubtotal: () => number;
@@ -112,7 +113,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const cartData = await getCartItemsWithDetails(locale);
 
       const cartItems: CartItem[] = cartData.map((item) => ({
-        id: generateCartItemId(item.productId, undefined), // TODO: Handle options
+        id: generateCartItemId(item.productId, undefined), // options not stored in DB yet
         contentId: item.productId,
         productId: item.productId,
         slug: item.slug,
@@ -230,8 +231,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const clearCart = () => {
-    // TODO: Delete all reservations from database
+  const clearCart = async () => {
+    await deleteAllReservations();
     setItems([]);
   };
 

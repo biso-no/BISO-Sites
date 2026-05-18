@@ -22,7 +22,6 @@ import { ProductOptionsClient } from "./product-options-client"; // New Client C
 interface ProductDetailsServerProps {
   isMember: boolean;
   product: WebshopProducts;
-  // TODO: Get actual userId from auth
   userId?: string | null;
 }
 

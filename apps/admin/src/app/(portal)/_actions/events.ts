@@ -2,7 +2,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import {
   CollectionPricing,
   type ContentTranslations,
@@ -10,6 +10,8 @@ import {
   type EventStatus,
   type Events,
 } from "@repo/api/types/appwrite";
+
+const EVENTS_PUSH_TOPIC_ID = "events";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -314,7 +316,19 @@ export async function createEvent(values: EventFormValues) {
       },
     });
 
-    // TODO(messaging): if values.notify_push, call messaging.createPush(...)
+    if (validated.data.notify_push) {
+      try {
+        const { messaging } = await createAdminClient();
+        await messaging.createPush(
+          ID.unique(),
+          validated.data.title_en,
+          validated.data.short_description_en ?? "",
+          [EVENTS_PUSH_TOPIC_ID]
+        );
+      } catch (messagingError) {
+        console.error("Failed to send push notification:", messagingError);
+      }
+    }
 
     revalidatePath("/events");
     return { data: event.$id };
@@ -379,7 +393,19 @@ export async function updateEvent(id: string, values: EventFormValues) {
       },
     });
 
-    // TODO(messaging): if values.notify_push, call messaging.createPush(...)
+    if (validated.data.notify_push) {
+      try {
+        const { messaging } = await createAdminClient();
+        await messaging.createPush(
+          ID.unique(),
+          validated.data.title_en,
+          validated.data.short_description_en ?? "",
+          [EVENTS_PUSH_TOPIC_ID]
+        );
+      } catch (messagingError) {
+        console.error("Failed to send push notification:", messagingError);
+      }
+    }
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);
@@ -466,7 +492,30 @@ export async function publishEvent(id: string) {
       payload: { status: "published" },
     });
 
-    // TODO(messaging): if values.notify_push, call messaging.createPush(...)
+    if (event.notify_push) {
+      try {
+        const translationsResult = await db.listRows<ContentTranslations>(
+          "app",
+          "content_translations",
+          [
+            Query.equal("content_type", "event"),
+            Query.equal("content_id", id),
+            Query.equal("locale", "en"),
+            Query.limit(1),
+          ]
+        );
+        const translation = translationsResult.rows[0];
+        const { messaging } = await createAdminClient();
+        await messaging.createPush(
+          ID.unique(),
+          translation?.title ?? event.slug ?? "New Event",
+          translation?.short_description ?? "",
+          [EVENTS_PUSH_TOPIC_ID]
+        );
+      } catch (messagingError) {
+        console.error("Failed to send push notification:", messagingError);
+      }
+    }
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);
