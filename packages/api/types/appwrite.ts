@@ -440,6 +440,7 @@ export type Orders = Models.Row & {
   payment_link: string | null;
   payment_receipt_url: string | null;
   campus_id: string | null;
+  finago_transaction_id: string | null;
 };
 
 export type Memberships = Models.Row & {
@@ -808,6 +809,7 @@ export type WebshopProducts = Models.Row & {
   cover_pattern: WebshopCoverPattern | null;
   linked_event_id: string | null;
   inventory_mode: WebshopInventoryMode | null;
+  finago_account_number: number | null;
 };
 
 export type VarslingSettings = Models.Row & {

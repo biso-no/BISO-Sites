@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell, ChevronLeft, Search } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { NotificationsPanel } from "@/components/notifications/notifications-panel";
 import type { UserRolesForClient } from "@/lib/authorization";
 import { NAV_ITEMS, Sidebar } from "../sidebar";
 import { CommandPalette } from "./command-palette";
@@ -127,22 +128,7 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
             </span>
           </button>
 
-          <button
-            aria-label="Notifications"
-            className="relative grid h-8 w-8 place-items-center rounded-lg border"
-            style={{
-              background: "rgba(255,255,255,0.55)",
-              borderColor: STUDIO.rule2,
-              color: STUDIO.ink2,
-            }}
-            type="button"
-          >
-            <Bell size={15} />
-            <span
-              className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
-              style={{ background: STUDIO.claret }}
-            />
-          </button>
+          <NotificationsPanel roles={roles} />
         </header>
 
         <main className="portal-scrollbar min-h-0 flex-1 overflow-y-auto">

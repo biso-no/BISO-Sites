@@ -45,7 +45,10 @@ import { type JobFormValues, jobSchema } from "../../../_actions/schemas";
 import { uploadMediaFile } from "../../../_actions/upload";
 
 interface JobStudioEditorProps {
+  allowedDepartmentIds?: string[];
   campuses: Campus[];
+  canChangeCampus?: boolean;
+  defaultCampusId?: string;
   initialDepartments: Departments[];
   isNew: boolean;
   job: RecruitmentVacancy | null;
@@ -249,18 +252,19 @@ function fallback<T>(value: T | null | undefined, fallbackValue: T): T {
 
 function buildDefaultValues(
   job: RecruitmentVacancy | null,
-  campuses: Campus[]
+  campuses: Campus[],
+  defaultCampusId?: string
 ): JobFormValues {
   const no = getTranslation(job, "no");
   const en = getTranslation(job, "en");
-  const defaultCampusId = campuses[0]?.$id ?? "";
+  const effectiveCampusId = defaultCampusId ?? campuses[0]?.$id ?? "";
   const metadata = job?.metadata;
 
   return {
     application_deadline: fallback(metadata?.application_deadline, null),
     audience: fallback(metadata?.audience, "members"),
     auto_translate: Boolean(metadata?.auto_translate),
-    campus_id: fallback(job?.campus_id, defaultCampusId),
+    campus_id: fallback(job?.campus_id, effectiveCampusId),
     commitment: fallback(metadata?.commitment, null),
     company: fallback(metadata?.company, null),
     contact_email: fallback(metadata?.contact_email, null),
@@ -1170,7 +1174,10 @@ function ProgressBar({ step }: { step: number }) {
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This component coordinates the persisted multi-step job editor state.
 export function JobStudioEditor({
+  allowedDepartmentIds,
   campuses,
+  canChangeCampus = true,
+  defaultCampusId,
   initialDepartments,
   isNew,
   job,
@@ -1181,7 +1188,13 @@ export function JobStudioEditor({
   const [locale, setLocale] = useState<LocaleCode>("en");
   const [phoneFloat, setPhoneFloat] = useState(true);
   const [departments, setDepartments] = useState(initialDepartments);
-  const [form, setForm] = useState(() => buildDefaultValues(job, campuses));
+  const [form, setForm] = useState(() => {
+    const defaults = buildDefaultValues(job, campuses, defaultCampusId);
+    if (!job && allowedDepartmentIds?.length === 1) {
+      defaults.department_id = allowedDepartmentIds[0] ?? null;
+    }
+    return defaults;
+  });
   const [dirty, setDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -1483,6 +1496,7 @@ export function JobStudioEditor({
                     <Field label="Campus" required>
                       <select
                         className={inputClass()}
+                        disabled={!canChangeCampus}
                         onChange={(event) =>
                           handleCampusChange(event.target.value)
                         }
@@ -1499,6 +1513,10 @@ export function JobStudioEditor({
                     <Field label="Department">
                       <select
                         className={inputClass()}
+                        disabled={
+                          allowedDepartmentIds !== undefined &&
+                          allowedDepartmentIds.length <= 1
+                        }
                         onChange={(event) =>
                           setValue("department_id", event.target.value || null)
                         }

@@ -33,6 +33,8 @@ type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 interface NewsEditorClientProps {
   article: NewsWithTranslations | null;
   campuses: Campus[];
+  canChangeCampus?: boolean;
+  defaultCampusId?: string;
   isNew: boolean;
   labels: Record<string, string>;
 }
@@ -66,6 +68,8 @@ function generateSlug(title: string) {
 export function NewsEditorClient({
   article,
   campuses,
+  canChangeCampus = true,
+  defaultCampusId,
   isNew,
   labels,
 }: NewsEditorClientProps) {
@@ -110,7 +114,7 @@ export function NewsEditorClient({
     defaultValues: {
       title: translation?.title ?? "",
       description: translation?.description ?? null,
-      campus_id: article?.campus_id ?? campuses[0]?.$id ?? "",
+      campus_id: article?.campus_id ?? defaultCampusId ?? campuses[0]?.$id ?? "",
       department_id: article?.department_id ?? null,
       slug: article?.slug ?? "",
       status: (article?.status as NewsFormValues["status"]) ?? "draft",
@@ -286,6 +290,7 @@ export function NewsEditorClient({
               {(field) => (
                 <PortalField label={labels.campus} required>
                   <PortalSelect
+                    disabled={!canChangeCampus}
                     onChange={(e) => field.handleChange(e.target.value)}
                     options={campusOptions}
                     value={field.state.value}

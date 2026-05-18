@@ -46,7 +46,10 @@ interface ProductVariant {
 }
 
 interface ShopStudioEditorProps {
+  allowedDepartmentIds?: string[];
   campuses: Campus[];
+  canChangeCampus?: boolean;
+  defaultCampusId?: string;
   departments: Departments[];
   isNew: boolean;
   product: ProductWithTranslations | null;
@@ -1237,16 +1240,20 @@ function fieldInputStyle(extra?: React.CSSProperties): React.CSSProperties {
 /* -------------------------------------------------------------------------- */
 
 function EssentialsStep({
+  allowedDepartmentIds,
   campusId,
   campuses,
+  canChangeCampus,
   category,
   departmentId,
   departments,
+  finagoAccountNumber,
   lang,
   onLangChange,
   setCampusId,
   setCategory,
   setDepartmentId,
+  setFinagoAccountNumber,
   setShortDescription,
   setSlug,
   setSlugEditing,
@@ -1260,16 +1267,20 @@ function EssentialsStep({
   titleEn,
   titleNo,
 }: {
+  allowedDepartmentIds?: string[];
   campusId: string;
   campuses: Campus[];
+  canChangeCampus?: boolean;
   category: string | null;
   departmentId: string | null;
   departments: Departments[];
+  finagoAccountNumber: number | null;
   lang: LocaleCode;
   onLangChange: (l: LocaleCode) => void;
   setCampusId: (v: string) => void;
   setCategory: (v: string | null) => void;
   setDepartmentId: (v: string | null) => void;
+  setFinagoAccountNumber: (v: number | null) => void;
   setShortDescription: (v: string) => void;
   setSlug: (v: string) => void;
   setSlugEditing: (v: boolean) => void;
@@ -1480,6 +1491,10 @@ function EssentialsStep({
           <div>
             <FieldLabel>Department</FieldLabel>
             <select
+              disabled={
+                allowedDepartmentIds !== undefined &&
+                allowedDepartmentIds.length <= 1
+              }
               onChange={(e) => setDepartmentId(e.target.value || null)}
               style={fieldInputStyle()}
               value={departmentId ?? ""}
@@ -1497,6 +1512,7 @@ function EssentialsStep({
           <div>
             <FieldLabel required>Campus</FieldLabel>
             <select
+              disabled={!canChangeCampus}
               onChange={(e) => {
                 setCampusId(e.target.value);
                 setDepartmentId(null);
@@ -1539,6 +1555,33 @@ function EssentialsStep({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Finago account number */}
+          <div>
+            <FieldLabel>Finago account number</FieldLabel>
+            <input
+              min={0}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFinagoAccountNumber(val === "" ? null : Number(val));
+              }}
+              placeholder="e.g. 3000"
+              step={1}
+              style={fieldInputStyle()}
+              type="number"
+              value={finagoAccountNumber ?? ""}
+            />
+            <div
+              style={{
+                color: BRAND.ink,
+                fontSize: 11,
+                marginTop: 4,
+                opacity: 0.5,
+              }}
+            >
+              GL revenue account for 24SevenOffice ledger posting
             </div>
           </div>
         </div>
@@ -3103,7 +3146,10 @@ function PreviewPane({
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Root editor manages all form state and wires step components; complexity is inherent to the design.
 export function ShopStudioEditor({
+  allowedDepartmentIds,
   campuses,
+  canChangeCampus = true,
+  defaultCampusId,
   departments,
   isNew,
   product,
@@ -3127,10 +3173,11 @@ export function ShopStudioEditor({
     product?.category ?? null
   );
   const [campusId, setCampusId] = useState(
-    product?.campus_id ?? campuses[0]?.$id ?? ""
+    product?.campus_id ?? defaultCampusId ?? campuses[0]?.$id ?? ""
   );
   const [departmentId, setDepartmentId] = useState<string | null>(
-    product?.departmentId ?? null
+    product?.departmentId ??
+      (allowedDepartmentIds?.length === 1 ? (allowedDepartmentIds[0] ?? null) : null)
   );
   const [shortDescription, setShortDescription] = useState(
     noTranslation?.short_description ?? ""
@@ -3173,6 +3220,9 @@ export function ShopStudioEditor({
   );
   const [linkedEventId, setLinkedEventId] = useState<string | null>(
     product?.linked_event_id ?? null
+  );
+  const [finagoAccountNumber, setFinagoAccountNumber] = useState<number | null>(
+    product?.finago_account_number ?? null
   );
   const [status, setStatus] = useState<
     "draft" | "pending_approval" | "published" | "archived"
@@ -3220,6 +3270,7 @@ export function ShopStudioEditor({
         | "grid",
       linked_event_id: linkedEventId,
       inventory_mode: inventoryMode as "tracked" | "unlimited",
+      finago_account_number: finagoAccountNumber,
     };
   }
 
@@ -3330,16 +3381,20 @@ export function ShopStudioEditor({
           <div style={{ maxWidth: 860, width: "100%" }}>
             {activeStep === 0 && (
               <EssentialsStep
+                allowedDepartmentIds={allowedDepartmentIds}
                 campuses={campuses}
                 campusId={campusId}
+                canChangeCampus={canChangeCampus}
                 category={category}
                 departmentId={departmentId}
                 departments={departments}
+                finagoAccountNumber={finagoAccountNumber}
                 lang={localeLang}
                 onLangChange={setLocaleLang}
                 setCampusId={setCampusId}
                 setCategory={setCategory}
                 setDepartmentId={setDepartmentId}
+                setFinagoAccountNumber={setFinagoAccountNumber}
                 setShortDescription={setShortDescription}
                 setSlug={setSlug}
                 setSlugEditing={setSlugEditing}

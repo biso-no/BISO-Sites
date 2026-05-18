@@ -151,7 +151,10 @@ interface DescriptionBlock {
 }
 
 interface EventStudioEditorProps {
+  allowedDepartmentIds?: string[];
   campuses: Campus[];
+  canChangeCampus?: boolean;
+  defaultCampusId?: string;
   event: EventRecord | null;
   initialDepartments: Departments[];
   isNew: boolean;
@@ -366,11 +369,12 @@ function getTranslation(event: EventRecord | null, locale: LocaleCode) {
 
 function buildDefaultValues(
   event: EventRecord | null,
-  campuses: Campus[]
+  campuses: Campus[],
+  defaultCampusId?: string
 ): EventUpsertInput {
   const en = getTranslation(event, "en");
   const no = getTranslation(event, "no");
-  const defaultCampusId = campuses[0]?.$id ?? "";
+  const effectiveCampusId = defaultCampusId ?? campuses[0]?.$id ?? "";
 
   return {
     title_en: fallback(en?.title, ""),
@@ -379,7 +383,7 @@ function buildDefaultValues(
     description_no: fallback(no?.description, ""),
     short_description_en: fallback(en?.short_description, null),
     short_description_no: fallback(no?.short_description, null),
-    campus_id: fallback(event?.campus_id, defaultCampusId),
+    campus_id: fallback(event?.campus_id, effectiveCampusId),
     department_id: fallback(event?.department_id, null),
     slug: fallback(event?.slug, ""),
     status: fallback(event?.status, EventStatus.DRAFT),
@@ -1495,7 +1499,9 @@ function aiButtonStyle(primary?: boolean): React.CSSProperties {
 /* -------------------------------------------------------------------------- */
 
 function EssentialsStep({
+  allowedDepartmentIds,
   campuses,
+  canChangeCampus,
   departments,
   initialDepartments,
   locale,
@@ -1505,7 +1511,9 @@ function EssentialsStep({
   translating,
   values,
 }: {
+  allowedDepartmentIds?: string[];
   campuses: Campus[];
+  canChangeCampus?: boolean;
   departments: Departments[];
   initialDepartments: Departments[];
   locale: LocaleCode;
@@ -1688,6 +1696,10 @@ function EssentialsStep({
           </FieldLabel>
           <DepartmentCombobox
             campusId={values.campus_id || null}
+            disabled={
+              allowedDepartmentIds !== undefined &&
+              allowedDepartmentIds.length <= 1
+            }
             initialDepartments={initialDepartments}
             onChange={(id) => set("department_id", id)}
             placeholder="Search departments…"
@@ -1700,6 +1712,7 @@ function EssentialsStep({
             <MapPin size={12} /> Campus
           </FieldLabel>
           <select
+            disabled={!canChangeCampus}
             onChange={(event) => set("campus_id", event.target.value)}
             style={fieldInputStyle()}
             value={values.campus_id}
@@ -4037,7 +4050,10 @@ function infoIcStyle(): React.CSSProperties {
 /* -------------------------------------------------------------------------- */
 
 export function EventStudioEditor({
+  allowedDepartmentIds,
   campuses,
+  canChangeCampus = true,
+  defaultCampusId,
   event,
   initialDepartments,
   isNew,
@@ -4047,9 +4063,13 @@ export function EventStudioEditor({
   const [step, setStep] = useState<StepIndex>(0);
   const [locale, setLocale] = useState<LocaleCode>("en");
   const [previewLocale, setPreviewLocale] = useState<LocaleCode>("en");
-  const [values, setValues] = useState<EventUpsertInput>(() =>
-    buildDefaultValues(event, campuses)
-  );
+  const [values, setValues] = useState<EventUpsertInput>(() => {
+    const defaults = buildDefaultValues(event, campuses, defaultCampusId);
+    if (!event && allowedDepartmentIds?.length === 1) {
+      defaults.department_id = allowedDepartmentIds[0] ?? null;
+    }
+    return defaults;
+  });
   const [dirty, setDirty] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -4338,7 +4358,9 @@ export function EventStudioEditor({
 
             {step === 0 && (
               <EssentialsStep
+                allowedDepartmentIds={allowedDepartmentIds}
                 campuses={campuses}
+                canChangeCampus={canChangeCampus}
                 departments={departments}
                 initialDepartments={initialDepartments}
                 locale={locale}

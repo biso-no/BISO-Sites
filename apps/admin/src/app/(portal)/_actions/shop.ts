@@ -63,6 +63,7 @@ function buildProductFields(data: ProductFormValues) {
     cover_pattern: data.cover_pattern ?? "dotted",
     linked_event_id: data.linked_event_id ?? null,
     inventory_mode: data.inventory_mode ?? "unlimited",
+    finago_account_number: data.finago_account_number ?? null,
   };
 }
 
