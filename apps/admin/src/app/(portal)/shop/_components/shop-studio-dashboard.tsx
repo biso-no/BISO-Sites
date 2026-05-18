@@ -7,6 +7,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import {
   ChevronRight,
+  Download,
   ExternalLink,
   Lock,
   Package,
@@ -1191,6 +1192,68 @@ function parseOrderItems(json: string | null): OrderLineItem[] {
   }
 }
 
+function exportOrdersCSV(orders: Orders[]) {
+  function esc(val: string | number | null | undefined): string {
+    if (val == null) return "";
+    const s = String(val);
+    return s.includes(",") || s.includes('"') || s.includes("\n")
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  }
+
+  const headers = [
+    "Order ID",
+    "Date",
+    "Buyer Name",
+    "Buyer Email",
+    "Buyer Phone",
+    "Items",
+    "Subtotal",
+    "Discount",
+    "Total",
+    "Currency",
+    "Status",
+    "Payment Provider",
+    "Member Discount %",
+    "Receipt URL",
+  ].join(",");
+
+  const rows = orders.map((o) => {
+    const items = parseOrderItems(o.items_json);
+    const itemsStr = items
+      .map(
+        (i) =>
+          `${i.name ?? i.product_name ?? "?"}${i.quantity ? ` x${i.quantity}` : ""}`
+      )
+      .join("; ");
+    return [
+      esc(o.$id),
+      esc(new Date(o.$createdAt).toISOString().slice(0, 10)),
+      esc(o.buyer_name),
+      esc(o.buyer_email),
+      esc(o.buyer_phone),
+      esc(itemsStr),
+      esc(o.subtotal),
+      esc(o.discount_total ?? 0),
+      esc(o.total),
+      esc(o.currency),
+      esc(o.status),
+      esc(o.payment_provider),
+      esc(o.member_discount_percent),
+      esc(o.payment_receipt_url ?? o.receipt_link),
+    ].join(",");
+  });
+
+  const csv = [headers, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function OrderRow({ order }: { order: Orders }) {
   const items = parseOrderItems(order.items_json);
   const firstItemName = items[0]?.name ?? items[0]?.product_name ?? "—";
@@ -1372,6 +1435,9 @@ export function ShopStudioDashboard({
   const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>("all");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [productFilter, setProductFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -1411,6 +1477,18 @@ export function ShopStudioDashboard({
     [initialOrders]
   );
 
+  const allProductNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const order of initialOrders) {
+      const items = parseOrderItems(order.items_json);
+      for (const item of items) {
+        const name = item.name ?? item.product_name;
+        if (name) names.add(name);
+      }
+    }
+    return Array.from(names).sort();
+  }, [initialOrders]);
+
   // ── Filtered lists ──────────────────────────────────────────────────────────
 
   const filteredProducts = useMemo(() => {
@@ -1437,21 +1515,30 @@ export function ShopStudioDashboard({
 
   const filteredOrders = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
+    const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
+    const toMs = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
     return initialOrders.filter((o) => {
-      const statusMatch = orderFilter === "all" || o.status === orderFilter;
-      if (!statusMatch) {
-        return false;
+      if (orderFilter !== "all" && o.status !== orderFilter) return false;
+      if (productFilter !== "all") {
+        const items = parseOrderItems(o.items_json);
+        const has = items.some(
+          (i) => (i.name ?? i.product_name) === productFilter
+        );
+        if (!has) return false;
       }
-      if (!q) {
-        return true;
+      if (fromMs !== null || toMs !== null) {
+        const ts = new Date(o.$createdAt).getTime();
+        if (fromMs !== null && ts < fromMs) return false;
+        if (toMs !== null && ts > toMs) return false;
       }
+      if (!q) return true;
       return (
         (o.buyer_name?.toLowerCase().includes(q) ?? false) ||
         (o.buyer_email?.toLowerCase().includes(q) ?? false) ||
         o.$id.toLowerCase().includes(q)
       );
     });
-  }, [orderFilter, initialOrders, searchQuery]);
+  }, [orderFilter, productFilter, dateFrom, dateTo, initialOrders, searchQuery]);
 
   // ── Delete handler ──────────────────────────────────────────────────────────
 
@@ -1836,6 +1923,129 @@ export function ShopStudioDashboard({
         </div>
       </div>
 
+      {/* ── Orders advanced filters ─────────────────────────────────────────── */}
+      {activeTab === "orders" && (
+        <div
+          style={{
+            alignItems: "center",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 16,
+          }}
+        >
+          {/* Product filter */}
+          <select
+            onChange={(e) => setProductFilter(e.target.value)}
+            style={{
+              background: "rgba(255,255,255,.85)",
+              border: `0.5px solid ${BRAND.rule2}`,
+              borderRadius: 8,
+              color: productFilter === "all" ? BRAND.ink3 : BRAND.ink,
+              cursor: "pointer",
+              fontSize: 12.5,
+              height: 32,
+              outline: "none",
+              padding: "0 28px 0 10px",
+            }}
+            value={productFilter}
+          >
+            <option value="all">All products</option>
+            {allProductNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          {/* Date from */}
+          <input
+            onChange={(e) => setDateFrom(e.target.value)}
+            style={{
+              background: "rgba(255,255,255,.85)",
+              border: `0.5px solid ${BRAND.rule2}`,
+              borderRadius: 8,
+              color: dateFrom ? BRAND.ink : BRAND.ink3,
+              fontSize: 12.5,
+              height: 32,
+              outline: "none",
+              padding: "0 10px",
+            }}
+            title="From date"
+            type="date"
+            value={dateFrom}
+          />
+
+          <span style={{ color: BRAND.ink4, fontSize: 11.5 }}>→</span>
+
+          {/* Date to */}
+          <input
+            onChange={(e) => setDateTo(e.target.value)}
+            style={{
+              background: "rgba(255,255,255,.85)",
+              border: `0.5px solid ${BRAND.rule2}`,
+              borderRadius: 8,
+              color: dateTo ? BRAND.ink : BRAND.ink3,
+              fontSize: 12.5,
+              height: 32,
+              outline: "none",
+              padding: "0 10px",
+            }}
+            title="To date"
+            type="date"
+            value={dateTo}
+          />
+
+          {/* Clear filters link */}
+          {(productFilter !== "all" || dateFrom || dateTo) && (
+            <button
+              onClick={() => {
+                setProductFilter("all");
+                setDateFrom("");
+                setDateTo("");
+              }}
+              style={{
+                background: "transparent",
+                border: 0,
+                color: BRAND.ink3,
+                cursor: "pointer",
+                fontSize: 12,
+                padding: "0 4px",
+                textDecoration: "underline",
+              }}
+              type="button"
+            >
+              Clear
+            </button>
+          )}
+
+          <div style={{ flex: 1 }} />
+
+          {/* Export CSV */}
+          <button
+            onClick={() => exportOrdersCSV(filteredOrders)}
+            style={{
+              alignItems: "center",
+              background: BRAND.paper2,
+              border: `0.5px solid ${BRAND.rule2}`,
+              borderRadius: 8,
+              color: BRAND.ink2,
+              cursor: "pointer",
+              display: "flex",
+              fontSize: 12.5,
+              fontWeight: 500,
+              gap: 6,
+              height: 32,
+              padding: "0 14px",
+            }}
+            type="button"
+          >
+            <Download size={13} />
+            Export CSV
+          </button>
+        </div>
+      )}
+
       {/* ── Table ──────────────────────────────────────────────────────────── */}
       {activeTab === "catalog" ? (
         <section style={{ display: "flex", flexDirection: "column" }}>
@@ -2032,8 +2242,8 @@ export function ShopStudioDashboard({
                   maxWidth: "44ch",
                 }}
               >
-                {searchQuery
-                  ? "Try adjusting your search or filter."
+                {searchQuery || productFilter !== "all" || dateFrom || dateTo
+                  ? "Try adjusting your search or filters."
                   : "Orders will appear here once customers start purchasing."}
               </p>
             </div>
