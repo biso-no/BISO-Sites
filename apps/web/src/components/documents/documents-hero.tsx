@@ -9,13 +9,17 @@ export function DocumentsHero() {
       {/* Floating orbs */}
       <motion.div
         animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.3, 0.2] }}
-        className="pointer-events-none absolute right-20 top-10 h-96 w-96 rounded-full"
+        className="pointer-events-none absolute top-10 right-20 h-96 w-96 rounded-full"
         style={{
           background: "#3DA9E0",
           filter: "blur(120px)",
           opacity: 0.2,
         }}
-        transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        transition={{
+          duration: 8,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
       />
       <motion.div
         animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0.25, 0.15] }}
@@ -25,7 +29,11 @@ export function DocumentsHero() {
           filter: "blur(100px)",
           opacity: 0.15,
         }}
-        transition={{ duration: 10, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        transition={{
+          duration: 10,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
       />
 
       <motion.div
@@ -43,19 +51,19 @@ export function DocumentsHero() {
           }}
         >
           <FileText className="h-4 w-4" style={{ color: "#3DA9E0" }} />
-          <span
-            className="text-sm tracking-wide"
-            style={{ color: "#3DA9E0" }}
-          >
+          <span className="text-sm tracking-wide" style={{ color: "#3DA9E0" }}>
             OFFICIAL DOCUMENTATION
           </span>
         </div>
 
-        <h1 className="mb-6 text-5xl font-bold tracking-tight text-white md:text-6xl">
+        <h1 className="mb-6 font-bold text-5xl text-white tracking-tight md:text-6xl">
           BISO Documents
         </h1>
 
-        <p className="text-xl leading-relaxed" style={{ color: "rgba(255,255,255,0.70)" }}>
+        <p
+          className="text-xl leading-relaxed"
+          style={{ color: "rgba(255,255,255,0.70)" }}
+        >
           Access important organizational documents, bylaws, and guidelines that
           govern the BI Student Organisation across all campuses.
         </p>

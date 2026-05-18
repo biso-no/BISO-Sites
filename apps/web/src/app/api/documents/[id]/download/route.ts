@@ -2,8 +2,8 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Documents } from "@repo/api/types/appwrite";
 import {
-  SharePointService,
   getSharePointConfig,
+  SharePointService,
 } from "@repo/connectors/sharepoint";
 import { type NextRequest, NextResponse } from "next/server";
 

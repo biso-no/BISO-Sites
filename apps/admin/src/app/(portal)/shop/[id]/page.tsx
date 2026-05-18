@@ -26,9 +26,15 @@ export default async function ShopEditorPage({ params }: Props) {
   const isCampusAdmin = ctx?.roles.includes("campusadmin") ?? false;
 
   const effectiveCampusId = (() => {
-    if (!ctx) return campuses[0]?.$id ?? "";
-    if (isGlobalAdmin) return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
-    if (isCampusAdmin) return ctx.managedCampusIds[0] ?? campuses[0]?.$id ?? "";
+    if (!ctx) {
+      return campuses[0]?.$id ?? "";
+    }
+    if (isGlobalAdmin) {
+      return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
+    }
+    if (isCampusAdmin) {
+      return ctx.managedCampusIds[0] ?? campuses[0]?.$id ?? "";
+    }
     return ctx.resolvedCampusIds[0] ?? campuses[0]?.$id ?? "";
   })();
 
@@ -47,7 +53,7 @@ export default async function ShopEditorPage({ params }: Props) {
     ? await listDepartmentsForCampus(campusIdForDepts)
     : [];
 
-  const isDepartmentUser = !isGlobalAdmin && !isCampusAdmin;
+  const isDepartmentUser = !(isGlobalAdmin || isCampusAdmin);
   const allowedDepartmentIds =
     isDepartmentUser && ctx?.departmentNames.length
       ? departments

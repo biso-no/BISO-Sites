@@ -1,6 +1,5 @@
 "use client";
 
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import {
   type EventCategory,
   formatEventPrice,
@@ -179,9 +179,7 @@ export function EventCard({
   const attendees = metadata.attendees || 0;
 
   // Get image URL
-  const imageUrl =
-    eventData?.image ||
-    PLACEHOLDER_IMAGE;
+  const imageUrl = eventData?.image || PLACEHOLDER_IMAGE;
 
   return (
     <motion.div

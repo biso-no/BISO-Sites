@@ -35,6 +35,8 @@ function getCrumbKeys(pathname: string) {
 export function AdminShell({ children, user, roles }: AdminShellProps) {
   const pathname = usePathname();
   const t = useTranslations("adminPortal.nav");
+  const tSidebar = useTranslations("adminPortal.sidebar");
+  const tAdmin = useTranslations("admin");
   const crumbs = getCrumbKeys(pathname);
 
   return (
@@ -58,7 +60,7 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
           }}
         >
           <Link
-            aria-label="Back"
+            aria-label={tSidebar("back")}
             className="grid h-8 w-8 place-items-center rounded-lg border md:hidden"
             href="/"
             style={{
@@ -118,7 +120,7 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
               className="min-w-0 flex-1 text-left"
               style={{ color: STUDIO.ink4 }}
             >
-              Search commands...
+              {tAdmin("commandMenuPlaceholder")}
             </span>
             <span
               className="rounded border px-1.5 py-0.5 font-mono text-[10px]"

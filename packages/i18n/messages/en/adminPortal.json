@@ -12,7 +12,17 @@
     "it": "IT",
     "settings": "Settings",
     "activity": "Activity",
-    "drafts": "Review Drafts"
+    "drafts": "Review Drafts",
+    "publishGroup": "Publish",
+    "operateGroup": "Operate"
+  },
+  "sidebar": {
+    "studioHint": "Studio hint",
+    "hintText": "Use search to jump between publishing workflows.",
+    "openCommandPalette": "Open command palette",
+    "allCampuses": "All Campuses",
+    "back": "Back",
+    "signOut": "Sign out"
   },
   "common": {
     "save": "Save",
@@ -205,7 +215,9 @@
     "viewAllActivity": "View all activity",
     "reviewDrafts": "Review Drafts",
     "createPage": "Create Page",
-    "noActivity": "No recent activity"
+    "noActivity": "No recent activity",
+    "studioLog": "Studio log",
+    "openWorkspace": "Open workspace"
   },
   "jobs": {
     "title": "Jobs",
@@ -690,5 +702,13 @@
     },
     "saveSuccess": "Settings saved",
     "saveError": "Failed to save settings"
+  },
+  "unauthorized": {
+    "tagline": "Access denied",
+    "title": "You must be signed in to view this page",
+    "description": "This area requires you to be authenticated. Sign in with your account to access the content.",
+    "signIn": "Sign in",
+    "goToFrontPage": "Go to front page",
+    "help": "Having trouble signing in? <link>Contact us</link> and we will help you."
   }
 }

@@ -1194,7 +1194,9 @@ function parseOrderItems(json: string | null): OrderLineItem[] {
 
 function exportOrdersCSV(orders: Orders[]) {
   function esc(val: string | number | null | undefined): string {
-    if (val == null) return "";
+    if (val == null) {
+      return "";
+    }
     const s = String(val);
     return s.includes(",") || s.includes('"') || s.includes("\n")
       ? `"${s.replace(/"/g, '""')}"`
@@ -1483,7 +1485,9 @@ export function ShopStudioDashboard({
       const items = parseOrderItems(order.items_json);
       for (const item of items) {
         const name = item.name ?? item.product_name;
-        if (name) names.add(name);
+        if (name) {
+          names.add(name);
+        }
       }
     }
     return Array.from(names).sort();
@@ -1518,27 +1522,44 @@ export function ShopStudioDashboard({
     const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
     const toMs = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
     return initialOrders.filter((o) => {
-      if (orderFilter !== "all" && o.status !== orderFilter) return false;
+      if (orderFilter !== "all" && o.status !== orderFilter) {
+        return false;
+      }
       if (productFilter !== "all") {
         const items = parseOrderItems(o.items_json);
         const has = items.some(
           (i) => (i.name ?? i.product_name) === productFilter
         );
-        if (!has) return false;
+        if (!has) {
+          return false;
+        }
       }
       if (fromMs !== null || toMs !== null) {
         const ts = new Date(o.$createdAt).getTime();
-        if (fromMs !== null && ts < fromMs) return false;
-        if (toMs !== null && ts > toMs) return false;
+        if (fromMs !== null && ts < fromMs) {
+          return false;
+        }
+        if (toMs !== null && ts > toMs) {
+          return false;
+        }
       }
-      if (!q) return true;
+      if (!q) {
+        return true;
+      }
       return (
         (o.buyer_name?.toLowerCase().includes(q) ?? false) ||
         (o.buyer_email?.toLowerCase().includes(q) ?? false) ||
         o.$id.toLowerCase().includes(q)
       );
     });
-  }, [orderFilter, productFilter, dateFrom, dateTo, initialOrders, searchQuery]);
+  }, [
+    orderFilter,
+    productFilter,
+    dateFrom,
+    dateTo,
+    initialOrders,
+    searchQuery,
+  ]);
 
   // ── Delete handler ──────────────────────────────────────────────────────────
 

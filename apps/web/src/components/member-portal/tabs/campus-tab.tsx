@@ -27,7 +27,9 @@ export function CampusTab() {
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
           <BookOpen className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">{t("localResources.title")}</h3>
+          <h3 className="mb-2 font-bold text-xl">
+            {t("localResources.title")}
+          </h3>
           <p className="text-muted-foreground text-sm">
             {t("localResources.description")}
           </p>
@@ -35,7 +37,9 @@ export function CampusTab() {
 
         <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
           <Users className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">{t("campusManagement.title")}</h3>
+          <h3 className="mb-2 font-bold text-xl">
+            {t("campusManagement.title")}
+          </h3>
           <p className="text-muted-foreground text-sm">
             {t("campusManagement.description")}
           </p>

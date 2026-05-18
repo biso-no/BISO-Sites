@@ -35,9 +35,9 @@ const NOK = new Intl.NumberFormat("nb-NO", {
 type PaymentProvider = "vipps" | "stripe";
 
 interface CheckoutPageClientProps {
-  isMember: boolean;
   initialEmail?: string;
   initialName?: string;
+  isMember: boolean;
 }
 
 const providerCopy: Record<

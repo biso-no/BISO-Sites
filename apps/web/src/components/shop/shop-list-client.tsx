@@ -14,9 +14,9 @@ import { useEffect, useState } from "react";
 import { listProducts } from "@/app/actions/webshop";
 import { useCampus } from "@/components/context/campus";
 import {
-  type ShopCategory,
-  SHOP_CATEGORIES,
   getInitialShopCategory,
+  SHOP_CATEGORIES,
+  type ShopCategory,
 } from "@/lib/member-portal-utils";
 import { ProductCard } from "./product-card";
 

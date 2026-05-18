@@ -2,8 +2,11 @@ import { Button } from "@repo/ui/components/ui/button";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, Home, SearchX } from "lucide-react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getTranslations("common.notFound");
+
   return (
     <main
       className={cn(
@@ -16,7 +19,7 @@ export default function NotFound() {
       <div className="relative z-10 flex flex-col items-center gap-8 px-6 text-center">
         <div className="flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.2em]">
           <SearchX className="h-4 w-4" />
-          <span>Siden finnes ikke</span>
+          <span>{t("tagline")}</span>
         </div>
 
         <div className="space-y-4">
@@ -24,11 +27,10 @@ export default function NotFound() {
             404
           </p>
           <h1 className="max-w-xl font-semibold text-4xl text-white leading-tight md:text-5xl">
-            Vi fant ikke siden du lette etter.
+            {t("title")}
           </h1>
           <p className="max-w-2xl text-base text-white/80 md:text-lg">
-            Kanskje ble innholdet flyttet, eller kanskje det er skrevet feil
-            adresse. La oss hjelpe deg tilbake til noe relevant.
+            {t("description")}
           </p>
         </div>
 
@@ -40,7 +42,7 @@ export default function NotFound() {
           >
             <Link href="/">
               <Home className="mr-2 h-5 w-5" />
-              Gå til forsiden
+              {t("cta.goToFrontPage")}
             </Link>
           </Button>
           <Button
@@ -51,21 +53,24 @@ export default function NotFound() {
           >
             <Link href="/campus">
               <ArrowLeft className="mr-2 h-5 w-5" />
-              Tilbake til campus-oversikten
+              {t("cta.goToCampus")}
             </Link>
           </Button>
         </div>
 
         <div className="rounded-3xl border border-white/15 bg-white/10 px-6 py-4 text-sm text-white/80 shadow-lg">
           <p>
-            Trenger du hjelp? Kontakt oss på{" "}
-            <a
-              className="font-semibold underline-offset-4 hover:underline"
-              href="mailto:contact@biso.no"
-            >
-              contact@biso.no
-            </a>{" "}
-            så følger vi deg opp.
+            {t.rich("cta.needAssistance", {
+              email: "contact@biso.no",
+              link: (chunks) => (
+                <a
+                  className="font-semibold underline-offset-4 hover:underline"
+                  href="mailto:contact@biso.no"
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         </div>
       </div>

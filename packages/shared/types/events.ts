@@ -1,14 +1,11 @@
 import {
-  type ContentTranslations,
-  type Campus,
-  type Departments,
-  type Events,
   EventCategory,
   EventCoverPattern,
   EventLocationMode,
   EventPricingMode,
   EventPublishMode,
   EventStatus,
+  type Events,
 } from "@repo/api/types/appwrite";
 import { z } from "zod";
 
@@ -41,10 +38,10 @@ const nullableDateString = z.preprocess(
 
 export interface EventTranslation {
   $id: string;
-  locale: string;
-  title: string;
   description: string | null;
+  locale: string;
   short_description?: string | null;
+  title: string;
 }
 
 export interface EventCampusRef {
@@ -54,11 +51,12 @@ export interface EventCampusRef {
 
 export interface EventDepartmentRef {
   $id: string;
-  Name: string;
   logo: string | null;
+  Name: string;
 }
 
-export interface EventRecord extends Omit<Events, "campus" | "department" | "translation_refs"> {
+export interface EventRecord
+  extends Omit<Events, "campus" | "department" | "translation_refs"> {
   campus: EventCampusRef;
   department: EventDepartmentRef | null;
   translation_refs: EventTranslation[];
@@ -84,12 +82,16 @@ export const eventUpsertSchema = z.object({
   start_date: nullableDateString,
   end_date: nullableDateString,
   registration_deadline: nullableDateString,
-  location_mode: z.nativeEnum(EventLocationMode).default(EventLocationMode.PHYSICAL),
+  location_mode: z
+    .nativeEnum(EventLocationMode)
+    .default(EventLocationMode.PHYSICAL),
   location: nullableTrimmedString(300),
   online_url: nullableTrimmedString(500),
   capacity: z.coerce.number().int().min(0).default(0),
   waitlist: z.boolean().default(false),
-  cover_pattern: z.nativeEnum(EventCoverPattern).default(EventCoverPattern.DOTTED),
+  cover_pattern: z
+    .nativeEnum(EventCoverPattern)
+    .default(EventCoverPattern.DOTTED),
   image: z.string().url().nullable().optional().or(z.literal("")),
   pricing_mode: z.nativeEnum(EventPricingMode).default(EventPricingMode.FREE),
   price: z.coerce.number().min(0).nullable().optional(),
@@ -103,7 +105,9 @@ export const eventUpsertSchema = z.object({
   contact_name: nullableTrimmedString(120),
   contact_role: nullableTrimmedString(120),
   contact_email: z.preprocess((value) => {
-    if (typeof value !== "string") return value;
+    if (typeof value !== "string") {
+      return value;
+    }
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
   }, z.email().nullable().optional()),

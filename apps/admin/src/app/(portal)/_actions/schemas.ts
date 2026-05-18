@@ -87,7 +87,12 @@ export const productSchema = z.object({
   linked_event_id: z.string().optional().nullable(),
   inventory_mode: z.enum(["tracked", "unlimited"]).default("unlimited"),
   short_description: z.string().optional().nullable(),
-  finago_account_number: z.coerce.number().int().positive().optional().nullable(),
+  finago_account_number: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .nullable(),
 });
 const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;

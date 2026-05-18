@@ -234,5 +234,33 @@
     },
     "emptyContent": "Ingen innhold for denne fanen",
     "missingRoleContent": "Ingen spesifikt innhold for denne rollen"
+  },
+  "auth": {
+    "welcomeBack": "Velkommen tilbake",
+    "signInSubtitle": "Logg inn på BISO-kontoen din",
+    "emailLabel": "E-postadresse",
+    "sendLoginLink": "Send innloggingslenke",
+    "sending": "Sender...",
+    "or": "Eller",
+    "signInWithBISO": "Logg inn med BISO-konto",
+    "noAccount": "Har du ikke en konto ennå?",
+    "contactForAccess": "Kontakt oss for tilgang",
+    "privacyNoticeBefore": "Ved å logge inn godtar du vår",
+    "privacyPolicy": "Personvernerklæring",
+    "privacyNoticeAfter": "og samtykker til behandling av dine personopplysninger som beskrevet der. Vi overholder GDPR-regelverket og du kan administrere dine datapreferanser og be om sletting av data fra profilinnstillingene dine.",
+    "copyright": "Alle rettigheter forbeholdt.",
+    "errors": {
+      "usePersonalEmail": "Vennligst bruk din personlige e-postadresse.",
+      "enterEmail": "Vennligst skriv inn e-postadressen din.",
+      "sendFailed": "Kunne ikke sende innloggingslenke. Prøv igjen."
+    },
+    "success": {
+      "linkSent": "Innloggingslenke sendt! Sjekk e-posten din."
+    }
+  },
+  "roles": {
+    "globalAdmin": "Global administrator",
+    "campusAdmin": "Campusadministrator",
+    "member": "Medlem"
   }
 }

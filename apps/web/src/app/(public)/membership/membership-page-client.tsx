@@ -1,7 +1,6 @@
 "use client";
 
 import type { Locale } from "@repo/i18n/config";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import {
   Accordion,
@@ -36,6 +35,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { CampusData } from "@/lib/types/campus-data";
 
 type BenefitKey = keyof Pick<

@@ -1,6 +1,5 @@
 "use client";
 
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -9,6 +8,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import { ArrowRight, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface ArticleCardProps {
   article: News;
@@ -61,9 +61,7 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
   const title = translation?.title ?? "Untitled";
   const description = translation?.description ?? "";
   const categoryColor = categoryColors.default;
-  const imageUrl =
-    article.image ||
-    PLACEHOLDER_IMAGE;
+  const imageUrl = article.image || PLACEHOLDER_IMAGE;
   const articleLink = `/news/${article.$id}`;
   const relativeTime = getRelativeTime(article.$createdAt);
 

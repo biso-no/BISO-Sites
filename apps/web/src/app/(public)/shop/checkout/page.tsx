@@ -30,9 +30,9 @@ export default async function CheckoutPage() {
         title="Checkout"
       />
       <CheckoutPageClient
-        isMember={isMember}
         initialEmail={user?.email ?? undefined}
         initialName={profile?.name ?? undefined}
+        isMember={isMember}
       />
     </div>
   );

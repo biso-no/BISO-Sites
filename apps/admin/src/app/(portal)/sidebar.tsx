@@ -146,6 +146,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("adminPortal.nav");
+  const tSidebar = useTranslations("adminPortal.sidebar");
 
   const visibleItems = NAV_ITEMS.filter((item) =>
     hasNavAccess(item.navKey, roles.roles, roles.hasDepartmentMembership)
@@ -193,7 +194,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
 
   let currentCampus: string;
   if (roles.isGlobalAdmin) {
-    currentCampus = roles.activeCampus ?? "All Campuses";
+    currentCampus = roles.activeCampus ?? tSidebar("allCampuses");
   } else if (roles.isCampusAdmin) {
     currentCampus = roles.managedCampuses[0] ?? "";
   } else {
@@ -235,7 +236,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
           </span>
         </Link>
         <button
-          aria-label="Open command palette"
+          aria-label={tSidebar("openCommandPalette")}
           className="flex items-center gap-1 rounded-md border px-1.5 py-1 font-mono text-[10px] transition hover:bg-white/80"
           onClick={() => window.dispatchEvent(new Event("admin:open-palette"))}
           style={{
@@ -257,7 +258,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
       />
 
       <nav className="min-h-0 flex-1 overflow-y-auto">
-        <NavGroup title="Publish">
+        <NavGroup title={t("publishGroup")}>
           {publishItems.map((item) => (
             <SidebarLink
               active={isActive(item.path)}
@@ -277,7 +278,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
           )}
         </NavGroup>
 
-        <NavGroup title="Operate">
+        <NavGroup title={t("operateGroup")}>
           {operateItems.map((item) => (
             <SidebarLink
               active={isActive(item.path)}
@@ -319,13 +320,13 @@ export function Sidebar({ user, roles }: SidebarProps) {
             style={{ color: STUDIO.ink3 }}
           >
             <Sparkles size={12} />
-            Studio hint
+            {tSidebar("studioHint")}
           </p>
           <p
             className="mt-1 text-lg leading-5"
             style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
           >
-            Use search to jump between publishing workflows.
+            {tSidebar("hintText")}
           </p>
         </div>
 
@@ -355,7 +356,7 @@ export function Sidebar({ user, roles }: SidebarProps) {
             </p>
           </div>
           <button
-            aria-label="Sign out"
+            aria-label={tSidebar("signOut")}
             className="rounded-md p-1.5 transition hover:bg-white/60"
             onClick={handleSignOut}
             style={{ color: STUDIO.ink3 }}

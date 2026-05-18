@@ -12,6 +12,7 @@ import {
 } from "@repo/api/types/appwrite";
 
 const EVENTS_PUSH_TOPIC_ID = "events";
+
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";

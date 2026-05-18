@@ -28,9 +28,15 @@ export default async function NewsEditorPage({ params }: Props) {
   const isCampusAdmin = ctx?.roles.includes("campusadmin") ?? false;
 
   const effectiveCampusId = (() => {
-    if (!ctx) return campuses[0]?.$id ?? "";
-    if (isGlobalAdmin) return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
-    if (isCampusAdmin) return ctx.managedCampusIds[0] ?? campuses[0]?.$id ?? "";
+    if (!ctx) {
+      return campuses[0]?.$id ?? "";
+    }
+    if (isGlobalAdmin) {
+      return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
+    }
+    if (isCampusAdmin) {
+      return ctx.managedCampusIds[0] ?? campuses[0]?.$id ?? "";
+    }
     return ctx.resolvedCampusIds[0] ?? campuses[0]?.$id ?? "";
   })();
 

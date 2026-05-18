@@ -1,5 +1,4 @@
 "use client";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type {
   ContentTranslations,
   Events,
@@ -21,6 +20,7 @@ import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 /**
  * Drop-in robust ImageWithFallback that does NOT force 100x100.
@@ -105,10 +105,7 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
           priority={index === 0}
           quality={85}
           sizes="100vw"
-          src={
-            imageUrl ||
-            PLACEHOLDER_IMAGE
-          }
+          src={imageUrl || PLACEHOLDER_IMAGE}
         />
         <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
         <div className="absolute inset-0 bg-linear-to-t from-brand-overlay-from/70 via-transparent to-transparent" />

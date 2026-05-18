@@ -18,7 +18,10 @@ const CATEGORY_CONFIG: Record<
   string,
   {
     label: string;
-    icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+    icon: React.ComponentType<{
+      className?: string;
+      style?: React.CSSProperties;
+    }>;
     gradient: string;
   }
 > = {
@@ -50,9 +53,15 @@ const CATEGORY_CONFIG: Record<
 };
 
 function formatBytes(bytes: number | null): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (!bytes) {
+    return "";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -107,14 +116,14 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex flex-wrap items-start gap-3">
               <h3
-                className="text-xl font-semibold transition-colors duration-300"
+                className="font-semibold text-xl transition-colors duration-300"
                 style={{ color: isHovered ? "#3DA9E0" : "#fff" }}
               >
                 {doc.title}
               </h3>
               {doc.scope === "campus" && doc.campus_id && (
                 <span
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-medium text-xs"
                   style={{
                     background: "rgba(61,169,224,0.15)",
                     border: "1px solid rgba(61,169,224,0.30)",
@@ -150,7 +159,13 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
               ) : null}
               <span>{config?.label ?? doc.category}</span>
               <span>·</span>
-              <span>Updated {new Date(doc.$updatedAt).toLocaleDateString("en-GB", { year: "numeric", month: "long" })}</span>
+              <span>
+                Updated{" "}
+                {new Date(doc.$updatedAt).toLocaleDateString("en-GB", {
+                  year: "numeric",
+                  month: "long",
+                })}
+              </span>
             </div>
           </div>
 

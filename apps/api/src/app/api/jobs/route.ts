@@ -25,12 +25,18 @@ export async function POST(req: NextRequest) {
     };
 
     const url = new URL(WP_JOBS_URL);
-    if (campusId) url.searchParams.set("campus_id", String(campusId));
+    if (campusId) {
+      url.searchParams.set("campus_id", String(campusId));
+    }
     url.searchParams.set("per_page", String(per_page));
     url.searchParams.set("page", String(page));
     url.searchParams.set("include_expired", includeExpired ? "true" : "false");
-    if (departmentId) url.searchParams.set("department_id", departmentId);
-    if (verv) url.searchParams.set("verv", verv);
+    if (departmentId) {
+      url.searchParams.set("department_id", departmentId);
+    }
+    if (verv) {
+      url.searchParams.set("verv", verv);
+    }
 
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json", "User-Agent": "BisoApp/1.0" },
@@ -39,7 +45,10 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: `WordPress error: ${response.status}`, code: "UPSTREAM_ERROR" },
+        {
+          error: `WordPress error: ${response.status}`,
+          code: "UPSTREAM_ERROR",
+        },
         { status: 502 }
       );
     }

@@ -12,7 +12,17 @@
     "it": "IT",
     "settings": "Innstillinger",
     "activity": "Aktivitet",
-    "drafts": "Gjennomgå utkast"
+    "drafts": "Gjennomgå utkast",
+    "publishGroup": "Publiser",
+    "operateGroup": "Administrer"
+  },
+  "sidebar": {
+    "studioHint": "Studiohint",
+    "hintText": "Bruk søk for å hoppe mellom publiseringsarbeidsflyter.",
+    "openCommandPalette": "Åpne kommandopaletten",
+    "allCampuses": "Alle campuser",
+    "back": "Tilbake",
+    "signOut": "Logg ut"
   },
   "common": {
     "save": "Lagre",
@@ -205,7 +215,9 @@
     "viewAllActivity": "Se all aktivitet",
     "reviewDrafts": "Gjennomgå utkast",
     "createPage": "Opprett side",
-    "noActivity": "Ingen nylig aktivitet"
+    "noActivity": "Ingen nylig aktivitet",
+    "studioLog": "Studiologg",
+    "openWorkspace": "Åpne arbeidsområde"
   },
   "jobs": {
     "title": "Stillinger",
@@ -690,5 +702,13 @@
     },
     "saveSuccess": "Innstillinger lagret",
     "saveError": "Kunne ikke lagre innstillinger"
+  },
+  "unauthorized": {
+    "tagline": "Tilgang nektet",
+    "title": "Du må være logget inn for å se denne siden",
+    "description": "Dette området krever at du er autentisert. Logg inn med din konto for å få tilgang til innholdet.",
+    "signIn": "Logg inn",
+    "goToFrontPage": "Gå til forsiden",
+    "help": "Har du problemer med å logge inn? <link>Kontakt oss</link> så hjelper vi deg."
   }
 }

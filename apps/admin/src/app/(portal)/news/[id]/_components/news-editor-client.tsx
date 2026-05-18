@@ -114,7 +114,8 @@ export function NewsEditorClient({
     defaultValues: {
       title: translation?.title ?? "",
       description: translation?.description ?? null,
-      campus_id: article?.campus_id ?? defaultCampusId ?? campuses[0]?.$id ?? "",
+      campus_id:
+        article?.campus_id ?? defaultCampusId ?? campuses[0]?.$id ?? "",
       department_id: article?.department_id ?? null,
       slug: article?.slug ?? "",
       status: (article?.status as NewsFormValues["status"]) ?? "draft",

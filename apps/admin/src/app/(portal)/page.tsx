@@ -107,7 +107,7 @@ export default async function AdminPortalDashboard() {
         <StudioKpiStrip>
           {statCards.map((card) => (
             <StudioKpi
-              helper="Open workspace"
+              helper={t("openWorkspace")}
               icon={<card.icon size={13} />}
               key={card.href}
               label={card.label}
@@ -141,7 +141,7 @@ export default async function AdminPortalDashboard() {
               style={{ color: STUDIO.claret }}
             >
               <Sparkles size={12} />
-              Studio log
+              {t("studioLog")}
             </p>
             <h2
               className="mt-1 text-3xl"

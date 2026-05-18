@@ -3177,7 +3177,9 @@ export function ShopStudioEditor({
   );
   const [departmentId, setDepartmentId] = useState<string | null>(
     product?.departmentId ??
-      (allowedDepartmentIds?.length === 1 ? (allowedDepartmentIds[0] ?? null) : null)
+      (allowedDepartmentIds?.length === 1
+        ? (allowedDepartmentIds[0] ?? null)
+        : null)
   );
   const [shortDescription, setShortDescription] = useState(
     noTranslation?.short_description ?? ""

@@ -21,7 +21,9 @@ async function ProductDetails({ slug }: { slug: string }) {
 
   const [{ isMember }, sessionResult] = await Promise.all([
     getMembershipStatus(),
-    createSessionClient().then(({ account }) => account.get().catch(() => null)),
+    createSessionClient().then(({ account }) =>
+      account.get().catch(() => null)
+    ),
   ]);
 
   return (

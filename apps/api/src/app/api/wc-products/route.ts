@@ -21,16 +21,23 @@ export async function POST(req: NextRequest) {
   const key = process.env.WC_CONSUMER_KEY;
   const secret = process.env.WC_CONSUMER_SECRET;
 
-  if (!key || !secret) {
+  if (!(key && secret)) {
     return NextResponse.json(
-      { error: "WooCommerce credentials not configured", code: "MISSING_CREDENTIALS" },
+      {
+        error: "WooCommerce credentials not configured",
+        code: "MISSING_CREDENTIALS",
+      },
       { status: 500 }
     );
   }
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { campus, perPage = 20, page = 1 } = body as {
+    const {
+      campus,
+      perPage = 20,
+      page = 1,
+    } = body as {
       campus?: string;
       departmentId?: string;
       perPage?: number;
@@ -41,7 +48,9 @@ export async function POST(req: NextRequest) {
     url.searchParams.set("per_page", String(perPage));
     url.searchParams.set("page", String(page));
     url.searchParams.set("status", "publish");
-    if (campus) url.searchParams.set("tag", getTagSlug(campus));
+    if (campus) {
+      url.searchParams.set("tag", getTagSlug(campus));
+    }
 
     const credentials = Buffer.from(`${key}:${secret}`).toString("base64");
 
@@ -56,7 +65,10 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: `WooCommerce error: ${response.status}`, code: "UPSTREAM_ERROR" },
+        {
+          error: `WooCommerce error: ${response.status}`,
+          code: "UPSTREAM_ERROR",
+        },
         { status: 502 }
       );
     }

@@ -122,8 +122,8 @@ export async function MemberPortalContent({
           isGuest={!user}
           isMember={isMember}
           membershipType={membershipType}
-          profileAccount={user?.user ?? null}
           profile={profile || user?.profile || null}
+          profileAccount={user?.user ?? null}
           publicProfile={publicProfile}
           revealedBenefits={revealedBenefits}
           startDate={startDate}

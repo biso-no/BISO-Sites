@@ -27,8 +27,8 @@ interface MemberPortalTabsProps {
   isGuest: boolean;
   isMember: boolean;
   membershipType: string;
-  profileAccount: Models.User<Models.Preferences> | null;
   profile: Users | null;
+  profileAccount: Models.User<Models.Preferences> | null;
   publicProfile: PublicProfiles | null;
   revealedBenefits: Set<string>;
   startDate: string;

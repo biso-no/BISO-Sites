@@ -76,7 +76,7 @@ export async function postShopTransaction(
     process.env.TFSO_VIPPS_RECEIVABLE_ACCOUNT
   );
 
-  if (!transactionTypeNumber || !vippsReceivableAccount) {
+  if (!(transactionTypeNumber && vippsReceivableAccount)) {
     throw new Error(
       "[Finago] TFSO_SHOP_TRANSACTION_TYPE_NUMBER and TFSO_VIPPS_RECEIVABLE_ACCOUNT must be set"
     );
@@ -104,7 +104,7 @@ export async function postShopTransaction(
   for (const item of params.items) {
     if (!item.finago_account_number) {
       console.warn(
-        `[Finago] Item has no finago_account_number, skipping revenue line`
+        "[Finago] Item has no finago_account_number, skipping revenue line"
       );
       continue;
     }

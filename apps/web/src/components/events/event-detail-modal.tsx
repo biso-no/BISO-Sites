@@ -1,6 +1,5 @@
 "use client";
 
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import {
   type EventCategory,
   formatEventPrice,
@@ -148,9 +148,7 @@ export function EventDetailModal({
   const agenda = metadata.agenda || [];
 
   // Get image URL
-  const imageUrl =
-    eventData?.image ||
-    PLACEHOLDER_IMAGE;
+  const imageUrl = eventData?.image || PLACEHOLDER_IMAGE;
 
   return (
     <AnimatePresence>

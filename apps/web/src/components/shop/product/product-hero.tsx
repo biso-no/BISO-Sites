@@ -1,4 +1,3 @@
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -7,6 +6,7 @@ import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { ArrowLeft, Tag, Users } from "lucide-react";
 import Link from "next/link";
+import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import {
   calculateSavings,
   formatPrice,
@@ -50,9 +50,7 @@ export function ProductHero({ product, isMember }: ProductHeroProps) {
     productRef?.member_price
   );
 
-  const imageUrl =
-    productRef?.image ||
-    PLACEHOLDER_IMAGE;
+  const imageUrl = productRef?.image || PLACEHOLDER_IMAGE;
 
   return (
     <div className="relative h-[60vh] overflow-hidden">
